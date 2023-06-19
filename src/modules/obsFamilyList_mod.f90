@@ -56,7 +56,7 @@ module obsFamilyList_mod
       implicit none
 
       ! Arguments:
-      character(len=*) :: familyName
+      character(len=*), intent(in) :: familyName
       ! Result:
       logical          :: familyFound
 

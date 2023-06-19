@@ -346,13 +346,13 @@ contains
     !
     implicit none
 
-    ! arguments:
-    type (struct_obs) :: obsSpaceData  ! the data in observation space
-    real(8), intent(in) :: n_pmax(:)   ! pressure levels that separate vertical layers for the thinning
-    integer, intent(in) :: n_target    ! maximum desired amount of data per 3-D box
-    character(len=2) :: cfam           ! family type
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsSpaceData  ! the data in observation space
+    real(8),           intent(in)    :: n_pmax(:)   ! pressure levels that separate vertical layers for the thinning
+    integer,           intent(in)    :: n_target    ! maximum desired amount of data per 3-D box
+    character(len=2),  intent(in)    :: cfam        ! family type
 
-    ! locals:
+    ! Locals:
     type(struct_reg) :: lsc
     integer :: idist, n_count_thin, iai, iseed(4)
     integer :: nobs_count, nobs_count_mpiGlobal, nobs_count_thin, nobs_count_thin_mpiGlobal

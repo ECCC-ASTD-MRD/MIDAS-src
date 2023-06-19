@@ -86,7 +86,7 @@ contains
     type(struct_vco),pointer,   intent(inout) :: vco          ! Vertical coordinate object 
     character(len=*),           intent(in)    :: templatefile ! Template file
     character(len=*), optional, intent(in)    :: etiket_opt   ! Optional argument etiket
-    logical, optional,          intent(in)    :: beSilent_opt ! Optional argument beSilent
+    logical,          optional, intent(in)    :: beSilent_opt ! Optional argument beSilent
 
     ! Locals:
     logical           :: beSilent
@@ -620,8 +620,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(in)  :: vco         ! Vertical coordinate object
-    character(len=*),          intent(in)  :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SS' or 'OT'
+    type(struct_vco), pointer,  intent(in) :: vco         ! Vertical coordinate object
+    character(len=*),           intent(in) :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SS' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
     ! Result:
     integer :: nlev
@@ -1022,10 +1022,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(in) :: vco1       ! vertical coordinate object one
-    type(struct_vco), pointer, intent(in) :: vco2       ! vertical coordinate object two
-    integer, intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
-    integer, intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
+    type(struct_vco), pointer, intent(in)  :: vco1                        ! vertical coordinate object one
+    type(struct_vco), pointer, intent(in)  :: vco2                        ! vertical coordinate object two
+    integer,                   intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
+    integer,                   intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
 
     ! Locals:
     integer :: levIndex1, levIndex2

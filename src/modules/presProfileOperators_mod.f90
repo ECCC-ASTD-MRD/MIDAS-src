@@ -197,18 +197,18 @@ module presProfileOperators_mod
     ! 
     implicit none
 
-    ! Arguments:    
-    integer, intent(in) :: numInputLevs  ! # of original/input vertical levels
-    integer, intent(in) :: numTargetLevs ! # of target vertical levels
-    real(8), intent(in) :: pressInput(numInputLevs)  ! pressure on reference column levels assumed to be in ascending order
-    real(8), intent(in) :: pressTarget(numTargetLevs) ! target pressure levels assumed to be in ascending order
-    character(len=*), intent(in), optional :: method_opt   ! Specified interpolation method
-    character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target levels depending on case
-    integer, intent(inout), optional :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside model vertical range (0 for no)
-    logical, intent(inout), optional :: success_opt(numTargetLevs)  ! success of interpolation
-    real(8), intent(out) :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
-    integer, intent(out) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
-    integer, intent(out) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
+    ! Arguments:
+    integer,                    intent(in)    :: numInputLevs  ! # of original/input vertical levels
+    integer,                    intent(in)    :: numTargetLevs ! # of target vertical levels
+    real(8),                    intent(in)    :: pressInput(numInputLevs)   ! pressure on reference column levels assumed in ascending order
+    real(8),                    intent(in)    :: pressTarget(numTargetLevs) ! target pressure levels assumed to be in ascending order
+    character(len=*), optional, intent(in)    :: method_opt   ! Specified interpolation method
+    character(len=*), optional, intent(in)    :: skipType_opt ! Skipping processing of specific target levels depending on case
+    integer,          optional, intent(inout) :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside model vertical range (0 for no)
+    logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
+    real(8),                    intent(out)   :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
+    integer,                    intent(out)   :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
+    integer,                    intent(out)   :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
 
     ! Locals:
     integer :: TargetIndex 
@@ -313,13 +313,13 @@ module presProfileOperators_mod
     implicit none
 
     ! Arguments:
-    real(8) ,intent(in)  :: pvi(kni)     ! Vertical levels, pressure (source)
-    integer ,intent(in)  :: kni          ! Number of input levels (source)
-    integer ,intent(in)  :: kno          ! Number of output levels (destination)
-    real(8) ,intent(in)  :: pvo(kno)     ! Vertical levels, pressure (destination)
-    real(8) ,intent(out) :: wgts(kno,2)  ! Interpolation weights (destination)
-    integer, intent(out) :: kstart(kno)  ! Index i of pvlev level associated to pvo(j,1); pvo(j,2) is for pvlev level i+1
-    logical, intent(out), optional :: validLevel_opt(kno)
+    real(8),           intent(in)  :: pvi(kni)     ! Vertical levels, pressure (source)
+    integer,           intent(in)  :: kni          ! Number of input levels (source)
+    integer,           intent(in)  :: kno          ! Number of output levels (destination)
+    real(8),           intent(in)  :: pvo(kno)     ! Vertical levels, pressure (destination)
+    real(8),           intent(out) :: wgts(kno,2)  ! Interpolation weights (destination)
+    integer,           intent(out) :: kstart(kno)  ! Index i of pvlev level associated to pvo(j,1); pvo(j,2) is for pvlev level i+1
+    logical, optional, intent(out) :: validLevel_opt(kno)
     
     ! Locals:
     integer :: pviIndex, pvoIndex, ik
@@ -479,21 +479,18 @@ module presProfileOperators_mod
     implicit none
      
     ! Arguments:
-    integer, intent(in)   :: KN1          ! Dimension of PX1
-    integer, intent(in)   :: KN2          ! Dimension of other arrays
-    real(8), intent(in)   :: PX1(KN1)     ! Levels of output domain (e.g. lnP; in increasing values)
-    real(8), intent(in)   :: PX2(KN2)     ! Levels of input domain (e.g. lnP; in increasing values)
-    real(8), intent(out)  :: PZ(KN1,KN2)  ! Resultant accumulated weighting factors for interp from input to output domain
-    integer, intent(out)  :: KSTART(KN1)  ! Start index for relevant PZ row
-    integer, intent(out)  :: KEND(KN1)    ! End index of relevant PZ row
-    real(8), intent(in), optional   :: PZS1_opt(KN1) ! dPX1/dv or perturbation dPX1/dv * delta(v) where PX1(v), e.g. v=Ps    
-    real(8), intent(in), optional   :: PZS2_opt(KN2) ! dPX2/dv or perturbation dPX2/dv * delta(v) where PX2(v), e.g. v=Ps
-    real(8), intent(out), optional  :: PZDPS_opt(KN1,KN2) ! dF/dv or perturbations (dF/dv)*(v-vo): 
-    !                                                     ! Resultant accumulated factors for the
-    !                                                     ! gradients w.r.t. v (or perturbations)
-    !                                                     ! associated to coordinates
-    logical, intent(in), optional   :: RTTOV_OPT  ! Commented out use of 'zb' when .true. for consistency with RTTOV-9
-    logical, intent(in), optional   :: validLevel_opt(kn1) ! Logical indicating validity of each output level
+    integer,           intent(in)  :: KN1          ! Dimension of PX1
+    integer,           intent(in)  :: KN2          ! Dimension of other arrays
+    real(8),           intent(in)  :: PX1(KN1)     ! Levels of output domain (e.g. lnP; in increasing values)
+    real(8),           intent(in)  :: PX2(KN2)     ! Levels of input domain (e.g. lnP; in increasing values)
+    real(8),           intent(out) :: PZ(KN1,KN2)  ! Resultant accumulated weighting factors for interp from input to output domain
+    integer,           intent(out) :: KSTART(KN1)  ! Start index for relevant PZ row
+    integer,           intent(out) :: KEND(KN1)    ! End index of relevant PZ row
+    real(8), optional, intent(in)  :: PZS1_opt(KN1) ! dPX1/dv or perturbation dPX1/dv * delta(v) where PX1(v), e.g. v=Ps    
+    real(8), optional, intent(in)  :: PZS2_opt(KN2) ! dPX2/dv or perturbation dPX2/dv * delta(v) where PX2(v), e.g. v=Ps
+    real(8), optional, intent(out) :: PZDPS_opt(KN1,KN2) ! dF/dv or perturbations (dF/dv)*(v-vo): Resultant accumulated factors for the gradients w.r.t. v (or perturbations) associated to coordinates
+    logical, optional, intent(in)  :: RTTOV_OPT  ! Commented out use of 'zb' when .true. for consistency with RTTOV-9
+    logical, optional, intent(in)  :: validLevel_opt(kn1) ! Logical indicating validity of each output level
                   
     ! Locals:                
     logical  :: LGRADP,lgradp1,lgradp2,validLevel(kn1)
@@ -948,38 +945,24 @@ module presProfileOperators_mod
     implicit none
 
     ! Arguments:                           
-    logical, intent(in) :: LGRADPz ! Outpout domain logical indicating if gradient w.r.t. vertical coordinate 
-                                   ! independent variable if required
-				   ! i.e. d/dv where P(v) (e.g. v=Ps).
-                                   ! True for yes.
-    logical, intent(in) :: LGRADPx ! Input domain logical indicating if gradient w.r.t. vertical coordinate 
-                                   ! independent variable if required
-				   ! i.e. d/dv where P(v) (e.g. v=Ps).
-                                   ! True for yes.
-    real(8), intent(in)  :: z1   ! Upper level of output domain half-layer (z1<z2)
-    real(8), intent(in)  :: z2   ! Lower level of output domain half-layer
-    real(8), intent(in)  :: x1   ! Upper boundary of input layer (x1<x2)
-    real(8), intent(in)  :: x2   ! Lower boundary of input layer
-    real(8), intent(in)  :: wgt1 ! Weight at z1 (0.0 or 1.0 or ...)
-    real(8), intent(in)  :: wgt2 ! Weight at z2 (1.0 or 0.0 or ...)
-    real(8), intent(in)  :: pzs1 ! dz1/dvz or perturbation dz1/dvz * delta(vz)
-    real(8), intent(in)  :: pzs2 ! dz2/dvz or perturbation dz2/dvz * delta(vz)
-    real(8), intent(in)  :: pxs1 ! dx1/dvx or perturbation dx1/dvx * delta(vx)
-                                 ! (required when LGRADPx=.true.)
-    real(8), intent(in)  :: pxs2 ! dx2/dvx or perturbation dx2/dvx * delta(vx)
-    real(8), intent(in)  :: dxd  ! 1.0/(x2-x1)=1.0/dx
-    real(8), intent(in)  :: dzd  ! 1.0/(z2-z1)=1.0/dz
-    real(8), intent(inout) :: w1 ! Starting (in) and updated (out) weight 
-    !                            ! assigned to variable at upper level x1
-    real(8), intent(inout) :: w2 ! Starting (in) and updated (out) weight 
-    !                            ! assigned to variable at upper level x2
-    real(8), intent(inout) :: wps1 ! Starting (in) and updated (out) value of
-    !                              ! (pxs1*dw1/dx1 + pxs2*dw1/dx2
-    !                              ! +pzs1*dw1/dz1 + pzs2*dw1/dz2)
-    real(8), intent(inout) :: wps2 ! Starting (in) and updated (out) value of
-    !                              ! pxs1*dw2/dx1 + pxs2*dw2/dx2
-    !                              ! +pzs1*dw2/dz1 + pzs2*dw2/dz2)
-    !                              ! (required when LGRADP*=.true.)
+    logical, intent(in)    :: LGRADPz ! Output domain logical indicating if gradient w.r.t. vertical coordinate independent variable if required i.e. d/dv where P(v) (e.g. v=Ps).
+    logical, intent(in)    :: LGRADPx ! Input domain logical indicating if gradient w.r.t. vertical coordinate independent variable if required i.e. d/dv where P(v) (e.g. v=Ps).
+    real(8), intent(in)    :: z1   ! Upper level of output domain half-layer (z1<z2)
+    real(8), intent(in)    :: z2   ! Lower level of output domain half-layer
+    real(8), intent(in)    :: x1   ! Upper boundary of input layer (x1<x2)
+    real(8), intent(in)    :: x2   ! Lower boundary of input layer
+    real(8), intent(in)    :: wgt1 ! Weight at z1 (0.0 or 1.0 or ...)
+    real(8), intent(in)    :: wgt2 ! Weight at z2 (1.0 or 0.0 or ...)
+    real(8), intent(in)    :: pzs1 ! dz1/dvz or perturbation dz1/dvz * delta(vz)
+    real(8), intent(in)    :: pzs2 ! dz2/dvz or perturbation dz2/dvz * delta(vz)
+    real(8), intent(in)    :: pxs1 ! dx1/dvx or perturbation dx1/dvx * delta(vx) (required when LGRADPx=.true.)
+    real(8), intent(in)    :: pxs2 ! dx2/dvx or perturbation dx2/dvx * delta(vx)
+    real(8), intent(in)    :: dxd  ! 1.0/(x2-x1)=1.0/dx
+    real(8), intent(in)    :: dzd  ! 1.0/(z2-z1)=1.0/dz
+    real(8), intent(inout) :: w1 ! Starting (in) and updated (out) weight assigned to variable at upper level x1
+    real(8), intent(inout) :: w2 ! Starting (in) and updated (out) weight assigned to variable at upper level x2
+    real(8), intent(inout) :: wps1 ! Starting (in) and updated (out) value of (pxs1*dw1/dx1 + pxs2*dw1/dx2 +pzs1*dw1/dz1 + pzs2*dw1/dz2)
+    real(8), intent(inout) :: wps2 ! Starting (in) and updated (out) value of pxs1*dw2/dx1 + pxs2*dw2/dx2 +pzs1*dw2/dz1 + pzs2*dw2/dz2) (required when LGRADP*=.true.)
      
     ! Locals:           
     real(8) :: y1  ! Upper boundary of integral range (y1<y2)
@@ -1328,8 +1311,8 @@ module presProfileOperators_mod
 
     ! Arguments:
     character(len=*), intent(in) :: operatorType       ! 'integ' for integration; 'avg' for averaging
-    integer, intent(in)    :: numInputLevs             ! # of model vertical levels
-    real(8), intent(in)    :: pressInput(numInputLevs) ! Reference input levels
+    integer,          intent(in) :: numInputLevs             ! # of model vertical levels
+    real(8),          intent(in) :: pressInput(numInputLevs) ! Reference input levels
 
     ! Locals:
     integer   :: levelIndex
@@ -1461,18 +1444,18 @@ module presProfileOperators_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: numInputLevs  ! # of original/input vertical levels
-    integer, intent(in) :: numTargetLevs ! # of target vertical levels
-    real(8), intent(in) :: targetLayersTop(numTargetLevs) ! top of target layers
-    real(8), intent(in) :: targetLayersBot(numTargetLevs) ! bottom of target layers
-    real(8), intent(out) :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
-    integer, intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
-    integer, intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
-    character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target layers depending on case
-    logical, intent(in), optional  :: dealloc_opt ! Logical indicating if deallocation is desired when done
-    real(8), intent(out), optional :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
-    integer, intent(inout), optional :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside input vertical range (0 for no)
-    logical, intent(inout), optional :: success_opt(numTargetLevs)  ! success of interpolation
+    integer,                    intent(in)    :: numInputLevs  ! # of original/input vertical levels
+    integer,                    intent(in)    :: numTargetLevs ! # of target vertical levels
+    real(8),                    intent(in)    :: targetLayersTop(numTargetLevs) ! top of target layers
+    real(8),                    intent(in)    :: targetLayersBot(numTargetLevs) ! bottom of target layers
+    real(8),                    intent(out)   :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
+    integer,                    intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
+    integer,                    intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
+    character(len=*), optional, intent(in)    :: skipType_opt ! Skipping processing of specific target layers depending on case
+    logical,          optional, intent(in)    :: dealloc_opt ! Logical indicating if deallocation is desired when done
+    real(8),          optional, intent(out)   :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
+    integer,          optional, intent(inout) :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside input vertical range (0 for no)
+    logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
     integer :: TargetIndex   
@@ -1698,10 +1681,10 @@ module presProfileOperators_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: numBoundaries  ! Number of layer boundaries       
-    real(8), intent(in) :: level          ! Target layer index      
-    real(8), intent(in) :: layerBoundaryLevels(numBoundaries) ! Layer boundaries
-    character(len=*), intent(in) :: topbtm      ! indicating whether we are looking for top or bottom level
+    integer,          intent(in) :: numBoundaries  ! Number of layer boundaries       
+    real(8),          intent(in) :: level          ! Target layer index      
+    real(8),          intent(in) :: layerBoundaryLevels(numBoundaries) ! Layer boundaries
+    character(len=*), intent(in) :: topbtm         ! indicating whether we are looking for top or bottom level
 
     ! Locals
     integer     :: ilev1, ilev2
@@ -1789,18 +1772,18 @@ module presProfileOperators_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: numInputLevs  ! # of original/input vertical levels
-    integer, intent(in) :: numTargetLevs ! # of target vertical levels
-    real(8), intent(in) :: targetLayersTop(numTargetLevs) ! top of target layers
-    real(8), intent(in) :: targetLayersBot(numTargetLevs) ! bottom of target layers
-    real(8), intent(out)   :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
-    integer, intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
-    integer, intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
-    character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target layers depending on case
-    logical, intent(in), optional  :: dealloc_opt ! Logical indicating if deallocation is desired when done
-    real(8), intent(out), optional :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
-    integer, intent(inout), optional :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside input vertical range (0 for no)
-    logical, intent(inout), optional :: success_opt(numTargetLevs)  ! success of interpolation
+    integer,                    intent(in)    :: numInputLevs  ! # of original/input vertical levels
+    integer,                    intent(in)    :: numTargetLevs ! # of target vertical levels
+    real(8),                    intent(in)    :: targetLayersTop(numTargetLevs) ! top of target layers
+    real(8),                    intent(in)    :: targetLayersBot(numTargetLevs) ! bottom of target layers
+    real(8),                    intent(out)   :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
+    integer,                    intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
+    integer,                    intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
+    character(len=*), optional, intent(in)    :: skipType_opt ! Skipping processing of specific target layers depending on case
+    logical,          optional, intent(in)    :: dealloc_opt ! Logical indicating if deallocation is desired when done
+    real(8),          optional, intent(out)   :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
+    integer,          optional, intent(inout) :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside input vertical range (0 for no)
+    logical,          optional, intent(inout) :: success_opt(numTargetLevs)  ! success of interpolation
 
     ! Locals:
     integer :: TargetIndex   

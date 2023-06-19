@@ -141,19 +141,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: tb23                    ! radiance frequence 23 Ghz   
-    real(8), intent(out) :: tb31                    ! radiance frequence 31 Ghz
-    real(8), intent(out) :: tb50                    ! radiance frequence 50 Ghz  
-    real(8), intent(out) :: tb53                    ! radiance frequence 53 Ghz  
-    real(8), intent(out) :: tb89                    ! radiance frequence 89 Ghz  
-    real(8), intent(out) :: tb23FG                  ! radiance frequence 23 Ghz   
-    real(8), intent(out) :: tb31FG                  ! radiance frequence 31 Ghz
-    real(8), intent(out) :: tb50FG                  ! radiance frequence 50 Ghz  
-    real(8), intent(out) :: tb53FG                  ! radiance frequence 53 Ghz  
-    real(8), intent(out) :: tb89FG                  ! radiance frequence 89 Ghz        
+    real(8),          intent(out)   :: tb23                    ! radiance frequence 23 Ghz   
+    real(8),          intent(out)   :: tb31                    ! radiance frequence 31 Ghz
+    real(8),          intent(out)   :: tb50                    ! radiance frequence 50 Ghz  
+    real(8),          intent(out)   :: tb53                    ! radiance frequence 53 Ghz  
+    real(8),          intent(out)   :: tb89                    ! radiance frequence 89 Ghz  
+    real(8),          intent(out)   :: tb23FG                  ! radiance frequence 23 Ghz   
+    real(8),          intent(out)   :: tb31FG                  ! radiance frequence 31 Ghz
+    real(8),          intent(out)   :: tb50FG                  ! radiance frequence 50 Ghz  
+    real(8),          intent(out)   :: tb53FG                  ! radiance frequence 53 Ghz  
+    real(8),          intent(out)   :: tb89FG                  ! radiance frequence 89 Ghz        
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
-    integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
@@ -231,18 +231,18 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: tb89                    ! 89GHz radiance from observation
-    real(8), intent(out) :: tb150                   ! 150GHz radiance from observation
-    real(8), intent(out) :: tb1831                  ! 183GHz radiance from observation
-    real(8), intent(out) :: tb1832                  ! 183GHz radiance from observation
-    real(8), intent(out) :: tb1833                  ! 183GHz radiance from observation
-    real(8), intent(out) :: tb89FG                  ! 89GHz radiance from background
-    real(8), intent(out) :: tb150FG                 ! 150GHz radiance from background
-    real(8), intent(out) :: tb89FgClear             ! 89GHz clear-sky radiance from background
-    real(8), intent(out) :: tb150FgClear            ! 150GHz clear-sky radiance from background
+    real(8),          intent(out)   :: tb89                    ! 89GHz radiance from observation
+    real(8),          intent(out)   :: tb150                   ! 150GHz radiance from observation
+    real(8),          intent(out)   :: tb1831                  ! 183GHz radiance from observation
+    real(8),          intent(out)   :: tb1832                  ! 183GHz radiance from observation
+    real(8),          intent(out)   :: tb1833                  ! 183GHz radiance from observation
+    real(8),          intent(out)   :: tb89FG                  ! 89GHz radiance from background
+    real(8),          intent(out)   :: tb150FG                 ! 150GHz radiance from background
+    real(8),          intent(out)   :: tb89FgClear             ! 89GHz clear-sky radiance from background
+    real(8),          intent(out)   :: tb150FgClear            ! 150GHz clear-sky radiance from background
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
-    integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, codtyp
@@ -322,14 +322,14 @@ contains
     !:Purpose: test 10: RTTOV reject check (single).
     !          Rejected datum flag has bit #9 on.
     !
-
     implicit none
+
     ! Arguments:
-    integer,             intent(in) :: sensorIndex    ! numero de satellite (i.e. indice) 
-    logical,             intent(in) :: RESETQC        ! yes or not reset QC flag
+    integer,          intent(in)    :: sensorIndex    ! numero de satellite (i.e. indice) 
+    logical,          intent(in)    :: RESETQC        ! yes or not reset QC flag
     integer,          intent(inout) :: qcIndicator(:) ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
-    integer,             intent(in) :: headerIndex    ! current header Index 
+    integer,          intent(in)    :: headerIndex    ! current header Index 
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -380,16 +380,16 @@ contains
     !          Channel 6 is rejected for topography >  250m.
     !          Channel 7 is rejected for topography > 2000m.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice) 
-    integer,          intent(in) :: channelForTopoFilter(:) ! channel list for filter
-    real(8),          intent(in) :: altitudeForTopoFilter(:)! altitude threshold
-    real(8),          intent(in) :: modelInterpTerrain      ! topo aux point d'obs
-    integer,       intent(inout) :: qcIndicator(:)          ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex             ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: channelForTopoFilter(:) ! channel list for filter
+    real(8),          intent(in)    :: altitudeForTopoFilter(:)! altitude threshold
+    real(8),          intent(in)    :: modelInterpTerrain      ! topo aux point d'obs
+    integer,          intent(inout) :: qcIndicator(:)          ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,             intent(in) :: headerIndex          ! current header Index 
+    integer,          intent(in)    :: headerIndex          ! current header Index 
 
     ! Locals:
     integer :: numFilteringTest, indexFilteringTest, testIndex
@@ -449,13 +449,13 @@ contains
     !:Purpose: test 2: "Land/sea qualifier" code check (full)
     !          allowed values are: 0 land, 1 sea, 2 coast.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,      intent(inout)  :: qcIndicator(:)  ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
+    integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -501,8 +501,8 @@ contains
     !:Purpose: test 3: "Terrain type" code check (full)
     !          allowed values are: -1 missing, 0 sea-ice, 1 snow on land.
     !
-
     implicit none
+
     ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
@@ -557,14 +557,14 @@ contains
     !:Purpose: test 4: Field of view number check (full)
     !          Field of view acceptable range is [1,maxScanAngleAMSU] for AMSU footprints.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex      ! numero de satellite (i.e. indice) 
-    integer,          intent(in) :: maxScanAngleAMSU ! max scan angle 
-    integer,       intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,             intent(in) :: headerIndex   ! current header Index 
+    integer,          intent(in)    :: sensorIndex      ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: maxScanAngleAMSU ! max scan angle 
+    integer,          intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,          intent(in)    :: headerIndex      ! current header Index 
 
     ! Locals:
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -609,13 +609,13 @@ contains
     !:Purpose: test 5: Satellite zenith angle check (full)
     !          Satellite zenith angle acceptable range is [0.,60.].
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
+    integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -667,15 +667,15 @@ contains
     !          Acceptable difference between "Satellite zenith angle"  and
     !          "approximate angle computed from field of view number" is 1.8 degrees.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex      ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: ZANGL            ! satellite constant param
-    integer,          intent(in) :: maxScanAngleAMSU ! max scan angle 
-    integer,       intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,             intent(in) :: headerIndex   ! current header Index 
+    integer,          intent(in)    :: sensorIndex      ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: ZANGL            ! satellite constant param
+    integer,          intent(in)    :: maxScanAngleAMSU ! max scan angle 
+    integer,          intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,          intent(in)    :: headerIndex      ! current header Index 
 
     ! Locals:
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -733,14 +733,14 @@ contains
     !            - both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     !          All other conditions are unacceptable.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: modelInterpLandFrac ! model interpolated land fraction
-    integer,       intent(inout) :: qcIndicator(:)      ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
-    integer,             intent(in) :: headerIndex      ! current header Index 
+    integer,          intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: modelInterpLandFrac ! model interpolated land fraction
+    integer,          intent(inout) :: qcIndicator(:)      ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData        ! obspaceData Object
+    integer,          intent(in)    :: headerIndex         ! current header Index 
 
     ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -789,14 +789,14 @@ contains
     !:Purpose: test 9: Uncorrected Tb check (single).
     !          Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    logical,          intent(in) :: RESETQC         ! yes or not reset QC flag
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    logical,          intent(in)    :: RESETQC         ! yes or not reset QC flag
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
+    integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -845,15 +845,15 @@ contains
     !:Purpose: test 11: Radiance observation "Gross" check (single). 
     !          Change this test from full to single. jh nov 2000.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: GROSSMIN(:)     ! Gross val min 
-    real(8),          intent(in) :: GROSSMAX(:)     ! Gross val max 
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: GROSSMIN(:)     ! Gross val min 
+    real(8),          intent(in)    :: GROSSMAX(:)     ! Gross val max 
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
+    integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
     integer :: testIndex, GROSSERROR, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -910,14 +910,14 @@ contains
     !
     !          For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in) :: ICLWREJ(:)      ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: ICLWREJ(:)      ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1032,18 +1032,17 @@ contains
     !          are sensitive to the surface.
     !          Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5 over land and ice
     !
-
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: tb1831             ! tb for channel  
-    real(8),          intent(in) :: tb1833             ! tb for channel  
-    real(8),          intent(in) :: modelInterpSeaIce  ! topo interpolated to obs point
-    integer,       intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
-    integer,             intent(in) :: headerIndex     ! current header Index
-    logical, intent(in), optional:: skipTestArr_opt(:) ! array to set to skip the test
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    real(8),           intent(in)    :: tb1831             ! tb for channel  
+    real(8),           intent(in)    :: tb1833             ! tb for channel  
+    real(8),           intent(in)    :: modelInterpSeaIce  ! topo interpolated to obs point
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1137,14 +1136,14 @@ contains
     !
     !          For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in) :: ISCATREJ(:)     ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: ISCATREJ(:)     ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1208,17 +1207,17 @@ contains
     !            - > 15 sea,
     !            - > 0 land reject all AMSUB Channels
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: scatIndexOverLandObs          ! scattering index over land
-    real(8),          intent(in) :: modelInterpSeaIce             ! glace de mer
-    integer,       intent(inout) :: qcIndicator(:)                ! indicateur du QC par canal
-    integer,          intent(in) :: chanIgnoreInAllskyGenCoeff(:) ! channels to exclude from genCoeff
-    type(struct_obs), intent(inout) :: obsSpaceData               ! obspaceData Object
-    integer,             intent(in) :: headerIndex                ! current header Index
-    logical, intent(in), optional:: skipTestArr_opt(:)            ! array to set to skip the test
+    integer,           intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
+    real(8),           intent(in)    :: scatIndexOverLandObs          ! scattering index over land
+    real(8),           intent(in)    :: modelInterpSeaIce             ! glace de mer
+    integer,           intent(inout) :: qcIndicator(:)                ! indicateur du QC par canal
+    integer,           intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! channels to exclude from genCoeff
+    type(struct_obs),  intent(inout) :: obsSpaceData                  ! obspaceData Object
+    integer,           intent(in)    :: headerIndex                   ! current header Index
+    logical, optional, intent(in)    :: skipTestArr_opt(:)            ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, chanIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1379,15 +1378,15 @@ contains
     !          N.B.: a reject by any of the 3 surface channels produces the 
     !          rejection of AMSUA-A channels 1-5 and 15.
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor 
-    integer,          intent(in) :: ISFCREJ(:)      ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor 
+    integer,          intent(in)    :: ISFCREJ(:)      ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
@@ -1494,17 +1493,16 @@ contains
     !:Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range. (single)
     !          Also, remove CH2,3,4,5 if CH2 |O-P|>5K (partial)
     !
-
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: ROGUEFAC(:)        ! rogue factor 
-    integer,          intent(in) :: ICH2OMPREJ(:)      ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
-    integer,             intent(in) :: headerIndex     ! current header Index
-    logical,intent(in), optional :: skipTestArr_opt(:) ! array to set to skip the test
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
+    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1646,15 +1644,15 @@ contains
     !          1-3, 15 over land or sea-ice REGARDLESS of oer_tovutil value 
     !          (but oer_tovutil=0 always for these unassimilated channels).
     !
-
     implicit none
+
     ! Arguments:
-    integer,          intent(in) :: sensorIndex       ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: modelInterpSeaIce ! gl
-    integer,          intent(in) :: ISFCREJ2(:)       ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)    ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex       ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: modelInterpSeaIce ! gl
+    integer,          intent(in)    :: ISFCREJ2(:)       ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)    ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
-    integer,             intent(in) :: headerIndex    ! current header Index 
+    integer,          intent(in)    :: headerIndex    ! current header Index 
 
     ! Locals:
     integer :: testIndex, ITRN, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1736,10 +1734,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1845,19 +1843,19 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsSpaceData        ! obspaceData Object
-    integer,              intent(in) :: headerIndex         ! current header Index 
-    integer,              intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),              intent(in) :: modelInterpLandFrac ! masque terre/mer du modele
-    real(8),              intent(in) :: modelInterpTerrain  ! topographie du modele
-    real(8),              intent(in) :: modelInterpSeaIce   ! etendue de glace du modele
-    logical,              intent(in) :: RESETQC             ! reset du controle de qualite?
-    integer, allocatable, intent(out):: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
-    !locals
+    type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
+    integer,              intent(in)    :: headerIndex         ! current header Index 
+    integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
+    real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
+    real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
+    logical,              intent(in)    :: RESETQC             ! reset du controle de qualite?
+    integer, allocatable, intent(out)   :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
+
+    ! Locals:
     integer, parameter :: maxScanAngleAMSU = 30 
     real(8), parameter :: cloudyClwThreshold = 0.3d0
     real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
-    
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
     integer :: ICLWREJ(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
@@ -2072,15 +2070,16 @@ contains
     implicit none 
 
     ! Arguments:
-    type(struct_obs),   intent(inout) :: obsSpaceData        ! obspaceData Object
-    integer,               intent(in) :: headerIndex         ! current header Index 
-    integer,               intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),               intent(in) :: modelInterpLandFrac ! masque terre/mer du modele
-    real(8),               intent(in) :: modelInterpTerrain  ! topographie du modele
-    real(8),               intent(in) :: modelInterpSeaIce   ! etendue de glace du modele
-    logical,               intent(in) :: RESETQC             ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
-    !locals
+    type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
+    integer,              intent(in)    :: headerIndex         ! current header Index 
+    integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
+    real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
+    real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
+    logical,              intent(in)    :: RESETQC             ! reset du controle de qualite?
+    integer, allocatable, intent(out)   :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
+
+    ! Locals:
     integer, parameter  :: maxScanAngleAMSU = 90 
     real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
@@ -2469,10 +2468,10 @@ contains
     implicit none
 
     ! Arguments:
-    logical,             intent(in) :: RESETQC      ! reset the quality control flags before adding the new ones ?
-    integer,             intent(in) :: KCHKPRF      ! indicateur global controle de qualite tovs. Code:
+    logical,          intent(in)    :: RESETQC      ! reset the quality control flags before adding the new ones ?
+    integer,          intent(in)    :: KCHKPRF      ! indicateur global controle de qualite tovs. Code:
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header index
+    integer,          intent(in)    :: headerIndex  ! current header index
 
     ! Locals:
     integer :: obsGlobalMarker
@@ -2501,9 +2500,9 @@ contains
     implicit none 
     
     ! Arguments:
-    real(8),    intent(in) :: modelInterpSeaIce      ! sea ice
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,             intent(in) :: headerIndex   ! current header Index 
+    real(8),          intent(in)    :: modelInterpSeaIce ! sea ice
+    type(struct_obs), intent(inout) :: obsSpaceData      ! obspaceData Object
+    integer,          intent(in)    :: headerIndex       ! current header Index 
 
     ! Locals: 
     integer :: landQualifierIndice, terrainTypeIndice
@@ -2552,20 +2551,20 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),  intent(in) :: tb23                    ! 23Ghz brightness temperature (K)
-    real(8),  intent(in) :: tb31                    ! 31Ghz brightness temperature (K)
-    real(8),  intent(in) :: tb50                    ! 50Ghz brightness temperature (K)
-    real(8),  intent(in) :: tb53                    ! 53Ghz brightness temperature (K)
-    real(8),  intent(in) :: tb89                    ! 89Ghz brightness temperature (K)
-    real(8),  intent(in) :: tb23FG                  ! 23Ghz brightness temperature from background (K)
-    real(8),  intent(in) :: tb31FG                  ! 31Ghz brightness temperature from background (K)
-    real(8), intent(out) :: ice                     ! sea ice concentration (0-100%)
-    real(8), intent(out) :: tpw                     ! total precipitable water (0-70mm)
-    integer, intent(out) :: rain                    ! rain identification (0=no rain; 1=rain)
-    integer, intent(out) :: snow                    ! snow cover and glacial ice identification: 0=no snow; 1=snow; 2=glacial ice
-    real(8), intent(out) :: scatIndexOverLandObs    ! scattering index over land
+    real(8),          intent(in)    :: tb23                 ! 23Ghz brightness temperature (K)
+    real(8),          intent(in)    :: tb31                 ! 31Ghz brightness temperature (K)
+    real(8),          intent(in)    :: tb50                 ! 50Ghz brightness temperature (K)
+    real(8),          intent(in)    :: tb53                 ! 53Ghz brightness temperature (K)
+    real(8),          intent(in)    :: tb89                 ! 89Ghz brightness temperature (K)
+    real(8),          intent(in)    :: tb23FG               ! 23Ghz brightness temperature from background (K)
+    real(8),          intent(in)    :: tb31FG               ! 31Ghz brightness temperature from background (K)
+    real(8),          intent(out)   :: ice                  ! sea ice concentration (0-100%)
+    real(8),          intent(out)   :: tpw                  ! total precipitable water (0-70mm)
+    integer,          intent(out)   :: rain                 ! rain identification (0=no rain; 1=rain)
+    integer,          intent(out)   :: snow                 ! snow cover and glacial ice id: 0=no snow; 1=snow; 2=glacial ice
+    real(8),          intent(out)   :: scatIndexOverLandObs ! scattering index over land
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     real(8) :: df1, df2, df3, a, b, c, d, e23
@@ -2814,15 +2813,15 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),  intent(in) :: tb89                    ! 89Ghz AMSU-B brightness temperature (K)
-    real(8),  intent(in) :: tb150                   ! 150Ghz AMSU-B brightness temperature (K)
-    real(8),  intent(in) :: tb89FG                  ! 89Ghz AMSU-B brightness temperature from background (K)
-    real(8),  intent(in) :: tb150FG                 ! 150Ghz AMSU-B brightness temperature from background (K)
-    real(8),  intent(in) :: tb89FgClear             ! 89Ghz clear-sky brightness temperature from background (K)
-    real(8),  intent(in) :: tb150FgClear            ! 150Ghz clear-sky brightness temperature from background (K)
-    real(8), intent(out) :: scatIndexOverLandObs    ! scattering index over land
+    real(8),          intent(in)    :: tb89                 ! 89Ghz AMSU-B brightness temperature (K)
+    real(8),          intent(in)    :: tb150                ! 150Ghz AMSU-B brightness temperature (K)
+    real(8),          intent(in)    :: tb89FG               ! 89Ghz AMSU-B brightness temperature from background (K)
+    real(8),          intent(in)    :: tb150FG              ! 150Ghz AMSU-B brightness temperature from background (K)
+    real(8),          intent(in)    :: tb89FgClear          ! 89Ghz clear-sky brightness temperature from background (K)
+    real(8),          intent(in)    :: tb150FgClear         ! 150Ghz clear-sky brightness temperature from background (K)
+    real(8),          intent(out)   :: scatIndexOverLandObs ! scattering index over land
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index
+    integer,          intent(in)    :: headerIndex  ! current header Index
 
     ! Locals:
     integer :: landQualifierIndice, ier
@@ -2909,12 +2908,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)        ! test number
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(in)    :: itest(:)        ! test number
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd
@@ -2966,15 +2965,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)           ! test number
-    integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: modelInterpTerrain ! topo aux point d'obs
-    integer,          intent(in) :: ICHTOPO(:)         ! rejection channel list
-    real(8),          intent(in) :: ZCRIT(:)           ! criteria for topo check
-    integer,       intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
-    integer,       intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    integer,          intent(in)    :: itest(:)           ! test number
+    integer,          intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: modelInterpTerrain ! topo aux point d'obs
+    integer,          intent(in)    :: ICHTOPO(:)         ! rejection channel list
+    real(8),          intent(in)    :: ZCRIT(:)           ! criteria for topo check
+    integer,          intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    integer,          intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
-    integer,             intent(in) :: headerIndex     ! current header Index 
+    integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXTOPO, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3034,13 +3033,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)        ! test number
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    logical,          intent(in) :: RESETQC         ! resetqc logical
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
+    integer,          intent(in)    :: itest(:)        ! test number
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    logical,          intent(in)    :: RESETQC         ! resetqc logical
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3103,16 +3102,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)        ! test number
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor 
-    logical,          intent(in) :: waterobs        ! open water obs
-    integer,          intent(in) :: ISFCREJ(:)      ! rejection surface channel list
-    integer,          intent(in) :: ICH2OMPREJ(:)   ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
+    integer,          intent(in)    :: itest(:)        ! test number
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
+    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor 
+    logical,          intent(in)    :: waterobs        ! open water obs
+    integer,          intent(in)    :: ISFCREJ(:)      ! rejection surface channel list
+    integer,          intent(in)    :: ICH2OMPREJ(:)   ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index
+    integer,          intent(in)    :: headerIndex  ! current header Index
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3272,15 +3271,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)        ! test number
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
-    real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor
-    logical,          intent(in) :: waterobs        ! open water obs
-    integer,          intent(in) :: ICH2OMPREJ(:)   ! rejection channel list
-    integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
+    integer,          intent(in)    :: itest(:)        ! test number
+    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice)
+    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor
+    logical,          intent(in)    :: waterobs        ! open water obs
+    integer,          intent(in)    :: ICH2OMPREJ(:)   ! rejection channel list
+    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
+    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3404,10 +3403,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: itest(:)        ! test number
-    integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
+    integer,          intent(in)    :: itest(:)     ! test number
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3451,16 +3450,17 @@ contains
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
-
     implicit none
+
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
-    integer,          intent(in) :: headerIndex         ! current header Index 
-    integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),          intent(in) :: modelInterpTerrain  ! topographie du modele
-    logical,          intent(in) :: RESETQC             ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
-    !locals
+    type(struct_obs),     intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,              intent(in)    :: headerIndex        ! current header Index 
+    integer,              intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
+    real(8),              intent(in)    :: modelInterpTerrain ! topographie du modele
+    logical,              intent(in)    :: RESETQC            ! reset du controle de qualite?
+    integer, allocatable, intent(out)   :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
+
+    ! Locals:
     integer, parameter :: maxScanAngleAMSU = 96
     integer, parameter :: ilsmOpt = 1    ! OPTION for values of MG (land/sea mask) and LG (ice) 
                                          !  at each observation point using values on 5x5 mesh 
@@ -3722,18 +3722,19 @@ contains
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
-
     implicit none
+
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
-    integer,          intent(in) :: headerIndex         ! current header Index 
-    integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),          intent(in) :: modelInterpTerrain  ! topographie du modele as being over land/ice, cloudy, bad IWV
-    logical,          intent(in) :: RESETQC             ! reset du controle de qualite?
-    logical,          intent(in) :: modLSQ              ! If active, recalculate values for land/sea  qualifier and terrain type based on LG/MG
-    logical,          intent(in) :: lastHeader          ! active if last header
-    integer,allocatable, intent(out) :: qcIndicator(:)  ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
-    !locals
+    type(struct_obs),      intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,               intent(in)    :: headerIndex        ! current header Index 
+    integer,               intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
+    real(8),               intent(in)    :: modelInterpTerrain ! topographie du modele as being over land/ice, cloudy, bad IWV
+    logical,               intent(in)    :: RESETQC            ! reset du controle de qualite?
+    logical,               intent(in)    :: modLSQ             ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
+    logical,               intent(in)    :: lastHeader         ! active if last header
+    integer, allocatable,  intent(out)   :: qcIndicator(:)  ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
+
+    ! Locals:
     integer, parameter :: maxScanAngleAMSU = 98
     integer, parameter :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice) 
                                         !   at each observation point using values on 5x5 mesh 
@@ -4001,12 +4002,12 @@ contains
     implicit none
 
     ! Arguments:
-    character(*), intent(in)  :: instName            ! Instrument Name
-    real(8),      intent(out) :: modelInterpLandFrac ! model interpolated land fraction.
-    real(8),      intent(out) :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
-    real(8),      intent(out) :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
+    character(len=*), intent(in)    :: instName            ! Instrument Name
+    real(8),          intent(out)   :: modelInterpLandFrac ! model interpolated land fraction.
+    real(8),          intent(out)   :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
+    real(8),          intent(out)   :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,             intent(in) :: headerIndex   ! current header Index 
+    integer,          intent(in)    :: headerIndex   ! current header Index 
 
     ! Locals:
     integer, parameter :: MXLON = 5, MXLAT = 5, MXELM = 40
@@ -4282,12 +4283,12 @@ contains
     implicit none
 
     ! Arguments::
-    integer,             intent(in) :: ilsmOpt                ! option for "interpolated" value of MG, LG at each location, 1 = use MAX value taken from all mesh grid points, 2 = use CENTRAL mesh point value (value at obs location), 3 = use AVG value of all mesh grid points
-    integer,            intent(out) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
-    integer,            intent(out) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
-    logical,            intent(out) :: waterobs               ! if obs over open water, far from coast/ice
+    integer,          intent(in)    :: ilsmOpt                ! option for "interpolated" value of MG, LG at each location, 1 = use MAX value taken from all mesh grid points, 2 = use CENTRAL mesh point value (value at obs location), 3 = use AVG value of all mesh grid points
+    integer,          intent(out)   :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
+    integer,          intent(out)   :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
+    logical,          intent(out)   :: waterobs               ! if obs over open water, far from coast/ice
     type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,             intent(in) :: headerIndex            ! current header Index 
+    integer,          intent(in)    :: headerIndex            ! current header Index 
 
     ! Locals:
     logical, save :: firstCall = .true.
@@ -4474,7 +4475,6 @@ contains
     !
     !:Purpose: Compute surface type element and update obsSpaceData.
     !
-
     implicit none
 
     ! Arguments:
@@ -4549,12 +4549,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),  intent(in) :: ztbThresholdMin         ! ztb threshold for rejection
-    real(8),  intent(in) :: ztbThresholdMax         ! ztb threshold for rejection
-    logical, intent(out) :: grossrej                ! logical array defining which obs are to be rejected
+    real(8),          intent(in)    :: ztbThresholdMin         ! ztb threshold for rejection
+    real(8),          intent(in)    :: ztbThresholdMax         ! ztb threshold for rejection
+    logical,          intent(out)   :: grossrej                ! logical array defining which obs are to be rejected
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
-    integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd
@@ -4631,14 +4631,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer,    intent(in) :: calcLandQualifierIndice     ! land/sea qualifier (0 = land, 1 = sea)
-    integer,    intent(in) :: calcTerrainTypeIndice       ! terrain-type (-1 land/open water, 0 = ice)
-    logical,    intent(in) :: grossrej                    ! .true. if 1 or more Tb fail gross error check
-    logical,   intent(out) :: reportHasMissingTb          ! .true. if Tb(obsTb) are set to missing_value
-    logical, allocatable, intent(out) :: qcRejectLogic(:) ! qcRejectLogic = .false. on input
-    type(struct_obs), intent(inout) :: obsSpaceData       ! obspaceData Object
-    integer,             intent(in) :: headerIndex        ! current header Index 
-    integer,             intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
+    integer,              intent(in)    :: calcLandQualifierIndice ! land/sea qualifier (0 = land, 1 = sea)
+    integer,              intent(in)    :: calcTerrainTypeIndice   ! terrain-type (-1 land/open water, 0 = ice)
+    logical,              intent(in)    :: grossrej                ! .true. if 1 or more Tb fail gross error check
+    logical,              intent(out)   :: reportHasMissingTb      ! .true. if Tb(obsTb) are set to missing_value
+    logical, allocatable, intent(out)   :: qcRejectLogic(:)        ! qcRejectLogic = .false. on input
+    type(struct_obs),     intent(inout) :: obsSpaceData            ! obspaceData Object
+    integer,              intent(in)    :: headerIndex             ! current header Index 
+    integer,              intent(in)    :: sensorIndex             ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: indx1, icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
@@ -4891,14 +4891,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer,               intent(in) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
-    integer,               intent(in) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
-    logical,              intent(out) :: reportHasMissingTb     ! true if Tb(obsTb) are set to missing_value
-    logical,               intent(in) :: modLSQ                 ! If active, recalculate values for land/sea qualifier and terrain type based on LG/MG
-    logical, allocatable, intent(inout) :: qcRejectLogic(:)     ! qcRejectLogic = .false. on input
-    type(struct_obs), intent(inout) :: obsSpaceData             ! obspaceData Object
-    integer,             intent(in) :: headerIndex              ! current header Index 
-    integer,             intent(in) :: sensorIndex              ! numero de satellite (i.e. indice)
+    integer,              intent(in)    :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
+    integer,              intent(in)    :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
+    logical,              intent(out)   :: reportHasMissingTb     ! true if Tb(obsTb) are set to missing_value
+    logical,              intent(in)    :: modLSQ                 ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
+    logical, allocatable, intent(inout) :: qcRejectLogic(:)       ! qcRejectLogic = .false. on input
+    type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
+    integer,              intent(in)    :: headerIndex            ! current header Index 
+    integer,              intent(in)    :: sensorIndex            ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
@@ -5110,18 +5110,18 @@ contains
     implicit none
 
     ! Arguments:
-    integer,   intent(out) :: iNumSeaIce              ! running counter for number of open water points with sea-ice detected (from algorithm)
-    integer,    intent(in) :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
-    integer, intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
-    integer,   intent(out) :: iRej                    ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
-    logical,    intent(in) :: grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical, intent(inout) :: waterobs                ! .true. if open water point (away from coasts and sea-ice)
-    real(8),   intent(out) :: si_ecmwf                ! ECMWF scattering index from tb89 & tb165
-    real(8),   intent(out) :: si_bg                   ! Bennartz-Grody scattering index from tb89 & tb165
-    real(8),   intent(out) :: SeaIce                  ! computed sea-ice fraction from tb23 & tb50
+    integer,          intent(out)   :: iNumSeaIce     ! counter for number open water points with sea-ice detected (from algorithm)
+    integer,          intent(in)    :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
+    integer,          intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
+    integer,          intent(out)   :: iRej           ! counter for number locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
+    logical,          intent(in)    :: grossrej       ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(inout) :: waterobs       ! .true. if open water point (away from coasts and sea-ice)
+    real(8),          intent(out)   :: si_ecmwf       ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(out)   :: si_bg          ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(out)   :: SeaIce         ! computed sea-ice fraction from tb23 & tb50
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
-    integer,             intent(in) :: headerIndex    ! current header Index 
-    integer,             intent(in) :: sensorIndex    ! numero de satellite (i.e. indice)
+    integer,          intent(in)    :: headerIndex    ! current header Index 
+    integer,          intent(in)    :: sensorIndex    ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
@@ -5342,18 +5342,18 @@ contains
     implicit none
 
     ! Arguments:
-    integer,   intent(out) ::  iNumSeaIce              ! running counter for number of open water points with sea-ice detected (from algorithm)
-    integer,    intent(in) ::  calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
-    integer, intent(inout) ::  calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
-    integer,   intent(out) ::  iRej                    ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
-    logical,    intent(in) ::  grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical, intent(inout) ::  waterobs                ! .true. if open water point (away from coasts and sea-ice)
-    real(8),   intent(out) ::  si_ecmwf                ! ECMWF scattering index from tb89 & tb165
-    real(8),   intent(out) ::  si_bg                   ! Bennartz-Grody scattering index from tb89 & tb165
-    real(8),   intent(out) ::  SeaIce                  ! computed sea-ice fraction from tb23 & tb50
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
-    integer,             intent(in) :: headerIndex     ! current header Index 
-    integer,             intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
+    integer,          intent(out)   :: iNumSeaIce   ! running counter for number of open water points with sea-ice detected (from algorithm)
+    integer,          intent(in)    :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
+    integer,          intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
+    integer,          intent(out)   :: iRej         ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
+    logical,          intent(in)    :: grossrej     ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(inout) :: waterobs     ! .true. if open water point (away from coasts and sea-ice)
+    real(8),          intent(out)   :: si_ecmwf     ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(out)   :: si_bg        ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(out)   :: SeaIce       ! computed sea-ice fraction from tb23 & tb50
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
@@ -5564,21 +5564,21 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),    intent(in) :: scatec                ! ECMWF scattering index from tb89 & tb165
-    real(8),    intent(in) :: scatbg                ! Bennartz-Grody scattering index from tb89 & tb165
-    real(8),    intent(in) :: SeaIce                ! computed sea-ice fraction from tb23 & tb50
-    logical,    intent(in) :: useUnbiasedObsForClw  ! use unbiased Tb for CLW calculation
-    logical,    intent(in) :: grossrej              ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical,    intent(in) :: waterobs              ! if obs over open-water
-    integer, intent(inout) :: cldcnt                ! Number of water point covered by cloud
-    logical,   intent(out) :: cloudobs              ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    logical,   intent(out) :: iwvreject             ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
-    logical,   intent(out) :: precipobs             ! .true. if precip. detected through NRL scattering indices
-    real(8),   intent(out) :: zdi                   ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
-    real(8),   intent(out) :: riwv                  ! Mean 183 Ghz [ch. 18-22] Tb
+    real(8),          intent(in)    :: scatec       ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(in)    :: scatbg       ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(in)    :: SeaIce       ! computed sea-ice fraction from tb23 & tb50
+    logical,          intent(in)    :: useUnbiasedObsForClw  ! use unbiased Tb for CLW calculation
+    logical,          intent(in)    :: grossrej     ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(in)    :: waterobs     ! if obs over open-water
+    integer,          intent(inout) :: cldcnt       ! Number of water point covered by cloud
+    logical,          intent(out)   :: cloudobs     ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+    logical,          intent(out)   :: iwvreject    ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    logical,          intent(out)   :: precipobs    ! .true. if precip. detected through NRL scattering indices
+    real(8),          intent(out)   :: zdi          ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
+    real(8),          intent(out)   :: riwv         ! Mean 183 Ghz [ch. 18-22] Tb
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,             intent(in) :: headerIndex  ! current header Index 
-    integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: indx, n_cld, newInformationFlag, actualNumChannel
@@ -5705,20 +5705,20 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),             intent(in) :: scatec               ! ECMWF scattering index from tb89 & tb165
-    real(8),             intent(in) :: SeaIce               ! computed sea-ice fraction from tb23 & tb50
-    logical,             intent(in) :: useUnbiasedObsForClw ! use unbiased Tb for CLW calculation
-    logical,             intent(in) :: grossrej             ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical,             intent(in) :: waterobs             ! if obs over open-water
+    real(8),          intent(in)    :: scatec               ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(in)    :: SeaIce               ! computed sea-ice fraction from tb23 & tb50
+    logical,          intent(in)    :: useUnbiasedObsForClw ! use unbiased Tb for CLW calculation
+    logical,          intent(in)    :: grossrej             ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(in)    :: waterobs             ! if obs over open-water
     integer,          intent(inout) :: cldcnt               ! Number of water point covered by cloud
-    logical,            intent(out) :: cloudobs             ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    logical,            intent(out) :: iwvreject            ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
-    logical,            intent(out) :: precipobs            ! .true. if precip. detected through NRL scattering indices
-    real(8),            intent(out) :: zdi                  ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
-    real(8),            intent(out) :: riwv                 ! Mean 183 Ghz [ch. 18-22] Tb
+    logical,          intent(out)   :: cloudobs             ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+    logical,          intent(out)   :: iwvreject            ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    logical,          intent(out)   :: precipobs            ! .true. if precip. detected through NRL scattering indices
+    real(8),          intent(out)   :: zdi                  ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
+    real(8),          intent(out)   :: riwv                 ! Mean 183 Ghz [ch. 18-22] Tb
     type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,             intent(in) :: headerIndex          ! current header Index 
-    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice)
+    integer,          intent(in)    :: headerIndex          ! current header Index 
+    integer,          intent(in)    :: sensorIndex          ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer :: indx, n_cld, newInformationFlag, actualNumChannel
@@ -5841,25 +5841,25 @@ contains
     implicit none
 
     ! Arguments:
-    logical,    intent(in) :: qcRejectLogic(:)              ! .true. if channel is rejected
-    real(8),    intent(in) :: scatbg                        ! Bennartz-Grody scattering index from tb89 & tb165
-    real(8),    intent(in) :: scatec                        ! ECMWF scattering index from tb89 & tb165
-    logical,    intent(in) :: grossrej                      ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical,    intent(in) :: waterobs                      ! if obs over open-water
-    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
-    logical,    intent(in) :: precipobs                     ! .true. if precip. detected through NRL scattering indices
-    real(8),    intent(in) :: zdi                           ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
-    real(8),    intent(in) :: riwv                          ! Mean 183 Ghz [ch. 18-22] Tb
-    integer, intent(inout) :: drycnt                        ! Number of pts flagged for AMSU-B Dryness Index
-    integer, intent(inout) :: landcnt                       ! Number of obs pts found over land/ice
-    integer, intent(inout) :: rejcnt                        ! Number of rejected obs (Tb err, QCfail)
-    integer, intent(inout) :: iwvcnt                        ! Number of pts with Mean 183 Ghz Tb < 240K
-    integer, intent(inout) :: pcpcnt                        ! Number of scatter/precip obs
-    integer, intent(inout) :: flgcnt                        ! Total number of filtered obs
-    integer,    intent(in) :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
-    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,             intent(in) :: headerIndex          ! current header Index 
-    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
+    logical,          intent(in)    :: qcRejectLogic(:)              ! .true. if channel is rejected
+    real(8),          intent(in)    :: scatbg    ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(in)    :: scatec    ! ECMWF scattering index from tb89 & tb165
+    logical,          intent(in)    :: grossrej  ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(in)    :: waterobs  ! if obs over open-water
+    logical,          intent(in)    :: iwvreject ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    logical,          intent(in)    :: precipobs ! .true. if precip. detected through NRL scattering indices
+    real(8),          intent(in)    :: zdi       ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
+    real(8),          intent(in)    :: riwv      ! Mean 183 Ghz [ch. 18-22] Tb
+    integer,          intent(inout) :: landcnt   ! Number of obs pts found over land/ice
+    integer,          intent(inout) :: drycnt    ! Number of pts flagged for AMSU-B Dryness Index
+    integer,          intent(inout) :: rejcnt    ! Number of rejected obs (Tb err, QCfail)
+    integer,          intent(inout) :: iwvcnt    ! Number of pts with Mean 183 Ghz Tb < 240K
+    integer,          intent(inout) :: pcpcnt    ! Number of scatter/precip obs
+    integer,          intent(inout) :: flgcnt    ! Total number of filtered obs
+    integer,          intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
 
     ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
@@ -6054,27 +6054,27 @@ contains
     implicit none
 
     ! Arguments:
-    logical,    intent(in) :: qcRejectLogic(:)              ! .true. if channel is rejected
-    real(8),    intent(in) :: scatec                        ! ECMWF scattering index from tb89 & tb165
-    real(8),    intent(in) :: scatbg                        ! Bennartz-Grody scattering index from tb89 & tb165
-    logical,    intent(in) :: grossrej                      ! .true. if any channel had a gross error from mwbg_grossValueCheck
-    logical,    intent(in) :: waterobs                      ! if obs over open-water
-    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
-    logical,    intent(in) :: precipobs                     ! .true. if precip. detected through NRL scattering indices
-    real(8),    intent(in) :: zdi                           ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
-    real(8),    intent(in) :: riwv                          ! Mean 183 Ghz [ch. 18-22] Tb
-    integer, intent(inout) :: allcnt                        ! total number of obs
-    integer, intent(inout) :: drycnt                        ! Number of pts flagged for AMSU-B Dryness Index
-    integer, intent(inout) :: landcnt                       ! Number of obs pts found over land/ice
-    integer, intent(inout) :: rejcnt                        ! Number of rejected obs (Tb err, QCfail)
-    integer, intent(inout) :: iwvcnt                        ! Number of pts with Mean 183 Ghz Tb < 240K
-    integer, intent(inout) :: pcpcnt                        ! Number of scatter/precip obs
-    integer, intent(inout) :: flgcnt                        ! Total number of filtered obs
-    integer, intent(inout) :: calcTerrainTypeIndice         ! terrain type (0=ice, -1 otherwise)
-    integer,    intent(in) :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
-    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,             intent(in) :: headerIndex          ! current header Index 
-    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
+    logical,          intent(in)    :: qcRejectLogic(:) ! .true. if channel is rejected
+    real(8),          intent(in)    :: scatec           ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(in)    :: scatbg           ! Bennartz-Grody scattering index from tb89 & tb165
+    logical,          intent(in)    :: grossrej         ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical,          intent(in)    :: waterobs         ! if obs over open-water
+    logical,          intent(in)    :: iwvreject        ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    logical,          intent(in)    :: precipobs        ! .true. if precip. detected through NRL scattering indices
+    real(8),          intent(in)    :: zdi              ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
+    real(8),          intent(in)    :: riwv             ! Mean 183 Ghz [ch. 18-22] Tb
+    integer,          intent(inout) :: allcnt           ! total number of obs
+    integer,          intent(inout) :: drycnt           ! Number of pts flagged for AMSU-B Dryness Index
+    integer,          intent(inout) :: landcnt          ! Number of obs pts found over land/ice
+    integer,          intent(inout) :: rejcnt           ! Number of rejected obs (Tb err, QCfail)
+    integer,          intent(inout) :: iwvcnt           ! Number of pts with Mean 183 Ghz Tb < 240K
+    integer,          intent(inout) :: pcpcnt           ! Number of scatter/precip obs
+    integer,          intent(inout) :: flgcnt           ! Total number of filtered obs
+    integer,          intent(inout) :: calcTerrainTypeIndice         ! terrain type (0=ice, -1 otherwise)
+    integer,          intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,          intent(in)    :: headerIndex      ! current header Index 
+    integer,          intent(in)    :: sensorIndex      ! numero de satellite (i.e. indice) 
 
     ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
@@ -6300,9 +6300,9 @@ contains
     implicit None
 
     ! Arguments:
-    integer,               intent(in) :: headerIndex  ! current header Index 
-    integer,              intent(out) :: sensorIndex  ! find tvs_sensor index corresponding to current obs
-    type(struct_obs),   intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,          intent(out)   :: sensorIndex  ! find tvs_sensor index corresponding to current obs
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     ! Result:
     logical :: sensorIndexFound
 

@@ -55,11 +55,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nlatband
-    real(8) :: latmin(nlatband)
-    real(8) :: latmax(nlatband)
-    real(8) :: r0
-    integer :: nlonblock(nlatband)
+    integer, intent(in)  :: nlatband
+    real(8), intent(in)  :: latmin(nlatband)
+    real(8), intent(in)  :: latmax(nlatband)
+    real(8), intent(in)  :: r0
+    integer, intent(out) :: nlonblock(nlatband)
 
     ! Locals:
     integer :: i
@@ -96,11 +96,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nlatband
-    real(8) :: r0
-    real(8) :: latmin(nlatband)
-    real(8) :: latcenter(nlatband)
-    real(8) :: latmax(nlatband)
+    integer, intent(in)  :: nlatband
+    real(8), intent(in)  :: r0
+    real(8), intent(out) :: latmin(nlatband)
+    real(8), intent(out) :: latcenter(nlatband)
+    real(8), intent(out) :: latmax(nlatband)
 
     ! Locals:
     integer :: i
@@ -228,13 +228,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: iblock
-    integer :: nlatband
-    integer :: nlonblock(nlatband)
-    integer :: nblockoffset(nlatband)
-    real(4) :: lat
-    real(4) :: lon
-    real(8) :: r0
+    integer, intent(out)   :: iblock
+    integer, intent(in)    :: nlatband
+    integer, intent(in)    :: nlonblock(nlatband)
+    integer, intent(in)    :: nblockoffset(nlatband)
+    real(4), intent(inout) :: lat
+    real(4), intent(in)    :: lon
+    real(8), intent(in)    :: r0
 
     ! Locals:
     integer :: ilat, ilon

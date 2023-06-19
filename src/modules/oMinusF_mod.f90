@@ -43,15 +43,15 @@ module oMinusF_mod
       implicit none
 
       ! Arguments:
-      type(struct_columnData),target, intent(inout)  :: columnTrlOnAnlIncLev
-      type(struct_columnData),target, intent(inout)  :: columnTrlOnTrlLev
-      type(struct_obs),       target, intent(inout)  :: obsSpaceData
-      type(struct_gsv)             :: stateVectorTrialHighRes
-      character(len=*), intent(in) :: midasMode
-      logical, intent(in) :: addHBHT
-      logical, intent(in) :: addSigmaO
+      type(struct_columnData),target, intent(inout) :: columnTrlOnAnlIncLev
+      type(struct_columnData),target, intent(inout) :: columnTrlOnTrlLev
+      type(struct_obs),       target, intent(inout) :: obsSpaceData
+      character(len=*),               intent(in)    :: midasMode
+      logical,                        intent(in)    :: addHBHT
+      logical,                        intent(in)    :: addSigmaO
 
       ! Locals:
+      type(struct_gsv) :: stateVectorTrialHighRes
       type(struct_vco),       pointer :: vco_anl  => null()
       type(struct_hco),       pointer :: hco_anl  => null()
       type(struct_hco),       pointer :: hco_trl => null()
@@ -193,13 +193,13 @@ module oMinusF_mod
       implicit none
 
       ! Arguments:
-      type(struct_eob), target, intent(inout)  :: ensObs
-      type(struct_obs), target, intent(inout)  :: obsSpaceData
-      integer, intent(in) :: nEns
-      character(len=*), intent(in) :: ensPathName
-      character(len=*), intent(in) :: midasMode
-      logical, intent(in) :: addHBHT
-      logical, intent(in) :: addSigmaO
+      type(struct_eob), target, intent(inout) :: ensObs
+      type(struct_obs), target, intent(inout) :: obsSpaceData
+      integer,                  intent(in)    :: nEns
+      character(len=*),         intent(in)    :: ensPathName
+      character(len=*),         intent(in)    :: midasMode
+      logical,                  intent(in)    :: addHBHT
+      logical,                  intent(in)    :: addSigmaO
 
       ! Locals:
       type(struct_columnData)   :: columTrlOnTrlLev

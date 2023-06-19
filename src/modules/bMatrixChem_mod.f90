@@ -95,9 +95,9 @@ module bMatrixChem_mod
     implicit none
 
     ! Arguments:
-    type(struct_hco), intent(in), pointer :: hco_in
-    type(struct_vco), intent(in) ,pointer :: vco_in
-    integer, intent(out) :: cvDim_out
+    type(struct_hco), pointer, intent(in)  :: hco_in
+    type(struct_vco), pointer, intent(in)  :: vco_in
+    integer,                   intent(out) :: cvDim_out
 
     ! Locals:
     integer :: jn,jm
@@ -183,9 +183,9 @@ module bMatrixChem_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: controlVector_in(cvDim_mpilocal)
-    type(struct_gsv), intent(inout) :: statevector
-    type(struct_gsv), intent(in) , optional :: stateVectorRef_opt
+    real(8),                    intent(inout) :: controlVector_in(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
     
     ! Locals:
     real(8), allocatable :: gd_out(:,:,:)
@@ -246,9 +246,9 @@ module bMatrixChem_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: controlVector_out(cvDim_mpilocal)
-    type(struct_gsv), intent(inout) :: statevector
-    type(struct_gsv), intent(in), optional :: stateVectorRef_opt
+    real(8),                    intent(inout) :: controlVector_out(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
     
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
@@ -612,7 +612,7 @@ module bMatrixChem_mod
     
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8), intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
     
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
@@ -644,7 +644,7 @@ module bMatrixChem_mod
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8), intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
     
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2

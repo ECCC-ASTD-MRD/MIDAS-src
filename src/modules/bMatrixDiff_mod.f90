@@ -67,10 +67,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_hco), intent(inout), pointer  :: hco_in
-    type(struct_vco), intent(inout), pointer  :: vco_in
-    integer         , intent(out)             :: cvDim_out
-    character(len=*), intent(in)   , optional :: mode_opt
+    type(struct_hco), pointer,  intent(in)  :: hco_in
+    type(struct_vco), pointer,  intent(in)  :: vco_in
+    integer         ,           intent(out) :: cvDim_out
+    character(len=*), optional, intent(in)  :: mode_opt
 
     ! Locals:
     character(len=15)         :: bdiff_mode
@@ -300,8 +300,8 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
+    type(struct_hco), pointer, intent(in) :: hco_in
+    type(struct_vco), pointer, intent(in) :: vco_in
     
     ! Locals:
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos

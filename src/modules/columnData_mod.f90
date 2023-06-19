@@ -196,7 +196,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
+    type(struct_columnData), intent(inout) :: column
 
     if (column%numCol > 0) then
       column%all(:,:) = 0.0d0
@@ -212,12 +212,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)   :: column
-    integer, intent(in)       :: numCol
-    logical, optional         :: mpiLocal_opt
-    logical, optional         :: beSilent_opt
-    logical, optional         :: setToZero_opt
-    character(len=*),optional :: varNames_opt(:)
+    type(struct_columnData),    intent(inout) :: column
+    integer,                    intent(in)    :: numCol
+    logical,          optional, intent(in)    :: mpiLocal_opt
+    logical,          optional, intent(in)    :: beSilent_opt
+    logical,          optional, intent(in)    :: setToZero_opt
+    character(len=*), optional, intent(in)    :: varNames_opt(:)
 
     ! Locals:
     integer :: iloc, varIndex, varIndex2, numVar
@@ -345,7 +345,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
+    type(struct_columnData), intent(inout) :: column
 
     deallocate(column%varOffset)
     deallocate(column%varNumLev)
@@ -367,9 +367,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), optional :: column_opt
-    character(len=*), intent(in)      :: varName
-    logical                           :: varExist 
+    type(struct_columnData), optional, intent(in) :: column_opt
+    character(len=*),                  intent(in) :: varName
+    ! Result:
+    logical                                       :: varExist 
 
     if (varName == 'Z_*') then
       varExist =  col_varExist(column_opt, 'Z_T') .and. &
@@ -408,10 +409,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    integer, intent(in)     :: varnum
-    integer, intent(in), optional :: varNumberChm_opt
-    character(len=*), intent(in), optional :: modelName_opt
+    type(struct_columnData),    intent(in) :: column
+    integer,                    intent(in) :: varnum
+    integer,          optional, intent(in) :: varNumberChm_opt
+    character(len=*), optional, intent(in) :: modelName_opt
     ! Result:
     integer                 :: offset
 
@@ -426,11 +427,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    integer, intent(in)     :: varLevIndex
-    integer                 :: levIndex
+    type(struct_columnData), intent(in) :: column
+    integer,                 intent(in) :: varLevIndex
     ! Result:
     integer                 :: varIndex
+
+    ! Locals:
+    integer                 :: levIndex
 
     do varIndex = 1, vnl_numvarmax
       if ( column%varExistList(varIndex) ) then
@@ -454,8 +457,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    integer, intent(in) :: kIndex
+    type(struct_columnData), intent(in) :: column
+    integer,                 intent(in) :: kIndex
     ! Result:
     character(len=4)    :: varName
 
@@ -485,9 +488,9 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev
-    integer, intent(in)                 :: headerIndex
-    character(len=*), intent(in)        :: varLevel
+    integer,                 intent(in) :: ilev
+    integer,                 intent(in) :: headerIndex
+    character(len=*),        intent(in) :: varLevel
     ! Result:
     real(8)                             :: pressure
 
@@ -514,9 +517,9 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev
-    integer, intent(in)                 :: headerIndex
-    character(len=*), intent(in)        :: varLevel
+    integer,                 intent(in) :: ilev
+    integer,                 intent(in) :: headerIndex
+    character(len=*),        intent(in) :: varLevel
     ! Result:
     real(8)                             :: height
 
@@ -550,9 +553,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)             :: column
-    integer, intent(in)                 :: headerIndex
-    real(8), intent(in)                 :: height
+    type(struct_columnData), intent(inout) :: column
+    integer,                 intent(in)    :: headerIndex
+    real(8),                 intent(in)    :: height
 
     column%heightSfc(headerIndex) = height
 
@@ -565,8 +568,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: column
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_columnData),    intent(in) :: column
+    character(len=*), optional, intent(in) :: varName_opt
     ! Result:
     real(8), pointer                       :: allColumns(:,:)
 
@@ -598,9 +601,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: column
-    integer, intent(in)                    :: headerIndex
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_columnData),    intent(in) :: column
+    integer,                    intent(in) :: headerIndex
+    character(len=*), optional, intent(in) :: varName_opt
     ! Result:
     real(8), pointer                       :: onecolumn(:)
 
@@ -628,10 +631,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: column
-    integer, intent(in)                    :: ilev
-    integer, intent(in)                    :: headerIndex
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_columnData),    intent(in) :: column
+    integer,                    intent(in) :: ilev
+    integer,                    intent(in) :: headerIndex
+    character(len=*), optional, intent(in) :: varName_opt
     ! Result:
     real(8)                                :: value
 
@@ -683,7 +686,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)   :: column
+    type(struct_columnData), intent(in) :: column
     ! Result:
     type(struct_vco), pointer :: vco_ptr
 
@@ -698,8 +701,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)   :: column
-    type(struct_vco), pointer :: vco_ptr
+    type(struct_columnData),   intent(inout) :: column
+    type(struct_vco), pointer, intent(in)    :: vco_ptr
 
     column%vco => vco_ptr
 

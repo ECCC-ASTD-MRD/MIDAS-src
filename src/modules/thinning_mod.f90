@@ -1898,8 +1898,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: array(:)
-    character(len=*) :: arrayMpi(:)
+    character(len=*), intent(in)  :: array(:)
+    character(len=*), intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, arrayIndex, charIndex, lenString
@@ -1944,9 +1944,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: array(:)
-    integer :: arrayMpi(:)
-    logical, optional :: is_obsLevOffset_opt
+    integer,           intent(in)  :: array(:)
+    integer,           intent(out) :: arrayMpi(:)
+    logical, optional, intent(in)  :: is_obsLevOffset_opt
 
     ! Locals:
     integer :: ierr, procIndex, arrayIndex
@@ -2034,8 +2034,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4) :: array(:)
-    real(4) :: arrayMpi(:)
+    real(4), intent(in)  :: array(:)
+    real(4), intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, procIndex
@@ -2075,8 +2075,8 @@ contains
     implicit none
 
     ! Arguments:
-    logical :: array(:)
-    logical :: arrayMpi(:)
+    logical, intent(in)  :: array(:)
+    logical, intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, procIndex
@@ -2119,14 +2119,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: numVars, numStation
-    integer,           intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
-    real(4),           intent(in)    :: obsLat(:), obsLon(:)
-    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer,           intent(in)    :: trajFlags(:,:)
-    integer,           intent(in)    :: obsFlags(:,:)
-    integer,           intent(in)    :: obsLevOffset(:)
-    character (len=9), intent(inout) :: stnId(:)
+    integer,          intent(in)    :: numVars, numStation
+    integer,          intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
+    real(4),          intent(in)    :: obsLat(:), obsLon(:)
+    real(4),          intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
+    integer,          intent(in)    :: trajFlags(:,:)
+    integer,          intent(in)    :: obsFlags(:,:)
+    integer,          intent(in)    :: obsLevOffset(:)
+    character(len=9), intent(inout) :: stnId(:)
 
     ! Locals:
     integer, parameter :: maxNumStnid  = 5000
@@ -4208,7 +4208,7 @@ contains
     ! Arguments:
     real(8), intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
-    integer, intent(out) :: marker
+    integer, intent(out)   :: marker
 
     ! Locals:
     integer :: i, j, tmpi
@@ -4259,7 +4259,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: deltaLat, deltaLon, lat1, lat2
+    real(4), intent(in) :: deltaLat
+    real(4), intent(in) :: deltaLon
+    real(4), intent(in) :: lat1
+    real(4), intent(in) :: lat2
 
     ! Locals:
     real(4), parameter :: PI = 3.141592654
@@ -4932,8 +4935,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in) :: familyType
-    integer,          intent(in) :: keepNthVertical
+    character(len=*), intent(in)    :: familyType
+    integer,          intent(in)    :: keepNthVertical
 
     ! Locals:
     integer, parameter :: PROFILE_NOT_FOUND=-1
@@ -5023,11 +5026,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: delta
-    integer, intent(in)             :: deltrad
-    integer, intent(in)             :: codtyp
-    integer, optional, intent(in)   :: codtyp2_opt
+    type(struct_obs),  intent(inout) :: obsdat
+    integer,           intent(in)    :: delta
+    integer,           intent(in)    :: deltrad
+    integer,           intent(in)    :: codtyp
+    integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
@@ -5697,8 +5700,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltmax
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltmax
 
     ! Locals:
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
@@ -6200,8 +6203,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltrad
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltrad
 
     ! Locals:
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
@@ -6662,12 +6665,12 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    logical, intent(in)             :: removeUnCorrected
-    integer, intent(in)             :: deltmax
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltrad
+    logical,          intent(in)    :: removeUnCorrected
+    integer,          intent(in)    :: deltmax
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltrad
     character(len=*), intent(in)    :: familyType
-    integer, intent(in)             :: codtyp
+    integer,          intent(in)    :: codtyp
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
@@ -7132,10 +7135,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(4) :: xlat1
-    real(4) :: xlat2
-    real(4) :: xlon1
-    real(4) :: xlon2
+    real(4), intent(in) :: xlat1
+    real(4), intent(in) :: xlat2
+    real(4), intent(in) :: xlon1
+    real(4), intent(in) :: xlon2
     ! Result:
     real(4) :: thn_separation
 

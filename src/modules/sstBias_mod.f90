@@ -575,7 +575,7 @@ module sstBias_mod
     
     ! Arguments:
     type(struct_gsv)       , intent(inout)       :: stateVector       ! state vector containing bias estimation field    
-    type(struct_columnData), intent(in)          :: column            ! column data
+    type(struct_columnData), intent(inout)       :: column            ! column data
     type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal grid
     character(len=*)       , intent(in)          :: sensor            ! current sensor name
@@ -694,7 +694,7 @@ module sstBias_mod
     type(struct_obs)       , intent(inout)          :: obsData ! obsSpaceData
     type(struct_hco)       , intent(inout), pointer :: hco     ! horizontal grid structure
     type(struct_vco)       , intent(in)   , pointer :: vco     ! vertical grid structure
-    type(struct_columnData), intent(in)             :: column  ! column data 
+    type(struct_columnData), intent(inout)          :: column  ! column data 
 
     ! Locals:
     type(struct_gsv)            :: stateVector

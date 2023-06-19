@@ -36,7 +36,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs), intent(inout) :: lobsSpaceData
 
     ! Locals:
     integer :: bodyIndex
@@ -69,9 +69,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: lobsSpaceData
-    real(8), intent(out) :: pjo ! Total observation cost function
-    logical, optional :: beSilent_opt
+    type(struct_obs),    intent(in)  :: lobsSpaceData
+    real(8),             intent(out) :: pjo ! Total observation cost function
+    logical, optional,   intent(in) :: beSilent_opt
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd

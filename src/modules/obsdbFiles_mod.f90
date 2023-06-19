@@ -482,9 +482,9 @@ contains
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*)                 :: fileName
-    character(len=*)                 :: familyType
-    integer                          :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer         ,  intent(in)    :: fileIndex
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headIndexBegin
@@ -1531,7 +1531,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: obsSpaceName
+    character(len=*),          intent(in) :: obsSpaceName
     character(len=lenSqlName), intent(in) :: midasSQLColumnList(:,:)
     ! Result:
     character(len=lenSqlName)    :: sqlColName
@@ -2192,7 +2192,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*),              intent(in)  :: fileName
+    character(len=*), intent(in)  :: fileName
 
     ! Locals:
     character(len=3000)      :: query
@@ -2370,9 +2370,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)          :: numberUpdateItems               ! number of items in update list
-    character(len=4), intent(in) :: updateItemList(:)               ! update list
-    character(len=*), intent(in) :: midasTableType                  ! table type: 'header' or 'body'
+    integer,          intent(in)    :: numberUpdateItems            ! number of items in update list
+    character(len=4), intent(in)    :: updateItemList(:)            ! update list
+    character(len=*), intent(in)    :: midasTableType               ! table type: 'header' or 'body'
     character(len=*), intent(inout) :: queryCreateTable             ! query to create table
     character(len=*), intent(inout) :: queryInsertInTable           ! query to insert new columns in the table
     character(len=*), intent(inout) :: tableInsertColumnList        ! char of "combinedTableName.column1, combinedTableName.column2, .."

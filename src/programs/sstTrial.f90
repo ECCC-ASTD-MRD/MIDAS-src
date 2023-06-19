@@ -128,14 +128,13 @@ program midas_sstTrial
     !
     ! :Purpose:  Control of the preprocessing of trial
     !
-
     implicit none
     
-    !Arguments:
+    ! Arguments:
     integer, intent(out) :: trialDateStamp
     integer, intent(out) :: analysisDateStamp
     
-    !Locals:	
+    ! Locals:	
     type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: gridFile = './analysis'
     integer                     :: prntdate, prnttime, imode, newdate, indexMonth

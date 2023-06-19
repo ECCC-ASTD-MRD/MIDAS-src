@@ -266,10 +266,10 @@ contains
     !
     implicit none
 
-    ! arguments
-    character (len=*) :: obsColumnMode
+    ! Arguments:
+    character (len=*), intent(in) :: obsColumnMode
 
-    ! locals
+    ! Locals:
     integer :: dateStampFromObs
     type(struct_vco),pointer :: vco_anl => null()
     integer :: get_max_rss
@@ -383,10 +383,11 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type(struct_obs),        intent(inout) :: obsSpaceData         ! Observation-related data
-    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev ! Columns of the background interpolated 
-                                                                   ! to analysis levels and to obs
-                                                                   ! horizontal locations
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev ! Background columns interpolated to anl levels and obs horiz locations
+
+    ! Locals:
     type(struct_columnData) :: columnAnlInc
     type(struct_gsv)        :: statevector
     type(struct_vco), pointer :: vco_anl
@@ -395,6 +396,7 @@ contains
     integer :: index_body, local_dimension, jj, ierr, dateprnt, timeprnt, nrandseed, istat
     integer ,external :: newdate, get_max_rss
     real(8) ,external :: gasdev
+
     !
     !- 1.  Initialization
 

@@ -90,7 +90,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
+     real(8), intent(in) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -121,7 +121,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
+     real(8), intent(in) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -150,8 +150,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: PRS
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: PRS
 
      phf_FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEW8(TTT))-MPC_EPS2_R8)
    end function phf_FOQST8
@@ -166,8 +166,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: QST
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: QST
 
      phf_FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLE8(TTT)
    end function phf_FODQS8
@@ -183,8 +183,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: QQQ
-     real(8) :: PRS
+     real(8), intent(in) :: QQQ
+     real(8), intent(in) :: PRS
 
      phf_FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
    end function phf_FOEFQ8
@@ -199,8 +199,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: EEE
-     real(8) :: PRS
+     real(8), intent(in) :: EEE
+     real(8), intent(in) :: PRS
 
      phf_FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
    end function phf_FOQFE8
@@ -215,8 +215,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: QQQ
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: QQQ
 
      phf_FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
    end function phf_FOTVT8
@@ -231,8 +231,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TVI
-     real(8) :: QQQ
+     real(8), intent(in) :: TVI
+     real(8), intent(in) :: QQQ
 
      phf_FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
    end function phf_FOTTV8
@@ -248,9 +248,9 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: QQQ
-     real(8) :: TTT
-     real(8) :: PRS
+     real(8), intent(in) :: QQQ
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: PRS
 
      phf_FOHR8 = MIN(PRS,phf_FOEFQ8(QQQ,PRS)) / phf_FOEW8(TTT)
    end function phf_FOHR8
@@ -269,7 +269,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
+     real(8), intent(in) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -290,7 +290,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
+     real(8), intent(in) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -311,8 +311,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: PRS
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: PRS
 
      phf_FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEWA8(TTT))-MPC_EPS2_R8)
    end function phf_FOQSA8
@@ -327,8 +327,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: QST
-     real(8) :: TTT
+     real(8), intent(in) :: QST
+     real(8), intent(in) :: TTT
 
      phf_FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLA8(TTT)
    end function phf_FODQA8
@@ -343,9 +343,9 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: QQQ
-     real(8) :: TTT
-     real(8) :: PRS
+     real(8), intent(in) :: QQQ
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: PRS
 
      phf_FOHRA8=MIN(PRS,phf_FOEFQ8(QQQ,PRS))/phf_FOEWA8(TTT)
    end function phf_FOHRA8
@@ -365,7 +365,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: EEE
+     real(8), intent(in) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -389,7 +389,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: EEE
+     real(8), intent(in) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -413,8 +413,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: EEE
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -436,8 +436,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: EEE
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -458,8 +458,8 @@ module physicsFunctions_mod
      implicit none
 
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: EEE
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: EEE
 
      phf_FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTW8(EEE)  &
                -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTI8(EEE)
@@ -475,8 +475,8 @@ module physicsFunctions_mod
      implicit none
  
      ! Arguments:
-     real(8) :: TTT
-     real(8) :: EEE
+     real(8), intent(in) :: TTT
+     real(8), intent(in) :: EEE
 
      phf_FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTW8(TTT,EEE)  &
                 -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTI8(TTT,EEE)
@@ -495,7 +495,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
+        real(8), intent(in) :: TTT
 
         phf_FOEW8_CMAM= 100.D0*EXP(21.656D0-5418.D0/TTT)
   end function phf_FOEW8_CMAM
@@ -510,7 +510,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
+        real(8), intent(in) :: TTT
 
         phf_FOEI8_CMAM= 100.D0*EXP(24.292D0-6141.D0/TTT)
   end function phf_FOEI8_CMAM
@@ -525,7 +525,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
+        real(8), intent(in) :: TTT
 
         phf_FOERAT8_CMAM=MIN(1.0D0,0.0059D0+0.9941D0*EXP(-0.003102D0*  &
             MIN(0.0D0,TTT-MPC_TRIPLE_POINT_R8)**2))
@@ -541,7 +541,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
+        real(8), intent(in) :: TTT
 
         phf_FOEWI8_CMAM = phf_FOEW8_CMAM(TTT)*phf_FOERAT8_CMAM(TTT)  &
                +(1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FOEI8_CMAM(TTT)
@@ -557,7 +557,7 @@ module physicsFunctions_mod
         implicit none
 
         ! Arguments:
-        real(8) :: TTT
+        real(8), intent(in) :: TTT
 
         phf_FODLE8_CMAM= phf_FOERAT8_CMAM(TTT)*5418.D0/TTT/TTT  &
              +(1.0D0-phf_FOERAT8_CMAM(TTT))*6141.D0/TTT/TTT
@@ -574,8 +574,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
-        real(8) :: PRS
+        real(8), intent(in) :: TTT
+        real(8), intent(in) :: PRS
 
         phf_FOQST8_CMAM=MPC_EPS1_R8/(MAX(1.0D0,PRS/  &
                            phf_FOEWI8_CMAM(TTT))-MPC_EPS2_R8)
@@ -612,7 +612,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: EEE
+        real(8), intent(in) :: EEE
 
         phf_FOTI8_CMAM=6141.D0/(24.292D0-LOG(EEE/100.0D0))
   end function phf_FOTI8_CMAM
@@ -628,8 +628,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
-        real(8) :: EEE
+        real(8), intent(in) :: TTT
+        real(8), intent(in) :: EEE
 
         phf_FODTW8_CMAM=TTT/EEE/(21.656D0-LOG(EEE/100.0D0))
   end function phf_FODTW8_CMAM
@@ -645,8 +645,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
-        real(8) :: EEE
+        real(8), intent(in) :: TTT
+        real(8), intent(in) :: EEE
 
         phf_FODTI8_CMAM=TTT/EEE/(24.292D0-LOG(EEE/100.0D0))
   end function phf_FODTI8_CMAM
@@ -661,8 +661,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
-        real(8) :: EEE
+        real(8), intent(in) :: TTT
+        real(8), intent(in) :: EEE
 
         phf_FOTWI8_CMAM= phf_FOERAT8_CMAM(TTT)*phf_FOTW8_CMAM(EEE)+ &
                    (1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FOTI8_CMAM(EEE)
@@ -678,8 +678,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: TTT
-        real(8) :: EEE
+        real(8), intent(in) :: TTT
+        real(8), intent(in) :: EEE
 
         phf_FODTWI8_CMAM= phf_FOERAT8_CMAM(TTT)*phf_FODTW8_CMAM(TTT,EEE)+  &
                           (1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FODTI8_CMAM(TTT,EEE)
@@ -698,7 +698,7 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: QQQ
+        real(8), intent(in) :: QQQ
 
         phf_FQBRANCH= 0.5D0+SIGN(0.5D0,1.D0-(QQQ))
   end function phf_FQBRANCH
@@ -732,11 +732,11 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: QQL
-        real(8) :: PRSL
-        real(8) :: QQQ
-        real(8) :: PRS
-        real(8) :: PNETA
+        real(8), intent(in) :: QQL
+        real(8), intent(in) :: PRSL
+        real(8), intent(in) :: QQQ
+        real(8), intent(in) :: PRS
+        real(8), intent(in) :: PNETA
 
         phf_FOEFQL= phf_FQBRANCH(QQQ)  &
            * ((QQL*MPC_EPS1_R8*PRS*QQQ/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ)  &
@@ -754,10 +754,10 @@ module physicsFunctions_mod
         implicit none
   
         ! Arguments:
-        real(8) :: qqq   ! backgroud specific humidity
-        real(8) :: ttt   ! backgroud temperature
-        real(8) :: ttl   ! temperature increment
-        real(8) :: plnql ! increment of logarithm specific humidity  (del(ln q))
+        real(8), intent(in) :: qqq   ! backgroud specific humidity
+        real(8), intent(in) :: ttt   ! backgroud temperature
+        real(8), intent(in) :: ttl   ! temperature increment
+        real(8), intent(in) :: plnql ! increment of logarithm specific humidity  (del(ln q))
 
         phf_fotvvl=(1 + MPC_DELTA_R8*qqq)*ttl + MPC_DELTA_R8*qqq*ttt*plnql
   end function phf_fotvvl
@@ -780,10 +780,10 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
-        real(8) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
-        real(8) :: QQQ    ! SPECIFIC HUMIDITY
-        real(8) :: PRS    ! PRESSURE
+        real(8), intent(in) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
+        real(8), intent(in) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+        real(8), intent(in) :: QQQ    ! SPECIFIC HUMIDITY
+        real(8), intent(in) :: PRS    ! PRESSURE
 
         phf_FOEFQA= PADES*PGAMMA*MPC_EPS1_R8*PRS*QQQ/  &
                     ((MPC_EPS1_R8+MPC_EPS2_R8*QQQ)*(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))
@@ -799,10 +799,10 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
-        real(8) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
-        real(8) :: QQQ    ! SPECIFIC HUMIDITY
-        real(8) :: PNETA  ! VALUE OF NETA
+        real(8), intent(in) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
+        real(8), intent(in) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+        real(8), intent(in) :: QQQ    ! SPECIFIC HUMIDITY
+        real(8), intent(in) :: PNETA  ! VALUE OF NETA
 
         phf_FOEFQPSA = PADES*PGAMMA*QQQ*PNETA/  &
                        (MPC_EPS1_R8+MPC_EPS2_R8*QQQ)
@@ -818,8 +818,8 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: qqq ! background specific humidity
-        real(8) :: tva ! adjoint variable of virtual temperature
+        real(8), intent(in) :: qqq ! background specific humidity
+        real(8), intent(in) :: tva ! adjoint variable of virtual temperature
 
         phf_fottva= (1D0 + MPC_DELTA_R8*qqq)*tva
   end function phf_fottva
@@ -834,9 +834,9 @@ module physicsFunctions_mod
         implicit none
  
         ! Arguments:
-        real(8) :: qqq ! background specific humidity
-        real(8) :: ttt ! background temperature
-        real(8) :: tva ! adjoint variable of virtual temperature
+        real(8), intent(in) :: qqq ! background specific humidity
+        real(8), intent(in) :: ttt ! background temperature
+        real(8), intent(in) :: tva ! adjoint variable of virtual temperature
 
         phf_folnqva = MPC_DELTA_R8*qqq*ttt*tva
   end function phf_folnqva
@@ -1082,13 +1082,13 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nmodlev           ! Number of model levels for variables other than uu and vv
-    real(8), intent(in) :: pressmod(nmodlev) ! Model pressure array (Pa)
-    real(8), intent(in) :: tt(nmodlev)       ! Model temperature (Kelvin)
-    real(8), intent(in) :: height(nmodlev)   ! Model height (meters)
-    real(8), optional :: uu_opt(:)           ! Model zonal wind component (m/s)
-    real(8), optional :: vv_opt(:)           ! Model meridional wind component (m/s)
-    real(8), optional :: hu_opt(nmodlev)     ! Specific humidity
+    integer,           intent(in) :: nmodlev           ! Number of model levels for variables other than uu and vv
+    real(8),           intent(in) :: pressmod(nmodlev) ! Model pressure array (Pa)
+    real(8),           intent(in) :: tt(nmodlev)       ! Model temperature (Kelvin)
+    real(8),           intent(in) :: height(nmodlev)   ! Model height (meters)
+    real(8), optional, intent(in) :: uu_opt(:)           ! Model zonal wind component (m/s)
+    real(8), optional, intent(in) :: vv_opt(:)           ! Model meridional wind component (m/s)
+    real(8), optional, intent(in) :: hu_opt(nmodlev)     ! Specific humidity
     ! Result:
     real(8) :: pbl_press                     ! PBL level in Pa (output)
 
@@ -1273,7 +1273,10 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
-    real(8) :: lat1, lon1, lat2, lon2
+    real(8), intent(in) :: lat1
+    real(8), intent(in) :: lon1
+    real(8), intent(in) :: lat2
+    real(8), intent(in) :: lon2
     ! Result:
     real(8) :: distanceInM
 
@@ -1301,7 +1304,10 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
-    real(8) :: lat1, lon1, lat2, lon2
+    real(8), intent(in) :: lat1
+    real(8), intent(in) :: lon1
+    real(8), intent(in) :: lat2
+    real(8), intent(in) :: lon2
     ! Result:
     real(8) :: distanceInM
 
@@ -1377,10 +1383,10 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in)   :: altitude(:)     ! altitude (m)
-    real(8), intent(in)   :: latitude        ! latitude (rad)
-    real(8), intent(inout):: geopotential(:) ! geopotential (m2/s2)
-    logical, optional :: printHeight_opt
+    real(8),           intent(in)    :: altitude(:)     ! altitude (m)
+    real(8),           intent(in)    :: latitude        ! latitude (rad)
+    real(8),           intent(inout) :: geopotential(:) ! geopotential (m2/s2)
+    logical, optional, intent(inout) :: printHeight_opt
 
     ! Locals:
     integer           :: nlev, nlev500m

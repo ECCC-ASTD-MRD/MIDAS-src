@@ -88,9 +88,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(in) :: vco_in
-    type(struct_hco), pointer, intent(in) :: hco_in
-    type (struct_obs),         intent(in) :: obsSpaceData
+    type(struct_vco), pointer, intent(in)    :: vco_in
+    type(struct_hco), pointer, intent(in)    :: hco_in
+    type (struct_obs),         intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: cvdim
@@ -409,10 +409,10 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_vco), pointer, intent(in)  :: vco_in
-    type(struct_hco), pointer, intent(in)  :: hco_in
-    type (struct_obs)        , intent(in)  :: obsSpaceData
-    integer                  , intent(out) :: cvDim_out
+    type(struct_vco), pointer, intent(in)    :: vco_in
+    type(struct_hco), pointer, intent(in)    :: hco_in
+    type (struct_obs)        , intent(inout) :: obsSpaceData
+    integer                  , intent(out)   :: cvDim_out
 
     ! Locals:
     character(len=256) :: ensPathName = 'ensemble'

@@ -83,9 +83,9 @@ module sqliteFiles_mod
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*)                 :: fileName
-    character(len=*)                 :: familyType
-    integer                          :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer         ,  intent(in)    :: fileIndex
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
@@ -162,9 +162,9 @@ module sqliteFiles_mod
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*)                 :: fileName
-    character(len=*)                 :: familyType
-    integer                          :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer         ,  intent(in)    :: fileIndex
 
     ! Locals:
     character(len=*), parameter :: myName = 'sqlf_updateFile'
@@ -233,8 +233,8 @@ module sqliteFiles_mod
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*),  intent(in) :: fileName
-    integer,           intent(in) :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    integer,           intent(in)    :: fileIndex
 
     ! Locals:
     character(len=*), parameter :: myName  = 'sqlf_addCloudParametersandEmissivity'

@@ -254,7 +254,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: k1, k2, varLevIndex
@@ -839,8 +839,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
-    integer          :: kIndex
+    type(struct_ens), intent(in) :: ens
+    integer         , intent(in) :: kIndex
     ! Result:
     real(8), pointer :: oneLevLevel(:,:,:,:)
 
@@ -1600,7 +1600,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)          :: ens
+    type(struct_ens), intent(in) :: ens
     ! Result:
     type(struct_hco), pointer :: hco_ptr
 
@@ -1997,7 +1997,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
@@ -2985,7 +2985,7 @@ CONTAINS
 
     ! Arguments
     type(struct_ens), intent(inout) :: ensIncrement
-    type(struct_gsv), intent(in) :: stateVectorAnalIncMask
+    type(struct_gsv), intent(in)    :: stateVectorAnalIncMask
 
     ! Locals
     real(4), pointer :: increment_ptr(:,:,:,:)

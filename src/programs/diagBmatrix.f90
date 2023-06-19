@@ -108,7 +108,7 @@ program midas_diagBmatrix
   use randomNumber_mod
   use utilities_mod
   use ramDisk_mod
-  IMPLICIT NONE
+  implicit none
 
   type(struct_gsv) :: statevector, statevectorEnsAmplitude
   type(struct_ens) :: ensAmplitude

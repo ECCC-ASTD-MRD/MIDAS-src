@@ -28,7 +28,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer          :: transformBufrCode, transformBufrCodeExtra
@@ -117,7 +117,7 @@ contains
     implicit none
 
     ! Argument:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: bodyIndex
@@ -140,8 +140,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer    :: varno
-    integer    :: codtyp
+    integer, intent(in) :: varno
+    integer, intent(in) :: codtyp
 
     ! Locals:
     character(len=9)  :: family
@@ -194,7 +194,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer          :: codtyp
+    integer, intent(in) :: codtyp
     ! Result:
     character(len=9) :: family
 
@@ -352,7 +352,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: sensor      ! BURP satellite sensor indicator (element #2048)
+    integer, intent(in) :: sensor      ! BURP satellite sensor indicator (element #2048)
 
     ! Locals:
     integer :: instrument  ! BURP satellite instrument       (element #2019)

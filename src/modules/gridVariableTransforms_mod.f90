@@ -97,7 +97,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName ! reference variable/type used
+    character(len=*),           intent(in) :: varName ! reference variable/type used
     character(len=*), optional, intent(in) :: varKind_opt ! additional variable/type information mandatory for some initialization
 
     ! Locals:
@@ -191,13 +191,13 @@ CONTAINS
     implicit none
    
     ! Arguments:
-    type(struct_gsv), intent(inout)           :: statevector ! statevector operand of the transformation
-    character(len=*), intent(in)              :: transform ! string identifying the requested transformation
+    type(struct_gsv),           intent(inout) :: statevector ! statevector operand of the transformation
+    character(len=*),           intent(in)    :: transform ! string identifying the requested transformation
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! reference statevector necessary for some transformation
-    logical, optional, intent(in)             :: allowOverWrite_opt
+    logical,          optional, intent(in)    :: allowOverWrite_opt
     character(len=*), optional, intent(in)    :: varName_opt    ! additional variable/type info mandatory for some transformation
-    integer, optional, intent(in)             :: maxBoxSize_opt ! additional info required by SSTSpread
+    integer,          optional, intent(in)    :: maxBoxSize_opt ! additional info required by SSTSpread
     character(len=*), optional, intent(in)    :: subgrid_opt    ! additional info required by SSTSpread to spread SST values
 
     ! check stateVector and statevectorOut_opt are on the same grid
@@ -434,11 +434,11 @@ CONTAINS
     implicit none
    
     ! Arguments:
-    type(struct_ens), intent(inout) :: ens ! operand (ensemble of statevector)
-    character(len=*), intent(in)    :: transform ! string identifying the requested transformation
-    logical, optional, intent(in)   :: allowOverWrite_opt
-    character(len=*), optional, intent(in)  :: varName_opt ! additional variable/type information mandatory for some transformation
-    real(8), optional, intent(in)   :: huMinValue_opt ! HU min value for 'HUtoLQ' transformation
+    type(struct_ens),           intent(inout) :: ens ! operand (ensemble of statevector)
+    character(len=*),           intent(in)    :: transform ! string identifying the requested transformation
+    logical,          optional, intent(in)    :: allowOverWrite_opt
+    character(len=*), optional, intent(in)    :: varName_opt ! additional variable/type information mandatory for some transformation
+    real(8),          optional, intent(in)    :: huMinValue_opt ! HU min value for 'HUtoLQ' transformation
 
     select case(trim(transform))
     case ('AllTransformedToModel') ! Do all transformed variables: LPRtoPR
@@ -518,7 +518,7 @@ CONTAINS
     ! Arguments:
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector 
     character(len=*),  intent(in) :: varName ! reference variable/type used
-    logical, intent(in), optional :: applyLimitOnHU_opt
+    logical, optional, intent(in) :: applyLimitOnHU_opt
 
     ! Locals:
     type(struct_gsv)         :: stateVectorLowResTime
@@ -743,8 +743,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ens
-    real(8), optional, intent(in)   :: huMinValue_opt
+    type(struct_ens),  intent(inout) :: ens
+    real(8), optional, intent(in)    :: huMinValue_opt
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
@@ -795,8 +795,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)         :: statevector
-    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -873,8 +873,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)         :: statevector
-    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     integer           :: lonIndex,latIndex,levIndex,stepIndex
@@ -941,9 +941,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv),           intent(inout) :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
-    logical, optional, intent(in)             :: allowOverWrite_opt
+    logical,          optional, intent(in)    :: allowOverWrite_opt
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1076,8 +1076,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ens
-    logical, optional, intent(in)   :: allowOverWrite_opt
+    type(struct_ens),  intent(inout) :: ens
+    logical, optional, intent(in)    :: allowOverWrite_opt
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
@@ -1146,7 +1146,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv),           intent(inout) :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
 
     ! Locals:
@@ -1226,9 +1226,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)           :: stateVector
+    type(struct_gsv),           intent(inout) :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
-    logical, optional, intent(in)             :: allowOverWrite_opt
+    logical,          optional, intent(in)    :: allowOverWrite_opt
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
@@ -1767,9 +1767,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)         :: statevector
-    character(len=*), intent(in)            :: varName
-    type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
+    type(struct_gsv),           intent(inout) :: statevector
+    character(len=*),           intent(in)    :: varName
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
     
     ! Locals:
     integer           :: lonIndex,latIndex,levIndex,stepIndex,varIndex

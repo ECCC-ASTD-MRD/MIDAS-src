@@ -24,7 +24,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData 
+    type(struct_obs), intent(inout) :: obsSpaceData 
 
     ! Locals:
     integer :: index_body
@@ -49,7 +49,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: index_body

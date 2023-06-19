@@ -46,12 +46,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleTrl
-    type(struct_ens), intent(inout) :: ensembleAnl
-    type(struct_gsv), intent(in)    :: stateVectorHeightSfc
-    type(struct_gsv), intent(inout) :: stateVectorCtrlTrl
-    logical, intent(in)             :: writeTrlEnsemble
-    logical, optional, intent(in)   :: outputOnlyEnsMean_opt
+    type(struct_ens),  intent(inout) :: ensembleTrl
+    type(struct_ens),  intent(inout) :: ensembleAnl
+    type(struct_gsv),  intent(in)    :: stateVectorHeightSfc
+    type(struct_gsv),  intent(inout) :: stateVectorCtrlTrl
+    logical,           intent(in)    :: writeTrlEnsemble
+    logical, optional, intent(in)    :: outputOnlyEnsMean_opt
 
     ! Locals:
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
@@ -847,12 +847,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVector
-    integer          :: nEns
-    character(len=*) :: etiket
-    character(len=*) :: typvar
-    character(len=*) :: fileNameSuffix
-    character(len=*) :: ensPath
+    type(struct_gsv), intent(in) :: stateVector
+    integer         , intent(in) :: nEns
+    character(len=*), intent(in) :: etiket
+    character(len=*), intent(in) :: typvar
+    character(len=*), intent(in) :: fileNameSuffix
+    character(len=*), intent(in) :: ensPath
 
     ! Locals:
     integer            :: memberIndex, stepIndex, writeFilePE(nEns)
@@ -895,11 +895,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensembleAnl
-    type(struct_gsv) :: stateVectorStdDevAnl
-    type(struct_gsv) :: stateVectorStdDevTrl
-    type(struct_gsv) :: stateVectorMeanAnl
-    real(8)          :: alphaRTPS
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_gsv), intent(in)    :: stateVectorStdDevAnl
+    type(struct_gsv), intent(in)    :: stateVectorStdDevTrl
+    type(struct_gsv), intent(in)    :: stateVectorMeanAnl
+    real(8)         , intent(in)    :: alphaRTPS
 
     ! Locals:
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
@@ -960,11 +960,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensembleAnl
-    type(struct_ens) :: ensembleTrl
-    type(struct_gsv) :: stateVectorMeanAnl
-    type(struct_gsv) :: stateVectorMeanTrl
-    real(8)          :: alphaRTPP
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_ens), intent(inout) :: ensembleTrl
+    type(struct_gsv), intent(in)    :: stateVectorMeanAnl
+    type(struct_gsv), intent(in)    :: stateVectorMeanTrl
+    real(8)         , intent(in)    :: alphaRTPP
 
     ! Locals:
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
@@ -1258,10 +1258,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)           :: ensembleAnl
-    type(struct_ens)           :: ensembleAnlSubSample
-    type(struct_ens), optional :: ensembleTrl_opt
-    type(struct_ens), optional :: ensembleTrlSubSample_opt
+    type(struct_ens)          , intent(in)  :: ensembleAnl
+    type(struct_ens)          , intent(out) :: ensembleAnlSubSample
+    type(struct_ens), optional, intent(in)  :: ensembleTrl_opt
+    type(struct_ens), optional, intent(out) :: ensembleTrlSubSample_opt
 
     ! Locals:
     type(struct_gsv) :: stateVectorMember
@@ -1341,11 +1341,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensembleAnl
-    real(8)          :: weightRecenter(:)
-    real(8)          :: weightRecenterLand
-    logical          :: useOptionTableRecenter
-    integer          :: numMembersToRecenter
+    type(struct_ens), intent(inout) :: ensembleAnl
+    real(8)         , intent(in)    :: weightRecenter(:)
+    real(8)         , intent(in)    :: weightRecenterLand
+    logical         , intent(in)    :: useOptionTableRecenter
+    integer         , intent(in)    :: numMembersToRecenter
 
     ! Locals:
     type(struct_gsv) :: stateVectorRecenterAnl
@@ -1449,11 +1449,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv)             :: stateVectorStdDev
-    character(len=*)             :: fileName
-    real(8), intent(in)          :: elapsed
+    type(struct_gsv), intent(in) :: stateVectorStdDev
+    character(len=*), intent(in) :: fileName
+    real(8),          intent(in) :: elapsed
     character(len=1), intent(in) :: ftype
-    integer, intent(in)          :: nEns
+    integer,          intent(in) :: nEns
 
     ! Locals:
     real(8), allocatable          :: rmsvalue(:) 

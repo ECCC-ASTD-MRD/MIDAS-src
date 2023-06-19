@@ -128,7 +128,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)  :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
@@ -215,11 +215,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)           :: obsSpaceData
-    real(8), optional          :: HXens_mpiglobal_opt(:,:)
-    logical, optional          :: asciDumpObs_opt
-    logical, optional          :: writeDiagFiles_opt
-    type(struct_eob), optional :: ensObs_opt          
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    real(8),          optional, intent(in)    :: HXens_mpiglobal_opt(:,:)
+    logical,          optional, intent(in)    :: asciDumpObs_opt
+    logical,          optional, intent(in)    :: writeDiagFiles_opt
+    type(struct_eob), optional, intent(in)    :: ensObs_opt          
   
     ! Locals:
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
@@ -392,8 +392,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    real(8)          :: HXens_mpiglobal(:,:)
+    type(struct_obs), intent(in) :: obsSpaceData
+    real(8),          intent(in) :: HXens_mpiglobal(:,:)
 
     ! Locals:
     integer :: unitHX, ierr, headerIndex, fnom, fclos
@@ -422,7 +422,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(in) :: obsSpaceData
 
     ! Locals:
     character(len=25) :: fileNameAsciDump
@@ -816,7 +816,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)                       :: obsFileType
+    character(len=*), intent(out) :: obsFileType
 
     ! Locals:
     integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
@@ -852,8 +852,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*),intent(out) :: obsFileType
-    character(len=*),intent(in)  :: fileName
+    character(len=*), intent(out) :: obsFileType
+    character(len=*), intent(in)  :: fileName
 
     ! Locals:
     integer           :: ierr, unitFile
@@ -906,8 +906,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=2), intent(in) :: obsfam
-    logical, intent(out), optional :: fileFound_opt
+    character(len=2),  intent(in)  :: obsfam
+    logical, optional, intent(out) :: fileFound_opt
     ! Result:
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
 
@@ -967,16 +967,16 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)           :: obsfam
-    character(len=*), intent(in)           :: stnid
-    integer         , intent(in)           :: varno
-    integer         , intent(in)           :: nlev
-    integer         , intent(in)           :: ndim
-    integer         , intent(in), optional :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
-    integer         , intent(in), optional :: bkstp_opt
-    integer         , intent(in), optional :: codtyp_opt(:)
-    logical         , intent(in), optional :: match_nlev_opt
-    character(len=4), intent(in), optional :: block_opt
+    character(len=*)          , intent(in) :: obsfam
+    character(len=*)          , intent(in) :: stnid
+    integer                   , intent(in) :: varno
+    integer                   , intent(in) :: nlev
+    integer                   , intent(in) :: ndim
+    integer,          optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
+    integer,          optional, intent(in) :: bkstp_opt
+    integer,          optional, intent(in) :: codtyp_opt(:)
+    logical,          optional, intent(in) :: match_nlev_opt
+    character(len=4), optional, intent(in) :: block_opt
     ! Result:
     type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
@@ -1046,12 +1046,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout) :: obsdata
-    character(len=*), intent(in) :: obsfam
-    integer, intent(in) :: varno(:)
-    integer, intent(in), optional :: bkstp_opt
-    character(len=4), intent(in), optional :: block_opt
-    character(len=*), intent(in), optional :: multi_opt
+    type(struct_oss_obsdata),   intent(inout) :: obsdata
+    character(len=*),           intent(in)    :: obsfam
+    integer,                    intent(in)    :: varno(:)
+    integer         , optional, intent(in)    :: bkstp_opt
+    character(len=4), optional, intent(in)    :: block_opt
+    character(len=*), optional, intent(in)    :: multi_opt
     ! Result:
     integer :: nrep_modified    ! Number of modified reports
 
@@ -1134,7 +1134,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)  :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer           :: fileIndex
@@ -1191,8 +1191,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: directoryInOut
-    character(len=*) :: direction
+    character(len=*), intent(in) :: directoryInOut
+    character(len=*), intent(in) :: direction
 
     ! Locals:
     integer            :: status, fileIndex, baseNameIndexBeg
@@ -1255,8 +1255,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsDat
-    integer, intent(in) :: numHeaderRead
-    integer, intent(in) :: numBodyRead
+    integer,          intent(in)    :: numHeaderRead
+    integer,          intent(in)    :: numBodyRead
 
     ! Locals:
     integer    :: initialHeaderindex, initialBodyindex

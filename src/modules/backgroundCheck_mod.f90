@@ -115,7 +115,6 @@ module backgroundCheck_mod
     !
     !:Purpose:  Calculate a background check for a data family and set the
     !           appropriate quality-control flags in obsSpaceData
-   
     implicit none
 
     ! NOTE 1: gps_gb_YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
@@ -484,8 +483,8 @@ module backgroundCheck_mod
       implicit none
 
       ! Arguments:
-      type(struct_columnData) :: columnTrlOnTrlLev
-      type(struct_obs) :: obsData
+      type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+      type(struct_obs),        intent(inout) :: obsData
 
       ! Locals:
       type(struct_vco), pointer :: vco_trl
@@ -596,10 +595,10 @@ module backgroundCheck_mod
     implicit none
 
     ! Arguments:
-    character(len=2) :: obsFamily ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-    integer :: kodtyp ! BURP CODE TYPE
-    integer :: kvnam  ! VARIABLE NAME ( BURP )
-    real(8) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+    character(len=2), intent(in) :: obsFamily ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+    integer,          intent(in) :: kodtyp ! BURP CODE TYPE
+    integer,          intent(in) :: kvnam  ! VARIABLE NAME ( BURP )
+    real(8),          intent(in) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
     ! Result:
     integer :: isetflag
 

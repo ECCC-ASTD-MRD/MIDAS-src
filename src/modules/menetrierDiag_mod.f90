@@ -54,12 +54,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_template
-    type(struct_hco), pointer :: hco_core_in
-    integer, intent(in) :: nens_in
-    integer, intent(in) :: nWaveBand_in
-    real(8), intent(in), pointer :: pressureProfile_M_in(:)
-    real(8), intent(in), pointer :: pressureProfile_T_in(:)
+    type(struct_gsv),          intent(in)    :: statevector_template
+    type(struct_hco), pointer, intent(in)    :: hco_core_in
+    integer,                   intent(in)    :: nens_in
+    integer,                   intent(in)    :: nWaveBand_in
+    real(8), pointer,          intent(inout) :: pressureProfile_M_in(:)
+    real(8), pointer,          intent(inout) :: pressureProfile_T_in(:)
 
     ! Locals:
     integer :: nulnam, ierr, fclos, fnom
@@ -143,8 +143,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensPerts
-    integer,optional, intent(in) :: waveBandIndex_opt
+    type(struct_ens), intent(inout) :: ensPerts
+    integer,optional, intent(in)    :: waveBandIndex_opt
 
     !
     !- Estimate the horionzontal and vertical localization radii
@@ -167,9 +167,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ensPerts
-    integer, intent(in) :: stride
-    integer,optional, intent(in) :: waveBandIndex_opt
+    type(struct_ens),  intent(inout) :: ensPerts
+    integer,           intent(in)    :: stride
+    integer, optional, intent(in)    :: waveBandIndex_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_ensStdDev
@@ -624,9 +624,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: numBins
-    real(8) :: distance
-    real(8) :: distanceBinThresholds(numBins)
+    integer, intent(in) :: numBins
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: distanceBinThresholds(numBins)
     ! Result:
     integer :: binIndex
 
@@ -659,10 +659,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: lat1
-    real(8) :: lon1
-    real(8) :: lat2
-    real(8) :: lon2
+    real(8), intent(in) :: lat1
+    real(8), intent(in) :: lon1
+    real(8), intent(in) :: lat2
+    real(8), intent(in) :: lon2
     ! Result:
     real(8) :: distanceInM
 
@@ -685,9 +685,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ensPerts
-    integer, intent(in) :: stride
-    integer,optional, intent(in) :: waveBandIndex_opt
+    type(struct_ens), intent(inout) :: ensPerts
+    integer,          intent(in)    :: stride
+    integer,optional, intent(in)    :: waveBandIndex_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_ensStdDev

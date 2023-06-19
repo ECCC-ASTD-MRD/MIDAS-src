@@ -277,9 +277,9 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      integer, intent(in) :: varNumber
-      integer, intent(in), optional :: varNumberChm_opt
-      character(len=*), intent(in), optional :: modelName_opt
+      integer,                    intent(in) :: varNumber
+      integer,          optional, intent(in) :: varNumberChm_opt
+      character(len=*), optional, intent(in) :: modelName_opt
       ! Result:
       character(len=4)    :: varName
 
@@ -399,8 +399,8 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      character(len=*),  intent(in) :: varName
-      character(len=*),  intent(in), optional :: varKind_opt
+      character(len=*),            intent(in) :: varName
+      character(len=*), optional,  intent(in) :: varKind_opt
       ! Result:
       integer    :: varNumber
       
@@ -561,9 +561,9 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      integer, intent(in)           :: varNumber
-      integer, intent(in), optional :: varNumberChm_opt
-      character(len=*), intent(in), optional :: modelName_opt
+      integer,                    intent(in) :: varNumber
+      integer,          optional, intent(in) :: varNumberChm_opt
+      character(len=*), optional, intent(in) :: modelName_opt
       ! Result:
       character(len=4)              :: varLevel
 
@@ -604,8 +604,8 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      logical :: varExistList(:)
-      character(len=4), pointer :: varNames(:)
+      logical,                   intent(in)  :: varExistList(:)
+      character(len=4), pointer, intent(out) :: varNames(:)
 
       ! Local:
       integer :: varIndex, numFound

@@ -84,7 +84,7 @@ contains
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
     type(struct_hco), pointer, intent(in)    :: hco_core_in
     type(struct_vco), pointer, intent(in)    :: vco_anl_in
-    integer,          intent(out)   :: cvDim_out
+    integer,                   intent(out)   :: cvDim_out
 
     ! Locals:
     integer  :: var
@@ -689,9 +689,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(in)           :: controlVector_in(cvDim)
-    type(struct_gsv), intent(inout)        :: statevector
-    type(struct_gsv), intent(in), optional :: statevectorRef_opt
+    real(8),                    intent(in)    :: controlVector_in(cvDim)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     real(8), allocatable :: gd_out(:,:,:)
@@ -752,9 +752,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(out)          :: controlVector_out(cvDim)
-    type(struct_gsv), intent(inout)        :: statevector
-    type(struct_gsv), intent(in), optional :: statevectorRef_opt
+    real(8),                    intent(out)   :: controlVector_out(cvDim)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)

@@ -214,12 +214,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: value           ! Value of the RTTOV input variable to check for validity
-    character(len=*),intent(in)     :: variableName    ! Name of the checked variable for output in listings
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obsSpaceData object
-    integer, intent(in)             :: headerIndex     ! Index of the observation in obsSpaceData header table 
-    real(8), intent(in), optional   :: minimum_opt     ! Minimum acceptable value
-    real(8), intent(in), optional   :: maximum_opt     ! Maximum acceptable value
+    real(8),           intent(inout) :: value           ! Value of the RTTOV input variable to check for validity
+    character(len=*),  intent(in)    :: variableName    ! Name of the checked variable for output in listings
+    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData object
+    integer,           intent(in)    :: headerIndex     ! Index of the observation in obsSpaceData header table 
+    real(8), optional, intent(in)    :: minimum_opt     ! Minimum acceptable value
+    real(8), optional, intent(in)    :: maximum_opt     ! Maximum acceptable value
 
     ! Locals:
     real(8)                         :: minimum, maximum
@@ -259,12 +259,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: profile(:)    ! Vertical profile of input variables to check for validity
-    character(len=*),intent(in)     :: profileName   ! Name of the checked profile for output in listings
-    real(8), intent(in)             :: minimum       ! Minimum acceptable value
-    real(8), intent(in)             :: maximum       ! Maximum acceptable value
+    real(8),          intent(inout) :: profile(:)    ! Vertical profile of input variables to check for validity
+    character(len=*), intent(in)    :: profileName   ! Name of the checked profile for output in listings
+    real(8),          intent(in)    :: minimum       ! Minimum acceptable value
+    real(8),          intent(in)    :: maximum       ! Maximum acceptable value
     type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData object
-    integer, intent(in)             :: headerIndex   ! Index of the observation in obsSpaceData header table
+    integer,          intent(in)    :: headerIndex   ! Index of the observation in obsSpaceData header table
 
     ! Locals:
     logical                         :: ltest(size(profile))
@@ -300,7 +300,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
-    integer, intent(in)             :: headerIndex  ! Index of the observation in obsSpaceData header table
+    integer,          intent(in)    :: headerIndex  ! Index of the observation in obsSpaceData header table
 
     ! Locals:
     integer :: bodyIndex
@@ -323,7 +323,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: allocStatus(9)
@@ -683,9 +683,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_profile), pointer, intent(inout)       :: profiles(:)
-    type(rttov_profile_cloud), pointer, intent(inout), optional :: cld_profiles_opt(:)
-    character(len=*), intent(in)                      :: profileType
+    type(rttov_profile),       pointer,           intent(inout) :: profiles(:)
+    character(len=*),                             intent(in)    :: profileType
+    type(rttov_profile_cloud), pointer, optional, intent(inout) :: cld_profiles_opt(:)
 
     select case( trim( profileType) )
       case('nl')
@@ -1230,8 +1230,8 @@ contains
     implicit none
 
     ! Argument:
-    integer :: idatypListSize
-    integer :: idatypList(:)
+    integer, intent(out) :: idatypListSize
+    integer, intent(out) :: idatypList(:)
     
     ! Locals:
     logical, save :: first=.true.
@@ -1460,7 +1460,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: name !Platform name
+    character(len=*), intent(in) :: name ! Platform name
 
     ! Locals:
     integer           :: platformIndex, length, ipos
@@ -2098,11 +2098,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: sensorTovsIndexes(:)
-    type(struct_obs), intent(in)     :: obsSpaceData
-    type(rttov_chanprof), intent(out):: chanprof(:)
-    logical, intent(out), optional   :: lchannel_subset_opt(:,:)
-    integer, intent(out), optional   :: iptobs_cma_opt(:)
+    integer,              intent(in)  :: sensorTovsIndexes(:)
+    type(struct_obs),     intent(in)  :: obsSpaceData
+    type(rttov_chanprof), intent(out) :: chanprof(:)
+    logical,    optional, intent(out) :: lchannel_subset_opt(:,:)
+    integer,    optional, intent(out) :: iptobs_cma_opt(:)
 
     ! Locals:
     integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
@@ -2148,9 +2148,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)          :: sensorTovsIndexes(:)
-    type(struct_obs)             :: obsSpaceData
-    integer, intent(in),optional :: assim_flag_val_opt
+    integer,           intent(in) :: sensorTovsIndexes(:)
+    type(struct_obs),  intent(in) :: obsSpaceData
+    integer, optional, intent(in) :: assim_flag_val_opt
     
     ! Locals:
     integer :: profileIndex, headerIndex, istart, iend, bodyIndex, iobs, assim_flag_val
@@ -2186,8 +2186,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)          :: headerIndex
-    type(struct_obs)             :: obsSpaceData
+    integer,          intent(in) :: headerIndex
+    type(struct_obs), intent(in) :: obsSpaceData
     
     ! Locals:
     integer :: terrainType
@@ -2214,9 +2214,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)          :: sensorTovsIndexes(:)
-    type(struct_obs), intent(in) :: obsSpaceData
-    real(8), intent(out)         :: surfem(:)
+    integer,          intent(in)  :: sensorTovsIndexes(:)
+    type(struct_obs), intent(in)  :: obsSpaceData
+    real(8),          intent(out) :: surfem(:)
 
     ! Locals:
     integer :: count, profileIndex, iobs, istart, iend, bodyIndex, headerIndex
@@ -2250,12 +2250,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof), intent(in) :: chanprof(:)
-    integer, intent(in)              :: sensorTovsIndexes(:)
-    integer, intent(in)              :: sensorType
-    integer, intent(in)              :: instrument
-    real(8), intent(out)             :: surfem(:)
-    logical, intent(out)             :: calcemis(:)
+    type(rttov_chanprof), intent(in)  :: chanprof(:)
+    integer,              intent(in)  :: sensorTovsIndexes(:)
+    integer,              intent(in)  :: sensorType
+    integer,              intent(in)  :: instrument
+    real(8),              intent(out) :: surfem(:)
+    logical,              intent(out) :: calcemis(:)
     
     ! Locals:
     integer :: radiance_index, profileIndex, iobs, surfaceType
@@ -2300,7 +2300,7 @@ contains
     type(struct_columnData), intent(in)    :: columnTrl    ! Column structure
     type(struct_obs),        intent(inout) :: obsSpaceData ! obsSpaceData structure
     integer,                 intent(in)    :: datestamp    ! CMC date stamp
-    character (len=*), intent(in)          :: profileType
+    character(len=*),        intent(in)    :: profileType
     logical,                 intent(in)    :: beSilent     ! To control verbosity
 
     ! Locals:
@@ -2770,7 +2770,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData     ! obsSpaceData structure
-    integer, intent(in)          :: headerIndex      ! location in header
+    integer,          intent(in) :: headerIndex      ! location in header
     ! Result:
     real(8)                      :: correctedAzimuth ! corrected azimuth (function result)
 
@@ -2810,8 +2810,8 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData structure
-    logical, intent(in)             :: bgckMode       ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical, intent(in)             :: beSilent       ! flag to control verbosity
+    logical,          intent(in)    :: bgckMode      ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
+    logical,          intent(in)    :: beSilent      ! flag to control verbosity
 
     ! Locals:
     integer :: nlv_T
@@ -3341,11 +3341,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)                  :: originalEmissivity(:)
-    type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
-    integer, intent(in)                  :: sensorId
-    type (rttov_chanprof), intent(in)    :: chanprof(:)
-    integer, intent(in)                  :: sensorTovsIndexes(:)
+    real(8),                 intent(in)  :: originalEmissivity(:)
+    type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)
+    integer,                 intent(in)  :: sensorId
+    type(rttov_chanprof),    intent(in)  :: chanprof(:)
+    integer,                 intent(in)  :: sensorTovsIndexes(:)
 
     ! Locals:
     integer :: returnCode
@@ -4052,9 +4052,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nchn              ! number of bands for which emissivity is needed
-    real(8), intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
-    real(8), intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
+    integer, intent(in)  :: nchn              ! number of bands for which emissivity is needed
+    real(8), intent(in)  :: waven(nchn)       ! wavenumbers (cm-1)
+    real(8), intent(out) :: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
 
     ! Locals:
     integer          :: i, nc, nt
@@ -4236,9 +4236,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: channels(:)
-    integer, intent(out):: countUniqueChannel
-    integer, intent(out):: listAll(:)
+    integer, intent(in)  :: channels(:)
+    integer, intent(out) :: countUniqueChannel
+    integer, intent(out) :: listAll(:)
 
     ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
@@ -4330,11 +4330,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer(kind=jpim), intent(out) :: errorStatus  ! Error status
-    type(rttov_coefs),  intent(out) :: coefs        ! Rttov coefficient structure
-    type(rttov_options), intent(in) :: opts         ! Rttov option structure
-    integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
-    integer(kind=jpim), intent(in)  :: instrument(3)! Instrument vector
+    integer(kind=jpim),  intent(out) :: errorStatus   ! Error status
+    type(rttov_coefs),   intent(out) :: coefs         ! Rttov coefficient structure
+    type(rttov_options), intent(in)  :: opts          ! Rttov option structure
+    integer(kind=jpim),  intent(in)  :: channels(:)   ! Channel list
+    integer(kind=jpim),  intent(in)  :: instrument(3) ! Instrument vector
 
     ! Locals:
     real(8), allocatable :: bigArray(:,:,:,:)
@@ -4784,11 +4784,11 @@ contains
       ! Arguments:
       integer,                        intent(out)   :: err
       type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-      integer(jpim),         intent(in)             :: gas_ids(:)
-      integer(jpim),         intent(in)             :: ncoefs(:)
-      integer(jpim),         intent(in)             :: version
-      integer(jpim),         intent(in)             :: nlayers
-      integer(jpim),         intent(in)             :: ngas
+      integer(jpim),                  intent(in)    :: gas_ids(:)
+      integer(jpim),                  intent(in)    :: ncoefs(:)
+      integer(jpim),                  intent(in)    :: version
+      integer(jpim),                  intent(in)    :: nlayers
+      integer(jpim),                  intent(in)    :: ngas
 
       ! Locals:
       integer(jpim) :: channelIndex, gasIndex, layerIndex, coefIndex
@@ -4864,9 +4864,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, pointer :: array(:)
-    integer, intent(in) :: oldSize
-    integer, intent(in) :: index(:)
+    integer, pointer, intent(inout) :: array(:)
+    integer,          intent(in)    :: oldSize
+    integer,          intent(in)    :: index(:)
 
     ! Locals:
     integer :: newSize, tmpI41d(oldSize), ierr, trueSize
@@ -4909,9 +4909,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), pointer :: array(:)
-    integer, intent(in) :: oldSize
-    integer, intent(in) :: index(:)
+    real(8), pointer, intent(inout) :: array(:)
+    integer,          intent(in)    :: oldSize
+    integer,          intent(in)    :: index(:)
 
     ! Locals:
     integer :: newSize, ierr, trueSize
@@ -4957,8 +4957,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), pointer :: array(:,:)
-    integer, intent(in) :: oldSize1, oldSize2,index(:)
+    real(8), pointer, intent(inout) :: array(:,:)
+    integer,          intent(in)    :: oldSize1
+    integer,          intent(in)    :: oldSize2
+    integer,          intent(in)    :: index(:)
 
     ! Locals:
     integer :: newSize, ierr, trueSize,i
@@ -5005,11 +5007,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), pointer :: array(:,:,:)
-    integer, intent(in) :: oldSize1
-    integer, intent(in) :: oldSize2
-    integer, intent(in) :: oldSize3
-    integer, intent(in) :: index(:)
+    real(8), pointer, intent(inout) :: array(:,:,:)
+    integer,          intent(in) :: oldSize1
+    integer,          intent(in) :: oldSize2
+    integer,          intent(in) :: oldSize3
+    integer,          intent(in) :: index(:)
 
     ! Locals:
     integer :: newSize, ierr, trueSize,i
@@ -5055,9 +5057,9 @@ contains
     implicit none
 
     ! Arguments:
-    complex(kind=8), pointer :: array(:)
-    integer, intent(in) :: oldSize
-    integer, intent(in) :: index(:)
+    complex(kind=8), pointer, intent(inout) :: array(:)
+    integer,                  intent(in) :: oldSize
+    integer,                  intent(in) :: index(:)
 
     ! Locals:
     integer :: newSize, ierr, trueSize
@@ -5102,7 +5104,7 @@ contains
     implicit none
 
     ! Arguments:
-    real(kind=8), pointer :: array(:,:)
+    real(kind=8), pointer, intent(inout) :: array(:,:)
 
     ! Locals:
     logical :: associated0
@@ -5127,7 +5129,7 @@ contains
     implicit none
 
     ! Arguments:
-    real(kind=8), pointer :: array(:)
+    real(kind=8), pointer, intent(inout) :: array(:)
 
     ! Locals:
     logical :: associated0
@@ -5153,7 +5155,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer(kind=4), pointer :: array(:)
+    integer(kind=4), pointer, intent(inout) :: array(:)
 
     ! Locals:
     logical :: associated0
@@ -5498,11 +5500,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),   intent(in) :: obsSpaceData
-    integer,            intent(in) :: headerIndex
-    integer,            intent(in) :: bodyIndex
-    integer,           intent(out) :: channelNumber
-    integer,           intent(out) :: channelIndex
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: headerIndex
+    integer,          intent(in)  :: bodyIndex
+    integer,          intent(out) :: channelNumber
+    integer,          intent(out) :: channelIndex
 
     ! Locals:
     integer :: tovsIndex, sensorIndex

@@ -35,14 +35,14 @@ module oceanBackground_mod
     implicit none
 
     ! Arguments:
-    type(struct_hco) , intent(in), pointer :: hco               ! horizontal grid
-    type(struct_vco) , intent(in), pointer :: vco               ! vertical grid
-    integer          , intent(in)          :: trialDateStamp    ! trial datestamp
-    integer          , intent(in)          :: analysisDateStamp ! datestamp for last analysis 
-    integer          , intent(in)          :: nmonthsClim       ! number of climatological fields (= 12)
-    integer          , intent(in)          :: datestampClim(:)  ! datestamps of input climatology fields
-    real(4)          , intent(in)          :: alphaClim         ! scalling factor to relax towards climatology
-    character(len=10), intent(in)          :: etiket            ! etiket from namelist and for trial
+    type(struct_hco), pointer, intent(in) :: hco               ! horizontal grid
+    type(struct_vco), pointer, intent(in) :: vco               ! vertical grid
+    integer                  , intent(in) :: trialDateStamp    ! trial datestamp
+    integer                  , intent(in) :: analysisDateStamp ! datestamp for last analysis 
+    integer                  , intent(in) :: nmonthsClim       ! number of climatological fields (= 12)
+    integer                  , intent(in) :: datestampClim(:)  ! datestamps of input climatology fields
+    real(4)                  , intent(in) :: alphaClim         ! scalling factor to relax towards climatology
+    character(len=10)        , intent(in) :: etiket            ! etiket from namelist and for trial
     
     ! Locals:
     type(struct_gsv) :: stateVector
@@ -95,12 +95,12 @@ module oceanBackground_mod
     implicit none
 
     ! Arguments:
-    integer         , intent(in)          :: dateStamp        ! date stamp for the current day
-    type(struct_hco), intent(in), pointer :: hco              ! horizontal grid
-    type(struct_vco), intent(in), pointer :: vco              ! vertical grid
-    integer         , intent(in)          :: nmonthsClim      ! number of records in the climatology file 
-    integer         , intent(in)          :: datestampClim(:) ! datestamps in the climatology file
-    real(8)         , intent(inout)       :: output(:,:)      ! interpolated SST field from climatology
+    integer                  , intent(in)    :: dateStamp        ! date stamp for the current day
+    type(struct_hco), pointer, intent(in)    :: hco              ! horizontal grid
+    type(struct_vco), pointer, intent(in)    :: vco              ! vertical grid
+    integer                  , intent(in)    :: nmonthsClim      ! number of records in the climatology file 
+    integer                  , intent(in)    :: datestampClim(:) ! datestamps in the climatology file
+    real(8)                  , intent(inout) :: output(:,:)      ! interpolated SST field from climatology
   
     ! Locals:
     integer          :: hour, day, month, yyyy, ndays, nextMonth

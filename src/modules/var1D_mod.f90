@@ -97,10 +97,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)        :: stateVector
-    type(struct_obs), intent(in)           :: obsSpaceData
+    type(struct_gsv),        intent(inout) :: stateVector
+    type(struct_obs),        intent(in)    :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
-    character(len=4), intent(in)           :: varList(:)
+    character(len=4),        intent(in)    :: varList(:)
 
     ! Locals:
     type(struct_hco), pointer :: hco_yGrid

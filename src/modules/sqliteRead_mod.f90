@@ -787,7 +787,7 @@ module sqliteRead_mod
     character(len=*)   , intent(in)    :: fileName    
     character(len=*)   , intent(in)    :: tableName   
     character(len=*)   , intent(in)    :: columnName   
-    integer, intent(in)         :: obsSpaceColIndexSource  
+    integer,             intent(in)    :: obsSpaceColIndexSource  
 
     ! Locals: 
     character(len=3000)         :: query
@@ -1104,8 +1104,8 @@ module sqliteRead_mod
 
     ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    type(struct_obs),    intent(in) :: obsdat
-    integer,             intent(in) :: fileNumber
+    type(struct_obs),    intent(in)    :: obsdat
+    integer,             intent(in)    :: fileNumber
 
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
@@ -1182,11 +1182,11 @@ module sqliteRead_mod
     implicit none
 
     ! Arguments:
-    type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
-    type(struct_obs)       :: obsdat
-    character(len=*)       :: familyType
-    character(len=*)       :: fileName
-    integer                :: fileNumber
+    type(fSQL_DATABASE), intent(inout) :: db   ! type for SQLIte  file handle
+    type(struct_obs),    intent(in)    :: obsdat
+    character(len=*),    intent(in)    :: familyType
+    character(len=*),    intent(in)    :: fileName
+    integer         ,    intent(in)    :: fileNumber
 
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
@@ -1370,7 +1370,7 @@ module sqliteRead_mod
 
     ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    character(len=*),    intent(in) :: fileName
+    character(len=*),    intent(in)    :: fileName
 
     ! Locals:
     character(len = 128) :: query

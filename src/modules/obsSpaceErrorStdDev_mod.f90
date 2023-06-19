@@ -96,9 +96,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev ! Columns of the background interpolated to analysis levels and to obs horizontal locations
-    type(struct_hco), pointer :: hco_anl_in
-    type(struct_obs) :: obsSpaceData         ! Observation-related data
+    type(struct_columnData),   intent(inout) :: columnTrlOnAnlIncLev ! Background columns on anl levels, obs horiz locations
+    type(struct_hco), pointer, intent(in)    :: hco_anl_in
+    type(struct_obs),          intent(inout) :: obsSpaceData         ! Observation-related data
     
     ! Locals:
     real(8) :: HBHT_static, HBHT_ensemble, HBHT_hybrid
@@ -208,11 +208,11 @@ module obsSpaceErrorStdDev_mod
     implicit none
   
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
-    logical, intent(inout)  :: statusHBHT
-    logical, intent(inout)  :: statusHBHT_ch
-    logical, intent(inout)  :: statusOMPE_ch
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
+    logical,                 intent(inout) :: statusHBHT
+    logical,                 intent(inout) :: statusHBHT_ch
+    logical,                 intent(inout) :: statusOMPE_ch
     
     ! Locals:
     integer :: famIndex
@@ -280,9 +280,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: lobsSpaceData
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    logical                 :: active
+    type(struct_obs),        intent(inout) :: lobsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    logical,                 intent(out)   :: active
       
     ! Locals:
     type(struct_vco), pointer        :: vco_anl
@@ -751,9 +751,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
   
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev      ! column at observation location
-    type(struct_obs)        :: obsSpaceData ! observation-space data, output saved in OBS_HPHT column
-    logical                 :: active        ! flag to indicate if chemical constituents are to be used
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev      ! column at observation location
+    type(struct_obs),        intent(inout) :: obsSpaceData ! observation-space data, output saved in OBS_HPHT column
+    logical,                 intent(out)   :: active        ! flag to indicate if chemical constituents are to be used
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
@@ -790,9 +790,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev      ! Columns of the background interpolated to analysis levels and to obs horizontal locations
-    type(struct_obs)        :: obsSpaceData ! Observation-related data
-    logical                 :: active
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev ! Background columns interpolated to anl levels, obs locations
+    type(struct_obs),        intent(inout) :: obsSpaceData ! Observation-related data
+    logical,                 intent(out)   :: active
 
     ! Locals:
     type(struct_columnData) :: column
@@ -904,10 +904,10 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character(len=2) :: cdfam
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs) :: lobsSpaceData
+    character(len=2),        intent(in)    :: cdfam
+    type(struct_columnData), intent(in)    :: column
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: lobsSpaceData
 
     ! Locals:
     INTEGER IPB,IPT
@@ -1131,9 +1131,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs) :: lobsSpaceData
+    type(struct_columnData), intent(in)    :: column
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: lobsSpaceData
 
     ! Locals:
     INTEGER IPB,IPT
@@ -1198,9 +1198,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: lobsSpaceData
+    type(struct_columnData), intent(in)    :: column
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs)       , intent(inout) :: lobsSpaceData
 
     ! Locals:
     integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp, bodyElem_i
@@ -1319,9 +1319,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character(len=2) :: cdfam
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: lobsSpaceData
+    character(len=2),        intent(in)    :: cdfam
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: lobsSpaceData
 
     ! Locals:
     INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
@@ -1579,9 +1579,9 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs) :: lobsSpaceData
+    type(struct_columnData), intent(in)    :: column
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: lobsSpaceData
 
     ! Locals:
     ! column  contains background errors for control variables on model levels
@@ -1934,7 +1934,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
+    type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
 
     ! Locals:
     integer, parameter :: ndim=1
@@ -2290,7 +2290,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
     
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
+    type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
     
     ! Locals:
     logical :: availableOmP
@@ -2552,7 +2552,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
+    type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
     
     ! Locals:
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
@@ -2742,7 +2742,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
+    type(struct_obs), intent(inout) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
     
     ! Local:
     integer :: headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp

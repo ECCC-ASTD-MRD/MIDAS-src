@@ -751,8 +751,9 @@ contains
   ! copy1Dimto2DimRealArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
+    !
     ! :Purpose: copy 1D real array into 2D real array given firstDim and secondDim
-
+    !
     implicit none
 
     ! Arguments:
@@ -780,8 +781,9 @@ contains
   ! copy1Dimto2DimIntegerArray
   !--------------------------------------------------------------------------
   subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
+    !
     ! :Purpose: copy 1D integer array into 2D Integer array given firstDim and secondDim
-
+    !
     implicit none
 
     ! Arguments:
@@ -812,12 +814,12 @@ contains
     ! :Purpose: Compute the following parameters using 2 AMSU-B channels:
     !           - scattering index (over land and ocean).
     !           The two channels used are: 89Ghz, 150Ghz.
-
-    !           REFERENCES     Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
-    !                          1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
-    !                          Swedish Meteorologicali and Hydrological Institute, 
-    !                          Visiting Scientist Report, November 1999.
-
+    !
+    !           REFERENCES: Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
+    !                       1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
+    !                       Swedish Meteorologicali and Hydrological Institute, 
+    !                       Visiting Scientist Report, November 1999.
+    !
     implicit none
 
     ! Arguments:
@@ -883,10 +885,11 @@ contains
   ! ssbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
   subroutine ssbg_readGeophysicFieldsAndInterpolate(obsLatitude, obsLongitude, modelInterpTer)
+    !
     ! :Purpose: Reads geophysical model variable (GZ) and saves for the first time.
     !           GZ is geopotential height (GZ at surface = surface height in dam).
     !           Then interpolates those variables to observation location.
-
+    !
     implicit none
 
     ! Arguments:
@@ -1154,7 +1157,7 @@ contains
     ! MGthresh         -internal-  maximum allowable land fraction for obs to be kept
     ! LGthresh         -internal-  maximum allowable ice  fraction for obs to be kept
     !--------------------------------------------------------------------
-
+    !
     implicit none
 
     ! Arguments:
@@ -1419,14 +1422,14 @@ contains
     ! lm               -internal-  array of size 1440x720 holding gridded wentz surface values
     ! wenTyp           -internal-  array of size numObsToProcess holding wentz surface values interpolated to obs pts
     !--------------------------------------------------------------------
-
+    !
     implicit none
 
     ! Arguments:
-    integer, intent(in)               :: numObsToProcess      ! Number of obs points to process
-    real,    intent(in)               :: obsLatitude(:)       ! Observation latitudes
-    real,    intent(in)               :: obsLongitude(:)      ! Observation longitudes
-    integer, intent(out), allocatable :: landSeaQualifier(:)  ! Land/sea indicator (0=land; 1=ocean)
+    integer,              intent(in)  :: numObsToProcess      ! Number of obs points to process
+    real,                 intent(in)  :: obsLatitude(:)       ! Observation latitudes
+    real,                 intent(in)  :: obsLongitude(:)      ! Observation longitudes
+    integer, allocatable, intent(out) :: landSeaQualifier(:)  ! Land/sea indicator (0=land; 1=ocean)
 
     ! Locals:
     character(len=12) :: etikxx
@@ -1528,8 +1531,9 @@ contains
   ! ssbg_computeSsmisSurfaceType
   !--------------------------------------------------------------------------
   subroutine ssbg_computeSsmisSurfaceType(obsSpaceData)
+    !
     ! :Purpose: Compute surface type element and update obsSpaceData.
-
+    !
     implicit none
 
     ! Arguments:
@@ -1588,16 +1592,17 @@ contains
   ! ssbg_grossValueCheck
   !--------------------------------------------------------------------------
   subroutine ssbg_grossValueCheck(numObsToProcess, obsTb, obsTbMin, obsTbMax, grossRej)
+    !
     ! :Purpose: Check obsTb for values that are missing or outside physical limits.
-
+    !
     implicit none
 
     ! Arguments:
-    integer, intent(in)               :: numObsToProcess  ! Number of obs points to process
-    real,    intent(in)               :: obsTb(:)         ! Brightness temperature of observations
-    real,    intent(in)               :: obsTbMin         ! Min(obsTb) threshold for rejection
-    real,    intent(in)               :: obsTbMax         ! Max(obsTb) threshold for rejection
-    logical, intent(out), allocatable :: grossRej(:)      ! Logical array of obs with gross error (obs to reject)
+    integer,              intent(in)  :: numObsToProcess  ! Number of obs points to process
+    real,                 intent(in)  :: obsTb(:)         ! Brightness temperature of observations
+    real,                 intent(in)  :: obsTbMin         ! Min(obsTb) threshold for rejection
+    real,                 intent(in)  :: obsTbMax         ! Max(obsTb) threshold for rejection
+    logical, allocatable, intent(out) :: grossRej(:)      ! Logical array of obs with gross error (obs to reject)
 
     ! Locals:
     integer :: hiIndex
@@ -1624,6 +1629,7 @@ contains
   ! ssbg_satqcSsmis
   !--------------------------------------------------------------------------
   subroutine ssbg_satqcSsmis(obsSpaceData, headerIndex, obsToReject)
+    !
     ! :Purpose: This program is applied as a first stage of processing to
     !           SSMIS data after it is received from UK MetOffice and
     !           organized into boxes by a program of Jose Garcia. The
@@ -1645,7 +1651,7 @@ contains
     !             --  define satellite zenith angle element (007024) and add
     !                 this and land/sea qualifier and terrain-type elements
     !                 to the output file
-
+    !
     implicit none
 
     ! Arguments:
@@ -2095,14 +2101,15 @@ contains
   ! ssbg_updateObsSpaceAfterSatQc
   !--------------------------------------------------------------------------
   subroutine ssbg_updateObsSpaceAfterSatQc(obsSpaceData, headerIndex, obsToReject) 
+    !
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
-
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
-    integer,              intent(in)    :: headerIndex            ! Current header index
-    logical,              intent(in)    :: obsToReject(:)         ! Observations that will be rejected
+    type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
+    integer,          intent(in)    :: headerIndex            ! Current header index
+    logical,          intent(in)    :: obsToReject(:)         ! Observations that will be rejected
 
     ! Locals:
     integer, allocatable                :: obsFlags(:)
@@ -2215,23 +2222,22 @@ contains
   ! ssbg_inovqcSsmis
   !--------------------------------------------------------------------------
   subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
-!:Purpose: Identify those observations in SSMIS data that have O-P
-!          values greater than a threshold proportional to known
-!          standard deviations (computed when the bias correction
-!          coefficients were derived). The flags of these observations
-!          are adjusted accordingly (ie bit 9 switched ON).
-!          Also,
-!              -- flag channels for systematic rejection based on UTIL
-!                 value in stats_*_errtot file or because flag bit 6 OFF
-!                 (uncorrected data)
-!              -- reject sets of AMSU-like channels based on O-P for
-!                 a single channel
-!              -- reject selected AMSU-like channels over land when
-!                 model surface height exceeds a specified limit
-!                 (topography check)
-!
-!------------------------------------------------------------------
-
+    !
+    !:Purpose: Identify those observations in SSMIS data that have O-P
+    !          values greater than a threshold proportional to known
+    !          standard deviations (computed when the bias correction
+    !          coefficients were derived). The flags of these observations
+    !          are adjusted accordingly (ie bit 9 switched ON).
+    !          Also,
+    !              -- flag channels for systematic rejection based on UTIL
+    !                 value in stats_*_errtot file or because flag bit 6 OFF
+    !                 (uncorrected data)
+    !              -- reject sets of AMSU-like channels based on O-P for
+    !                 a single channel
+    !              -- reject selected AMSU-like channels over land when
+    !                 model surface height exceeds a specified limit
+    !                 (topography check)
+    !
     implicit none
 
     ! Arguments:
@@ -2366,7 +2372,8 @@ contains
   ! check_stddev
   !--------------------------------------------------------------------------
   subroutine check_stddev(obsChannels, ompTb, flagsInovQc, actualNumChannel, numObsToProcess, &
-       &                  sensorIndex, burpFileSatId, obsFlags)
+                          sensorIndex, burpFileSatId, obsFlags)
+    !
     ! :Purpose: Perform quality control on the radiances by analysing the
     !           magnitude of the residuals.
 
@@ -2399,19 +2406,18 @@ contains
     !                                1 = assimilated channel
     !   oer_toverrst     -external-  standard deviation statistics read from the total
     !                                error statistics file
-    !------------------------------------------------------------------
-
+    !
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: obsChannels(:)   ! Channel numbers
-    real   ,          intent(in)    :: ompTb(:)         ! Radiance residuals
-    integer,          intent(out)   :: flagsInovQc(:)   ! Flags for assimilation/rejection of obs
-    integer,          intent(in)    :: actualNumChannel ! Number of channels
-    integer,          intent(in)    :: numObsToProcess  ! Number of obs points to process
-    integer,          intent(in)    :: sensorIndex      ! Identification number of satellite
-    character(len=9), intent(in)    :: burpFileSatId    ! Satellite identification in BURP file
-    integer,          intent(in)    :: obsFlags(:)      ! Radiance data flags
+    integer,          intent(in)  :: obsChannels(:)   ! Channel numbers
+    real   ,          intent(in)  :: ompTb(:)         ! Radiance residuals
+    integer,          intent(out) :: flagsInovQc(:)   ! Flags for assimilation/rejection of obs
+    integer,          intent(in)  :: actualNumChannel ! Number of channels
+    integer,          intent(in)  :: numObsToProcess  ! Number of obs points to process
+    integer,          intent(in)  :: sensorIndex      ! Identification number of satellite
+    character(len=9), intent(in)  :: burpFileSatId    ! Satellite identification in BURP file
+    integer,          intent(in)  :: obsFlags(:)      ! Radiance data flags
 
     ! Locals:
     real, parameter :: factorCh1 = 2.0 ! factor for channel 1 O-P for rejection of channels 1-4
@@ -2575,8 +2581,7 @@ contains
     !                                 ==> individual channels may be rejected from each obs pt
     !   actualNumChannel  - input  -  number of residual channels
     !   numObsToProcess   - input  -  number of groups of NVAL*NELE
-    !------------------------------------------------------------------
-
+    !
     implicit none
 
     ! Arguments:
@@ -2660,8 +2665,9 @@ contains
   ! ssbg_updateObsSpaceAfterInovQc
   !--------------------------------------------------------------------------
   subroutine ssbg_updateObsSpaceAfterInovQc(obsSpaceData, headerIndex, flagsInovQc)
+    !
     ! :Purpose: Update obspacedata variables (obstTB and obs flags) after QC
-
+    !
     implicit none
 
     ! Arguments:
@@ -2809,8 +2815,9 @@ contains
   ! ssbg_bgCheckSSMIS
   !--------------------------------------------------------------------------
   subroutine ssbg_bgCheckSSMIS(obsSpaceData)
+    !
     ! :Purpose: Do the background check for SSMIS data (satQC and inovQC).
-
+    !
     implicit none
 
     ! Arguments:

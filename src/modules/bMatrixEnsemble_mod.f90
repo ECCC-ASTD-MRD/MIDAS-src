@@ -173,11 +173,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer, intent(in) :: hco_anl_in
-    type(struct_hco), pointer, intent(in) :: hco_core_in
-    type(struct_vco), pointer, intent(in) :: vco_anl_in
-    character(len=*), intent(in), optional :: mode_opt
-    integer, allocatable, intent(out)      :: cvDimPerInstance(:)
+    type(struct_hco), pointer,  intent(in)  :: hco_anl_in
+    type(struct_hco), pointer,  intent(in)  :: hco_core_in
+    type(struct_vco), pointer,  intent(in)  :: vco_anl_in
+    character(len=*), optional, intent(in)  :: mode_opt
+    integer, allocatable,       intent(out) :: cvDimPerInstance(:)
 
     ! Locals:
     integer        :: fnom, fclos, ierr
@@ -1105,8 +1105,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8), intent(out)          :: scaleFactor_out(:)
-    integer, optional, intent(in) :: instanceIndex_opt
+    real(8),           intent(inout) :: scaleFactor_out(:)
+    integer, optional, intent(in)    :: instanceIndex_opt
 
     ! Locals:
     integer :: levIndex, instanceIndex
@@ -1136,7 +1136,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, optional :: instanceIndex_opt
+    integer, optional, intent(in) :: instanceIndex_opt
     ! Result:
     integer :: instanceIndex
 
@@ -1287,12 +1287,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector
-    integer,          intent(in) :: memberIndexWanted
-    character(len=*), intent(in) :: upwardExtrapolationMethod
-    integer, optional, intent(in):: waveBandIndexWanted_opt
-    logical, optional :: undoNormalization_opt
-    integer, optional, intent(in) :: instanceIndex_opt
+    type(struct_gsv),  intent(inout) :: statevector
+    integer,           intent(in)    :: memberIndexWanted
+    character(len=*),  intent(in)    :: upwardExtrapolationMethod
+    integer, optional, intent(in)    :: waveBandIndexWanted_opt
+    logical, optional, intent(in)    :: undoNormalization_opt
+    integer, optional, intent(in)    :: instanceIndex_opt
 
     ! Locals:
     integer :: instanceIndex
@@ -1439,9 +1439,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector
-    character(len=*), intent(in) :: upwardExtrapolationMethod
-    integer, optional, intent(in) :: instanceIndex_opt
+    type(struct_gsv),  intent(inout) :: statevector
+    character(len=*),  intent(in)    :: upwardExtrapolationMethod
+    integer, optional, intent(in)    :: instanceIndex_opt
 
     ! Locals:
     real(8), pointer :: ptr4d_out(:,:,:,:)
@@ -1862,11 +1862,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instanceIndex
-    real(8)          :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal) 
-    type(struct_gsv) :: statevector
-    logical,optional :: useFSOFcst_opt
-    type(struct_gsv), optional :: statevectorRef_opt
+    integer,                    intent(in)    :: instanceIndex
+    real(8),                    intent(in)    :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal) 
+    type(struct_gsv),           intent(inout) :: statevector
+    logical,          optional, intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
@@ -1998,11 +1998,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)        :: instanceIndex
-    real(8)                    :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) 
-    type(struct_gsv)           :: statevector
-    logical, optional          :: useFSOFcst_opt
-    type(struct_gsv), optional :: statevectorRef_opt
+    integer,                    intent(in)    :: instanceIndex
+    real(8) ,                   intent(inout) :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) 
+    type(struct_gsv),           intent(inout) :: statevector
+    logical,          optional, intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     type(struct_ens), target  :: ensAmplitude
@@ -2118,11 +2118,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ensAmplitude
-    type(struct_gsv)    :: statevector_out
-    integer, intent(in) :: instanceIndex
-    integer, intent(in) :: waveBandIndex
-    logical, optional   :: useFSOFcst_opt
+    type(struct_ens),   intent(in)    :: ensAmplitude
+    type(struct_gsv),   intent(inout) :: statevector_out
+    integer,            intent(in)    :: instanceIndex
+    integer,            intent(in)    :: waveBandIndex
+    logical, optional,  intent(in)    :: useFSOFcst_opt
 
     ! Locals:
     real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
@@ -2337,11 +2337,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)   :: ensAmplitude
-    type(struct_gsv)   :: statevector_in
-    integer,intent(in) :: instanceIndex
-    integer,intent(in) :: waveBandIndex
-    logical,optional   :: useFSOFcst_opt
+    type(struct_ens),  intent(inout) :: ensAmplitude
+    type(struct_gsv),  intent(inout) :: statevector_in
+    integer,           intent(in)    :: instanceIndex
+    integer,           intent(in)    :: waveBandIndex
+    logical, optional, intent(in)    :: useFSOFcst_opt
 
     ! Locals:
     real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
@@ -2551,7 +2551,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instanceIndex
+    integer,          intent(in) :: instanceIndex
     character(len=*), intent(in) :: mode
 
     ! Locals:
@@ -2694,8 +2694,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8)  :: fsoLeadTime_in
+    real(8),           intent(in) :: fsoLeadTime_in
     integer, optional, intent(in) :: instanceIndex_opt
+
+    ! Locals:
     integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
@@ -2804,7 +2806,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: locIndex
+    integer,           intent(in) :: locIndex
     integer, optional, intent(in) :: instanceIndex_opt
     ! Result:
     type(struct_loc), pointer :: loc

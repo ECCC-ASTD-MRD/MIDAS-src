@@ -217,7 +217,6 @@ contains
     !
     ! :Purpose:  Control of the preprocessing of bais correction coefficient computation
     !
-
     implicit none
 
     ! Arguments:

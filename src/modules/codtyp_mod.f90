@@ -349,7 +349,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,intent(in) :: codtyp
+    integer, intent(in) :: codtyp
 
     ! Locals:
     integer :: i

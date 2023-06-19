@@ -21,8 +21,8 @@ module rMatrix_mod
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
 
  type rmat_matrix
-    real(8) ,pointer     :: Rmat(:,:)=>null()
-    integer ,pointer     :: listChans(:)=>null()
+    real(8), pointer     :: Rmat(:,:)=>null()
+    integer, pointer     :: listChans(:)=>null()
     integer              :: nchans=0
  END type rmat_matrix
 
@@ -39,8 +39,8 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    integer, intent (in) :: nsensors
-    integer, intent (in) :: nobtovs
+    integer, intent(in) :: nsensors
+    integer, intent(in) :: nobtovs
 
     ! Locals:
     integer :: nulnam,ierr
@@ -80,9 +80,9 @@ module rMatrix_mod
     implicit none
     
     ! Arguments:
-    integer ,intent (in) :: instrument(3)
-    integer ,intent (in) :: sensor_id
-    integer ,intent (in) :: ichan(:)
+    integer, intent(in) :: instrument(3)
+    integer, intent(in) :: sensor_id
+    integer, intent(in) :: ichan(:)
 
     ! Locals:
     character (len=64) :: filename
@@ -105,15 +105,15 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    character (len=*),intent(in) :: infile ! name of input file
-    type(rmat_matrix),intent(inout) :: C    ! correlation matrix structure
-    integer ,intent(in),optional :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
+    character (len=*), intent(in)    :: infile          ! name of input file
+    type(rmat_matrix), intent(inout) :: C               ! correlation matrix structure
+    integer, optional, intent(in)    :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
 
     ! Locals:
     integer :: i,j,iu,ierr,count,ich,nchn,nch
-    integer ,external :: fnom,fclos
+    integer, external :: fnom,fclos
     real(8) :: x
-    integer ,allocatable :: index(:)
+    integer, allocatable :: index(:)
 
     nchn = -1
     if (present(chanList_opt)) then
@@ -199,13 +199,13 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    integer , intent (in) :: sensor_id
-    integer , intent (in) :: nsubset
-    integer , intent(in)  :: list_sub(nsubset)
-    real(8) , intent(in)  :: list_oer(nsubset)
-    real(8) , intent(in)  :: obsIn(nsubset)
-    real(8) , intent(out) :: obsOut(nsubset)
-    integer , intent(in)  :: indexTovs
+    integer, intent(in)  :: sensor_id
+    integer, intent(in)  :: nsubset
+    integer, intent(in)  :: list_sub(nsubset)
+    real(8), intent(in)  :: list_oer(nsubset)
+    real(8), intent(in)  :: obsIn(nsubset)
+    real(8), intent(out) :: obsOut(nsubset)
+    integer, intent(in)  :: indexTovs
 
     ! Locals:
     real (8) :: Rsub(nsubset,nsubset), alpha, beta, product 
@@ -278,8 +278,8 @@ module rMatrix_mod
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsspacedata
-    integer, intent(in)  :: elem_dest_i ! destination index
-    integer, intent(in)  :: elem_src_i  ! source index
+    integer,          intent(in)    :: elem_dest_i ! destination index
+    integer,          intent(in)    :: elem_src_i  ! source index
 
     ! Locals:
     integer :: bodyIndex, headerIndex

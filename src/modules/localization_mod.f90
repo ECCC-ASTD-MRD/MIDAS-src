@@ -46,18 +46,18 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc) :: loc
-    integer, intent(out) :: cvDim_out
-    type(struct_hco), pointer, intent(in) :: hco_loc
-    type(struct_vco), pointer, intent(in) :: vco_loc
-    integer,          intent(in) :: nEns
-    integer,          intent(in) :: nTrunc
-    real(8),          intent(in) :: vertLocation(:)
-    real(8),          intent(in) :: horizLengthScale1
-    real(8),          intent(in) :: horizLengthScale2
-    real(8),          intent(in) :: vertLengthScale
-    character(len=*), intent(in) :: locType
-    character(len=*), intent(in) :: locMode
+    type(struct_loc),          intent(inout) :: loc
+    integer,                   intent(out)   :: cvDim_out
+    type(struct_hco), pointer, intent(in)    :: hco_loc
+    type(struct_vco), pointer, intent(in)    :: vco_loc
+    integer,                   intent(in)    :: nEns
+    integer,                   intent(in)    :: nTrunc
+    real(8),                   intent(in)    :: vertLocation(:)
+    real(8),                   intent(in)    :: horizLengthScale1
+    real(8),                   intent(in)    :: horizLengthScale2
+    real(8),                   intent(in)    :: vertLengthScale
+    character(len=*),          intent(in)    :: locType
+    character(len=*),          intent(in)    :: locMode
 
     ! Locals:
     integer :: nEnsOverDimension, nLev
@@ -113,18 +113,18 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)     :: loc
-    integer, intent(in)  :: stepIndex
-    real(8), intent(in)  :: controlVector(:)
-    type(struct_ens)     :: ensAmplitude
+    type(struct_loc), intent(in)    :: loc
+    integer,          intent(in)    :: stepIndex
+    real(8),          intent(in)    :: controlVector(:)
+    type(struct_ens), intent(inout) :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_Lsqrt'
 
     select case (trim(loc%locType))
     case('spectral')
       call lsp_Lsqrt(loc%lsp, controlVector, & ! IN
-                     ensAmplitude,          & ! OUT
-                     stepIndex)               ! IN
+                     ensAmplitude,           & ! OUT
+                     stepIndex)                ! IN
     case default
        call utl_abort('loc_Lsqrt: unknown locType')
     end select
@@ -138,19 +138,19 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)      :: loc
-    integer, intent(in)   :: stepIndex
-    real(8), intent(out)  :: controlVector(:)
-    type(struct_ens)      :: ensAmplitude
+    type(struct_loc), intent(in)    :: loc
+    integer,          intent(in)    :: stepIndex
+    real(8),          intent(out)   :: controlVector(:)
+    type(struct_ens), intent(inout) :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_LsqrtAd'
 
     select case (trim(loc%locType))
     case('spectral')
        call lsp_LsqrtAd(loc%lsp,       & ! IN
-                        ensAmplitude, & ! INOUT
-                        controlVector,& ! OUT
-                        stepIndex )     ! IN
+                        ensAmplitude,  & ! INOUT
+                        controlVector, & ! OUT
+                        stepIndex )      ! IN
     case default
        call utl_abort('loc_LsqrtAd: unknown locType')
     end select
@@ -164,7 +164,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc) :: loc
+    type(struct_loc), intent(inout) :: loc
 
     if (verbose) write(*,*) 'Entering loc_finalize'
 
@@ -184,9 +184,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)     :: loc
-    real(8), intent(out) :: cv_mpilocal(:)
-    real(8), intent(in)  :: cv_mpiglobal(:)
+    type(struct_loc), intent(in)  :: loc
+    real(8),          intent(out) :: cv_mpilocal(:)
+    real(8),          intent(in)  :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal'
 
@@ -208,9 +208,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)     :: loc
-    real(4), intent(out) :: cv_mpilocal(:)
-    real(4), intent(in)  :: cv_mpiglobal(:)
+    type(struct_loc), intent(in)  :: loc
+    real(4),          intent(out) :: cv_mpilocal(:)
+    real(4),          intent(in)  :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal_r4'
 
@@ -232,9 +232,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)     :: loc
-    real(8), intent(in)  :: cv_mpilocal(:)
-    real(8), intent(out) :: cv_mpiglobal(:)
+    type(struct_loc), intent(in)  :: loc
+    real(8),          intent(in)  :: cv_mpilocal(:)
+    real(8),          intent(out) :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
     
@@ -255,9 +255,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_loc)     :: loc
-    real(4), intent(in)  :: cv_mpilocal(:)
-    real(4), intent(out) :: cv_mpiglobal(:)
+    type(struct_loc), intent(in)  :: loc
+    real(4),          intent(in)  :: cv_mpilocal(:)
+    real(4),          intent(out) :: cv_mpiglobal(:)
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
     

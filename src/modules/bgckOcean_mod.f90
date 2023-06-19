@@ -79,10 +79,10 @@ module bgckOcean_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData object
-    integer                , intent(in)          :: dateStamp         ! date stamp
-    type(struct_columnData), intent(inout)       :: columnTrlOnTrlLev ! column data on trl levels
-    type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
+    type(struct_obs)       ,   intent(inout) :: obsData           ! obsSpaceData object
+    integer                ,   intent(in)    :: dateStamp         ! date stamp
+    type(struct_columnData),   intent(inout) :: columnTrlOnTrlLev ! column data on trl levels
+    type(struct_hco), pointer, intent(in)    :: hco               ! horizontal trl grid
 
     ! Locals:
     type(struct_gsv)            :: stateVectorFGE        ! state vector containing std B estimation field
@@ -327,7 +327,7 @@ module bgckOcean_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsData           ! obsSpaceData object
+    type(struct_obs), intent(inout) :: obsData  ! obsSpaceData object
 
     ! Locals:
     integer              :: nulnam, ierr
@@ -509,15 +509,14 @@ module bgckOcean_mod
     ! :Purpose: Set background-check flags according to values set in a table.
     !           Original values in table come from ECMWF.
     !
-
     implicit none
 
-    ! Result:
-    integer             :: obsFlag  ! obs flag
     ! Arguments:
     integer, intent(in) :: obsVarno          ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
     real(8), intent(in) :: bgCheck           ! normalized background departure
     real(8), intent(in) :: selectCriteria(:) ! selection criteria for three levels 
+    ! Result:
+    integer             :: obsFlag  ! obs flag
 
     obsFlag = 0
  
@@ -547,13 +546,13 @@ module bgckOcean_mod
     !           The factor is then filtered to produce a smoothly varying
     !           field. This amplified background error is used only to
     !           perform the background check. 
-
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)       :: stateVectorAmplFactor ! state vector to save amplification factor
-    integer         , intent(in)          :: dateStamp             ! date stamp
-    type(struct_hco), intent(in), pointer :: hco                   ! horizontal trl grid
+    type(struct_gsv),          intent(inout) :: stateVectorAmplFactor ! state vector to save amplification factor
+    integer         ,          intent(in)    :: dateStamp             ! date stamp
+    type(struct_hco), pointer, intent(in)    :: hco                   ! horizontal trl grid
 
     ! Locals:
     type(struct_gsv)          :: stateVector         ! state vector for surface winds

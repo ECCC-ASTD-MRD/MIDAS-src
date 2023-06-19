@@ -82,9 +82,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)                     :: nens_in
-    type(struct_vco), pointer, intent(in)   :: vco_in
-    type(struct_hco), pointer, intent(in)   :: hco_in
+    integer,                   intent(in) :: nens_in
+    type(struct_vco), pointer, intent(in) :: vco_in
+    type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
     integer :: nulnam, ierr, waveBandIndex, memberIndex
@@ -543,31 +543,20 @@ module calcStatsGlb_mod
     ! Locals:
     integer :: waveBandIndex
     integer :: nulnam, ierr, fclos, fnom, numStep
-
     real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
-
-    integer, allocatable :: dateStampList(:)
-    
+    integer, allocatable :: dateStampList(:)    
     type(struct_ens), target  :: ensPerts, ensPertsFilt
-
-    type(struct_ens), pointer :: ensPerts_ptr
-    
+    type(struct_ens), pointer :: ensPerts_ptr    
     type(struct_gsv) :: statevector_template
-
     type(struct_gbi) :: gbi_zonalMean
-    type(struct_gbi) :: gbi_globalMean
-    
-    type(struct_vms) :: vModes
-    
-    integer :: variableType
- 
+    type(struct_gbi) :: gbi_globalMean    
+    type(struct_vms) :: vModes    
+    integer :: variableType 
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
-
     real(8) :: vertModesLengthScale(2)
-    real(8) :: lengthScaleTop, lengthScaleBot
-    
+    real(8) :: lengthScaleTop, lengthScaleBot    
     character(len=60) :: tool
     character(len=2)  :: wbnum
     character(len=2)  :: ctrlVarHumidity
@@ -876,8 +865,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8) :: PtoT(:,:,:)
-    real(8) :: theta(:,:)
+    real(8), intent(in) :: PtoT(:,:,:)
+    real(8), intent(in) :: theta(:,:)
 
     ! Locals:
     integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
@@ -964,8 +953,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: theta(:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    real(8),          intent(in)    :: theta(:,:)
 
     ! Locals:
     real(4), pointer :: psi_ptr(:,:,:), chi_ptr(:,:,:)
@@ -1001,9 +990,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(4),pointer :: ensBalPerturbations(:,:,:,:)
-    real(8) :: PtoT(:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensBalPerturbations(:,:,:,:)
+    real(8),          intent(in)    :: PtoT(:,:,:)
 
     ! Locals:
     real(4),pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
@@ -1063,10 +1052,10 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8) :: rstddev(nkgdimEns,0:ntrunc)
-    real(8),  optional :: latMask_opt(:)
+    real(4), pointer,  intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),           intent(out) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(out) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in)  :: latMask_opt(:)
 
     ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
@@ -1180,10 +1169,10 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensPerts
-    real(8), intent(out)          :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8), intent(out)          :: rstddev(nkgdimEns,0:ntrunc)
-    real(8), optional, intent(in) :: latMask_opt(:)
+    type(struct_ens),  intent(inout) :: ensPerts
+    real(8),           intent(out)   :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(out)   :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in)    :: latMask_opt(:)
 
     ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
@@ -1304,8 +1293,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    type(struct_ens)           :: ensPerts
-    real(8), allocatable       :: powerSpec(:,:)
+    type(struct_ens),     intent(inout) :: ensPerts
+    real(8), allocatable, intent(out)   :: powerSpec(:,:)
 
     ! Locals:
     real(8), allocatable :: ensPertSP(:,:,:)
@@ -1400,12 +1389,12 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8) :: rstddev(nkgdimEns,0:ntrunc)
-    real(8), optional :: PtoT_opt(:,:,:)
-    real(8), optional :: theta_opt(:,:)
-    integer, optional :: waveBandIndex_opt
-    integer, optional :: latBand_opt
+    real(8),           intent(in) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in) :: PtoT_opt(:,:,:)
+    real(8), optional, intent(in) :: theta_opt(:,:)
+    integer, optional, intent(in) :: waveBandIndex_opt
+    integer, optional, intent(in) :: latBand_opt
 
     ! Locals:
     real(8) :: prcor(nkgdimEns,nkgdimEns)
@@ -1536,10 +1525,10 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer           :: stddevZonAvg(:,:)
-    real(8), pointer           :: stddev3d(:,:,:)
-    real(8), pointer, optional :: stddevZonAvgUnbal_opt(:,:)
-    real(8), pointer, optional :: stddev3dUnbal_opt(:,:,:)
+    real(8), pointer,           intent(in) :: stddevZonAvg(:,:)
+    real(8), pointer,           intent(in) :: stddev3d(:,:,:)
+    real(8), pointer, optional, intent(in) :: stddevZonAvgUnbal_opt(:,:)
+    real(8), pointer, optional, intent(in) :: stddev3dUnbal_opt(:,:,:)
 
     ! Locals:
     type(struct_gsv) :: stateVector
@@ -1679,8 +1668,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8) :: stddevZonAvgBal(:,:)
-    real(8) :: stddev3dBal(:,:,:)
+    real(8), intent(in) :: stddevZonAvgBal(:,:)
+    real(8), intent(in) :: stddev3dBal(:,:,:)
 
     ! Locals:
     type(struct_gsv) :: stateVector
@@ -1778,9 +1767,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    integer, intent(in) :: nlev
-    integer, optional, intent(in) :: waveBandIndex_opt
+    real(4), pointer,  intent(inout) :: ensPerturbations(:,:,:,:)
+    integer,           intent(in)    :: nlev
+    integer, optional, intent(in)    :: waveBandIndex_opt
 
     ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nlev)
@@ -1863,9 +1852,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    type(struct_ens)  :: ensPerts_in
-    type(struct_ens)  :: ensPerts_out
-    integer, optional, intent(in) :: waveBandIndex_opt
+    type(struct_ens),  intent(inout) :: ensPerts_in
+    type(struct_ens),  intent(inout) :: ensPerts_out
+    integer, optional, intent(in)  :: waveBandIndex_opt
 
     ! Locals:
     real(8), allocatable :: ensPertSP(:,:,:)
@@ -2000,8 +1989,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: theta(:,:)
+    real(4), pointer, intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),          intent(out) :: theta(:,:)
 
     ! Locals:
     real(8) :: zchipsi(nLevEns_M,nj), zpsipsi(nLevEns_M,nj)
@@ -2059,8 +2048,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    real(8)  :: PtoT(:,:,:)
+    real(4), pointer, intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),          intent(out) :: PtoT(:,:,:)
 
     ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nLevEns_M), spBalancedP(nla_mpilocal,2,nlevEns_M)
@@ -2237,7 +2226,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex,ierr
@@ -2276,9 +2265,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer :: fieldsZonAvg_mpiglobal(:,:)
-    real(8), pointer :: fields3D(:,:,:)
-    integer :: nlev
+    real(8), pointer, intent(inout) :: fieldsZonAvg_mpiglobal(:,:)
+    real(8), pointer, intent(in)    :: fields3D(:,:,:)
+    integer,          intent(in)    :: nlev
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, ierr, nsize
@@ -2320,9 +2309,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    integer          :: nlev
+    real(8), pointer, intent(inout) :: stddev3d(:,:,:)
+    real(4), pointer, intent(in)    :: ensPerturbations(:,:,:,:)
+    integer,          intent(in)    :: nlev
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex
@@ -2368,8 +2357,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8) :: sppsi(:,:,:)
-    real(8) :: spgz(:,:,:)
+    real(8), intent(in)  :: sppsi(:,:,:)
+    real(8), intent(out) :: spgz(:,:,:)
 
     ! Locals:
     real(8) :: spvor_mpiglobal(nla,2,nlevEns_M)
@@ -2465,8 +2454,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
+    real(8), pointer, intent(in)    :: stddev3d(:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex
@@ -2503,9 +2492,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    integer          :: nlev
+    real(8), pointer, intent(in)    :: stddev3d(:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    integer,          intent(in)    :: nlev
 
     ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex
@@ -2536,7 +2525,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer             :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, ensIndex, numStep
@@ -2630,7 +2619,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4) :: ensPerturbations(:,:,:,:)
+    real(4), intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: ensIndex, levIndex, jla_mpilocal, ila_mpiglobal
@@ -2674,7 +2663,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: ensIndex, levIndex, latIndex, lonIndex
@@ -2723,8 +2712,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8),  intent(in) :: rstddev(nkgdimEns,0:ntrunc)
-    integer, intent(in) :: variableType
+    real(8),          intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,          intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex_opt
 
     ! Locals:
@@ -2952,9 +2941,9 @@ module calcStatsGlb_mod
     ! Based on subroutine corrlength.ftn in the "old" var code
 
     ! Arguments:
-    real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
-    integer,intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex_opt
+    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,           intent(in) :: variableType
+    integer, optional, intent(in) :: waveBandIndex_opt
 
     ! Locals:
     real(8) :: HorizScale(nkgdimEns)
@@ -3057,8 +3046,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8),intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
-    integer,intent(in) :: variableType
+    real(8), intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
+    integer, intent(in) :: variableType
 
     ! Locals:
     integer :: jk, nLevEns, nLevStart, nLevEnd, varIndex, jn
@@ -3127,7 +3116,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensPerts
+    type(struct_ens), intent(in) :: ensPerts
 
     ! Locals:
     type(struct_gsv) :: statevector_locHorizCor

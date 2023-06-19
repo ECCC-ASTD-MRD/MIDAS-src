@@ -52,9 +52,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrl
-    type(struct_obs) :: obsSpaceData
-    logical beSilent
+    type(struct_columnData), intent(in)    :: columnTrl
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: levIndex,JDATA,NLEV
@@ -256,11 +256,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    character(len=*)        :: cdfam ! family of obsservation
-    integer                 :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    character(len=*)       , intent(in)    :: cdfam ! family of obsservation
+    integer                , intent(in)    :: destObsColumn
 
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr
@@ -560,11 +560,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    character(len=*)        :: cdfam ! family of observation
-    integer                 :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    character(len=*)       , intent(in)    :: cdfam ! family of observation
+    integer                , intent(in)    :: destObsColumn
 
     ! Locals:
     integer :: columnLevelIndex, bufrCode, headerIndex, bodyIndex
@@ -728,11 +728,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    character(len=*)        :: cdfam        ! family of observation
-    integer                 :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    integer                , intent(in)    :: destObsColumn
 
     ! Locals:
     integer          :: bufrCode, headerIndex, bodyIndex
@@ -790,11 +790,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    character(len=*)        :: cdfam        ! family of observation
-    integer                 :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    character(len=*)       , intent(in)    :: cdfam        ! family of observation
+    integer                , intent(in)    :: destObsColumn
 
     ! Locals:
     integer          :: bufrCode, headerIndex, bodyIndex
@@ -997,13 +997,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    type(struct_vco), pointer :: vco_hr
-    logical                 :: beSilent
-    integer                 :: destObsColumn
+    type(struct_columnData)  , intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    logical                  , intent(in)    :: beSilent
+    integer                  , intent(in)    :: destObsColumn
 
     ! Locals:
+    type(struct_vco), pointer :: vco_hr
     real(8) :: pjob, pjo1
     real(8) :: zlat, lat
     real(8) :: zlon, lon
@@ -1249,11 +1249,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical           :: beSilent
-    integer           :: destObsColumn
-    logical, optional :: analysisMode_opt
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    integer                , intent(in)    :: destObsColumn
+    logical,       optional, intent(in)    :: analysisMode_opt
 
     ! Locals:
     real(8), allocatable :: zpp (:)
@@ -1619,14 +1619,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrl
-    type(struct_obs) :: obsSpaceData
-    integer :: datestamp
-    logical :: beSilent
-    logical, optional :: bgckMode_opt
-    character(len=*), optional :: option_opt       ! only valid value is HR
-    integer, optional, intent(in) :: sourceObs_opt ! usually set to OBS_VAR
-    integer, optional, intent(in) :: destObs_opt   ! usually set to OBS_OMP
+    type(struct_columnData),    intent(in)    :: columnTrl
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    integer,                    intent(in)    :: datestamp
+    logical,                    intent(in)    :: beSilent
+    logical,          optional, intent(in)    :: bgckMode_opt
+    character(len=*), optional, intent(in)    :: option_opt       ! only valid value is HR
+    integer,          optional, intent(in)    :: sourceObs_opt ! usually set to OBS_VAR
+    integer,          optional, intent(in)    :: destObs_opt   ! usually set to OBS_OMP
 
     ! Locals:
     integer :: jdata, sourceObs, destObs
@@ -1759,9 +1759,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    integer                 :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    integer                , intent(in)    :: destObsColumn
     
     if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
 
@@ -1785,14 +1785,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)   :: columnAnlInc
-    type(struct_columnData)   :: columnTrlOnAnlIncLev
-    type(struct_obs)          :: obsSpaceData
-    type(struct_vco), pointer :: vco_anl
-    integer, intent(in)       :: min_nsim
-    logical, optional         :: initializeLinearization_opt 
+    type(struct_columnData),   intent(in)    :: columnAnlInc
+    type(struct_columnData),   intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_obs)       ,   intent(inout) :: obsSpaceData
+    integer,                   intent(in)    :: min_nsim
+    logical,         optional, intent(in)    :: initializeLinearization_opt 
 
     ! Locals:
+    type(struct_vco), pointer :: vco_anl
     logical, save :: initializeLinearization = .true.
 
     if ( mmpi_myid == 0 ) then
@@ -1849,7 +1849,7 @@ contains
       implicit none
 
       ! Arguments:
-      type(struct_columnData) :: columnTrlOnAnlIncLev
+      type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
 
       ! Locals:
       type(struct_vco), pointer :: vco_anl
@@ -2362,7 +2362,7 @@ contains
       implicit none
 
       ! Arguments:
-      logical, optional :: initializeLinearization_opt 
+      logical, optional, intent(in) :: initializeLinearization_opt 
 
       ! Locals:
       real(8) :: ZMHXL
@@ -2456,7 +2456,7 @@ contains
       implicit none
 
       ! Arguments:
-      logical, optional :: initializeLinearization_opt 
+      logical, optional, intent(in) :: initializeLinearization_opt 
 
       ! Locals:
       real(8) :: ZHX
@@ -2576,10 +2576,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnAnlInc
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData
-    logical, optional       :: initializeLinearization_opt 
+    type(struct_columnData), intent(inout) :: columnAnlInc
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical, optional      , intent(in)    :: initializeLinearization_opt 
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
@@ -3002,7 +3002,7 @@ contains
       implicit none
 
       ! Arguments:
-      logical, optional :: initializeLinearization_opt 
+      logical, optional, intent(in) :: initializeLinearization_opt 
 
       ! Locals:
       real(8) :: DPJO0(gps_ncvmx)
@@ -3110,7 +3110,7 @@ contains
       implicit none
 
       ! Arguments:
-      logical, optional :: initializeLinearization_opt 
+      logical, optional, intent(in) :: initializeLinearization_opt 
 
       ! Locals:
       real(8) :: DPJO0(gps_ncvmx)
@@ -3454,9 +3454,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData
-    logical, optional       :: initializeLinearization_opt 
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical,       optional, intent(in)    :: initializeLinearization_opt 
 
     ! Locals:
     real(8) :: zlat, lat
@@ -3637,9 +3637,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData
-    logical, optional       :: initializeLinearization_opt 
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical, optional      , intent(in)    :: initializeLinearization_opt 
 
     ! Locals:
     real(8) :: ZLAT, Lat

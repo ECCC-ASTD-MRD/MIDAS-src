@@ -56,9 +56,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(in) :: obsSpaceData ! observation data structure
-    type(struct_hco), pointer    :: hco_ptr      ! horizontal grid definition
-    type(struct_vco), pointer    :: vco_ptr      ! vertical grid definition
+    type(struct_obs),          intent(inout) :: obsSpaceData ! observation data structure
+    type(struct_hco), pointer, intent(in)    :: hco_ptr      ! horizontal grid definition
+    type(struct_vco), pointer, intent(in)    :: vco_ptr      ! vertical grid definition
 
     ! Locals:
     integer :: fnom, fclos, nulnam, ierr
@@ -326,12 +326,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(in)       :: obsSpaceData     ! observation data structure
-    type(struct_gsv), intent(in)       :: stateVectorTrlErrorStd ! state containing background error stddev
-    integer,          intent(out)      :: numObs(:,:)      ! number of observations found
-    character(len=*), intent(in)       :: variableName     ! 'GL' for seaice or 'TM' for SST
-    real(8)         , intent(in)       :: Lcorr(:,:)       ! horizontal background-error correlation length scale
-    type(struct_neighborhood), pointer :: influentObs(:,:) ! details about observations to use in update
+    type(struct_obs),                   intent(in)    :: obsSpaceData     ! observation data structure
+    type(struct_gsv),                   intent(in)    :: stateVectorTrlErrorStd ! state containing background error stddev
+    integer,                            intent(out)   :: numObs(:,:)      ! number of observations found
+    character(len=*),                   intent(in)    :: variableName     ! 'GL' for seaice or 'TM' for SST
+    real(8)         ,                   intent(in)    :: Lcorr(:,:)       ! horizontal background-error correlation length scale
+    type(struct_neighborhood), pointer, intent(inout) :: influentObs(:,:) ! details about observations to use in update
 
     ! Locals:
     integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
@@ -505,14 +505,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(in) :: obsSpaceData   ! observation data structure
-    type(struct_hco), pointer    :: hco_ptr        ! horizontal grid definition
-    type(struct_vco), pointer    :: vco_ptr        ! vertical grid definition
-    character(len=*), intent(in) :: inputFileName  ! input file name
-    character(len=*), intent(in) :: outputFileName ! output file name
-    character(len=*), intent(in) :: variableName   ! name of variable being treated
-    logical         , intent(in) :: propagateDSLO  ! propagate (increase) Days Since Last Obs in time
-    integer         , intent(in) :: hoursSinceLastAnalysis ! number of hours between analysis times
+    type(struct_obs),          intent(inout) :: obsSpaceData   ! observation data structure
+    type(struct_hco), pointer, intent(in)    :: hco_ptr        ! horizontal grid definition
+    type(struct_vco), pointer, intent(in)    :: vco_ptr        ! vertical grid definition
+    character(len=*),          intent(in)    :: inputFileName  ! input file name
+    character(len=*),          intent(in)    :: outputFileName ! output file name
+    character(len=*),          intent(in)    :: variableName   ! name of variable being treated
+    logical         ,          intent(in)    :: propagateDSLO  ! propagate (increase) Days Since Last Obs in time
+    integer         ,          intent(in)    :: hoursSinceLastAnalysis ! number of hours between analysis times
 
     ! Locals:
     type(struct_gsv) :: stateVectorTrlDSLO, stateVectorAnlDSLO
@@ -640,13 +640,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
-    type(struct_ocm), intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
-    character(len=*), intent(in)    :: variableName        ! variable name
-    character(len=*), intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
-    real(4)         , intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
-    type(struct_hco), pointer       :: hco_ptr             ! horizontal coordinates structure, pointer
-    type(struct_vco), pointer       :: vco_ptr             ! vertical coordinates structure, pointer
+    type(struct_gsv),          intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
+    type(struct_ocm),          intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
+    character(len=*),          intent(in)    :: variableName        ! variable name
+    character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
+    real(4)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
+    type(struct_hco), pointer, intent(in)    :: hco_ptr             ! horizontal coordinates structure, pointer
+    type(struct_vco), pointer, intent(in)    :: vco_ptr             ! vertical coordinates structure, pointer
 
     ! Locals:
     type(struct_gsv) :: stateVectorAnalysis
@@ -742,11 +742,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVectorErrorStd    ! read "analysed" state into it and increase it by hoursSinceLastAnalysis
-    character(len=*), intent(in)    :: inputFileName          ! input file name
-    character(len=*), intent(in)    :: outputFileName         ! output file name
-    integer         , intent(in)    :: hoursSinceLastAnalysis ! hours since last analysis (namelist variable)
-    type(struct_hco), pointer       :: hco_ptr                ! horizontal grid definition
+    type(struct_gsv),          intent(inout) :: stateVectorErrorStd    ! read "analysis" into it and increase by hoursSinceLastAnalysis
+    character(len=*),          intent(in)    :: inputFileName          ! input file name
+    character(len=*),          intent(in)    :: outputFileName         ! output file name
+    integer         ,          intent(in)    :: hoursSinceLastAnalysis ! hours since last analysis (namelist variable)
+    type(struct_hco), pointer, intent(in)    :: hco_ptr                ! horizontal grid definition
 
     ! Locals:
     real(8), pointer :: analysisDaysSinceLastObs_ptr(:,:,:)
@@ -793,13 +793,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)         , intent(in)    :: obsSpaceData           ! obsSpaceData structure
-    type(struct_gsv)         , intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
-    type(struct_gsv)         , intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
-    character(len=*)         , intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM') 
-    real(8)                  , intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
-    type(struct_neighborhood), pointer       :: influentObs(:,:)       ! details about observations to use in update
-    real(8)                  , intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
+    type(struct_obs)         ,          intent(in)    :: obsSpaceData           ! obsSpaceData structure
+    type(struct_gsv)         ,          intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
+    type(struct_gsv)         ,          intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
+    character(len=*)         ,          intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM') 
+    real(8)                  ,          intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
+    type(struct_neighborhood), pointer, intent(in)    :: influentObs(:,:)       ! details about observations to use in update
+    real(8)                  ,          intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
 
     ! Locals:
     integer :: latIndex, lonIndex, stepIndex, levIndex, kIndex

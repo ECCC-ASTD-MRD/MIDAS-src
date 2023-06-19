@@ -129,7 +129,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* fields
+    type(struct_gsv), intent(inout) :: statevector  ! statevector that will contain the Z_*/P_* fields
 
     ! Locals:
     integer                   :: Vcode
@@ -1626,8 +1626,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector
-    logical, optional, intent(in)   :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
+    type(struct_gsv),  intent(inout) :: statevector
+    logical, optional, intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals:
     integer :: Vcode
@@ -2697,9 +2697,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Locals:
     integer :: vcode
@@ -2731,9 +2731,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Locals:
     real(8), allocatable  :: hSfc(:,:)
@@ -2773,9 +2773,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Developement notes (@mad001)
     !   Null subroutine, no computation needed at time of writing.
@@ -2788,7 +2788,7 @@ contains
 
     ! to prevent 'variable not used' remark
     if (.false.) then
-      call col_zero(column)
+      write(*,*) column%nk
       Z_T = 0.0
       Z_M = 0.0
     end if
@@ -3016,7 +3016,7 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc
-    type(struct_columnData), intent(in) :: columnIncRef
+    type(struct_columnData), intent(in)    :: columnIncRef
 
     ! Locals:
     integer :: Vcode
@@ -3322,9 +3322,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
     ! Locals:
     integer :: Vcode
@@ -3364,9 +3364,9 @@ contains
     !   and use local array instead.
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
     ! Locals:
     real(8), allocatable  :: tv(:)
@@ -3473,9 +3473,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
     ! Locals:
     real(kind=8), allocatable :: Psfc(:,:), PsfcLS(:,:)
@@ -3782,11 +3782,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
-    real(8),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(8), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
-    real(8), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
-    real(8), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(8), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(8), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(8), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
     ! Locals:
     integer :: status
@@ -3849,11 +3849,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
-    real(4),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(4), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
-    real(4), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
-    real(4), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    real(4),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(4), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(4), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(4), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
     ! Locals:
     integer :: status
@@ -3916,10 +3916,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),  intent(in)             :: vco          ! Vertical descriptor
-    real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
-    real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
-    real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
+    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
+    real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
+    real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
 
     ! Locals:
     integer :: status
@@ -3963,10 +3963,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),  intent(in)             :: vco          ! Vertical descriptor
-    real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
-    real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
-    real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
+    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
+    real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
+    real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
 
     ! Locals:
     integer :: status

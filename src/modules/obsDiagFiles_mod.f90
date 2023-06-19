@@ -37,11 +37,11 @@ module obsDiagFiles_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs)                :: obsdat         ! obsSpaceData object
-    character(len=*)                :: sfFileName     ! fileName acronym used for surface obs file
-    logical                         :: onlyAssimObs   ! only write assimilated obs
-    logical                         :: addFSOdiag     ! include FSO column in body table
-    type(struct_eob), optional      :: ensObs_opt     ! ensObs object
+    type(struct_obs),           intent(inout) :: obsdat         ! obsSpaceData object
+    character(len=*),           intent(in)    :: sfFileName     ! fileName acronym used for surface obs file
+    logical         ,           intent(in)    :: onlyAssimObs   ! only write assimilated obs
+    logical         ,           intent(in)    :: addFSOdiag     ! include FSO column in body table
+    type(struct_eob), optional, intent(in)    :: ensObs_opt     ! ensObs object
     
     ! Locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
@@ -130,7 +130,7 @@ module obsDiagFiles_mod
     logical                    , intent(in)    :: addFSOdiag
     character(len=*)           , intent(in)    :: instrumentFileName
     integer          , optional, intent(in)    :: codeTypeList_opt(:)
-    type(struct_eob) , optional                :: ensObs_opt 
+    type(struct_eob) , optional, intent(in)    :: ensObs_opt 
 
     ! Locals:
     type(fSQL_DATABASE)    :: db                                   ! type for SQLIte  file handle
@@ -477,9 +477,9 @@ module obsDiagFiles_mod
     implicit none
 
     ! Arguments:
-    character(len=*)           :: obsFamily
-    character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
-    integer, optional          :: codetype_opt
+    character(len=*)          , intent(in) :: obsFamily
+    character(len=*), optional, intent(in) :: sfFileName_opt ! fileName acronym used for surface obs file
+    integer,          optional, intent(in) :: codetype_opt
     ! Result:
     character(len=20)          :: fileName
 
@@ -541,9 +541,9 @@ module obsDiagFiles_mod
     implicit none
       
     ! Arguments:
-    type(struct_obs) :: obsdat
-    integer          :: obsFamilyListSizeCommon
-    character(len=*) :: obsFamilyListCommon(:)
+    type(struct_obs), intent(inout) :: obsdat
+    integer         , intent(out)   :: obsFamilyListSizeCommon
+    character(len=*), intent(out)   :: obsFamilyListCommon(:)
 
     ! Locals:
     integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize, ierr

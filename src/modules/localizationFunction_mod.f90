@@ -53,8 +53,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: distance
-    real(8) :: lengthscale
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
     ! Result:
     real(8) :: correlation
 
@@ -82,8 +82,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: distance
-    real(8) :: lengthscale
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
     ! Result:
     real(8) :: gradient
 
@@ -111,8 +111,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: distance
-    real(8) :: lengthscale
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
     ! Result:
     real(8) :: correlation
 
@@ -148,8 +148,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: distance
-    real(8) :: lengthscale
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
     ! Result:
     real(8) :: gradient
 
@@ -309,16 +309,16 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    INTEGER,            INTENT(IN)    :: Nn
-    REAL(8),            INTENT(IN)    :: x(Nn)
-    REAL(8),            INTENT(IN)    :: y(Nn)
-    REAL(8),            INTENT(IN)    :: w(Nn)
-    INTEGER,            INTENT(IN)    :: nmax
-    REAL(8),            INTENT(INOUT) :: param
-    REAL(8),            INTENT(IN)    :: minv
-    INTEGER,            INTENT(IN)    :: ilist
-    INTEGER,            INTENT(INOUT) :: ierr
-    REAL(8),            INTENT(OUT)   :: ssq
+    INTEGER, INTENT(IN)    :: Nn
+    REAL(8), INTENT(IN)    :: x(Nn)
+    REAL(8), INTENT(IN)    :: y(Nn)
+    REAL(8), INTENT(IN)    :: w(Nn)
+    INTEGER, INTENT(IN)    :: nmax
+    REAL(8), INTENT(INOUT) :: param
+    REAL(8), INTENT(IN)    :: minv
+    INTEGER, INTENT(IN)    :: ilist
+    INTEGER, INTENT(INOUT) :: ierr
+    REAL(8), INTENT(OUT)   :: ssq
 
     ! Locals:
     INTEGER, PARAMETER    :: icon = 100   ! max iteration

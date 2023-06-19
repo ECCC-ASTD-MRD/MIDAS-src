@@ -68,11 +68,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer    :: hco
-    character(len=*), intent(in) :: TemplateFile
-    character(len=*), intent(in) :: EtiketName
-    character(len=*), intent(in), optional :: GridName_opt
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_hco), pointer,  intent(out) :: hco
+    character(len=*),           intent(in)  :: TemplateFile
+    character(len=*),           intent(in)  :: EtiketName
+    character(len=*), optional, intent(in)  :: GridName_opt
+    character(len=*), optional, intent(in)  :: varName_opt
 
     ! Locals:
     real(8), allocatable :: lat_8(:)
@@ -677,7 +677,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer :: hco
+    type(struct_hco), pointer, intent(inout) :: hco
 
     ! Locals:
     integer :: ierr
@@ -756,8 +756,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer :: hco1
-    type(struct_hco), pointer :: hco2
+    type(struct_hco), pointer, intent(in) :: hco1
+    type(struct_hco), pointer, intent(in) :: hco2
     ! Result:
     logical                   :: equal
 
@@ -828,7 +828,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer :: hco
+    type(struct_hco), pointer, intent(inout) :: hco
 
     if (allocated(hco % lat)) deallocate(hco % lat)
     if (allocated(hco % lon)) deallocate(hco % lon)
@@ -844,7 +844,7 @@ contains
   !--------------------------------------------------------------------------
   ! grid_mask
   !--------------------------------------------------------------------------
-  subroutine grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
+  subroutine grid_mask(F_mask_8,dx,dy,xg,yg,ni,nj)
     !
     ! :Purpose: 1) Find out where YIN lat lon points are in (YAN) grid with call to smat.
     !           2) If they are not outside of Yin grid, put area to zero for those points.
@@ -857,10 +857,10 @@ contains
     integer,  intent(in)  :: Ni
     integer,  intent(in)  :: Nj   
     real(8) , intent(out) :: F_mask_8(Ni,Nj)
-    real(8) :: dx
-    real(8) :: dy
-    real    :: xg(ni)
-    real    :: yg(nj)
+    real(8),  intent(in)  :: dx
+    real(8),  intent(in)  :: dy
+    real(4),  intent(in)  :: xg(ni)
+    real(4),  intent(in)  :: yg(nj)
 
     ! Locals: 
     integer :: lonIndex,latIndex,np_subd
@@ -957,11 +957,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: x
-    real(8) :: y
-    real(8) :: xi
-    real(8) :: yi
-    integer :: np
+    real(8), intent(in)  :: x
+    real(8), intent(in)  :: y
+    real(8), intent(out) :: xi
+    real(8), intent(out) :: yi
+    integer, intent(in)  :: np
 
     ! Locals:
     real(8) :: tol, pi, xmin, ymin, xb
@@ -1036,8 +1036,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), intent(in) :: hco ! structure with the specification of the horizontal grid
-    real(8), intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
+    type(struct_hco), intent(in)  :: hco         ! structure with the specification of the horizontal grid
+    real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
     ! Locals:
     integer :: sindx
@@ -1125,11 +1125,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: x  ! x,y: (lon, lat) in radians of the cell center point.
-    real(8) :: y
-    real(8) :: dx ! horizontal grid resolution in radians
-    real(8) :: dy
-    integer :: np ! working dimension
+    real(8), intent(in) :: x  ! x,y: (lon, lat) in radians of the cell center point.
+    real(8), intent(in) :: y
+    real(8), intent(in) :: dx ! horizontal grid resolution in radians
+    real(8), intent(in) :: dy
+    integer, intent(in) :: np ! working dimension
 
     ! Locals:
     real(8) :: pi, xmin, xmax, ymin, ymax, xb1, xb2
@@ -1172,9 +1172,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer :: hco
-    integer, intent(in)       :: ni
-    integer, intent(in)       :: nj
+    type(struct_hco), pointer, intent(inout) :: hco
+    integer,                   intent(in)    :: ni
+    integer,                   intent(in)    :: nj
 
     allocate(hco)
     if (mmpi_myid == 0) then

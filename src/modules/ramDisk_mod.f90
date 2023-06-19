@@ -66,9 +66,9 @@ contains
     implicit none
 
     ! Arguments:
-    logical, optional  :: noAbort_opt
-    logical, optional  :: copyToRamDisk_opt
-    character(len=*)   :: fileName
+    logical, optional, intent(in) :: noAbort_opt
+    logical, optional, intent(in) :: copyToRamDisk_opt
+    character(len=*) , intent(in) :: fileName
     ! Result:
     character(len=512) :: fullWorkingPath
 
@@ -177,7 +177,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: fullWorkingPath
+    character(len=*), intent(in) :: fullWorkingPath
     ! Result:
     integer          :: returnCode
 

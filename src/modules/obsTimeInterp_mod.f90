@@ -40,8 +40,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer          :: nstepobs
+    type(struct_obs), intent(in) :: obsSpaceData
+    integer         , intent(in) :: nstepobs
 
     ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
@@ -164,13 +164,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer  :: oti
-    type(struct_obs)           :: obsSpaceData
-    integer                    :: numStep
-    integer                    :: headerIndexBeg
-    integer                    :: headerIndexEnd
-    character(len=*), optional :: interpType_opt
-    logical, optional          :: flagObsOutside_opt
+    type(struct_oti), pointer , intent(out)   :: oti
+    type(struct_obs)          , intent(inout) :: obsSpaceData
+    integer                   , intent(in)    :: numStep
+    integer                   , intent(in)    :: headerIndexBeg
+    integer                   , intent(in)    :: headerIndexEnd
+    character(len=*), optional, intent(in)    :: interpType_opt
+    logical,          optional, intent(in)    :: flagObsOutside_opt
 
     ! Locals:
     integer             :: headerIndex
@@ -279,7 +279,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
 
     if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
     if (associated(oti%timeInterpWeightMpiGlobal)) deallocate(oti%timeInterpWeightMpiGlobal)
@@ -294,7 +294,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
 
     ! Locals:
     integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
@@ -336,10 +336,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
-    real(8), intent(in)       :: weight_in
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
+    real(8),                   intent(in)    :: weight_in
 
     oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
@@ -351,9 +351,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
     ! Result:
     real(8)                   :: weight_out
 
@@ -367,10 +367,10 @@ contains
     implicit none
   
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
-    integer, intent(in)       :: procIndex
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
+    integer,                   intent(in)    :: procIndex
     ! Result:
     real(8)                   :: weight_out
 
@@ -384,8 +384,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
     ! Result:
     logical                   :: allZero
 
@@ -403,10 +403,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    type(struct_obs)          :: obsSpaceData
-    integer                   :: headerIndexBeg
-    integer                   :: headerIndexEnd
+    type(struct_oti), pointer, intent(inout) :: oti
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    integer                  , intent(in)    :: headerIndexBeg
+    integer                  , intent(in)    :: headerIndexEnd
 
     ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd

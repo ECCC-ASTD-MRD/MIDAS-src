@@ -1198,8 +1198,8 @@ module obsOperatorsChem_mod
 
     ! Arguments:
     character(len=12), intent(in) :: cstnid ! station id
-    integer, intent(in) :: varno ! BUFR descriptor element
-    integer, intent(in) :: nlev  ! number of levels in the observation
+    integer,           intent(in) :: varno  ! BUFR descriptor element
+    integer,           intent(in) :: nlev   ! number of levels in the observation
     ! Result:
     integer :: istnid ! Index of averaging kernel in oopc_avgkern. Zero if not found.
 
@@ -1245,11 +1245,11 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: istnid       ! index of averaging kernel in oopc_avgkern
-    character(len=*), intent(in) :: code ! measurement identifier
-    integer, intent(in)  :: nlev         ! number of observation levels
-    integer, intent(in)  :: ncol         ! number of columns for avg kernel info (without the a priori contribution)
-    real(8), intent(out) :: avg_kern(nlev,ncol+2) ! averaging kernel, plus possible a priori contribution and integration weights
+    integer,          intent(in)  :: istnid       ! index of averaging kernel in oopc_avgkern
+    character(len=*), intent(in)  :: code         ! measurement identifier
+    integer,          intent(in)  :: nlev         ! number of observation levels
+    integer,          intent(in)  :: ncol         ! number of columns for avg kernel info (without the a priori contribution)
+    real(8),          intent(out) :: avg_kern(nlev,ncol+2) ! averaging kernel, plus possible a priori contribution and integration weights
 
     ! Locals:
     integer :: startIndex,endIndex
@@ -1326,9 +1326,9 @@ module obsOperatorsChem_mod
     ! Arguments:
     character(len=*), intent(in) :: cfamName ! Family name
     character(len=*), intent(in) :: cstnid   ! Input station id
-    integer, intent(in) :: varno   ! Obs BUFR number
-    integer, intent(in) :: nobslev ! Number of levels
-    integer, intent(in) :: flag    ! observation integer flag
+    integer,          intent(in) :: varno    ! Obs BUFR number
+    integer,          intent(in) :: nobslev  ! Number of levels
+    integer,          intent(in) :: flag     ! observation integer flag
 
     ! Locals:
     integer :: i,elemId,ifam
@@ -1398,7 +1398,6 @@ module obsOperatorsChem_mod
     !
     implicit none
 
-
     ! Arguments:
     character(len=*), intent(in) :: StnidSet(:)
     character(len=*), intent(in) :: TypeSet(:)
@@ -1445,7 +1444,6 @@ module obsOperatorsChem_mod
     !
     implicit none
 
-
     ! Arguments:
     character(len=*), intent(in)  :: StnidSet(:)
     character(len=*), intent(in)  :: TypeSet(:)
@@ -1485,8 +1483,8 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: code ! unique identifying code
-    real(8), intent(in) :: temp_eff(:)   ! effective temperature
+    character(len=*), intent(in) :: code        ! unique identifying code
+    real(8),          intent(in) :: temp_eff(:) ! effective temperature
 
     call oss_obsdata_add_data1d(oopc_efftemp,temp_eff,code,oopc_obsdata_maxsize)
     
@@ -1602,12 +1600,12 @@ module obsOperatorsChem_mod
     implicit none
     
     ! Arguments:
-    type(struct_columnData),           intent(inout) :: columnTrl
+    type(struct_columnData),           intent(in)    :: columnTrl
     type(struct_obs),                  intent(inout) :: obsSpaceData ! Observation-space data object
     character(len=*),                  intent(in)    :: mode
-    type(struct_columnData), optional, intent(inout) :: columnAnlInc_opt
-    real(8), optional,                 intent(out)   :: jobs_opt
-    integer, optional,                 intent(in)    :: destObsColumn_opt
+    type(struct_columnData), optional, intent(in)    :: columnAnlInc_opt
+    real(8),                 optional, intent(out)   :: jobs_opt
+    integer,                 optional, intent(in)    :: destObsColumn_opt
 
     ! Locals:
     real(8) :: zomp,zinc,zoer,zhbht
@@ -2036,14 +2034,14 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsSpaceData ! Obs-Space Data object
-    integer,           intent(in) :: headerIndex ! Measurement index in obsSpaceData
-    type(struct_columnData), intent(inout) :: columnTrl
-    integer,           intent(in) :: nmodlev ! Number of background field (model) levels
-    integer,           intent(in) :: nobslev ! Number of obs elements (see oopc_obsoper_proceed)
-    integer,           intent(in) :: kmode   ! Mode of observation operator
-    integer,           intent(in) :: varno   ! obs unit BUFR number
-    character(len=12), intent(in) :: stnid ! Station ID
+    type(struct_obs),        intent(inout) :: obsSpaceData ! Obs-Space Data object
+    integer,                 intent(in)    :: headerIndex  ! Measurement index in obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrl
+    integer,                 intent(in)    :: nmodlev  ! Number of background field (model) levels
+    integer,                 intent(in)    :: nobslev  ! Number of obs elements (see oopc_obsoper_proceed)
+    integer,                 intent(in)    :: kmode    ! Mode of observation operator
+    integer,                 intent(in)    :: varno    ! obs unit BUFR number
+    character(len=12),       intent(in)    :: stnid    ! Station ID
 
     ! Locals:
     integer :: bodyIndex ! Measurement element index in obsSpaceDate (see oopc_obsoper_proceed)
@@ -2553,14 +2551,14 @@ module obsOperatorsChem_mod
     implicit none
     
     ! Arguments:
-    integer, intent(in) :: kmode ! Mode of observation operator
-    integer, intent(in) :: nobslevOriginal ! Number of actual obs elements in measurement
-    integer, intent(in) :: maxnumHeaders   ! Total number of CH obs for this CPU
-    integer, intent(in) :: headerCount     ! Obs counter/index
-    real(8), intent(inout) :: model_col(obsoper%nmodlev)
-    real(8), intent(out)   :: unit_conversion(obsoper%nmodlev)
-    logical, intent(out)   :: successLocal(obsoper%nobslev)
-    real(8), intent(out), allocatable :: avg_kern(:,:)
+    integer,              intent(in)    :: kmode ! Mode of observation operator
+    integer,              intent(in)    :: nobslevOriginal ! Number of actual obs elements in measurement
+    integer,              intent(in)    :: maxnumHeaders   ! Total number of CH obs for this CPU
+    integer,              intent(in)    :: headerCount     ! Obs counter/index
+    real(8),              intent(inout) :: model_col(obsoper%nmodlev)
+    real(8),              intent(out)   :: unit_conversion(obsoper%nmodlev)
+    logical,              intent(out)   :: successLocal(obsoper%nobslev)
+    real(8), allocatable, intent(out)   :: avg_kern(:,:)
 
     ! Locals:  
     real(8), allocatable :: press_obs(:)
@@ -2952,9 +2950,9 @@ module obsOperatorsChem_mod
     implicit none
     
     ! Arguments:
-    integer, intent(in) :: kmode           ! Mode of observation operator
-    integer, intent(in) :: headerCount     ! Obs counter/index
-    integer, intent(in) :: maxnumHeaders   ! Total number of CH obs for this CPU
+    integer,          intent(in) :: kmode           ! Mode of observation operator
+    integer,          intent(in) :: headerCount     ! Obs counter/index
+    integer,          intent(in) :: maxnumHeaders   ! Total number of CH obs for this CPU
     character(len=*), intent(in) :: action ! 'save' or 'get' operator for current obs
     ! Result:
     logical :: success                     ! Succes of action succeeded  
@@ -3137,9 +3135,9 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: model_col(obsoper%nmodlev) ! Model-space profile to have its units changed
-    logical, intent(in), optional :: ppb_opt
-    logical, intent(in), optional :: incr_opt
+    real(8),           intent(inout) :: model_col(obsoper%nmodlev) ! Model-space profile to have its units changed
+    logical, optional, intent(in)    :: ppb_opt
+    logical, optional, intent(in)    :: incr_opt
     
     ! Locals:
     real(8) :: zcoef
@@ -3417,9 +3415,9 @@ module obsOperatorsChem_mod
     ! Arguments:
     integer,          intent(inout) :: ixtr(obsoper%nobslev) ! Flag indicating if obs outside model vertical range: 0 for no.
     logical,          intent(inout) :: success(obsoper%nobslev) ! success of integration (or averaging)
-    integer,          intent(in) :: kmode ! Mode of observation operator 
-    character(len=*), intent(in) :: operator ! Operator type: 'integ' or 'avg'
-    character(len=*), intent(in) :: skipType ! Skipping processing of specific target layers depending on case
+    integer,          intent(in)    :: kmode ! Mode of observation operator 
+    character(len=*), intent(in)    :: operator ! Operator type: 'integ' or 'avg'
+    character(len=*), intent(in)    :: skipType ! Skipping processing of specific target layers depending on case
 
     ! Locals:
     integer :: obslevIndex,tropo_mode
@@ -3888,11 +3886,11 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: iconstituentId  ! BUFR code element of Table 08046 identifying the constituent
-    integer, intent(in) :: nmodlev          ! number of model levels for variables other than uu and vv
-    real(8), intent(in) :: pressmod(nmodlev)! model pressure array
-    real(8), intent(in) :: tt(nmodlev)      ! model temperature (Kelvin)
-    real(8), intent(in) :: height(nmodlev)  ! height (meters)
+    integer,           intent(in) :: iconstituentId  ! BUFR code element of Table 08046 identifying the constituent
+    integer,           intent(in) :: nmodlev          ! number of model levels for variables other than uu and vv
+    real(8),           intent(in) :: pressmod(nmodlev)! model pressure array
+    real(8),           intent(in) :: tt(nmodlev)      ! model temperature (Kelvin)
+    real(8),           intent(in) :: height(nmodlev)  ! height (meters)
     real(8), optional, intent(in) :: hu_opt(nmodlev) ! specific humidity
     real(8), optional, intent(in) :: uu_opt(:) ! model zonal wind component(m/s)
     real(8), optional, intent(in) :: vv_opt(:) ! model meridional wind component (m/s)
@@ -4022,13 +4020,13 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:    
-    type(struct_oopc_field), intent(out) :: climatFields(0:maxNumFields,maxNumTypes)
-    character(len=*), intent(in) :: filename
-    integer, intent(in):: maxNumFields,maxNumTypes
-    logical, intent(out) :: success
-    character(len=*), intent(in) :: variable
-    character(len=*), intent(in) :: fieldRequired(0:maxNumFields) 
-    character(len=*), intent(in), optional :: filetype_opt
+    type(struct_oopc_field),    intent(out) :: climatFields(0:maxNumFields,maxNumTypes)
+    character(len=*),           intent(in)  :: filename
+    integer,                    intent(in)  :: maxNumFields,maxNumTypes
+    logical,                    intent(out) :: success
+    character(len=*),           intent(in)  :: variable
+    character(len=*),           intent(in)  :: fieldRequired(0:maxNumFields) 
+    character(len=*), optional, intent(in)  :: filetype_opt
 
     ! Locals:
     character(len=3) :: filetype
@@ -4322,21 +4320,21 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    type(struct_oopc_field), intent(in) :: climatFields(0:maxNumFields,maxNumTypes)
-    type(struct_oss_obsdata), intent(inout) :: climatProfileSet
-    integer, intent(in) :: maxNumFields
-    integer, intent(in) :: maxNumTypes
-    integer, intent(in) :: obsIndex
-    integer, intent(in) :: numModelLevs
-    integer, intent(in) :: maxsize
-    real(8), intent(in) :: modelPressLevs(numModelLevs)
-    real(8), intent(in) :: modelHeightLevs(numModelLevs)
-    real(8), intent(in) :: obsLat
-    real(8), intent(in) :: obsLong    
-    integer, intent(in), optional :: varNumber_opt
-    real(8), intent(in), optional :: tt_opt(:)
-    real(8), intent(in), optional :: hu_opt(:)
-    character(len=*), optional :: varKind_opt
+    type(struct_oopc_field),    intent(in)    :: climatFields(0:maxNumFields,maxNumTypes)
+    type(struct_oss_obsdata),   intent(inout) :: climatProfileSet
+    integer,                    intent(in)    :: maxNumFields
+    integer,                    intent(in)    :: maxNumTypes
+    integer,                    intent(in)    :: obsIndex
+    integer,                    intent(in)    :: numModelLevs
+    integer,                    intent(in)    :: maxsize
+    real(8),                    intent(in)    :: modelPressLevs(numModelLevs)
+    real(8),                    intent(in)    :: modelHeightLevs(numModelLevs)
+    real(8),                    intent(in)    :: obsLat
+    real(8),                    intent(in)    :: obsLong    
+    integer,          optional, intent(in)    :: varNumber_opt
+    real(8),          optional, intent(in)    :: tt_opt(:)
+    real(8),          optional, intent(in)    :: hu_opt(:)
+    character(len=*), optional, intent(in)    :: varKind_opt
     
     ! Locals
     integer :: level,start,id
@@ -4521,8 +4519,8 @@ module obsOperatorsChem_mod
     implicit none
   
     ! Arguments
-    type(struct_oss_obsdata), intent(inout)  :: climatProfileSet  ! Profile set
-    character(len=*), intent(in) :: code      ! unique obs identifying code    
+    type(struct_oss_obsdata), intent(inout) :: climatProfileSet  ! Profile set
+    character(len=*),         intent(in)    :: code              ! unique obs identifying code    
     ! Result:
     real(8) :: profile(climatProfileSet%dim1) ! retrieved array from obsdata%data1d of dimension obsdata%dim1
 
@@ -4553,18 +4551,18 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nlong            ! number or longitudes
-    integer, intent(in) :: nlat             ! number or latitudes
-    integer, intent(in) :: nlev             ! number of vertical levels
-    integer, intent(in) :: nlevout          ! number of target vertical levels
-    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
-    real(8), intent(in) :: vlev(nlev)       ! vertical levels of input field (in pressure)
-    real(8), intent(in) :: xlong(nlong)     ! longitudes (radians)
-    real(8), intent(in) :: xlat(nlat)       ! latitudes (radians)
-    real(8), intent(in) :: plong            ! target longitude (radians)
-    real(8), intent(in) :: plat             ! target latitude (radian)
-    real(8), intent(in) :: vlevout(nlevout) ! target vertical levels (in pressure)
-    real(8), intent(out) :: vprof(nlevout)  ! profile at (plong,plat)
+    integer, intent(in)  :: nlong            ! number or longitudes
+    integer, intent(in)  :: nlat             ! number or latitudes
+    integer, intent(in)  :: nlev             ! number of vertical levels
+    integer, intent(in)  :: nlevout          ! number of target vertical levels
+    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
+    real(8), intent(in)  :: vlev(nlev)       ! vertical levels of input field (in pressure)
+    real(8), intent(in)  :: xlong(nlong)     ! longitudes (radians)
+    real(8), intent(in)  :: xlat(nlat)       ! latitudes (radians)
+    real(8), intent(in)  :: plong            ! target longitude (radians)
+    real(8), intent(in)  :: plat             ! target latitude (radian)
+    real(8), intent(in)  :: vlevout(nlevout) ! target vertical levels (in pressure)
+    real(8), intent(out) :: vprof(nlevout)   ! profile at (plong,plat)
     
     ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2

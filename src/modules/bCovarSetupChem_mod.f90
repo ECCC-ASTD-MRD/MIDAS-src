@@ -167,10 +167,10 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    type(struct_hco), intent(in), pointer :: hco_in
-    type(struct_vco), intent(in), pointer :: vco_in
-    logical, intent(out)     :: covarNeeded
-    character(len=*), intent(in) :: mode ! 'Analysis' or 'BackgroundCheck'
+    type(struct_hco), pointer, intent(in)  :: hco_in
+    type(struct_vco), pointer, intent(in)  :: vco_in
+    logical,                   intent(out) :: covarNeeded
+    character(len=*),          intent(in)  :: mode ! 'Analysis' or 'BackgroundCheck'
 
     ! Locals:
     integer :: nulnam, ierr, fnom, fclos
@@ -1391,7 +1391,7 @@ module BCovarSetupChem_mod
     !
     ! :Purpose: To read 3D stddev.
     !
-    ! Originally based on bcsc_rdspstd_newfmt
+    !           Originally based on bcsc_rdspstd_newfmt
     !
     implicit none
 
@@ -1785,7 +1785,8 @@ module BCovarSetupChem_mod
 
     ! Arguments:
     character(len=*), intent(in) :: cletiket
-    integer, intent(in) :: nmat,nlev
+    integer,          intent(in) :: nmat
+    integer,          intent(in) :: nlev
 
     ! Locals:
     integer :: jn, nulcorns,ierr,varIndex,jstart,jnum,numvartot
@@ -1868,9 +1869,9 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    logical, intent(out) :: lfound(:)
-    integer, intent(in) :: nmat
-    character(len=*), intent(in) :: cletiket
+    logical,          intent(out) :: lfound(:)
+    integer,          intent(in)  :: nmat
+    character(len=*), intent(in)  :: cletiket
 
     ! Locals:
     integer :: jn, icornskey,varIndex,jnum,jstart,numvartot
@@ -2015,8 +2016,8 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    type(struct_bcsc_bgStats), intent(out)   :: bgStatsOut           ! Structure with covariance elements
-    character(len=*), intent(out), optional :: TransformVarKind_opt ! Name of variable transform to apply to chemistry variables
+    type(struct_bcsc_bgStats),  intent(out) :: bgStatsOut           ! Structure with covariance elements
+    character(len=*), optional, intent(out) :: TransformVarKind_opt ! Name of variable transform to apply to chemistry variables
 			 
     if (present(TransformVarKind_opt)) TransformVarKind_opt=TransformVarKindCH
 
@@ -2042,8 +2043,8 @@ module BCovarSetupChem_mod
     implicit none
     
     ! Arguments:
-    integer, intent(in) :: nlev_T    ! Number of vertical levels for trial fields
-    real(8), intent(in), pointer :: vlev_T(:) ! Trial field vertical levels
+    integer,          intent(in) :: nlev_T    ! Number of vertical levels for trial fields
+    real(8), pointer, intent(in) :: vlev_T(:) ! Trial field vertical levels
 
     ! Locals:
     integer :: ilev1,ilev2,j,d1,d2
@@ -2181,12 +2182,12 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName ! Variable name
-    integer, intent(in) :: maxsize  ! Max array size
-    real(8), intent(in) :: xlat     ! Target latitude
-    real(8), intent(in) :: xlong    ! Target longitude
-    real(8), intent(out) :: stddevOut(:) ! Error std. dev.
-    real(8), intent(in), optional :: vlev_opt(:) ! Target vertical levels
+    character(len=*),  intent(in)  :: varName ! Variable name
+    integer,           intent(in)  :: maxsize  ! Max array size
+    real(8),           intent(in)  :: xlat     ! Target latitude
+    real(8),           intent(in)  :: xlong    ! Target longitude
+    real(8),           intent(out) :: stddevOut(:) ! Error std. dev.
+    real(8), optional, intent(in)  :: vlev_opt(:) ! Target vertical levels
     
     ! Locals:
     integer :: varIndex,latIndex,lonIndex,levIndex,nlev,startPosition
@@ -2405,7 +2406,8 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: dim1, dim2  ! Dimensions of output array
+    integer, intent(in) :: dim1  ! Dimensions of output array
+    integer, intent(in) :: dim2  ! Dimensions of output array
     integer, intent(in) :: headerIndex ! Index of observation
     ! Result:
     real(8) :: stddevOut(dim1,dim2)

@@ -104,10 +104,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_hco),pointer :: hco_in
-    type(struct_vco),pointer :: vco_in
-    integer                  :: cvDim_out
-    character(len=*), intent(in), optional :: mode_opt
+    type(struct_hco), pointer,  intent(in)  :: hco_in
+    type(struct_vco), pointer,  intent(in)  :: vco_in
+    integer                  ,  intent(out) :: cvDim_out
+    character(len=*), optional, intent(in)  :: mode_opt
 
     ! Locals:
     character(len=15) :: bhi_mode
@@ -360,7 +360,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: scaleFactor_out(:)
+    real(8), intent(out) :: scaleFactor_out(:)
 
     ! Locals:
     integer :: jlev
@@ -887,7 +887,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    logical :: lfound_sqrt
+    logical, intent(out) :: lfound_sqrt
 
     ! Locals:
     integer :: jn, icornskey
@@ -948,9 +948,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8)  :: ztlen,zr,zlc
+    real(8), intent(in) :: ztlen
+    real(8), intent(in) :: zr
     ! Result:
     real(8)  :: gasparicohn
+
+    ! Locals:
+    real(8)  :: zlc
 
     zlc = ztlen/2.0d0
     if(zr.le.zlc) then
@@ -972,9 +976,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer :: klev
-    real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
-    real(8) :: pcscl(klev)
+    integer, intent(in)  :: klev
+    real(8), intent(out) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
+    real(8), intent(in)  :: pcscl(klev)
 
     ! Locals:
     integer :: jlev, jlat, jlon
@@ -1537,7 +1541,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer :: kn
+    integer, intent(in) :: kn
 
     ! Locals:
     integer :: jblock1, inbrblock, jblock2
@@ -2207,8 +2211,8 @@ CONTAINS
     !
 
     ! Arguments:
-    real(8), pointer :: controlVector_inout(:)
-    integer          :: ntruncCut
+    real(8), pointer, intent(inout) :: controlVector_inout(:)
+    integer,          intent(in)    :: ntruncCut
 
     ! Locals:
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
@@ -2253,9 +2257,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8)                    :: controlVector_in(cvDim_mpilocal)
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    real(8),                    intent(in)    :: controlVector_in(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     real(8),allocatable :: gd_out(:,:,:)
@@ -2294,9 +2298,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8)                    :: controlVector_out(cvDim_mpilocal)
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    real(8),                    intent(inout) :: controlVector_out(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
@@ -2336,8 +2340,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector
-    real(8) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    type(struct_gsv), intent(inout) :: statevector
+    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
@@ -2398,8 +2402,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector
-    real(8)          :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    type(struct_gsv), intent(inout) :: statevector
+    real(8),          intent(out)   :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
@@ -3017,8 +3021,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: controlVector_in(cvDim_mpilocal)
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
+    real(8), intent(out) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
 
     ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
@@ -3054,8 +3058,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments:
-    real(8) :: controlVector_out(cvDim_mpilocal)
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(out) :: controlVector_out(cvDim_mpilocal)
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
 
     ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
@@ -3090,8 +3094,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments:
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(out) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,nkgdim)
@@ -3300,8 +3304,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(in)    :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even)
@@ -3483,6 +3487,5 @@ CONTAINS
     end if
 
   END SUBROUTINE BHI_Finalize
-
 
 END MODULE bMatrixHI_mod

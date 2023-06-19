@@ -1360,8 +1360,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    character(len=*),           intent(in) :: interpDegree
+    character(len=*), optional, intent(in) :: extrapDegree_opt
 
     ! Locals:
     character(len=12) :: extrapDegree
@@ -1402,13 +1402,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)        :: stateVectorOut
-    type(struct_gsv), intent(inout)        :: stateVectorIn
-    character(len=*), intent(in)           :: varName
-    integer         , intent(in)           :: levIndex
-    integer         , intent(in)           :: stepIndex
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    type(struct_gsv),           intent(inout) :: stateVectorOut
+    type(struct_gsv),           intent(inout) :: stateVectorIn
+    character(len=*),           intent(in)    :: varName
+    integer         ,           intent(in)    :: levIndex
+    integer         ,           intent(in)    :: stepIndex
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 
@@ -1502,10 +1502,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(inout)     :: fieldOut_r4(:,:)
-    real(4), intent(in)        :: fieldIn_r4(:,:)
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    real(4),                    intent(inout) :: fieldOut_r4(:,:)
+    real(4),                    intent(in)    :: fieldIn_r4(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 
@@ -1858,10 +1858,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)     :: fieldOut_r8(:,:)
-    real(8), intent(in)        :: fieldIn_r8(:,:)
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    real(8),                    intent(inout) :: fieldOut_r8(:,:)
+    real(8),                    intent(in)    :: fieldIn_r8(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 
@@ -1920,13 +1920,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)        :: stateVectorOut
-    type(struct_gsv), intent(inout)        :: stateVectorIn
-    character(len=*), intent(in)           :: varName
-    integer         , intent(in)           :: levIndex
-    integer         , intent(in)           :: stepIndex
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    type(struct_gsv),           intent(inout) :: stateVectorOut
+    type(struct_gsv),           intent(inout) :: stateVectorIn
+    character(len=*),           intent(in)    :: varName
+    integer         ,           intent(in)    :: levIndex
+    integer         ,           intent(in)    :: stepIndex
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 
@@ -2045,12 +2045,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(4),          intent(inout)        :: uuout(:,:)
-    real(4),          intent(inout)        :: vvout(:,:)
-    real(4),          intent(in)           :: uuin(:,:)
-    real(4),          intent(in)           :: vvin(:,:)
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    real(4),                    intent(inout) :: uuout(:,:)
+    real(4),                    intent(inout) :: vvout(:,:)
+    real(4),                    intent(in)    :: uuin(:,:)
+    real(4),                    intent(in)    :: vvin(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 
@@ -2079,12 +2079,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(inout)        :: uuout(:,:)
-    real(8),          intent(inout)        :: vvout(:,:)
-    real(8),          intent(in)           :: uuin(:,:)
-    real(8),          intent(in)           :: vvin(:,:)
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    real(8),                    intent(inout) :: uuout(:,:)
+    real(8),                    intent(inout) :: vvout(:,:)
+    real(8),                    intent(in)    :: uuin(:,:)
+    real(8),                    intent(in)    :: vvin(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
     ! Result:
     integer :: ierr
 

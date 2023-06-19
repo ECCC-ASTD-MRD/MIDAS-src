@@ -34,7 +34,7 @@ module varQC_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! obsSpaceData object
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
 
     ! Locals:
     integer jdata, jjo, idata, idatend, idburp
@@ -312,7 +312,7 @@ module varQC_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! obsSpaceData object
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
 
     ! Locals:
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
@@ -406,7 +406,7 @@ module varQC_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData ! obsSpaceData object
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
 
     ! Locals:
     integer :: index_body
@@ -439,7 +439,7 @@ module varQC_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs), intent(inout) :: lobsSpaceData
 
     ! Locals:
     integer, parameter :: numitem = 16

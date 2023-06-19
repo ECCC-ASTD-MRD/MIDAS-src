@@ -85,18 +85,18 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: fld8(*)
-    integer :: iun
-    integer :: ni
-    integer :: nj
-    integer :: nk
-    integer :: datev
-    integer :: ip1
-    integer :: ip2
-    integer :: ip3
-    character(len=*) :: etiket
-    character(len=*) :: nomvar
-    character(len=*) :: typvar
+    real(8),          intent(inout) :: fld8(*)
+    integer,          intent(in)    :: iun
+    integer,          intent(in)    :: ni
+    integer,          intent(in)    :: nj
+    integer,          intent(in)    :: nk
+    integer,          intent(in)    :: datev
+    integer,          intent(in)    :: ip1
+    integer,          intent(in)    :: ip2
+    integer,          intent(in)    :: ip3
+    character(len=*), intent(in)    :: etiket
+    character(len=*), intent(in)    :: nomvar
+    character(len=*), intent(in)    :: typvar
     ! Result:
     integer :: vfstlir
 
@@ -137,18 +137,18 @@ contains
     implicit none
 
     ! Arguments:
-    real(4) :: fld_r4(*)
-    integer :: iun
-    integer :: ni
-    integer :: nj
-    integer :: nk
-    integer :: datev
-    integer :: ip1
-    integer :: ip2
-    integer :: ip3
-    character(len=*) :: etiket
-    character(len=*) :: nomvar
-    character(len=*) :: typvar
+    real(4),          intent(inout) :: fld_r4(*)
+    integer,          intent(in)    :: iun
+    integer,          intent(in)    :: ni
+    integer,          intent(in)    :: nj
+    integer,          intent(in)    :: nk
+    integer,          intent(in)    :: datev
+    integer,          intent(in)    :: ip1
+    integer,          intent(in)    :: ip2
+    integer,          intent(in)    :: ip3
+    character(len=*), intent(in)    :: etiket
+    character(len=*), intent(in)    :: nomvar
+    character(len=*), intent(in)    :: typvar
     ! Result:
     integer :: vfstlir
 
@@ -191,33 +191,33 @@ contains
     implicit none
 
     ! Arguments:
-    real(4) :: work
-    integer, intent(in) :: ni
-    integer, intent(in) :: nj
-    integer, intent(in) :: nk
-    real(8) :: fld8(ni,nj,nk)
-    integer :: iun
-    integer :: ip1
-    integer :: ip2
-    integer :: ip3
-    integer :: ig1
-    integer :: ig2
-    integer :: ig3
-    integer :: ig4
-    integer :: npak
-    integer :: dateo
-    integer :: deet
-    integer :: npas
-    integer :: datyp
-    logical :: rewrit  
-    character(len=*) :: etiket 
-    character(len=*) :: typvar
-    character(len=*) :: grtyp 
-    character(len=*) :: nomvar            
+    integer,          intent(in) :: ni
+    integer,          intent(in) :: nj
+    integer,          intent(in) :: nk
+    real(8),          intent(in) :: fld8(ni,nj,nk)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: ip1
+    integer,          intent(in) :: ip2
+    integer,          intent(in) :: ip3
+    integer,          intent(in) :: ig1
+    integer,          intent(in) :: ig2
+    integer,          intent(in) :: ig3
+    integer,          intent(in) :: ig4
+    integer,          intent(in) :: npak
+    integer,          intent(in) :: dateo
+    integer,          intent(in) :: deet
+    integer,          intent(in) :: npas
+    integer,          intent(in) :: datyp
+    logical,          intent(in) :: rewrit  
+    character(len=*), intent(in) :: etiket 
+    character(len=*), intent(in) :: typvar
+    character(len=*), intent(in) :: grtyp 
+    character(len=*), intent(in) :: nomvar            
     ! Result:
     integer :: vfstecr
 
     ! Locals:
+    real(4) :: work
     integer :: ikey, jk1, jk2, jk3
     real(4), allocatable :: buffer4(:,:,:)
     integer :: fstecr
@@ -249,10 +249,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)           :: rank
-    real(8), intent(inout)        :: matrix(rank,rank)
-    real(8), intent(in)           :: exponentSign
-    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+    integer,           intent(in)    :: rank
+    real(8),           intent(inout) :: matrix(rank,rank)
+    real(8),           intent(in)    :: exponentSign
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
     real(8), allocatable :: eigenValues(:)
@@ -342,10 +342,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: rank                 ! order of the matrix
-    real(8), intent(inout)           :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8), intent(inout), optional :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
-    logical, intent(in), optional    :: printInformation_opt ! switch to print be more verbose
+    integer,           intent(in)    :: rank                 ! order of the matrix
+    real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
     integer :: index1, index2, info, sizework
@@ -461,12 +461,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)        :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8), intent(out)          :: eigenValues(:)       ! computed eigenValues
-    real(8), intent(out)          :: eigenVectors(:,:)    ! computed eigenVectors
-    real(8), intent(in)           :: tolerance            ! threshold for eigenValue magnitude to be returned
-    integer, intent(out)          :: numReturned          ! number of eigenValues/Vectors returned
-    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+    real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8),           intent(out)   :: eigenValues(:)       ! computed eigenValues
+    real(8),           intent(out)   :: eigenVectors(:,:)    ! computed eigenVectors
+    real(8),           intent(in)    :: tolerance            ! threshold for eigenValue magnitude to be returned
+    integer,           intent(out)   :: numReturned          ! number of eigenValues/Vectors returned
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
     integer :: rank, index1, index2, info, sizework
@@ -575,9 +575,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)           :: inputMatrix(:,:)   ! Input Matrix
-    real(8), intent(out)          :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
-    real(8), optional, intent(in) :: threshold_opt 
+    real(8),           intent(in)  :: inputMatrix(:,:)   ! Input Matrix
+    real(8),           intent(out) :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
+    real(8), optional, intent(in)  :: threshold_opt 
 
     ! Locals:
     real(8), allocatable :: copyMatrix(:,:), leftSingularVector(:,:), rightSingularVectorT(:,:)
@@ -638,7 +638,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: cmsg
+    character(len=*), intent(in) :: cmsg
 
     ! Locals:
     INTEGER :: iulstatus,fnom,fclos, ierr
@@ -665,21 +665,21 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: kstampv
-    integer :: knmaxlev
-    integer :: knlev
-    integer :: kgid
-    integer :: kip1s(knmaxlev)
-    integer :: kip1style
-    integer :: kip1kind
-    integer :: kip2
-    integer :: kip3
-    integer :: ktrials
-    integer :: koutmpg  
-    integer :: kinmpg(ktrials)
-    character(len=*) :: cdtypvar
-    character(len=*) :: cdvar
-    character(len=*) :: cdetiket
+    integer,          intent(out) :: kstampv
+    integer,          intent(in)  :: knmaxlev
+    integer,          intent(out) :: knlev
+    integer,          intent(out) :: kgid
+    integer,          intent(out) :: kip1s(knmaxlev)
+    integer,          intent(out) :: kip1style
+    integer,          intent(out) :: kip1kind
+    integer,          intent(out) :: kip2
+    integer,          intent(out) :: kip3
+    integer,          intent(in)  :: ktrials
+    integer,          intent(out) :: koutmpg
+    integer,          intent(in)  :: kinmpg(ktrials)
+    character(len=*), intent(out) :: cdtypvar
+    character(len=*), intent(out) :: cdvar
+    character(len=*), intent(out) :: cdetiket
 
     ! Locals:
     integer :: fstinl,fstprm,ezqkdef,newdate
@@ -817,7 +817,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: message
+    character(len=*), intent(in) :: message
 
     ! Locals:
     integer :: comm, ierr, rpn_comm_comm
@@ -847,7 +847,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: message
+    character(len=*), intent(in) :: message
 
     ! Locals:
     integer :: comm, ierr, rpn_comm_comm
@@ -868,8 +868,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: filename
-    integer, intent(out) :: unit
+    character(len=*), intent(in)  :: filename
+    integer,          intent(out) :: unit
 
     ! Locals:
     logical :: file_exists
@@ -901,9 +901,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(inout) :: unit
-    character(len=*) :: filename
-    character(len=*) :: mode
+    integer,          intent(inout) :: unit
+    character(len=*), intent(in)    :: filename
+    character(len=*), intent(in)    :: mode
     ! Result:
     integer :: ier
 
@@ -1019,7 +1019,7 @@ contains
 
     ! Arguments:
     real(8), pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,          intent(in)    :: dim1
 
     ! Locals:
     real(8), pointer :: tmp(:)
@@ -1050,7 +1050,7 @@ contains
 
     ! Arguments:
     integer, pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,          intent(in)    :: dim1
 
     ! Locals:
     integer, pointer :: tmp(:)
@@ -1081,7 +1081,7 @@ contains
 
     ! Arguments:
     character(len=*), pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,                   intent(in)    :: dim1
 
     ! Locals:
     character(len=len(arr(1))), pointer :: tmp(:)
@@ -1110,8 +1110,8 @@ contains
 
     ! Arguments:
     real(8), pointer, intent(inout) :: arr(:,:)
-    integer, intent(in) :: dim1
-    integer, intent(in) :: dim2
+    integer,          intent(in)    :: dim1
+    integer,          intent(in)    :: dim2
 
     ! Locals:
     real(8), pointer :: tmp(:,:)
@@ -1145,9 +1145,9 @@ contains
 
     ! Arguments:
     real(8), pointer, intent(inout) :: arr(:,:,:)
-    integer, intent(in) :: dim1
-    integer, intent(in) :: dim2
-    integer, intent(in) :: dim3
+    integer,          intent(in)    :: dim1
+    integer,          intent(in)    :: dim2
+    integer,          intent(in)    :: dim3
 
     ! Locals:
     real(8), pointer :: tmp(:,:,:)
@@ -1184,11 +1184,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: Nmax
-    integer, intent(in)    :: nobslev
-    integer, intent(inout) :: NListSize
-    integer, intent(out)   :: elemId
-    character(len=*), intent(in)     :: cstringin
+    integer,           intent(in)    :: Nmax
+    integer,           intent(in)    :: nobslev
+    integer,           intent(inout) :: NListSize
+    integer,           intent(out)   :: elemId
+    character(len=*),  intent(in)    :: cstringin
     character(len=*),  intent(inout) :: CList(Nmax)
 
     ! Locals:
@@ -1307,20 +1307,20 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: iip1
-    integer, intent(in) :: iip2
-    integer, intent(in) :: iip3
-    character(len=*), intent(in) :: varName
-    character(len=*), intent(in) :: fname
-    character(len=*), intent(in) :: etiketi
-    integer, intent(out) :: ni
-    integer, intent(out) :: nj
-    integer, intent(out) :: nkeys
-    integer, intent(out), optional :: kind_opt
-    real(8), intent(out), allocatable :: array(:,:,:)
-    real(8), intent(out), allocatable, optional :: lvls_opt(:)
-    real(8), intent(out), allocatable, optional :: xlat_opt(:)
-    real(8), intent(out), allocatable, optional :: xlong_opt(:)
+    integer,                        intent(in)  :: iip1
+    integer,                        intent(in)  :: iip2
+    integer,                        intent(in)  :: iip3
+    character(len=*),               intent(in)  :: varName
+    character(len=*),               intent(in)  :: fname
+    character(len=*),               intent(in)  :: etiketi
+    integer,                        intent(out) :: ni
+    integer,                        intent(out) :: nj
+    integer,                        intent(out) :: nkeys
+    integer, optional,              intent(out) :: kind_opt
+    real(8), allocatable,           intent(out) :: array(:,:,:)
+    real(8), allocatable, optional, intent(out) :: lvls_opt(:)
+    real(8), allocatable, optional, intent(out) :: xlat_opt(:)
+    real(8), allocatable, optional, intent(out) :: xlong_opt(:)
 
     ! Locals:
     integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
@@ -1457,8 +1457,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*),intent(in) :: message
-    integer, intent(in) :: status(:)
+    character(len=*),  intent(in) :: message
+    integer,           intent(in) :: status(:)
     logical, optional, intent(in) :: alloc_opt 
 
     ! Locals:
@@ -1487,9 +1487,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName
+    character(len=*),           intent(in) :: varName
     character(len=*), optional, intent(in) :: fileName_opt
-    integer, optional, intent(in) :: fileUnit_opt
+    integer,          optional, intent(in) :: fileUnit_opt
     character(len=*), optional, intent(in) :: typvar_opt
     ! Result:
     logical :: found
@@ -1546,8 +1546,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=128), allocatable :: array(:)
-    integer :: dim1
+    character(len=128), allocatable, intent(inout) :: array(:)
+    integer,                         intent(in) :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1565,9 +1565,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=128), allocatable :: array(:,:)
-    integer :: dim1
-    integer :: dim2
+    character(len=128), allocatable, intent(inout) :: array(:,:)
+    integer,                         intent(in)    :: dim1
+    integer,                         intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1585,10 +1585,10 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=128), allocatable :: array(:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
+    character(len=128), allocatable, intent(inout) :: array(:,:,:)
+    integer,                         intent(in)    :: dim1
+    integer,                         intent(in)    :: dim2
+    integer,                         intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1606,8 +1606,8 @@ contains
     implicit none
 
     ! Arguments:
-    logical, allocatable :: array(:)
-    integer :: dim1
+    logical, allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1626,9 +1626,9 @@ contains
     implicit none
 
     ! Arguments:
-    logical, allocatable :: array(:,:)
-    integer :: dim1
-    integer :: dim2
+    logical, allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1647,10 +1647,10 @@ contains
     implicit none
 
     ! Arguments:
-    logical, allocatable :: array(:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
+    logical, allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1669,8 +1669,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, allocatable :: array(:)
-    integer :: dim1
+    integer, allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1689,9 +1689,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer, allocatable :: array(:,:)
-    integer :: dim1
-    integer :: dim2
+    integer, allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1710,10 +1710,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, allocatable :: array(:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
+    integer, allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1732,8 +1732,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable :: array(:)
-    integer :: dim1
+    real(4), allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1752,8 +1752,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable :: array(:)
-    integer :: dim1
+    real(8), allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1772,9 +1772,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable :: array(:,:)
-    integer :: dim1
-    integer :: dim2
+    real(4), allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1793,9 +1793,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable :: array(:,:)
-    integer :: dim1
-    integer :: dim2
+    real(8), allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1814,10 +1814,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable :: array(:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
+    real(4), allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1837,10 +1837,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable :: array(:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
+    real(8), allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1860,11 +1860,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable :: array(:,:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
-    integer :: dim4
+    real(4), allocatable, intent(inout) :: array(:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
@@ -1884,11 +1884,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable :: array(:,:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
-    integer :: dim4
+    real(8), allocatable, intent(inout) :: array(:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
@@ -1908,12 +1908,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable :: array(:,:,:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
-    integer :: dim4
-    integer :: dim5
+    real(4), allocatable, intent(inout) :: array(:,:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
+    integer,              intent(in)    :: dim5
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
@@ -1933,12 +1933,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable :: array(:,:,:,:,:)
-    integer :: dim1
-    integer :: dim2
-    integer :: dim3
-    integer :: dim4
-    integer :: dim5
+    real(8), allocatable, intent(inout) :: array(:,:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
+    integer,              intent(in)    :: dim5
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
@@ -2012,9 +2012,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: string
-    character(len=*), intent(in) :: separator
-    character(len=*), allocatable :: stringArray(:)
+    character(len=*),              intent(in) :: string
+    character(len=*),              intent(in) :: separator
+    character(len=*), allocatable, intent(inout) :: stringArray(:)
 
     ! Locals:
     integer :: stringArraySize, stringIndex
@@ -2112,8 +2112,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=256) :: stringArray(:)
-    integer, allocatable :: integerArray(:)
+    character(len=256),   intent(in)  :: stringArray(:)
+    integer, allocatable, intent(out) :: integerArray(:)
 
     ! Locals:
     integer :: arraySize, arrayIndex
@@ -2194,9 +2194,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: line
-    integer, intent(out) :: numColumns
-    character(len=*), intent(out), optional :: stringArray_opt(:)
+    character(len=*),           intent(in)  :: line
+    integer,                    intent(out) :: numColumns
+    character(len=*), optional, intent(out) :: stringArray_opt(:)
 
     ! Locals:
     integer :: linePosition, wordPosition, lineLength
@@ -2245,8 +2245,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: filein
-    character(len=*) :: fileout
+    character(len=*), intent(in) :: filein
+    character(len=*), intent(in) :: fileout
     ! Result:
     integer :: status
 
@@ -2564,7 +2564,7 @@ contains
   end subroutine utl_tmg_stop  
   
   !--------------------------------------------------------------------------
-  ! utl_median
+  ! utl_medianIndex
   !--------------------------------------------------------------------------
   function utl_medianIndex(inputVector) result(medianIndex)
     ! 

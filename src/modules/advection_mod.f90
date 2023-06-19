@@ -99,18 +99,18 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_adv) :: adv
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
-    character(len=*), intent(in) :: mode
-    character(len=*), intent(in) :: levTypeList
+    type(struct_adv),           intent(inout) :: adv
+    type(struct_hco), pointer,  intent(in) :: hco_in
+    type(struct_vco), pointer,  intent(in) :: vco_in
+    character(len=*),           intent(in) :: mode
+    character(len=*),           intent(in) :: levTypeList
     character(len=*), optional, intent(in) :: steeringFlowFilename_opt
-    integer, intent(in) :: numStepAdvectedField
-    integer, intent(in) :: numStepSteeringFlow_in
-    integer, intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
-    real(8), intent(in) :: steeringFlowFactor_in(vco_in%nLev_M)
-    real(8), intent(in) :: steeringFlowDelThour
-    type(struct_gsv), optional :: statevector_steeringFlow_opt
+    integer,                    intent(in) :: numStepAdvectedField
+    integer,                    intent(in) :: numStepSteeringFlow_in
+    integer,                    intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
+    real(8),                    intent(in) :: steeringFlowFactor_in(vco_in%nLev_M)
+    real(8),                    intent(in) :: steeringFlowDelThour
+    type(struct_gsv), optional, intent(inout) :: statevector_steeringFlow_opt
 
     ! Locals:
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, stepIndexSF, stepIndexAF, ierr
@@ -550,14 +550,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: levTypeIndex
-    integer, intent(in) :: levIndex
-    integer, intent(in) :: nLev_M
-    integer, intent(in) :: nLev_T
-    integer, intent(in) :: myLatBeg
-    integer, intent(in) :: myLatEnd
-    real(8) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
-    real(8) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
+    integer, intent(in)  :: levTypeIndex
+    integer, intent(in)  :: levIndex
+    integer, intent(in)  :: nLev_M
+    integer, intent(in)  :: nLev_T
+    integer, intent(in)  :: myLatBeg
+    integer, intent(in)  :: myLatEnd
+    real(8), intent(out) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
+    real(8), intent(out) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
     ! Locals:
     integer :: stepIndexSF, nsize, ierr 
@@ -956,9 +956,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
 
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_tl: vertical levels are not compatible')
@@ -981,9 +981,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
 
     ! Locals:
     real(8), pointer     :: ens_oneLev(:,:,:,:)
@@ -1088,9 +1088,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
 
     ! Locals:
     real(4), pointer     :: ens_oneLev(:,:,:,:)
@@ -1195,9 +1195,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
 
     ! Locals:
     real(8), pointer     :: ens_oneLev(:,:,:,:)
@@ -1333,8 +1333,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv)    :: statevector
-    type(struct_adv)    :: adv
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_adv), intent(in)    :: adv
 
     ! Locals:
     real(8), pointer     :: field4D(:,:,:,:)
@@ -1455,8 +1455,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv)    :: statevector
-    type(struct_adv)    :: adv
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_adv), intent(in)    :: adv
 
     ! Locals:
     real(8), pointer     :: field4D(:,:,:,:)

@@ -32,16 +32,16 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName
-    integer, optional :: memberIndex_opt
-    character(len=*),optional :: ensFileBaseName_opt
-    character(len=*),optional :: ensFileNamePrefix_opt
-    logical, optional :: shouldExist_opt
-    integer, optional :: ensembleFileExtLength_opt
-    logical, optional :: copyToRamDisk_opt
-    logical, optional :: resetFileInfo_opt
-    integer, optional :: fileMemberIndex1_opt
+    character(len=*),           intent(out) :: ensFileName
+    character(len=*),           intent(in)  :: ensPathName
+    integer,          optional, intent(in)  :: memberIndex_opt
+    character(len=*), optional, intent(out) :: ensFileBaseName_opt
+    character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
+    logical,          optional, intent(in)  :: shouldExist_opt
+    integer,          optional, intent(out) :: ensembleFileExtLength_opt
+    logical,          optional, intent(in)  :: copyToRamDisk_opt
+    logical,          optional, intent(in)  :: resetFileInfo_opt
+    integer,          optional, intent(in)  :: fileMemberIndex1_opt
 
     ! Locals:
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
@@ -170,12 +170,12 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName
-    integer           :: dateStamp
-    integer, optional :: memberIndex_opt
-    character(len=*), optional :: ensFileNamePrefix_opt
-    character(len=*), optional :: ensFileNameSuffix_opt
+    character(len=*),           intent(out) :: ensFileName
+    character(len=*)  ,         intent(in)  :: ensPathName
+    integer           ,         intent(in)  :: dateStamp
+    integer,          optional, intent(in)  :: memberIndex_opt
+    character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
+    character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
 
     ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate
@@ -244,12 +244,12 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName
-    integer           :: dateStamp
-    integer, optional :: memberIndex_opt
-    character(len=*), optional :: ensFileNamePrefix_opt
-    character(len=*), optional :: ensFileNameSuffix_opt
+    character(len=*),           intent(out) :: ensFileName
+    character(len=*),           intent(in)  :: ensPathName
+    integer         ,           intent(in)  :: dateStamp
+    integer,          optional, intent(in)  :: memberIndex_opt
+    character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
+    character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
 
     ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl

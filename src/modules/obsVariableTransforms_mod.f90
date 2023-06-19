@@ -223,8 +223,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: sourceBufrCode    ! The input source bufr code
-    logical, optional :: extra_opt           ! Should we look in the "extra" bufr code list or not
+    integer,           intent(in) :: sourceBufrCode ! The input source bufr code
+    logical, optional, intent(in) :: extra_opt      ! Should we look in the "extra" bufr code list or not
     ! Result:
     integer :: destinationBufrCode           ! The returned destination/transform bufr code
 
@@ -276,8 +276,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: destinationBufrCode  ! The input destination/transform bufr code
-    logical, optional :: extra_opt              ! Should we look in the "extra" bufr code list or not
+    integer,           intent(in) :: destinationBufrCode ! The input destination/transform bufr code
+    logical, optional, intent(in) :: extra_opt           ! Should we look in the "extra" bufr code list or not
     ! Result:
     integer :: sourceBufrCode                   ! The returned source bufr code
 
@@ -687,8 +687,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)    :: obsSpaceData    ! The observation database
-    integer, intent(in) :: residualTypeID  ! The residual type ID (o-p or o-a)
+    type(struct_obs), intent(inout) :: obsSpaceData    ! The observation database
+    integer,          intent(in)    :: residualTypeID  ! The residual type ID (o-p or o-a)
 
     ! Locals:
     integer :: uWindBufrCode, vWindBufrCode, speedBufrCode, directionBufrCode

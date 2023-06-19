@@ -26,9 +26,9 @@ CONTAINS
     implicit none
    
     ! Arguments:
-    type(struct_columnData), intent(inout)        :: columnInc
-    character(len=*), intent(in)                  :: transform
-    type(struct_columnData), optional, intent(in) :: columnRefOnIncLev_opt
+    type(struct_columnData),           intent(inout) :: columnInc
+    character(len=*),                  intent(in)    :: transform
+    type(struct_columnData), optional, intent(in)    :: columnRefOnIncLev_opt
     
     select case(trim(transform))
 

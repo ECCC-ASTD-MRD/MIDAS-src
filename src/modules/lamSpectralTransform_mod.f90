@@ -95,14 +95,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)                :: lst           ! Parameters available to the outside world
-    integer,          intent(in)    :: ni_in         ! Global Grid point data horizontal dimensions
-    integer,          intent(in)    :: nj_in         ! Global Grid point data horizontal dimensions
-    character(len=*), intent(in)    :: MpiMode       ! MPI Strategy
-    real(8),          intent(in)    :: dlon_in       ! Grid Spacing in Radians
-    integer,          intent(in)    :: ktrunc_in     ! Spectral Truncation (global)
-    integer, intent(in), optional   :: maxlevels_opt ! Number of levels; Only needed when MpiMode = LatLev
-    character(len=*), intent(in), optional :: gridDataOrder_opt ! 'ijk' or 'kij'
+    type(struct_lst),           intent(out) :: lst           ! Parameters available to the outside world
+    integer,                    intent(in)  :: ni_in         ! Global Grid point data horizontal dimensions
+    integer,                    intent(in)  :: nj_in         ! Global Grid point data horizontal dimensions
+    character(len=*),           intent(in)  :: MpiMode       ! MPI Strategy
+    real(8),                    intent(in)  :: dlon_in       ! Grid Spacing in Radians
+    integer,                    intent(in)  :: ktrunc_in     ! Spectral Truncation (global)
+    integer,          optional, intent(in)  :: maxlevels_opt ! Number of levels; Only needed when MpiMode = LatLev
+    character(len=*), optional, intent(in)  :: gridDataOrder_opt ! 'ijk' or 'kij'
 
     ! Locals:
     real(8), allocatable            :: Kr8fromMN(:,:)
@@ -696,11 +696,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: m
-    integer :: n
-    integer :: mref
-    integer :: nref
-    integer :: kref
+    integer, intent(in) :: m
+    integer, intent(in) :: n
+    integer, intent(in) :: mref
+    integer, intent(in) :: nref
+    integer, intent(in) :: kref
     ! Result:
     real(8) :: r
 
@@ -1436,10 +1436,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
-    real(8), intent(out):: gd_out(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
+    real(8),          intent(out) :: gd_out(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
@@ -1490,10 +1490,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
     ! Locals:
     integer :: nsize, ierr
@@ -1522,10 +1522,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
@@ -1587,10 +1587,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
-    real(8), intent(in) :: gd_in(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
+    real(8),          intent(in)  :: gd_in(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
@@ -1641,10 +1641,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(in) :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
     ! Locals:
     integer :: nsize, ierr
@@ -1673,10 +1673,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(in) :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
@@ -1738,9 +1738,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)     :: lst    
-    real(8), intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
-    real(8), intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst    
+    real(8),          intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
+    real(8),          intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
@@ -1812,9 +1812,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)     :: lst
-    real(8), intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp )
-    real(8), intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp )
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
@@ -1886,9 +1886,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)      :: lst
-    real(8), intent(in)   :: gd_in (2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
-    real(8), intent(out)  :: gd_out(lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(in)  :: gd_in (2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
+    real(8),          intent(out) :: gd_out(lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
@@ -1960,9 +1960,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)      :: lst
-    real(8), intent(in)   :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
-    real(8), intent(out)  :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
     ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
@@ -2034,10 +2034,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(in) :: gd_in (2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(in)  :: gd_in (2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
@@ -2098,10 +2098,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(in) :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount, lst%nj+lst%njp)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount, lst%nj+lst%njp)
 
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
@@ -2162,10 +2162,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(in):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(out):: gd_out(2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(out) :: gd_out(2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
@@ -2231,10 +2231,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)    :: lst
-    integer, intent(in) :: nk
-    real(8), intent(in) :: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
 
     ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
@@ -2301,7 +2301,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)                :: lst
+    type(struct_lst), intent(in)    :: lst
     integer,          intent(in)    :: kStart
     integer,          intent(in)    :: kEnd
     character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN
@@ -2366,7 +2366,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_lst)                :: lst
+    type(struct_lst), intent(in)    :: lst
     integer,          intent(in)    :: kStart
     integer,          intent(in)    :: kEnd
     character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN

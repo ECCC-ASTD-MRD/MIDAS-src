@@ -46,9 +46,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData  ! obsSpaceData structure
-    type(struct_columnData) :: columnAnlInc        ! column structure for pertubation profile
-    type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
+    type(struct_obs),        intent(inout) :: obsSpaceData         ! obsSpaceData structure
+    type(struct_columnData), intent(in)    :: columnAnlInc         ! column structure for pertubation profile
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev ! column structure for background profile
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
@@ -486,9 +486,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnAnlInc
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnAnlInc
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(in)    :: obsSpaceData
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl

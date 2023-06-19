@@ -34,8 +34,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: dateStamp
-    character(len=*), intent(in) :: burpFileName
+    integer,          intent(out) :: dateStamp
+    character(len=*), intent(in)  :: burpFileName
 
     ! Locals:
     integer :: ier, inblks, nulburp, fnom, fclos, numblks
@@ -146,9 +146,9 @@ contains
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*) :: fileName
-    character(len=*) :: familyType
-    integer :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer,           intent(in)    :: fileIndex
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
@@ -227,9 +227,9 @@ contains
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*) :: fileName
-    character(len=*) :: familyType
-    integer :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer,           intent(in)    :: fileIndex
 
     ! Locals:
     integer :: headerIndex
@@ -271,9 +271,9 @@ contains
     implicit none
 
     ! Arguments:      
-    type (struct_obs), intent(inout):: obsdat ! struct_obs instance
-    integer, intent(in) :: headerIndex ! header index in obsdat
-    logical, intent(in) :: forward     ! applies scaling if .true., unapplies scaling if .false.
+    type(struct_obs), intent(inout) :: obsdat      ! struct_obs instance
+    integer,          intent(in)    :: headerIndex ! header index in obsdat
+    logical,          intent(in)    :: forward     ! applies scaling if .true., unapplies scaling if .false.
 
     ! Locals:
     integer  :: bodyIndex,rln,nlv
@@ -401,16 +401,16 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: filename ! BURP file name
-    character(len=9), intent(in)  :: stnid ! station ID of observation
-    integer, intent(in)           :: varno
-    integer, intent(in)           :: nlev  ! number of levels in the observation
-    integer, intent(in)           :: ndim
-    character(len=4), intent(in)  :: block_type
-    integer, intent(in), optional :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
-    integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
-    logical, intent(in), optional :: match_nlev_opt
-    integer, intent(in), optional :: codtyp_opt(:) ! optional CODTYP list for search
+    character(len=*),  intent(in) :: filename       ! BURP file name
+    character(len=9),  intent(in) :: stnid          ! station ID of observation
+    integer,           intent(in) :: varno
+    integer,           intent(in) :: nlev           ! number of levels in the observation
+    integer,           intent(in) :: ndim
+    character(len=4),  intent(in) :: block_type
+    integer, optional, intent(in) :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
+    integer, optional, intent(in) :: bkstp_opt      ! bkstp number of requested block
+    logical, optional, intent(in) :: match_nlev_opt
+    integer, optional, intent(in) :: codtyp_opt(:)  ! optional CODTYP list for search
     ! Result:
     type(struct_oss_obsdata) :: burp_out   ! struct_oss_obsdata object
     
@@ -617,12 +617,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout) :: obsdata ! Input struct_oss_obsdata object for varno
-    character(len=*), intent(in) :: filename ! BURP file name
-    character(len=4), intent(in) :: block_type
-    integer, intent(in) :: varno(:)
-    integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
-    character(len=*), intent(in), optional :: multi_opt
+    type(struct_oss_obsdata),   intent(inout) :: obsdata ! Input struct_oss_obsdata object for varno
+    character(len=*),           intent(in)    :: filename ! BURP file name
+    character(len=4),           intent(in)    :: block_type
+    integer,                    intent(in)    :: varno(:)
+    integer,          optional, intent(in)    :: bkstp_opt ! bkstp number of requested block
+    character(len=*), optional, intent(in)    :: multi_opt
     ! Result:
     integer :: nrep_modified ! Number of modified reports
 

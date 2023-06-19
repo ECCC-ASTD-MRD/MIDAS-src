@@ -624,7 +624,7 @@ module gridStateVector_mod
         implicit none
 
         ! Arguments:
-        character(len=*) :: varName
+        character(len=*), intent(in) :: varName
 
         ! Locals:
         integer :: varIndex
@@ -698,7 +698,7 @@ module gridStateVector_mod
     integer,          optional, intent(in)    :: dateStamp_opt          ! reference datestamp
     integer,          optional, intent(in)    :: dateStampList_opt(:)   ! explicit datestamp list
     logical,          optional, intent(in)    :: mpi_local_opt          ! if .false. no MPI distribution will be used 
-    character(len=*), optional, intent(in)    :: mpi_distribution_opt   ! MPI distribution strategy in {'Tiles', 'VarsLevs', 'None'} defaults to 'Tiles'
+    character(len=*), optional, intent(in)    :: mpi_distribution_opt   ! MPI distribution strategy in {'Tiles', 'VarsLevs', 'None'} default: 'Tiles'
     integer,          optional, intent(in)    :: horizSubSample_opt     ! horizontal subsampling factor (to get a coarser grid)
     character(len=*), optional, intent(in)    :: varNames_opt(:)        ! allow specification of variables
     integer,          optional, intent(in)    :: dataKind_opt           ! real kind (4 or 8 bytes; defaults to 8)
@@ -2097,8 +2097,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)     :: statevector_in
-    type(struct_gsv), intent(inout)  :: statevector_out
+    type(struct_gsv),  intent(in)    :: statevector_in
+    type(struct_gsv),  intent(inout) :: statevector_out
     logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
@@ -3451,9 +3451,9 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)    :: statevector_in
-    type(struct_gsv), intent(inout) :: statevector_out
-    logical, optional, intent(in)   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector_in
+    type(struct_gsv),  intent(inout) :: statevector_out
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
@@ -5339,20 +5339,20 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
-    integer, intent(in) :: nlong ! number of latitudes
-    integer, intent(in) :: nlat  ! number of longitudes
-    integer, intent(in) :: nlev  ! number of vertical levels
-    real(8), intent(in) :: xlong(nlong) ! longitudes (radians)
-    real(8), intent(in) :: xlat(nlat)   ! latitudes (radians)
-    real(8), intent(in) :: vlev(nlev)   ! vertical levels of input field (in pressure)
+    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
+    integer, intent(in)  :: nlong ! number of latitudes
+    integer, intent(in)  :: nlat  ! number of longitudes
+    integer, intent(in)  :: nlev  ! number of vertical levels
+    real(8), intent(in)  :: xlong(nlong) ! longitudes (radians)
+    real(8), intent(in)  :: xlat(nlat)   ! latitudes (radians)
+    real(8), intent(in)  :: vlev(nlev)   ! vertical levels of input field (in pressure)
     real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
-    integer, intent(in) :: nlongout ! number or latitudes
-    integer, intent(in) :: nlatout  ! number of target longitudes
-    integer, intent(in) :: nlevout  ! Number of target vertical levels
-    real(8), intent(in) :: xlongout(nlongout) ! target longitudes (radians) 
-    real(8), intent(in) :: xlatout(nlatout)   ! target of target latitudes (radians)
-    real(8), intent(in) :: vlevout(nlevout)   ! Target vertical levels (in pressure)
+    integer, intent(in)  :: nlongout ! number or latitudes
+    integer, intent(in)  :: nlatout  ! number of target longitudes
+    integer, intent(in)  :: nlevout  ! Number of target vertical levels
+    real(8), intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
+    real(8), intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
+    real(8), intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
 
     ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
@@ -5484,11 +5484,11 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), target,   intent(inout) :: stateVector_inout
     real(8),                    intent(in)    :: horizontalScale
-    logical, optional,          intent(in)    :: maskNegatives_opt
+    logical,          optional, intent(in)    :: maskNegatives_opt
     character(len=*), optional, intent(in)    :: varName_opt
-    real(4), optional, pointer, intent(in)    :: binInteger_opt(:,:,:)
-    real(8), optional, pointer, intent(in)    :: binReal_opt(:,:)
-    real(8), optional,          intent(in)    :: binRealThreshold_opt
+    real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:)
+    real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)
+    real(8),          optional, intent(in)    :: binRealThreshold_opt
 
     ! Locals:
     type(struct_gsv), pointer :: stateVector
@@ -5671,7 +5671,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: stateVector
-    character(len=*) :: message
+    character(len=*), intent(in) :: message
 
     write(*,*)
     write(*,*) message

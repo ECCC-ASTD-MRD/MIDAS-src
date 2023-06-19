@@ -650,7 +650,7 @@ contains
       implicit none
 
       ! Arguments:
-      character(len=*):: str
+      character(len=*), intent(inout) :: str
 
       ! Locals:
       character(len=1):: ch
@@ -701,9 +701,9 @@ contains
       implicit none
 
       ! Arguments:
-      character(len=*) :: str
-      character(len=*) :: delims
-      character(len=*) :: before
+      character(len=*), intent(inout) :: str
+      character(len=*), intent(in)    :: delims
+      character(len=*), intent(out)   :: before
 
       ! Locals:
       character :: ch,cha
@@ -1066,7 +1066,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
@@ -1625,8 +1625,8 @@ contains
       ! Arguments:
       real(8), intent(in) :: cldPredThresh1 ! first cloud predictor threshold
       real(8), intent(in) :: cldPredThresh2 ! second cloud predictor threshold
-      real(8), intent(in) :: errThresh1 ! sigmaO corresponding to first cloud predictor threshold
-      real(8), intent(in) :: errThresh2 ! sigmaO corresponding to second cloud predictor threshold
+      real(8), intent(in) :: errThresh1     ! sigmaO corresponding to first cloud predictor threshold
+      real(8), intent(in) :: errThresh2     ! sigmaO corresponding to second cloud predictor threshold
       real(8), intent(in) :: cldPredUsed    ! cloud predictor for the obs
       ! Result:
       real(8) :: sigmaObsErrUsed            ! estimated sigmaO for the obs
@@ -1727,10 +1727,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer,          intent(in)    :: bodyIndex
-    integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
-    logical, intent(in), optional   :: beSilent_opt     ! prints extra info to listing if .true.
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    integer,           intent(in)    :: bodyIndex
+    integer,           intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
+    logical, optional, intent(in)    :: beSilent_opt     ! prints extra info to listing if .true.
     
     ! Locals:
     integer :: headerIndex
@@ -1922,7 +1922,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     character(len=1060) :: filename
@@ -2064,8 +2064,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
@@ -2282,9 +2282,9 @@ contains
     IMPLICIT NONE
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer headerIndex, IDATYP, bodyIndex, iProfile, varNum
@@ -2631,11 +2631,11 @@ contains
     !!
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    logical                 :: ldata
-    logical                 :: analysisMode
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    logical                , intent(out)   :: ldata
+    logical                , intent(in)    :: analysisMode
 
     ! Locals:
     integer bodyIndex, headerIndex, ityp, iass, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
@@ -2864,9 +2864,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)                  :: obsSpaceData
-    logical,               intent(in) :: beSilent
-    type(struct_columnData), optional :: columnTrlOnTrlLev_opt
+    type(struct_obs),                  intent(inout) :: obsSpaceData
+    logical,                           intent(in)    :: beSilent
+    type(struct_columnData), optional, intent(in)    :: columnTrlOnTrlLev_opt
 
     ! Locals:
     type(struct_columnData)   :: columnTrlOnTrlLev
@@ -3172,11 +3172,11 @@ contains
 
     ! Arguments:
     character(len=*), intent(in)  :: CSTNID
-    integer, intent(in)           :: NLEV
-    integer, intent(in)           :: VARNO
-    real(8), intent(in)           :: ZLAT
-    integer, intent(out)          :: ISTNID
-    integer, intent(out)          :: JINT
+    integer,          intent(in)  :: NLEV
+    integer,          intent(in)  :: VARNO
+    real(8),          intent(in)  :: ZLAT
+    integer,          intent(out) :: ISTNID
+    integer,          intent(out) :: JINT
 
     ! Locals:
     integer                       :: JN,ibegin
@@ -3251,16 +3251,16 @@ contains
    
     ! Arguments:
     character(len=*), intent(in) :: CSTNID ! station ID
-    integer, intent(in) :: NLEV ! number of levels
-    integer, intent(in) :: VARNO ! BUFR number
-    real(8), intent(in) :: ZLAT ! latitude (radians)
-    real(8), intent(in) :: ZLON ! longitude (radians)
-    integer, intent(in) :: IDATE ! date in YYYYMMDD format
-    integer, intent(in) :: ITIME ! time in HHMM format
-    real(8), intent(in) :: ZVAL  ! observation values
-    real(8), intent(in) :: ZLEV  ! vertical coordinate value
-    integer, intent(in) :: ILEV  ! observation number in the profile
-    logical, intent(in) :: IFIRST! true:  first call for a profile
+    integer,          intent(in) :: NLEV   ! number of levels
+    integer,          intent(in) :: VARNO  ! BUFR number
+    real(8),          intent(in) :: ZLAT   ! latitude (radians)
+    real(8),          intent(in) :: ZLON   ! longitude (radians)
+    integer,          intent(in) :: IDATE  ! date in YYYYMMDD format
+    integer,          intent(in) :: ITIME  ! time in HHMM format
+    real(8),          intent(in) :: ZVAL   ! observation values
+    real(8),          intent(in) :: ZLEV   ! vertical coordinate value
+    integer,          intent(in) :: ILEV   ! observation number in the profile
+    logical,          intent(in) :: IFIRST ! true:  first call for a profile
     ! Result:
     real(8)  :: obs_err_stddev 
 
@@ -3450,8 +3450,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)           :: item
-    integer         , intent(in), optional :: itemIndex_opt
+    character(len=*),  intent(in) :: item
+    integer, optional, intent(in) :: itemIndex_opt
     ! Result:
     integer :: value 
 

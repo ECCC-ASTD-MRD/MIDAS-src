@@ -141,7 +141,7 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
+    type(struct_columnData), target, intent(inout)  :: columnTrlOnAnlIncLev
     type(struct_obs),        target, intent(inout)  :: obsSpaceData
 
     ! Locals:

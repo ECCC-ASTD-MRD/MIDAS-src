@@ -52,12 +52,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gbi) :: gbi
-    character(len=*),  intent(in) :: binningStrategy
-    type(struct_gsv) :: statevector_template
-    type(struct_hco), pointer :: hco_coregrid
-    character(len=*), optional, intent(in) :: mpi_distribution_opt
-    logical, optional, intent(in) :: writeBinsToFile_opt
+    type(struct_gbi),           intent(inout) :: gbi
+    character(len=*),           intent(in)    :: binningStrategy
+    type(struct_gsv),           intent(in)    :: statevector_template
+    type(struct_hco), pointer,  intent(in)    :: hco_coregrid
+    character(len=*), optional, intent(in)    :: mpi_distribution_opt
+    logical,          optional, intent(in)    :: writeBinsToFile_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_landSeaTopo
@@ -233,7 +233,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gbi) :: gbi
+    type(struct_gbi), intent(inout) :: gbi
 
     call gsv_deallocate(gbi%statevector_bin2d)
 
@@ -246,9 +246,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gbi) :: gbi
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gbi), intent(in)    :: gbi
+    type(struct_gsv), intent(inout) :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
     integer :: myBinCount(gbi%numBins2d)
@@ -340,9 +340,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gbi) :: gbi
-    type(struct_ens) :: ens
-    type(struct_gsv) :: statevector
+    type(struct_gbi), intent(in)    :: gbi
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
     integer :: myBinCount(gbi%numBins2d)

@@ -52,9 +52,11 @@ CONTAINS
     !
     implicit none
 
+    ! Locals:
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
+
     NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
          etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree, &
          useAnalIncMask, applyLiebmann, SSTSpread, SSTSpreadMaxBoxSize, SSTSubgrid
@@ -104,9 +106,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevectorIncLowRes
+    type(struct_gsv), intent(in)    :: statevectorIncLowRes
     type(struct_gsv), intent(inout) :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(out) :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(out)   :: stateVectorPsfcHighRes
 
     ! Locals:
     type(struct_gsv) :: statevectorRef, statevectorRefPsfc
@@ -478,9 +480,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout), target :: stateVectorTrial
-    type(struct_gsv), intent(inout) :: stateVectorPsfc
-    type(struct_gsv), intent(inout) :: stateVectorAnal
+    type(struct_gsv), target, intent(inout) :: stateVectorTrial
+    type(struct_gsv),         intent(inout) :: stateVectorPsfc
+    type(struct_gsv),         intent(inout) :: stateVectorAnal
 
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes
@@ -675,10 +677,10 @@ CONTAINS
     !
     implicit none
 
-    ! arguments
-    real(8)          :: incr_cv(:)
-    type(struct_gsv) :: statevector_incr
-    integer          :: nvadim_mpilocal
+    ! Arguments:
+    real(8),          intent(in)    :: incr_cv(:)
+    type(struct_gsv), intent(inout) :: statevector_incr
+    integer,          intent(in)    :: nvadim_mpilocal
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(84,'----GetIncrement')
@@ -714,8 +716,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv)          :: stateVector_incr
-    integer,         optional :: ip3ForWriteToFile_opt
+    type(struct_gsv),          intent(in) :: stateVector_incr
+    integer,         optional, intent(in) :: ip3ForWriteToFile_opt
 
     ! Locals:
     integer              :: stepIndex, dateStamp
@@ -766,9 +768,10 @@ CONTAINS
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv)     :: statevector_anal
-    ! locals
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector_anal
+
+    ! Locals:
     integer              :: stepIndex, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset

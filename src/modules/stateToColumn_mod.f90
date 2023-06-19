@@ -112,8 +112,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)       :: obsSpaceData
-    type(struct_columnData), intent(inout):: column
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(inout) :: column
 
     ! Locals:
     integer, parameter :: numWriteMax = 10
@@ -203,9 +203,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)          :: obsSpaceData
-    type(struct_hco), pointer :: hco_core
-    logical                   :: moveObsAtPole
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    type(struct_hco), pointer, intent(in)    :: hco_core
+    logical                  , intent(in)    :: moveObsAtPole
 
     ! Locals:
     integer :: headerIndex, ierr
@@ -328,15 +328,15 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_interpInfo)    :: interpInfo
-    type(struct_obs)           :: obsSpaceData
-    type(struct_gsv), target   :: stateVector
-    integer                    :: headerIndexBeg
-    integer                    :: headerIndexEnd
-    logical                    :: rejectOutsideObs
-    character(len=*)           :: timeInterpType
-    character(len=*)           :: inputStateVectorType
-    logical, optional          :: lastCall_opt
+    type(struct_interpInfo),   intent(out)   :: interpInfo
+    type(struct_obs)        ,  intent(inout) :: obsSpaceData
+    type(struct_gsv), target,  intent(in)    :: stateVector
+    integer                 ,  intent(in)    :: headerIndexBeg
+    integer                 ,  intent(in)    :: headerIndexEnd
+    logical                 ,  intent(in)    :: rejectOutsideObs
+    character(len=*)        ,  intent(in)    :: timeInterpType
+    character(len=*)        ,  intent(in)    :: inputStateVectorType
+    logical, optional       ,  intent(in)    :: lastCall_opt
 
     ! Locals:
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
@@ -1178,10 +1178,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target   :: stateVector_in
-    type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: columnAnlInc
-    type(struct_columnData)    :: columnTrlOnAnlIncLev
+    type(struct_gsv), target, intent(in)    :: stateVector_in
+    type(struct_obs)        , intent(inout) :: obsSpaceData
+    type(struct_columnData) , intent(inout) :: columnAnlInc
+    type(struct_columnData) , intent(inout) :: columnTrlOnAnlIncLev
 
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -1417,10 +1417,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target   :: stateVector_out
-    type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: columnAnlInc
-    type(struct_columnData)    :: columnTrlOnAnlIncLev
+    type(struct_gsv), target, intent(inout) :: stateVector_out
+    type(struct_obs)        , intent(inout) :: obsSpaceData
+    type(struct_columnData) , intent(inout) :: columnAnlInc
+    type(struct_columnData) , intent(inout) :: columnTrlOnAnlIncLev
 
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
@@ -1647,16 +1647,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv)           :: stateVector
-    type(struct_obs)           :: obsSpaceData
-    type(struct_columnData)    :: column
-    type(struct_hco), pointer  :: hco_core
-    character(len=*)           :: timeInterpType
-    character(len=*), optional :: varName_opt
-    integer,          optional :: numObsBatches_opt
-    logical,          optional :: dealloc_opt
-    logical,          optional :: moveObsAtPole_opt
-    logical,          optional :: beSilent_opt
+    type(struct_gsv)       ,    intent(inout) :: stateVector
+    type(struct_obs)       ,    intent(inout) :: obsSpaceData
+    type(struct_columnData),    intent(inout) :: column
+    type(struct_hco), pointer,  intent(in)    :: hco_core
+    character(len=*)          , intent(in)    :: timeInterpType
+    character(len=*), optional, intent(in)    :: varName_opt
+    integer,          optional, intent(in)    :: numObsBatches_opt
+    logical,          optional, intent(in)    :: dealloc_opt
+    logical,          optional, intent(in)    :: moveObsAtPole_opt
+    logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs 
@@ -2040,12 +2040,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_out(:)
-    real(4)                 :: field_in(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(out) :: column_out(:)
+    real(4)                , intent(in)  :: field_in(:,:)
+    type(struct_interpInfo), intent(in)  :: interpInfo
+    integer                , intent(in)  :: stepIndex
+    integer                , intent(in)  :: procIndex
+    integer                , intent(in)  :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2090,12 +2090,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_out(:)
-    real(8)                 :: field_in(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(out) :: column_out(:)
+    real(8)                , intent(in)  :: field_in(:,:)
+    type(struct_interpInfo), intent(in)  :: interpInfo
+    integer                , intent(in)  :: stepIndex
+    integer                , intent(in)  :: procIndex
+    integer                , intent(in)  :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2140,12 +2140,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_out(:)
-    real(pre_incrReal)      :: field_in(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(out) :: column_out(:)
+    real(pre_incrReal)     , intent(in)  :: field_in(:,:)
+    type(struct_interpInfo), intent(in)  :: interpInfo
+    integer                , intent(in)  :: stepIndex
+    integer                , intent(in)  :: procIndex
+    integer                , intent(in)  :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2189,12 +2189,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_in(:)
-    real(pre_incrReal)      :: field_out(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(in)    :: column_in(:)
+    real(pre_incrReal)     , intent(inout) :: field_out(:,:)
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    integer                , intent(in)    :: stepIndex
+    integer                , intent(in)    :: procIndex
+    integer                , intent(in)    :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2239,14 +2239,14 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_out(:)
-    character(len=*)        :: varName
-    real(4)                 :: fieldUU_in(:,:)
-    real(4)                 :: fieldVV_in(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(out) :: column_out(:)
+    character(len=*)       , intent(in)  :: varName
+    real(4)                , intent(in)  :: fieldUU_in(:,:)
+    real(4)                , intent(in)  :: fieldVV_in(:,:)
+    type(struct_interpInfo), intent(in)  :: interpInfo
+    integer                , intent(in)  :: stepIndex
+    integer                , intent(in)  :: procIndex
+    integer                , intent(in)  :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2324,14 +2324,14 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_out(:)
-    character(len=*)        :: varName
-    real(pre_incrReal)      :: fieldUU_in(:,:)
-    real(pre_incrReal)      :: fieldVV_in(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(out) :: column_out(:)
+    character(len=*)       , intent(in)  :: varName
+    real(pre_incrReal)     , intent(in)  :: fieldUU_in(:,:)
+    real(pre_incrReal)     , intent(in)  :: fieldVV_in(:,:)
+    type(struct_interpInfo), intent(in)  :: interpInfo
+    integer                , intent(in)  :: stepIndex
+    integer                , intent(in)  :: procIndex
+    integer                , intent(in)  :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2409,14 +2409,14 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)                 :: column_in(:)
-    character(len=*)        :: varName
-    real(pre_incrReal)      :: fieldUU_out(:,:)
-    real(pre_incrReal)      :: fieldVV_out(:,:)
-    type(struct_interpInfo) :: interpInfo
-    integer                 :: stepIndex
-    integer                 :: procIndex
-    integer                 :: kIndex
+    real(8)                , intent(in)    :: column_in(:)
+    character(len=*)       , intent(in)    :: varName
+    real(pre_incrReal)     , intent(inout) :: fieldUU_out(:,:)
+    real(pre_incrReal)     , intent(inout) :: fieldVV_out(:,:)
+    type(struct_interpInfo), intent(in)    :: interpInfo
+    integer                , intent(in)    :: stepIndex
+    integer                , intent(in)    :: procIndex
+    integer                , intent(in)    :: kIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2494,9 +2494,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: column
-    type(struct_gsv) :: statevector
-    type(struct_obs) :: obsSpaceData
+    type(struct_columnData), intent(inout) :: column
+    type(struct_gsv),        intent(in)    :: statevector
+    type(struct_obs),        intent(in)    :: obsSpaceData
 
     ! Locals:
     integer :: jk, jk2, jgl, headerIndex
@@ -3485,14 +3485,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)  :: obsSpaceData
-    type(struct_hco), intent(in)     :: hco
-    integer,          intent(in)     :: headerIndex
-    logical,          intent(in)     :: rejectOutsideObs
-    real(8),          intent(inout)  :: latLev_T(:)
-    real(8),          intent(inout)  :: lonLev_T(:)
-    real(8),          intent(inout)  :: latLev_M(:)
-    real(8),          intent(inout)  :: lonLev_M(:)
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    type(struct_hco),  intent(in)    :: hco
+    integer,           intent(in)    :: headerIndex
+    logical,           intent(in)    :: rejectOutsideObs
+    real(8),           intent(inout) :: latLev_T(:)
+    real(8),           intent(inout) :: lonLev_T(:)
+    real(8),           intent(inout) :: latLev_M(:)
+    real(8),           intent(inout) :: lonLev_M(:)
     real(8), optional, intent(inout) :: latLev_S_opt
     real(8), optional, intent(inout) :: lonLev_S_opt
 
@@ -3625,9 +3625,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer         , intent(in)  :: headerIndex
-    logical         , intent(in), optional :: beSilent_opt
+    type(struct_obs),  intent(in) :: obsSpaceData
+    integer         ,  intent(in) :: headerIndex
+    logical, optional, intent(in) :: beSilent_opt
     ! Result:
     real(4)                       :: footPrintRadius_r4
 

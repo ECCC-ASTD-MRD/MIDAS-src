@@ -358,9 +358,9 @@ module message_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: stringIn  ! input string to be processed
-    logical, optional             :: trim_opt  ! choose to trim the string (possibly inside quotes)
-    logical, optional             :: quote_opt ! choose to write preceding and following single quote "'" to insist it is a string
+    character(len=*),  intent(in)  :: stringIn  ! input string to be processed
+    logical, optional, intent(in)  :: trim_opt  ! choose to trim the string (possibly inside quotes)
+    logical, optional, intent(in)  :: quote_opt ! choose to write preceding and following single quote "'" to insist it is a string
     ! Result:
     character(len=:), allocatable :: string    ! resulting string that was processed
 

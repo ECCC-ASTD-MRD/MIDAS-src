@@ -59,12 +59,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)                        :: obsSpaceData
-    type(struct_hco), pointer               :: hco_anl
-    character(len=*)                        :: obsMpiStrategy
-    character(len=*)                        :: obsColumnMode
-    character(len=*), intent(in)            :: innovationMode_in
-    logical,                       optional :: obsClean_opt
+    type(struct_obs),           intent(out) :: obsSpaceData
+    type(struct_hco), pointer,  intent(in)  :: hco_anl
+    character(len=*),           intent(in)  :: obsMpiStrategy
+    character(len=*),           intent(in)  :: obsColumnMode
+    character(len=*),           intent(in)  :: innovationMode_in
+    logical,          optional, intent(in)  :: obsClean_opt
 
     ! Locals:
     character(len=20) :: nameDimFile
@@ -194,11 +194,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData)    :: columnTrlOnTrlLev
-    type(struct_obs)           :: obsSpaceData
-    type(struct_hco), pointer  :: hco_core
-    type(struct_gsv)           :: stateVectorUpdateHighRes
-    logical         , optional :: deallocInterpInfoNL_opt
+    type(struct_columnData),   intent(out)   :: columnTrlOnTrlLev
+    type(struct_obs),          intent(inout) :: obsSpaceData
+    type(struct_hco), pointer, intent(in)    :: hco_core
+    type(struct_gsv),          intent(inout) :: stateVectorUpdateHighRes
+    logical        , optional, intent(in)    :: deallocInterpInfoNL_opt
 
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
@@ -290,7 +290,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnAnlIncLev, columnTrlOnTrlLev
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
 
     ! Locals:
     integer :: jvar, jlev, columnIndex
@@ -429,15 +430,15 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical, optional       :: filterObsAndInitOer_opt
-    logical, optional       :: applyVarqcOnNlJo_opt
-    integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
-    logical, optional       :: beSilent_opt
-    logical, optional       :: callFiltTopo_opt ! whether to make call to FiltTopo
-    logical, optional       :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
-    logical, optional       :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical, optional      , intent(in)    :: filterObsAndInitOer_opt
+    logical, optional      , intent(in)    :: applyVarqcOnNlJo_opt
+    integer, optional      , intent(in)    :: destObsColumn_opt ! column where result stored, default is OBS_OMP
+    logical, optional      , intent(in)    :: beSilent_opt
+    logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
+    logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
+    logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
     
     ! Locals:
     real(8) :: Jo
@@ -756,12 +757,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer :: numAnalyses
-    integer :: indexAnalysis
-    integer :: indexBatch
-    integer :: obs_column_index_src
-    integer :: obs_column_index_dest
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer,          intent(in)    :: numAnalyses
+    integer,          intent(in)    :: indexAnalysis
+    integer,          intent(in)    :: indexBatch
+    integer,          intent(in)    :: obs_column_index_src
+    integer,          intent(in)    :: obs_column_index_dest
 
     ! Locals:
     integer :: numPerturbations

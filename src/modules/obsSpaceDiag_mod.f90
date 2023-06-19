@@ -171,10 +171,10 @@ contains
     implicit none
     
     ! Arguments:
-    type(struct_obs)              :: obsSpaceData
-    type(struct_columnData)       :: columnTrlOnAnlIncLev
-    type(struct_hco), pointer     :: hco_anl
-    logical, intent(in), optional :: analysisMode_opt
+    type(struct_obs)       ,   intent(inout) :: obsSpaceData
+    type(struct_columnData),   intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_hco), pointer, intent(in)    :: hco_anl
+    logical,         optional, intent(in)    :: analysisMode_opt
     
     ! Locals:
     logical :: nmlExists,anlm_mod    
@@ -214,10 +214,10 @@ contains
     implicit none
  
     ! Arguments:
-    type(struct_obs)            :: obsSpaceData
-    type(struct_columnData)     :: columnTrlOnAnlIncLev
-    type(struct_hco), pointer   :: hco_anl
-    integer                     :: dateprnt
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    type(struct_columnData)  , intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_hco), pointer, intent(in)    :: hco_anl
+    integer                  , intent(in)    :: dateprnt
 
     ! Locals:
     type(struct_gsv)            :: statevector
@@ -597,11 +597,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer          :: bodyIndex
-    integer          :: latIndex
-    integer          :: lonIndex
-    integer          :: verticalIndex
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: bodyIndex
+    integer         , intent(out) :: latIndex
+    integer         , intent(out) :: lonIndex
+    integer         , intent(out) :: verticalIndex
 
     ! Locals:
     real(8), parameter :: epsilon=0.001
@@ -653,7 +653,7 @@ contains
     implicit none
 
     ! Arguments:
-    logical :: nmlExists
+    logical, intent(out) :: nmlExists
 
     ! Locals:
     integer :: nulnam,ierr,fnom,fclos
@@ -772,13 +772,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    real(8), intent(in)     :: deltaLat
-    real(8), intent(in)     :: deltaLon
-    real(8), intent(in)     :: deltaPressure
-    logical, intent(in)     :: anlm_mode
-    
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    real(8),                 intent(in)    :: deltaLat
+    real(8),                 intent(in)    :: deltaLon
+    real(8),                 intent(in)    :: deltaPressure
+    logical,                 intent(in)    :: anlm_mode
+
     ! Locals:
     integer, allocatable :: codtyplist(:)
     integer :: jelm,ifam
@@ -881,17 +881,17 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    character(len=*)        :: obsfam
-    character(len=*)        :: filename
-    integer, intent(in)     :: codtyplist(:)
-    real(8), intent(in)     :: deltaLat
-    real(8), intent(in)     :: deltaLon
-    real(8), intent(in)     :: deltaPressure
-    real(8), intent(in)     :: pressmin
-    logical, intent(in)     :: anlm_mode
-    logical, intent(in)     :: save_diagn
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    character(len=*)       , intent(in)    :: obsfam
+    character(len=*)       , intent(in)    :: filename
+    integer,                 intent(in)    :: codtyplist(:)
+    real(8),                 intent(in)    :: deltaLat
+    real(8),                 intent(in)    :: deltaLon
+    real(8),                 intent(in)    :: deltaPressure
+    real(8),                 intent(in)    :: pressmin
+    logical,                 intent(in)    :: anlm_mode
+    logical,                 intent(in)    :: save_diagn
 
     ! Locals:
     type(struct_osd_diagn) :: obs_diagn
@@ -1138,10 +1138,10 @@ contains
     implicit none
 
     ! Arguments:
-    logical, intent(out) :: status_hpht
+    logical,          intent(out)   :: status_hpht
     type(struct_obs), intent(inout) :: obsSpaceData
-    character(len=*), intent(in) :: obsfam
-    integer :: codtyplist(:)
+    character(len=*), intent(in)    :: obsfam
+    integer,          intent(in)    :: codtyplist(:)
 
     ! Locals:
     integer :: bodyIndex,headerIndex,rln,nlv,kk
@@ -1355,20 +1355,20 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_osd_diagn), intent(inout)        :: obs_diagn
-    real(8)               , intent(in)           :: lat
-    real(8)               , intent(in)           :: lon
-    integer               , intent(in)           :: nlev_obs
-    integer               , intent(in)           :: status(nlev_obs)
-    real(8)               , intent(in)           :: pressure(nlev_obs)
-    real(8)               , intent(in)           :: OmP(nlev_obs)
-    real(8)               , intent(in)           :: obs(nlev_obs)
-    real(8)               , intent(in)           :: sigma_obs(nlev_obs)
-    real(8)               , intent(in)           :: pressmin
-    logical               , intent(in)           :: unilevel
-    logical               , intent(in)           :: assim_obs
-    real(8)               , intent(in), optional :: OmA_opt(nlev_obs)
-    real(8)               , intent(in), optional :: sqrtHPHT_opt(nlev_obs)
+    type(struct_osd_diagn), intent(inout) :: obs_diagn
+    real(8)               , intent(in)    :: lat
+    real(8)               , intent(in)    :: lon
+    integer               , intent(in)    :: nlev_obs
+    integer               , intent(in)    :: status(nlev_obs)
+    real(8)               , intent(in)    :: pressure(nlev_obs)
+    real(8)               , intent(in)    :: OmP(nlev_obs)
+    real(8)               , intent(in)    :: obs(nlev_obs)
+    real(8)               , intent(in)    :: sigma_obs(nlev_obs)
+    real(8)               , intent(in)    :: pressmin
+    logical               , intent(in)    :: unilevel
+    logical               , intent(in)    :: assim_obs
+    real(8)     , optional, intent(in)    :: OmA_opt(nlev_obs)
+    real(8)     , optional, intent(in)    :: sqrtHPHT_opt(nlev_obs)
 
     ! Locals:
     integer :: ilat,ilon,ilev,ilev_obs
@@ -1539,14 +1539,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_osd_diagn), intent(inout)        :: obs_diagn
-    character(len=*)                             :: print_type
-    character(len=*)                             :: filename
-    real(8)                                      :: pressmin
-    logical               , intent(in)           :: status_hpht
-    logical               , intent(in)           :: save_diagn
-    logical               , intent(in), optional :: openfile_opt
-    character(len=256)    , intent(in), optional :: label_opt
+    type(struct_osd_diagn)      , intent(inout) :: obs_diagn
+    character(len=*)            , intent(in)    :: print_type
+    character(len=*)            , intent(in)    :: filename
+    real(8)                     , intent(in)    :: pressmin
+    logical                     , intent(in)    :: status_hpht
+    logical                     , intent(in)    :: save_diagn
+    logical           , optional, intent(in)    :: openfile_opt
+    character(len=256), optional, intent(in)    :: label_opt
 
     ! Locals:
     integer, external :: fnom, fclos

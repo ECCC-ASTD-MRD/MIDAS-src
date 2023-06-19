@@ -207,11 +207,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), allocatable, intent(out) :: columnValues(:,:)
-    character(len=*),     intent(in)  :: sqlColumnNames(:)
-    character(len=*),     intent(in)  :: fileName
-    character(len=*),     intent(in)  :: tableName
-    character(len=*),     intent(in), optional :: extraQuery_opt
+    real(8), allocatable,       intent(out) :: columnValues(:,:)
+    character(len=*),           intent(in)  :: sqlColumnNames(:)
+    character(len=*),           intent(in)  :: fileName
+    character(len=*),           intent(in)  :: tableName
+    character(len=*), optional, intent(in)  :: extraQuery_opt
 
     ! Locals:
     integer :: numRows, numColumns, columnIndex
@@ -403,10 +403,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)  :: obsdat
-    character(len=*)  :: obsFamily    
-    integer           :: idObs, idData
-    integer, optional :: codeTypeList_opt(:)
+    type(struct_obs),  intent(inout) :: obsdat
+    character(len=*),  intent(in)    :: obsFamily    
+    integer         ,  intent(out)   :: idObs
+    integer         ,  intent(out)   :: idData
+    integer, optional, intent(in)    :: codeTypeList_opt(:)
 
     ! Locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
@@ -453,13 +454,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
-    character(len = *)   :: query
+    type(fSQL_DATABASE), intent(inout)  :: db    ! type handle for  SQLIte file
+    character(len=*),    intent(in)     :: query
     ! Result:
-    character(len = 256) :: sqlu_query
+    character(len=256)   :: sqlu_query
 
     ! Locals:
-    character(len = 256) :: result
+    character(len=256)   :: result
     logical :: finished
     type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
     type(fSQL_STATUS)    :: stat !type error status
@@ -486,8 +487,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(FSQL_STATUS)  :: stat
-    character(len = *) :: message
+    type(FSQL_STATUS), intent(in) :: stat
+    character(len=*),  intent(in) :: message
 
     write(*,*) message, fSQL_errmsg(stat)
     call utl_abort(trim(message))

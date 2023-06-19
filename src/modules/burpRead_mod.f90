@@ -69,13 +69,13 @@ CONTAINS
     !
     !***************************************************************************
 
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsdat ! obsSpaceData object
-    CHARACTER(len=*)       :: FAMILYTYPE ! type of family('UA','SF','AI','SW','TO', ...)
-    CHARACTER(len=*)       :: BRP_FILE   ! name of burp file 
-    integer                :: FILENUMB
+    type (struct_obs), intent(inout) :: obsdat     ! obsSpaceData object
+    character(len=*),  intent(in)    :: FAMILYTYPE ! type of family('UA','SF','AI','SW','TO', ...)
+    character(len=*),  intent(in)    :: BRP_FILE   ! name of burp file 
+    integer,           intent(in)    :: FILENUMB
 
     ! Locals:
     type(kdtree2), pointer            :: tree
@@ -1692,8 +1692,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errorMessage
-      integer :: icode
+      character(len=*), intent(in) :: errorMessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -1713,8 +1713,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments:
-    CHARACTER(len = *) :: NML_SECTION
-    logical, optional  :: beSilent_opt
+    character(len=*),  intent(in) :: NML_SECTION
+    logical, optional, intent(in) :: beSilent_opt
 
     ! Locals:
     logical            :: beSilent
@@ -1822,9 +1822,9 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      integer, intent(inout) :: numberElements
-      integer, intent(in) :: list(:)
-      character(len=*), intent(in) :: variable
+      integer,          intent(inout) :: numberElements
+      integer,          intent(in)    :: list(:)
+      character(len=*), intent(in)    :: variable
 
       ! Locals:
       integer :: listIndex
@@ -1859,9 +1859,9 @@ CONTAINS
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    CHARACTER *2           :: FAMILYTYPE
-    CHARACTER(LEN=128)     :: BRP_FILE ! name of burp file
-    integer                :: FILENUMB
+    character(len=2),  intent(in)    :: FAMILYTYPE
+    character(len=*),  intent(in)    :: BRP_FILE ! name of burp file
+    integer,           intent(in)    :: FILENUMB
 
     ! Locals:
     CHARACTER *2           :: UNI_FAMILYTYPE
@@ -3408,8 +3408,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errormessage
-      integer :: icode
+      character(len=*), intent(in) :: errormessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -3433,16 +3433,16 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsdat
-    INTEGER                       ::  VCOORD_TYPE
-    REAL   , allocatable          ::  OBSVALUE(:,:)
-    INTEGER, allocatable          ::  QCFLAG(:,:)
-    REAL   , allocatable          ::  VERTCOORD(:)
-    REAL                          ::  ROLAT(:), ROLON(:)
-    REAL   , allocatable,optional ::  SURF_EMIS_opt(:)
-    REAL   , allocatable,optional ::  BiasCorrection_opt(:,:)
-    integer, intent(in)           ::  dataQcFlagLEV(:)
-    integer, intent(in)           ::  dataCloudFracLEV(:)
+    type (struct_obs),              intent(inout) :: obsdat
+    INTEGER,                        intent(in)    :: VCOORD_TYPE
+    REAL   , allocatable,           intent(in)    :: OBSVALUE(:,:)
+    INTEGER, allocatable,           intent(in)    :: QCFLAG(:,:)
+    REAL   , allocatable,           intent(in)    :: VERTCOORD(:)
+    REAL                ,           intent(in)    :: ROLAT(:), ROLON(:)
+    REAL   , allocatable, optional, intent(in)    :: SURF_EMIS_opt(:)
+    REAL   , allocatable, optional, intent(in)    :: BiasCorrection_opt(:,:)
+    integer,                        intent(in)    :: dataQcFlagLEV(:)
+    integer,                        intent(in)    :: dataCloudFracLEV(:)
     ! Result:
     INTEGER ::  WRITE_BODY
 
@@ -3647,16 +3647,16 @@ CONTAINS
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    CHARACTER(LEN=9)       :: STNID
-    integer     ::    DATE
-    integer     ::    TIME
-    integer     ::    CODTYP
-    integer     ::    STATUS
-    integer     ::    FILENUMB
-    INTEGER, optional :: phase_opt
-    REAL(pre_obsReal) :: ELEV
-    REAL(pre_obsReal) :: LAT
-    REAL(pre_obsReal) :: LON
+    CHARACTER(LEN=*) , intent(in)    :: STNID
+    integer          , intent(in)    :: DATE
+    integer          , intent(in)    :: TIME
+    integer          , intent(in)    :: CODTYP
+    integer          , intent(in)    :: STATUS
+    integer          , intent(in)    :: FILENUMB
+    INTEGER, optional, intent(in)    :: phase_opt
+    REAL(pre_obsReal), intent(in)    :: ELEV
+    REAL(pre_obsReal), intent(in)    :: LAT
+    REAL(pre_obsReal), intent(in)    :: LON
 
     ! Locals:
     integer     ::   NOBS
@@ -3688,13 +3688,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsdat
-    integer     ::  MTvalue
-    integer     ::  HAvalue
-    integer     ::  GAvalue
-    integer     ::  QI1value
-    integer     ::  QI2value
-    integer     ::  LSvalue
+    type(struct_obs), intent(inout) :: obsdat
+    integer,          intent(in)    ::  MTvalue
+    integer,          intent(in)    ::  HAvalue
+    integer,          intent(in)    ::  GAvalue
+    integer,          intent(in)    ::  QI1value
+    integer,          intent(in)    ::  QI2value
+    integer,          intent(in)    ::  LSvalue
 
     ! Locals:
     integer     ::  NOBS
@@ -3717,8 +3717,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type (struct_obs), intent(inout) :: obsdat
-    real(pre_obsReal) :: azimuth
+    type(struct_obs),  intent(inout) :: obsdat
+    real(pre_obsReal), intent(in)    :: azimuth
 
     ! Locals:
     integer :: nobs
@@ -3732,16 +3732,17 @@ CONTAINS
   ! writeInfo
   !--------------------------------------------------------------------------
   subroutine writeInfo(obsdat, FAMTYP, RINFO, LISTE_INFO, NELE_INFO)
+    !
     ! :Purpose: Write values in obsSpaceData related to the info block
-
+    !
     implicit none
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    real        ::   RINFO(NELE_INFO)
-    CHARACTER*2 ::   FAMTYP
-    integer     ::   NELE_INFO
-    integer     ::   LISTE_INFO(NELE_INFO)
+    real,              intent(in)    :: RINFO(NELE_INFO)
+    CHARACTER*2,       intent(in)    :: FAMTYP
+    integer    ,       intent(in)    :: NELE_INFO
+    integer    ,       intent(in)    :: LISTE_INFO(NELE_INFO)
 
     ! Locals:
     REAL*4      ::   INFOV
@@ -4067,14 +4068,14 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer :: LIST(:)
-    integer :: ELEMENT
+    integer, intent(in) :: LIST(:)
+    integer, intent(in) :: ELEMENT
 
     ! Locals:
     integer :: I
 
     FIND_INDEX=-1
-    do I=1,size (LIST)
+    do I = 1, size(LIST)
       if (list(i) == element) THEN
         FIND_INDEX=i
         exit
@@ -4093,8 +4094,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)  :: obsSpaceData ! obsSpacedata structure
-    integer, intent(in)              :: fileIndex    ! number of the burp file to update
+    type(struct_obs),  intent(inout) :: obsSpaceData ! obsSpacedata structure
+    integer,           intent(in)    :: fileIndex    ! number of the burp file to update
     character (len=*), intent(in)    :: burpFile
     
     ! Locals:
@@ -5221,8 +5222,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errormessage
-      integer :: icode
+      character(len=*), intent(in) :: errormessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -5320,7 +5321,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character (len=*), intent(in)    :: burpFile
+    character(len=*), intent(in) :: burpFile
 
     ! Locals:
     type(BURP_FILE)        :: inputFile
@@ -5564,8 +5565,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errormessage
-      integer :: icode
+      character(len=*), intent(in) :: errormessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -5590,9 +5591,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: inputFileName
-    character(len=*), intent(in)  :: familyType
-    logical, optional             :: beSilent_opt
+    character(len=*),  intent(in) :: inputFileName
+    character(len=*),  intent(in) :: familyType
+    logical, optional, intent(in) :: beSilent_opt
 
     ! Locals:
     type(burp_file)             :: inputFile
@@ -5987,8 +5988,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errorMessage
-      integer :: icode
+      character(len=*), intent(in) :: errorMessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -6415,8 +6416,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errorMessage
-      integer :: icode
+      character(len=*), intent(in) :: errorMessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -6439,7 +6440,7 @@ CONTAINS
     implicit none 
 
     ! Arguments:
-    character(len=*), intent(in)        :: fileName
+    character(len=*),     intent(in)    :: fileName
     integer, allocatable, intent(inout) :: addresses(:)
 
     ! Locals:
@@ -6503,8 +6504,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errorMessage
-      integer :: icode
+      character(len=*), intent(in) :: errorMessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -6523,8 +6524,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(burp_file) :: burpFile
-    integer :: address(:)
+    type(burp_file), intent(inout) :: burpFile
+    integer,         intent(in)    :: address(:)
     ! Result:
     logical :: isGrouped
 
@@ -6590,8 +6591,8 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      character (len=*) :: errorMessage
-      integer :: icode
+      character(len=*), intent(in) :: errorMessage
+      integer,          intent(in) :: icode
 
       if ( icode /= burp_noerr ) then
         write(*,*) 'error code', icode
@@ -6610,8 +6611,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*) :: familyType
-    integer :: btyp
+    character(len=*), intent(in) :: familyType
+    integer,          intent(in) :: btyp
     ! Result:
     logical :: isFlag
 
@@ -6648,8 +6649,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*) :: familyType
-    integer :: btyp
+    character(len=*), intent(in) :: familyType
+    integer,          intent(in) :: btyp
     ! Result:
     logical :: isObs
 
@@ -6686,8 +6687,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*) :: familyType
-    integer, allocatable :: elementIds(:)
+    character(len=*),     intent(in)  :: familyType
+    integer, allocatable, intent(out) :: elementIds(:)
 
     ! Locals:
     integer :: elementIndex, elementCount

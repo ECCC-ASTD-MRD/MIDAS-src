@@ -449,12 +449,12 @@ contains
     implicit none
 
     ! Locals:
-    real(8),allocatable :: SpVertCorrel(:,:,:)
-    real(8),allocatable :: TotVertCorrel(:,:)
-    real(8),allocatable :: NormB(:,:,:)
-    real(8),allocatable :: NormBsqrt(:,:,:)
-    real(8),allocatable :: PowerSpectrum(:,:)
-    real(8),allocatable :: HorizScale(:)
+    real(8), allocatable :: SpVertCorrel(:,:,:)
+    real(8), allocatable :: TotVertCorrel(:,:)
+    real(8), allocatable :: NormB(:,:,:)
+    real(8), allocatable :: NormBsqrt(:,:,:)
+    real(8), allocatable :: PowerSpectrum(:,:)
+    real(8), allocatable :: HorizScale(:)
     character(len=4), pointer :: varNamesList(:)
     type(struct_gbi) :: gbi_horizontalMean
     type(struct_gsv) :: statevector_stdDev
@@ -572,9 +572,9 @@ contains
     implicit none
 
     ! Locals:
-    real(8),allocatable :: SpVertCorrel(:,:,:)
-    real(8),allocatable :: NormB(:,:,:)
-    real(8),allocatable :: PowerSpectrum(:,:)
+    real(8), allocatable :: SpVertCorrel(:,:,:)
+    real(8), allocatable :: NormB(:,:,:)
+    real(8), allocatable :: PowerSpectrum(:,:)
     integer :: nulnam, ier, fnom, fclos
     type(struct_gsv) :: statevector_stdDev
     type(struct_gsv) :: statevector_template
@@ -696,10 +696,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)        :: ensPerts
-    real(8), intent(out)    :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(out)    :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    real(8), intent(out)    :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    type(struct_ens), intent(inout) :: ensPerts
+    real(8),          intent(out)   :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(out)   :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    real(8),          intent(out)   :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
     ! Locals:
     real(8), allocatable    :: NormPowerSpectrum(:,:)
@@ -1241,7 +1241,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)     :: ensPerts
+    type(struct_ens), intent(inout) :: ensPerts
 
     ! Locals:
     real(8), allocatable :: vertCorrel(:,:)
@@ -1752,8 +1752,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    type(struct_gsv)    :: statevector_stdDev
+    real(8),          intent(in) :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    type(struct_gsv), intent(in) :: statevector_stdDev
 
     ! Locals:
     integer   :: ier, fstouv, fnom, fstfrm, fclos
@@ -1803,13 +1803,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
-    type(struct_gsv)    :: statevector_mean
-    type(struct_gsv)    :: statevector_stdDevGridPoint
-    real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: HorizScale(bhi%nVarLev)
+    real(8),          intent(in) :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
+    type(struct_gsv), intent(in) :: statevector_mean
+    type(struct_gsv), intent(in) :: statevector_stdDevGridPoint
+    real(8),          intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: HorizScale(bhi%nVarLev)
 
     ! Locals:
     integer   :: ier, fstouv, fnom, fstfrm, fclos
@@ -1868,8 +1868,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    integer, intent(in) :: iun
+    real(8),          intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
@@ -1935,8 +1935,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
-    integer, intent(in) :: iun
+    real(8),          intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
@@ -1996,9 +1996,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    integer, intent(in) :: iun
-    integer, intent(in) :: cv_type
+    real(8),          intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: cv_type
     character(len=*), intent(in) :: Etiket_in
 
     ! Locals:
@@ -2069,9 +2069,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: HorizScale(bhi%nVarLev)
-    integer, intent(in) :: iun
-    integer, intent(in) :: cv_type
+    real(8),          intent(in) :: HorizScale(bhi%nVarLev)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: cv_type
     character(len=*), intent(in) :: Etiket_in
 
     ! Locals:
@@ -2259,7 +2259,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensPerts
+    type(struct_ens), intent(inout) :: ensPerts
 
     ! Locals:
     type(struct_gsv) :: statevector_locHorizCor

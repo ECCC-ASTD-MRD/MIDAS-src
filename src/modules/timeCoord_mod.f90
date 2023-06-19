@@ -194,7 +194,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), optional :: fileNameForDate_opt
+    character(len=*), optional, intent(in) :: fileNameForDate_opt
 
     ! Locals:
     integer :: ierr, newdate, imode, prntdate, prnttime
@@ -268,8 +268,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)           :: fileName
-    character(len=*), optional :: varNameForDate_opt
+    character(len=*),           intent(in) :: fileName
+    character(len=*), optional, intent(in) :: varNameForDate_opt
     ! Result:
     integer :: dateStamp_out
 
@@ -488,7 +488,7 @@ contains
 
     ! Arguments:
     real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
-    integer, intent(in)  :: referenceDateStamp    ! Synop CMC date-time stamp
+    integer, intent(in)  :: referenceDateStamp ! Synop CMC date-time stamp
     integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
     integer, intent(in)  :: obsHHMM            ! Obs time HHMM
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
@@ -562,9 +562,9 @@ contains
     implicit none
   
     ! Arguments:
-    integer, intent(in)           :: dateStamp
-    integer, intent(inout)        :: prnttime, dd, mm, ndays, yyyy
-    logical, intent(in), optional :: verbose_opt
+    integer,           intent(in)    :: dateStamp
+    integer,           intent(inout) :: prnttime, dd, mm, ndays, yyyy
+    logical, optional, intent(in)    :: verbose_opt
     
     ! Locals:
     character(len=8)            :: yyyymmdd

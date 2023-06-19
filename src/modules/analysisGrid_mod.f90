@@ -66,8 +66,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer :: hco_ext_in
-    type(struct_hco), pointer, optional :: hco_core_opt
+    type(struct_hco), pointer,           intent(in) :: hco_ext_in
+    type(struct_hco), pointer, optional, intent(in) :: hco_core_opt
 
     ! Locals:
     real(8), allocatable :: rlath  (:) ! Latitudes of half grid-points of gridpoints in lat-direction
@@ -393,11 +393,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: nk
-    real(8),          intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    integer, intent(in)  :: nk
+    real(8), intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     ! Locals:
     real(8), allocatable :: psi_ext(:,:,:)
@@ -487,11 +487,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: nk
-    real(8),          intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)    
-    real(8),          intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    integer, intent(in)  :: nk
+    real(8), intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)    
+    real(8), intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     ! Locals:
     real(8), allocatable :: psi_ext(:,:,:)
@@ -595,15 +595,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: iBeg
-    integer,          intent(in)  :: iEnd
-    integer,          intent(in)  :: jBeg
-    integer,          intent(in)  :: JEnd
-    integer,          intent(in)  :: nk
-    real(8),          intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
-    real(8),          intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
+    integer, intent(in)  :: iBeg
+    integer, intent(in)  :: iEnd
+    integer, intent(in)  :: jBeg
+    integer, intent(in)  :: JEnd
+    integer, intent(in)  :: nk
+    real(8), intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8), intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
     ! Locals:
     integer :: i,j,k
@@ -628,15 +628,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: iBeg
-    integer,          intent(in)  :: iEnd
-    integer,          intent(in)  :: jBeg
-    integer,          intent(in)  :: jEnd
-    integer,          intent(in)  :: nk
-    real(8),          intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
-    real(8),          intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
+    integer, intent(in)  :: iBeg
+    integer, intent(in)  :: iEnd
+    integer, intent(in)  :: jBeg
+    integer, intent(in)  :: jEnd
+    integer, intent(in)  :: nk
+    real(8), intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8), intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
     ! Locals:
     integer :: i, j, k
@@ -762,10 +762,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: ni
-    integer,          intent(in)    :: nj
-    integer,          intent(in)    :: nk
-    real(8),          intent(inout) :: gd(ni,nj,nk)
+    integer, intent(in)    :: ni
+    integer, intent(in)    :: nj
+    integer, intent(in)    :: nk
+    real(8), intent(inout) :: gd(ni,nj,nk)
 
     ! Locals:
     integer :: istart, jstart
@@ -853,10 +853,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: ni
-    integer,          intent(in)    :: nj
-    integer,          intent(in)    :: nk
-    real(4),          intent(inout) :: gd(ni,nj,nk)
+    integer, intent(in)    :: ni
+    integer, intent(in)    :: nj
+    integer, intent(in)    :: nk
+    real(4), intent(inout) :: gd(ni,nj,nk)
 
     ! Locals:
     integer :: istart, jstart
@@ -934,11 +934,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: nk
-    real(8),          intent(out)  :: Vorticity (myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out)  :: Divergence(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    integer, intent(in)  :: nk
+    real(8), intent(out)  :: Vorticity (myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out)  :: Divergence(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     ! Locals:
     real(8), allocatable :: uimg(:,:,:)
@@ -1013,8 +1013,8 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: templateFileName
-    type(struct_hco) :: hco_core
-    type(struct_vco) :: vco
+    type(struct_hco), intent(in) :: hco_core
+    type(struct_vco), intent(in) :: vco
     integer         , intent(in) :: grd_ext_x
     integer         , intent(in) :: grd_ext_y
 

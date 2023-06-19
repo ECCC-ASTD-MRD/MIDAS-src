@@ -116,10 +116,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)        :: obsdata
-    integer                 , intent(in)           :: nrep
-    integer                 , intent(in)           :: dim1 
-    integer                 , intent(in), optional :: dim2_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    integer                 , intent(in)    :: nrep
+    integer                 , intent(in)    :: dim1 
+    integer       , optional, intent(in)    :: dim2_opt
     
     obsdata%nrep = nrep
     obsdata%dim1 = dim1
@@ -180,10 +180,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)         :: obsdata
-    character(len=*)        , intent(in)            :: code
-    integer                 , intent(in)            :: idim1
-    integer                 , intent(out), optional :: stat_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    character(len=*)        , intent(in)    :: code
+    integer                 , intent(in)    :: idim1
+    integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: element
     
@@ -222,9 +222,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)         :: obsdata
-    character(len=*)        , intent(in)            :: code
-    integer                 , intent(out), optional :: stat_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    character(len=*)        , intent(in)    :: code
+    integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: array(obsdata%dim1)
     
@@ -267,13 +267,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)         :: obsdata
-    real(8)                 , intent(in)            :: lon
-    real(8)                 , intent(in)            :: lat
-    integer                 , intent(in)            :: date
-    integer                 , intent(in)            :: time
-    character(len=*)        , intent(in)            :: stnid
-    integer                 , intent(out), optional :: stat_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    real(8)                 , intent(in)    :: lon
+    real(8)                 , intent(in)    :: lat
+    integer                 , intent(in)    :: date
+    integer                 , intent(in)    :: time
+    character(len=*)        , intent(in)    :: stnid
+    integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: array(obsdata%dim1)
 
@@ -303,9 +303,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)         :: obsdata
-    character(len=*)        , intent(in)            :: code
-    integer                 , intent(out), optional :: stat_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    character(len=*)        , intent(in)    :: code
+    integer       , optional, intent(out)   :: stat_opt
     ! Result:
     real(8) :: array(obsdata%dim1,obsdata%dim2)
     
@@ -352,9 +352,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)         :: obsdata
-    character(len=*)        , intent(in)            :: code
-    integer                 , intent(out), optional :: stat_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    character(len=*)        , intent(in)    :: code
+    integer       , optional, intent(out)   :: stat_opt
 
     ! Locals:
     integer :: i
@@ -495,10 +495,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: ilon
-    integer, intent(in) :: ilat
-    integer, intent(in) :: date
-    integer, intent(in) :: time
+    integer,          intent(in) :: ilon
+    integer,          intent(in) :: ilat
+    integer,          intent(in) :: date
+    integer,          intent(in) :: time
     character(len=*), intent(in) :: stnid
     ! Result:
     character(len=oss_code_len) :: code
@@ -582,11 +582,11 @@ contains
     implicit none
     
     ! Arguments:
-    type(struct_oss_obsdata), intent(inout)        :: obsdata
-    real(8)                 , intent(in)           :: val(:)
-    integer                 , intent(in)           :: maxsize
-    character(len=*)        , intent(in)           :: code
-    integer                 , intent(in), optional :: dim1_opt
+    type(struct_oss_obsdata), intent(inout) :: obsdata
+    real(8)                 , intent(in)    :: val(:)
+    integer                 , intent(in)    :: maxsize
+    character(len=*)        , intent(in)    :: code
+    integer       , optional, intent(in)    :: dim1_opt
 
     if (.not.associated(obsdata%data1d)) then
       if (present(dim1_opt)) then 

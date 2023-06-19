@@ -69,21 +69,21 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*)            :: algorithm
-    integer                     :: numSubEns
-    logical                     :: randomShuffleSubEns
-    type(struct_ens), pointer   :: ensembleTrl
-    type(struct_ens)            :: ensembleAnl
-    type(struct_eob), target    :: ensObs_mpiglobal
-    type(struct_eob)            :: ensObsGain_mpiglobal
-    type(struct_gsv)            :: stateVectorMeanAnl
-    type(struct_enkfInterpInfo) :: wInterpInfo
-    integer                     :: maxNumLocalObs
-    real(8)                     :: hLocalize(:)
-    real(8)                     :: hLocalizePressure(:)
-    real(8)                     :: vLocalize
-    character(len=*)            :: mpiDistribution
-    integer                     :: numRetainedEigen
+    character(len=*),            intent(in)    :: algorithm
+    integer         ,            intent(in)    :: numSubEns
+    logical         ,            intent(in)    :: randomShuffleSubEns
+    type(struct_ens), pointer,   intent(inout) :: ensembleTrl
+    type(struct_ens),            intent(inout) :: ensembleAnl
+    type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal
+    type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal
+    type(struct_gsv),            intent(in)    :: stateVectorMeanAnl
+    type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
+    integer,                     intent(in)    :: maxNumLocalObs
+    real(8),                     intent(in)    :: hLocalize(:)
+    real(8),                     intent(in)    :: hLocalizePressure(:)
+    real(8),                     intent(in)    :: vLocalize
+    character(len=*),            intent(in)    :: mpiDistribution
+    integer,                     intent(in)    :: numRetainedEigen
 
     ! Locals:
     integer :: nEns, nEnsPerSubEns, nEnsPerSubEns_mod, nEnsIndependentPerSubEns
@@ -1551,17 +1551,17 @@ contains
     implicit none
 
     ! Arguments:
-    integer              :: myNumLatLonRecv
-    integer              :: myNumLatLonSend
-    integer, allocatable :: myLatIndexesRecv(:)
-    integer, allocatable :: myLonIndexesRecv(:)
-    integer, allocatable :: myLatIndexesSend(:)
-    integer, allocatable :: myLonIndexesSend(:)
-    integer, allocatable :: myProcIndexesRecv(:)
-    integer, allocatable :: myProcIndexesSend(:,:)
-    integer, allocatable :: myNumProcIndexesSend(:)
-    character(len=*)     :: mpiDistribution
-    type(struct_enkfInterpInfo) :: wInterpInfo
+    integer,                     intent(out) :: myNumLatLonRecv
+    integer,                     intent(out) :: myNumLatLonSend
+    integer, allocatable,        intent(out) :: myLatIndexesRecv(:)
+    integer, allocatable,        intent(out) :: myLonIndexesRecv(:)
+    integer, allocatable,        intent(out) :: myLatIndexesSend(:)
+    integer, allocatable,        intent(out) :: myLonIndexesSend(:)
+    integer, allocatable,        intent(out) :: myProcIndexesRecv(:)
+    integer, allocatable,        intent(out) :: myProcIndexesSend(:,:)
+    integer, allocatable,        intent(out) :: myNumProcIndexesSend(:)
+    character(len=*),            intent(in)  :: mpiDistribution
+    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
 
     ! Locals:
     integer :: latIndex, lonIndex, procIndex, procIndexSend, latLonIndex
@@ -1770,9 +1770,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latLonTagMpiGlobal(:,:)
-    integer :: myLatIndexesRecv(:)
-    integer :: myLonIndexesRecv(:)
+    integer, intent(out) :: latLonTagMpiGlobal(:,:)
+    integer, intent(in)  :: myLatIndexesRecv(:)
+    integer, intent(in)  :: myLonIndexesRecv(:)
 
     ! Locals:
     integer :: ierr, ni, nj, lonIndex, latIndex
@@ -1834,10 +1834,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: allLatIndexesRecv(:,:)
-    integer :: allLonIndexesRecv(:,:)
-    integer :: latLonIndex
-    integer :: procIndex
+    integer, intent(in) :: allLatIndexesRecv(:,:)
+    integer, intent(in) :: allLonIndexesRecv(:,:)
+    integer, intent(in) :: latLonIndex
+    integer, intent(in) :: procIndex
     ! Result:
     logical :: found
 
@@ -1877,13 +1877,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfInterpInfo) :: wInterpInfo
-    type(struct_hco) :: hco
-    integer :: weightLatLonStep
-    integer :: myLonBeg
-    integer :: myLonEnd
-    integer :: myLatBeg
-    integer :: myLatEnd
+    type(struct_enkfInterpInfo), intent(out) :: wInterpInfo
+    type(struct_hco),            intent(in)  :: hco
+    integer,                     intent(in)  :: weightLatLonStep
+    integer,                     intent(in)  :: myLonBeg
+    integer,                     intent(in)  :: myLonEnd
+    integer,                     intent(in)  :: myLatBeg
+    integer,                     intent(in)  :: myLatEnd
 
     ! Locals:
     integer :: lonIndex, latIndex, ni, nj
@@ -2076,8 +2076,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfInterpInfo) :: wInterpInfo
-    real(8) :: weights(1:,1:,wInterpInfo%myLonBegHalo:,wInterpInfo%myLatBegHalo:)
+    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
+    real(8),                     intent(out) :: weights(1:,1:,wInterpInfo%myLonBegHalo:,wInterpInfo%myLatBegHalo:)
 
     ! Locals:
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
@@ -2135,7 +2135,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), target  :: obsSpaceData
+    type(struct_obs), target, intent(inout) :: obsSpaceData
 
     ! Locals:
     real(pre_obsReal), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
@@ -2170,7 +2170,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), target  :: obsSpaceData
+    type(struct_obs), target, intent(inout) :: obsSpaceData
 
     ! Locals:
     integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
@@ -2212,14 +2212,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVector_in
-    type(struct_gsv), intent(in) :: stateVectorMeanTrl
-    real(8), intent(in) :: vLocalizeLengthScale
-    integer, intent(in) :: numRetainedEigen
-    integer, intent(in) :: nEns
-    integer, intent(in) :: eigenVectorColumnIndex
+    type(struct_gsv), intent(in)    :: stateVector_in
+    type(struct_gsv), intent(in)    :: stateVectorMeanTrl
+    real(8),          intent(in)    :: vLocalizeLengthScale
+    integer,          intent(in)    :: numRetainedEigen
+    integer,          intent(in)    :: nEns
+    integer,          intent(in)    :: eigenVectorColumnIndex
     type(struct_gsv), intent(inout) :: stateVector_out
-    logical, intent(in) :: beSilent
+    logical,          intent(in)    :: beSilent
 
     ! Locals:
     real(4)          :: modulationFactor_r4
@@ -2342,14 +2342,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer, intent(in) :: vco
-    integer, intent(in) :: eigenVectorLevelIndex
-    integer, intent(in) :: eigenVectorColumnIndex
-    integer, intent(in) :: numRetainedEigen
-    integer, intent(in) :: nEns
-    real(8), intent(in) :: vLocalizeLengthScale
-    real(4), intent(out) :: modulationFactor_r4
-    logical, intent(in), optional :: beSilent_opt
+    type(struct_vco), pointer, intent(in)  :: vco
+    integer,                   intent(in)  :: eigenVectorLevelIndex
+    integer,                   intent(in)  :: eigenVectorColumnIndex
+    integer,                   intent(in)  :: numRetainedEigen
+    integer,                   intent(in)  :: nEns
+    real(8),                   intent(in)  :: vLocalizeLengthScale
+    real(4),                   intent(out) :: modulationFactor_r4
+    logical, optional,         intent(in)  :: beSilent_opt
 
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex

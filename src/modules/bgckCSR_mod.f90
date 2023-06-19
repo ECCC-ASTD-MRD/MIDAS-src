@@ -176,27 +176,27 @@ contains
     implicit None
 
     ! Arguments:
-    integer , intent(in)                 :: headerIndex         ! current header index
-    real   , allocatable, intent(out)    :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163)
-    real   , allocatable, intent(out)    :: ompTb(:)            ! OMP values
-    real   , allocatable, intent(out)    :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
-    integer, allocatable, intent(out)    :: obsFlags(:)         ! data flags
-    integer, allocatable, intent(out)    :: cloudAmount(:)      ! data flags
-    integer, allocatable, intent(out)    :: obsChannels(:)      ! Tb Channels 
-    integer, allocatable, intent(out)    :: obsDate(:)          ! date YYYYMMDD
-    integer, allocatable, intent(out)    :: obsHour(:)          ! Hour HHMM
-    integer,              intent(out)    :: sensorIndex         ! find tvs_sensor index corresponding to current obs
-    character(*),intent(out)             :: burpFileSatId       ! Platform Name
-    type(struct_obs),     intent(inout)  :: obsSpaceData        ! obspaceData Object
-    logical, allocatable, intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
-    logical, allocatable, intent(out)    :: topographicData(:)  ! data flagged as topo data
-    logical, allocatable, intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
-    logical, allocatable, intent(out)    :: isTbPresent(:)      ! non missing data
-    logical, allocatable, intent(out)    :: isClearSky(:)       ! clear sky obs
-    logical, allocatable, intent(out)    :: strayLight(:)       !
-    logical, allocatable, intent(out)    :: goesMidi(:)         ! goes noon
-    logical, allocatable, intent(out)    :: isToAssim(:)        ! is channel assimilable
-    logical, allocatable, intent(out)    :: ompOutOfRange(:)    ! 
+    integer ,             intent(in)    :: headerIndex         ! current header index
+    real   , allocatable, intent(out)   :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163)
+    real   , allocatable, intent(out)   :: ompTb(:)            ! OMP values
+    real   , allocatable, intent(out)   :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
+    integer, allocatable, intent(out)   :: obsFlags(:)         ! data flags
+    integer, allocatable, intent(out)   :: cloudAmount(:)      ! data flags
+    integer, allocatable, intent(out)   :: obsChannels(:)      ! Tb Channels 
+    integer, allocatable, intent(out)   :: obsDate(:)          ! date YYYYMMDD
+    integer, allocatable, intent(out)   :: obsHour(:)          ! Hour HHMM
+    integer,              intent(out)   :: sensorIndex         ! find tvs_sensor index corresponding to current obs
+    character(*),         intent(out)   :: burpFileSatId       ! Platform Name
+    type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
+    logical, allocatable, intent(out)   :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    logical, allocatable, intent(out)   :: topographicData(:)  ! data flagged as topo data
+    logical, allocatable, intent(out)   :: nonCorrectedData(:) ! data non corrected by bias corr
+    logical, allocatable, intent(out)   :: isTbPresent(:)      ! non missing data
+    logical, allocatable, intent(out)   :: isClearSky(:)       ! clear sky obs
+    logical, allocatable, intent(out)   :: strayLight(:)       !
+    logical, allocatable, intent(out)   :: goesMidi(:)         ! goes noon
+    logical, allocatable, intent(out)   :: isToAssim(:)        ! is channel assimilable
+    logical, allocatable, intent(out)   :: ompOutOfRange(:)    ! 
   
     ! Locals:
     integer                              :: bodyIndex
@@ -377,24 +377,24 @@ contains
     implicit None
 
     ! Arguments:
-    integer,              intent(inout)     :: obsFlags(:)         ! obs Flags to update
-    integer,              intent(inout)     :: categorieRejet(7)   ! the 7 categories of rejections
-    logical,              intent(in)        :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
-    logical,              intent(in)        :: topographicData(:)  ! data flagged as topo data
-    logical,              intent(in)        :: nonCorrectedData(:) ! data non corrected by bias corr
-    logical,              intent(in)        :: isTbPresent(:)      ! non missing data
-    logical,              intent(in)        :: isClearSky(:)       ! clear sky obs
-    logical,              intent(in)        :: strayLight(:)       !
-    logical,              intent(in)        :: goesMidi(:)         ! goes noon
-    logical,              intent(in)        :: isToAssim(:)        ! is channel assimilable
-    logical,              intent(in)        :: ompOutOfRange(:)    ! abs of omp greater than threshold 
+    integer, intent(inout) :: obsFlags(:)         ! obs Flags to update
+    integer, intent(inout) :: categorieRejet(7)   ! the 7 categories of rejections
+    logical, intent(in)    :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
+    logical, intent(in)    :: topographicData(:)  ! data flagged as topo data
+    logical, intent(in)    :: nonCorrectedData(:) ! data non corrected by bias corr
+    logical, intent(in)    :: isTbPresent(:)      ! non missing data
+    logical, intent(in)    :: isClearSky(:)       ! clear sky obs
+    logical, intent(in)    :: strayLight(:)       !
+    logical, intent(in)    :: goesMidi(:)         ! goes noon
+    logical, intent(in)    :: isToAssim(:)        ! is channel assimilable
+    logical, intent(in)    :: ompOutOfRange(:)    ! abs of omp greater than threshold 
 
     ! Locals:
-    integer                                 :: currentChannelNumber
-    integer                                 :: channelIndex
-    integer                                 :: numObsToProcess
-    integer                                 :: numData
-    integer                                 :: dataIndex
+    integer   :: currentChannelNumber
+    integer   :: channelIndex
+    integer   :: numObsToProcess
+    integer   :: numData
+    integer   :: dataIndex
 
     numObsToProcess = 1
     currentChannelNumber = size(obsFlags)/numObsToProcess
@@ -467,15 +467,15 @@ contains
     implicit None
 
     ! Arguments:
-    type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)        :: obsFlags(:)            ! data flags
-    integer,              intent(in)        :: sensorIndex            ! sensor Index 
-    integer,              intent(in)        :: headerIndex            ! sensor Index 
+    type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
+    integer,          intent(in)    :: obsFlags(:)            ! data flags
+    integer,          intent(in)    :: sensorIndex            ! sensor Index 
+    integer,          intent(in)    :: headerIndex            ! sensor Index 
 
     ! Locals:
-    integer                                 :: bodyIndex
-    integer                                 :: bodyIndexbeg
-    integer                                 :: currentChannelNumber
+    integer                         :: bodyIndex
+    integer                         :: bodyIndexbeg
+    integer                         :: currentChannelNumber
 
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
 

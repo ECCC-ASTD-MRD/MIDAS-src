@@ -350,8 +350,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)  :: ensObs
-    type(struct_eob), intent(out) :: ensObsClean
+    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(out)   :: ensObsClean
 
     ! Locals:
     integer :: obsIndex, obsCleanIndex, numObsClean
@@ -445,8 +445,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)  :: ensObs
-    type(struct_eob), intent(out) :: ensObs_mpiglobal
+    type(struct_eob), intent(inout)  :: ensObs
+    type(struct_eob), intent(out)    :: ensObs_mpiglobal
 
     ! Locals:
     type(struct_eob) :: ensObsClean
@@ -689,9 +689,9 @@ CONTAINS
 
     ! Arguments:
     type(struct_eob), intent(inout) :: ensObs
-    integer         ,    intent(in) :: numMembersToRead
-    character(len=*),    intent(in) :: inputFilenamePrefix
-    logical,             intent(in) :: readObsInfo
+    integer         , intent(in)    :: numMembersToRead
+    character(len=*), intent(in)    :: inputFilenamePrefix
+    logical,          intent(in)    :: readObsInfo
     
     ! Locals:
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -833,13 +833,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer                       :: numLocalObs ! function output
     type(struct_eob), intent(in)  :: ensObs
     integer         , intent(out) :: localBodyIndices(:)
     real(8)         , intent(out) :: distances(:)
     real(8)         , intent(in)  :: lat, lon, vertLocation, hLocalize, vLocalize
-    ! Result:
     integer         , intent(out) :: numLocalObsFound
+    ! Result:
+    integer                       :: numLocalObs ! function output
 
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
@@ -1277,7 +1277,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     call obs_extractObsIntBodyColumn(ensObs%assFlag, ensObs%obsSpaceData, OBS_ASS)
 
@@ -1831,10 +1831,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(in) :: ensObs
-    integer,        intent(inout) :: memberIndexArray(:)
-    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
-    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
+    type(struct_eob),  intent(in)    :: ensObs
+    integer,           intent(inout) :: memberIndexArray(:)
+    integer, optional, intent(in)    :: numGroupsToDivideMembers_opt
+    integer, optional, intent(in)    :: maxNumMembersPerGroup_opt
 
     ! Locals:
     integer :: memberIndex, groupIndex, memberIndexOffset, memberIndexInGroup

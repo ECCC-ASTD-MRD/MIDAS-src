@@ -41,11 +41,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer ,intent(in) :: nlev            ! NUMBER OF VERTICAL LEVELS
-    integer ,intent(in) :: nprf            ! NUMBER OF PROFILES
-    REAL(8),intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
-    REAL(8),intent(in)  :: PLEV(NLEV,NPRF) ! PRESSURE LEVELS (HPA)
-    REAL(8),intent(out) :: O3P(NLEV,NPRF)  ! OZONE PROFILES (PPMV)
+    integer, intent(in)  :: nlev            ! NUMBER OF VERTICAL LEVELS
+    integer, intent(in)  :: nprf            ! NUMBER OF PROFILES
+    REAL(8), intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
+    REAL(8), intent(in)  :: PLEV(NLEV,NPRF) ! PRESSURE LEVELS (HPA)
+    REAL(8), intent(out) :: O3P(NLEV,NPRF)  ! OZONE PROFILES (PPMV)
 
     ! Locals:
     INTEGER   :: JN, K, NUMLAT
@@ -80,11 +80,11 @@ contains
     implicit none
     
     ! Arguments:
-    integer            :: datestamp            ! Datestamp
-    integer, intent(out), optional :: nlat_opt ! Number of latitudes
-    integer, intent(out), optional :: nlev_opt ! Number of vertical levels
-    real(8), allocatable, intent(out), optional :: ozone_opt(:,:) ! Ozone field
-    real(8), allocatable, intent(out), optional :: press_opt(:)   ! Pressure levels
+    integer,                        intent(in)  :: datestamp ! Datestamp
+    integer,              optional, intent(out) :: nlat_opt  ! Number of latitudes
+    integer,              optional, intent(out) :: nlev_opt  ! Number of vertical levels
+    real(8), allocatable, optional, intent(out) :: ozone_opt(:,:) ! Ozone field
+    real(8), allocatable, optional, intent(out) :: press_opt(:)   ! Pressure levels
 
     ! Locals:
     INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IER

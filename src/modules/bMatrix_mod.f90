@@ -58,9 +58,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer :: vco_anl
-    type(struct_hco), pointer :: hco_anl
-    type(struct_hco), pointer :: hco_core
+    type(struct_vco), pointer, intent(in) :: vco_anl
+    type(struct_hco), pointer, intent(in) :: hco_anl
+    type(struct_hco), pointer, intent(in) :: hco_core
 
     ! Locals:
     integer, allocatable :: cvDimPerInstance(:)
@@ -224,11 +224,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer                    :: cvdim
-    real(8)                    :: controlVector(cvdim)
-    type(struct_gsv)           :: statevector
-    logical, optional          :: useFSOFcst_opt
-    type(struct_gsv), optional :: stateVectorRef_opt
+    integer                   , intent(in)    :: cvdim
+    real(8)                   , intent(in)    :: controlVector(cvdim)
+    type(struct_gsv)          , intent(inout) :: statevector
+    logical, optional         , intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
 
     ! Locals:
     integer :: bmatIndex
@@ -332,11 +332,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: cvdim
-    real(8) :: controlVector(cvdim)
-    type(struct_gsv) :: statevector
-    logical,optional :: useFSOFcst_opt
-    type(struct_gsv), optional :: stateVectorRef_opt
+    integer ,                   intent(in)    :: cvdim
+    real(8) ,                   intent(inout) :: controlVector(cvdim)
+    type(struct_gsv),           intent(in)    :: statevector
+    logical,optional,           intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
 
     ! Locals:
     integer :: bmatIndex
@@ -449,8 +449,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: cv_mpilocal(:)
-    real(8), intent(in)  :: cv_mpiglobal(:)
+    real(8), intent(inout) :: cv_mpilocal(:)
+    real(8), intent(in)    :: cv_mpiglobal(:)
 
     ! Locals:
     integer :: bmatIndex
@@ -512,8 +512,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(out) :: cv_mpilocal(:)
-    real(4), intent(in)  :: cv_mpiglobal(:)
+    real(4), intent(inout) :: cv_mpilocal(:)
+    real(4), intent(in)    :: cv_mpiglobal(:)
 
     ! Locals:
     integer :: bmatIndex
@@ -576,8 +576,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)  :: cv_mpilocal(:)
-    real(8), intent(out) :: cv_mpiglobal(:)
+    real(8), intent(in)    :: cv_mpilocal(:)
+    real(8), intent(inout) :: cv_mpiglobal(:)
 
     ! Locals:
     integer :: bmatIndex
@@ -639,8 +639,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(in)  :: cv_mpilocal(:)
-    real(4), intent(out) :: cv_mpiglobal(:)
+    real(4), intent(in)    :: cv_mpilocal(:)
+    real(4), intent(inout) :: cv_mpiglobal(:)
 
     ! Locals:
     integer :: bmatIndex

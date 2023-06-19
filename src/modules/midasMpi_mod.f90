@@ -135,8 +135,8 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)       :: sendRecvValue ! value to be summed over all mpi tasks
-    character(len=*), intent(in) :: comm          ! rpn_comm communicator
+    real(8),          intent(inout) :: sendRecvValue ! value to be summed over all mpi tasks
+    character(len=*), intent(in)    :: comm          ! rpn_comm communicator
 
     ! Locals:
     integer :: nsize, ierr, root, rank
@@ -431,7 +431,7 @@ module midasMpi_mod
     integer             , intent(in) :: nchar
     integer             , intent(in) :: nproc
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
-    integer, intent(out) :: ierr
+    integer             , intent(out) :: ierr
 
     ! Locals:
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
@@ -463,24 +463,23 @@ module midasMpi_mod
 
 
   subroutine mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
-                                   myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
+                                 myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
     ! :Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
 
     ! Arguments:
-    integer           :: nj
-    integer           :: latPerPE
-    integer           :: latPerPEmax
-    integer           :: myLatBeg
-    integer           :: myLatEnd
-    integer           :: njlath
-    integer, optional :: myLatHalfBeg_opt
-    integer, optional :: myLatHalfEnd_opt
-    logical, optional :: divisible_opt
+    integer          , intent(in)  :: nj
+    integer          , intent(out) :: latPerPE
+    integer          , intent(out) :: latPerPEmax
+    integer          , intent(out) :: myLatBeg
+    integer          , intent(out) :: myLatEnd
+    integer, optional, intent(out) :: myLatHalfBeg_opt
+    integer, optional, intent(out) :: myLatHalfEnd_opt
+    logical, optional, intent(out) :: divisible_opt
 
     ! Locals:
-    integer :: latPerPEmin, ierr
+    integer :: latPerPEmin, njlath, ierr
     logical, save :: firstCall = .true.
 
     latPerPEmin = floor(real(nj) / real(mmpi_npey))
@@ -526,8 +525,8 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer :: nj
+    integer, intent(in) :: latIndex
+    integer, intent(in) :: nj
     ! Result:
     integer :: IP_y
 
@@ -543,12 +542,12 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer          :: ni
-    integer          :: lonPerPE
-    integer          :: lonPerPEmax
-    integer          :: myLonBeg
-    integer          :: myLonEnd
-    logical, optional :: divisible_opt
+    integer          , intent(in)  :: ni
+    integer          , intent(out) :: lonPerPE
+    integer          , intent(out) :: lonPerPEmax
+    integer          , intent(out) :: myLonBeg
+    integer          , intent(out) :: myLonEnd
+    logical, optional, intent(out) :: divisible_opt
 
     ! Locals:
     integer :: lonPerPEmin, ierr
@@ -583,8 +582,8 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: lonIndex
-    integer :: ni
+    integer, intent(in) :: lonIndex
+    integer, intent(in) :: ni
     ! Result:
     integer :: IP_x
 
@@ -600,11 +599,11 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: ntrunc
-    integer :: mymBeg
-    integer :: mymEnd
-    integer :: mymSkip
-    integer :: mymCount
+    integer, intent(in)  :: ntrunc
+    integer, intent(out) :: mymBeg
+    integer, intent(out) :: mymEnd
+    integer, intent(out) :: mymSkip
+    integer, intent(out) :: mymCount
 
     ! Locals:
     integer :: jm
@@ -628,11 +627,11 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: ntrunc
-    integer :: mynBeg
-    integer :: mynEnd
-    integer :: mynSkip
-    integer :: mynCount
+    integer, intent(in)  :: ntrunc
+    integer, intent(out) :: mynBeg
+    integer, intent(out) :: mynEnd
+    integer, intent(out) :: mynSkip
+    integer, intent(out) :: mynCount
 
     ! Locals:
     integer :: jn
@@ -656,10 +655,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: numlevels
-    integer :: myLevBeg
-    integer :: myLevEnd
-    integer :: myLevCount
+    integer, intent(in)  :: numlevels
+    integer, intent(out) :: myLevBeg
+    integer, intent(out) :: myLevEnd
+    integer, intent(out) :: myLevCount
 
     ! Locals:
     integer :: jlev
@@ -712,10 +711,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer :: numk
-    integer :: mykBeg
-    integer :: mykEnd
-    integer :: mykCount
+    integer, intent(in)  :: numk
+    integer, intent(out) :: mykBeg
+    integer, intent(out) :: mykEnd
+    integer, intent(out) :: mykCount
 
     ! Locals:
     integer :: jk

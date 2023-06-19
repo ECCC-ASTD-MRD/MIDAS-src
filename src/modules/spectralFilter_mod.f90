@@ -20,10 +20,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8) :: totalWaveNumber
-    integer :: waveBandIndex
-    integer :: nWaveBand
-    integer :: waveBandPeaks(:)
+    real(8), intent(in) :: totalWaveNumber
+    integer, intent(in) :: waveBandIndex
+    integer, intent(in) :: nWaveBand
+    integer, intent(in) :: waveBandPeaks(:)
     ! Result:
     real(8) :: ResponseFunction 
 

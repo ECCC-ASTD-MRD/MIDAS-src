@@ -70,7 +70,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: varNum
+    integer, intent(in) :: varNum
     ! Result:
     integer :: listIndex
 
@@ -268,7 +268,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: bodyIndex, headerIndex
@@ -385,9 +385,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical, intent(in)     :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     if (all(filtTopoList(:) == '  ')) then
 
@@ -432,9 +432,9 @@ contains
     implicit none
 
     ! Arguments:s
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
 
     ! Locals:
     real(8) :: altitudeDiff
@@ -549,9 +549,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
@@ -756,10 +756,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical,          intent(in) :: beSilent
-    character(len=2), intent(in) :: obsFamily
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+    character(len=2),        intent(in)    :: obsFamily
 
     ! Locals:
     integer :: headerIndex, bodyIndex, elemIndex, listIndex
@@ -845,9 +845,9 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
@@ -974,9 +974,9 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: headerIndex, bodyIndex, elemIndex
@@ -1095,9 +1095,9 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: headerIndex, bodyIndex
@@ -1179,8 +1179,8 @@ end subroutine filt_topoAISW
     IMPLICIT NONE
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_obs), intent(inout) :: obsSpaceData
+    logical,          intent(in)    :: beSilent
 
     ! Locals:
     INTEGER, parameter :: JPINEL=2,JPIDLND=9
@@ -1445,9 +1445,9 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
 
     ! Locals:
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
@@ -1799,9 +1799,9 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
@@ -2000,7 +2000,7 @@ end subroutine filt_topoAISW
     implicit none
 
     ! Arguments:
-    integer :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
+    integer, intent(out) :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
 
     if (.not. initialized) call filt_setup('none')
 

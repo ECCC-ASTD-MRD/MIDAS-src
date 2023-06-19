@@ -49,7 +49,7 @@ module oceanMask_mod
 
     ! Arguments:
     type(struct_ocm),          intent(inout) :: oceanMask
-    type(struct_hco), pointer, intent(inout) :: hco
+    type(struct_hco), pointer, intent(in)    :: hco
     type(struct_vco),          intent(in)    :: vco
     character(len=*),          intent(in)    :: fileName
 
@@ -257,9 +257,9 @@ module oceanMask_mod
     implicit none
 
     ! Arguments:
-    type(struct_ocm), intent(in)    :: oceanMask_in
-    logical, intent(in), optional   :: beSilent_opt
-    type(struct_ocm), intent(inout) :: oceanMask_out
+    type(struct_ocm),  intent(in)    :: oceanMask_in
+    logical, optional, intent(in)    :: beSilent_opt
+    type(struct_ocm),  intent(inout) :: oceanMask_out
 
     ! Locals:
     logical :: beSilent
@@ -347,7 +347,7 @@ module oceanMask_mod
 
     ! Arguments:
     type(struct_ocm),          intent(inout) :: oceanMask
-    type(struct_hco), pointer, intent(inout) :: hco
+    type(struct_hco), pointer, intent(in)    :: hco
     integer,                   intent(in)    :: nLev
 
     if (.not.associated(oceanMask%mask)) then

@@ -56,28 +56,28 @@ MODULE localizationSpectral_mod
 
 CONTAINS
 
-!--------------------------------------------------------------------------
-! lsp_setup
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_setup
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_setup(hco_loc, nEns, nLev, vertLocation, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, &
                        cvDim_out, lsp, nEnsOverDimension_out)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    type(struct_hco), pointer :: hco_loc
-    integer,          intent(in) :: nEns
-    integer,          intent(in) :: nLev
-    integer,          intent(in) :: nTrunc
-    real(8),          intent(in) :: vertLocation(nLev)
-    real(8),          intent(in) :: horizLengthScale1
-    real(8),          intent(in) :: horizLengthScale2
-    real(8),          intent(in) :: vertLengthScale
-    character(len=*), intent(in) :: locType
-    character(len=*), intent(in) :: locMode
-    integer,          intent(out) :: cvDim_out
-    integer,          intent(out) :: nEnsOverDimension_out
+    type(struct_lsp), pointer, intent(out) :: lsp
+    type(struct_hco), pointer, intent(in)  :: hco_loc
+    integer,                   intent(in)  :: nEns
+    integer,                   intent(in)  :: nLev
+    integer,                   intent(in)  :: nTrunc
+    real(8),                   intent(in)  :: vertLocation(nLev)
+    real(8),                   intent(in)  :: horizLengthScale1
+    real(8),                   intent(in)  :: horizLengthScale2
+    real(8),                   intent(in)  :: vertLengthScale
+    character(len=*),          intent(in)  :: locType
+    character(len=*),          intent(in)  :: locMode
+    integer,                   intent(out) :: cvDim_out
+    integer,                   intent(out) :: nEnsOverDimension_out
 
     ! Locals:
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, maxMyNla
@@ -213,20 +213,20 @@ CONTAINS
 
   END SUBROUTINE lsp_setup
 
-!--------------------------------------------------------------------------
-! setupLocalizationMatrices
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! setupLocalizationMatrices
+  !--------------------------------------------------------------------------
   SUBROUTINE setupLocalizationMatrices(lsp,horizLengthScale1,horizLengthScale2 ,vertLengthScale,&
                                        vertLocation,localizationMode)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer    :: lsp
-    real(8),          intent(in) :: horizLengthScale1
-    real(8),          intent(in) :: horizLengthScale2 
-    real(8),          intent(in) :: vertLengthScale
-    real(8),          intent(in) :: vertLocation(lsp%nLev)
-    character(len=*), intent(in) :: localizationMode
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: horizLengthScale1
+    real(8),                   intent(in)    :: horizLengthScale2 
+    real(8),                   intent(in)    :: vertLengthScale
+    real(8),                   intent(in)    :: vertLocation(lsp%nLev)
+    character(len=*),          intent(in)    :: localizationMode
 
     ! Locals:
     real(8)  :: zr,zcorr
@@ -304,15 +304,15 @@ CONTAINS
 
   END SUBROUTINE setupLocalizationMatrices
 
-!--------------------------------------------------------------------------
-! setupGlobalSpectralHLoc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! setupGlobalSpectralHLoc
+  !--------------------------------------------------------------------------
   SUBROUTINE setupGlobalSpectralHLoc(lsp, local_length)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(in)  :: local_length(lsp%nLev)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: local_length(lsp%nLev)
 
     ! Locals:
     real(8) ::   zlc,zr,zpole,zcorr
@@ -402,15 +402,15 @@ CONTAINS
 
   END SUBROUTINE setupGlobalSpectralHLoc
 
-!--------------------------------------------------------------------------
-! setupLamSpectralHLoc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! setupLamSpectralHLoc
+  !--------------------------------------------------------------------------
   SUBROUTINE setupLamSpectralHLoc(lsp, local_length)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(in)  :: local_length(lsp%nLev)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: local_length(lsp%nLev)
 
     ! Locals:
     real(8), allocatable :: sp(:,:,:)
@@ -476,7 +476,7 @@ CONTAINS
       deallocate(SumWeight)
 
       !- 1.5 Normalization to one of correlation function from spectral densities: Part 1
-!$OMP PARALLEL DO PRIVATE (totwvnb,k,sum)
+      !$OMP PARALLEL DO PRIVATE (totwvnb,k,sum)
       do k = 1, lsp%nLev
          sum = 0.0d0
          do totwvnb = 0, lsp%ntrunc
@@ -490,7 +490,7 @@ CONTAINS
             end if
          end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       !- 1.6 Normalization to one of correlation function from spectral densities: Part 2
 
@@ -505,7 +505,7 @@ CONTAINS
                             kind, lsp%nLev )  ! IN
 
       !- 1.6.2 Apply the correlation function
-!$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
+      !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
       do totwvnb = 0, lsp%ntrunc
          do e = 1, lst_hloc%nePerK(totwvnb)
             ila = lst_hloc%ilaFromEK(e,totwvnb)
@@ -517,7 +517,7 @@ CONTAINS
             end do
          end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       !- 1.6.3 Move back to physical space
       kind = 'SpectralToGridPoint'
@@ -554,17 +554,17 @@ CONTAINS
 
   END SUBROUTINE setupLamSpectralHLoc
 
-!--------------------------------------------------------------------------
-! lsp_Lsqrt
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_Lsqrt
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_Lsqrt(lsp, controlVector, ensAmplitude, stepIndex)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    integer,      intent(in)  :: stepIndex
-    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    type(struct_ens)          :: ensAmplitude
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    integer,                   intent(in)    :: stepIndex
+    real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
+    type(struct_ens),          intent(inout) :: ensAmplitude
 
     ! Locals:
     integer :: levIndex1,levIndex2,jla,p,memberIndex
@@ -599,7 +599,7 @@ CONTAINS
        sp_vhLoc(:,:,:,lsp%nEns+1:lsp%nEnsOverDimension) = 0.0d0
     end if
 
-!$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
+    !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
     do memberIndex = 1, lsp%nEns
       sp_vhLoc(:,:,:,memberIndex) = 0.0d0
       do levIndex1 = 1, lsp%nLev
@@ -613,7 +613,7 @@ CONTAINS
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     !
     !- 3.  Transform to gridpoint space all ensemble amplitudes
@@ -622,11 +622,11 @@ CONTAINS
 
       ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
 
-!$OMP PARALLEL DO PRIVATE (latIndex)
+      !$OMP PARALLEL DO PRIVATE (latIndex)
        do latIndex = lsp%myLatBeg, lsp%myLatEnd
           ensAmplitude_oneLev(:,stepIndex,:,latIndex) = 0.0d0
        end do
-!$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
        if (lsp%global) then
           call gst_setID(lsp%gstID)
@@ -646,16 +646,16 @@ CONTAINS
     
   END SUBROUTINE lsp_Lsqrt
 
-!--------------------------------------------------------------------------
-! globalSpectralHLoc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! globalSpectralHLoc
+  !--------------------------------------------------------------------------
   SUBROUTINE globalSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    real(8),      intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
@@ -701,16 +701,16 @@ CONTAINS
 
   END SUBROUTINE globalSpectralHLoc
 
-!--------------------------------------------------------------------------
-! lamSpectralHLoc
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lamSpectralHLoc
+  !--------------------------------------------------------------------------
   SUBROUTINE lamSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    real(8),      intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(out)   :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex,jla, dimIndex, memberIndex, p 
@@ -744,17 +744,17 @@ CONTAINS
 
   END SUBROUTINE lamSpectralHLoc
   
-!--------------------------------------------------------------------------
-! spectralLocalizationSqrtAd
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! spectralLocalizationSqrtAd
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_LsqrtAd(lsp, ensAmplitude, controlVector, stepIndex)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    integer,     intent(in)   :: stepIndex
-    real(8),     intent(out)  :: controlVector(lsp%cvDim_mpilocal)
-    type(struct_ens)          :: ensAmplitude
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    integer,                   intent(in)    :: stepIndex
+    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    type(struct_ens),          intent(in)    :: ensAmplitude
 
     ! Locals:
     integer :: levIndex1,levIndex2,jla,memberIndex,p
@@ -794,7 +794,7 @@ CONTAINS
      !
      !- 2.  Vertical Localization
      !
-!$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
+     !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex1,levIndex2,p,jla)
      do memberIndex = 1, lsp%nEns
         sp_hLoc(:,:,:,memberIndex) = 0.0d0
         do levIndex1 = 1, lsp%nLev
@@ -808,7 +808,7 @@ CONTAINS
            end do
         end do
      end do
-!$OMP END PARALLEL DO
+     !$OMP END PARALLEL DO
 
     !
     !- 1.  Horizontal Localization
@@ -826,16 +826,16 @@ CONTAINS
 
   END SUBROUTINE lsp_LsqrtAd
 
-!--------------------------------------------------------------------------
-! globalSpectralHLocAd
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! globalSpectralHLocAd
+  !--------------------------------------------------------------------------
   SUBROUTINE globalSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),    intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8),    intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
@@ -883,16 +883,16 @@ CONTAINS
 
   END SUBROUTINE globalSpectralHLocAd
 
-!--------------------------------------------------------------------------
-! lamSpectralHLocAd
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lamSpectralHLocAd
+  !--------------------------------------------------------------------------
   SUBROUTINE lamSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),    intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8),    intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
     ! Locals:
     integer :: jla, levIndex, dimIndex, memberIndex, p
@@ -927,14 +927,14 @@ CONTAINS
 
   END SUBROUTINE lamSpectralHLocAd
 
-!--------------------------------------------------------------------------
-! lsp_finalize
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_finalize
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_finalize(lsp)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
+    type(struct_lsp), pointer, intent(inout) :: lsp
 
     if (verbose) write(*,*) 'Entering lsp_finalize'
     call lsp_check(lsp)
@@ -944,16 +944,16 @@ CONTAINS
 
   end SUBROUTINE lsp_finalize
 
-!--------------------------------------------------------------------------
-! lsp_reduceToMPILocal
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_reduceToMPILocal
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_reduceToMPILocal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8),      intent(in)  :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(out)   :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),                   intent(in)    :: cv_mpiglobal(:)
 
     ! Locals:
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
@@ -980,105 +980,105 @@ CONTAINS
 
     if (lsp%global) then
 
-       ! Global
+      ! Global
 
-       allocate(allnBeg(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
-                               allnBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allnEnd(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
-                               allnEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allnSkip(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
-                               allnSkip,1,"mpi_integer","GRID",ierr)
+      allocate(allnBeg(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
+                              allnBeg,1,"mpi_integer","GRID",ierr)
+      allocate(allnEnd(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
+                              allnEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allnSkip(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
+                              allnSkip,1,"mpi_integer","GRID",ierr)
 
-       allocate(allmBeg(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
-                               allmBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allmEnd(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
-                               allmEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allmSkip(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
-                               allmSkip,1,"mpi_integer","GRID",ierr)
+      allocate(allmBeg(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
+                              allmBeg,1,"mpi_integer","GRID",ierr)
+      allocate(allmEnd(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
+                              allmEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allmSkip(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
+                              allmSkip,1,"mpi_integer","GRID",ierr)
 
 
-       if (mmpi_myid == 0) then
+      if (mmpi_myid == 0) then
 
-          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
+        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-          do jproc = 0, (mmpi_nprocs-1)
-             cv_allmaxmpilocal(:,jproc+1) = 0.d0
+        !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
+        do jproc = 0, (mmpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
-             dimIndex_mpilocal = 0
-             do memberIndex = 1, lsp%nEns
+          dimIndex_mpilocal = 0
+          do memberIndex = 1, lsp%nEns
 
-                do levIndex = 1, lsp%nLev
-                   do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
-                      do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+            do levIndex = 1, lsp%nLev
+              do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
-                         if (mIndex.le.nIndex) then
+                  if (mIndex.le.nIndex) then
 
-                            ! figure out index into global control vector
-                            ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
-                            if (mIndex == 0) then
-                               ! for mIndex=0 only real part
-                               dimIndex_mpiglobal = ila_mpiglobal
-                            else
-                               ! for mIndex>0 both real and imaginary part
-                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
-                            end if
-                            ! add offset for level
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
-                            ! add offset for member index
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
-                            
-                            if (mIndex == 0) then
-                               ! controlVector only contain real part for mIndex=0
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
-                            else
-                               ! controlVector contains real and imag parts for mIndex>0
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
-                            end if
+                    ! figure out index into global control vector
+                    ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
+                    if (mIndex == 0) then
+                      ! for mIndex=0 only real part
+                      dimIndex_mpiglobal = ila_mpiglobal
+                    else
+                      ! for mIndex>0 both real and imaginary part
+                      dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
+                    end if
+                    ! add offset for level
+                    dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
+                    ! add offset for member index
+                    dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
+
+                    if (mIndex == 0) then
+                      ! controlVector only contain real part for mIndex=0
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                    else
+                      ! controlVector contains real and imag parts for mIndex>0
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
+                    end if
                            
-                            if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                               write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
-                               write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                               call utl_abort('lsp_reduceToMPILocal')
-                            end if
-                            if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
-                               write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
-                               write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                               call utl_abort('lsp_reduceToMPILocal')
-                            end if
+                    if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
+                      write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
+                      call utl_abort('lsp_reduceToMPILocal')
+                    end if
+                    if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
+                      write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
+                      call utl_abort('lsp_reduceToMPILocal')
+                    end if
  
-                         end if
-                      end do
-                   end do
+                  end if
                 end do
+              end do
+            end do
                 
-             end do
+          end do
 
-          end do ! procs
-!$OMP END PARALLEL DO
+        end do ! procs
+        !$OMP END PARALLEL DO
 
-       else
-          allocate(cv_allmaxmpilocal(1,1))
-       end if
+      else
+        allocate(cv_allmaxmpilocal(1,1))
+      end if
 
-       deallocate(allnBeg)
-       deallocate(allnEnd)
-       deallocate(allnSkip)
-       deallocate(allmBeg)
-       deallocate(allmEnd)
-       deallocate(allmSkip)
+      deallocate(allnBeg)
+      deallocate(allnEnd)
+      deallocate(allnSkip)
+      deallocate(allmBeg)
+      deallocate(allmEnd)
+      deallocate(allmSkip)
 
     else
        
@@ -1086,11 +1086,11 @@ CONTAINS
       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
       if (mmpi_myid == 0) then
-         allocate(allnlaLocal(mmpi_nprocs))
-         allocate(allilaGlobal(nlaMax,mmpi_nprocs))
+        allocate(allnlaLocal(mmpi_nprocs))
+        allocate(allilaGlobal(nlaMax,mmpi_nprocs))
       else
-         allocate(allnlaLocal(1))
-         allocate(allilaGlobal(1,1))
+        allocate(allnlaLocal(1))
+        allocate(allilaGlobal(1,1))
       end if
       
       allocate(ilaGlobal(nlaMax))
@@ -1106,84 +1106,84 @@ CONTAINS
 
       if (mmpi_myid == 0) then
 
-         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
+        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-         do jproc = 0, (mmpi_nprocs-1)
-            cv_allmaxmpilocal(:,jproc+1) = 0.d0
-            do memberIndex = 1, lsp%nEns
-               do levIndex = 1, lsp%nLev
-                  do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                     do p = 1, lsp%lst%nphase
+        do jproc = 0, (mmpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          do memberIndex = 1, lsp%nEns
+            do levIndex = 1, lsp%nLev
+              do ila_mpilocal = 1, allnlaLocal(jproc+1)
+                do p = 1, lsp%lst%nphase
 
-                        dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
-                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
-                                                               ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
+                  dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                      ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                            ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
-                        ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                        if ( ila_mpiglobal <= 0 ) then 
-                           write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                           call utl_abort('lsp_reduceToMPILocal')
-                        end if
-                        dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
-                                         ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
-                                                           ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
+                  ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
+                  if ( ila_mpiglobal <= 0 ) then 
+                    write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
+                  dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                       ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                         ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
   
-                        if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                            write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
-                            write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_reduceToMPILocal')
-                         end if
-                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
-                            write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
-                            write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_reduceToMPILocal')
-                         end if
+                  if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                    write(*,*)
+                    write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
+                    write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
+                  if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
+                    write(*,*)
+                    write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
+                    write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
                   
-                         cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                  cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
 
-                     end do
-                  end do
-               end do
+                end do
+              end do
             end do
-         end do
+          end do
+        end do
       else
-         allocate(cv_allmaxmpilocal(1,1))
+        allocate(cv_allmaxmpilocal(1,1))
       end if
 
-     deallocate(allnlaLocal)
-     deallocate(allilaGlobal) 
+      deallocate(allnlaLocal)
+      deallocate(allilaGlobal) 
       
-   end if
+    end if
 
-   !- Distribute
-   allocate(displs(mmpi_nprocs))
-   do jproc = 0, (mmpi_nprocs-1)
+    !- Distribute
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
-                                                 ! to take the outgoing data to process jproc
-   end do
+                                                ! to take the outgoing data to process jproc
+    end do
 
-   call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
-                          cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_double_precision", &
-                          0, "GRID", ierr)
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
+                           cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_double_precision", &
+                           0, "GRID", ierr)
 
-   deallocate(displs) 
-   deallocate(cv_allMaxMpiLocal)
-   deallocate(cvDim_allMpiLocal)
+    deallocate(displs) 
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
    
- END SUBROUTINE Lsp_reduceToMPILocal
+  END SUBROUTINE Lsp_reduceToMPILocal
 
-!--------------------------------------------------------------------------
-! lsp_reduceToMPILocal_r4
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_reduceToMPILocal_r4
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_reduceToMPILocal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(4),      intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4),      intent(in)  :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(4),                   intent(out)   :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),                   intent(in)    :: cv_mpiglobal(:)
 
     ! Locals:
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
@@ -1210,105 +1210,105 @@ CONTAINS
 
     if (lsp%global) then
 
-       ! Global
+      ! Global
 
-       allocate(allnBeg(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
-                               allnBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allnEnd(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
-                               allnEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allnSkip(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
-                               allnSkip,1,"mpi_integer","GRID",ierr)
+      allocate(allnBeg(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
+                              allnBeg,1,"mpi_integer","GRID",ierr)
+      allocate(allnEnd(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
+                              allnEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allnSkip(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
+                              allnSkip,1,"mpi_integer","GRID",ierr)
 
-       allocate(allmBeg(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
-                               allmBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allmEnd(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
-                               allmEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allmSkip(mmpi_nprocs))
-       call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
-                               allmSkip,1,"mpi_integer","GRID",ierr)
+      allocate(allmBeg(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
+                              allmBeg,1,"mpi_integer","GRID",ierr)
+      allocate(allmEnd(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
+                              allmEnd,1,"mpi_integer","GRID",ierr)
+      allocate(allmSkip(mmpi_nprocs))
+      call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
+                              allmSkip,1,"mpi_integer","GRID",ierr)
 
 
-       if (mmpi_myid == 0) then
+      if (mmpi_myid == 0) then
 
-          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
+        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-!$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-          do jproc = 0, (mmpi_nprocs-1)
-             cv_allmaxmpilocal(:,jproc+1) = 0.d0
+        !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
+        do jproc = 0, (mmpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
-             dimIndex_mpilocal = 0
-             do memberIndex = 1, lsp%nEns
+          dimIndex_mpilocal = 0
+          do memberIndex = 1, lsp%nEns
 
-                do levIndex = 1, lsp%nLev
-                   do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
-                      do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+            do levIndex = 1, lsp%nLev
+              do mIndex = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                do nIndex = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
-                         if (mIndex.le.nIndex) then
+                  if (mIndex.le.nIndex) then
 
-                            ! figure out index into global control vector
-                            ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
-                            if (mIndex == 0) then
-                               ! for mIndex=0 only real part
-                               dimIndex_mpiglobal = ila_mpiglobal
-                            else
-                               ! for mIndex>0 both real and imaginary part
-                               dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
-                            end if
-                            ! add offset for level
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
-                            ! add offset for member index
-                            dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
+                    ! figure out index into global control vector
+                    ila_mpiglobal = gst_getNIND(mIndex,lsp%gstID) + nIndex - mIndex
+                    if (mIndex == 0) then
+                      ! for mIndex=0 only real part
+                      dimIndex_mpiglobal = ila_mpiglobal
+                    else
+                      ! for mIndex>0 both real and imaginary part
+                      dimIndex_mpiglobal = 2*ila_mpiglobal-1 - (lsp%ntrunc+1)
+                    end if
+                    ! add offset for level
+                    dimIndex_mpiglobal = dimIndex_mpiglobal + (levIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)
+                    ! add offset for member index
+                    dimIndex_mpiglobal = dimIndex_mpiglobal + (memberIndex-1) * (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev
                             
-                            if (mIndex == 0) then
-                               ! controlVector only contain real part for mIndex=0
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
-                            else
-                               ! controlVector contains real and imag parts for mIndex>0
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
-                               dimIndex_mpilocal = dimIndex_mpilocal + 1
-                               cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
-                            end if
+                    if (mIndex == 0) then
+                      ! controlVector only contain real part for mIndex=0
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                    else
+                      ! controlVector contains real and imag parts for mIndex>0
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                      dimIndex_mpilocal = dimIndex_mpilocal + 1
+                      cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal+1)
+                    end if
                            
-                            if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                               write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
-                               write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                               call utl_abort('lsp_reduceToMPILocal')
-                            end if
-                            if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
-                               write(*,*)
-                               write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
-                               write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
-                               call utl_abort('lsp_reduceToMPILocal')
-                            end if
+                    if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
+                      write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
+                      call utl_abort('lsp_reduceToMPILocal')
+                    end if
+                    if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
+                      write(*,*) '       proc, levIndex, nIndex, mIndex = ',jproc, levIndex, nIndex, mIndex
+                      call utl_abort('lsp_reduceToMPILocal')
+                    end if
  
-                         end if
-                      end do
-                   end do
+                  end if
                 end do
+              end do
+            end do
                 
-             end do
+          end do
 
-          end do ! procs
-!$OMP END PARALLEL DO
+        end do ! procs
+        !$OMP END PARALLEL DO
 
-       else
-          allocate(cv_allmaxmpilocal(1,1))
-       end if
+      else
+        allocate(cv_allmaxmpilocal(1,1))
+      end if
 
-       deallocate(allnBeg)
-       deallocate(allnEnd)
-       deallocate(allnSkip)
-       deallocate(allmBeg)
-       deallocate(allmEnd)
-       deallocate(allmSkip)
+      deallocate(allnBeg)
+      deallocate(allnEnd)
+      deallocate(allnSkip)
+      deallocate(allmBeg)
+      deallocate(allmEnd)
+      deallocate(allmSkip)
 
     else
        
@@ -1316,11 +1316,11 @@ CONTAINS
       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
       if (mmpi_myid == 0) then
-         allocate(allnlaLocal(mmpi_nprocs))
-         allocate(allilaGlobal(nlaMax,mmpi_nprocs))
+        allocate(allnlaLocal(mmpi_nprocs))
+        allocate(allilaGlobal(nlaMax,mmpi_nprocs))
       else
-         allocate(allnlaLocal(1))
-         allocate(allilaGlobal(1,1))
+        allocate(allnlaLocal(1))
+        allocate(allilaGlobal(1,1))
       end if
       
       allocate(ilaGlobal(nlaMax))
@@ -1336,84 +1336,84 @@ CONTAINS
 
       if (mmpi_myid == 0) then
 
-         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
+        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-         do jproc = 0, (mmpi_nprocs-1)
-            cv_allmaxmpilocal(:,jproc+1) = 0.d0
-            do memberIndex = 1, lsp%nEns
-               do levIndex = 1, lsp%nLev
-                  do ila_mpilocal = 1, allnlaLocal(jproc+1)
-                     do p = 1, lsp%lst%nphase
+        do jproc = 0, (mmpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          do memberIndex = 1, lsp%nEns
+            do levIndex = 1, lsp%nLev
+              do ila_mpilocal = 1, allnlaLocal(jproc+1)
+                do p = 1, lsp%lst%nphase
 
-                        dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
-                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
-                                                               ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
+                  dimIndex_mpilocal = ( (levIndex-1) * lsp%nEns * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                      ( (memberIndex-1) * allnlaLocal(jproc+1) * lsp%lst%nphase ) + &
+                                                            ( (ila_mpilocal-1) * lsp%lst%nphase ) + p
 
-                        ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
-                        if ( ila_mpiglobal <= 0 ) then 
-                           write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                           call utl_abort('lsp_reduceToMPILocal')
-                        end if
-                        dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
-                                         ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
-                                                           ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
+                  ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
+                  if ( ila_mpiglobal <= 0 ) then 
+                    write(*,*) 'lsp_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
+                  dimIndex_mpiglobal = ( (levIndex-1) * lsp%nEns * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                       ( (memberIndex-1) * lsp%lst%nlaGlobal * lsp%lst%nphase ) + &
+                                                         ( (ila_mpiglobal-1) * lsp%lst%nphase ) + p
   
-                        if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
-                            write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
-                            write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_reduceToMPILocal')
-                         end if
-                         if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
-                            write(*,*)
-                            write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
-                            write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
-                            call utl_abort('lsp_reduceToMPILocal')
-                         end if
+                  if (dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                    write(*,*)
+                    write(*,*) 'ERROR: dimIndex_mpilocal > cvDim_allMpiLocal(jproc+1)', dimIndex_mpilocal, cvDim_allMpiLocal(jproc+1)
+                    write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
+                  if (dimIndex_mpiglobal > lsp%cvDim_mpiglobal) then
+                    write(*,*)
+                    write(*,*) 'ERROR: dimIndex_mpiglobal > cvDim_mpiglobal', dimIndex_mpiglobal, lsp%cvDim_mpiglobal
+                    write(*,*) '       proc, memberIndex, levIndex, ila, p = ',jproc,memberIndex,levIndex,ila_mpilocal,p
+                    call utl_abort('lsp_reduceToMPILocal')
+                  end if
                   
-                         cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
+                  cv_allmaxmpilocal(dimIndex_mpilocal,jproc+1) = cv_mpiglobal(dimIndex_mpiglobal)
 
-                     end do
-                  end do
-               end do
+                end do
+              end do
             end do
-         end do
+          end do
+        end do
       else
-         allocate(cv_allmaxmpilocal(1,1))
+        allocate(cv_allmaxmpilocal(1,1))
       end if
 
-     deallocate(allnlaLocal)
-     deallocate(allilaGlobal) 
+      deallocate(allnlaLocal)
+      deallocate(allilaGlobal) 
       
-   end if
+    end if
 
-   !- Distribute
-   allocate(displs(mmpi_nprocs))
-   do jproc = 0, (mmpi_nprocs-1)
+    !- Distribute
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
-                                                 ! to take the outgoing data to process jproc
-   end do
+                                                ! to take the outgoing data to process jproc
+    end do
 
-   call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
-                          cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_real4", &
-                          0, "GRID", ierr)
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
+                           cv_mpiLocal, lsp%cvDim_mpiLocal, "mpi_real4", &
+                           0, "GRID", ierr)
 
-   deallocate(displs) 
-   deallocate(cv_allMaxMpiLocal)
-   deallocate(cvDim_allMpiLocal)
+    deallocate(displs) 
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
    
- END SUBROUTINE Lsp_reduceToMPILocal_r4
+  END SUBROUTINE Lsp_reduceToMPILocal_r4
 
-!--------------------------------------------------------------------------
-! lsp_expandToMPIGlobal
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_expandToMPIGlobal
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_expandToMPIGlobal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(8),      intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8),      intent(out) :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(8),                   intent(in)    :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),                   intent(out)   :: cv_mpiglobal(:)
 
     ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
@@ -1494,7 +1494,7 @@ CONTAINS
        if (mmpi_myid == 0) then
          cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
+         !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
          do jproc = 0, (mmpi_nprocs-1)
            dimIndex_mpilocal = 0
            do memberIndex = 1, lsp%nEns
@@ -1550,7 +1550,7 @@ CONTAINS
              end do
            end do
          end do ! jproc
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
 
       end if ! myid == 0 
 
@@ -1641,16 +1641,16 @@ CONTAINS
 
   end SUBROUTINE Lsp_expandToMPIGlobal
 
-!--------------------------------------------------------------------------
-! lsp_expandToMPIGlobal_r4
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! lsp_expandToMPIGlobal_r4
+  !--------------------------------------------------------------------------
   SUBROUTINE lsp_expandToMPIGlobal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
-    real(4),      intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4),      intent(out) :: cv_mpiglobal(:)
+    type(struct_lsp), pointer, intent(inout) :: lsp
+    real(4),                   intent(in)    :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),                   intent(out)   :: cv_mpiglobal(:)
 
     ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
@@ -1731,7 +1731,7 @@ CONTAINS
        if (mmpi_myid == 0) then
          cv_mpiglobal(:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
+         !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
          do jproc = 0, (mmpi_nprocs-1)
            dimIndex_mpilocal = 0
            do memberIndex = 1, lsp%nEns
@@ -1787,7 +1787,7 @@ CONTAINS
              end do
            end do
          end do ! jproc
-!$OMP END PARALLEL DO
+         !$OMP END PARALLEL DO
 
       end if ! myid == 0 
 
@@ -1878,14 +1878,14 @@ CONTAINS
 
   end SUBROUTINE lsp_expandToMPIGlobal_r4
 
-!--------------------------------------------------------------------------
-!   LSP_CHECK
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  !   LSP_CHECK
+  !--------------------------------------------------------------------------
   subroutine lsp_check(lsp)
     implicit none
 
     ! Arguments:
-    type(struct_lsp), pointer :: lsp
+    type(struct_lsp), pointer, intent(in) :: lsp
 
     if ( .not. lsp%initialized) then
        call utl_abort('lsp_check: structure not initialized')
