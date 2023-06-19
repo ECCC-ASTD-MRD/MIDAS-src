@@ -5484,17 +5484,15 @@ contains
      !
      implicit none
      type(struct_obs) :: obsSpaceData
-     integer :: ij,idata,idatend,bodyIndex,headerIndex
+     integer :: idata,idatend,bodyIndex,headerIndex
      !
      ! Set the header index in the body of obsSpaceData
      !
-     ij=0
      do headerIndex = 1, obs_numheader(obsSpaceData)
         idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
         do bodyIndex= idata, idatend
-           ij   = ij+1
-           call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+           call obs_bodySet_i(obsSpaceData, OBS_HIND, bodyIndex, headerIndex)
         end do
      end do
    end subroutine obs_sethind
