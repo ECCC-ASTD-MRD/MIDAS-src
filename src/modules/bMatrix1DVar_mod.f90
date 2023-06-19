@@ -763,28 +763,19 @@ contains
       write(cmyidx,'(i4.4)') (mmpi_myidx + 1)
       ierr = fnom(nulmat, './Bmatrix_' // trim(cmyidx) // '_' // trim(cmyidy), 'FTN+SEQ+UNF', 0)
       countDumped = 0
-    end if
-
-    write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
-    do columnIndex = 1, var1D_validHeaderCount
-      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
-      if (dumpBmatrixToFile) then
+      do columnIndex = 1, var1D_validHeaderCount 
         headerIndex = var1D_validHeaderIndex(columnIndex)
         latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-        if (latitude >= latMin .and. &
-            latitude <= latMax .and. &
+        if (latitude  >= latMin .and. &
+            latitude  <= latMax .and. &
             longitude >= lonMin .and. &
             longitude <= lonMax) then
           countDumped = countDumped + 1
         end if
-      end if
-    end do
-    
-    if (dumpBmatrixToFile) then
+      end do
       if (countDumped > 0) then
         ierr = newdate( dateStampList(1+ numstep / 2), yyyymmdd, hhmm, -3)
-        write(*,*) "XX", ierr, yyyymmdd, hhmm
         write(nulmat) yyyymmdd * 10000 + hhmm, vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
             vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, countDumped, nkgdim
         write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
@@ -792,8 +783,8 @@ contains
           headerIndex = var1D_validHeaderIndex(columnIndex)
           latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
           longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          if (latitude >= latMin .and. &
-              latitude <= latMax .and. &
+          if (latitude  >= latMin .and. &
+              latitude  <= latMax .and. &
               longitude >= lonMin .and. &
               longitude <= lonMax) then
             write(nulmat) latitude, longitude, bSqrtEns(columnIndex, :, :)
@@ -802,6 +793,11 @@ contains
       end if
       ierr = fclos(nulmat)
     end if
+
+    write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
+    do columnIndex = 1, var1D_validHeaderCount
+      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+    end do
 
     deallocate(varLevColFromVarLevBmat) 
     deallocate(varNameFromVarLevIndexBmat)
