@@ -425,7 +425,7 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat, varLevIndexCol
-    integer :: numStep, levIndexColumn, ierr
+    integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
