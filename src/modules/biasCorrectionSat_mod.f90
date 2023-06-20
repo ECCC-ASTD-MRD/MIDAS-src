@@ -2290,6 +2290,7 @@ contains
     logical :: lHyperIr, lGeo, lSsmis, lTovs
     logical :: condition, condition1, condition2, channelIsAllsky
     logical :: channelIsPassive
+    character(len=10)  :: instrName
     
     if (.not. filterObs) return
 
@@ -2298,11 +2299,16 @@ contains
     allocate(instrumentList(tvs_nsensors))
     instrumentList(:) = -1
     do sensorIndex = 1, tvs_nsensors
+      instrName = InstrNameinCoeffFile(tvs_instrumentName(sensorIndex))
       do instrumentIndex = 1,  maxNumInst
-        if (trim(tvs_instrumentName(sensorIndex)) == trim(cinst(instrumentIndex)))    then
+        if (trim(instrName) == trim(cinst(instrumentIndex)))    then
           instrumentList(sensorIndex) = instrumentIndex
         end if
       end do
+      if (instrumentList(sensorIndex) == -1) then
+        call utl_abort('bcs_filterObs: Instrument ' // trim(instrName) // &
+            'missing in CINST table fron NAMBIASSAT namelist section')
+      end if
     end do
     
     call obs_set_current_header_list(obsSpaceData, 'TO')
