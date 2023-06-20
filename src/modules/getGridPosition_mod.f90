@@ -9,7 +9,7 @@ module getGridPosition_mod
   !           (see below in this module). There is also support for
   !           RPN Y grids, in which case it calls the subroutine gpos_xyfll_unstructGrid.
   !
-  use kdtree2_mod
+  use kdTree2_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use utilities_mod

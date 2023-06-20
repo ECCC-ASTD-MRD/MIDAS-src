@@ -50,14 +50,20 @@ mind is provided [here](codingStd_top10.md).
   Fortran statement.
 - To improve readability, write your code using the lower case for all
   Fortran keywords and intrinsic functions/subroutines. The rest of
-  the code is written in either lowercase with underscores or,
-  preferably using "camelCase" (e.g. `variableNameList` or
-  `gsv_getField`). When naming any public entity (variable, subroutine,
-  or function) in a module it must begin with the module prefix: e.g.
-  `gsv_getField`, where "`gsv`" is the prefix associated with the module
-  `gridStateVector_mod`.
+  the code should be written using "camelCase" with no underscores, except
+  between a module prefix and a variable name
+  (e.g. `variableNameList` or `gsv_getField`). When naming any public entity
+  (variable, subroutine, or function) in a module it must begin with
+  the module prefix: e.g. `gsv_getField`, where "`gsv`" is the prefix
+  associated with the module `gridStateVector_mod`.
 - Function or subroutine arguments should be declared separately from,
   and before, local variables, separated by a blank line.
+
+### Programs and modules naming convention
+- As for variables, "camelCase" (https://en.wikipedia.org/wiki/Camel_case)
+  should be used for all filenames. For modules, an underscore should
+  appear only between the module name and the suffix "`mod`. Threfore, 
+  a module filename should end with "`_mod.f90`".
 
 ### Commenting:
 

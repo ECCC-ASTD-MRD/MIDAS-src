@@ -15,7 +15,7 @@ module enkf_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use obsSpaceData_mod
-  use tovs_nl_mod
+  use tovsNL_mod
   use ensembleObservations_mod
   use gridVariableTransforms_mod
   use localizationFunction_mod

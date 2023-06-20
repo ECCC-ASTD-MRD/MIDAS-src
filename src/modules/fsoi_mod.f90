@@ -21,7 +21,7 @@ module fsoi_mod
   use MathPhysConstants_mod
   use quasinewton_mod
   use costFunction_mod
-  use tovs_nl_mod
+  use tovsNL_mod
   use timeCoord_mod
   use utilities_mod
   use calcHeightAndPressure_mod

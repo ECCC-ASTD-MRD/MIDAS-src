@@ -60,7 +60,7 @@ program midas_thinning
   use timeCoord_mod
   use obsSpaceData_mod
   use obsFiles_mod
-  use tovs_nl_mod
+  use tovsNL_mod
   use obsFilter_mod
   use thinning_mod
   use fSQLite

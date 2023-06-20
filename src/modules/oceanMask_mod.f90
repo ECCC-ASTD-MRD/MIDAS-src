@@ -8,7 +8,7 @@ module oceanMask_mod
   !                 * In other cases it is a single 2D field used for all variables.
   !
   use midasMpi_mod
-  use kdtree2_mod
+  use kdTree2_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod

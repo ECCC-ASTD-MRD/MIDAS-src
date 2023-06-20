@@ -165,7 +165,7 @@ program midas_letkf
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use columnData_mod
-  use tovs_nl_mod
+  use tovsNL_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use oceanMask_mod
@@ -173,7 +173,7 @@ program midas_letkf
   use obsTimeInterp_mod
   use utilities_mod
   use ramDisk_mod
-  use statetocolumn_mod
+  use stateToColumn_mod
   use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod

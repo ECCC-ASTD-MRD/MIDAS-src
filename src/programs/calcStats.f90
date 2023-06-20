@@ -71,10 +71,10 @@ program midas_calcstats
   use version_mod
   use midasMpi_mod
   use fileNames_mod
-  use HorizontalCoord_mod
-  use VerticalCoord_mod
-  use calcstatsglb_mod
-  use calcstatslam_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use calcStatsGlb_mod
+  use calcStatsLam_mod
   use utilities_mod
   use ramDisk_mod
   use gridStateVector_mod

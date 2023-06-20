@@ -154,11 +154,11 @@ program midas_diagHBHt
   use gridStateVectorFileIO_mod
   use controlVector_mod
   use obsFiles_mod
-  use randomnumber_mod
+  use randomNumber_mod
   use obsTimeInterp_mod
   use stateToColumn_mod
   use innovation_mod
-  use bmatrix_mod
+  use bMatrix_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod

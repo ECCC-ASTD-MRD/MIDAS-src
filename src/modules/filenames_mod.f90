@@ -5,7 +5,7 @@ module fileNames_mod
   ! :Purpose: Routines related to file names
   !
   use utilities_mod
-  use clib_interfaces_mod
+  use clibInterfaces_mod
   use ramDisk_mod
   use timeCoord_mod
   implicit none

@@ -21,7 +21,7 @@ module thinning_mod
   use codtyp_mod
   use physicsFunctions_mod
   use utilities_mod
-  use kdtree2_mod
+  use kdTree2_mod
   implicit none
   private
 

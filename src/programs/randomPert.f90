@@ -110,7 +110,7 @@ program midas_randomPert
   use controlVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
-  use bmatrix_mod
+  use bMatrix_mod
   use interpolation_mod
   use verticalCoord_mod
   use horizontalCoord_mod

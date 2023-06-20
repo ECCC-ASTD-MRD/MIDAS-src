@@ -98,8 +98,8 @@ program midas_diagBmatrix
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
-  use bmatrix_mod
-  use bmatrixEnsemble_mod
+  use bMatrix_mod
+  use bMatrixEnsemble_mod
   use localization_mod
   use horizontalCoord_mod
   use advection_mod
