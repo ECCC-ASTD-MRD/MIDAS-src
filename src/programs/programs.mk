@@ -74,12 +74,12 @@ pseudoSSTobs.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 randomPert.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
-SSTbias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+sstBias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
-SSTtrial.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+sstTrial.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 

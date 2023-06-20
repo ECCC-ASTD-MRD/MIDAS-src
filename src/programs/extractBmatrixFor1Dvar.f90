@@ -68,12 +68,12 @@ program midas_extractBmatrixFor1Dvar
   !
   use version_mod
   use midasMpi_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use gridStateVector_mod
-  use bmatrix_mod
+  use bMatrix_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod

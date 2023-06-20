@@ -117,7 +117,7 @@ program midas_ensembleH
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
-  use statetocolumn_mod
+  use stateToColumn_mod
   use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod

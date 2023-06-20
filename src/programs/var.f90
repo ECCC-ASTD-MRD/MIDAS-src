@@ -260,14 +260,14 @@ program midas_var
   use obsFiles_mod
   use minimization_mod
   use innovation_mod
-  use bmatrix_mod
-  use rmatrix_mod
+  use bMatrix_mod
+  use rMatrix_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
   use biasCorrectionSat_mod
-  use varqc_mod
-  use tovs_nl_mod
+  use varQC_mod
+  use tovsNL_mod
   use stateToColumn_mod
 
   implicit none

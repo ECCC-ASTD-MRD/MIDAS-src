@@ -77,13 +77,13 @@ program midas_adjointTest
   use timeCoord_mod
   use gridStateVector_mod
   use gridVariableTransforms_mod
-  use bmatrixhi_mod
-  use bmatrixensemble_mod
+  use bMatrixHI_mod
+  use bMatrixEnsemble_mod
   use randomNumber_mod
   use advection_mod
   use ensembleStateVector_mod
   use localization_mod
-  use lamBMatrixHI_mod
+  use lamBmatrixHI_mod
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()

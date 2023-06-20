@@ -94,7 +94,7 @@ program midas_prepcma
   use obsFilter_mod
   use obsTimeInterp_mod
   use obsErrors_mod
-  use tovs_nl_mod
+  use tovsNL_mod
   use timeCoord_mod
   use enkf_mod
   use utilities_mod

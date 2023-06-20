@@ -22,8 +22,8 @@ module innovation_mod
   use message_mod
   use obsFilter_mod  
   use gps_mod
-  use tovs_nl_mod
-  use multi_ir_bgck_mod
+  use tovsNL_mod
+  use multiIRbgck_mod
   use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod

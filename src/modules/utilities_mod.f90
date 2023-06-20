@@ -4,7 +4,7 @@ module utilities_mod
   !
   !:Purpose: A place to collect numerous simple utility routines
   !
-  use clib_interfaces_mod
+  use clibInterfaces_mod
   use randomNumber_mod
 
   implicit none

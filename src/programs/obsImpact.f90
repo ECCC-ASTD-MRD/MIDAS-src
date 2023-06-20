@@ -149,7 +149,7 @@ program midas_obsimpact
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -157,7 +157,7 @@ program midas_obsimpact
   use obsSpaceData_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
-  use bmatrix_mod
+  use bMatrix_mod
   use innovation_mod
   use obsFiles_mod
   use obsErrors_mod

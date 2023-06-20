@@ -192,7 +192,7 @@ program midas_obsSelection
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use backgroundCheck_mod
-  use multi_ir_bgck_mod
+  use multiIRbgck_mod
   use innovation_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -202,10 +202,10 @@ program midas_obsSelection
   use biasCorrectionConv_mod
   use thinning_mod
   use bgckmicrowave_mod
-  use bgckssmis_mod
-  use bgckcsr_mod
+  use bgckSSMIS_mod
+  use bgckCSR_mod
   use bgckOcean_mod 
-  use SSTbias_mod
+  use sstBias_mod
    
   implicit none
 

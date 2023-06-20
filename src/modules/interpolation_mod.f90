@@ -14,7 +14,7 @@ module interpolation_mod
   use mathPhysConstants_mod
   use utilities_mod
   use message_mod
-  use kdtree2_mod
+  use kdTree2_mod
   implicit none
   save
   private
