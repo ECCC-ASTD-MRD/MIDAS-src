@@ -1,7 +1,6 @@
 
 module sstBias_mod
-
-  ! MODULE sstBias (prefix='sstb' category='1. High-level functionality')
+  ! MODULE sstBias_mod (prefix='sstb' category='1. High-level functionality')
   !
   !:Purpose: Compute SST satellite data bias estimation and correction
   !

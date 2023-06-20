@@ -1,6 +1,6 @@
 
 module gridVariableTransforms_mod
-  ! MODULE gridVariableTransforms (prefix='gvt' category='4. Data Object transformations')
+  ! MODULE gridVariableTransforms_mod (prefix='gvt' category='4. Data Object transformations')
   !
   ! :Purpose: To store various functions for variable transforms using inputs
   !           from gridStateVector(s). Outputs are also placed in a

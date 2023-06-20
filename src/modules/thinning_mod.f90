@@ -1,6 +1,6 @@
 
 module thinning_mod
-  ! MODULE thinning (prefix='thn' category='1. High-level functionality')
+  ! MODULE thinning_mod (prefix='thn' category='1. High-level functionality')
   !
   ! :Purpose: Using observation-type-specific algorithms, set bit 11 of 'flag'
   !           on data that are not to be assimilated.

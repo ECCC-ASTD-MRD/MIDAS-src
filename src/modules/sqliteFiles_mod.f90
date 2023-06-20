@@ -1,6 +1,6 @@
 
 module sqliteFiles_mod
-  ! MODULE sqliteFiles (prefix='sqlf' category='3. Observation input/output')
+  ! MODULE sqliteFiles_mod (prefix='sqlf' category='3. Observation input/output')
   !
   ! :Purpose: To store the filenames of the sqlite observation files and call
   !           subroutines in readSqlite to read and update sqlite files.

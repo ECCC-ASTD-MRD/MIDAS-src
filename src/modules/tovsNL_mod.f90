@@ -1,6 +1,6 @@
 
 module tovsNL_mod
-  ! MODULE tovsNL (prefix='tvs' category='5. Observation operators')
+  ! MODULE tovsNL_mod (prefix='tvs' category='5. Observation operators')
   !
   ! :Purpose: Derived types, public variables and procedures related to the
   !           nonlinear version of RTTOV

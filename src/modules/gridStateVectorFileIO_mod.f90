@@ -1,6 +1,6 @@
 
 module gridStateVectorFileIO_mod
-  ! MODULE gridStateVectorFile_mod (prefix='gio' category='4. Data Object transformations')
+  ! MODULE gridStateVectorFileIO_mod (prefix='gio' category='4. Data Object transformations')
   !
   ! :Purpose: The grid-point state vector I/O methods.
   !

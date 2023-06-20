@@ -1,6 +1,6 @@
 
 module sqliteRead_mod
-  ! MODULE sqliteRead (prefix='sqlr' category='3. Observation input/output')
+  ! MODULE sqliteRead_mod (prefix='sqlr' category='3. Observation input/output')
   !
   ! :Purpose: To read and update SQLITE observation files. Data is stored in 
   !           obsSpaceData object.

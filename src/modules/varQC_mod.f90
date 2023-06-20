@@ -1,6 +1,6 @@
 
 module varQC_mod
-  ! MODULE varQC (prefix='vqc' category='1. High-level functionality')
+  ! MODULE varQC_mod (prefix='vqc' category='1. High-level functionality')
   !
   ! :Purpose: Procedures related to variational quality control including
   !           hard-coded values that determine how quickly the observation

@@ -1,6 +1,6 @@
 
 module timeCoord_mod
-  ! MODULE timeCoord (prefix='tim' category='7. Low-level data objects')
+  ! MODULE timeCoord_mod (prefix='tim' category='7. Low-level data objects')
   !
   ! :Purpose: To store public variables and procedures related to the time
   !           coordinate.
