@@ -588,24 +588,6 @@ contains
       call obs_headSet_i(obsdat, OBS_INS, headIndex, nint(MPC_missingValue_R8))
     end do
 
-    ! Set a bunch of obsSpaceData body columns to 'missing'
-    do bodyTableIndex = 1, numRowsBodyTable
-      bodyIndex = bodyTableIndex + bodyIndexBegin -1
-      if (obs_columnActive_RB(obsdat, OBS_OMA)) call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_OMA0)) call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_OMP)) call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_OMP6)) call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_OER)) call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_HAHT)) call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_SIGI)) call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_ZHA )) call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_SEM )) call obs_bodySet_r(obsdat, OBS_SEM , bodyIndex, obs_missingValue_R)
-      if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, obs_missingValue_R)
-    end do
-    
     !- 1.3 Copy values from local tables into obsSpaceData
 
     ! Set the columns related to surface type
@@ -1312,6 +1294,21 @@ contains
           write(*,*) 'odbf_copyToObsSpaceBody: set body primary key'
         end if
         call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey(bodyTableIndex))
+
+        ! Set a bunch of obsSpaceData body columns to 'missing'
+        if (obs_columnActive_RB(obsdat, OBS_OMA))  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_OMA0)) call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_OMP))  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_OMP6)) call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_OER))  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_HAHT)) call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_SIGI)) call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_ZHA )) call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_SEM )) call obs_bodySet_r(obsdat, OBS_SEM , bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, obs_missingValue_R)
 
         ! set the varNo for this obsValue
         call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(obsValueIndex))

@@ -130,21 +130,21 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2
+echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2"
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20230228-beta4"
-. r.load.dot eccc/mrd/rpn/libs/20230228-beta4
+echo "... loading eccc/mrd/rpn/libs/20230531"
+. r.load.dot eccc/mrd/rpn/libs/20230531
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/cmd/cmda/libs/20220216/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20230531/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20230531/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}

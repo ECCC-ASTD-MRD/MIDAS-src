@@ -29,9 +29,10 @@ INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
 REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
 GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
-CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220216-1
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230228-beta4
-RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230228-beta4
+CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20230531
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230531
+RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230531
+PY39_SSM_DOMAIN=eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -58,8 +59,7 @@ reflex=${reflex:-$(which reflex 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_D
 burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
-sqlite3=${sqlite3:-$(which sqlite3)}
+sqlite3=${sqlite3:-$(. ssmuse-sh -p ${PY39_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
@@ -1530,17 +1530,17 @@ EOF
 		esac
 		cat > sqldir <<EOF
 PRAGMA temp_store = MEMORY;
-.nullvalue NULL;
-.mode tabs;
-select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+.nullvalue NULL
+.mode tabs
+select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by id_stn || lat || lon || date || time || delay;
 EOF
 
-		cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file1.sql) | sort -n > file1.sqllist || rm file1.sqllist
+		cat sqldir | ${sqlite3} -noheader file1.sql | sort -n > file1.sqllist || rm file1.sqllist
 		if [ ! -s file1.sqllist ]; then
 		    say "Problem with SQL request for file ${file}" 1 || return 1
 		    not_validating="problem"
 		else
-		    cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file2.sql) | sort -n > file2.sqllist || rm file2.sqllist
+		    cat sqldir | ${sqlite3} -noheader file2.sql | sort -n > file2.sqllist || rm file2.sqllist
 		    if [ ! -s file2.sqllist ]; then
 			say "Problem with SQL request for file ${file2}" 1 || return 1
 			not_validating="problem"
@@ -1622,9 +1622,9 @@ function check_subdomains {
 
     cat > sqldir <<EOF
 PRAGMA temp_store = MEMORY;
-.nullvalue NULL;
-.mode tabs;
-select lat,lon,date,time,omp,obsvalue,vcoord from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+.nullvalue NULL
+.mode tabs
+select lat,lon,date,time,omp,obsvalue,vcoord from header natural join data order by id_stn || lat || lon || date || time || delay;
 EOF
 
     npex=$1
@@ -1642,7 +1642,7 @@ EOF
 	if [ ! -s file.sql ]; then
 	    say "Problem with burp2rdb with file ${file}" 1 || return 1
 	else
-	    cat sqldir | ${sqlite} -noheader file.sql > file.sqllist || rm file.sqllist
+	    cat sqldir | ${sqlite3} -noheader file.sql > file.sqllist || rm file.sqllist
 	    if [ ! -s file.sqllist ]; then
 		say "Problem with SQL request for file ${file}" 1 || return 1
 	    else
@@ -1787,10 +1787,16 @@ function sqlite_add_column {
 	    return 1
 	fi
     elif [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub -o "${__sqlite_add_column_fam__}" = ssmis ]; then
-        ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
+        if [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub ]; then
+            ## The columns to add to the header table for 'to_amsu*'
+            __sqlite_add_column_header_columns__="scattering_index scattering_index_fg cloud_liquid_water_obs cloud_liquid_water_trials"
+        else
+            ## The columns to add to the header table for 'ssmis'
+            __sqlite_add_column_header_columns__="scattering_index cloud_liquid_water"
+        fi
 	__sqlite_add_column_status__=0
         __sqlite_add_column_request__="alter table data add column FSO real;"
-        for __sqlite_add_column_column__ in scattering_index cloud_liquid_water; do
+        for __sqlite_add_column_column__ in ${__sqlite_add_column_header_columns__}; do
             __sqlite_add_column_request__="${__sqlite_add_column_request__} alter table header add column ${__sqlite_add_column_column__} real;"
         done
         __sqlite_add_column_column__=info_flag
@@ -1804,6 +1810,165 @@ function sqlite_add_column {
 	    return 1
 	fi
         unset __sqlite_add_column_request__
+    elif [ "${__sqlite_add_column_fam__}" = ai ]; then
+        ## we must insert column 'FSO' and 'BIAS_CORR' in 'data' table
+
+        ## We will firt insert the column 'BIAS_CORR' between 'OBSVALUE' and 'FLAG'
+        __sqlite_add_column_column_names__=$(echo "PRAGMA table_info(DATA);" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' '{print $2}' | tr '\n' ' ')
+        __sqlite_add_column_column_names_with_new_columns__=$(echo ${__sqlite_add_column_column_names__} | sed 's/OBSVALUE FLAG/OBSVALUE BIAS_CORR FLAG/')
+        ## And append 'FSO'
+        __sqlite_add_column_column_names_with_new_columns__="${__sqlite_add_column_column_names_with_new_columns__} FSO"
+
+        __sqlite_add_column_columns_definition__=
+        for column in ${__sqlite_add_column_column_names_with_new_columns__}; do
+            ## extract the type of the column
+            column_type=$(echo "PRAGMA table_info(DATA);" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' "\$2 == \"${column}\" {print \$3}")
+            ## if the column_type is empty then we must define it:
+            if [ -z "${column_type}" ]; then
+                column_type=REAL
+            fi
+            if [ -n "${__sqlite_add_column_columns_definition__}" ]; then
+                __sqlite_add_column_columns_definition__="${__sqlite_add_column_columns_definition__}, ${column} ${column_type}"
+            else
+                __sqlite_add_column_columns_definition__="${column} ${column_type}"
+            fi
+            unset column_type
+        done
+        unset column
+
+        ## We will reinsert other tables to keep the order of the tables the same
+        for table in $(echo .tables | ${sqlite3} ${__sqlite_add_column_filein__}); do
+	    __sqlite_add_column_status__=0
+            if [ "${table}" = DATA ]; then
+	        __sqlite_add_column_status__=0
+                __sqlite_add_column_column_names_comma__=$(echo ${__sqlite_add_column_column_names__} | sed 's/  */, /g')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+CREATE TABLE dataWithAddedColumns (${__sqlite_add_column_columns_definition__});
+INSERT INTO dataWithAddedColumns (${__sqlite_add_column_column_names_comma__}) SELECT ${__sqlite_add_column_column_names_comma__} FROM data;
+DROP TABLE DATA;
+ALTER TABLE dataWithAddedColumns RENAME TO DATA;
+EOF
+            else
+                __sqlite_add_column_columns_definition_tmp__=$(echo "PRAGMA table_info(${table});" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' '{printf "%s %s,", $2, $3}' | sed 's/,$//' | tr '\n' ' ')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+DROP TABLE ${table};
+create table ${table} (${__sqlite_add_column_columns_definition_tmp__});
+attach '${__sqlite_add_column_filein__}' as dbin;
+insert into ${table} select * from dbin.${table};
+detach dbin;
+EOF
+                unset __sqlite_add_column_columns_definition_tmp__
+            fi
+
+	    if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	        echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	        return 1
+	    fi
+        done
+
+        unset __sqlite_add_column_column_names__ __sqlite_add_column_column_names_with_new_columns__
+        unset __sqlite_add_column_columns_definition__ __sqlite_add_column_column_names_comma__
+    elif [ "${__sqlite_add_column_fam__}" = sw ]; then
+        ## remove 'ID_SAT', INSTRUMENT and 'AZIMUTH' columns and add those columns in 'header' table
+        __sqlite_add_column_sqlrequest__="alter table header drop column ID_SAT;\nalter table header drop column INSTRUMENT;\nalter table header drop column AZIMUTH;"
+        for column in SEGMENT_SIZE_AT_NADIR_X_DIR SEGMENT_SIZE_AT_NADIR_Y_DIR QI_CONFIDENCE QI_ALT_CONFIDENCE QI_WITHOUT_REFER_PREDICTION\
+                                                  HEIGHT_ASSIGNMENT_METHOD LAND_SEA TERRAIN_TYPE; do
+            if [ "${column}" = HEIGHT_ASSIGNMENT_METHOD -o "${column}" = LAND_SEA -o "${column}" = TERRAIN_TYPE ]; then
+                column_type=integer
+            else
+                column_type=real
+            fi
+            __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__}\nalter table header add column ${column} ${column_type};"
+            unset column_type
+        done
+        unset column
+
+	__sqlite_add_column_status__=0
+        printf "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+        unset __sqlite_add_column_sqlrequest__
+
+        ## We will insert the column 'ORIG_CENTER' between 'ELEV' and 'ZENITH'
+        __sqlite_add_column_column_names__=$(echo "PRAGMA table_info(HEADER);" | ${sqlite3} ${__sqlite_add_column_fileout__} | awk -F'|' '{print $2}' | tr '\n' ' ')
+        __sqlite_add_column_column_names_with_new_columns__=$(echo ${__sqlite_add_column_column_names__} | sed 's/ELEV ZENITH/ELEV ORIG_CENTER ZENITH/')
+
+        __sqlite_add_column_columns_definition__=
+        for column in ${__sqlite_add_column_column_names_with_new_columns__}; do
+            ## extract the type of the column
+            column_type=$(echo "PRAGMA table_info(HEADER);" | ${sqlite3} ${__sqlite_add_column_fileout__} | awk -F'|' "\$2 == \"${column}\" {print \$3}")
+            ## if the column_type is empty then we must define it:
+            if [ -z "${column_type}" ]; then
+                column_type=integer
+            fi
+            if [ -n "${__sqlite_add_column_columns_definition__}" ]; then
+                __sqlite_add_column_columns_definition__="${__sqlite_add_column_columns_definition__}, ${column} ${column_type}"
+            else
+                __sqlite_add_column_columns_definition__="${column} ${column_type}"
+            fi
+            unset column_type
+        done
+        unset column
+
+        ## We will reinsert other tables to keep the order of the tables the same
+        for table in $(echo .tables | ${sqlite3} ${__sqlite_add_column_fileout__}); do
+	    __sqlite_add_column_status__=0
+            if [ "${table}" = HEADER ]; then
+	        __sqlite_add_column_status__=0
+                __sqlite_add_column_column_names_comma__=$(echo ${__sqlite_add_column_column_names__} | sed 's/  */, /g')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+CREATE TABLE headerWithAddedColumns (${__sqlite_add_column_columns_definition__});
+INSERT INTO headerWithAddedColumns (${__sqlite_add_column_column_names_comma__}) SELECT ${__sqlite_add_column_column_names_comma__} FROM header;
+DROP TABLE HEADER;
+ALTER TABLE headerWithAddedColumns RENAME TO HEADER;
+EOF
+            else
+                __sqlite_add_column_columns_definition_tmp__=$(echo "PRAGMA table_info(${table});" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' '{printf "%s %s,", $2, $3}' | sed 's/,$//' | tr '\n' ' ')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+DROP TABLE ${table};
+create table ${table} (${__sqlite_add_column_columns_definition_tmp__});
+attach '${__sqlite_add_column_filein__}' as dbin;
+insert into ${table} select * from dbin.${table};
+detach dbin;
+EOF
+                unset __sqlite_add_column_columns_definition_tmp__
+            fi
+
+	    if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	        echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	        unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	        return 1
+	    fi
+        done
+
+        ## remove columns 'CONFIDENCE', 'ALT_CONFIDENCE', 'REFER_PREDICTION' in 'data' table
+        __sqlite_add_column_sqlrequest__=
+        for column in CONFIDENCE ALT_CONFIDENCE REFER_PREDICTION; do
+            __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__} alter table data drop column ${column};"
+        done
+        unset column
+        ## add 'FSO' column in 'data' table
+        __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__} alter table data add column FSO real;"
+
+	__sqlite_add_column_status__=0
+        echo "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
+	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
+	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
+	    return 1
+	fi
+        unset __sqlite_add_column_sqlrequest__
+
+        unset __sqlite_add_column_column_names__ __sqlite_add_column_column_names_with_new_columns__
+        unset __sqlite_add_column_columns_definition__ __sqlite_add_column_column_names_comma__
     else
         ## insert column 'FSO' in 'data' table
 	__sqlite_add_column_status__=0
@@ -1813,7 +1978,7 @@ function sqlite_add_column {
 	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
 	    return 1
 	fi
-    fi  ## Fin du 'elif [ "${__sqlite_add_column_fam__}" = ai ]'
+    fi  ## Fin du 'else' associe au 'elif [ "${__sqlite_add_column_fam__}" = sw ]'
 
     unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
 
