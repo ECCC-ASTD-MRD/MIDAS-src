@@ -62,7 +62,7 @@ mind is provided [here](codingStd_top10.md).
 ### Programs and modules naming convention
 - As for variables, "camelCase" (https://en.wikipedia.org/wiki/Camel_case)
   should be used for all filenames. For modules, an underscore should
-  appear only between the module name and the suffix "`mod`. Threfore, 
+  appear only between the module name and the suffix "`mod`. Therefore, 
   a module filename should end with "`_mod.f90`".
 
 ### Commenting:
