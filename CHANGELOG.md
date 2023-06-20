@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
  * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744) 
  * Added ability to specify variable names for obs families being passively assimilated or simulated (#825 and !741)
  * Added namelist variable to scale Lcorr and apply max limit to trial error stddev for analysisErrorOI (#832 and !740)
 
 ### Changed
 
+ * Upgrade all libraries for ones compiled with `rpn/libs/20230531` (#819 and !745)
  * Change optional argument variable names to include `_opt` suffix (#834 and !742)
 
 ### Fixed
