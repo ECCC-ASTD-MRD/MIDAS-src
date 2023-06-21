@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed incorrect treatment of passive channel bias correction for most of the CSR instruments (#840 and !748)
 
 ### Removed
 
