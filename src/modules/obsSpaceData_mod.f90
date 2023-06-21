@@ -174,7 +174,7 @@ contains
       end if
 
       if(.not. associated(empty_index_list)) then
-!$omp critical
+        !$omp critical
          ! Increment (cyclicly) the index to the next list
          depot%list_last_attributed = depot%list_last_attributed + 1
          if (depot%list_last_attributed > NUMBER_OF_LISTS) &
@@ -182,7 +182,7 @@ contains
 
          ! Set the return pointer
          empty_index_list => depot%index_lists(depot%list_last_attributed)
-!$omp end critical
+         !$omp end critical
       end if
 
       ! Initialize some values in the list

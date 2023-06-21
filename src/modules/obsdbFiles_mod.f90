@@ -487,7 +487,7 @@ contains
     integer         ,  intent(in)    :: fileIndex
 
     ! Locals:
-    integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headIndexBegin
+    integer :: bodyIndexBegin, headIndexBegin
     integer :: headIndexEnd, headIndex, obsRln
     integer :: numBody, numHead, columnIndex
     integer :: headTableIndex, numRowsHeadTable, bodyTableIndex, numRowsBodyTable
@@ -606,7 +606,6 @@ contains
                                  bodyValues, bodyIndexBegin, headIndexBegin)
 
     ! Get indexes of last rows added to obsSpaceData
-    bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
     !- 1.4 Set some other quantities in obsSpaceData Header table

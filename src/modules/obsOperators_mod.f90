@@ -88,7 +88,7 @@ contains
     !     1.1 PPP Vertical coordinate
     ! 
 
-!$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb)
+    !$OMP PARALLEL DO PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb)
     do JDATA= 1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
             obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 2 ) THEN
@@ -124,11 +124,11 @@ contains
           end if
        end if
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     !
     !     1.2 ZZZ Vertical coordinate
     !
-!$OMP PARALLEL do PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb,nlev)
+    !$OMP PARALLEL do PRIVATE(jdata,zlev,iobs,bufrCode,varLevel,zpt,zpb,nlev)
     do JDATA= 1,obs_numbody(obsSpaceData)
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
@@ -167,7 +167,7 @@ contains
         end if
       end if
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     !
     !
     !     2. FInd interpolation layer
@@ -176,7 +176,7 @@ contains
     !
     !     2.1  PPP Vertical coordinate
     !
-!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levIndex,zpt,zpb)
+    !$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levIndex,zpt,zpb)
     do JDATA = 1, obs_numbody(obsSpaceData)
       call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA,0)
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
@@ -201,11 +201,11 @@ contains
         call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA, layerIndex)
       end if
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     !
     !     2.2  ZZZ Vertical coordinate and surface observations
     !
-!$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levIndex,zpt)
+    !$OMP PARALLEL DO PRIVATE(jdata,iobs,zlev,bufrCode,varLevel,layerIndex,nlev,levIndex,zpt)
     do JDATA = 1, obs_numbody(obsSpaceData)
       if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,JDATA) == obs_assimilated .and. &
            obs_bodyElem_i(obsSpaceData,OBS_VCO,JDATA) == 1 ) then
@@ -239,7 +239,7 @@ contains
         call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA, layerIndex)
       end if
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     !
   end subroutine oop_vobslyrs
 

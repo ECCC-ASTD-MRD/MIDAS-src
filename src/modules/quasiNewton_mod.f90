@@ -127,28 +127,28 @@ module quasiNewton_mod
           call prosca (n,depl,sbar(1,jp),ps,izs,rzs,dzs)
           r=ps
           alpha(jp)=r
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 20 i=1,n
               depl(i)=depl(i)-r*ybar(i,jp)
 20        continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 100   continue
 !
 !         preconditionnement
 !
       if (sscale) then
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 150 i=1,n
               depl(i)=depl(i)*precos
   150     continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
       else
           call dtonb (n,depl,aux,izs,rzs,dzs)
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 151 i=1,n
               aux(i)=aux(i)*diag(i)
   151     continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
           call dtcab (n,aux,depl,izs,rzs,dzs)
       endif
 !
@@ -159,11 +159,11 @@ module quasiNewton_mod
           if (jp.gt.nm) jp=jp-nm
           call prosca (n,depl,ybar(1,jp),ps,izs,rzs,dzs)
           r=alpha(jp)-ps
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 120 i=1,n
               depl(i)=depl(i)+r*sbar(i,jp)
 120       continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 200   continue
 
       end subroutine ddd
@@ -672,11 +672,11 @@ module quasiNewton_mod
       if (impres.ge.3) write (io,910) niter,isim,f,hp0
   910 format (" n1qn3: iter ",i3,", simul ",i3, &
               ", f=",d15.8,", h'(0)=",d12.5)
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
       do 101 i=1,n
           gg(i)=g(i)
 101   continue
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
       ff=f
 !
 !     --- recherche lineaire et nouveau point x(k+1)
@@ -763,12 +763,12 @@ module quasiNewton_mod
 !
 !         --- y, s et (y,s)
 !
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 400 i=1,n
               sbar(i,jcour)=t*d(i)
               ybar(i,jcour)=g(i)-gg(i)
 400       continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
           if (impresmax.ge.5) then
               call prosca (n,sbar(1,jcour),sbar(1,jcour),ps,izs,rzs,dzs)
               dk1=dsqrt(ps)
@@ -790,12 +790,12 @@ module quasiNewton_mod
 !         --- ybar et sbar
 !
           d1=dsqrt(1.d+0/ys)
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 410 i=1,n
               sbar(i,jcour)=d1*sbar(i,jcour)
               ybar(i,jcour)=d1*ybar(i,jcour)
   410     continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 !
 !         --- compute the scalar or diagonal preconditioner
 !
@@ -828,11 +828,11 @@ module quasiNewton_mod
                   write (io,934) d1
   934             format(5x,"fitting the ellipsoid: factor = ",d10.3)
               endif
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 421 i=1,n
                   diag(i)=diag(i)*d1
   421         continue
-!$OMP END PARALLEL DO
+              !$OMP END PARALLEL DO
 !
 !             --- update the diagonal
 !                 (gg is used as an auxiliary vector)
@@ -844,7 +844,7 @@ module quasiNewton_mod
   430         continue
               call mmpi_allreduce_sumreal8scalar(ps,"GRID")
               den=ps
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+              !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 431 i=1,n
                   diag(i)=1.d0/ &
                          (1.d0/diag(i)+aux(i)**2-(gg(i)/diag(i))**2/den)
@@ -853,7 +853,7 @@ module quasiNewton_mod
                       diag(i)=rmin
                   endif
   431         continue
-!$OMP END PARALLEL DO
+              !$OMP END PARALLEL DO
   935         format (/" >>> n1qn3-WARNING: diagonal element ",i8, &
                        " is negative (",d10.3,"), reset to ",d10.3)
 !
@@ -910,17 +910,17 @@ module quasiNewton_mod
 !
       if (m.eq.0) then
           preco=2.d0*(ff-f)/(eps1*gnorm)**2
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 500 i=1,n
               d(i)=-g(i)*preco
   500     continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
       else
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
+          !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
           do 510 i=1,n
               d(i)=-g(i)
   510     continue
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
           if (inmemo) then
               call ddd (prosca,dtonb,dtcab,n,sscale,m,d,aux,jmin,jmax, &
                         precos,diag,ybar,sbar,izs,rzs,dzs)
