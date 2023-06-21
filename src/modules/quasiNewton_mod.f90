@@ -1,7 +1,7 @@
 
 
-module quasinewton_mod
-  ! MODULE quasinewton_mod (prefix='qna' category='1. High-level functionality')
+module quasiNewton_mod
+  ! MODULE quasiNewton_mod (prefix='qna' category='1. High-level functionality')
   !
   ! Purpose: The n1qn3 routine, and its supporting subroutines
   !
@@ -1220,4 +1220,4 @@ module quasinewton_mod
   999 continue
       end subroutine nlis0
 
-      end module quasinewton_mod
+end module quasiNewton_mod

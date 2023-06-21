@@ -1,5 +1,5 @@
 
-module  burpRead_mod
+module burpRead_mod
   ! MODULE burpRead_mod (prefix='brpr' category='3. Observation input/output')
   !
   ! :Purpose: To read and update BURP observation files. Data is stored in 

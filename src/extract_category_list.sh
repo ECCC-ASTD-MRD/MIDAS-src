@@ -1,5 +1,5 @@
 
-outputFile='module_categories_new.txt'
+outputFile='module_categories.txt'
 
 # go into modules subdirectory
 cd modules
@@ -37,3 +37,4 @@ for category in $(cat < module_category_list.txt); do
 done
 
 rm module_category_list.txt
+mv $outputFile ../

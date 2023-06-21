@@ -1,6 +1,6 @@
 
 module calcHeightAndPressure_mod
-  ! MODULE czp_calcHeightAndPressure_mod (prefix='czp' category='4. Data Object transformations')
+  ! MODULE calcHeightAndPressure_mod (prefix='czp' category='4. Data Object transformations')
   !
   ! :Purpose: Subroutines for computing height and/or pressure on statevectors
   !           and columns depending on the vgrid kind.

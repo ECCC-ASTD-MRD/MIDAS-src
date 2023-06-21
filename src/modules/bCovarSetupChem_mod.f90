@@ -1,6 +1,6 @@
 
-module BCovarSetupChem_mod 
-  ! MODULE BCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
+module bCovarSetupChem_mod 
+  ! MODULE bCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
   !
   ! :Purpose: Contains routines for the reading and preparation of
   !           background-error covariance elements. Correlation matrices 
@@ -2425,4 +2425,4 @@ module BCovarSetupChem_mod
     
   end function bcsc_retrieveBgStddev
 
-end module BCovarSetupChem_mod
+end module bCovarSetupChem_mod

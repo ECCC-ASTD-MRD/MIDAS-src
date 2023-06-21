@@ -1,6 +1,6 @@
 
-module lamBMatrixHI_mod
-  ! MODULE lamBMatrixHI_mod (prefix='lbhi' category='2. B and R matrices')
+module lamBmatrixHI_mod
+  ! MODULE lamBmatrixHI_mod (prefix='lbhi' category='2. B and R matrices')
   !
   ! :Purpose: Performs transformation from control vector to analysis increment 
   !           using the homogeneous and isotropic background error covariance 
@@ -1750,4 +1750,4 @@ contains
 
   end subroutine lbhi_Finalize
 
-end module lamBMatrixHI_mod
+end module lamBmatrixHI_mod

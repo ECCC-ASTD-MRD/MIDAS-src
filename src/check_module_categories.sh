@@ -12,21 +12,23 @@ thisCategory=""
 allPrevious=""
 categoryNumber=0
 
-while IFS= read -r modNameFile
+cd modules
+
+while IFS= read -r modName
 do
 
     # skip unimportant lines in the file
-    if [[ ${modNameFile} == *"========"* ]]; then
+    if [[ ${modName} == *"========"* ]]; then
        continue
     fi
-    if [[ ${modNameFile} == " *" ]]; then
+    if [[ ${modName} == " *" ]]; then
        continue
     fi
-    if [[ -z ${modNameFile} ]]; then
+    if [[ -z ${modName} ]]; then
        continue
     fi
 
-    if [[ ${modNameFile} == [0-9]* ]]; then
+    if [[ ${modName} == [0-9]* ]]; then
 	# this line is the header for a new category
 
 	let categoryNumber=categoryNumber+1
@@ -38,6 +40,13 @@ do
 	thisCategory=""
     else
 	# this line is a module within the current category
+
+	modNameFile=`grep -il "^ *module *${modName}" *.f*90`
+	if [[ ! -f $modNameFile ]]
+	then
+	    echo "Module name: $modName"
+	    echo "Module file name not found: $modNameFile"
+	fi
 
 	thisCategory="${thisCategory} ${modNameFile}"
 	useList=`grep -i '^ *use .*_mod' ${modNameFile} | awk '{print $2}' | sed 's/,//g' | sort -u`
@@ -51,10 +60,10 @@ do
 		# check if module file appears in any previous (higher-level) category
 		useInPreviousGrep=`echo ${allPrevious} | grep ${useFileName}`
 		if [[ ! -z "${useInPreviousGrep}" ]]; then
-		    echo "OUTOFORDER modNameFile = ${modNameFile}, useFileName = ${useFileName}"
+		    echo "OUTOFORDER modNameFile = ${modNameFile}, modName = ${modName}, useFileName = ${useFileName}"
 		fi
 	    fi
 	done	       
     fi
 
-done < module_categories.txt
+done < ../module_categories.txt
