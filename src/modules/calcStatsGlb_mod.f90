@@ -765,6 +765,10 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Computing vertical modes spectra'
 
+      if (nWaveBand > 1 .or. nVertWaveBand > 1) then
+        call utl_abort('csg_toolbox: waveband decomposition cannot be use when TOOLBOX=VERTMODES_SPEC')
+      end if
+
       call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
                                         vModes)                                   ! OUT
       call vms_writeModes(vModes)
@@ -775,6 +779,10 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Computing vertical-scale decomposed ensemble perturbations'
 
+      if (nVertWaveBand == 1) then
+        call utl_abort('csg_toolbox: please specify a vertical waveband decomposition when TOOLBOX=VERTMODES_WAVEBAND')
+      end if
+      
       call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
                                         vModes)                                    ! OUT
       call vms_writeModes(vModes)
