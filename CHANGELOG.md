@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve clarity/consistency of procedure variable declarations (#837 and !749)
  * Enforce camel case naming convention to all filenames in src (#839 and !746)
    * WARNING: includes changing filename `ObsDBColumnTable.dat` to `obsdbColumTable.dat`
 
