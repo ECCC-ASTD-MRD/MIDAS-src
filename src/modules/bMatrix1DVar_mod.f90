@@ -448,7 +448,7 @@ contains
     integer :: nLevInc_M, nLevInc_T
     integer :: nulmat
     integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
-    integer :: globalCountDumped
+    integer :: globalCountDumped, countDumpedOut
     integer :: tag
     integer, external ::  fnom, fclos, newdate
     real(8) :: logP1, logP2
@@ -818,8 +818,10 @@ contains
           nulmat = 0
           ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
           ierr = newdate(dateStampList(1 + numstep / 2), yyyymmdd, hhmm, -3)
+          countDumpedOut = countDumped
+          if (doAveraging) countDumpedOut = 1
           write(nulmat) yyyymmdd * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
-              vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, nkgdim, countDumped
+              vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, nkgdim, countDumpedOut
           write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
           allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, nkgdim, nkgdim))
           allocate(tempoBmatrix(nkgdim, nkgdim))
@@ -863,9 +865,14 @@ contains
       end do
 
       if (mmpi_myId == 0) then
-        do dumpedIndex = 1, countDumpedMpiGlobal          
-          write(nulmat) outLats(dumpedIndex), outLons(dumpedIndex), outBmatrix(dumpedIndex, :, :)
-        end do
+        if (doAveraging) then
+          write(nulmat) sum(outLats(:))/countDumpedMpiGlobal, sum(outLons(:))/countDumpedMpiGlobal, &
+              sum(outBmatrix(:, :, :),dim=1)/countDumpedMpiGlobal
+        else
+          do dumpedIndex = 1, countDumpedMpiGlobal          
+            write(nulmat) outLats(dumpedIndex), outLons(dumpedIndex), outBmatrix(dumpedIndex, :, :)
+          end do
+        end if
         ierr = fclos(nulmat)
         deallocate(outLats)
         deallocate(outLOns)
