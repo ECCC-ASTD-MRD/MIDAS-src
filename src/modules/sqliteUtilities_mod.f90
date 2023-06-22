@@ -1,6 +1,6 @@
 
 module sqliteUtilities_mod
-  ! MODULE sqliteUtilities (prefix='sqlu' category='3. Observation input/output')
+  ! MODULE sqliteUtilities_mod (prefix='sqlu' category='3. Observation input/output')
   !
   ! :Purpose: A place to collect utilities for SQLite files.
 
@@ -33,13 +33,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
     character(len=*),              intent(in)  :: columnName
+    ! Result:
     logical                                    :: columnExists
 
-    ! locals:
+    ! Locals:
     integer                     :: ierr
     character(len=3000)         :: query, sqliteOutput
     character(len=lenSqlName)   :: upperColumnName
@@ -79,12 +80,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
+    ! Result:
     logical                                    :: tableExists
 
-    ! locals:
+    ! Locals:
     integer                     :: ierr
     logical                     :: finished
     character(len=3000)         :: query, sqliteOutput
@@ -131,13 +133,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*), allocatable, intent(out) :: sqlColumnNames(:)
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
     character(len=*),              intent(in)  :: dataType
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, rowIndex, ierr
     character(len=100), allocatable :: charValues(:,:)
     character(len=200)       :: dataTypeCriteria
@@ -204,14 +206,14 @@ contains
     !
     implicit none
 
-    ! arguments:
-    real(8), allocatable, intent(out) :: columnValues(:,:)
-    character(len=*),     intent(in)  :: sqlColumnNames(:)
-    character(len=*),     intent(in)  :: fileName
-    character(len=*),     intent(in)  :: tableName
-    character(len=*),     intent(in), optional :: extraQuery_opt
+    ! Arguments:
+    real(8), allocatable,       intent(out) :: columnValues(:,:)
+    character(len=*),           intent(in)  :: sqlColumnNames(:)
+    character(len=*),           intent(in)  :: fileName
+    character(len=*),           intent(in)  :: tableName
+    character(len=*), optional, intent(in)  :: extraQuery_opt
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, columnIndex
     character(len=3000)       :: query, extraQuery
     type(fSQL_STATUS)         :: stat ! sqlite error status
@@ -273,13 +275,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=50), allocatable, intent(out) :: columnValues(:,:)
     character(len=*),               intent(in)  :: sqlColumnNames(:)
     character(len=*),               intent(in)  :: fileName
     character(len=*),               intent(in)  :: tableName
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, columnIndex
     character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
@@ -333,14 +335,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, allocatable, intent(out) :: columnDateValues(:)
     integer, allocatable, intent(out) :: columnTimeValues(:)
     character(len=*),     intent(in)  :: sqlColumnName
     character(len=*),     intent(in)  :: fileName
     character(len=*),     intent(in)  :: tableName
 
-    ! locals:
+    ! Locals:
     integer              :: numRows, numColumns, rowIndex
     character(len=20), allocatable :: columnValuesStr(:,:)
     character(len=3000)  :: query
@@ -401,10 +403,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)  :: obsdat
-    character(len=*)  :: obsFamily    
-    integer           :: idObs, idData
-    integer, optional :: codeTypeList_opt(:)
+    type(struct_obs),  intent(inout) :: obsdat
+    character(len=*),  intent(in)    :: obsFamily    
+    integer         ,  intent(out)   :: idObs
+    integer         ,  intent(out)   :: idData
+    integer, optional, intent(in)    :: codeTypeList_opt(:)
 
     ! Locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
@@ -450,12 +453,15 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
-    character(len = *)   :: query
-    ! locals
-    character(len = 256) :: sqlu_query, result
-    logical finished
+    ! Arguments:
+    type(fSQL_DATABASE), intent(inout)  :: db    ! type handle for  SQLIte file
+    character(len=*),    intent(in)     :: query
+    ! Result:
+    character(len=256)   :: sqlu_query
+
+    ! Locals:
+    character(len=256)   :: result
+    logical :: finished
     type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
     type(fSQL_STATUS)    :: stat !type error status
 
@@ -480,8 +486,9 @@ contains
   subroutine sqlu_handleError(stat, message)
     implicit none
 
-    type(FSQL_STATUS)  :: stat
-    character(len = *) :: message
+    ! Arguments:
+    type(FSQL_STATUS), intent(in) :: stat
+    character(len=*),  intent(in) :: message
 
     write(*,*) message, fSQL_errmsg(stat)
     call utl_abort(trim(message))

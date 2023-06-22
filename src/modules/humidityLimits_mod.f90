@@ -137,7 +137,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector
+    type(struct_gsv), intent(inout) :: statevector
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -255,7 +255,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ensemble
+    type(struct_ens), intent(inout) :: ensemble
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -344,9 +344,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),        intent(inout) :: statevector
-    character(len=*), optional, intent(in) :: varName_opt
-    logical,          optional, intent(in) :: applyLimitToCloud_opt
+    type(struct_gsv),           intent(inout) :: statevector
+    character(len=*), optional, intent(in)    :: varName_opt
+    logical,          optional, intent(in)    :: applyLimitToCloud_opt
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -585,9 +585,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens),        intent(inout) :: ensemble
-    character(len=*), optional, intent(in) :: varName_opt
-    logical,          optional, intent(in) :: applyLimitToCloud_opt
+    type(struct_ens),           intent(inout) :: ensemble
+    character(len=*), optional, intent(in)    :: varName_opt
+    logical,          optional, intent(in)    :: applyLimitToCloud_opt
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -800,19 +800,20 @@ contains
     !
     !:Purpose: To perform the vertical interpolation in log of pressure and
     !          and constant value extrapolation of one-dimensional vectors.
+    !
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: press_src(numLev_src) ! Vertical levels, pressure (source)
-    real(8), intent(in) :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
-    real(8), intent(in) :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
-    integer, intent(in) :: numLev_src ! Number of input levels (source)
-    integer, intent(in) :: ni_dest ! Number of profiles
-    integer, intent(in) :: nj_dest ! Number of profiles
-    integer, intent(in) :: numLev_dest ! Number of output levels (destination)
-    real(8)             :: press_dest(:,:,:) ! Vertical levels, pressure (destination)
-    real(8)             :: qmin_dest(:,:,:)  ! Interpolated profiles (destination)
-    real(8)             :: qmax_dest(:,:,:)  ! Interpolated profiles (destination)
+    real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
+    real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
+    real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
+    integer, intent(in)  :: numLev_src ! Number of input levels (source)
+    integer, intent(in)  :: ni_dest ! Number of profiles
+    integer, intent(in)  :: nj_dest ! Number of profiles
+    integer, intent(in)  :: numLev_dest ! Number of output levels (destination)
+    real(8), intent(in)  :: press_dest(:,:,:) ! Vertical levels, pressure (destination)
+    real(8), intent(out) :: qmin_dest(:,:,:)  ! Interpolated profiles (destination)
+    real(8), intent(out) :: qmax_dest(:,:,:)  ! Interpolated profiles (destination)
 
     ! Locals:
     integer :: ji, jk, jo, ii, jj, ik, iorder
@@ -946,6 +947,7 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: varName
+    ! Result:
     real(8)                      :: minValue
 
     ! readNameList runs one time during program execution
@@ -981,6 +983,7 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: varName
+    ! Result:
     real(8)                      :: maxValue
 
     ! readNameList runs one time during program execution
@@ -1016,6 +1019,7 @@ contains
 
     ! Arguments:
     type(struct_ens), intent(in) :: ensemble
+    ! Result:
     logical                      :: cloudExist
     
     ! Locals:
@@ -1042,6 +1046,7 @@ contains
 
     ! Arguments:
     type(struct_gsv), intent(in) :: stateVector
+    ! Result:
     logical                      :: cloudExist
     
     ! Locals:

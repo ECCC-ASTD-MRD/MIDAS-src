@@ -1,6 +1,6 @@
 
 module tovsLin_mod
-  ! MODULE tovsLin (prefix='tvslin' category='5. Observation operators')
+  ! MODULE tovsLin_mod (prefix='tvslin' category='5. Observation operators')
   !
   ! :Purpose: Derived types, public variables and procedures related to the 
   !           tangent-linear and adjoint versions of RTTOV
@@ -46,9 +46,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData  ! obsSpaceData structure
-    type(struct_columnData) :: columnAnlInc        ! column structure for pertubation profile
-    type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
+    type(struct_obs),        intent(inout) :: obsSpaceData         ! obsSpaceData structure
+    type(struct_columnData), intent(in)    :: columnAnlInc         ! column structure for pertubation profile
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev ! column structure for background profile
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
@@ -60,7 +60,6 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,levelIndex,nlv_M,nlv_T
     integer :: profileIndex
     integer :: Vcode
-
     character(len=4) :: ozoneVarName
     logical, allocatable :: surfTypeIsWater(:)
     real(8), pointer :: delTT(:), delHU(:), delP(:)
@@ -487,15 +486,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnAnlInc
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData), intent(inout) :: columnAnlInc
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(in)    :: obsSpaceData
 
-    ! locals
+    ! Locals:
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
-
     integer :: allocStatus(17)
     integer :: omp_get_num_threads, nthreads
     integer :: nobmax
@@ -511,27 +509,22 @@ contains
     real(8), allocatable :: clw_ad(:,:)
     real(8), allocatable :: ciw_ad(:,:), rf_ad(:,:), sf_ad(:,:)
     logical, allocatable :: surfTypeIsWater(:), lchannel_subset(:,:)
-
-    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),  &
-                        tg_column(:),p_column(:),o3_column(:),clw_column(:), &
-                        ciw_column(:), rf_column(:),sf_column(:)
-
+    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:)
+    real(8), pointer :: tg_column(:),p_column(:),o3_column(:),clw_column(:)
+    real(8), pointer :: ciw_column(:), rf_column(:),sf_column(:)
     integer :: btCount
     integer :: max_nthreads
     integer :: instrum
     integer :: btIndex, bodyIndex
-    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
-    
+    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)    
     integer, allocatable :: sensorBodyIndexes(:)
-    integer :: errorStatus 
-    
+    integer :: errorStatus
     real(8), allocatable :: surfem1(:)
     integer, allocatable :: frequencies(:)
     type(rttov_emissivity), pointer :: emissivity_local(:)
     type(rttov_emissivity), pointer :: emissivity_ad(:)
     type(rttov_transmission) :: transmission,transmission_ad
-    type(rttov_radiance) :: radiancedata_ad, radiancedata_d
-    
+    type(rttov_radiance) :: radiancedata_ad, radiancedata_d    
     type(rttov_profile), pointer  :: profilesdata_ad(:) ! ad profiles buffer used in rttov calls
     type(rttov_profile), pointer  :: profiles(:)
     type(rttov_profile_cloud), pointer  :: cld_profiles(:)

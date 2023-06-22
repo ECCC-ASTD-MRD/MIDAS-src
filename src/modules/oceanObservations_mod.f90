@@ -43,19 +43,18 @@ module oceanObservations_mod
                             iceThinning, outputFileName, seaWaterThreshold)
     !
     !:Purpose: to generate pseudo SST data  
-    !           
-   
+    !
     implicit none
     
-    ! Arguments
-    type(struct_hco) , intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco) , intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)          , intent(in)             :: iceFractionThreshold ! consider no ice condition below this threshold
-    real(4)          , intent(in)             :: outputSST            ! output SST value for pseudo observations
-    real(4)          , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
-    integer          , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
-    character(len=*) , intent(in)             :: outputFileName    
-    real(4)          , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    ! Arguments:
+    type(struct_hco), pointer , intent(inout) :: hco                  ! horizontal grid structure
+    type(struct_vco), pointer , intent(in)    :: vco                  ! vertical grid structure
+    real(4)                   , intent(in)    :: iceFractionThreshold ! consider no ice condition below this threshold
+    real(4)                   , intent(in)    :: outputSST            ! output SST value for pseudo observations
+    real(4)                   , intent(in)    :: outputFreshWaterST   ! output fresh water surface temperature for pseudo obs
+    integer                   , intent(in)    :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
+    character(len=*)          , intent(in)    :: outputFileName    
+    real(4)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water  
     
     ! Locals:
     type(struct_gsv)            :: stateVector_ice, stateVector_seaWater
@@ -196,7 +195,7 @@ module oceanObservations_mod
     
     implicit none
     
-    ! Arguments
+    ! Arguments:
     type(struct_obs) , intent(inout) :: obsData            ! obsSpaceData   
     integer          , intent(in)    :: iceDomainIndexes(:)! array of the ice-covered point indexes
     real(4)          , intent(in)    :: iceLons(:)         ! longitudes of sea ice 
@@ -211,7 +210,7 @@ module oceanObservations_mod
     real(4)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water 
     integer          , intent(in)    :: inlandWaterPoints  ! number of inland water points 
      
-    ! Locals
+    ! Locals:
     real(pre_obsReal)           :: obsLon, obsLat
     real(4)                     :: obsValue
     integer                     :: iceIndex, iceDomainDimension, pseudoObsDimension

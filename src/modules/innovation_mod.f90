@@ -55,15 +55,16 @@ contains
        innovationMode_in, obsClean_opt )
     !
     !:Purpose: To initialize the observation parameters and constants
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs)                        :: obsSpaceData
-    type(struct_hco), pointer               :: hco_anl
-    character(len=*)                        :: obsMpiStrategy
-    character(len=*)                        :: obsColumnMode
-    character(len=*), intent(in)            :: innovationMode_in
-    logical,                       optional :: obsClean_opt
+    type(struct_obs),           intent(out) :: obsSpaceData
+    type(struct_hco), pointer,  intent(in)  :: hco_anl
+    character(len=*),           intent(in)  :: obsMpiStrategy
+    character(len=*),           intent(in)  :: obsColumnMode
+    character(len=*),           intent(in)  :: innovationMode_in
+    logical,          optional, intent(in)  :: obsClean_opt
 
     ! Locals:
     character(len=20) :: nameDimFile
@@ -192,19 +193,18 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_columnData)    :: columnTrlOnTrlLev
-    type(struct_obs)           :: obsSpaceData
-    type(struct_hco), pointer  :: hco_core
-    type(struct_gsv)           :: stateVectorUpdateHighRes
-    logical         , optional :: deallocInterpInfoNL_opt
+    ! Arguments:
+    type(struct_columnData),   intent(out)   :: columnTrlOnTrlLev
+    type(struct_obs),          intent(inout) :: obsSpaceData
+    type(struct_hco), pointer, intent(in)    :: hco_core
+    type(struct_gsv),          intent(inout) :: stateVectorUpdateHighRes
+    logical        , optional, intent(in)    :: deallocInterpInfoNL_opt
 
-    ! locals
+    ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
-
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     integer           :: numObsBatches      ! number of batches for calling interp setup
 
@@ -286,12 +286,14 @@ contains
   subroutine inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
+    !
     implicit none
 
-    ! arguments
-    type(struct_columnData) :: columnTrlOnAnlIncLev, columnTrlOnTrlLev
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
 
-    ! locals
+    ! Locals:
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
@@ -424,18 +426,19 @@ contains
                                     analysisMode_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
+    !
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical, optional       :: filterObsAndInitOer_opt
-    logical, optional       :: applyVarqcOnNlJo_opt
-    integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
-    logical, optional       :: beSilent_opt
-    logical, optional       :: callFiltTopo_opt ! whether to make call to FiltTopo
-    logical, optional       :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
-    logical, optional       :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical, optional      , intent(in)    :: filterObsAndInitOer_opt
+    logical, optional      , intent(in)    :: applyVarqcOnNlJo_opt
+    integer, optional      , intent(in)    :: destObsColumn_opt ! column where result stored, default is OBS_OMP
+    logical, optional      , intent(in)    :: beSilent_opt
+    logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
+    logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
+    logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
     
     ! Locals:
     real(8) :: Jo
@@ -648,6 +651,7 @@ contains
     !
     !:Purpose: To distribute header indices following the chosen strategy,
     !          current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES".
+    !
     implicit none
 
     ! Arguments:
@@ -659,10 +663,10 @@ contains
     real(8) :: lat_r8, lon_r8
     real    :: lat_r4, lon_r4
     real    :: xpos_r4, ypos_r4
-
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
     integer :: gdxyfll
+
     !
     !- Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
     !
@@ -753,9 +757,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer :: numAnalyses,indexAnalysis,indexBatch
-    integer :: obs_column_index_src,obs_column_index_dest
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer,          intent(in)    :: numAnalyses
+    integer,          intent(in)    :: indexAnalysis
+    integer,          intent(in)    :: indexBatch
+    integer,          intent(in)    :: obs_column_index_src
+    integer,          intent(in)    :: obs_column_index_dest
 
     ! Locals:
     integer :: numPerturbations
@@ -847,11 +854,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco_trl
     type(struct_vco), pointer, intent(inout) :: vco_trl
 
-    ! locals
+    ! Locals:
     character(len=4), pointer :: anlVar(:)
 
     write(*,*) 'inn_getHcoVcoFromTrlmFile: START'

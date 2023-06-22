@@ -36,12 +36,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs), intent(inout) :: lobsSpaceData
 
     ! Locals:
     integer :: bodyIndex
 
-!$OMP PARALLEL DO PRIVATE(bodyIndex)
+    !$OMP PARALLEL DO PRIVATE(bodyIndex)
     do bodyIndex=1,obs_numbody(lobsSpaceData)
 
       if ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
@@ -54,7 +54,7 @@ contains
       end if
 
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine cfn_calcJo
 
@@ -69,9 +69,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: lobsSpaceData
-    real(8), intent(out) :: pjo ! Total observation cost function
-    logical, optional :: beSilent_opt
+    type(struct_obs),    intent(in)  :: lobsSpaceData
+    real(8),             intent(out) :: pjo ! Total observation cost function
+    logical, optional,   intent(in) :: beSilent_opt
 
     ! Locals:
     integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
@@ -367,6 +367,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
@@ -409,8 +410,6 @@ contains
     !          prescribed on different lines.
     !
     implicit none
-
-    ! Arguments:
 
     ! Locals:
     integer :: channelIndex

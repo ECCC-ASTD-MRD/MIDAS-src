@@ -30,8 +30,10 @@ contains
     !
     implicit none
 
+    ! Arguments:
     integer, intent(in)   :: seed
 
+    ! Locals:
     integer, dimension(1) :: seeds
     type(RANDOM_STREAM) :: null_stream
 
@@ -62,7 +64,8 @@ contains
     !          with zero mean and unit variance
     !
     implicit none
-    
+
+    ! Result:
     real(8) :: randomNumberGaussian
 
     randomNumberGaussian = DRan_gaussian_stream(randomStream)
@@ -76,7 +79,8 @@ contains
     !:Purpose: Returns a random deviate between 0.0 and 1.0.
     !
     implicit none
-        
+
+    ! Result:
     real(8) :: randomNumberUniform
     
     randomNumberUniform = DRan_generic_stream(randomStream)

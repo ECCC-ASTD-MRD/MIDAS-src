@@ -1,6 +1,6 @@
 
 module calcHeightAndPressure_mod
-  ! MODULE czp_calcHeightAndPressure (prefix='czp' category='4. Data Object transformations')
+  ! MODULE calcHeightAndPressure_mod (prefix='czp' category='4. Data Object transformations')
   !
   ! :Purpose: Subroutines for computing height and/or pressure on statevectors
   !           and columns depending on the vgrid kind.
@@ -128,10 +128,10 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* fields
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector  ! statevector that will contain the Z_*/P_* fields
 
-    ! Locals
+    ! Locals:
     integer                   :: Vcode
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
@@ -175,14 +175,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
-    ! Locals
+    ! Locals:
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
-
 
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
@@ -243,14 +242,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
-    ! Locals
+    ! Locals:
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
-
 
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
@@ -303,12 +301,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
-
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
     real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
@@ -389,7 +386,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(4), optional, pointer, intent(in)    :: PTin_r4_opt(:,:,:,:)
     real(4), optional, pointer, intent(in)    :: PMin_r4_opt(:,:,:,:)
@@ -400,7 +397,7 @@ contains
     real(8), optional, pointer, intent(inout) :: ZTout_r8_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: ZMout_r8_opt(:,:,:,:)
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
@@ -463,12 +460,12 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),  intent(in)    :: statevector
     real(4), pointer,  intent(inout) :: Z_T(:,:,:,:)
     real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
-    ! Locals
+    ! Locals:
     integer ::  numStep, stepIndex
     real(kind=8), pointer       :: Hsfc(:,:)
     real(kind=4), allocatable   :: Hsfc4(:,:)
@@ -512,12 +509,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    real(kind=4), allocatable           :: alt(:,:,:)
+    ! Arguments:
     type(struct_gsv),      intent(in)   :: statevector
     real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
+    ! Result:
+    real(kind=4), allocatable           :: alt(:,:,:)
 
-    ! Locals
+    ! Locals:
     integer                             :: nLon, nLat, nLev
     type(struct_hco), pointer           :: hco
     real(kind=4)                        :: latitude
@@ -564,12 +562,12 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),  intent(in)    :: statevector
     real(8), pointer,  intent(inout) :: Z_T(:,:,:,:)
     real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
-    ! Locals
+    ! Locals:
     integer ::  numStep, stepIndex
     real(kind=8), pointer   :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
 
@@ -601,12 +599,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    real(kind=8), allocatable           :: alt(:,:,:)
+    ! Arguments:
     type(struct_gsv),      intent(in)   :: statevector
     real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
+    ! Result:
+    real(kind=8), allocatable           :: alt(:,:,:)
 
-    ! Locals
+    ! Locals:
     integer                             :: nLon, nLat, nLev
     type(struct_hco), pointer           :: hco
     real(kind=8)                        :: latitude
@@ -663,7 +662,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:)
     real(4), pointer, optional, intent(in)    :: PMin_r4_opt(:,:,:,:)
@@ -674,7 +673,7 @@ contains
     real(8), pointer, optional, intent(inout) :: ZTout_r8_opt(:,:,:,:)
     real(8), pointer, optional, intent(inout) :: ZMout_r8_opt(:,:,:,:)
 
-    ! Locals
+    ! Locals:
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
     integer ::  numStep, stepIndex, latIndex,lonIndex
     real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
@@ -683,15 +682,12 @@ contains
     real(8) ::  P_M, P_M1, P_Mm1, P_T
     real(8) ::  hu, tt, Pr, cmp, h0, Rgh, P0, dh, rMt
     real(8) ::  sLat, cLat, lat_8
-
     real(8), allocatable :: tv(:), height_T(:), height_M(:)
-
     real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
     real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
     real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
     real(4), pointer     :: P0_ptr_r4(:,:,:,:)
-
     real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
     real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
     real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
@@ -1018,11 +1014,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: statevectorRef
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
@@ -1074,7 +1070,7 @@ contains
       subroutine calcHeight_gsv_tl_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         integer ::  lev_M,lev_T,nlev_M,nlev_T,Vcode_anl
         integer ::  numStep,stepIndex, latIndex,lonIndex
         real(8) :: ScaleFactorBottom, ScaleFactorTop
@@ -1290,11 +1286,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: statevectorRef
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
@@ -1346,7 +1342,7 @@ contains
       subroutine calcHeight_gsv_ad_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         integer ::  lev_M,lev_T,nlev_M,nlev_T
         integer ::  numStep,stepIndex,latIndex,lonIndex
         real(8) ::  ScaleFactorBottom, ScaleFactorTop
@@ -1629,13 +1625,12 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, optional, intent(in)   :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
+    ! Arguments:
+    type(struct_gsv),  intent(inout) :: statevector
+    logical, optional, intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
-
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
     real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
@@ -1720,7 +1715,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(4), optional, pointer, intent(in)    :: ZTin_r4_opt(:,:,:,:)
     real(4), optional, pointer, intent(in)    :: ZMin_r4_opt(:,:,:,:)
@@ -1732,7 +1727,7 @@ contains
     real(8), optional, pointer, intent(inout) :: PMout_r8_opt(:,:,:,:)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
@@ -1799,7 +1794,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(4), pointer, optional, intent(in)    :: ZTin_r4_opt(:,:,:,:)
     real(4), pointer, optional, intent(in)    :: ZMin_r4_opt(:,:,:,:)
@@ -1810,24 +1805,20 @@ contains
     real(8), pointer, optional, intent(inout) :: PTout_r8_opt(:,:,:,:)
     real(8), pointer, optional, intent(inout) :: PMout_r8_opt(:,:,:,:)
 
-    ! Locals
+    ! Locals:
     integer ::  stepIndex, latIndex, lonIndex, numStep
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status
-
     real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
     real(4) ::  lat_4
     real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_M, Z_M1, logP
     real(8) ::  sLat, cLat, lat_8
     real(8) ::  ScaleFactorBottom
-
     real(8), allocatable :: tv(:),  pressure_T(:), pressure_M(:)
-
     real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
     real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
     real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
     real(4), pointer     :: P0_ptr_r4(:,:,:,:)
-
     real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
     real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
     real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
@@ -2045,13 +2036,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(8),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
-    ! Locals
+    ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:), PsfcLS(:,:)
     real(kind=8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
@@ -2111,13 +2102,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     real(4),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
-    ! Locals
+    ! Locals:
     real(kind=4), allocatable   :: Psfc(:,:), PsfcLS(:,:)
     real(kind=4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
@@ -2178,11 +2169,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
@@ -2226,7 +2217,7 @@ contains
       subroutine calcPressure_gsv_tl_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         real(8), allocatable  :: Psfc(:,:)
         real(4), pointer      :: delPsfc_r4(:,:,:,:)
         real(8), pointer      :: delPsfc_r8(:,:,:,:)
@@ -2360,11 +2351,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector    ! statevector that will contain increment of P_T/P_M
     type(struct_gsv), intent(in)    :: statevectorRef ! statevector containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
@@ -2408,7 +2399,7 @@ contains
       subroutine calcPressure_gsv_ad_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         real(8), allocatable     :: Psfc(:,:)
         real(4), pointer         :: delPsfc_r4(:,:,:,:)
         real(8), pointer         :: delPsfc_r8(:,:,:,:)
@@ -2550,10 +2541,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_*/P_* fields
 
-    ! Locals
+    ! Locals:
     integer   :: Vcode
 
     call msg('calcZandP_col_nl (czp)', 'START', verb_opt=2)
@@ -2590,11 +2581,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer   :: Vcode
 
     call msg('calcZandP_col_tl (czp)', 'START', verb_opt=2)
@@ -2634,13 +2625,12 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer   :: Vcode
-
 
     call msg('calcZandP_col_ad (czp)', 'START', verb_opt=2)
 
@@ -2677,10 +2667,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
 
-    ! Locals
+    ! Locals:
     real(8), pointer  ::  Z_T(:,:), Z_M(:,:)
 
     call msg('calcHeight_col_nl (czp)', 'START', verb_opt=2)
@@ -2706,12 +2696,12 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
-    ! Locals
+    ! Locals:
     integer :: vcode
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
@@ -2740,12 +2730,12 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
-    ! Locals
+    ! Locals:
     real(8), allocatable  :: hSfc(:,:)
     real(8), pointer      :: hPtrM(:,:,:), hPtrT(:,:,:)
     integer :: numCol, colIndex
@@ -2782,10 +2772,10 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
     ! Developement notes (@mad001)
     !   Null subroutine, no computation needed at time of writing.
@@ -2798,7 +2788,7 @@ contains
 
     ! to prevent 'variable not used' remark
     if (.false.) then
-      call col_zero(column)
+      write(*,*) column%nk
       Z_T = 0.0
       Z_M = 0.0
     end if
@@ -2814,11 +2804,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout)  :: columnInc
     type(struct_columnData), intent(in)     :: columnIncRef
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
@@ -2870,7 +2860,7 @@ contains
       subroutine calcHeight_col_tl_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         integer :: lev_M,lev_T,nlev_M,nlev_T,colIndex,numColumns
         real(8) :: ScaleFactorBottom, ScaleFactorTop
         real(8), allocatable :: delThick(:,:)
@@ -3024,11 +3014,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc
-    type(struct_columnData), intent(in) :: columnIncRef
+    type(struct_columnData), intent(in)    :: columnIncRef
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
@@ -3080,7 +3070,7 @@ contains
       subroutine calcHeight_col_ad_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         integer :: lev_M,lev_T,nlev_M,nlev_T,numColumns,colIndex
         real(8) :: ScaleFactorBottom, ScaleFactorTop
         real(8), allocatable :: delThick(:,:)
@@ -3302,10 +3292,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout)  :: column
 
-    ! Locals
+    ! Locals:
     real(8), pointer  ::  P_T(:,:), P_M(:,:)
 
     call msg('calcPressure_col_nl (czp)', 'START', verb_opt=2)
@@ -3331,12 +3321,12 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call msg('czp_calcReturnPressure_col_nl (czp)', 'START', verb_opt=2)
@@ -3373,12 +3363,12 @@ contains
     !   (@mab001) Also should remove need for `Z_T/M` to be allocated in column
     !   and use local array instead.
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
-    ! Locals
+    ! Locals:
     real(8), allocatable  :: tv(:)
     integer :: numCol, nLev_T, nLev_M
     integer :: colIndex, lev_T, lev_M
@@ -3482,12 +3472,12 @@ contains
   subroutine calcPressure_col_nl_vcode5xxx(column, P_T, P_M)
     implicit none
 
-    ! Arguments
-    type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
-    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column   ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! computed column pressure values on momentum levels
 
-    ! Locals
+    ! Locals:
     real(kind=8), allocatable :: Psfc(:,:), PsfcLS(:,:)
     real(kind=8), pointer     :: zppobsM(:,:,:), zppobsT(:,:,:)
     integer :: headerIndex, Vcode
@@ -3544,11 +3534,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call msg('calcPressure_col_tl (czp)', 'START', verb_opt=2)
@@ -3589,7 +3579,7 @@ contains
       subroutine calcPressure_col_tl_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         real(8)          :: Psfc
         real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
         real(8), pointer :: delP_T(:,:), delP_M(:,:)
@@ -3664,11 +3654,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of P_M/P_T
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    ! Locals
+    ! Locals:
     integer :: Vcode
 
     call msg('calcPressure_col_ad (czp)', 'START', verb_opt=2)
@@ -3709,7 +3699,7 @@ contains
       subroutine calcPressure_col_ad_vcode5xxx
         implicit none
 
-        ! Locals
+        ! Locals:
         real(8)          :: Psfc
         real(8), pointer :: delPsfc(:,:), PsfcRef(:,:)
         real(8), pointer :: delP_T(:,:), delP_M(:,:)
@@ -3791,14 +3781,14 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
-    real(8),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(8), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
-    real(8), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
-    real(8), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+    ! Arguments:
+    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(8), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(8), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(8), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
-    ! Locals
+    ! Locals:
     integer :: status
 
     if ( minval(sfcFld) <=0 ) then
@@ -3858,14 +3848,14 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
-    real(4),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(4), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
-    real(4), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
-    real(4), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+    ! Arguments:
+    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    real(4),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(4), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(4), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(4), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
-    ! Locals
+    ! Locals:
     integer :: status
 
     if ( minval(sfcFld) <=0 ) then
@@ -3925,13 +3915,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_vco),  intent(in)             :: vco          ! Vertical descriptor
-    real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
-    real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
-    real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
+    ! Arguments:
+    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
+    real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
+    real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
 
-    ! Locals
+    ! Locals:
     integer :: status
 
     if ( sfcValue <=0 ) then
@@ -3972,13 +3962,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_vco),  intent(in)             :: vco          ! Vertical descriptor
-    real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
-    real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
-    real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
+    ! Arguments:
+    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
+    real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
+    real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
 
-    ! Locals
+    ! Locals:
     integer :: status
 
     if ( sfcValue <=0 ) then
@@ -4092,10 +4082,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(in) :: statevector
 
-    ! Locals
+    ! Locals:
     integer :: lev_T,nlev_M,nlev_T,numStep,stepIndex,latIndex,lonIndex,Vcode
     real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
     real(4) :: lat_4
@@ -4104,7 +4094,6 @@ contains
     real(8), pointer :: P_T_ptr(:,:,:,:),P_M_ptr(:,:,:,:)
     real(8), pointer :: height_T_ptr(:,:,:,:)
     type(struct_vco), pointer :: vco
-
     logical, save :: firstTimeHeightCoeff_gsv = .true.
 
     if ( .not. firstTimeHeightCoeff_gsv ) return
@@ -4348,10 +4337,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(in) :: column
 
-    ! Locals
+    ! Locals:
     integer :: lev_T,nlev_M,nlev_T,numColumns,colIndex,Vcode
     real(8) :: hu,tt,Pr,height_T,cmp,cmp_TT,cmp_HU,cmp_P0_1,cmp_P0_2,ratioP1
     real(8) :: Rgh, sLat, lat_8
@@ -4359,7 +4348,6 @@ contains
     real(8), pointer :: P_T_ptr(:,:),P_M_ptr(:,:)
     real(8), pointer :: height_T_ptr(:,:)
     type(struct_vco), pointer :: vco
-
     logical, save :: firstTimeHeightCoeff_col = .true.
 
     if ( .not. firstTimeHeightCoeff_col ) return
@@ -4549,14 +4537,14 @@ contains
   function gpscompressibility(p,t,q)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(in)  :: p
     real(8), intent(in)  :: t
     real(8), intent(in)  :: q
-
-    ! Locals
+    ! Result:
     real(8)              :: gpscompressibility
 
+    ! Locals:
     real(8), parameter   :: a0= 1.58123D-6
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
@@ -4566,7 +4554,6 @@ contains
     real(8), parameter   :: c1=-2.376D-6
     real(8), parameter   :: d = 1.83D-11
     real(8), parameter   :: e =-0.765D-8
-
     real(8)         :: x,tc,pt,tc2,x2
 
     if ( t <= 0 ) call utl_abort('gpscompressibility: t <= 0')
@@ -4587,14 +4574,14 @@ contains
   function gpscompressibility_TT(p,t,q)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(in)  :: p
     real(8), intent(in)  :: t
     real(8), intent(in)  :: q
-
-    ! Locals
+    ! Result:
     real(8)              :: gpscompressibility_TT
 
+    ! Locals:
     real(8), parameter   :: a0= 1.58123D-6
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
@@ -4604,7 +4591,6 @@ contains
     real(8), parameter   :: c1=-2.376D-6
     real(8), parameter   :: d = 1.83D-11
     real(8), parameter   :: e =-0.765D-8
-
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
@@ -4633,14 +4619,14 @@ contains
   function gpscompressibility_HU(p,t,q)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(in)  :: p
     real(8), intent(in)  :: t
     real(8), intent(in)  :: q
-
-    ! Locals
+    ! Result:
     real(8)              :: gpscompressibility_HU
 
+    ! Locals:
     real(8), parameter   :: a0= 1.58123D-6
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
@@ -4650,7 +4636,6 @@ contains
     real(8), parameter   :: c1=-2.376D-6
     real(8), parameter   :: d = 1.83D-11
     real(8), parameter   :: e =-0.765D-8
-
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
@@ -4680,15 +4665,15 @@ contains
     ! gpscompressibility_P0_1 has dpdp0 dependency
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(in)  :: p
     real(8), intent(in)  :: t
     real(8), intent(in)  :: q
     real(8), intent(in)  :: dpdp0
-
-    ! Locals
+    ! Result:
     real(8)              :: gpscompressibility_P0_1
 
+    ! Locals:
     real(8), parameter   :: a0= 1.58123D-6
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
@@ -4698,7 +4683,6 @@ contains
     real(8), parameter   :: c1=-2.376D-6
     real(8), parameter   :: d = 1.83D-11
     real(8), parameter   :: e =-0.765D-8
-
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
@@ -4727,14 +4711,14 @@ contains
     ! gpscompressibility_P0_2 has NO dpdp0 dependency
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(in)  :: p
     real(8), intent(in)  :: t
     real(8), intent(in)  :: q
-
-    ! Locals
+    ! Result:
     real(8)              :: gpscompressibility_P0_2
 
+    ! Locals:
     real(8), parameter   :: a0= 1.58123D-6
     real(8), parameter   :: a1=-2.9331D-8
     real(8), parameter   :: a2= 1.1043D-10
@@ -4744,7 +4728,6 @@ contains
     real(8), parameter   :: c1=-2.376D-6
     real(8), parameter   :: d = 1.83D-11
     real(8), parameter   :: e =-0.765D-8
-
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_tc2,d_x2
 

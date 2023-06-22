@@ -58,18 +58,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer :: vco_anl
-    type(struct_hco), pointer :: hco_anl
-    type(struct_hco), pointer :: hco_core
+    type(struct_vco), pointer, intent(in) :: vco_anl
+    type(struct_hco), pointer, intent(in) :: hco_anl
+    type(struct_hco), pointer, intent(in) :: hco_core
 
     ! Locals:
     integer, allocatable :: cvDimPerInstance(:)
     integer :: cvdim
     integer :: masterBmatIndex, bMatInstanceIndex, nBmatInstance, bmatIndex
-
     character(len=2) :: bMatInstanceIndexString
     character(len=3) :: bMatExtraLabel
-
     logical :: active
 
     call utl_tmg_start(50,'--Bmatrix')
@@ -225,14 +223,14 @@ contains
     !
     implicit none
 
-    ! arguments
-    integer                    :: cvdim
-    real(8)                    :: controlVector(cvdim)
-    type(struct_gsv)           :: statevector
-    logical, optional          :: useFSOFcst_opt
-    type(struct_gsv), optional :: stateVectorRef_opt
+    ! Arguments:
+    integer                   , intent(in)    :: cvdim
+    real(8)                   , intent(in)    :: controlVector(cvdim)
+    type(struct_gsv)          , intent(inout) :: statevector
+    logical, optional         , intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
@@ -333,14 +331,14 @@ contains
     !
     implicit none
 
-    ! Arguments
-    integer :: cvdim
-    real(8) :: controlVector(cvdim)
-    type(struct_gsv) :: statevector
-    logical,optional :: useFSOFcst_opt
-    type(struct_gsv), optional :: stateVectorRef_opt
+    ! Arguments:
+    integer ,                   intent(in)    :: cvdim
+    real(8) ,                   intent(inout) :: controlVector(cvdim)
+    type(struct_gsv),           intent(in)    :: statevector
+    logical,optional,           intent(in)    :: useFSOFcst_opt
+    type(struct_gsv), optional, intent(in)    :: stateVectorRef_opt
 
-    ! Locals
+    ! Locals:
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
@@ -450,11 +448,11 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(out) :: cv_mpilocal(:)
-    real(8), intent(in)  :: cv_mpiglobal(:)
+    ! Arguments:
+    real(8), intent(inout) :: cv_mpilocal(:)
+    real(8), intent(in)    :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(8), target  :: dummyVector(1)
@@ -513,11 +511,11 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(4), intent(out) :: cv_mpilocal(:)
-    real(4), intent(in)  :: cv_mpiglobal(:)
+    ! Arguments:
+    real(4), intent(inout) :: cv_mpilocal(:)
+    real(4), intent(in)    :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(4), target  :: dummyVector_r4(1)
@@ -577,11 +575,11 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in)  :: cv_mpilocal(:)
-    real(8), intent(out) :: cv_mpiglobal(:)
+    ! Arguments:
+    real(8), intent(in)    :: cv_mpilocal(:)
+    real(8), intent(inout) :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(8), target  :: dummyVector(1)
@@ -640,11 +638,11 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(4), intent(in)  :: cv_mpilocal(:)
-    real(4), intent(out) :: cv_mpiglobal(:)
+    ! Arguments:
+    real(4), intent(in)    :: cv_mpilocal(:)
+    real(4), intent(inout) :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(4), target  :: dummyVector_r4(1)

@@ -1,6 +1,6 @@
 
-module BCovarSetupChem_mod 
-  ! MODULE BCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
+module bCovarSetupChem_mod 
+  ! MODULE bCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
   !
   ! :Purpose: Contains routines for the reading and preparation of
   !           background-error covariance elements. Correlation matrices 
@@ -166,13 +166,13 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Arguments
-    type(struct_hco), intent(in), pointer :: hco_in
-    type(struct_vco), intent(in), pointer :: vco_in
-    logical, intent(out)     :: covarNeeded
-    character(len=*), intent(in) :: mode ! 'Analysis' or 'BackgroundCheck'
+    ! Arguments:
+    type(struct_hco), pointer, intent(in)  :: hco_in
+    type(struct_vco), pointer, intent(in)  :: vco_in
+    logical,                   intent(out) :: covarNeeded
+    character(len=*),          intent(in)  :: mode ! 'Analysis' or 'BackgroundCheck'
 
-    !Locals
+    ! Locals:
     integer :: nulnam, ierr, fnom, fclos
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
@@ -452,10 +452,10 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(out) :: scaleFactorOut(:,:) ! Error std. dev. scale factor
 
-    !Locals
+    ! Locals:
     integer :: levelIndex,varIndex
 
     do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
@@ -475,7 +475,7 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: ierr, fnom, fstouv, fstfrm, fclos
     logical :: lExists
     character(len=12) :: bFileName = './bgchemcov'
@@ -529,7 +529,7 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: lonIndex, latIndex, varIndex, levelIndex, nlev, nulsig
     integer :: ierr, fnom, fstouv, fstfrm, fclos
   
@@ -591,7 +591,7 @@ module BCovarSetupChem_mod
     ! Based on bhi_readcorns2.
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: jn,ierr,varIndex,varIndex2
     integer :: jcol,jrow,jstart,jnum,jstart2,jnum2
     real(8), allocatable, dimension(:) :: zstdsrc
@@ -789,7 +789,7 @@ module BCovarSetupChem_mod
   subroutine bcsc_convol
     implicit none
 
-    !Locals
+    ! Locals:
     real(8) :: dlfact2,dlc,dsummed
     real(8) :: dtlen,zr,dlfact
     integer :: jn,latIndex,jk,varIndex,levelIndex,nsize,ierr
@@ -797,7 +797,6 @@ module BCovarSetupChem_mod
     real(8) :: zsp(0:bgStats%ntrunc,bgStats%nkgdim)
     real(8) :: zgr(bgStats%nj,bgStats%nkgdim)
     real(8) :: zrmu(bgStats%nj)
-
     integer :: nlev_MT,ini,inj,ink,nulcorns
     real(8), allocatable :: wtemp(:,:,:)    
     real(8), allocatable :: hcorrel(:,:,:),hdist(:)
@@ -1057,10 +1056,9 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: ikey
     real(8) :: rcoord(10000)
-    
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1128,13 +1126,12 @@ module BCovarSetupChem_mod
   subroutine bcsc_rdspstd
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: varIndex,jn,inix,injx,inkx
     integer :: ikey, levelIndexo, firstn,lastn
     real(8) :: zsp(0:bgStats%ntrunc,max(nlev_M,nlev_T))
     real(8) :: zspbuf(max(nlev_M,nlev_T))
     real(8) :: zgr(bgStats%nj,max(nlev_M,nlev_T))
-   
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1216,13 +1213,12 @@ module BCovarSetupChem_mod
   subroutine bcsc_rdspstd_newfmt
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: varIndex,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,levelIndexo
     real(8) :: zsp(0:bgStats%ntrunc,max(nlev_M,nlev_T))
     real(8), allocatable :: zspbuf(:)
     real(8) :: zgr(bgStats%nj,max(nlev_M,nlev_T))
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1316,11 +1312,10 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: varIndex,in
     integer :: ikey
     real(8), allocatable :: stddev3d(:,:,:)
-    
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1329,7 +1324,6 @@ module BCovarSetupChem_mod
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: fstinf
-    
     real(8), allocatable  :: vlev(:),vlevout(:)
 
     stddev(:,:,:) = 0.0d0
@@ -1397,15 +1391,14 @@ module BCovarSetupChem_mod
     !
     ! :Purpose: To read 3D stddev.
     !
-    ! Originally based on bcsc_rdspstd_newfmt
+    !           Originally based on bcsc_rdspstd_newfmt
     !
     implicit none
 
-    !Locals
+    ! Locals:
     integer :: varIndex
     integer :: ikey,levelIndexo
     real(8), allocatable :: stddev3d(:,:,:)
-    
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1414,7 +1407,6 @@ module BCovarSetupChem_mod
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: fstinf
-
     real(8) :: vlev(1),vlevout(1)
 
     stddev(:,:,:) = 0.0d0
@@ -1492,14 +1484,12 @@ module BCovarSetupChem_mod
   subroutine bcsc_sucorns2
     implicit none
 
-    !Locals
+    ! Locals:
     real(8) :: eigenval(bgStats%nkgdim)
     real(8) :: eigenvalsqrt(bgStats%nkgdim)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
-
     integer :: jn,jk1,jk2,varIndex,ierr
     integer :: ilwork,info,jnum,jstart,nsize
-
     real(8) :: zwork(2*4*bgStats%nkgdim)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
@@ -1645,17 +1635,14 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Locals
+    ! Locals:
     real(8) :: eigenval(bgStats%nkgdim)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
-
     integer :: jn,jk1,jk2,varIndex,numvartot,jstart
     integer :: ilwork,info,jnum,nvlev,ierr
-
     real(8) :: zwork(2*4*bgStats%nkgdim)
     real(8) :: eigenvalmax
     integer iulcorvert
-    
     ! Standard file variables
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1796,13 +1783,13 @@ module BCovarSetupChem_mod
   
     implicit none
 
-    !Arguments
+    ! Arguments:
     character(len=*), intent(in) :: cletiket
-    integer, intent(in) :: nmat,nlev
+    integer,          intent(in) :: nmat
+    integer,          intent(in) :: nlev
 
-    !Locals
+    ! Locals:
     integer :: jn, nulcorns,ierr,varIndex,jstart,jnum,numvartot
-
     ! standard file variables
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
@@ -1881,15 +1868,14 @@ module BCovarSetupChem_mod
 
     implicit none
 
-    !Arguments
-    logical, intent(out) :: lfound(:)
-    integer, intent(in) :: nmat
-    character(len=*), intent(in) :: cletiket
+    ! Arguments:
+    logical,          intent(out) :: lfound(:)
+    integer,          intent(in)  :: nmat
+    character(len=*), intent(in)  :: cletiket
 
-    !Locals
+    ! Locals:
     integer :: jn, icornskey,varIndex,jnum,jstart,numvartot
     real(8), allocatable :: zcornssrc(:,:)
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1975,12 +1961,14 @@ module BCovarSetupChem_mod
   ! gaspariCohn
   !--------------------------------------------------------------------------
   function gaspariCohn(ztlen,zr)
+    implicit none
 
-    !Arguments
-    real(8) :: gasparicohn
+    ! Arguments:
     real(8), intent(in) :: ztlen,zr
-    
-    !Locals
+    ! Result:
+    real(8) :: gasparicohn
+
+    ! Locals:
     real(8)  :: zlc
 
     zlc = ztlen/2.0d0
@@ -2027,12 +2015,9 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Arguments
-    type(struct_bcsc_bgStats), intent(out) :: bgStatsOut  ! Structure with covariance elements
-
-    ! Analysis variable transform prefix (*) of transforms *CH_tlm, *CH_ad,
-    ! *CH_ens applicable via routine gvt_transform
-    character(len=20), intent(out), optional :: TransformVarKind_opt  
+    ! Arguments:
+    type(struct_bcsc_bgStats),  intent(out) :: bgStatsOut           ! Structure with covariance elements
+    character(len=*), optional, intent(out) :: TransformVarKind_opt ! Name of variable transform to apply to chemistry variables
 			 
     if (present(TransformVarKind_opt)) TransformVarKind_opt=TransformVarKindCH
 
@@ -2057,13 +2042,13 @@ module BCovarSetupChem_mod
     !
     implicit none
     
-    !Arguments
-    integer, intent(in) :: nlev_T    ! Number of vertical levels for trial fields
-    real(8), intent(in), pointer :: vlev_T(:) ! Trial field vertical levels
-      
+    ! Arguments:
+    integer,          intent(in) :: nlev_T    ! Number of vertical levels for trial fields
+    real(8), pointer, intent(in) :: vlev_T(:) ! Trial field vertical levels
+
+    ! Locals:
     integer :: ilev1,ilev2,j,d1,d2
     real(8) :: dz
-
     real(8), allocatable :: wtemp(:,:,:)
         
     d2=0 
@@ -2172,8 +2157,8 @@ module BCovarSetupChem_mod
     !
     implicit none
 
-    !Arguments
-    character(len=4), intent(in) :: varName
+    ! Arguments:
+    character(len=*), intent(in) :: varName
 
     if (allocated(bgStats%varNameList)) then
       if (any(bgStats%varNameList(:) == varName)) then
@@ -2197,12 +2182,12 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName ! Variable name
-    integer, intent(in) :: maxsize  ! Max array size
-    real(8), intent(in) :: xlat     ! Target latitude
-    real(8), intent(in) :: xlong    ! Target longitude
-    real(8), intent(out) :: stddevOut(:) ! Error std. dev.
-    real(8), intent(in), optional :: vlev_opt(:) ! Target vertical levels
+    character(len=*),  intent(in)  :: varName ! Variable name
+    integer,           intent(in)  :: maxsize  ! Max array size
+    real(8),           intent(in)  :: xlat     ! Target latitude
+    real(8),           intent(in)  :: xlong    ! Target longitude
+    real(8),           intent(out) :: stddevOut(:) ! Error std. dev.
+    real(8), optional, intent(in)  :: vlev_opt(:) ! Target vertical levels
     
     ! Locals:
     integer :: varIndex,latIndex,lonIndex,levIndex,nlev,startPosition
@@ -2210,7 +2195,6 @@ module BCovarSetupChem_mod
     real(8) :: stddev_max
     integer :: ilev1,ilev2
     real(8) :: dz
-      
     integer, parameter :: itype=0
 
     if (.not.bgStats%initialized) return
@@ -2422,9 +2406,10 @@ module BCovarSetupChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: dim1, dim2  ! Dimensions of output array
+    integer, intent(in) :: dim1  ! Dimensions of output array
+    integer, intent(in) :: dim2  ! Dimensions of output array
     integer, intent(in) :: headerIndex ! Index of observation
-
+    ! Result:
     real(8) :: stddevOut(dim1,dim2)
 
     ! Locals:
@@ -2440,4 +2425,4 @@ module BCovarSetupChem_mod
     
   end function bcsc_retrieveBgStddev
 
-end module BCovarSetupChem_mod
+end module bCovarSetupChem_mod

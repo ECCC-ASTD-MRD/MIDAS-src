@@ -98,11 +98,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)                   :: nvadim_mpilocal_in
-    type(struct_hco), pointer, intent(in) :: hco_anl_in
-    logical, intent(in), optional         :: oneDVarMode_opt
-    logical, intent(out), optional        :: varqc_opt
-    integer, intent(out), optional        :: nwoqcv_opt
+    integer,                   intent(in)  :: nvadim_mpilocal_in
+    type(struct_hco), pointer, intent(in)  :: hco_anl_in
+    logical,         optional, intent(in)  :: oneDVarMode_opt
+    logical,         optional, intent(out) :: varqc_opt
+    integer,         optional, intent(out) :: nwoqcv_opt
 
     ! Locals:
     integer :: ierr,nulnam
@@ -180,15 +180,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)                    :: outerLoopIndex_in
+    integer,                 intent(in)    :: outerLoopIndex_in
     type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
     type(struct_obs),        intent(inout) :: obsSpaceData
-    real(8), intent(inout)        , target :: controlVectorIncrSum(:)
-    real(8), intent(inout)                 :: vazx(:)
-    integer, intent(in)                    :: numIterMaxInnerLoop
-    integer, intent(out),         optional :: numIterMaxInnerLoopUsed_opt
-    logical, intent(in),          optional :: deallocHessian_opt
-    logical, intent(in),          optional :: isMinimizationFinalCall_opt
+    real(8), target,         intent(inout) :: controlVectorIncrSum(:)
+    real(8),                 intent(inout) :: vazx(:)
+    integer,                 intent(in)    :: numIterMaxInnerLoop
+    integer,       optional, intent(out)   :: numIterMaxInnerLoopUsed_opt
+    logical,       optional, intent(in)    :: deallocHessian_opt
+    logical,       optional, intent(in)    :: isMinimizationFinalCall_opt
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
@@ -262,30 +262,25 @@ CONTAINS
       implicit none
 
       ! Arguments:
-      type(struct_columnData), target :: columnAnlInc
-      type(struct_columnData), target :: columnTrlOnAnlIncLev
-      type(struct_obs),        target :: obsSpaceData
-      real(8)                         :: vazx(:)
+      type(struct_columnData), target, intent(in)    :: columnAnlInc
+      type(struct_columnData), target, intent(in)    :: columnTrlOnAnlIncLev
+      type(struct_obs),        target, intent(inout) :: obsSpaceData
+      real(8)                        , intent(out)   :: vazx(:)
 
       ! Locals:
       integer              :: nulout = 6
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
-
       real    :: zzsunused(1)
       integer :: intUnused(1)
-
       real(8),allocatable :: vazg(:)
-
       real(8) :: dlds(1)
       logical :: llvarqc, lrdvatra, llxbar
-
       integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc
       integer :: ierr, isimdone, jdata, isimnovqc
       integer :: ibrpstamp, isim3d
       real(8) :: zjsp, zxmin, zeps1
       real(8) :: dlgnorm, dlxnorm
-
       real(8) :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
 
@@ -518,7 +513,11 @@ CONTAINS
   subroutine min_writeHessian(vazx)
     implicit none
 
-    real(8) :: vazx(:)
+    ! Arguments:
+    real(8), intent(inout) :: vazx(:)
+
+    ! Locals:
+    integer :: dateStamp
 
     call utl_tmg_start(90,'--Minimization')
 
@@ -532,8 +531,9 @@ CONTAINS
       end if
       controlVectorIncrSumZero(:) = 0.0d0
 
+      dateStamp = tim_getDatestamp()
       call hessianIO (preconFileNameOut,1,  &
-        min_nsim,tim_getDatestamp(),zeps0,zdf1,itertot,isimtot,  &
+        min_nsim,datestamp,zeps0,zdf1,itertot,isimtot,  &
         iztrl,vatra,controlVectorIncrSumZero,vazx,.true.,llvazx,n1gc,imode)
 
       deallocate(controlVectorIncrSumZero)
@@ -573,11 +573,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer :: na_indic
-    integer :: na_dim! Control-vector dimension, forecast-error covariance space
-    real(8) :: da_v(na_dim) ! Control variable, forecast-error covariance space
-    real*8  :: da_J ! Cost function of the Variational algorithm
-    real(8) :: da_gradJ(na_dim) ! Gradient of the Variational Cost funtion
+    integer, intent(in)  :: na_indic
+    integer, intent(in)  :: na_dim           ! Control-vector dimension, forecast-error covariance space
+    real(8), intent(in)  :: da_v(na_dim)     ! Control variable, forecast-error covariance space
+    real(8), intent(out) :: da_J             ! Cost function of the Variational algorithm
+    real(8), intent(out) :: da_gradJ(na_dim) ! Gradient of the Variational Cost funtion
 
     ! Locals:
     real*8, dimension(na_dim) :: dl_v
@@ -730,13 +730,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer:: kdim     ! dimension of the vectors
-    real*8 :: px(kdim) ! vector for which <PX,PY> is being calculated
-    real*8 :: py(kdim) ! vector for which <PX,PY> is being calculated
-    real*8 :: ddsc     ! result of the inner product
+    integer, intent(in)  :: kdim     ! dimension of the vectors
+    real(8), intent(in)  :: px(kdim) ! vector for which <PX,PY> is being calculated
+    real(8), intent(in)  :: py(kdim) ! vector for which <PX,PY> is being calculated
+    real(8), intent(out) :: ddsc     ! result of the inner product
 
     CALL PRSCAL(KDIM,PX,PY,DDSC)
-    RETURN
+
   end subroutine dscalqn
 
 
@@ -744,27 +744,22 @@ CONTAINS
     !
     !:Purpose: To evaluate the inner product used in the minimization
     !
-    !:Arguments:
-    !    i : KDIM
-    !    i : PX, PY
-    !    o : DDSC
-    !
     implicit none
 
     ! Arguments:
-    integer :: kdim     ! dimension of the vectors
-    real*8  :: px(kdim) ! vector for which <PX,PY> is being calculated
-    real*8  :: py(kdim) ! vector for which <PX,PY> is being calculated
-    real*8  :: ddsc     ! result of the inner product
+    integer, intent(in)  :: kdim     ! dimension of the vectors
+    real(8), intent(in)  :: px(kdim) ! vector for which <PX,PY> is being calculated
+    real(8), intent(in)  :: py(kdim) ! vector for which <PX,PY> is being calculated
+    real(8), intent(out) :: ddsc     ! result of the inner product
 
     ! Locals:
-    INTEGER J
+    integer :: j
 
-    DDSC = 0.D0
+    ddsc = 0.D0
 
     do j=1,nvadim_mpilocal
-      DDSC = DDSC + PX(J)*PY(J)
-    ENDDO
+      ddsc = ddsc + px(j)*py(j)
+    end do
 
     call mmpi_allreduce_sumreal8scalar(ddsc,"GRID")
 
@@ -783,17 +778,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim
-    real*8 px(kdim), py(kdim)
+    integer, intent(in)  :: kdim
+    real(8), intent(out) :: px(kdim)
+    real(8), intent(in)  :: py(kdim)
 
-    ! Locals
-    INTEGER JDIM
+    ! Locals:
+    integer :: jdim
 
-    DO JDIM = 1, KDIM
-      PX(JDIM) = PY(JDIM)
-    ENDDO
+    do jdim = 1, kdim
+      px(jdim) = py(jdim)
+    end do
 
-    RETURN
   end subroutine DCANAB
 
 
@@ -808,17 +803,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim
-    real*8 px(kdim), py(kdim)
+    integer, intent(in)  :: kdim
+    real(8), intent(in)  :: px(kdim)
+    real(8), intent(out) :: py(kdim)
 
     ! Locals:
-    INTEGER JDIM
+    INTEGER :: jdim
 
-    DO JDIM = 1, KDIM
-      PY(JDIM) = PX(JDIM)
-    ENDDO
+    do jdim = 1, kdim
+      py(jdim) = px(jdim)
+    end do
 
-    RETURN
   end subroutine DCANONB
 
 
@@ -850,35 +845,33 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    character(len=*) :: cfname ! precon file
-    integer status  ! = 0 if READ, = 1 if WRITE
-    integer nsim    ! Number of simulations in QNA_N1QN3
-    integer kbrpstamp ! Date
-    real*8 :: zeps1    ! Parameter in QNA_N1QN3
-    real*8 :: zdf1     ! Parameter in QNA_N1QN3
-    integer itertot ! Parameter in QNA_N1QN3
-    integer isimtot ! Parameter in QNA_N1QN3
-    integer, target:: iztrl(5)     ! Localisation parameters for Hessian
-    real*8, target :: vatra(nmtra) ! Hessian
-    real*8, target :: vazxbar(nvadim_mpilocal) ! Vazx of previous loop
-    real*8, target :: vazx(nvadim_mpilocal) ! Current state of the minimization
-    logical llxbar  ! read in vaxzbar if dates are compatible
-    logical llvazx  ! Logical to read vazx
-    integer k1gc    ! Minimizer ID (2: m1qn2, 3: m1qn3)
-    integer imode   ! If status=0, set imode=0 (no prec) or 2 (prec)
+    character(len=*), intent(in) :: cfname ! precon file
+    integer         , intent(in) :: status  ! = 0 if READ, = 1 if WRITE
+    integer         , intent(inout) :: nsim    ! Number of simulations in QNA_N1QN3
+    integer         , intent(inout) :: kbrpstamp ! Date
+    real(8)         , intent(inout) :: zeps1    ! Parameter in QNA_N1QN3
+    real(8)         , intent(inout) :: zdf1     ! Parameter in QNA_N1QN3
+    integer         , intent(inout) :: itertot ! Parameter in QNA_N1QN3
+    integer         , intent(inout) :: isimtot ! Parameter in QNA_N1QN3
+    integer, target , intent(inout) :: iztrl(5)     ! Localisation parameters for Hessian
+    real(8), target , intent(inout) :: vatra(nmtra) ! Hessian
+    real(8), target , intent(inout) :: vazxbar(nvadim_mpilocal) ! Vazx of previous loop
+    real(8), target , intent(inout) :: vazx(nvadim_mpilocal) ! Current state of the minimization
+    logical         , intent(in) :: llxbar  ! read in vaxzbar if dates are compatible
+    logical         , intent(in) :: llvazx  ! Logical to read vazx
+    integer         , intent(in) :: k1gc    ! Minimizer ID (2: m1qn2, 3: m1qn3)
+    integer         , intent(out) :: imode   ! If status=0, set imode=0 (no prec) or 2 (prec)
 
     ! Locals:
-    real*4, allocatable :: vatravec_r4_mpiglobal(:)
-    real*4, allocatable :: vatra_r4(:)
-    real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
-
+    real(4), allocatable :: vatravec_r4_mpiglobal(:)
+    real(4), allocatable :: vatra_r4(:)
+    real(8), allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
     integer :: ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
     integer :: ivadim, itrunc
     integer :: ivamaj
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl_io
-
     character(len=3) :: cl_version
 
     if (status == 0) then
@@ -1099,17 +1092,16 @@ CONTAINS
   implicit none
 
   ! Arguments:
-  external simul ! simulator: return cost function estimate and its gradient
+  external            :: simul ! simulator: return cost function estimate and its gradient
   integer, intent(in) :: na_dim ! Size of the control vector
-  real*8,  intent(in) :: da_x0(na_dim) ! Control vector
+  real(8), intent(in) :: da_x0(na_dim) ! Control vector
   integer, intent(in) :: na_range
 
   ! Locals:
   integer :: nl_indic, nl_j
-  real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
-  real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
-  real*8  :: dl_alpha, dl_gnorm0
-
+  real(8) :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
+  real(8) :: dl_J0, dl_J, dl_test, dl_start,dl_end
+  real(8) :: dl_alpha, dl_gnorm0
 
   ! 1. Initialize dl_gradj0 at da_x0
   !    ------------------------------------
@@ -1148,7 +1140,7 @@ CONTAINS
 
 9201 format(2X,'GRTEST: step',2X,I3,4X,G23.16,4X,G23.16,4X,&
           G23.16)
-  return
+
   end subroutine grtest2
 
 end module minimization_mod

@@ -1,6 +1,6 @@
 
 module thinning_mod
-  ! MODULE thinning (prefix='thn' category='1. High-level functionality')
+  ! MODULE thinning_mod (prefix='thn' category='1. High-level functionality')
   !
   ! :Purpose: Using observation-type-specific algorithms, set bit 11 of 'flag'
   !           on data that are not to be assimilated.
@@ -37,8 +37,9 @@ contains
   ! thn_thinSurface
   !--------------------------------------------------------------------------
   subroutine thn_thinSurface(obsdat, obsFamily)
+    !
     ! :Purpose: Main subroutine for thinning of surface obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -49,7 +50,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     logical :: doThinning        ! if false, we return immediately
     real(8) :: step              ! time resolution (in hours)
     integer :: deltmax           ! maximum time difference (in minutes)
@@ -96,8 +97,9 @@ contains
   ! thn_thinRaobs
   !--------------------------------------------------------------------------
   subroutine thn_thinRaobs(obsdat)
+    !
     ! :Purpose: Main thinning subroutine Radiosonde obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -107,7 +109,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     logical :: verticalThinningES ! choose to do vertical thinning of humidity obs
     logical :: ecmwfRejetsES      ! choose to do filtering of T-Td obs with approach similar to ECMWF
     real(4) :: toleranceFactor    ! Tolerance factor for TAC vs BUFR selection
@@ -148,8 +150,9 @@ contains
   ! thn_thinAircraft
   !--------------------------------------------------------------------------
   subroutine thn_thinAircraft(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for aircraft obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -159,7 +162,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: deltmax ! maximum time difference (in minutes)
 
     namelist /thin_aircraft/deltmax
@@ -196,8 +199,9 @@ contains
   ! thn_thinSatWinds
   !--------------------------------------------------------------------------
   subroutine thn_thinSatWinds(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for satellite winds (AMVs).
-
+    !
     implicit none
 
     ! Arguments:
@@ -207,7 +211,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: deltemps ! number of time bins between adjacent observations
     integer :: deldist  ! minimal distance in km between adjacent observations
 
@@ -246,6 +250,7 @@ contains
   ! thn_thinGpsRo
   !--------------------------------------------------------------------------
   subroutine thn_thinGpsRo(obsdat)
+    !
     ! :Purpose: Main thinning subroutine GPS radio-occultation obs.
     !
     implicit none
@@ -257,7 +262,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     real(8) :: heightMin     ! niveau a partir du quel on accepte les donnees
     real(8) :: heightMax     ! niveau a partir du quel on rejette les donnees
     real(8) :: heightSpacing ! epaisseur minimale entre deux niveaux
@@ -300,6 +305,7 @@ contains
   ! thn_thinGbGps
   !--------------------------------------------------------------------------
   subroutine thn_thinGbGps(obsdat)
+    !
     ! :Purpose: Main thinning subroutine ground-based GPS obs.
     !
     implicit none
@@ -311,7 +317,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: deltemps     ! number of time bins between adjacent observations
     integer :: deldist      ! minimal distance in km between adjacent observations
     logical :: removeUncorrected ! remove obs that are not bias corrected (bit 6)
@@ -354,8 +360,9 @@ contains
   ! thn_thinAladin
   !--------------------------------------------------------------------------
   subroutine thn_thinAladin(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for Aladin winds obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -365,7 +372,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: keepNthVertical ! keep every nth vertical datum
 
     namelist /thin_aladin/keepNthVertical
@@ -404,8 +411,9 @@ contains
   ! thn_thinCSR
   !--------------------------------------------------------------------------
   subroutine thn_thinCSR(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for geostationary radiances (CSR).
-
+    !
     implicit none
 
     ! Arguments:
@@ -415,7 +423,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: deltax     ! thinning (dimension of box sides) (in km)
     integer :: deltrad    ! radius around box center for chosen obs (in km)
 
@@ -456,8 +464,9 @@ contains
   ! thn_thinScat
   !--------------------------------------------------------------------------
   subroutine thn_thinScat(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for scatterometer winds.
-
+    !
     implicit none
 
     ! Arguments:
@@ -467,7 +476,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: deltax     ! thinning (dimension of box sides) (in km)
     integer :: deltmax    ! temporal thinning resolution (in minutes)
 
@@ -508,8 +517,9 @@ contains
   ! thn_thinTovs
   !--------------------------------------------------------------------------
   subroutine thn_thinTovs(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for AMSU and ATMS obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -519,7 +529,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     integer :: delta    ! thinning (dimension of box sides) (in km)
     integer :: deltrad  ! radius around box center for chosen obs (in km)
 
@@ -569,8 +579,9 @@ contains
   ! thn_thinHyper
   !--------------------------------------------------------------------------
   subroutine thn_thinHyper(obsdat)
+    !
     ! :Purpose: Main thinning subroutine for hyperspectral infrared radiances.
-
+    !
     implicit none
 
     ! Arguments:
@@ -580,7 +591,7 @@ contains
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
-    ! Namelist variables
+    ! Namelist variables:
     logical :: removeUnCorrected ! indicate if obs without bias correction should be removed
     integer :: deltmax           ! time window by bin (from bin center to bin edge) (in minutes)
     integer :: deltax            ! thinning (dimension of box sides) (in km)
@@ -655,6 +666,8 @@ contains
     integer,          intent(in)           :: deltmax
     logical,          intent(in)           :: useBlackList
     logical,          intent(in)           :: considerSHIPstnID
+
+    ! Local paramters:
 
     ! Drifter removal parameters:
     ! Remove incomplete DRIFTER reports (using listEleBadDrifter)?
@@ -1395,8 +1408,6 @@ contains
     integer :: countAcc_ff, countRej_ff, countAccMpi_ff, countRejMpi_ff
     integer :: countAcc_tt, countRej_tt, countAccMpi_tt, countRejMpi_tt
     integer :: countAcc_es, countRej_es, countAccMpi_es, countRejMpi_es
-
-    ! Local parameters:
     integer, parameter :: numVars=5, numTraj=2, maxNumLev=300
 
     ! Namelist variables:
@@ -1881,13 +1892,14 @@ contains
   ! stringArrayToMpi
   !--------------------------------------------------------------------------
   subroutine stringArrayToMpi(array, arrayMpi)
+    !
     ! :Purpose: Do the equivalent of mpi_allgatherv for a string array
-    
+    !
     implicit none
 
     ! Arguments:
-    character(len=*) :: array(:)
-    character(len=*) :: arrayMpi(:)
+    character(len=*), intent(in)  :: array(:)
+    character(len=*), intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, arrayIndex, charIndex, lenString
@@ -1925,15 +1937,16 @@ contains
   ! intArrayToMpi
   !--------------------------------------------------------------------------
   subroutine intArrayToMpi(array, arrayMpi, is_obsLevOffset_opt)
+    !
     ! :Purpose: Do the equivalent of mpi_allgatherv for an integer array,
     !           but with special treatment if array of obsLevOffset.
-
+    !
     implicit none
 
     ! Arguments:
-    integer :: array(:)
-    integer :: arrayMpi(:)
-    logical, optional :: is_obsLevOffset_opt
+    integer,           intent(in)  :: array(:)
+    integer,           intent(out) :: arrayMpi(:)
+    logical, optional, intent(in)  :: is_obsLevOffset_opt
 
     ! Locals:
     integer :: ierr, procIndex, arrayIndex
@@ -2015,13 +2028,14 @@ contains
   ! realArrayToMpi
   !--------------------------------------------------------------------------
   subroutine realArrayToMpi(array, arrayMpi)
+    !
     ! :Purpose: Do the equivalent of mpi_allgatherv for a real array,
-
+    !
     implicit none
 
     ! Arguments:
-    real(4) :: array(:)
-    real(4) :: arrayMpi(:)
+    real(4), intent(in)  :: array(:)
+    real(4), intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, procIndex
@@ -2055,13 +2069,14 @@ contains
   ! logicalArrayToMpi
   !--------------------------------------------------------------------------
   subroutine logicalArrayToMpi(array, arrayMpi)
+    !
     ! :Purpose: Do the equivalent of mpi_allgatherv for a logical array,
-
+    !
     implicit none
 
     ! Arguments:
-    logical :: array(:)
-    logical :: arrayMpi(:)
+    logical, intent(in)  :: array(:)
+    logical, intent(out) :: arrayMpi(:)
 
     ! Locals:
     integer :: ierr, procIndex
@@ -2098,24 +2113,23 @@ contains
                                                obsHeadDate, trajFlags, obsFlags, obsValues, &
                                                oMinusB, obsLaunchTime, stationFlags, &
                                                numVars, numStation, toleranceFactor )
+    !
     ! :Purpose: Check duplicated stations and select the best TAC/BUFR profiles
-
+    !
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: numVars, numStation
-    integer,           intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
-    real(4),           intent(in)    :: obsLat(:), obsLon(:)
-    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
-    integer,           intent(in)    :: trajFlags(:,:)
-    integer,           intent(in)    :: obsFlags(:,:)
-    integer,           intent(in)    :: obsLevOffset(:)
-    character (len=9), intent(inout) :: stnId(:)
-
-    ! Local parameters:
-    integer, parameter :: maxNumStnid  = 5000
+    integer,          intent(in)    :: numVars, numStation
+    integer,          intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
+    real(4),          intent(in)    :: obsLat(:), obsLon(:)
+    real(4),          intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
+    integer,          intent(in)    :: trajFlags(:,:)
+    integer,          intent(in)    :: obsFlags(:,:)
+    integer,          intent(in)    :: obsLevOffset(:)
+    character(len=9), intent(inout) :: stnId(:)
 
     ! Locals:
+    integer, parameter :: maxNumStnid  = 5000
     logical :: condition, sameProfile, stnidNotFound
     integer :: stationIndex, stationIndex2, stationIndex3, catIndex
     integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex 
@@ -2327,8 +2341,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine raobs_check_if_same_profile( stationIndex, stationIndex2, &
                                           obsValues, obsLevOffset, sameProfile )
+    !
     ! :Purpose: Check if two raobs profiles are the same.
-
+    !
     implicit none
 
     ! Arguments:
@@ -2340,9 +2355,6 @@ contains
     ! Locals:
     integer :: varIndex, levIndex, levStnIndex, levStnIndex1, levStnIndex2, numSum
     real(4) :: valSum, minDeltaP1, minDeltaP2
-
-    ! Local parameters:
-    ! Standard levels
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
     standardLevels = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150., &
@@ -2398,8 +2410,9 @@ contains
   subroutine raobs_compare_profiles( stationIndex, stationIndex2, stationFlags, trajFlags, &
                                      obsFlags, obsValues, oMinusB, obsLevOffset, numVars, &
                                      cloche, selectCriteria, selectStationIndex, toleranceFactor )
+    !
     ! :Purpose: Perform a comparison between two raobs profiles.
-
+    !
     implicit none
 
     ! Arguments:
@@ -2649,8 +2662,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine raobs_thinning_model( obsFlags, obsValues, presInterp, numVars, numLev, &
                                    numStation, numLevStnMax, obsLevOffset )
+    !
     ! :Purpose: Perform raobs thinning by comparing with a set of model levels.
-
+    !
     implicit none
 
     ! Arguments:
@@ -2668,8 +2682,6 @@ contains
     integer :: numLevSelectBest, tempInt
     real(4) :: presTop, presBottom, deltaPres, deltaPresMin
     integer, allocatable :: levStnIndexList(:), numValidObs(:), listIndex(:)
-
-    ! Local parameters:
     ! Standard levels including 925 hPa
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
@@ -2941,8 +2953,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine raobs_thinning_es( obsFlags, obsValues, numStation, &
                                 numLevStnMax, obsLevOffset )
+    !
     ! :Purpose: Perform thinning of T-Td raobs observations.
-
+    !
     implicit none
 
     ! Arguments:
@@ -2951,10 +2964,8 @@ contains
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
 
-    ! Local parameters:
-    integer, parameter  :: numLevES = 42
-
     ! Locals:
+    integer, parameter  :: numLevES = 42
     logical :: condition
     integer :: stationIndex, levIndex, levStnIndex, levSelectIndex, varIndexES, varIndexPres
     integer :: numLevSelect, levStnIndexValid
@@ -3058,9 +3069,10 @@ contains
   ! raobs_blacklisting_ecmwf
   !--------------------------------------------------------------------------
   subroutine raobs_blacklisting_ecmwf( obsFlags, obsValues, obsType, numStation, obsLevOffset )
+    !
     ! :Purpose: Perform filtering of T-Td raobs observations based on
     !           approach inspired by ECMWF approach
-
+    !
     implicit none
 
     ! Arguments:
@@ -3218,12 +3230,10 @@ contains
     logical,          intent(in)    :: removeUncorrected
     logical,          intent(in)    :: rejectNoZTDScore
 
-    ! Local parameters:
+    ! Locals:
     real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
     integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
     character(len=3), parameter :: winpos='mid' ! Preference to obs close to middle of window
-
-    ! Locals:
     integer :: ierr, numHeader, numHeaderMpi, numHeaderMaxMpi, bodyIndex, headerIndex
     integer :: countObs, countObsOutMpi, countObsInMpi
     integer :: obsDate, obsTime, obsVarno, ztdObsFlag, obsFlag, nsize
@@ -3577,15 +3587,13 @@ contains
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
 
-    ! Local parameters:
+    ! Locals:
     integer, parameter :: numStnIdMax = 100
     integer, parameter :: numLayers = 11
     integer, parameter :: nullValue = -1
     real(4), parameter :: layer(numLayers) = (/ 100000., 92500., 85000., 70000., &
                                                 50000., 40000., 30000., 25000., &
                                                 20000., 15000., 10000. /)
-
-    ! Locals:
     integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
     integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
@@ -4021,6 +4029,7 @@ contains
   ! thn_QsortIntIgnoringNullValues
   !--------------------------------------------------------------------------
   subroutine thn_QsortIntIgnoringNullValues(A,B,nullValue)
+    !
     ! :Purpose: Quick sort algorithm for integer data
     !           Calling 'thn_QsortInt' on array without missing values (-1)
     !           The 'QuickSort' algorithm gives different results
@@ -4030,7 +4039,7 @@ contains
     !           the input array and asks for 'thn_QsortInt' to sort
     !           the filtered array and then insert back the values to
     !           respect the order of the original input array.
-
+    !
     implicit none
 
     ! Arguments:
@@ -4090,12 +4099,16 @@ contains
   ! thn_QsortInt
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortInt(A,B)
+    !
     ! :Purpose: Quick sort algorithm for integer data.
-
+    !
     implicit none
 
+    ! Arguments:
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
+
+    ! Locals:
     integer :: iq
 
     if (size(A) > 1) then
@@ -4110,8 +4123,9 @@ contains
   ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
   subroutine thn_QsortIntpartition(A,B,marker)
+    !
     ! :Purpose: Subroutine called in quick sort for integers.
-
+    !
     implicit none
 
     ! Arguments:
@@ -4162,8 +4176,9 @@ contains
   ! thn_QsortReal8
   !--------------------------------------------------------------------------
   recursive subroutine thn_QsortReal8(A,B)
+    !
     ! :Purpose: Quick sort algorithm for real8 data.
-
+    !
     implicit none
 
     ! Arguments:
@@ -4185,14 +4200,15 @@ contains
   ! thn_QsortReal8partition
   !--------------------------------------------------------------------------
   subroutine thn_QsortReal8partition(A,B,marker)
+    !
     ! :Purpose: Subroutine called for quick sort of real8 data.
-
+    !
     implicit none
 
     ! Arguments:
     real(8), intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
-    integer, intent(out) :: marker
+    integer, intent(out)   :: marker
 
     ! Locals:
     integer :: i, j, tmpi
@@ -4237,18 +4253,20 @@ contains
   ! thn_distanceArc
   !--------------------------------------------------------------------------
   real(4) function thn_distanceArc( deltaLat, deltaLon, lat1, lat2 )
+    !
     ! :Purpose: Compute arc distance.
-
+    !
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: deltaLat, deltaLon, lat1, lat2
-
-    ! Local parameters:
-    real(4), parameter :: PI = 3.141592654
-    real(4), parameter :: RT = 6374.893
+    real(4), intent(in) :: deltaLat
+    real(4), intent(in) :: deltaLon
+    real(4), intent(in) :: lat1
+    real(4), intent(in) :: lat2
 
     ! Locals:
+    real(4), parameter :: PI = 3.141592654
+    real(4), parameter :: RT = 6374.893
     real(4) :: lat1_r, lat2_r, deltaLat_r, deltaLon_r, term_a
 
     lat1_r = lat1*PI/180.
@@ -4313,10 +4331,7 @@ contains
     integer, allocatable :: handlesGrid(:,:,:), numObsGrid(:,:,:)
     real(4), allocatable :: minScoreGrid(:,:,:), minDistGrid(:,:,:), maxDistGrid(:,:,:)
     real(4), allocatable :: uuSumGrid(:,:,:), vvSumGrid(:,:,:), ttSumGrid(:,:,:)
-
     integer, external :: fnom, fclos
-
-    ! Local parameters:
     integer, parameter :: maxLev = 500
 
     ! Namelist variables:
@@ -4911,21 +4926,20 @@ contains
   ! thn_keepNthObs
   !--------------------------------------------------------------------------
   subroutine thn_keepNthObs(obsdat, familyType, keepNthVertical)
+    !
     ! :Purpose: Of the observations in a column that have not already been
     !           rejected, keep every nth observation and throw out the rest.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+    !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in) :: familyType
-    integer,          intent(in) :: keepNthVertical
-
-    ! Local parameters:
-    integer, parameter :: PROFILE_NOT_FOUND=-1
+    character(len=*), intent(in)    :: familyType
+    integer,          intent(in)    :: keepNthVertical
 
     ! Locals:
+    integer, parameter :: PROFILE_NOT_FOUND=-1
     integer :: headerIndex, bodyIndex
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
@@ -4970,16 +4984,19 @@ contains
 
   contains
     function new_column()
+      !
       ! :Purpose: Determine whether the current observation begins a new vertical column
       !           (Assume that observations are in chronological order)
       !
       ! :Note:  This method has been written with aladin observations in mind.
       !         It might be necessary to generalize the method.
+      !
       implicit none
 
-      ! Locals:
+      ! Result:
       logical :: new_column
 
+      ! Locals:
       integer, save :: previousProfileId=huge(previousProfileId)
 
       if (newProfileId == PROFILE_NOT_FOUND) then
@@ -5002,17 +5019,18 @@ contains
   ! thn_tovsFilt
   !--------------------------------------------------------------------------
   subroutine thn_tovsFilt(obsdat, delta, deltrad, codtyp, codtyp2_opt)
+    !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: delta
-    integer, intent(in)             :: deltrad
-    integer, intent(in)             :: codtyp
-    integer, optional, intent(in)   :: codtyp2_opt
+    type(struct_obs),  intent(inout) :: obsdat
+    integer,           intent(in)    :: delta
+    integer,           intent(in)    :: deltrad
+    integer,           intent(in)    :: codtyp
+    integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
@@ -5033,8 +5051,6 @@ contains
     integer, allocatable :: headerIndexList(:), headerIndexList2(:)
     integer, allocatable :: obsIndexGrid(:), obsIndexLink(:)
     character(len=codtyp_name_length) :: instrumName
-
-    ! Local parameters:
     integer, parameter :: latLength=10000
     integer, parameter :: lonLength=40000
     integer, parameter :: mxscanamsua=30
@@ -5481,8 +5497,9 @@ contains
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
   subroutine thn_removeRarsDuplicates(obsdat, valid)
+    !
     ! :Purpose: Remove duplicate TOVS observations due to RARS.
-
+    !
     implicit none
 
     ! Arguments:
@@ -5502,8 +5519,6 @@ contains
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:)
     logical, allocatable :: validMpi(:)
     character(len=12)    :: stnId
-    
-    ! Locals related to kdtree2:
     type(kdtree2), pointer            :: tree
     integer, parameter                :: maxNumSearch = 100
     integer                           :: numFoundSearch, resultIndex
@@ -5512,12 +5527,8 @@ contains
     real(kdkind)                      :: refPosition(3)
     real(kdkind), allocatable         :: obsPosition3d(:,:)
     real(kdkind), allocatable         :: obsPosition3dMpi(:,:)
-
-    ! Local parameters:
     integer, parameter :: centreOrigGlobal(3)=(/53, 74, 160/)
-
-    ! Externals:
-    integer, external    :: newdate
+    integer, external  :: newdate
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -5680,23 +5691,22 @@ contains
   ! thn_scatByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
+    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for SCAT observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+    !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltmax
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltmax
 
-    ! Locals parameters:
+    ! Locals:
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
     integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: numStnIdMax = 100
-
-    ! Locals:
     integer :: bodyIndex, charIndex, nsize, lenStnId
     integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
     integer :: uObsFlag, vObsFlag, obsVarno, stnIdIndex, numStnId, stnIdIndexFound
@@ -6184,23 +6194,22 @@ contains
   ! thn_csrByLatLonBoxes
   !--------------------------------------------------------------------------
   subroutine thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
+    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box for CSR observations.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+    !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltrad
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltrad
 
-    ! Locals parameters:
+    ! Locals:
     integer, parameter :: latLength = 10000 ! Earth dimension parameters
     integer, parameter :: lonLength = 40000 ! Earth dimension parameters
     integer, parameter :: maxNumChan = 15    ! nb max de canaux
-
-    ! Locals:
     integer :: bodyIndex, channelIndex, charIndex, nsize, lenStnId
     integer :: numLat, numLon, latIndex, lonIndex, stepIndex, obsFlag
     integer :: ierr, headerIndex, numHeader, numHeaderMaxMpi, channelList(maxNumChan)
@@ -6647,20 +6656,21 @@ contains
   subroutine thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, &
                                     deltmax, deltax, deltrad,  &
                                     familyType, codtyp)
+    !
     ! :Purpose: Only keep the observation closest to the center of each
     !           lat-lon (and time) box.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+    !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    logical, intent(in)             :: removeUnCorrected
-    integer, intent(in)             :: deltmax
-    integer, intent(in)             :: deltax
-    integer, intent(in)             :: deltrad
+    logical,          intent(in)    :: removeUnCorrected
+    integer,          intent(in)    :: deltmax
+    integer,          intent(in)    :: deltax
+    integer,          intent(in)    :: deltrad
     character(len=*), intent(in)    :: familyType
-    integer, intent(in)             :: codtyp
+    integer,          intent(in)    :: codtyp
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
@@ -7119,13 +7129,18 @@ contains
   ! thn_separation
   !--------------------------------------------------------------------------
   function thn_separation(xlon1, xlat1, xlon2, xlat2)
+    !
     ! :Purpose: Compute the separation distance for some thinning algorithms.
-
+    !
     implicit none
 
     ! Arguments:
+    real(4), intent(in) :: xlat1
+    real(4), intent(in) :: xlat2
+    real(4), intent(in) :: xlon1
+    real(4), intent(in) :: xlon2
+    ! Result:
     real(4) :: thn_separation
-    real(4) :: xlat1, xlat2, xlon1, xlon2
 
     ! Locals:
     real(4) :: cosval, degrad, raddeg
@@ -7149,8 +7164,9 @@ contains
   ! thn_thinSatSST
   !--------------------------------------------------------------------------
   subroutine thn_thinSatSST(obsData)
+    !
     !:Purpose: Main subroutine for thinning of satellite SST obs.
-
+    !
     implicit none
 
     ! Arguments:
@@ -7162,7 +7178,7 @@ contains
     integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets considered in surface thinning 
     integer :: dataSetSSTIndex, numberDataSetSST
 
-    ! Namelist variables
+    ! Namelist variables:
     logical :: doThinning                             ! if false, we return immediately
     integer :: numTimesteps                           ! thinning number of timesteps
     integer :: deltmax                                ! maximum time difference (in minutes)

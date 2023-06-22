@@ -175,7 +175,6 @@ contains
     integer :: tovsIndex, maxChannelNumber
     integer :: sensorIndex, channelNumber
 
-
     !     Memory allocation for background check related variables
     allocStatus(:) = 0
     allocate( tvs_surfaceParameters(tvs_nobtov), stat=allocStatus(1))
@@ -213,8 +212,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
    
     ! Locals:
     integer,allocatable :: nobir(:)
@@ -287,9 +286,6 @@ contains
     call utl_tmg_stop(115)
 
   end subroutine irbg_bgCheckIR
-
- 
-
  
   !--------------------------------------------------------------------------
   !  bgck_get_qcid
@@ -298,9 +294,11 @@ contains
     !
     implicit none
 
-    character(len=*), intent(in) :: instrumentName
-    integer, intent (out)        :: qcid
-    ! Locals
+    ! Arguments:
+    character(len=*), intent(in)  :: instrumentName
+    integer,          intent(out) :: qcid
+
+    ! Locals:
     integer :: i 
 
     qcid = -1
@@ -322,7 +320,7 @@ contains
   !--------------------------------------------------------------------------
   ! irbg_doQualityControl
   !--------------------------------------------------------------------------
-  subroutine irbg_doQualityControl (columnTrlOnTrlLev, obsSpaceData, instrumentName, id_opt )
+  subroutine irbg_doQualityControl (columnTrlOnTrlLev, obsSpaceData, instrumentName, id_opt)
     !
     ! :Purpose: Quality control of hyperspectral infrared observations.
     !           assign assimilation flags to observations 
@@ -330,10 +328,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
-    type(struct_obs), intent(inout)     :: obsSpaceData
-    character(len=*), intent(in)        :: instrumentName
-    integer, intent(in), optional       :: id_opt
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    character(len=*),        intent(in)    :: instrumentName
+    integer,       optional, intent(in)    :: id_opt
 
     ! Locals:
     integer       :: jc, nchn, levelIndex, bitIndex, channelNumber, classIndex
@@ -357,7 +355,6 @@ contains
     integer, allocatable :: rejflag(:,:) 
     integer, allocatable :: ntop_bt(:), ntop_rd(:)
     integer, allocatable :: minp(:), fate(:), channelIndexes(:)
-
     real(8) :: clfr, sunZenithAngle, satelliteAzimuthAngle, satelliteZenithAngle, sunAzimuthAngle
     real(8) :: albedo, ice, pcnt_wat, pcnt_reg
     real(8) :: ptop_eq,ptop_mb
@@ -370,7 +367,6 @@ contains
     real(8) :: cfrac_avhrr
     real(8) :: avhrr_surfem1(NIR)
     real(8) :: albedoThreshold(NIR)
-
     integer :: ksurf,ltype
     integer :: cldflag, lev_start   
     integer :: gncldflag
@@ -380,7 +376,6 @@ contains
     integer :: ntop_co2(nco2)
     integer :: cldflag_avhrr(nClassAVHRR),lev_start_avhrr(nClassAVHRR),ichref_avhrr(nClassAVHRR),ntop_rd_avhrr(NIR,nClassAVHRR)
     integer :: ntop_bt_avhrr(NIR,nClassAVHRR),ntop_eq_avhrr(nClassAVHRR)
-
     logical :: assim_all
     logical :: sunZenithAnglePresent
     logical :: satelliteAzimuthAnglePresent, satelliteZenithAnglePresent, sunAzimuthAnglePresent
@@ -1227,13 +1222,15 @@ contains
     !           et des radiances visibles en "albedo"
   
     implicit none
+
+    ! Arguments:
     real(8),                intent(in)    :: sunzen ! Solar zenith angle
     type (avhrr_bgck_iasi), intent(inout) :: avhrr  ! Structure containing AVHRR observations
 
+    ! Locals:
     integer :: classIndex
     real(8) :: bt(NIR), dbtsdrad(NIR)
     real(8) :: freq(NIR), offset(NIR), slope(NIR)
-
 
     freq = coefs_avhrr%coef%ff_cwn (:)
     offset = coefs_avhrr%coef%ff_bco(:)
@@ -1258,6 +1255,7 @@ contains
     !           of Rao et al. Int. J. of Remote Sensing, 2003, vol 24, no 9, 1913-1924
     !           
     implicit none
+
     ! Arguments:
     real(8), intent(in) :: rad(nvis)     ! radiances array
     real(8), intent(in) :: sunzen        ! Sun zenith angle
@@ -1271,7 +1269,6 @@ contains
     !0.056998,14.016470,1.606119
     real(8) :: radb ! radiance en W/m2/str
     integer :: i
-    ! *************************************************************
 
     do i = 1, nvis
       if (rad(i) >= 0.0d0 ) then
@@ -1297,19 +1294,18 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: rad(:)              ! Radiance
-    real(8), intent(in) :: freq(size(rad))     ! Channel wavenumber (cm-1)
-    real(8), intent(in) :: offset(size(rad))   ! 
-    real(8), intent(in) :: slope(size(rad))    !
-    real(8), intent(out):: tb(size(rad))       ! Brightness Temperature
-    real(8), intent(out):: dtbsdrad(size(rad)) ! Derivative of tb wrt radiance
+    real(8), intent(in)  :: rad(:)              ! Radiance
+    real(8), intent(in)  :: freq(size(rad))     ! Channel wavenumber (cm-1)
+    real(8), intent(in)  :: offset(size(rad))   ! 
+    real(8), intent(in)  :: slope(size(rad))    !
+    real(8), intent(out) :: tb(size(rad))       ! Brightness Temperature
+    real(8), intent(out) :: dtbsdrad(size(rad)) ! Derivative of tb wrt radiance
 
     ! Locals:
     integer  :: channelIndex, nchan
     real(8)  :: radtotal, tstore, planck1, planck2
     real(8), parameter :: c1= 1.19106590d-05   ! First Planck constant
     real(8), parameter :: c2= 1.438833d0       ! Second Planck constant 
-
 
     nchan = size(rad)
 
@@ -1345,12 +1341,13 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type (avhrr_bgck_iasi), intent(inout) :: avhrr
 
+    ! Locals:
     integer :: classIndex, channelIndex
     real(8) :: sumFrac(nvis+nir), sumBt(nvis+1:nvis+nir),sumBt2(nvis+1:nvis+nir)
     real(8) :: sumAlb(1:nvis),sumAlb2(1:nvis)
-    ! *****************************************
     
     sumFrac(:) = 0.d0
     sumBt(:) = 0.d0
@@ -1645,7 +1642,6 @@ contains
     ! Locals:
     integer    :: n,jch
     real(8)    :: H(nco2),F(nco2)
-
 
     etop = -1.d0
     vtop = -1.d0
@@ -1958,16 +1954,13 @@ contains
     real(8), intent(in)    :: ptop_eq         ! Chosen equivalent cloud tops (m)
     integer, intent(in)    :: ntop_eq         ! Number of possible ptop_eq solutions
     integer, intent(in)    :: ichref          ! Chosen reference surface channel
-   
 
-    ! Locals
+    ! Locals:
     integer    :: ninv
     real(8)    :: lev(2)
-
       
     lev(1) = 222.d0
     lev(2) = 428.d0
-
 
     if ( cldflag == -1 ) return
 
@@ -2181,23 +2174,23 @@ contains
     ! Arguments:
     real(8), intent(out)         :: ptop_bt(:)        ! Chosen equivalent cloud tops based on brightness temperatures (in hpa|m with iopt = 1|2)
     real(8), intent(out)         :: ptop_rd(:)        ! Chosen equivalent cloud tops based on radiances (in hpa|m with iopt = 1|2)
-    integer, intent(out)         :: ntop_bt(:)        ! Number of possible ptop_bt solutions
-    integer, intent(out)         :: ntop_rd(:)        ! Number of possible ptop_rd solutions
-    real(8), intent(in)          :: btObs(:)          ! Observed brightness temperautres (K)
-    real(8), intent(in)          :: tt(:)             ! Temperature profiles (K)
-    real(8), intent(in)          :: height(:)         ! Height profiles above ground (m)
-    real(8), intent(in)          :: rcal(:)           ! Computed clear radiances (mW/m2/sr/cm-1)
-    real(8), intent(in)          :: p0                ! Surface pressure (hPa)
-    real(8), intent(in)          :: radObs(:)           ! Computed observed radiances (mW/m2/sr/cm-1)
-    real(8), intent(in)          :: cloudyRadiance(:,:) ! Computed cloud radiances from each level (hPa)
-    real(8), intent(in)          :: plev(:)           ! Pressure levels (hPa)
-    integer, intent(in)          :: cldflag           ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
-    integer, intent(inout)       :: lev_start         ! Level to start iteration (ideally tropopause)
-    integer, intent(in)          :: iopt              ! Levels using plev (1) or height (2)
-    integer, intent(in)          :: ihgt              ! Get *_bt* only (0), *_rd* only (1), both (2)
-    integer, intent(in)          :: ilist(:)          ! List of the channel numbers (subset values)
-    integer, intent(in),optional :: rejflag_opt(1:,0:)! Flags for rejected observations
-    integer, intent(in),optional :: ichref_opt        ! Reference surface channel (subset value)
+    integer,           intent(out)   :: ntop_bt(:)        ! Number of possible ptop_bt solutions
+    integer,           intent(out)   :: ntop_rd(:)        ! Number of possible ptop_rd solutions
+    real(8),           intent(in)    :: btObs(:)          ! Observed brightness temperautres (K)
+    real(8),           intent(in)    :: tt(:)             ! Temperature profiles (K)
+    real(8),           intent(in)    :: height(:)         ! Height profiles above ground (m)
+    real(8),           intent(in)    :: rcal(:)           ! Computed clear radiances (mW/m2/sr/cm-1)
+    real(8),           intent(in)    :: p0                ! Surface pressure (hPa)
+    real(8),           intent(in)    :: radObs(:)           ! Computed observed radiances (mW/m2/sr/cm-1)
+    real(8),           intent(in)    :: cloudyRadiance(:,:) ! Computed cloud radiances from each level (hPa)
+    real(8),           intent(in)    :: plev(:)           ! Pressure levels (hPa)
+    integer,           intent(in)    :: cldflag           ! Cloudy flag (0 Clear, 1 Cloudy, -1 undefined)
+    integer,           intent(inout) :: lev_start         ! Level to start iteration (ideally tropopause)
+    integer,           intent(in)    :: iopt              ! Levels using plev (1) or height (2)
+    integer,           intent(in)    :: ihgt              ! Get *_bt* only (0), *_rd* only (1), both (2)
+    integer,           intent(in)    :: ilist(:)          ! List of the channel numbers (subset values)
+    integer, optional, intent(in)    :: rejflag_opt(1:,0:)! Flags for rejected observations
+    integer, optional, intent(in)    :: ichref_opt        ! Reference surface channel (subset value)
 
     ! Locals:
     integer             :: jch,jc,itop,nht,i10,i,nlev,nch
@@ -2346,6 +2339,7 @@ contains
     ! :Purpose: Computation of cloud top height and number of possible heights.
     !
     implicit none
+
     ! Arguments:
     real(8), intent(out)   :: ht(:)            ! Cloud top height in hpa or meters (iopt = 1 or 2)
     integer, intent(out)   :: nht              ! Number of possible cloud height solutions 
@@ -2488,7 +2482,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: headerIndex      ! Location of the IASI observation in the TOVS structures and in obSpaceData (this is the same in IR bgck mode)
+    integer, intent(in) :: headerIndex      ! Location of IASI observation in TOVS structures and obSpaceData
     real(8), intent(in) :: surfem1_avhrr(3) ! AHVRR surface emissivities
     integer, intent(in) :: idiasi           ! iasi (in fact METOP) number
 
@@ -2506,7 +2500,6 @@ contains
     integer :: nchannels
     integer :: nlevels, iptobs(1)
 
-  
     if (idiasi_old /= idiasi) then
       list_sensor(1) = 10
       list_sensor(2) = idiasi
@@ -2617,14 +2610,14 @@ contains
   !--------------------------------------------------------------------------
   ! cor_albedo
   !--------------------------------------------------------------------------
-  subroutine  cor_albedo  (delta, scos)
+  subroutine cor_albedo(delta, scos)
     !
     ! :Purpose: ce sous-programme calcule un facteur de correction
     !           pour l'albedo a partir du cosinus de l'angle solaire.
     !
     implicit  none
 
-    !Arguments:
+    ! Arguments:
     real(8), intent(in)  :: scos   ! Cosine of solar zenith angle
     real(8), intent(out) :: delta  ! Correction factor
 
@@ -2654,7 +2647,7 @@ contains
   !--------------------------------------------------------------------------
   ! drcld
   !--------------------------------------------------------------------------
-  real(8) function  drcld (iz) 
+  real(8) function drcld(iz) 
     !
     ! :Purpose: Generaliser pour toutes les plateformes satellitaires.
     !           Ce sous-programme calcule la normalisation due
@@ -2665,8 +2658,10 @@ contains
     !
     implicit  none
 
+    ! Arguments:
     integer, intent(in) ::  iz ! Index for Sun angle bin
-    
+
+    ! Locals:
     real(8),parameter ::  drf(11)=(/1.000d0, 1.002d0, 1.042d0, 1.092d0, 1.178d0, 1.286d0, &
                                     1.420d0, 1.546d0, 1.710d0, 1.870d0, 2.050d0/) 
 
@@ -2704,16 +2699,12 @@ contains
     integer  i1, i2, j1, j2, k1, k2, l, i, n, m, j, k
     real(8) cc, d1, d2, slope, intercept, x1, x2
     real(8) g1, g2, da(2), dd(2) 
-
     real(8), parameter :: s(11)=(/0.0d0,18.19d0,31.79d0,41.41d0,49.46d0,56.63d0, &
-         63.26d0,69.51d0,75.52d0,81.37d0,87.13d0/)
-    
+         63.26d0,69.51d0,75.52d0,81.37d0,87.13d0/)    
     real(8), parameter :: r(13)=(/0.0d0, 15.0d0, 30.0d0, 45.0d0, 60.0d0, 75.0d0, 90.0d0, &
          105.0d0, 120.0d0, 135.0d0, 150.0d0, 165.0d0, 180.0d0/)
-
     real(8), parameter :: v(10)=(/0.0d0, 10.0d0, 20.0d0, 30.0d0, 40.0d0, 50.0d0, 60.0d0, &
          70.0d0, 80.0d0, 90.0d0/)
-
     real(8) vnorm(11,10,13)
 
     data ((vnorm(1,j,k),j=1,10),k=1,13)/  &
@@ -2997,10 +2988,10 @@ contains
     !
     implicit none
 
-    !Argument
+    ! Arguments:
     integer, intent(in) ::  iz  ! index
 
-    !Locals:
+    ! Locals:
     real(8),parameter :: drf(11)=(/1.d0,1.0255d0,1.1197d0,1.2026d0,1.3472d0, &
          1.4926d0,1.8180d0,2.1980d0, 2.8180d0,3.8615d0,4.3555d0/)
 

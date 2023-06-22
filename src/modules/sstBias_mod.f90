@@ -1,7 +1,6 @@
 
 module sstBias_mod
-
-  ! MODULE sstBias (prefix='sstb' category='1. High-level functionality')
+  ! MODULE sstBias_mod (prefix='sstb' category='1. High-level functionality')
   !
   !:Purpose: Compute SST satellite data bias estimation and correction
   !
@@ -69,7 +68,7 @@ module sstBias_mod
     type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
       
-    ! locals
+    ! Locals:
     integer                     :: sensorIndex, productIndex
     real(8)                     :: insituGrid   (hco%ni, hco%nj)
     real(8)                     :: satelliteGrid(hco%ni, hco%nj)
@@ -182,7 +181,7 @@ module sstBias_mod
     character(len=*), intent(in)             :: instrument     ! name of instrument
     character(len=*), intent(in), optional   :: dayOrNight_opt ! look for daytime or nighttime obs
     
-    ! locals
+    ! Locals:
     integer, parameter        :: maxPointsSearch = 200000
     real(4), parameter        :: solarZenithThreshold = 90.0 ! to distinguish day and night
     type(kdtree2), pointer    :: tree => null() 
@@ -368,7 +367,7 @@ module sstBias_mod
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
 
-    ! locals
+    ! Locals:
     real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
@@ -573,15 +572,15 @@ module sstBias_mod
     !     
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_gsv)       , intent(inout)       :: stateVector       ! state vector containing bias estimation field    
-    type(struct_columnData), intent(in)          :: column            ! column data
+    type(struct_columnData), intent(inout)       :: column            ! column data
     type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal grid
     character(len=*)       , intent(in)          :: sensor            ! current sensor name
     character(len=*)       , intent(in)          :: dayOrNight        ! look for daytime or nighttime obs
 
-    ! locals
+    ! Locals:
     real(4), parameter :: solarZenithThreshold = 90.0 ! to distinguish day and night
     integer            :: bodyIndex, headerIndex
     real(8)            :: currentObs
@@ -627,7 +626,7 @@ module sstBias_mod
     !
     implicit none
 
-    ! locals
+    ! Locals:
     integer :: ierr, nulnam, sensorIndex
     
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
@@ -690,13 +689,13 @@ module sstBias_mod
     !     
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_obs)       , intent(inout)          :: obsData ! obsSpaceData
     type(struct_hco)       , intent(inout), pointer :: hco     ! horizontal grid structure
     type(struct_vco)       , intent(in)   , pointer :: vco     ! vertical grid structure
-    type(struct_columnData), intent(in)             :: column  ! column data 
+    type(struct_columnData), intent(inout)          :: column  ! column data 
 
-    ! locals
+    ! Locals:
     type(struct_gsv)            :: stateVector
     integer         , parameter :: numberProducts = 2            ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/) ! day and night biases
@@ -741,16 +740,16 @@ module sstBias_mod
     !:Purpose: to get a satellite SST data bias estimate from the previous state if data is missing.
     !          or there are no insitu data for the current dateStamp,
     !          hence, unable to compute bias estimates for the satellite data.
- 
+    !
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_hco), intent(inout), pointer :: hco        ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco        ! vertical grid structure
     character(len=*), intent(in)             :: sensor     ! sensor name
     character(len=*), intent(in)             :: dayOrNight ! look for daytime or nighttime bias estimation
 
-    ! locals
+    ! Locals:
     type(struct_gsv)            :: stateVector                  ! state vector containing current  bias estimation field
     type(struct_gsv)            :: stateVector_previous         ! state vector containing previous bias estimation field
     real(4), pointer            :: griddedBias_r4_ptr(:, :, :)

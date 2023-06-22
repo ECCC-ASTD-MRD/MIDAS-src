@@ -42,18 +42,19 @@ contains
     !
     implicit none
 
-    ! arguments
-    integer :: ierr  ! returned value of function
-    integer, intent(in) :: gdid
+    ! Arguments:
+    integer, intent(in)  :: gdid
     integer, intent(out) :: subGridIndex
     real(4), intent(out) :: xpos_r4
     real(4), intent(out) :: ypos_r4
     real(4), intent(out) :: xpos2_r4
     real(4), intent(out) :: ypos2_r4
-    real(4), intent(in) :: lat_deg_r4
-    real(4), intent(in) :: lon_deg_r4
+    real(4), intent(in)  :: lat_deg_r4
+    real(4), intent(in)  :: lon_deg_r4
+    ! Result:
+    integer :: ierr  ! returned value of function
 
-    ! locals
+    ! Locals:
     integer :: numSubGrids
     integer :: ezget_nsubGrids, gdxyfll, ezgprm
     character(len=1) :: grtyp
@@ -105,22 +106,27 @@ contains
   !---------------------------------------------------------
   function gpos_xyfll_yinYangGrid( gdid, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4,  &
                           lat_deg_r4, lon_deg_r4, subGridIndex ) result(ierr)
-
+    !
     ! :Purpose: Compute the grid XY position from a lat-lon for a Yin-Yang grid.
     !           It returns locations from both the Yin and Yang
     !           subgrids when in the overlap region, depending on the logical 
     !           variable `useSingleValueOverlap`.
+    !
     implicit none
 
-    ! arguments
-    integer :: ierr  ! returned value of function
+    ! Arguments:
     integer, intent(in)  :: gdid
     integer, intent(out) :: subGridIndex
-    real(4), intent(in)  :: lat_deg_r4, lon_deg_r4
-    real(4), intent(out) :: xpos_r4,  ypos_r4
-    real(4), intent(out) :: xpos2_r4, ypos2_r4
+    real(4), intent(in)  :: lat_deg_r4
+    real(4), intent(in)  :: lon_deg_r4
+    real(4), intent(out) :: xpos_r4
+    real(4), intent(out) :: ypos_r4
+    real(4), intent(out) :: xpos2_r4
+    real(4), intent(out) :: ypos2_r4
+    ! Result:
+    integer :: ierr  ! returned value of function
 
-    ! Local Variables
+    ! Locals:
     integer :: ezget_subGridids, gdgaxes, gdxyfll, ezgprm
     integer :: EZscintIDvec(2)
     integer, save :: EZscintIDvec1_old = -999
@@ -130,7 +136,6 @@ contains
     logical :: axesDifferent
     character(len=1) :: grtyp
     integer :: ni, nj, ig1, ig2, ig3, ig4
-
     ! this controls which approach to use for interpolation within the YIN-YAN overlap
     logical :: useSingleValueOverlap = .true.  
 
@@ -236,37 +241,34 @@ contains
     !           perform this task. The kdtree itself is constructed on the first call.
     implicit none
 
-    ! arguments
-    integer :: ierr  ! returned value of function
+    ! Arguments:
     integer, intent(in)  :: gdid
-    real(4), intent(in)  :: lat_deg_r4, lon_deg_r4
-    real(4), intent(out) :: xpos_r4, ypos_r4
+    real(4), intent(in)  :: lat_deg_r4
+    real(4), intent(in)  :: lon_deg_r4
+    real(4), intent(out) :: xpos_r4
+    real(4), intent(out) :: ypos_r4
+    ! Result:
+    integer :: ierr  ! returned value of function
 
-    ! Local Variables
-
+    ! Locals:
     real(8) :: lon_rad_r8, lat_rad_r8, pertGridLonRad, pertGridLatRad
     real(8), parameter :: deltaGrid = 0.00001d0
     real(8) :: pertPosition(3)
     real(8) :: gridSpacing
     real(8) :: gridSpacingSquared, lowerLeftCornerDistSquared, lowerRightCornerDistSquared, upperLeftCornerDistSquared
-
     integer, save :: gdidOld = -999
     integer :: nx, ny
     integer, save :: ni, nj
     real(8), allocatable, save :: grid_lon_rad(:,:), grid_lat_rad(:,:)
     real(4), save :: maxGridSpacing
     integer, save :: startXIndex, startYIndex, endXIndex, endYIndex
-
     character(len=1) :: grtyp
     integer :: ig1, ig2, ig3, ig4
     real(4), allocatable :: grid_lat_deg_r4(:,:), grid_lon_deg_r4(:,:)
     integer :: closePointsIndex
     integer :: gridIndex
     integer :: xIndex, yIndex, xIndexMin, xIndexMax, yIndexMin, yIndexMax
-
-    ! Functions
-    integer :: ezgprm, gdll
-
+    integer :: ezgprm, gdll ! Functions
     integer                   :: numLocalGridPointsFound
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)

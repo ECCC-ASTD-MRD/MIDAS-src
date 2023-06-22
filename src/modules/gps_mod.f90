@@ -186,9 +186,9 @@ module gps_mod
 
 !modgpsro_mod
 
-!
-! Values determined by input data:
-!
+  !
+  ! Values determined by input data:
+  !
   integer                                :: gps_numROProfiles
   integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
 
@@ -225,10 +225,10 @@ contains
     !
     implicit none
 
-    real(dp)              :: gps_gravitysrf ! Normal gravity (m/s2)
-
     ! Arguments:
     real(dp), intent(in)  :: sLat ! sin(Latitude)
+    ! Result:
+    real(dp)              :: gps_gravitysrf ! Normal gravity (m/s2)
 
     ! Locals:
     real(dp)              :: ks2
@@ -245,12 +245,14 @@ contains
     !
     implicit none
 
-    real(dp)              :: gps_gravityalt ! Normal gravity (m/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: sLat     ! sin(Latitude)
     real(dp), intent(in)  :: Altitude ! Altitude (m)
+    ! Result:
+    real(dp)              :: gps_gravityalt ! Normal gravity (m/s2)
 
+    ! Locals:
     real(dp)              :: C1
     real(dp)              :: C2
 
@@ -269,11 +271,12 @@ contains
     !
     implicit none
 
-    real(dp)              :: gps_geopotential ! Geopotential (m2/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: Latitude ! (rad)
     real(dp), intent(in)  :: Altitude ! (m)
+    ! Result:
+    real(dp)              :: gps_geopotential ! Geopotential (m2/s2)
 
     ! Locals:
     real(dp)              :: dh, sLat
@@ -328,7 +331,7 @@ contains
     
     ! Arguments:
     type(gps_diff), intent(out) :: gd1
-    real(dp)     , intent(in)  :: d2
+    real(dp)      , intent(in)  :: d2
     
     gd1%Var  = d2
     gd1%DVar = 0._dp
@@ -348,12 +351,12 @@ contains
   pure function gpsdiffsmfd(gd1, d2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsmfd
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     real(dp)      , intent(in)  :: d2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsmfd
+
     gpsdiffsmfd%Var  = gd1%Var  + d2
     gpsdiffsmfd%DVar = gd1%DVar
   end function gpsdiffsmfd
@@ -361,12 +364,12 @@ contains
   pure function gpsdiffsmdf(d1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsmdf
-
     ! Arguments:
     real(dp)      , intent(in)  :: d1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsmdf
+
     gpsdiffsmdf%Var  = d1 + gd2%Var
     gpsdiffsmdf%DVar =      gd2%DVar
   end function gpsdiffsmdf
@@ -374,38 +377,38 @@ contains
   pure function gpsdiffsmfi(gd1, i2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsmfi
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     integer(i4)   , intent(in)  :: i2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsmfi
+
     gpsdiffsmfi%Var  = gd1%Var  + i2
     gpsdiffsmfi%DVar = gd1%DVar
   end function gpsdiffsmfi
 
   pure function gpsdiffsmif(i1, gd2)
     implicit none
-   
-    type(gps_diff)              :: gpsdiffsmif
 
     ! Arguments:
     integer(i4)   , intent(in)  :: i1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsmif
+
     gpsdiffsmif%Var  = i1 + gd2%Var
     gpsdiffsmif%DVar =      gd2%DVar
   end function gpsdiffsmif
 
   pure function gpsdiffsmff(gd1, gd2)
     implicit none
-   
-    type(gps_diff)              :: gpsdiffsmff
 
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsmff
+
     gpsdiffsmff%Var  = gd1%Var  + gd2%Var
     gpsdiffsmff%DVar = gd1%DVar + gd2%DVar
   end function gpsdiffsmff
@@ -413,12 +416,12 @@ contains
   pure function gpsdiffsbfd(gd1, d2)
     implicit none 
 
-    type(gps_diff)              :: gpsdiffsbfd
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     real(dp)      , intent(in)  :: d2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsbfd
+
     gpsdiffsbfd%Var  = gd1%Var  - d2
     gpsdiffsbfd%DVar = gd1%DVar
   end function gpsdiffsbfd
@@ -426,12 +429,12 @@ contains
   pure function gpsdiffsbdf(d1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsbdf
-
     ! Arguments:
     real(dp)      , intent(in)  :: d1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsbdf
+
     gpsdiffsbdf%Var  = d1 - gd2%Var
     gpsdiffsbdf%DVar =    - gd2%DVar
   end function gpsdiffsbdf
@@ -439,12 +442,12 @@ contains
   pure function gpsdiffsbfi(gd1, i2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsbfi
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     integer(i4)   , intent(in)  :: i2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsbfi
+
     gpsdiffsbfi%Var  = gd1%Var  - i2
     gpsdiffsbfi%DVar = gd1%DVar
   end function gpsdiffsbfi
@@ -452,12 +455,12 @@ contains
   pure function gpsdiffsbif(i1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsbif
-
     ! Arguments:
     integer(i4)   , intent(in)  :: i1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsbif
+
     gpsdiffsbif%Var  = i1 - gd2%Var
     gpsdiffsbif%DVar =    - gd2%DVar
   end function gpsdiffsbif
@@ -465,12 +468,12 @@ contains
   pure function gpsdiffsbff(gd1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsbff
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffsbff
+
     gpsdiffsbff%Var  = gd1%Var  - gd2%Var
     gpsdiffsbff%DVar = gd1%DVar - gd2%DVar
   end function gpsdiffsbff
@@ -478,12 +481,12 @@ contains
   pure function gpsdiffmlfd(gd1, d2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffmlfd
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     real(dp)      , intent(in)  :: d2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffmlfd
+
     gpsdiffmlfd%Var  = d2 * gd1%Var
     gpsdiffmlfd%DVar = d2 * gd1%DVar
   end function gpsdiffmlfd
@@ -491,12 +494,12 @@ contains
   pure function gpsdiffmldf(d1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffmldf
-
     ! Arguments:
     real(dp)      , intent(in)  :: d1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffmldf
+
     gpsdiffmldf%Var  = d1 * gd2%Var
     gpsdiffmldf%DVar = d1 * gd2%DVar
   end function gpsdiffmldf
@@ -504,12 +507,12 @@ contains
   pure function gpsdiffmlfi(gd1, i2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffmlfi
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     integer(i4)   , intent(in)  :: i2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffmlfi
+
     gpsdiffmlfi%Var  = i2 * gd1%Var
     gpsdiffmlfi%DVar = i2 * gd1%DVar
   end function gpsdiffmlfi
@@ -517,12 +520,12 @@ contains
   pure function gpsdiffmlif(i1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffmlif
-
     ! Arguments:
     integer(i4)   , intent(in)  :: i1
     type(gps_diff), intent(in)  :: gd2
-    
+    ! Result:
+    type(gps_diff)              :: gpsdiffmlif
+
     gpsdiffmlif%Var  = i1 * gd2%Var
     gpsdiffmlif%DVar = i1 * gd2%DVar
   end function gpsdiffmlif
@@ -530,11 +533,11 @@ contains
   pure function gpsdiffmlff(gd1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffmlff
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffmlff
     
     gpsdiffmlff%Var  = gd1%Var * gd2%Var
     gpsdiffmlff%DVar = (gd2%Var * gd1%DVar) + (gd1%Var * gd2%DVar)
@@ -543,11 +546,11 @@ contains
   pure function gpsdiffdvfd(gd1, d2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffdvfd
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     real(dp)      , intent(in)  :: d2
+    ! Result:
+    type(gps_diff)              :: gpsdiffdvfd
     
     gpsdiffdvfd%Var  = gd1%Var  / d2
     gpsdiffdvfd%DVar = gd1%DVar / d2
@@ -556,11 +559,11 @@ contains
   pure function gpsdiffdvdf(d1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffdvdf
-
     ! Arguments:
     real(dp)      , intent(in)  :: d1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffdvdf
     
     gpsdiffdvdf%Var  =  d1 / gd2%Var
     gpsdiffdvdf%DVar = (-d1 / gd2%Var**2) * gd2%DVar
@@ -569,11 +572,11 @@ contains
   pure function gpsdiffdvfi(gd1, i2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffdvfi
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     integer(i4)   , intent(in)  :: i2
+    ! Result:
+    type(gps_diff)              :: gpsdiffdvfi
     
     gpsdiffdvfi%Var  = gd1%Var  / i2
     gpsdiffdvfi%DVar = gd1%DVar / i2
@@ -582,11 +585,11 @@ contains
   pure function gpsdiffdvif(i1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffdvif
-
     ! Arguments:
     integer(i4)   , intent(in)  :: i1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffdvif
     
     gpsdiffdvif%Var  = i1 / gd2%Var
     gpsdiffdvif%DVar = (-i1 / gd2%Var**2) * gd2%DVar
@@ -595,11 +598,11 @@ contains
   pure function gpsdiffdvff(gd1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffdvff
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffdvff
 
     ! Locals:
     real(dp)                    :: onegd2
@@ -612,11 +615,11 @@ contains
   pure function gpsdiffpwfd(gd1, d2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffpwfd
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     real(dp)      , intent(in)  :: d2
+    ! Result:
+    type(gps_diff)              :: gpsdiffpwfd
     
     gpsdiffpwfd%Var  = gd1%Var  ** d2
     gpsdiffpwfd%DVar = (d2*(gd1%Var**(d2-1._dp))) * gd1%DVar
@@ -625,11 +628,11 @@ contains
   pure function gpsdiffpwdf(d1, gd2)
     implicit none
     
-    type(gps_diff)              :: gpsdiffpwdf
-
     ! Arguments:
     real(dp)      , intent(in)  :: d1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffpwdf
     
     gpsdiffpwdf%Var  =  d1 ** gd2%Var
     gpsdiffpwdf%DVar = (log(d1)*d1**gd2%Var) * gd2%DVar
@@ -638,11 +641,11 @@ contains
   pure function gpsdiffpwfi(gd1, i2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffpwfi
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     integer(i4)   , intent(in)  :: i2
+    ! Result:
+    type(gps_diff)              :: gpsdiffpwfi
     
     gpsdiffpwfi%Var  = gd1%Var  ** i2
     gpsdiffpwfi%DVar = (i2*(gd1%Var**(i2-1))) * gd1%DVar
@@ -651,11 +654,11 @@ contains
   pure function gpsdiffpwif(i1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffpwif
-
     ! Arguments:
     integer(i4)   , intent(in)  :: i1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffpwif
     
     gpsdiffpwif%Var  = i1 ** gd2%Var
     gpsdiffpwif%DVar = (log(1._dp*i1)*i1**gd2%Var) * gd2%DVar
@@ -664,11 +667,11 @@ contains
   pure function gpsdiffpwff(gd1, gd2)
     implicit none
 
-    type(gps_diff)              :: gpsdiffpwff
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
     type(gps_diff), intent(in)  :: gd2
+    ! Result:
+    type(gps_diff)              :: gpsdiffpwff
     
     gpsdiffpwff%Var  = gd1%Var ** gd2%Var
     gpsdiffpwff%DVar = ( gd2%Var * ( gd1%Var**(gd2%Var-1) ) ) * gd1%DVar +    &
@@ -678,10 +681,10 @@ contains
   pure function gpsdiffsqr(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdiffsqr
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdiffsqr
     
     gpsdiffsqr%Var  = sqrt( gd1%Var )
     gpsdiffsqr%DVar = (0.5_dp / sqrt( gd1%Var )) * gd1%DVar
@@ -690,10 +693,10 @@ contains
   pure function gpsdiffexp(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdiffexp
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdiffexp
     
     gpsdiffexp%Var  = exp(gd1%Var)
     gpsdiffexp%DVar = gd1%DVar * exp(gd1%Var)
@@ -702,10 +705,10 @@ contains
   pure function gpsdifflog(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdifflog
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdifflog
     
     gpsdifflog%Var  = log(gd1%Var)
     gpsdifflog%DVar = gd1%DVar / gd1%Var
@@ -714,10 +717,10 @@ contains
   pure function gpsdiffcos(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdiffcos
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdiffcos
     
     gpsdiffcos%Var  = cos(gd1%Var)
     gpsdiffcos%DVar = gd1%DVar * (-1._dp*sin(gd1%Var))
@@ -726,10 +729,10 @@ contains
   pure function gpsdifftan(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdifftan
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdifftan
     
     gpsdifftan%Var  = tan(gd1%Var)
     gpsdifftan%DVar = (1._dp/cos(gd1%Var)**2) * gd1%DVar
@@ -738,10 +741,10 @@ contains
   pure function gpsdiffacos(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdiffacos
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdiffacos
     
     gpsdiffacos%Var  = acos(gd1%Var)
     gpsdiffacos%DVar = gd1%DVar * (-1._dp/(1._dp-gd1%Var*gd1%Var))
@@ -750,10 +753,10 @@ contains
   pure function gpsdiffatan(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdiffatan
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdiffatan
     
     gpsdiffatan%Var  = atan(gd1%Var)
     gpsdiffatan%DVar = (1._dp/(1._dp+gd1%Var**2)) * gd1%DVar
@@ -762,10 +765,10 @@ contains
   pure function gpsdifferf(gd1)
     implicit none
 
-    type(gps_diff)              :: gpsdifferf
-
     ! Arguments:
     type(gps_diff), intent(in)  :: gd1
+    ! Result:
+    type(gps_diff)              :: gpsdifferf
 
     ! Locals:
     real(dp) , parameter :: pi = MPC_PI_R8
@@ -781,29 +784,26 @@ contains
     implicit none
  
     ! Arguments:
-    integer(i4)     , intent(in)  :: ngpslev
-    real(dp)        , intent(in)  :: rLat
-    real(dp)        , intent(in)  :: rLon
-    real(dp)        , intent(in)  :: rAzm
-    real(dp)        , intent(in)  :: rMT
-    real(dp)        , intent(in)  :: Rad
-    real(dp)        , intent(in)  :: geoid
-    real(dp)        , intent(in)  :: rP0
-    real(dp)        , intent(in)  :: rPP (ngpssize)
-    real(dp)        , intent(in)  :: rDP (ngpssize)
-    real(dp)        , intent(in)  :: rTT (ngpssize)
-    real(dp)        , intent(in)  :: rHU (ngpssize)
-    real(dp)        , intent(in)  :: rUU (ngpssize)
-    real(dp)        , intent(in)  :: rVV (ngpssize)
-    logical         , optional    :: printHeight_opt
-
-    type(gps_profile), intent(out) :: prf
+    integer(i4)      , intent(in)    :: ngpslev
+    real(dp)         , intent(in)    :: rLat
+    real(dp)         , intent(in)    :: rLon
+    real(dp)         , intent(in)    :: rAzm
+    real(dp)         , intent(in)    :: rMT
+    real(dp)         , intent(in)    :: Rad
+    real(dp)         , intent(in)    :: geoid
+    real(dp)         , intent(in)    :: rP0
+    real(dp)         , intent(in)    :: rPP (ngpssize)
+    real(dp)         , intent(in)    :: rDP (ngpssize)
+    real(dp)         , intent(in)    :: rTT (ngpssize)
+    real(dp)         , intent(in)    :: rHU (ngpssize)
+    real(dp)         , intent(in)    :: rUU (ngpssize)
+    type(gps_profile), intent(out)   :: prf
+    real(dp)         , intent(in)    :: rVV (ngpssize)
+    logical, optional, intent(inout) :: printHeight_opt
 
     ! Locals:
     integer(i4)                    :: i
-
     real(dp) , parameter           :: delta = 0.6077686814144_dp
-
     type(gps_diff)                 :: cmp(ngpssize)
     real(dp)                       :: h0,dh,Rgh,Eot,Eot2, sLat, cLat
     type(gps_diff)                 :: p, t, q, x
@@ -933,30 +933,26 @@ contains
     implicit none
 
     ! Arguments:
-    integer(i4)     , intent(in)  :: ngpslev
-    real(dp)        , intent(in)  :: rLat
-    real(dp)        , intent(in)  :: rLon
-    real(dp)        , intent(in)  :: rAzm
-    real(dp)        , intent(in)  :: rMT
-    real(dp)        , intent(in)  :: Rad
-    real(dp)        , intent(in)  :: geoid
-    real(dp)        , intent(in)  :: rP0
-    real(dp)        , intent(in)  :: rPP (ngpssize)
-    real(dp)        , intent(in)  :: rTT (ngpssize)
-    real(dp)        , intent(in)  :: rHU (ngpssize)
-    real(dp)        , intent(in)  :: rUU (ngpssize)
-    real(dp)        , intent(in)  :: rVV (ngpssize)
-    real(dp)        , intent(in)  :: rALT (ngpssize)
-
+    integer(i4)      , intent(in)  :: ngpslev
+    real(dp)         , intent(in)  :: rLat
+    real(dp)         , intent(in)  :: rLon
+    real(dp)         , intent(in)  :: rAzm
+    real(dp)         , intent(in)  :: rMT
+    real(dp)         , intent(in)  :: Rad
+    real(dp)         , intent(in)  :: geoid
+    real(dp)         , intent(in)  :: rP0
+    real(dp)         , intent(in)  :: rPP (ngpssize)
+    real(dp)         , intent(in)  :: rTT (ngpssize)
+    real(dp)         , intent(in)  :: rHU (ngpssize)
+    real(dp)         , intent(in)  :: rUU (ngpssize)
+    real(dp)         , intent(in)  :: rVV (ngpssize)
+    real(dp)         , intent(in)  :: rALT (ngpssize)
     type(gps_profile), intent(out) :: prf
 
-    ! Locals
+    ! Locals:
     integer(i4)                   :: i
     real(dp)                      :: rALT_E(ngpssize)
-
-
     real(dp) , parameter           :: delta = 0.6077686814144_dp
-
     type(gps_diff)                 :: cmp(ngpssize)
     type(gps_diff)                 :: p, t, q, x
     type(gps_diff)                 :: tr
@@ -1045,10 +1041,12 @@ contains
   function gpscompressibility(p,t,q)
     implicit none
 
-    type(gps_diff)              :: gpscompressibility
-
     ! Arguments:
-    type(gps_diff), intent(in)  :: p,t,q
+    type(gps_diff), intent(in)  :: p
+    type(gps_diff), intent(in)  :: t
+    type(gps_diff), intent(in)  :: q
+    ! Result:
+    type(gps_diff)              :: gpscompressibility
 
     ! Locals:
     real(dp) , parameter   :: a0= 1.58123e-6_dp
@@ -1060,7 +1058,6 @@ contains
     real(dp) , parameter   :: c1=-2.376e-6_dp
     real(dp) , parameter   :: d = 1.83e-11_dp
     real(dp) , parameter   :: e =-0.765e-8_dp
-
     type(gps_diff)         :: x,tc,pt,tc2,x2
 
     x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
@@ -1083,7 +1080,7 @@ contains
     real(dp), intent(in)   :: rVV (ngpslev)
     real(dp), intent(out)  :: rALT_E(ngpslev)
 
-    ! Locals
+    ! Locals:
     integer                :: i
     real(dp)               :: cLat, dALT, Eot, Eot2, dALTE, ddAL, acc
 
@@ -1118,56 +1115,36 @@ contains
     implicit none
     
     ! Arguments:
-    integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
-    real(dp)          , intent(in)  :: rLat             ! radians
-    real(dp)          , intent(in)  :: rLon             ! radians
-    real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
-    real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
-    real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
-    real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
-    real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
-    real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
-    logical           , intent(in)  :: lbevis ! determines which set of refractivity constants to use (Bevis or Rueger)
-    integer           , intent(in)  :: refopt
-
+    integer(i4)        , intent(in)  :: ngpslev          ! number of profile levels
+    real(dp)           , intent(in)  :: rLat             ! radians
+    real(dp)           , intent(in)  :: rLon             ! radians
+    real(dp)           , intent(in)  :: rMT              ! height (ASL) of model surface (m)
+    real(dp)           , intent(in)  :: rP0              ! surface pressure (Pa)
+    real(dp)           , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
+    real(dp)           , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
+    real(dp)           , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
+    real(dp)           , intent(in)  :: rHU (ngpssize)   ! q at each level
+    logical            , intent(in)  :: lbevis ! determines which set of refractivity constants to use (Bevis or Rueger)
+    integer            , intent(in)  :: refopt
     type(gps_profilezd), intent(out) :: prf
 
-
     ! Locals:
-
-!!        ******** PARAMETERS *************
-
+    ! ******** PARAMETERS *************
     real(dp), parameter :: delta = 0.6077686814144_dp
     real(dp), parameter :: eps   = 0.6219800221014_dp
-
-! Reuger (2002) refractivity constants (MKS units)
+    ! Reuger (2002) refractivity constants (MKS units)
     real(dp), parameter :: k1r = 0.776890_dp
     real(dp), parameter :: k2r = 0.712952_dp
     real(dp), parameter :: k3r = 3754.63_dp
-! Bevis (1994) refractivity constants (MKS units)
+    ! Bevis (1994) refractivity constants (MKS units)
     real(dp), parameter :: k1b = 0.776000_dp
     real(dp), parameter :: k2b = 0.704000_dp
     real(dp), parameter :: k3b = 3739.000_dp
-
-!    real(dp), parameter :: Avog  = 6.02214e26_dp
-!    real(dp), parameter :: Boltz = 1.38065e-23_dp
-!    real(dp), parameter :: mwDAir= 28.966_dp
-!    real(dp), parameter :: Rd = Avog*Boltz/mwDAir    --> p_Rd
-!    real(dp), parameter :: Rd = 287.05_dp            --> p_Rd
-!    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
-    
-!    real(dp), parameter :: R  = 8.314472_dp          --> p_R
-!    real(dp), parameter :: md = 28.965516_dp         --> gps_p_md
-!    real(dp), parameter :: mw = 18.015254_dp         --> gps_p_mw
-!    real(dp), parameter :: wa = md/mw                --> gps_p_wa
-!    real(dp), parameter :: wb = (md-mw)/mw           --> gps_p_wb
-
-!!       ******** VARIABLES *************
-
+    ! ******** VARIABLES *************
     real(dp)             :: a0,a1,a2,b0,b1,c0,c1,d,e
     type(gps_diff)       :: tc, pt, tc2, x2, tr
     type(gps_diff)       :: mold, dd, dw, dx, n0, nd1, nw1
-    integer(i4)         :: i
+    integer(i4)          :: i
     real(dp)             :: k1, k2, k3, k2p
     real(dp)             :: h0, dh, Rgh, sLat, ptop
     type(gps_diff)       :: p, t, q, x, na, tvm, z
@@ -1342,55 +1319,36 @@ contains
     implicit none
 
     ! Arguments:
-    integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
-    real(dp)          , intent(in)  :: rLat             ! radians
-    real(dp)          , intent(in)  :: rLon             ! radians
-    real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
-    real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
-    real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
-    real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
-    real(dp)          , intent(in)  :: rHU (ngpssize)   ! q at each level
-    real(dp)          , intent(in)  :: rALT (ngpssize)   ! altitude at each level
-    logical           , intent(in)  :: lbevis ! determines which set of refractivity constants to use (Bevis or Rueger)
-    integer           , intent(in)  :: refopt
-
+    integer(i4)        , intent(in)  :: ngpslev          ! number of profile levels
+    real(dp)           , intent(in)  :: rLat             ! radians
+    real(dp)           , intent(in)  :: rLon             ! radians
+    real(dp)           , intent(in)  :: rMT              ! height (ASL) of model surface (m)
+    real(dp)           , intent(in)  :: rP0              ! surface pressure (Pa)
+    real(dp)           , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
+    real(dp)           , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
+    real(dp)           , intent(in)  :: rHU (ngpssize)   ! q at each level
+    real(dp)           , intent(in)  :: rALT (ngpssize)   ! altitude at each level
+    logical            , intent(in)  :: lbevis ! determines which set of refractivity constants to use (Bevis or Rueger)
+    integer            , intent(in)  :: refopt
     type(gps_profilezd), intent(out) :: prf
 
-
     ! Locals:
-!!        ******** PARAMETERS *************
-
+    ! ******** PARAMETERS *************
     real(dp), parameter :: delta = 0.6077686814144_dp
     real(dp), parameter :: eps   = 0.6219800221014_dp
-
-! Reuger (2002) refractivity constants (MKS units)
+    ! Reuger (2002) refractivity constants (MKS units)
     real(dp), parameter :: k1r = 0.776890_dp
     real(dp), parameter :: k2r = 0.712952_dp
     real(dp), parameter :: k3r = 3754.63_dp
-! Bevis (1994) refractivity constants (MKS units)
+    ! Bevis (1994) refractivity constants (MKS units)
     real(dp), parameter :: k1b = 0.776000_dp
     real(dp), parameter :: k2b = 0.704000_dp
     real(dp), parameter :: k3b = 3739.000_dp
-
-!    real(dp), parameter :: Avog  = 6.02214e26_dp
-!    real(dp), parameter :: Boltz = 1.38065e-23_dp
-!    real(dp), parameter :: mwDAir= 28.966_dp
-!    real(dp), parameter :: Rd = Avog*Boltz/mwDAir    --> p_Rd
-!    real(dp), parameter :: Rd = 287.05_dp            --> p_Rd
-!    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
-    
-!    real(dp), parameter :: R  = 8.314472_dp          --> p_R
-!    real(dp), parameter :: md = 28.965516_dp         --> gps_p_md
-!    real(dp), parameter :: mw = 18.015254_dp         --> gps_p_mw
-!    real(dp), parameter :: wa = md/mw                --> gps_p_wa
-!    real(dp), parameter :: wb = (md-mw)/mw           --> gps_p_wb
-
-!!       ******** VARIABLES *************
-
+    ! ******** VARIABLES *************
     real(dp)             :: a0,a1,a2,b0,b1,c0,c1,d,e
     type(gps_diff)       :: tc, pt, tc2, x2, tr
     type(gps_diff)       :: mold, dd, dw, n0, nd1, nw1
-    integer(i4)         :: i
+    integer(i4)          :: i
     real(dp)             :: k1, k2, k3, k2p
     real(dp)             :: sLat, ptop
     type(gps_diff)       :: p, t, q, x, na, z
@@ -1545,20 +1503,19 @@ contains
     implicit none
 
     ! Arguments:
-    type(gps_profile) :: prf
-    type(gps_diff)   , intent(out):: cmp(:)
+    type(gps_profile), intent(in)  :: prf
+    type(gps_diff)   , intent(out) :: cmp(:)
 
     ! Locals:
     integer(i4)      :: i, ngpslev
     type(gps_diff)               :: p, t, q
-    !type(gps_diff)               :: Zd,Zn,Zo,Za,Zw,Zt
     type(gps_diff)               :: x,tc,pt,tc2,x2,ZtC
     real(dp)                     :: a0,a1,a2,b0,b1,c0,c1,d,e
     real(dp) , parameter         :: md=28.965516_dp
     real(dp) , parameter         :: mw=18.015254_dp
     real(dp) , parameter         :: wa=md/mw
     real(dp) , parameter         :: wb=(md-mw)/mw
-    !
+
     a0=1.58123e-6_dp
     a1=-2.9331e-8_dp
     a2=1.1043e-10_dp
@@ -1597,7 +1554,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(gps_profile)              :: prf
+    type(gps_profile), intent(in)  :: prf
     type(gps_diff)   , intent(out) :: den(:)
 
     ! Locals:
@@ -1633,7 +1590,7 @@ contains
     implicit none
  
     ! Arguments:
-    type(gps_profile)              :: prf
+    type(gps_profile), intent(in)  :: prf
     type(gps_diff)   , intent(out) :: bvf(ngpssize)
 
     ! Locals:
@@ -1675,9 +1632,7 @@ contains
     integer(i4)                       :: iSize, i, ngpslev
     integer(i4)                       :: j, jloc
     real(dp)                           :: h
-    
     type(gps_diff)                     :: dz
-
     type(gps_diff)                     :: dzm
     type(gps_diff)                     :: dzp
     
@@ -1735,24 +1690,20 @@ contains
     implicit none
  
     ! Arguments:
-    real(dp)              , intent(in) :: pr
-    type(gps_profile)                  :: prf
-    type(gps_diff)        , intent(out):: hgtopv
+    real(dp)         , intent(in) :: pr
+    type(gps_profile), intent(in) :: prf
+    type(gps_diff)   , intent(out):: hgtopv
 
     ! Locals:
     integer(i4)                       :: j, jloc, ngpslev
     real(dp)                           :: p
     type(gps_diff)                     :: vpm
     type(gps_diff)                     :: vpp
-    
-    type(gps_diff)                     :: dpr
-    
+    type(gps_diff)                     :: dpr    
     type(gps_diff)                     :: dxm
     type(gps_diff)                     :: dxp
-    
     type(gps_diff)                     :: Hm
-    type(gps_diff)                     :: Hp
-    
+    type(gps_diff)                     :: Hp    
     type(gps_diff)                     :: H
 
     ngpslev=prf%ngpslev
@@ -1802,7 +1753,7 @@ contains
     ! Arguments:
     real(dp)              , intent(in) :: pr(:)
     integer(i4)           , intent(in) :: nval
-    type(gps_profile)                  :: prf
+    type(gps_profile)     , intent(in) :: prf
     type(gps_diff)        , intent(out):: temopv(:)
 
     ! Locals:
@@ -1811,15 +1762,11 @@ contains
     real(dp)                           :: p
     type(gps_diff)                     :: vpm
     type(gps_diff)                     :: vpp
-    
     type(gps_diff)                     :: dpr
-    
     type(gps_diff)                     :: dxm
     type(gps_diff)                     :: dxp
-    
     type(gps_diff)                     :: Tm
     type(gps_diff)                     :: Tp
-    
     type(gps_diff)                     :: T
 
     ngpslev=prf%ngpslev
@@ -1872,7 +1819,7 @@ contains
 
     ! Arguments:
     real(dp)              , intent(in) :: pr(:)
-    type(gps_profile)                  :: prf
+    type(gps_profile)     , intent(in) :: prf
     type(gps_diff)        , intent(out):: wmropv(:)
 
     ! Locals:
@@ -1881,15 +1828,11 @@ contains
     real(dp)                           :: p
     type(gps_diff)                     :: vpm
     type(gps_diff)                     :: vpp
-    
     type(gps_diff)                     :: dpr
-    
     type(gps_diff)                     :: dxm
     type(gps_diff)                     :: dxp
-    
     type(gps_diff)                     :: Rm
     type(gps_diff)                     :: Rp
-    
     type(gps_diff)                     :: R
 
     ngpslev=prf%ngpslev
@@ -1942,24 +1885,19 @@ contains
     ! Arguments:
     real(dp)              , intent(in) :: hv(:)
     integer(i4)           , intent(in) :: nval
-    type(gps_profile)                  :: prf
+    type(gps_profile)     , intent(in) :: prf
     type(gps_diff)        , intent(out):: bvfopv(:)
 
     ! Locals:
     integer(i4)                        :: iSize, i, ngpslev
     integer(i4)                        :: j, jloc
     real(dp)                           :: h
-
     type(gps_diff)                     :: bvf(ngpssize)
-
     type(gps_diff)                     :: gpm
     type(gps_diff)                     :: gpp
-    
     type(gps_diff)                     :: dz
-    
     type(gps_diff)                     :: dxm
     type(gps_diff)                     :: dxp
-    
     type(gps_diff)                     :: BVm
     type(gps_diff)                     :: BVp
     
@@ -2026,13 +1964,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(dp)              , intent(in) :: hv    ! height of ZTD observation Zobs (m)
-    type(gps_profilezd)   , intent(in) :: prf   ! local model profile (type gps_profilezd)
-    logical               , intent(in) :: lbevis! true/false --> use Bevis instead of Rueger k values
-    real(dp)              , intent(in) :: dzmin
-    type(gps_diff)        , intent(out):: ZTDopv! ZTD (m) at height of observation (with derivatives)
-    real(dp)              , intent(out):: rPobs ! Pressure (Pa) at height of observation
-    integer               , intent(in) :: mode
+    real(dp)           , intent(in)  :: hv    ! height of ZTD observation Zobs (m)
+    type(gps_profilezd), intent(in)  :: prf   ! local model profile (type gps_profilezd)
+    logical            , intent(in)  :: lbevis! true/false --> use Bevis instead of Rueger k values
+    real(dp)           , intent(in)  :: dzmin
+    type(gps_diff)     , intent(out) :: ZTDopv! ZTD (m) at height of observation (with derivatives)
+    real(dp)           , intent(out) :: rPobs ! Pressure (Pa) at height of observation
+    integer            , intent(in)  :: mode
 
     ! Locals:
     integer(i4)                        :: ngpslev
@@ -2040,28 +1978,22 @@ contains
     real(dp)                           :: h, x, lat, sLat, dh
     real(dp)                           :: k1, k2, k3, k2p
     real(dp)                           :: zcon, zcon1, zconh, zfph, zconw
-    
     type(gps_diff)                     :: dz, tvsfc, tobs, qobs, tvobs, naobs, Pobs
     type(gps_diff)                     :: dztddp, dztddpm
-    
     type(gps_diff)                     :: zhd, tbar, qbar, qtterm, zsum, ztmobs, zqmobs
     type(gps_diff)                     :: zpbar, ztbar, zqbar, zrmean, zwd
-    
     type(gps_diff)                     :: dzm, dzp
-
     real(dp), parameter :: delta = 0.6077686814144_dp
     real(dp), parameter :: eps   = 0.6219800221014_dp
     real(dp), parameter :: kappa = (1.0_dp/eps)-1.0_dp
     real(dp), parameter :: gamma = 0.0065_dp    ! -dT/dz (K/m)
-!    real(dp), parameter :: Rg  = 9.80616_dp   --> p_g_GEM
     real(dp), parameter :: Rgm = 9.784_dp
-!    real(dp), parameter :: Rd = 287.05_dp     --> p_Rd
     real(dp), parameter :: dzmax = 100.0
-! Reuger (2002) refractivity constants (MKS units)
+    ! Reuger (2002) refractivity constants (MKS units)
     real(dp), parameter :: k1r = 0.776890_dp
     real(dp), parameter :: k2r = 0.712952_dp
     real(dp), parameter :: k3r = 3754.63_dp
-! Bevis (1994) refractivity constants (MKS units)
+    ! Bevis (1994) refractivity constants (MKS units)
     real(dp), parameter :: k1b = 0.776000_dp
     real(dp), parameter :: k2b = 0.704000_dp
     real(dp), parameter :: k3b = 3739.000_dp
@@ -2102,7 +2034,7 @@ contains
     
     if ( mode == 2 ) then
     
-!  Compute ZTD the Vedel and Huang (2004) way: (as in old s/r gpsztdop.ftn)
+      ! Compute ZTD the Vedel and Huang (2004) way: (as in old s/r gpsztdop.ftn)
 
        zcon  = 1.0e-06_dp*p_Rd
        zcon1 = zcon*k1
@@ -2110,14 +2042,14 @@ contains
        zconh = zcon1/Rgm
        zfph = (1.0_dp - 2.66e-03_dp*cos(2.0*lat) - 2.8e-07_dp*h)
 
-!  Pressure at obs height (CMC hydrostatic extrapolation from Psfc)
+       ! Pressure at obs height (CMC hydrostatic extrapolation from Psfc)
        x      = ec_rg/(p_Rd*gamma)
        tvsfc  = prf%tst(ngpslev)*(1._dp+delta*prf%qst(ngpslev))
        Pobs   = prf%pst(ngpslev)*(((tvsfc-gamma*dh)/tvsfc)**x)
-!  Dry delay ZHD (m) at obs height
+       ! Dry delay ZHD (m) at obs height
        zhd    = (zconh/zfph) * Pobs
 
-! Integrate column q/T on pressure levels to get model ZWD
+       ! Integrate column q/T on pressure levels to get model ZWD
        do j = 1, ngpslev-1
          tbar = (prf%tst(j) + prf%tst(j+1))*0.5_dp
          qbar = (prf%qst(j) + prf%qst(j+1))*0.5_dp
@@ -2129,23 +2061,23 @@ contains
          end if
        end do
        
-! Compute ZWD at obs height using Higgins method (HU constant over dh layer)
+       ! Compute ZWD at obs height using Higgins method (HU constant over dh layer)
        ztmobs = prf%tst(ngpslev) - (gamma * dh)
        zqmobs = prf%qst(ngpslev)
        zpbar  = (Pobs + prf%pst(ngpslev)) * 0.5_dp
        ztbar  = (ztmobs + prf%tst(ngpslev)) * 0.5_dp
        zqbar  = (zqmobs + prf%qst(ngpslev)) * 0.5_dp
-!      Mean (wet) refractivity of dz layer
+       ! Mean (wet) refractivity of dz layer
        zrmean = 1.0e-06_dp*(k2p*((zpbar*zqbar)/(eps*ztbar)) + k3*((zpbar*zqbar)/(eps*ztbar**2)))
        
-!      Make sure adjusted ZWD >= 0
+       ! Make sure adjusted ZWD >= 0
        if ( (zsum%Var*zconw)-(zrmean%Var*dh) > 0._dp ) then
          zwd = (zsum*zconw) - (zrmean*dh)
        else
          zwd = (zsum*zconw)
        end if
        
-! Compute ZTD as sum of ZHD and ZWD      
+       ! Compute ZTD as sum of ZHD and ZWD      
        ZTDopv = zhd + zwd
 
     
@@ -2195,10 +2127,10 @@ contains
   end subroutine gps_ztdopv
 
   subroutine gps_pw(prf, PW)
-  !
-  !:Purpose: To compute lowest level PW (kg/m2) using layer mean Q and layer
-  !          delta_p (Pa)
-  !
+    !
+    !:Purpose: To compute lowest level PW (kg/m2) using layer mean Q and layer
+    !          delta_p (Pa)
+    !
     implicit none
 
     ! Arguments:
@@ -2235,7 +2167,7 @@ contains
     implicit none
  
     ! Arguments:
-    type(gps_profile)     :: prf
+    type(gps_profile), intent(inout) :: prf
 
     ! Locals:
     type(gps_diff)                     :: sum,ta,tb,tm,trap,simp,boole,num,fa,fb,fm,nm,alpha_B
@@ -2476,7 +2408,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(gps_profile)     :: prf
+    type(gps_profile), intent(inout)   :: prf
 
     ! Locals:
     type(gps_diff)                     :: r  (ngpssize)
@@ -2486,7 +2418,6 @@ contains
     type(gps_diff)                     :: n  (ngpssize)
     type(gps_diff)                     :: dlgnudr(ngpssize-1)
     type(gps_diff)                     :: x  (-ngpsxlow+1:ngpssize)
-
     type(gps_diff)                     :: angle0,angle,angleB,bend,nu0,th,sum,nexp
     real(dp)                           :: dxn
     integer                            :: ngpslev,i,j,jmin
@@ -2584,14 +2515,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(gps_diff), intent(in) :: ra    ! Radius of inner shell (m)
-    type(gps_diff), intent(in) :: th    ! Shell thickness (m)
-    type(gps_diff), intent(in) :: nu0   
-    type(gps_diff), intent(in) :: nexp
-    type(gps_diff), intent(in) :: angle0 ! Ray angle above horizon at ra
-    type(gps_diff), intent(out):: angle  ! Ray angle above horizon at rb
-    type(gps_diff), intent(out):: bend   ! Accumulated bending over the layer
-    logical       , intent(out):: lok
+    type(gps_diff), intent(in)  :: ra    ! Radius of inner shell (m)
+    type(gps_diff), intent(in)  :: th    ! Shell thickness (m)
+    type(gps_diff), intent(in)  :: nu0   
+    type(gps_diff), intent(in)  :: nexp
+    type(gps_diff), intent(in)  :: angle0 ! Ray angle above horizon at ra
+    type(gps_diff), intent(out) :: angle  ! Ray angle above horizon at rb
+    type(gps_diff), intent(out) :: bend   ! Accumulated bending over the layer
+    logical       , intent(out) :: lok
 
     ! Locals:
     type(gps_diff) :: rb,angle0i,dh,hi,rai,nu0i,anglei
@@ -2627,13 +2558,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(gps_diff), intent(in) :: ra ! Radius of inner shell (m)
-    type(gps_diff), intent(in) :: th ! Shell thickness (m)
-    type(gps_diff), intent(in) :: nu0, nexp
-    type(gps_diff), intent(in) :: angle0 ! Ray angle above horizon at ra
-    type(gps_diff), intent(out):: angle  ! Ray angle above horizon at rb
-    type(gps_diff), intent(inout):: bend ! Accumulated bending over the layer
-    logical       , intent(out):: lok
+    type(gps_diff), intent(in)    :: ra ! Radius of inner shell (m)
+    type(gps_diff), intent(in)    :: th ! Shell thickness (m)
+    type(gps_diff), intent(in)    :: nu0, nexp
+    type(gps_diff), intent(in)    :: angle0 ! Ray angle above horizon at ra
+    type(gps_diff), intent(out)   :: angle  ! Ray angle above horizon at rb
+    type(gps_diff), intent(inout) :: bend ! Accumulated bending over the layer
+    logical       , intent(out)   :: lok
 
     ! Locals:
     type(gps_diff) :: rb, nu, dlnndh, g0,g1,g2,f0,f1,f2,x,a,b,c,disc,ds,bendi,g1av
@@ -2689,10 +2620,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(dp)              , intent(in) :: impv(:), azmv(:)
-    integer(i4)           , intent(in) :: nval
-    type(gps_profile)                  :: prf
-    type(gps_diff)        , intent(out):: bstv(:)
+    real(dp)              , intent(in)    :: impv(:)
+    real(dp)              , intent(in)    :: azmv(:)
+    integer(i4)           , intent(in)    :: nval
+    type(gps_profile)     , intent(inout) :: prf
+    type(gps_diff)        , intent(out)   :: bstv(:)
 
     ! Locals:
     integer                            :: iSize, i, j, ngpslev, jlocm, jlocp
@@ -2769,10 +2701,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(dp)              , intent(in) :: impv(:), azmv(:)
-    integer(i4)           , intent(in) :: nval
-    type(gps_profile)                  :: prf
-    type(gps_diff)        , intent(out):: bstv(:)
+    real(dp)              , intent(in)  :: impv(:)
+    real(dp)              , intent(in)  :: azmv(:)
+    integer(i4)           , intent(in)  :: nval
+    type(gps_profile)     , intent(in)  :: prf
+    type(gps_diff)        , intent(out) :: bstv(:)
 
     ! Locals:
     integer                            :: levIndexObs, ngpslev,last_levIndexObs,numLevels,levelHigh,levelLow,levIndexAnl 
@@ -2885,9 +2818,9 @@ contains
     NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
         BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma
 
-!
-!   Define default values:
-!
+    !
+    !   Define default values:
+    !
     LEVELGPSRO = gps_Level_RO_Ref
     GPSRO_MAXPRFSIZE = 300
     SURFMIN    = 0.d0
@@ -2899,19 +2832,19 @@ contains
     gpsroBNorm = .True.
     gpsroEotvos= .False.
     gpsroNsigma= 1000000.d0
-!
-!   Force a pre-NML default for the effective data weight of all
-!   GPSRO satellites. This array has rows 0-1023 (following BUFR element
-!   SATID), and 4 cols. The 4 parameters for each SATID are used to
-!   represent data correlation, a combined property of the satellite
-!   hardware and provider postprocessing.
-!   The default assumes no correlation. 
-!
+    !
+    !   Force a pre-NML default for the effective data weight of all
+    !   GPSRO satellites. This array has rows 0-1023 (following BUFR element
+    !   SATID), and 4 cols. The 4 parameters for each SATID are used to
+    !   represent data correlation, a combined property of the satellite
+    !   hardware and provider postprocessing.
+    !   The default assumes no correlation. 
+    !
     WGPS = 0.
     WGPS(:,1) = 1.
-!
-!   Override with NML values:
-!     
+    !
+    !   Override with NML values:
+    !     
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
@@ -2950,7 +2883,7 @@ contains
     integer, intent(in) :: index
 
     ! Locals:
-    integer i
+    integer :: i
 
     gps_iprofile_from_index=-1
     do i=1,gps_numROProfiles
@@ -2993,8 +2926,8 @@ contains
     NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
          LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
 
-!*  .  1.1 Default values
-!!  .      --------------
+    !*  .  1.1 Default values
+    !!  .      --------------
 
     DZMIN  = 2.0D0
     DZMAX  = 1000.0D0
@@ -3039,8 +2972,8 @@ contains
       write(*,*)' '
     END IF
 
-!   Options to fix/adjust model ZTD to observation height and
-!   assimilate GPS met data
+    !   Options to fix/adjust model ZTD to observation height and
+    !   assimilate GPS met data
 
     if(mmpi_myid.eq.0) then
       write(*,*)' '
@@ -3176,7 +3109,7 @@ contains
     integer, intent(in) :: index
 
     ! Locals:
-    integer i
+    integer :: i
 
     gps_iztd_from_index = -1
     do i = 1, size(gps_ZTD_Index)

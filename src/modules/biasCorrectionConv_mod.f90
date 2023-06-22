@@ -102,7 +102,7 @@ CONTAINS
     !
     implicit none
 
-    !Locals:
+    ! Locals:
     integer  :: ierr, nulnam, sondeIndex
     
     if ( initialized ) then
@@ -179,16 +179,17 @@ CONTAINS
   ! bcc_UACorrection
   !-----------------------------------------------------------------------
   function bcc_UACorrection(timeOfDayX,corrNight,corrDay) result(uaCorrection)
+    !
     ! :Purpose: Returns a UA bias correction from day and night corrections
-    
+    !
     implicit none
-    
-    real(8) :: uaCorrection
-    
-    !Arguments:
+
+    ! Arguments:
     real(8), intent(in)  :: timeOfDayX ! 0.0 (night) <= timeOfDayX <= 1.0 (day), depends on solar_elev
     real(8), intent(in)  :: corrNight  ! night bias correction
     real(8), intent(in)  :: corrDay    ! day bias correction
+    ! Result:
+    real(8) :: uaCorrection
     
     uaCorrection = MPC_missingValue_R8
     
@@ -246,19 +247,19 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
-    integer, intent(in)           ::  stnIndex
-    integer, intent(in)           ::  sondeTypeIndex
-    integer, intent(in)           ::  biasProfileCategory
-    integer, intent(in)           ::  latband
-    real(8), intent(in)           ::  timeOfDayX
-    real(8), intent(in)           ::  obsPressure
+    ! Arguments:
+    integer,          intent(in)  ::  stnIndex
+    integer,          intent(in)  ::  sondeTypeIndex
+    integer,          intent(in)  ::  biasProfileCategory
+    integer,          intent(in)  ::  latband
+    real(8),          intent(in)  ::  timeOfDayX
+    real(8),          intent(in)  ::  obsPressure
     character(len=*), intent(in)  ::  varName
     character(len=*), intent(in)  ::  sondeType
-    real(8), intent(out)          ::  corr
+    real(8),          intent(out) ::  corr
     character(len=*), intent(out) ::  sourceCorr
 
-    !Locals:
+    ! Locals:
     real(8) ::  corrProfileStnDay(16), corrProfileStnNight(16), corrProfileStypeDay(16), corrProfileStypeNight(16)
     real(8) ::  corrDay, corrNight
     real(8) ::  weight1, weight2, deltaPressure, pressureAbove, pressureBelow, corrAbove, corrBelow
@@ -462,13 +463,13 @@ CONTAINS
     !           Returns -1 if station is not found in uaStations.
     !
     implicit none
-    
-    integer  :: stationIndexOut
-     
-    !Arguments:
-    character(len=*), intent(in)  :: station
 
-    !Locals:
+    ! Arguments:
+    character(len=*), intent(in)  :: station
+    ! Result:
+    integer  :: stationIndexOut     
+
+    ! Locals:
     integer    :: stationIndex
     
     if ( allocated(uaStations) ) then
@@ -495,13 +496,13 @@ CONTAINS
     !           Returns -1 if SondeType is not found in rsTypes.
     !
     implicit none
-    
+
+    ! Arguments:
+    character(len=*), intent(in)  :: sondeType
+    ! Result:
     integer  :: sondeIndex
 
-    !Arguments:
-    character(len=*), intent(in)  :: sondeType
-
-    !Locals:
+    ! Locals:
     integer    :: typeIndex, ntypes
     
     if ( allocated(rsTypes) ) then
@@ -528,18 +529,18 @@ CONTAINS
     ! :Purpose: Returns the sonde type and index given a BUFR table sondeTypeCode (BUFR elem 002011)
     !           Returns sondeType='unknown', sondeTypeIndex=0 if sondeTypeCode is not found.
     !
-    
-    ! Requires array of sonde_type structures (rsTypes) to be allocated and filled with the 
-    ! sonde type codes associated with each sonde-type (read from namelist).
+    !
+    !           Requires array of sonde_type structures (rsTypes) to be allocated and filled with the 
+    !           sonde type codes associated with each sonde-type (read from namelist).
     !
     implicit none
 
-    !Arguments:
-    integer, intent(in)            :: sondeTypeCode
-    character(len=*), intent(out)  :: sondeType
-    integer, intent(out)           :: sondeTypeIndex
+    ! Arguments:
+    integer,          intent(in)  :: sondeTypeCode
+    character(len=*), intent(out) :: sondeType
+    integer,          intent(out) :: sondeTypeIndex
 
-    !Locals:
+    ! Locals:
     integer  :: typeIndex, ntypes, sondeCode
     
     if ( allocated(rsTypes) ) then
@@ -586,14 +587,14 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     integer, intent(in)  :: date          ! yyyymmdd
     integer, intent(in)  :: time          ! hhmm
     real(8), intent(in)  :: lat           ! radians
     real(8), intent(in)  :: lon           ! radians
     real(8), intent(out) :: solarElev     ! degrees
 
-    !Locals:
+    ! Locals:
     integer :: days(13) = (/0,31,28,31,30,31,30,31,31,30,31,30,31/)
     integer :: leap_years(7) = (/2016,2020,2024,2028,2032,2036,2040/)
     integer :: yy, mmdd, mm, dd, hh, nn, doy
@@ -628,9 +629,10 @@ CONTAINS
     ! :Purpose: Returns the time-of-day x value (0.0(night) <= x <= 1.0(day))
     !
     implicit none
-    !Arguments:
-    real(8), intent(in)                ::  solarElev     ! degrees
-    real(8), intent(out)               ::  timeOfDayX
+
+    ! Arguments:
+    real(8), intent(in)    ::  solarElev     ! degrees
+    real(8), intent(out)   ::  timeOfDayX
     
     if (solarElev < -7.5d0) then 
       timeOfDayX = 0.0d0
@@ -651,10 +653,10 @@ CONTAINS
     !
     implicit none
     
-    integer  :: uaPhase 
-    
-    !Arguments:
+    ! Arguments:
     integer, intent(in)   ::  codeType
+    ! Result:
+    integer  :: uaPhase
     
     if (codeType == codtyp_get_codtyp('tempdrop')) then
       uaPhase = 2
@@ -673,12 +675,12 @@ CONTAINS
     !
     implicit none
     
-    integer :: latBand
-    
-    !Arguments:
+    ! Arguments:
     real(8), intent(in) ::  latInRadians 
+    ! Result:
+    integer :: latBand    
 
-    !Locals:
+    ! Locals:
     real(8)             ::  latInDegrees
     
     if ( uaNlatBands /= 5 ) then
@@ -716,10 +718,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasEstimateFile
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex, phaseIndex, levelIndex
     real(8) :: biasEstimate, correctionValue
@@ -780,10 +782,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
-    type(struct_obs)        :: obsSpaceData
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, phase, bufrCode
     integer  :: phaseIndex, levelIndex, stationIndex, stationNumber
@@ -963,10 +965,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasEstimateFile
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex
     real(8) :: biasEstimate
@@ -1012,10 +1014,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
-    type(struct_obs)  :: obsSpaceData
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex
     integer  :: flag, bufrCode
     integer  :: stationIndex, stationNumber
@@ -1136,11 +1138,11 @@ CONTAINS
     !
     implicit none
     
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasCorrectionFileName
-    integer, intent(in)          :: nGroups
+    integer,          intent(in) :: nGroups
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: sondeTypeIndex, group, latBand, levelIndex, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
@@ -1226,26 +1228,33 @@ CONTAINS
   subroutine bcc_readUABcorStn(biasCorrectionFileName,nProfsMin,nGroups)
     !
     ! :Purpose: Read TT, TD biases by STATION/sonde-type on 16 mandatory levels for UA family.
-     
+    !
     !           The first line is the station and sonde-type followed by number of profiles. 
+    !
     !           Station = 'END' for end of file.
+    !
     !           nGroups groups of of 16 lines follow, e.g., nGroups = 2: one group for ascending sonde observations and 
     !                                                                    one for descending sonde observations 
+    !
     !               -- 16 lines are 16 mandatory levels from 100000 Pa to 1000 Pa
     !               -- Lines contain 4 values: TT night-bias, TT day-bias, TD night-bias, TD day-bias
+    !
     !           Missing value (file) = -99.0.
+    !
     !           Sonde type in file is "None" if type was unknown/missing for the reports from a station.
+    !
     !           biasCorrPresentStn(iStn,iType,TOD) = .true. for all TOD if total Nprofs >= nProfsMin (e.g. 100)
+    !
     !           ttCorrectionsStn(iStn,iType,TOD,level) = MPC_missingValue_R8 if TTcorrectionValue == -99.0
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasCorrectionFileName
-    integer, intent(in)          :: nProfsMin
-    integer, intent(in)          :: nGroups
+    integer,          intent(in) :: nProfsMin
+    integer,          intent(in) :: nGroups
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff, stationIndex, typeIndex
     integer :: group, levelIndex, nProfs, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
@@ -1343,10 +1352,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, bufrCode, sondeTypeCode, sondeTypeIndex, stnIndex
     integer  :: date, time, latBand, groupIndex, phase
@@ -1665,9 +1674,10 @@ CONTAINS
     ! :Purpose: returns True if bias correction is active for the given conventional observation family
     !
     implicit none
- 
+
+    ! Arguments:
     character(len=*),intent(in) :: obsFam
-    
+    ! Result:
     logical :: biasActive 
 
     if (.not.initialized) call bcc_readConfig()
@@ -1684,7 +1694,6 @@ CONTAINS
     end select
 
   end function bcc_biasActive
-
 
 end MODULE biasCorrectionConv_mod
 

@@ -54,9 +54,16 @@ contains
     !
     implicit none
 
-    integer :: i, nlatband
-    real(8) :: bar, dpie, lat, latmin(nlatband), latmax(nlatband), r0
-    integer :: nlonblock(nlatband)
+    ! Arguments:
+    integer, intent(in)  :: nlatband
+    real(8), intent(in)  :: latmin(nlatband)
+    real(8), intent(in)  :: latmax(nlatband)
+    real(8), intent(in)  :: r0
+    integer, intent(out) :: nlonblock(nlatband)
+
+    ! Locals:
+    integer :: i
+    real(8) :: bar, dpie, lat
 
     dpie=MPC_PI_R8
       
@@ -87,9 +94,17 @@ contains
     !           bands) and the northern most latitude latcenter
     !      
     implicit none
-    integer :: i, nlatband
-    real(8) :: dpie, r0, latmin(nlatband), latcenter(nlatband)
-    real(8) :: latmax(nlatband)
+
+    ! Arguments:
+    integer, intent(in)  :: nlatband
+    real(8), intent(in)  :: r0
+    real(8), intent(out) :: latmin(nlatband)
+    real(8), intent(out) :: latcenter(nlatband)
+    real(8), intent(out) :: latmax(nlatband)
+
+    ! Locals:
+    integer :: i
+    real(8) :: dpie
 
     dpie = MPC_PI_R8
 
@@ -127,9 +142,13 @@ contains
     !           two latitude bands.
     !         
     implicit none
+
+    ! Arguments:
     real(8), intent(in)  :: r0km
     real(8), intent(out) :: r0
     integer, intent(out) :: nlatband
+
+    ! Locals:
     real(8)              :: dpie, eps, difference, r0new, dminpole, nbandr
     integer              :: nbandi
 
@@ -163,10 +182,14 @@ contains
     !           in a structure.
     !
     implicit none
+
+    ! Arguments:
     type(struct_reg), intent(out) :: lsc
     real(8), intent(in) :: r0_km
     real(8), intent(in) :: r1_km
     real(8), intent(in) :: rz_logp
+
+    ! Locals:
     real(8)  :: dpie
     integer :: ione
   
@@ -203,10 +226,19 @@ contains
     !       iblock:   block number
     !
     implicit none
-    integer :: iblock, ilat, ilon, nlatband
-    integer :: nlonblock(nlatband), nblockoffset(nlatband)
-    real(4) :: lat, lon
-    real(8) :: dpie, r0
+
+    ! Arguments:
+    integer, intent(out)   :: iblock
+    integer, intent(in)    :: nlatband
+    integer, intent(in)    :: nlonblock(nlatband)
+    integer, intent(in)    :: nblockoffset(nlatband)
+    real(4), intent(inout) :: lat
+    real(4), intent(in)    :: lon
+    real(8), intent(in)    :: r0
+
+    ! Locals:
+    integer :: ilat, ilon
+    real(8) :: dpie
 
     dpie = MPC_PI_R8
 

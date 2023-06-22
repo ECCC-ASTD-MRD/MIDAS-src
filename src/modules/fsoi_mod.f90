@@ -141,7 +141,7 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
+    type(struct_columnData), target, intent(inout)  :: columnTrlOnAnlIncLev
     type(struct_obs),        target, intent(inout)  :: obsSpaceData
 
     ! Locals:
@@ -150,8 +150,6 @@ module fsoi_mod
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
-
-    !for Observation space
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     real(8)                         :: fso_ori, fso_fin
 
@@ -259,8 +257,9 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
-    type(struct_gsv)       , target, intent(inout)  :: statevector_out, statevector_verifAnalysis
+    type(struct_columnData), target, intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_gsv)       , target, intent(inout) :: statevector_out
+    type(struct_gsv)       , target, intent(inout) :: statevector_verifAnalysis
 
     ! Locals:
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
@@ -350,10 +349,11 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    integer,                         intent(in)   :: nvadim
-    real(8), dimension(nvadim),      intent(out)  :: zhat
-    type(struct_columnData), target, intent(in)   :: column, columnTrlOnAnlIncLev
-    type(struct_obs),        target, intent(in)   :: obsSpaceData
+    integer,                         intent(in)  :: nvadim
+    real(8), dimension(nvadim),      intent(out) :: zhat
+    type(struct_columnData), target, intent(in)  :: column
+    type(struct_columnData), target, intent(in)  :: columnTrlOnAnlIncLev
+    type(struct_obs),        target, intent(in)  :: obsSpaceData
 
     ! Locals:
     integer                         :: nulout = 6
@@ -451,7 +451,6 @@ module fsoi_mod
     real(8)            :: pfso_1
     integer            :: bodyIndex,itvs,isens,headerIndex
     integer            :: bodyIndexBeg, bodyIndexEnd
-
     integer, parameter :: numFamily = 10
     character(len=2), parameter :: familyList(numFamily) = (/'UA','AI','SF','SC','TO','SW','PR','RO','GP','CH'/)
     real(8)            :: tfso(numFamily), tfsotov_sensors(tvs_nsensors),totFSO
@@ -672,9 +671,10 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: kdim               ! dimension of the vectors
-    real(8), intent(in)  :: px(kdim), py(kdim) ! vector components for which <px,py> is being calculated
-    real(8), intent(out) :: ddsc               ! result of the inner product
+    integer, intent(in)  :: kdim     ! dimension of the vectors
+    real(8), intent(in)  :: px(kdim) ! vector components for which <px,py> is being calculated
+    real(8), intent(in)  :: py(kdim) ! vector components for which <px,py> is being calculated
+    real(8), intent(out) :: ddsc     ! result of the inner product
 
     ! Locals:
     integer ::  cvIndex
@@ -763,10 +763,17 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)  :: statevector_inout
-    type(struct_gsv), intent(in)     :: statevector_ref
-    real(8),          intent(in)     :: latMin, latMax, lonMin, lonMax
-    logical,          intent(in)     :: uvNorm, ttNorm, p0Norm, huNorm, tgNorm
+    type(struct_gsv), intent(inout) :: statevector_inout
+    type(struct_gsv), intent(in)    :: statevector_ref
+    real(8),          intent(in)    :: latMin
+    real(8),          intent(in)    :: latMax
+    real(8),          intent(in)    :: lonMin
+    real(8),          intent(in)    :: lonMax
+    logical,          intent(in)    :: uvNorm
+    logical,          intent(in)    :: ttNorm
+    logical,          intent(in)    :: p0Norm
+    logical,          intent(in)    :: huNorm
+    logical,          intent(in)    :: tgNorm
 
     ! Locals:
     integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T

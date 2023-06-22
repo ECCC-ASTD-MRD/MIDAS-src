@@ -40,10 +40,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer          :: nstepobs
+    type(struct_obs), intent(in) :: obsSpaceData
+    integer         , intent(in) :: nstepobs
 
-    ! locals
+    ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
     integer, allocatable :: idataass(:,:), inumheader(:,:)
@@ -164,13 +164,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer  :: oti
-    type(struct_obs)           :: obsSpaceData
-    integer                    :: numStep
-    integer                    :: headerIndexBeg
-    integer                    :: headerIndexEnd
-    character(len=*), optional :: interpType_opt
-    logical, optional          :: flagObsOutside_opt
+    type(struct_oti), pointer , intent(out)   :: oti
+    type(struct_obs)          , intent(inout) :: obsSpaceData
+    integer                   , intent(in)    :: numStep
+    integer                   , intent(in)    :: headerIndexBeg
+    integer                   , intent(in)    :: headerIndexEnd
+    character(len=*), optional, intent(in)    :: interpType_opt
+    logical,          optional, intent(in)    :: flagObsOutside_opt
 
     ! Locals:
     integer             :: headerIndex
@@ -278,8 +278,8 @@ contains
   subroutine oti_deallocate(oti)
     implicit none
 
-    ! arguments
-    type(struct_oti), pointer :: oti
+    ! Arguments:
+    type(struct_oti), pointer, intent(inout) :: oti
 
     if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
     if (associated(oti%timeInterpWeightMpiGlobal)) deallocate(oti%timeInterpWeightMpiGlobal)
@@ -294,9 +294,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
 
-    ! locals
+    ! Locals:
     integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
@@ -336,10 +336,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
-    real(8), intent(in)       :: weight_in
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
+    real(8),                   intent(in)    :: weight_in
 
     oti%timeInterpWeight(headerIndex, stepObs) = weight_in
 
@@ -351,10 +351,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
+    ! Result:
     real(8)                   :: weight_out
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
 
     weight_out = oti%timeInterpWeight(headerIndex, stepObs)
 
@@ -366,11 +367,12 @@ contains
     implicit none
   
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    integer,                   intent(in)    :: stepObs
+    integer,                   intent(in)    :: procIndex
+    ! Result:
     real(8)                   :: weight_out
-    integer, intent(in)       :: headerIndex
-    integer, intent(in)       :: stepObs
-    integer, intent(in)       :: procIndex
 
     weight_out = oti%timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
 
@@ -382,9 +384,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_oti), pointer :: oti
+    type(struct_oti), pointer, intent(inout) :: oti
+    integer,                   intent(in)    :: headerIndex
+    ! Result:
     logical                   :: allZero
-    integer, intent(in)       :: headerIndex
 
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
@@ -399,13 +402,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_oti), pointer :: oti
-    type(struct_obs)          :: obsSpaceData
-    integer                   :: headerIndexBeg
-    integer                   :: headerIndexEnd
+    ! Arguments:
+    type(struct_oti), pointer, intent(inout) :: oti
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    integer                  , intent(in)    :: headerIndexBeg
+    integer                  , intent(in)    :: headerIndexEnd
 
-    ! locals
+    ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsDAT, obsETM
     integer, save :: numWrites = 0

@@ -81,6 +81,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
+    ! Result:
     logical                      :: isAllocated
 
     isAllocated = ens%allocated
@@ -99,7 +100,8 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens),                    intent(inout) :: ens
-    integer,                             intent(in)    :: numMembers, numStep
+    integer,                             intent(in)    :: numMembers
+    integer,                             intent(in)    :: numStep
     type(struct_hco), pointer,           intent(in)    :: hco_comp
     type(struct_hco), pointer, optional, intent(in)    :: hco_core_opt
     type(struct_vco), pointer,           intent(in)    :: vco_ens
@@ -252,7 +254,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: k1, k2, varLevIndex
@@ -810,9 +812,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(4), pointer                :: oneLevLevel(:,:,:,:)
     type(struct_ens), intent(inout) :: ens
     integer,          intent(in)    :: kIndex
+    ! Result:
+    real(4), pointer                :: oneLevLevel(:,:,:,:)
 
     ! Locals:
     integer          :: lon1, lat1
@@ -836,9 +839,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
+    type(struct_ens), intent(in) :: ens
+    integer         , intent(in) :: kIndex
+    ! Result:
     real(8), pointer :: oneLevLevel(:,:,:,:)
-    type(struct_ens) :: ens
-    integer          :: kIndex
 
     ! Locals:
     integer          :: lon1, lat1
@@ -862,9 +866,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8), pointer                :: field(:,:,:)
     type(struct_ens), intent(inout) :: ens
     integer,          intent(in)    :: subEnsIndex, kIndex
+    ! Result:
+    real(8), pointer                :: field(:,:,:)
 
     ! Locals:
     integer           :: lon1, lat1
@@ -1338,11 +1343,12 @@ CONTAINS
     !:Purpose: Return true if the specified variable name exists in the ensemble.
     !
     implicit none
-    logical                      :: varExist 
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
     character(len=*), intent(in) :: varName
+    ! Result:
+    logical                      :: varExist 
 
     varExist = gsv_varExist(ens%statevector_work, varName)
 
@@ -1381,12 +1387,13 @@ CONTAINS
     !:Purpose: Return the number of vertical levels of the ensemble.
     !
     implicit none
-    integer                       :: nlev
 
     ! Arguments:
     type(struct_ens),           intent(in)  :: ens
     character(len=*),           intent(in)  :: varLevel
     character(len=*), optional, intent(in)  :: varName_opt
+    ! Result:
+    integer                       :: nlev
 
     nlev = vco_getNumLev(ens%statevector_work%vco,varLevel,varName_opt)
 
@@ -1400,10 +1407,11 @@ CONTAINS
     !:Purpose: Return the number of members in the ensemble.
     !
     implicit none
-    integer                       :: numMembers
 
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
+    ! Result:
+    integer                       :: numMembers
 
     numMembers = ens%numMembers
 
@@ -1418,10 +1426,11 @@ CONTAINS
     !:Purpose: Return the number of sub-ensembles in the ensemble.
     !
     implicit none
-    integer                       :: numMembers
 
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
+    ! Result:
+    integer                       :: numMembers
 
     numMembers = ens%numSubEns
 
@@ -1435,10 +1444,11 @@ CONTAINS
     !:Purpose: Return the number of kIndex (a.k.a. varLevs) values of the ensemble.
     !
     implicit none
-    integer                       :: numK
 
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
+    ! Result:
+    integer                       :: numK
 
     numK = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
 
@@ -1452,10 +1462,11 @@ CONTAINS
     !:Purpose: Return the floating point kind of the ensemble (4 or 8).
     !
     implicit none
-    integer                       :: dataKind
 
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
+    ! Result:
+    integer                       :: dataKind
 
     dataKind = ens%dataKind
 
@@ -1469,10 +1480,11 @@ CONTAINS
     !:Purpose: Return the path name for the ensemble files.
     !
     implicit none
-    character(len=256)            :: pathName
 
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
+    ! Result:
+    character(len=256)            :: pathName
 
     pathName = ens%ensPathName
 
@@ -1486,11 +1498,12 @@ CONTAINS
     !:Purpose: Return the offset of the kIndex for the specified variable name.
     !
     implicit none
-    integer                      :: offset
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
     character(len=*), intent(in) :: varName
+    ! Result:
+    integer                      :: offset
 
     if (.not. ens_varExist(ens,varName)) then
       call utl_abort('ens_getOffsetFromVarName: this varName is not present in ens: '//trim(varName))
@@ -1508,11 +1521,12 @@ CONTAINS
     !:Purpose: Return the level index from the kIndex value.
     !
     implicit none
-    integer                      :: levIndex
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer,          intent(in) :: kIndex
+    ! Result:
+    integer                      :: levIndex
 
     levIndex = gsv_getLevFromK(ens%statevector_work,kIndex)
 
@@ -1527,12 +1541,13 @@ CONTAINS
     !          and variable name.
     !
     implicit none
-    integer                      :: kIndex
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer,          intent(in) :: levIndex
     character(len=*), intent(in) :: varName
+    ! Result:
+    integer                      :: kIndex
 
     kIndex = levIndex + gsv_getOffsetFromVarName(ens%statevector_work,trim(varName))
 
@@ -1546,11 +1561,12 @@ CONTAINS
     !:Purpose: Return the variable name from the specified kIndex value.
     !
     implicit none
-    character(len=4)             :: varName
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
     integer,          intent(in) :: kIndex
+    ! Result:
+    character(len=4)             :: varName
 
     varName = gsv_getVarNameFromK(ens%statevector_work,kIndex)
 
@@ -1564,10 +1580,11 @@ CONTAINS
     !:Purpose: Return a pointer to the verticalCoord object associate with the ensemble.
     !
     implicit none
-    type(struct_vco), pointer :: vco_ptr
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
+    ! Result:
+    type(struct_vco), pointer :: vco_ptr
 
     vco_ptr => ens%statevector_work%vco
 
@@ -1581,10 +1598,11 @@ CONTAINS
     !:Purpose: Return a pointer to the horizontalCoord object associate with the ensemble.
     !
     implicit none
-    type(struct_hco), pointer :: hco_ptr
 
     ! Arguments:
-    type(struct_ens)          :: ens
+    type(struct_ens), intent(in) :: ens
+    ! Result:
+    type(struct_hco), pointer :: hco_ptr
 
     hco_ptr => ens%statevector_work%hco
 
@@ -1621,10 +1639,11 @@ CONTAINS
     !:Purpose: Return the number of time steps stored in the ensemble.
     !
     implicit none
-    integer :: numStep
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
+    ! Result:
+    integer :: numStep
 
     numStep = ens%statevector_work%numStep
 
@@ -1646,9 +1665,7 @@ CONTAINS
 
     ! Locals:
     logical           :: computeSubEnsMeans, lExists
-
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
-
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, varLevIndex, lon1, lon2, lat1, lat2, numStep, lonIndex, latIndex
     integer           :: fnom, fclos
@@ -1887,7 +1904,6 @@ CONTAINS
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
-
     real(8) :: factor
 
     if (.not. ens%StdDevIsComputed) then
@@ -1981,12 +1997,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_ens) :: ens
+    type(struct_ens), intent(inout) :: ens
 
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
     integer :: kIndex, latIndex, lonIndex, stepIndex, memberIndex
-
     real(8)  :: globalMean, globalMean_mpiglobal
 
     if ( .not. ens%statevector_work%hco%global ) then
@@ -2709,7 +2724,8 @@ CONTAINS
     character(len=*),           intent(in)    :: etiket
     character(len=*),           intent(in)    :: typvar
     character(len=*), optional, intent(in)    :: varNames_opt(:)
-    integer, optional,          intent(in)    :: ip3_opt, numBits_opt
+    integer, optional,          intent(in)    :: ip3_opt
+    integer, optional,          intent(in)    :: numBits_opt
     logical, optional,          intent(in)    :: etiketAppendMemberNumber_opt
     logical, optional,          intent(in)    :: containsFullField_opt
     logical, optional,          intent(in)    :: resetTimeParams_opt
@@ -2969,7 +2985,7 @@ CONTAINS
 
     ! Arguments
     type(struct_ens), intent(inout) :: ensIncrement
-    type(struct_gsv), intent(in) :: stateVectorAnalIncMask
+    type(struct_gsv), intent(in)    :: stateVectorAnalIncMask
 
     ! Locals
     real(4), pointer :: increment_ptr(:,:,:,:)

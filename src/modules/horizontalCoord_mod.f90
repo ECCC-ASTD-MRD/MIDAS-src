@@ -4,7 +4,7 @@ module horizontalCoord_mod
   !
   ! :Purpose: Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
-  
+  !
   use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
@@ -13,9 +13,7 @@ module horizontalCoord_mod
   use physicsFunctions_mod
   
   implicit none
-  
   save
-  
   private
 
   ! Public derived type
@@ -68,16 +66,17 @@ contains
     ! :Purpose: to initialize hco structure from a template file
     !           
     implicit none
-    ! arguments:
-    type(struct_hco), pointer    :: hco
-    character(len=*), intent(in) :: TemplateFile
-    character(len=*), intent(in) :: EtiketName
-    character(len=*), intent(in), optional :: GridName_opt
-    character(len=*), intent(in), optional :: varName_opt
-    ! locals:
+
+    ! Arguments:
+    type(struct_hco), pointer,  intent(out) :: hco
+    character(len=*),           intent(in)  :: TemplateFile
+    character(len=*),           intent(in)  :: EtiketName
+    character(len=*), optional, intent(in)  :: GridName_opt
+    character(len=*), optional, intent(in)  :: varName_opt
+
+    ! Locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
-
     real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat 
     real(8) :: minDeltaLat, minDeltaLon, minGridSpacing 
     real(8) :: deltaLon1, deltaLon2, deltaLon3
@@ -85,8 +84,7 @@ contains
     real(8), save :: maxGridSpacingPrevious = -1.0d0
     real(8), save :: minGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
-    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
-    
+    real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4    
     integer :: iu_template, numSubGrid, varIndex
     integer :: fnom, fstlir, fstouv, fstfrm, fclos
     integer :: ezqkdef, ezget_nsubgrids, ezget_subgridids, ezgprm
@@ -100,9 +98,7 @@ contains
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
     integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd
     real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute minGridSpacing in 3.2 
-
     logical :: FileExist, global, rotated, foundVarNameInFile
-
     character(len=4 ) :: nomvar
     character(len=2 ) :: typvar
     character(len=1 ) :: grtyp, grtypTicTac
@@ -631,11 +627,13 @@ contains
     ! :Purpose: to decide if a given grid is global or lam from input longitude array
     !           
     implicit none
-    ! arguments:
+
+    ! Arguments:
     integer, intent(in)  :: ni
     real(8), intent(in)  :: lon(ni)
     logical, intent(out) :: global
-    ! locals:
+
+    ! Locals:
     real(8) :: dx, next_lon
     
     dx       = lon(2) - lon(1)
@@ -677,9 +675,11 @@ contains
     ! :Purpose: to broadcast hco strucure from MPI task 0 to other tasks 
     !        
     implicit none
-    ! arguments:
-    type(struct_hco), pointer :: hco
-    ! locals:
+
+    ! Arguments:
+    type(struct_hco), pointer, intent(inout) :: hco
+
+    ! Locals:
     integer :: ierr
     integer, external :: ezqkdef
     
@@ -754,8 +754,11 @@ contains
     ! :Purpose: to check if two given hco strucures are equal or not
     !        
     implicit none
-    ! arguments:
-    type(struct_hco), pointer :: hco1, hco2
+
+    ! Arguments:
+    type(struct_hco), pointer, intent(in) :: hco1
+    type(struct_hco), pointer, intent(in) :: hco2
+    ! Result:
     logical                   :: equal
 
     equal = .true.
@@ -823,7 +826,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine hco_deallocate(hco)
     implicit none
-    type(struct_hco), pointer :: hco
+
+    ! Arguments:
+    type(struct_hco), pointer, intent(inout) :: hco
 
     if (allocated(hco % lat)) deallocate(hco % lat)
     if (allocated(hco % lon)) deallocate(hco % lon)
@@ -839,7 +844,7 @@ contains
   !--------------------------------------------------------------------------
   ! grid_mask
   !--------------------------------------------------------------------------
-  subroutine grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
+  subroutine grid_mask(F_mask_8,dx,dy,xg,yg,ni,nj)
     !
     ! :Purpose: 1) Find out where YIN lat lon points are in (YAN) grid with call to smat.
     !           2) If they are not outside of Yin grid, put area to zero for those points.
@@ -848,16 +853,19 @@ contains
     !
     implicit none
 
-    ! arguments:
-    integer,  intent(in)  :: Ni,Nj   
+    ! Arguments:
+    integer,  intent(in)  :: Ni
+    integer,  intent(in)  :: Nj   
     real(8) , intent(out) :: F_mask_8(Ni,Nj)
-    real(8) :: dx, dy
-    real    :: xg(ni), yg(nj)
+    real(8),  intent(in)  :: dx
+    real(8),  intent(in)  :: dy
+    real(4),  intent(in)  :: xg(ni)
+    real(4),  intent(in)  :: yg(nj)
 
-    ! locals: 
+    ! Locals: 
     integer :: lonIndex,latIndex,np_subd
-    real(8)  :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
-    real     :: area_4(ni,nj)
+    real(8) :: poids(ni,nj),x_a_4,y_a_4,sp,sf,sp1,sf1
+    real(4) :: area_4(ni,nj)
 
     np_subd = 4*ni
 
@@ -946,13 +954,16 @@ contains
     !                     np:      workspace,
     !            output: (xi, yi): longitude, latitude of the 
     !                              intersection point.
-
     implicit none
-    ! arguments:
-    real(8) :: x,y,xi,yi
-    integer :: np
 
-    ! locals:
+    ! Arguments:
+    real(8), intent(in)  :: x
+    real(8), intent(in)  :: y
+    real(8), intent(out) :: xi
+    real(8), intent(out) :: yi
+    integer, intent(in)  :: np
+
+    ! Locals:
     real(8) :: tol, pi, xmin, ymin, xb
     real(8) :: xc, yc, s1, s2, x1, test, dxs
     real(8) :: xp1, xp2, xr1, yr1, xr2, yr2
@@ -1012,38 +1023,30 @@ contains
   !--------------------------------------------------------------------------
   subroutine hco_weight(hco, weight)
     ! 
-    ! :Purpose: given the horizontal grid definition of the grid,
-    !         return appropriate weights for individual points (avoiding 
-    !         double counting in the overlap regions in the case of a Yin-Yang grid). 
+    !:Purpose: given the horizontal grid definition of the grid,
+    !          return appropriate weights for individual points (avoiding 
+    !          double counting in the overlap regions in the case of a Yin-Yang grid). 
     !
-    ! author: Abdessamad Qaddouri and Peter Houtekamer
+    !:Author: Abdessamad Qaddouri and Peter Houtekamer
     !         October 2016
     !
-    ! Revision: imported code for the Yin-Yang grid on May 2021 from the EnKF library and 
+    !:Revision: imported code for the Yin-Yang grid on May 2021 from the EnKF library and 
     !           combined with code for other grid types from the MIDAS library.
-    !
-    ! :Arguments: 
-    !    input:
-    !        hco: structure with the specification of the horizontal grid 
-    !    output:        
-    !        weight: weight to be given when computing a horizontal average
     !
     implicit none
 
-    ! arguments:
-    type(struct_hco), intent(in) :: hco
-    real(8), intent(out) :: weight(:,:)
+    ! Arguments:
+    type(struct_hco), intent(in)  :: hco         ! structure with the specification of the horizontal grid
+    real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
-    ! locals:
+    ! Locals:
     integer :: sindx
     integer :: ni,nj
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
-
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
-
     real(8)  :: deg2rad,dx,dy,sum_weight
     real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
-    real , allocatable :: xg(:),yg(:)
+    real(4), allocatable :: xg(:),yg(:)
                
     deg2rad= MPC_RADIANS_PER_DEGREE_R8 
     sindx  = 6
@@ -1110,32 +1113,25 @@ contains
   ! yyg_weight
   !--------------------------------------------------------------------------
   real(8) function yyg_weight (x,y,dx,dy,np)
-    Implicit none
-
-    ! arguments:
-    real(8) :: x,y,dx,dy
-    integer :: np
-
     !
-    ! :Purpose:
-    !    Based on a Draft from Zerroukat (2013) - Evaluates weight
-    !    for each cell, so that the overlap is computed once.
+    !:Purpose: Based on a Draft from Zerroukat (2013) - Evaluates weight
+    !          for each cell, so that the overlap is computed once.
     !    
-    !author
-    !     Author Abdessamad Qaddouri -- Summer 2014
+    !:Author: Author Abdessamad Qaddouri -- Summer 2014
     !
-    ! Note: this routine has been taken and adjusted from a routine
+    !:Note: this routine has been taken and adjusted from a routine
     !       with the same name in the GEM model.
-    ! GEM revision:
-    ! v4_70 - Qaddouri A.     - initial version
     !
-    ! :Arguments: input: x,y: (longitude, latitude) in radians of
-    !                           the cell center point.
-    !                   dx, dy: horizontal grid resolution in radiancs.
-    !                   np:  working dimension
-    !            output: cell weight. 
+    implicit none
 
-    ! locals:
+    ! Arguments:
+    real(8), intent(in) :: x  ! x,y: (lon, lat) in radians of the cell center point.
+    real(8), intent(in) :: y
+    real(8), intent(in) :: dx ! horizontal grid resolution in radians
+    real(8), intent(in) :: dy
+    integer, intent(in) :: np ! working dimension
+
+    ! Locals:
     real(8) :: pi, xmin, xmax, ymin, ymax, xb1, xb2
     real(8) :: t1x, t2x, t1y, dcell, xi, yi, di, dp, df, d
 
@@ -1174,9 +1170,11 @@ contains
     ! :Purpose: to initialize hco structure for a Y grid
     !           
     implicit none
-    ! arguments:
-    type(struct_hco), pointer :: hco
-    integer, intent(in)       :: ni, nj
+
+    ! Arguments:
+    type(struct_hco), pointer, intent(inout) :: hco
+    integer,                   intent(in)    :: ni
+    integer,                   intent(in)    :: nj
 
     allocate(hco)
     if (mmpi_myid == 0) then

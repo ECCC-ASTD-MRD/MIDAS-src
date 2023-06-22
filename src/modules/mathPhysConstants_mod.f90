@@ -226,9 +226,10 @@ contains
      implicit none
 
      ! Arguments:
-     character(len=*) :: name
-     real(4) :: var_r4
-     real(8) :: var_r8, value
+     character(len=*), intent(in)    :: name
+     real(4),          intent(inout) :: var_r4
+     real(8),          intent(inout) :: var_r8
+     real(8),          intent(in)    :: value
 
      var_r4 = value
      var_r8 = value

@@ -73,20 +73,18 @@ contains
     !
     !:Purpose: set up diffusion operator
     !
-
     implicit none
 
     ! Arguments:
-    integer,                   intent(in)    :: variableIndex        ! Variable index in bdiff_varNameList(:)
-    character(len=4),          intent(in)    :: bdiff_varNameList(:) ! list of 2D analysis variables  
-    type(struct_hco), pointer, intent(inout) :: hco                  ! Horizontal grid structure
-    type(struct_vco), pointer, intent(in)    :: vco                  ! Vertical grid structure
-    real,                      intent(in)    :: corr_len             ! Horizontal correlation length scale (km);
-                                                                     ! if it is equal to -1, a 2D field of it is read from a file
-    real,                      intent(in)    :: stab                 ! Stability criteria (definitely < 0.5)
-    integer,                   intent(in)    :: numberSamples        ! Number of samples to estimate normalization factors by randomization.
-    logical,                   intent(in)    :: useImplicit          ! Indicate to use the implicit formulation
-    integer,                   intent(in)    :: latIndexIgnore       ! Number of grid points to ignore near poles
+    integer,                   intent(in) :: variableIndex        ! Variable index in bdiff_varNameList(:)
+    character(len=4),          intent(in) :: bdiff_varNameList(:) ! list of 2D analysis variables  
+    type(struct_hco), pointer, intent(in) :: hco                  ! Horizontal grid structure
+    type(struct_vco), pointer, intent(in) :: vco                  ! Vertical grid structure
+    real,                      intent(in) :: corr_len             ! Horizontal corr. length scale (km); if -1, read 2D field from file
+    real,                      intent(in) :: stab                 ! Stability criteria (definitely < 0.5)
+    integer,                   intent(in) :: numberSamples        ! Number of samples to estimate normalization factors by randomization
+    logical,                   intent(in) :: useImplicit          ! Indicate to use the implicit formulation
+    integer,                   intent(in) :: latIndexIgnore       ! Number of grid points to ignore near poles
 
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians

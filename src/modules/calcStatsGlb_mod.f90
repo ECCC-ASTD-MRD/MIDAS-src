@@ -80,13 +80,15 @@ module calcStatsGlb_mod
     !:Purpose: Main setup routine for this module
     !
     implicit none
+
     ! Arguments:
-    integer, intent(in)                     :: nens_in
-    type(struct_vco), pointer, intent(in)   :: vco_in
-    type(struct_hco), pointer, intent(in)   :: hco_in
+    integer,                   intent(in) :: nens_in
+    type(struct_vco), pointer, intent(in) :: vco_in
+    type(struct_hco), pointer, intent(in) :: hco_in
+
     ! Locals:
-    integer :: waveBandIndex, memberIndex
-    integer :: nulnam, ierr, fclos, fnom
+    integer :: nulnam, ierr, waveBandIndex, memberIndex
+    integer :: fclos, fnom
     real(8) :: zps
 
     NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks,vertWaveBandPeaks
@@ -265,6 +267,7 @@ module calcStatsGlb_mod
     !:Purpose: Master routine for Bhi computation in global mode
     !
     implicit none
+
     ! Locals:
     integer :: ierr, nulnam
     integer :: fclos, fnom
@@ -304,6 +307,8 @@ module calcStatsGlb_mod
     !:Purpose: Computation of Bhi using the legacy formulation
     !
     implicit none
+
+    ! Locals:
     real(4), pointer :: ensPerturbations(:,:,:,:), ens_ptr(:,:,:,:)
     real(4), pointer :: ensBalPerturbations(:,:,:,:)
     real(8), pointer :: stddev3d(:,:,:), stddev3dBal(:,:,:), stddev3dUnbal(:,:,:)
@@ -311,7 +316,6 @@ module calcStatsGlb_mod
     real(8), pointer :: stddevZonAvg(:,:), stddevZonAvgBal(:,:), stddevZonAvgUnbal(:,:)
     real(8), allocatable :: PtoT(:,:,:),theta1(:,:),theta2(:,:)
     real(8), allocatable :: corns(:,:,:),rstddev(:,:)
-
     integer :: variableType 
 
     allocate(ensPerturbations(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdimEns, nens))
@@ -427,7 +431,8 @@ module calcStatsGlb_mod
     !:Purpose: Computation of Bhi on a set of latitude bands
     !
     implicit none
-    
+
+    ! Locals:
     integer :: variableType, latIndex, jlatband, lat1, lat2, lat3
     real(4), pointer     :: ensPerturbations(:,:,:,:)
     real(8), pointer     :: stddev3d(:,:,:)
@@ -535,33 +540,23 @@ module calcStatsGlb_mod
     ! NOTE: The diagnostic computed here are in model variable space 
     !       (no variable transform!!!)
 
+    ! Locals:
     integer :: waveBandIndex
     integer :: nulnam, ierr, fclos, fnom, numStep
-
     real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
-
-    integer, allocatable :: dateStampList(:)
-    
+    integer, allocatable :: dateStampList(:)    
     type(struct_ens), target  :: ensPerts, ensPertsFilt
-
-    type(struct_ens), pointer :: ensPerts_ptr
-    
+    type(struct_ens), pointer :: ensPerts_ptr    
     type(struct_gsv) :: statevector_template
-
     type(struct_gbi) :: gbi_zonalMean
-    type(struct_gbi) :: gbi_globalMean
-    
-    type(struct_vms) :: vModes
-    
-    integer :: variableType
- 
+    type(struct_gbi) :: gbi_globalMean    
+    type(struct_vms) :: vModes    
+    integer :: variableType 
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
-
     real(8) :: vertModesLengthScale(2)
-    real(8) :: lengthScaleTop, lengthScaleBot
-    
+    real(8) :: lengthScaleTop, lengthScaleBot    
     character(len=60) :: tool
     character(len=2)  :: wbnum
     character(len=2)  :: ctrlVarHumidity
@@ -868,7 +863,12 @@ module calcStatsGlb_mod
     !:Purpose: Write the spectral representation of PtoT and THETA to files
     !
     implicit none
-    real(8) :: PtoT(:,:,:),theta(:,:)
+
+    ! Arguments:
+    real(8), intent(in) :: PtoT(:,:,:)
+    real(8), intent(in) :: theta(:,:)
+
+    ! Locals:
     integer jn,ierr,ipak,latIndex,levIndex1,levIndex2,nlev
     integer fstouv,fnom,fstfrm,fclos
     integer ip1,ip3,kni,knj,idatyp,idateo
@@ -951,8 +951,12 @@ module calcStatsGlb_mod
     !          from the full variable
     !
     implicit none
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: theta(:,:)
+
+    ! Arguments:
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    real(8),          intent(in)    :: theta(:,:)
+
+    ! Locals:
     real(4), pointer :: psi_ptr(:,:,:), chi_ptr(:,:,:)
     integer :: ensIndex,latIndex,levIndex,lonIndex
 
@@ -984,10 +988,13 @@ module calcStatsGlb_mod
     !          pressure from the full variables
     !
     implicit none
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(4),pointer :: ensBalPerturbations(:,:,:,:)
-    real(8) :: PtoT(:,:,:)
 
+    ! Arguments:
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensBalPerturbations(:,:,:,:)
+    real(8),          intent(in)    :: PtoT(:,:,:)
+
+    ! Locals:
     real(4),pointer :: tt_ptr(:,:,:), ps_ptr(:,:,:), ttb_ptr(:,:,:), psb_ptr(:,:,:)
     real(8) :: spectralState(nla_mpilocal,2,nLevEns_M), spBalancedP(nla_mpilocal,2,nlevEns_M)
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
@@ -1043,12 +1050,16 @@ module calcStatsGlb_mod
     !:Purpose: Calculate the homogeneous and isotropic correlations in spectral space
     !
     implicit none
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc),corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8) :: rstddev(nkgdimEns,0:ntrunc)
-    real(8),  optional :: latMask_opt(:)
 
+    ! Arguments:
+    real(4), pointer,  intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),           intent(out) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(out) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in)  :: latMask_opt(:)
+
+    ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
+    real(8) :: corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
     real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
     real(8) :: dfact,dfact2,dsummed
     integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex,nsize,ierr
@@ -1157,18 +1168,18 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    type(struct_ens) :: ensPerts
-    real(8), intent(out)          :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8), intent(out)          :: rstddev(nkgdimEns,0:ntrunc)
-    real(8), optional, intent(in) :: latMask_opt(:)
+    ! Arguments:
+    type(struct_ens),  intent(inout) :: ensPerts
+    real(8),           intent(out)   :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(out)   :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in)    :: latMask_opt(:)
 
+    ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    
     real(8) :: corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
     real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
     real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
     real(8) :: dfact, dfact2, dsummed
-    
     integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
     integer :: levIndex, latIndex, nsize, ierr
 
@@ -1280,14 +1291,16 @@ module calcStatsGlb_mod
     !          of error samples
     !
     implicit none
-    type(struct_ens)           :: ensPerts
-    real(8), allocatable       :: powerSpec(:,:)
 
+    ! Arguments:
+    type(struct_ens),     intent(inout) :: ensPerts
+    real(8), allocatable, intent(out)   :: powerSpec(:,:)
+
+    ! Locals:
     real(8), allocatable :: ensPertSP(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: dfact, dfact2
-
     integer :: gstPowerSpecID
     integer :: memberIndex, levIndex, latIndex, lonIndex
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal
@@ -1375,18 +1388,20 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(8) :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
-    real(8), optional :: PtoT_opt(:,:,:),theta_opt(:,:)
-    integer, optional :: waveBandIndex_opt
-    integer, optional :: latBand_opt
+    ! Arguments:
+    real(8),           intent(in) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
+    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8), optional, intent(in) :: PtoT_opt(:,:,:)
+    real(8), optional, intent(in) :: theta_opt(:,:)
+    integer, optional, intent(in) :: waveBandIndex_opt
+    integer, optional, intent(in) :: latBand_opt
 
+    ! Locals:
     real(8) :: prcor(nkgdimEns,nkgdimEns)
-
     integer :: jn,ierr,ipak,jk,jl
     integer :: fstouv,fnom,fstfrm,fclos
     integer :: ip1,ip2,ip3,idatyp,idateo
     integer :: nulstats
-
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
@@ -1476,8 +1491,8 @@ module calcStatsGlb_mod
     !
     implicit none
 
+    ! Locals:
     character(len=128) :: outfilename
-
     integer :: jk
 
     if (mmpi_myid /= 0) return
@@ -1510,10 +1525,10 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer           :: stddevZonAvg(:,:)
-    real(8), pointer           :: stddev3d(:,:,:)
-    real(8), pointer, optional :: stddevZonAvgUnbal_opt(:,:)
-    real(8), pointer, optional :: stddev3dUnbal_opt(:,:,:)
+    real(8), pointer,           intent(in) :: stddevZonAvg(:,:)
+    real(8), pointer,           intent(in) :: stddev3d(:,:,:)
+    real(8), pointer, optional, intent(in) :: stddevZonAvgUnbal_opt(:,:)
+    real(8), pointer, optional, intent(in) :: stddev3dUnbal_opt(:,:,:)
 
     ! Locals:
     type(struct_gsv) :: stateVector
@@ -1653,7 +1668,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8) :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
+    real(8), intent(in) :: stddevZonAvgBal(:,:)
+    real(8), intent(in) :: stddev3dBal(:,:,:)
 
     ! Locals:
     type(struct_gsv) :: stateVector
@@ -1750,17 +1766,17 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    integer, intent(in) :: nlev
-    integer, optional, intent(in) :: waveBandIndex_opt
+    ! Arguments:
+    real(4), pointer,  intent(inout) :: ensPerturbations(:,:,:,:)
+    integer,           intent(in)    :: nlev
+    integer, optional, intent(in)    :: waveBandIndex_opt
 
+    ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nlev)
     real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev)
     integer :: ensIndex, jk, jn, jm, ila_mpilocal, ila_mpiglobal
-
     real(8), allocatable :: ResponseFunction(:)
     real(8) :: waveLength
-
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
@@ -1835,22 +1851,20 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    type(struct_ens)  :: ensPerts_in
-    type(struct_ens)  :: ensPerts_out
+    ! Arguments:
+    type(struct_ens),  intent(inout) :: ensPerts_in
+    type(struct_ens),  intent(inout) :: ensPerts_out
+    integer, optional, intent(in)  :: waveBandIndex_opt
 
-    integer, optional, intent(in) :: waveBandIndex_opt
-
+    ! Locals:
     real(8), allocatable :: ensPertSP(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
-    real(4), pointer     :: ptr4d_r4(:,:,:,:)
-    
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)    
     integer :: memberIndex, levIndex, latIndex, lonIndex
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal
     integer :: gstFilterID
-
     real(8), allocatable :: ResponseFunction(:)
     real(8) :: waveLength
-
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
@@ -1973,8 +1987,12 @@ module calcStatsGlb_mod
     !:Purpose: Calculate the Theta turning angle according to Ekman balance
     !
     implicit none
-    real(4),pointer :: ensPerturbations(:,:,:,:)
-    real(8) :: theta(:,:)
+
+    ! Arguments:
+    real(4), pointer, intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),          intent(out) :: theta(:,:)
+
+    ! Locals:
     real(8) :: zchipsi(nLevEns_M,nj), zpsipsi(nLevEns_M,nj)
     real(8) :: zchipsi_mpiglobal(nLevEns_M,nj), zpsipsi_mpiglobal(nLevEns_M,nj)
     real(4), pointer :: psi_ptr(:,:,:), chi_ptr(:,:,:)
@@ -2028,9 +2046,12 @@ module calcStatsGlb_mod
     !          a regression analysis of the "P" and temperature samples
     !
     implicit none
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    real(8)  :: PtoT(:,:,:)
 
+    ! Arguments:
+    real(4), pointer, intent(in)  :: ensPerturbations(:,:,:,:)
+    real(8),          intent(out) :: PtoT(:,:,:)
+
+    ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nLevEns_M), spBalancedP(nla_mpilocal,2,nlevEns_M)
     real(8) :: balancedP(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlevEns_M)
     real(8) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
@@ -2203,8 +2224,12 @@ module calcStatsGlb_mod
     !          of samples for each member, vertical level and variable
     !
     implicit none
+
+    ! Arguments:
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex,ierr
-    real(4), pointer :: ensPerturbations(:,:,:,:)
     real(8)  :: dmean, dmean_mpiglobal
 
     do ensIndex = 1, nens
@@ -2240,8 +2265,9 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), pointer :: fieldsZonAvg_mpiglobal(:,:),fields3D(:,:,:)
-    integer :: nlev
+    real(8), pointer, intent(inout) :: fieldsZonAvg_mpiglobal(:,:)
+    real(8), pointer, intent(in)    :: fields3D(:,:,:)
+    integer,          intent(in)    :: nlev
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, ierr, nsize
@@ -2282,10 +2308,14 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
-    real(8)          :: dnens
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
+    ! Arguments:
+    real(8), pointer, intent(inout) :: stddev3d(:,:,:)
+    real(4), pointer, intent(in)    :: ensPerturbations(:,:,:,:)
+    integer,          intent(in)    :: nlev
+
+    ! Locals:
+    integer :: lonIndex,latIndex,levIndex,ensIndex
+    real(8) :: dnens
 
     write(*,*) 'started computing the stddev...'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2326,7 +2356,11 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(8) :: sppsi(:,:,:),spgz(:,:,:)
+    ! Arguments:
+    real(8), intent(in)  :: sppsi(:,:,:)
+    real(8), intent(out) :: spgz(:,:,:)
+
+    ! Locals:
     real(8) :: spvor_mpiglobal(nla,2,nlevEns_M)
     real(8) :: spvor_mpiglobal2(nla,2,nlevEns_M)
     real(8) :: spgz_mpiglobal(nla,2,nlevEns_M)
@@ -2419,10 +2453,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
+    ! Arguments:
+    real(8), pointer, intent(in)    :: stddev3d(:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,ensIndex
     real(8) :: dfact
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
 
     !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex,DFACT)
     do levIndex = 1, nkgdimEns
@@ -2454,9 +2491,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    integer :: lonIndex,latIndex,levIndex,ensIndex,nlev
-    real(8), pointer :: stddev3d(:,:,:)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
+    ! Arguments:
+    real(8), pointer, intent(in)    :: stddev3d(:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+    integer,          intent(in)    :: nlev
+
+    ! Locals:
+    integer :: lonIndex,latIndex,levIndex,ensIndex
 
     !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex)
     do ensIndex = 1, nens
@@ -2484,7 +2525,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(4), pointer             :: ensPerturbations(:,:,:,:)
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, ensIndex, numStep
@@ -2577,10 +2618,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
+    ! Arguments:
+    real(4), intent(inout) :: ensPerturbations(:,:,:,:)
+
+    ! Locals:
     integer :: ensIndex, levIndex, jla_mpilocal, ila_mpiglobal
     real(8) :: dla2
     real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
-    real(4) :: ensPerturbations(:,:,:,:)
     real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatend,nkgdimens)
 
     ! Convert from U/V to PSI/CHI and spectrally filter all fields
@@ -2618,9 +2662,12 @@ module calcStatsGlb_mod
     !
     implicit none
 
+    ! Arguments:
+    real(4), pointer, intent(inout) :: ensPerturbations(:,:,:,:)
+
+    ! Locals:
     integer :: ensIndex, levIndex, latIndex, lonIndex
     real(8) :: dnens, gd2d(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
-    real(4), pointer :: ensPerturbations(:,:,:,:)
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
@@ -2664,16 +2711,16 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(8),  intent(in) :: rstddev(nkgdimEns,0:ntrunc)
-    integer, intent(in) :: variableType
+    ! Arguments:
+    real(8),          intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,          intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex_opt
 
+    ! Locals:
     real(8)  :: spectralState(nla,2,nkgdimEns)
     real(8)  :: gridState(ni,nj,nkgdimEns)
-
     integer :: ji, jk, jn, jm, ila, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, varIndex, iStart, iEnd
-
     character(len=128) :: outfilename
     character(len=2) :: wbnum
     
@@ -2806,10 +2853,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(8), intent(in) :: gridpoint3d(:,:,:)
-    character(len=*), intent(in) :: filename,etiket_in
-    integer, intent(in) :: variableType
+    ! Arguments:
+    real(8),          intent(in) :: gridpoint3d(:,:,:)
+    character(len=*), intent(in) :: filename
+    character(len=*), intent(in) :: etiket_in
+    integer,          intent(in) :: variableType
 
+    ! Locals:
     real(8) :: dfact,zbuf(ni,nj)
     integer latIndex,lonIndex,levIndex,ierr,varIndex,nLevEns
     integer fstouv,fnom,fstfrm,fclos
@@ -2887,18 +2937,19 @@ module calcStatsGlb_mod
     !:Purpose: Calculate the horizontal correlation length scale
     !
     implicit none
-    
-    ! Based on subroutine corrlength.ftn in the "old" var code
-    real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
-    integer,intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex_opt
 
+    ! Based on subroutine corrlength.ftn in the "old" var code
+
+    ! Arguments:
+    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,           intent(in) :: variableType
+    integer, optional, intent(in) :: waveBandIndex_opt
+
+    ! Locals:
     real(8) :: HorizScale(nkgdimEns)
     real(8), pointer :: PressureProfile(:)
-
     integer :: jk, jn, nLevEns, varIndex
     real(8) :: rjn, fact, temp, a, b
-
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
@@ -2994,13 +3045,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    real(8),intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
-    integer,intent(in) :: variableType
+    ! Arguments:
+    real(8), intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
+    integer, intent(in) :: variableType
 
+    ! Locals:
     integer :: jk, nLevEns, nLevStart, nLevEnd, varIndex, jn
-
     real(8) :: waveLength 
-
     character(len=128) :: outfilename
 
     if (mmpi_myid /= 0) return
@@ -3063,24 +3114,22 @@ module calcStatsGlb_mod
     !:Purpose: Compute local horizontal correlations
     !
     implicit none
-    type(struct_ens) :: ensPerts
 
+    ! Arguments:
+    type(struct_ens), intent(in) :: ensPerts
+
+    ! Locals:
     type(struct_gsv) :: statevector_locHorizCor
     type(struct_gsv) :: statevector_oneMember
     type(struct_gsv) :: statevector_oneMemberTiles
-
     real(8), pointer :: ptr3d_r8(:,:,:)
     real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
-
     real(8) :: dnEns
-
     integer :: i, j, k, ens
     integer :: blocklength_x, blocklength_y
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
-
     character(len=4), pointer :: varNamesList(:)
-
     integer :: ierr, fclos, fnom, nulnam
 
     ! Namelist variables

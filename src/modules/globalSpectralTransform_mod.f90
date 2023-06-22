@@ -86,7 +86,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: gstID_in
+    integer, intent(in) :: gstID_in
   
     gstID = gstID_in
 
@@ -97,7 +97,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: gstID_in
+    integer, intent(in) :: gstID_in
   
     gstIDDefault = gstID_in
 
@@ -116,7 +116,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,optional :: gstID_opt
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -136,8 +136,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: latIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -160,8 +160,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: ilaIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: ilaIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -181,8 +181,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: ilaIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: ilaIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -202,8 +202,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: latIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -226,8 +226,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: mIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: mIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -247,13 +247,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer,optional :: gstID_opt
-    integer :: latIndex2
+    integer,           intent(in) :: latIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
- 
+    integer :: latIndex2
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -271,8 +271,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: latIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -295,8 +295,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: latIndex
-    integer,optional :: gstID_opt
+    integer,           intent(in) :: latIndex
+    integer, optional, intent(in) :: gstID_opt
 
     ! Locals:
     integer :: gstID_l
@@ -322,7 +322,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: legendreIndex,latIndex,gstID_in
+    integer :: legendreIndex
+    integer :: latIndex
+    integer :: gstID_in
 
     gst_getzleg=gst(gstID_in)%zleg(legendreIndex,latIndex)
 
@@ -337,10 +339,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer, pointer :: ilaList(:)
-    integer          :: myNla, maxMyNla
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
-    integer          :: mynBeg, mynEnd, mynSkip
+    integer, pointer, intent(out) :: ilaList(:)
+    integer,          intent(out) :: myNla
+    integer,          intent(in)  :: maxMyNla
+    integer,          intent(in)  :: gstID_in
+    integer,          intent(in)  :: mymBeg
+    integer,          intent(in)  :: mymEnd
+    integer,          intent(in)  :: mymSkip
+    integer,          intent(in)  :: mynBeg
+    integer,          intent(in)  :: mynEnd
+    integer,          intent(in)  :: mynSkip
 
     ! Locals:
     integer          :: jm, jn, ierr
@@ -379,12 +387,18 @@ contains
     !
     !:Purpose: To produce an array to convert an mpiglobal "ila" into an
     !          mpilocal "ila"
+    !
     implicit none
 
     ! Arguments:
-    integer, pointer :: ilaList(:)
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
-    integer          :: mynBeg, mynEnd, mynSkip
+    integer, pointer, intent(out) :: ilaList(:)
+    integer,          intent(in)  :: gstID_in
+    integer,          intent(in)  :: mymBeg
+    integer,          intent(in)  :: mymEnd
+    integer,          intent(in)  :: mymSkip
+    integer,          intent(in)  :: mynBeg
+    integer,          intent(in)  :: mynEnd
+    integer,          intent(in)  :: mynSkip
 
     ! Locals:
     integer          :: jm, jn, myNla
@@ -410,8 +424,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer  :: ni_in, nj_in, ntrunc_in
-    integer  :: maxlevels_in
+    integer, intent(in) :: ni_in
+    integer, intent(in) :: nj_in
+    integer, intent(in) :: ntrunc_in
+    integer, intent(in) :: maxlevels_in
 
     ! Locals:
     integer  :: jn, jm, ila, ierr
@@ -652,9 +668,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp_in (gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: psp_out(gst(gstID)%nla, 2, &
-                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: psp_in (gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(out) :: psp_out(gst(gstID)%nla, 2, &
+                                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
@@ -711,9 +727,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp_in (gst(gstID)%nla, 2, &
-                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: psp_out(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(in)  :: psp_in (gst(gstID)%nla, 2, &
+                                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: psp_out(gst(gstID)%myNla, 2, gst(gstID)%nk)
 
     ! Locals:
     real(pre_specTransReal) :: sp_send(gst(gstID)%maxMyNla, 2, &
@@ -771,10 +787,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(2*gst(gstID)%maxmCount, gst(gstID)%nj, &
-                        gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
-                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd_in(2*gst(gstID)%maxmCount, gst(gstID)%nj, &
+                                   gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
@@ -843,10 +859,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
-                      gst(gstID)%nj)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
+                                   gst(gstID)%nj)
+    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
@@ -914,10 +930,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(2*gst(gstID)%maxmCount, gst(gstID)%nj,  &
-                         gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                                   gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pgd_out(2*gst(gstID)%maxmCount, gst(gstID)%nj,  &
+                                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, &
@@ -986,10 +1002,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
-                       gst(gstID)%nj)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
+                                    gst(gstID)%nj)
 
     ! Locals:
     real(pre_specTransReal), allocatable, save :: gd_send(:,:,:,:,:)
@@ -1057,10 +1073,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd_out(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                                   gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
@@ -1112,10 +1128,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     integer :: nsize,ierr
@@ -1143,10 +1159,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     integer :: nsize,ierr
@@ -1180,10 +1196,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
@@ -1231,10 +1247,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
-    real(8) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
-                       gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(out) :: pgd_out(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, &
+                                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%lonPerPEmax, gst(gstID)%latPerPEmax, &
@@ -1287,10 +1303,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     integer :: nsize, ierr
@@ -1318,10 +1334,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     integer :: nsize, ierr
@@ -1355,10 +1371,10 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-    real(8) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                       gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: pgd_in(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: pgd_out(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
+                                    gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     real(pre_specTransReal) :: gd_send(gst(gstID)%maxMyLevCount, gst(gstID)%lonPerPEmax,&
@@ -1410,8 +1426,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(inout) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
 
     ! Locals:
     real(8) :: tempvalues(2,nflev*2)
@@ -1437,8 +1453,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(inout) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
 
     ! Locals:
     real(8) :: tempvalues(2,nflev*2)
@@ -1464,9 +1480,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8) :: tempvalues(nflev*2)
@@ -1494,9 +1510,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8) :: tempvalues(nflev*2)
@@ -1527,10 +1543,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(inout) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    real(8), intent(out)   :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -1592,15 +1608,14 @@ contains
   end subroutine gst_spgd
 
 
-  ! FIRST ATTEMPT AT MODIFICATIONS FOR MPI
   subroutine gst_gdsp(psp,pgd,nflev)
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd,gst(gstID)%nk)
+    integer, intent(in)    :: nflev
+    real(8), intent(out)   :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd,gst(gstID)%nk)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -1653,17 +1668,17 @@ contains
   subroutine spgdpar(psp,pgd2,nflev)
     !
     !:Purpose: Inverse spectral transform(PARALLEL LOOP)
+    !
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,&
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    integer, intent(in)  :: nflev
+    real(8), intent(in)  :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,&
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, jk2, ila, inm
-
     real(8) :: zjm, factor
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
@@ -1795,10 +1810,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    integer, intent(in)  :: nflev
+    real(8), intent(out) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
@@ -1938,10 +1953,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    integer, intent(in) :: nflev
+    real(8), intent(inout) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -1997,10 +2012,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nflev
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,gst(gstID)%nj, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    integer, intent(in)  :: nflev
+    real(8), intent(out) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd2(2*gst(gstID)%maxmCount,gst(gstID)%nj, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
@@ -2220,9 +2235,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(in)  :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(out) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -2272,9 +2287,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(in)  :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(out) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -2341,9 +2356,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(out)   :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     call adjnorm(pgd)
 
@@ -2356,9 +2371,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(out) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(in)  :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -2396,9 +2411,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(in)  :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
@@ -2452,9 +2467,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(out)   :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8), intent(inout) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     call adjnorm_kij(pgd)
 
@@ -2466,8 +2481,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+    real(8), intent(inout) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
     ! Locals:
     integer :: jk, jlon, jlat
@@ -2499,8 +2514,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
-                   gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8), intent(inout) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
+                                  gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     ! Locals:
     integer :: jk, jlon, jlat
@@ -2534,13 +2549,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: zfms(gst(gstID)%njlath+1,2, &
@@ -2602,13 +2616,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
-    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
-                    gst(gstID)%nj)
+    real(8), intent(in)  :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
+    real(8), intent(out) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
+                                 gst(gstID)%nj)
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: zfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
@@ -2668,14 +2681,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
-                      gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc, gst(gstID)%njlath)
     real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
@@ -2763,14 +2775,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
-    real(8) :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
-                    gst(gstID)%nj)
+    real(8), intent(out) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevCount)
+    real(8), intent(in)  :: pgd2(gst(gstID)%maxMyLevCount,2*gst(gstID)%maxmcount, &
+                                 gst(gstID)%nj)
 
     ! Locals:
     integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc, gst(gstID)%njlath)
     real(8) :: dlsp(gst(gstID)%myLevCount,0:gst(gstID)%ntrunc,2)
@@ -2861,13 +2872,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%njlath+1,2, &
-                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pfma(gst(gstID)%njlath+1,2, &
-                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: ddalp(0:ktruncdim,klath)
-    real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    integer, intent(in)  :: km
+    integer, intent(in)  :: ktrunc
+    integer, intent(in)  :: ktruncdim
+    integer, intent(in)  :: klath
+    real(8), intent(in)  :: pfms(gst(gstID)%njlath+1,2, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: pfma(gst(gstID)%njlath+1,2, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: ddalp(0:ktruncdim,klath)
+    real(8), intent(out) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1
@@ -2910,11 +2924,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
-    real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
-    real(8) :: ddalp(0:ktruncdim,klath)
-    real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
+    integer, intent(in)  :: km
+    integer, intent(in)  :: ktrunc
+    integer, intent(in)  :: ktruncdim
+    integer, intent(in)  :: klath
+    real(8), intent(in)  :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
+    real(8), intent(in)  :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
+    real(8), intent(in)  :: ddalp(0:ktruncdim,klath)
+    real(8), intent(out) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
     ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1
@@ -2957,13 +2974,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%njlath+1,2, &
-                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: pfma(gst(gstID)%njlath+1,2, &
-                    gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
-    real(8) :: ddalp(0:ktruncdim,klath)
-    real(8) :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    integer, intent(in)  :: km
+    integer, intent(in)  :: ktrunc
+    integer, intent(in)  :: ktruncdim
+    integer, intent(in)  :: klath
+    real(8), intent(out) :: pfms(gst(gstID)%njlath+1,2, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(out) :: pfma(gst(gstID)%njlath+1,2, &
+                                 gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8), intent(in)  :: ddalp(0:ktruncdim,klath)
+    real(8), intent(in)  :: ddsp(0:ktruncdim,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1
@@ -3018,11 +3038,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
-    real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
-    real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
-    real(8) :: ddalp(0:ktruncdim,klath)
-    real(8) :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
+    integer, intent(in)  :: km
+    integer, intent(in)  :: ktrunc
+    integer, intent(in)  :: ktruncdim
+    integer, intent(in)  :: klath
+    real(8), intent(out) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
+    real(8), intent(out) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
+    real(8), intent(in)  :: ddalp(0:ktruncdim,klath)
+    real(8), intent(in)  :: ddsp(gst(gstID)%myLevCount,0:ktruncdim,2)
 
     ! Locals:
     integer :: jk, jlat, jn, inm, itrunc, inmp1
@@ -3102,7 +3125,7 @@ contains
     implicit none
 
     ! Arguments:
-    logical, optional :: lverbose_opt
+    logical, optional, intent(in) :: lverbose_opt
 
     ! Locals:
     logical :: lverbose
@@ -3205,15 +3228,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: nracp
-    real(8) :: racp(*)
-    real(8) :: pg(*)
-    real(8) :: sia(*)
-    real(8) :: rad(*)
-    real(8) :: pgssin2(*)
-    real(8) :: sinm1(*)
-    real(8) :: sinm2(*)
-    real(8) :: sin2(*)
+    integer, intent(in)  :: nracp
+    real(8), intent(out) :: racp(*)
+    real(8), intent(out) :: pg(*)
+    real(8), intent(out) :: sia(*)
+    real(8), intent(out) :: rad(*)
+    real(8), intent(out) :: pgssin2(*)
+    real(8), intent(out) :: sinm1(*)
+    real(8), intent(out) :: sinm2(*)
+    real(8), intent(out) :: sin2(*)
 
     ! Locals:
     real(8) :: xlim,pi,fi,fi1,fn,dot,dn,dn1,a,b,c,g,gm,gp,gt,ractemp,gtemp
@@ -3271,9 +3294,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8) :: sx
-    real(8) :: coa
-    integer :: ir
+    real(8), intent(out) :: sx
+    real(8), intent(in)  :: coa
+    integer, intent(in)  :: ir
 
     ! Locals:
     integer :: n,kk,k,n1,irpp,irppm
@@ -3400,8 +3423,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp, lr(0:r)
-    real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
+    integer :: r
+    integer :: nlatp
+    integer :: lr(0:r)
+    real(8) :: p(0:r,0:r,nlatp)
+    real(8) :: g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp) 
 
     ! Locals:
@@ -3469,8 +3495,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp
-    real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
+    integer :: r
+    integer :: nlatp
+    real(8) :: p(0:r,0:r,nlatp)
+    real(8) :: g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp)
 
     ! Locals:
@@ -3561,9 +3589,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
-    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(NJ,KLEV): field in physical space
+    real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(NJ,KLEV): field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:ntrunc, KLEV): spectral coefficients
-    integer :: klev ! number of fields to transform
+    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
@@ -3595,9 +3623,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
-    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(KNJDIM,KLEVDIM)  : field in physical space
+    real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(KNJDIM,KLEVDIM)  : field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:KNDIM, KLEVDIM): spectral coefficients
-    integer :: klev ! number of fields to transform
+    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
@@ -3753,15 +3781,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer n
+    integer :: n
 
     ! Locals:
-    integer l
-    parameter ( l = 3 )
-    integer k( l ) , m
+    integer, parameter :: l = 3
+    integer :: k(l), m
     data m , k / 8 , 2 , 3 , 5 /
-
-    integer i,j
+    integer :: i,j
 
     if ( n.le.m ) n = m + 1
     n = n - 1

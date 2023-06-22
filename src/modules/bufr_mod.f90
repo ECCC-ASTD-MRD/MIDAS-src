@@ -168,6 +168,7 @@ contains
 
     ! Arguments:
     integer, intent(in)           :: varNumber ! BUFR element number
+    ! Result:
     logical                       :: var_chm
       
     if (any(varNumber.eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2, &

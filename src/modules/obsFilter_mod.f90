@@ -68,7 +68,14 @@ contains
   !------------------------------------------------------------------------- 
   function findElemIndex(varNum) result(listIndex)
     implicit none
-    integer :: varNum, listIndex, elemIndex
+
+    ! Arguments:
+    integer, intent(in) :: varNum
+    ! Result:
+    integer :: listIndex
+
+    ! Locals:
+    integer :: elemIndex
 
     listIndex = -1
     do elemIndex=1,numElem
@@ -87,8 +94,10 @@ contains
   subroutine filt_setup(filterMode_in)
     implicit none
 
+    ! Arguments:
     character(len=*), intent(in) :: filterMode_in
 
+    ! Locals:
     integer :: nulnam, ierr, elem, jflag, ibit, obsFamilyIndex, elemIndex
     integer :: fnom, fclos
     integer :: flagIndex, elementIndex
@@ -257,7 +266,11 @@ contains
     ! :Purpose: Select the data in the obsSpaceData which are to be assimilated
     !
     implicit none
-    type(struct_obs) :: obsSpaceData
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    ! Locals:
     integer :: bodyIndex, headerIndex
     integer :: ipres, ivco, ierr, loopIndex
     integer :: idburp, ivnm, iflg, ibad, iknt, iknt_mpiglobal, ilansea
@@ -371,9 +384,10 @@ contains
   subroutine filt_topo(columnTrlOnTrlLev, obsSpaceData, beSilent)
     implicit none
 
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical, intent(in)     :: beSilent
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
 
     if (all(filtTopoList(:) == '  ')) then
 
@@ -417,10 +431,12 @@ contains
     !
     implicit none
 
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
+    ! Arguments:s
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
 
+    ! Locals:
     real(8) :: altitudeDiff
     integer :: headerIndex, bodyIndex, familyIndex, elemIndex
     integer :: ivnm,countAssim
@@ -531,13 +547,13 @@ contains
     !           the RAOB but fall in the surface boundary layer of the model atmosphere.
     !
     implicit none
-   
-    ! arguments:
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
 
-    ! locals:
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: itotacc(numElem), itotrej(numElem), isblrej(numElem)
@@ -738,11 +754,14 @@ contains
     ! :Purpose:  Refuse elements which are too close to the surface.
     !
     implicit none
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical,          intent(in) :: beSilent
-    character(len=2), intent(in) :: obsFamily
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+    character(len=2),        intent(in)    :: obsFamily
+
+    ! Locals:
     integer :: headerIndex, bodyIndex, elemIndex, listIndex
     integer :: ivnm, countRej(numElem), countAssim
     real(8) :: obsPressure, pressureDiff
@@ -824,10 +843,13 @@ end subroutine filt_topoAISW
     !           the RAOB but fall in the surface boundary layer of the model atmosphere.
     !
     implicit none
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: itotrej(numElem), isblrej(numElem), ibndrej(numElem)
@@ -950,16 +972,20 @@ end subroutine filt_topoAISW
     !           layer of the model atmosphere.
     !
     implicit none
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer :: headerIndex, bodyIndex, elemIndex
     integer :: ivnm, countAssim
     integer :: countAcc(numElem), countRej(numElem)
     real(8) :: obsAltitude      ! altitide of the observation
     real(8) :: colSfcAltitude   ! altitude of the model's lowest layer
     real(8) :: colAltitudeAbove ! top of the boundary layer
-    logical :: list_is_empty, beSilent
+    logical :: list_is_empty
 
     if(.not. beSilent )then
       write(*,*) ' '
@@ -1067,10 +1093,13 @@ end subroutine filt_topoAISW
     ! :Purpose:  Refuse data which are too close to the surface.
     !
     implicit none
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer :: headerIndex, bodyIndex
     integer :: idatyp, countAssim, countRej
     real(8), parameter :: minSfcPressure = 80000.d0
@@ -1148,9 +1177,12 @@ end subroutine filt_topoAISW
     ! :Purpose: zap sfc wind components at land stations
     !
     IMPLICIT NONE
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
 
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    logical,          intent(in)    :: beSilent
+
+    ! Locals:
     INTEGER, parameter :: JPINEL=2,JPIDLND=9
     INTEGER :: J,JID,JDATA
     LOGICAL :: LLPRINT
@@ -1282,12 +1314,12 @@ end subroutine filt_topoAISW
     !           for further processing
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
 
-    ! locals
+    ! Locals:
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
     integer :: fnom, fclos, nulnam, ierr, levelIndex
     real(8) :: obsAltitude, radarAltitude, beamElevation
@@ -1296,7 +1328,7 @@ end subroutine filt_topoAISW
     real(8) :: levelRangeNear, levelRangeFar
     logical, save :: firstCall = .true.
 
-    ! namelist variables:
+    ! Namelist variables:
     real(8), save :: maxRangeInterp ! max allowable horizontal distance between levels (in m) for radar winds
 
     namelist /namradvel/ maxRangeInterp
@@ -1410,18 +1442,20 @@ end subroutine filt_topoAISW
     !                   - Set bit of cma flag 11 ON
     !
     use gps_mod
-    IMPLICIT NONE
-    !
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+
+    ! Locals:
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
     INTEGER :: JL, ISAT, IQLF, iProfile, IFLG, varNum, IDSC
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL, LDSC
-    !
+
     if (.not.beSilent) then
       write(*,*)
       write(*,*) 'filt_gpsro: begin'
@@ -1586,11 +1620,11 @@ end subroutine filt_topoAISW
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     logical,          intent(in)    :: beSilent
 
-    ! locals
+    ! Locals:
     integer :: bufrCode, headerIndex, bodyIndex
     real(8) :: modelWindSpeed
 
@@ -1647,22 +1681,20 @@ end subroutine filt_topoAISW
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
     logical,          intent(in)    :: beSilent
 
-    ! locals
+    ! Locals:
     character(len=12) :: cstnid
     integer           :: nulnam, ierr
     integer           :: headerIndex, bodyIndex, codeType, platformIndex
     integer           :: fnom, fclos
     logical           :: inPlatformList
     logical, save     :: firstCall = .true.
-
-    ! List of satellites (id_stn in SQLite files) used for sea ice concentration
     integer, parameter :: maxPlatformIce = 50
 
-    ! namelist variables
+    ! Namelist variables:
     integer, save            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=12), save  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
@@ -1765,16 +1797,18 @@ end subroutine filt_topoAISW
     !    since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
     !
     implicit none
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
-    logical :: beSilent
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
     integer :: ivnm, countAssim, jl, icount
     real(8) :: obsAltitude, obsPressure, colTopPressure, colSfcPressure
     real(8) :: colAltitudeBelow, colAltitudeAbove
     logical :: list_is_empty
-
     integer, parameter :: Nmax=100
     integer :: Num_stnid_chm,nobslev,Num_chm
     character(len=13) :: CstnidList_chm(Nmax)
@@ -1937,6 +1971,7 @@ end subroutine filt_topoAISW
 
     ! Arguments:
     integer, intent(in) :: bufrCode    ! The input bufr code
+    ! Result:
     logical             :: assimilated ! Assimilated of not
 
     ! Locals:
@@ -1964,8 +1999,8 @@ end subroutine filt_topoAISW
     !
     implicit none
 
-    ! Argument:
-    integer :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
+    ! Arguments:
+    integer, intent(out) :: bufrCodeList(filt_nelems) ! The list of assimilated bufr codes
 
     if (.not. initialized) call filt_setup('none')
 
@@ -1982,7 +2017,7 @@ end subroutine filt_topoAISW
     !
     implicit none
 
-    ! Argument:
+    ! Result:
     integer :: nBufrCode  ! The number of assimilated observations
 
     if (.not. initialized) call filt_setup('none')

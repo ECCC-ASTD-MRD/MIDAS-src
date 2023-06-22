@@ -172,8 +172,8 @@ program midas_sstBias
     !
     ! :Purpose:  Control of the preprocessing of bias estimation
     !
-
     implicit none
+
     ! Arguments:
     character(len=*), intent(in)  :: obsColumnMode
     

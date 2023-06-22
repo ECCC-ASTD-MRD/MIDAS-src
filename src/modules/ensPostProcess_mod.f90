@@ -45,15 +45,15 @@ contains
     !
     implicit none
 
-    ! Arguments
-    type(struct_ens), intent(inout) :: ensembleTrl
-    type(struct_ens), intent(inout) :: ensembleAnl
-    type(struct_gsv), intent(in)    :: stateVectorHeightSfc
-    type(struct_gsv), intent(inout) :: stateVectorCtrlTrl
-    logical, intent(in)             :: writeTrlEnsemble
-    logical, optional, intent(in)   :: outputOnlyEnsMean_opt
+    ! Arguments:
+    type(struct_ens),  intent(inout) :: ensembleTrl
+    type(struct_ens),  intent(inout) :: ensembleAnl
+    type(struct_gsv),  intent(in)    :: stateVectorHeightSfc
+    type(struct_gsv),  intent(inout) :: stateVectorCtrlTrl
+    logical,           intent(in)    :: writeTrlEnsemble
+    logical, optional, intent(in)    :: outputOnlyEnsMean_opt
 
-    ! Locals
+    ! Locals:
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
     integer                   :: stepIndex, middleStepIndex, nulnam
     integer, allocatable      :: dateStampListInc(:)
@@ -846,15 +846,15 @@ contains
     !
     implicit none
 
-    ! arguments:
-    type(struct_gsv) :: stateVector
-    integer          :: nEns
-    character(len=*) :: etiket
-    character(len=*) :: typvar
-    character(len=*) :: fileNameSuffix
-    character(len=*) :: ensPath
+    ! Arguments:
+    type(struct_gsv), intent(in) :: stateVector
+    integer         , intent(in) :: nEns
+    character(len=*), intent(in) :: etiket
+    character(len=*), intent(in) :: typvar
+    character(len=*), intent(in) :: fileNameSuffix
+    character(len=*), intent(in) :: ensPath
 
-    ! locals:
+    ! Locals:
     integer            :: memberIndex, stepIndex, writeFilePE(nEns)
     character(len=4)   :: memberIndexStr
     character(len=256) :: outFileName
@@ -894,14 +894,14 @@ contains
     !           to the factor alphaRTPS (usually between 0 and 1).
     implicit none
 
-    ! Arguments
-    type(struct_ens) :: ensembleAnl
-    type(struct_gsv) :: stateVectorStdDevAnl
-    type(struct_gsv) :: stateVectorStdDevTrl
-    type(struct_gsv) :: stateVectorMeanAnl
-    real(8)          :: alphaRTPS
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_gsv), intent(in)    :: stateVectorStdDevAnl
+    type(struct_gsv), intent(in)    :: stateVectorStdDevTrl
+    type(struct_gsv), intent(in)    :: stateVectorMeanAnl
+    real(8)         , intent(in)    :: alphaRTPS
 
-    ! Locals
+    ! Locals:
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
     integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     real(8) :: factorRTPS
@@ -959,14 +959,14 @@ contains
     !           to the factor alphaRTPP (usually between 0 and 1).
     implicit none
 
-    ! Arguments
-    type(struct_ens) :: ensembleAnl
-    type(struct_ens) :: ensembleTrl
-    type(struct_gsv) :: stateVectorMeanAnl
-    type(struct_gsv) :: stateVectorMeanTrl
-    real(8)          :: alphaRTPP
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_ens), intent(inout) :: ensembleTrl
+    type(struct_gsv), intent(in)    :: stateVectorMeanAnl
+    type(struct_gsv), intent(in)    :: stateVectorMeanTrl
+    real(8)         , intent(in)    :: alphaRTPP
 
-    ! Locals
+    ! Locals:
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
     integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd
     real(4), pointer     :: meanAnl_ptr_r4(:,:,:,:), meanTrl_ptr_r4(:,:,:,:)
@@ -1020,14 +1020,14 @@ contains
     !           members. The perturbations have zero ensemble mean.
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ensembleAnl
     type(struct_gsv), intent(in)    :: stateVectorRefState
     real(8)         , intent(in)    :: alphaRandomPert
     integer         , intent(in)    :: randomSeed
     logical         , intent(in)    :: useMemberAsHuRefState
 
-    ! Locals
+    ! Locals:
     type(struct_gsv)         :: stateVectorPerturbation
     type(struct_gsv)         :: stateVectorPerturbationInterp
     type(struct_gsv)         :: stateVectorHuRefState
@@ -1257,13 +1257,13 @@ contains
     !           the member indices for the subsample.
     implicit none
 
-    ! Arguments
-    type(struct_ens)           :: ensembleAnl
-    type(struct_ens)           :: ensembleAnlSubSample
-    type(struct_ens), optional :: ensembleTrl_opt
-    type(struct_ens), optional :: ensembleTrlSubSample_opt
+    ! Arguments:
+    type(struct_ens)          , intent(in)  :: ensembleAnl
+    type(struct_ens)          , intent(out) :: ensembleAnlSubSample
+    type(struct_ens), optional, intent(in)  :: ensembleTrl_opt
+    type(struct_ens), optional, intent(out) :: ensembleTrlSubSample_opt
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: stateVectorMember
     integer :: nulFile, ierr, status, numSubSample
     integer :: memberIndex, memberIndexSubSample, memberIndexFull
@@ -1340,14 +1340,14 @@ contains
     !           member.
     implicit none
 
-    ! Arguments
-    type(struct_ens) :: ensembleAnl
-    real(8)          :: weightRecenter(:)
-    real(8)          :: weightRecenterLand
-    logical          :: useOptionTableRecenter
-    integer          :: numMembersToRecenter
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensembleAnl
+    real(8)         , intent(in)    :: weightRecenter(:)
+    real(8)         , intent(in)    :: weightRecenterLand
+    logical         , intent(in)    :: useOptionTableRecenter
+    integer         , intent(in)    :: numMembersToRecenter
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: stateVectorRecenterAnl
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_vco), pointer :: vco_ens => null()
@@ -1448,14 +1448,14 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv)             :: stateVectorStdDev
-    character(len=*)             :: fileName
-    real(8), intent(in)          :: elapsed
+    ! Arguments:
+    type(struct_gsv), intent(in) :: stateVectorStdDev
+    character(len=*), intent(in) :: fileName
+    real(8),          intent(in) :: elapsed
     character(len=1), intent(in) :: ftype
-    integer, intent(in)          :: nEns
+    integer,          intent(in) :: nEns
 
-    ! locals
+    ! Locals:
     real(8), allocatable          :: rmsvalue(:) 
     type(struct_vco), pointer     :: vco
     type(struct_hco), pointer     :: hco

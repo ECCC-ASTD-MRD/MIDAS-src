@@ -113,11 +113,11 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector_in     ! Statevector input
     type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector output (with target grids)
-    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing fields P0, TT and HU
-    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency checked in vertical interpolation
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector with fields P0, TT and HU
+    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency checked
     
     ! Locals:
     logical :: checkModelTop
@@ -206,8 +206,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),       intent(inout) :: statevector_in   ! Statevector input
-    type(struct_gsv),       intent(inout) :: statevector_out  ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), intent(inout) :: statevector_in  ! Statevector input
+    type(struct_gsv), intent(inout) :: statevector_out ! Statevector with target horiz and vert grids and result
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
@@ -322,8 +322,8 @@ contains
   !--------------------------------------------------------------------------
   ! int_vInterp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_vInterp_gsv( statevector_in,statevector_out,statevectorRef_opt, &
-                              Ps_in_hPa_opt,checkModelTop_opt)
+  subroutine int_vInterp_gsv(statevector_in,statevector_out,statevectorRef_opt, &
+                             Ps_in_hPa_opt,checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation.
     !           Interpolation coordinates are either height or log(P)
@@ -337,11 +337,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
-    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
-    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
-    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
-    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
+    type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with target horiz/vert grids and result
+    type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
+    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure is in hPa, not Pa
+    logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     call msg('int_vInterp_gsv', 'START', verb_opt=2)
 
@@ -375,19 +375,17 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
-    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
-    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
-    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
-    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
+    type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with target horiz/vert grids and result
+    type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
+    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure is in hPa, not Pa
+    logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     ! Locals:
     logical :: checkModelTop, hLikeCalc
-
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
     integer :: varIndex, stepIndex
-
     type(struct_gsv), pointer   :: statevectorRef
     type(struct_gsv)            :: statevectorRef_out
     real(8), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
@@ -395,9 +393,7 @@ contains
     real(8), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
     real(8), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
-
     character(len=4) :: varName
-
     type(struct_vco), pointer :: vco_in, vco_out
 
     call msg('vInterp_gsv_r8', 'START', verb_opt=4)
@@ -608,8 +604,8 @@ contains
         implicit none
 
         ! Arguments:
-        real(8), pointer, intent(in)  :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
-        real(8), pointer, intent(in)  :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
+        real(8), pointer, intent(in) :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
+        real(8), pointer, intent(in) :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
 
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in
@@ -686,19 +682,17 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
-    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
-    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
-    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
-    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
+    type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with the target horiz/vert grids and result
+    type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
+    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure in in hPa, not Pa
+    logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     ! Locals:
     logical :: checkModelTop, hLikeCalc
-
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
     integer :: varIndex, stepIndex
-
     type(struct_gsv), pointer   :: statevectorRef
     type(struct_gsv)            :: statevectorRef_out
     real(4), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
@@ -706,9 +700,7 @@ contains
     real(4), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
     real(4), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
-
     character(len=4) :: varName
-
     type(struct_vco), pointer :: vco_in, vco_out
 
     call msg('vInterp_gsv_r4', 'START', verb_opt=4)
@@ -999,8 +991,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! Statevector input
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Statevector providing the target temporal structure and will contain the interpolated fields
+    type(struct_gsv),  intent(in)    :: statevector_in  ! Statevector input
+    type(struct_gsv),  intent(inout) :: statevector_out ! Statevector with target temporal structure and results
 
     ! Locals:
     integer :: kIndex, latIndex, lonIndex
@@ -1009,7 +1001,6 @@ contains
     integer :: dateStampIn, dateStampOut 
     real(8) :: weight1, weight2
     real(8) :: deltaHour, deltaHourInOut
-
     real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
     real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
 
@@ -1172,8 +1163,8 @@ contains
 
     ! Arguments:
     type(struct_columnData),  intent(in)    :: column_in              ! ColumnData input
-    type(struct_columnData),  intent(inout) :: column_out             ! columnData providing the vertical structure and that will contain the interpolated column
-    character(len=*),         intent(in)    :: varName
+    type(struct_columnData),  intent(inout) :: column_out             ! columnData with the vert structure and results
+    character(len=*),         intent(in)    :: varName                ! variable name to be interpolated
     logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by calcHeightAndPressure_mod
 
     ! Locals:
@@ -1187,7 +1178,6 @@ contains
     integer          :: vcode_in, vcode_out
     integer          :: nLevIn_T, nLevIn_M, nLevOut_T, nLevOut_M
     logical          :: vInterp, useColumnPressure
-
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
 
@@ -1370,8 +1360,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    character(len=*),           intent(in) :: interpDegree
+    character(len=*), optional, intent(in) :: extrapDegree_opt
 
     ! Locals:
     character(len=12) :: extrapDegree
@@ -1412,13 +1402,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVectorOut
-    type(struct_gsv), intent(inout) :: stateVectorIn
-    character(len=*), intent(in)    :: varName
-    integer         , intent(in)    :: levIndex
-    integer         , intent(in)    :: stepIndex
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    type(struct_gsv),           intent(inout) :: stateVectorOut
+    type(struct_gsv),           intent(inout) :: stateVectorIn
+    character(len=*),           intent(in)    :: varName
+    integer         ,           intent(in)    :: levIndex
+    integer         ,           intent(in)    :: stepIndex
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
 
     ! Locals:
@@ -1511,11 +1502,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(inout) :: fieldOut_r4(:,:)
-    real(4), intent(in)    :: fieldIn_r4(:,:)
+    real(4),                    intent(inout) :: fieldOut_r4(:,:)
+    real(4),                    intent(in)    :: fieldIn_r4(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
 
     ! Locals:
     integer :: ezsint
@@ -1550,6 +1542,7 @@ contains
     character(len=*), intent(in)    :: varName
     integer,          intent(in)    :: levIndex
     integer,          intent(in)    :: stepIndex
+    ! Result:
     integer                         :: ierr
 
     ! Locals:
@@ -1557,7 +1550,8 @@ contains
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
     integer :: top, bottom, left, right, numBoxIndexes, lonIndexCloud, latIndexCloud
     integer :: boxSize, lonBoxIndex, latBoxIndex, boxIndex, lonIndexGrid, latIndexGrid
-    integer :: lonBoxIndexes(100), latBoxIndexes(100), ngp, nfill(mmpi_numThread), nhole(mmpi_numThread), nextrap0, nextrap1
+    integer :: lonBoxIndexes(100), latBoxIndexes(100), ngp
+    integer :: nfill(mmpi_numThread), nhole(mmpi_numThread), nextrap0, nextrap1
     integer, allocatable :: numFilledByAvg(:,:), filledByInterp(:,:), maskGrid(:,:), maskCloud(:,:)
     real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
     real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)
@@ -1864,11 +1858,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: fieldOut_r8(:,:)
-    real(8), intent(in)    :: fieldIn_r8(:,:)
+    real(8),                    intent(inout) :: fieldOut_r8(:,:)
+    real(8),                    intent(in)    :: fieldIn_r8(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
 
     ! Locals:
     integer :: nii, nji, nio, njo     
@@ -1925,13 +1920,14 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVectorOut
-    type(struct_gsv), intent(inout) :: stateVectorIn
-    character(len=*), intent(in)    :: varName
-    integer         , intent(in)    :: levIndex
-    integer         , intent(in)    :: stepIndex
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    type(struct_gsv),           intent(inout) :: stateVectorOut
+    type(struct_gsv),           intent(inout) :: stateVectorIn
+    character(len=*),           intent(in)    :: varName
+    integer         ,           intent(in)    :: levIndex
+    integer         ,           intent(in)    :: stepIndex
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
 
     ! Locals:
@@ -2049,12 +2045,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), intent(inout) :: uuout(:,:)
-    real(4), intent(inout) :: vvout(:,:)
-    real(4), intent(in)    :: uuin(:,:)
-    real(4), intent(in)    :: vvin(:,:)
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    real(4),                    intent(inout) :: uuout(:,:)
+    real(4),                    intent(inout) :: vvout(:,:)
+    real(4),                    intent(in)    :: uuin(:,:)
+    real(4),                    intent(in)    :: vvin(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
 
     ! Locals:
@@ -2082,12 +2079,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: uuout(:,:)
-    real(8), intent(inout) :: vvout(:,:)
-    real(8), intent(in)    :: uuin(:,:)
-    real(8), intent(in)    :: vvin(:,:)
-    character(len=*), intent(in)           :: interpDegree
-    character(len=*), intent(in), optional :: extrapDegree_opt
+    real(8),                    intent(inout) :: uuout(:,:)
+    real(8),                    intent(inout) :: vvout(:,:)
+    real(8),                    intent(in)    :: uuin(:,:)
+    real(8),                    intent(in)    :: vvin(:,:)
+    character(len=*),           intent(in)    :: interpDegree
+    character(len=*), optional, intent(in)    :: extrapDegree_opt
+    ! Result:
     integer :: ierr
 
     ! Locals:
@@ -2150,17 +2148,18 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: vezgdef
-    integer, intent(in) :: ni
-    integer, intent(in) :: nj
-    integer, intent(in) :: ig1
-    integer, intent(in) :: ig2
-    integer, intent(in) :: ig3
-    integer, intent(in) :: ig4
-    real(8), intent(in) :: ax(:)
-    real(8), intent(in) :: ay(:)
+    integer,          intent(in) :: ni
+    integer,          intent(in) :: nj
+    integer,          intent(in) :: ig1
+    integer,          intent(in) :: ig2
+    integer,          intent(in) :: ig3
+    integer,          intent(in) :: ig4
+    real(8),          intent(in) :: ax(:)
+    real(8),          intent(in) :: ay(:)
     character(len=*), intent(in) :: grtyp
     character(len=*), intent(in) :: grtypref
+    ! Result:
+    integer :: vezgdef
 
     ! Locals:
     integer :: ier2, jk, ilenx, ileny
@@ -2207,14 +2206,14 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: ig1
-    integer, intent(in) :: ig2
-    integer, intent(in) :: ig3
-    integer, intent(in) :: ig4   
-    real(8), intent(in) :: xlat0
-    real(8), intent(in) :: xlon0
-    real(8), intent(in) :: dlat
-    real(8), intent(in) :: dlon 
+    integer,          intent(in) :: ig1
+    integer,          intent(in) :: ig2
+    integer,          intent(in) :: ig3
+    integer,          intent(in) :: ig4   
+    real(8),          intent(in) :: xlat0
+    real(8),          intent(in) :: xlon0
+    real(8),          intent(in) :: dlat
+    real(8),          intent(in) :: dlon 
     character(len=*), intent(in) :: grtyp 
 
     ! Locals:

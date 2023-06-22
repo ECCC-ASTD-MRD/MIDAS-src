@@ -1,6 +1,6 @@
 
 module tovsNL_mod
-  ! MODULE tovsNL (prefix='tvs' category='5. Observation operators')
+  ! MODULE tovsNL_mod (prefix='tvs' category='5. Observation operators')
   !
   ! :Purpose: Derived types, public variables and procedures related to the
   !           nonlinear version of RTTOV
@@ -214,12 +214,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: value           ! Value of the RTTOV input variable to check for validity
-    character(len=*),intent(in)     :: variableName    ! Name of the checked variable for output in listings
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obsSpaceData object
-    integer, intent(in)             :: headerIndex     ! Index of the observation in obsSpaceData header table 
-    real(8), intent(in), optional   :: minimum_opt     ! Minimum acceptable value
-    real(8), intent(in), optional   :: maximum_opt     ! Maximum acceptable value
+    real(8),           intent(inout) :: value           ! Value of the RTTOV input variable to check for validity
+    character(len=*),  intent(in)    :: variableName    ! Name of the checked variable for output in listings
+    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData object
+    integer,           intent(in)    :: headerIndex     ! Index of the observation in obsSpaceData header table 
+    real(8), optional, intent(in)    :: minimum_opt     ! Minimum acceptable value
+    real(8), optional, intent(in)    :: maximum_opt     ! Maximum acceptable value
+
     ! Locals:
     real(8)                         :: minimum, maximum
 
@@ -258,12 +259,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: profile(:)    ! Vertical profile of input variables to check for validity
-    character(len=*),intent(in)     :: profileName   ! Name of the checked profile for output in listings
-    real(8), intent(in)             :: minimum       ! Minimum acceptable value
-    real(8), intent(in)             :: maximum       ! Maximum acceptable value
+    real(8),          intent(inout) :: profile(:)    ! Vertical profile of input variables to check for validity
+    character(len=*), intent(in)    :: profileName   ! Name of the checked profile for output in listings
+    real(8),          intent(in)    :: minimum       ! Minimum acceptable value
+    real(8),          intent(in)    :: maximum       ! Maximum acceptable value
     type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData object
-    integer, intent(in)             :: headerIndex   ! Index of the observation in obsSpaceData header table
+    integer,          intent(in)    :: headerIndex   ! Index of the observation in obsSpaceData header table
+
     ! Locals:
     logical                         :: ltest(size(profile))
     integer                         :: levelIndex
@@ -296,11 +298,11 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
-    integer, intent(in)             :: headerIndex  ! Index of the observation in obsSpaceData header table
+    integer,          intent(in)    :: headerIndex  ! Index of the observation in obsSpaceData header table
 
-    !Locals:
+    ! Locals:
     integer :: bodyIndex
     
     call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -320,8 +322,8 @@ contains
     !
     implicit none
 
-    !Arguments:
-    type(struct_obs) :: obsSpaceData
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer :: allocStatus(9)
@@ -674,15 +676,16 @@ contains
   ! tvs_getProfile
   !--------------------------------------------------------------------------
   subroutine tvs_getProfile(profiles, profileType, cld_profiles_opt)
+    !
     ! :Purpose: sets profiles as a pointer of type rttov_profile
     !           based on profileType equal to nl or tlad. 
     ! 
     implicit none
 
-    !Arguments:
-    type(rttov_profile), pointer, intent(inout)       :: profiles(:)
-    type(rttov_profile_cloud), pointer, intent(inout), optional :: cld_profiles_opt(:)
-    character(len=*), intent(in)                      :: profileType
+    ! Arguments:
+    type(rttov_profile),       pointer,           intent(inout) :: profiles(:)
+    character(len=*),                             intent(in)    :: profileType
+    type(rttov_profile_cloud), pointer, optional, intent(inout) :: cld_profiles_opt(:)
 
     select case( trim( profileType) )
       case('nl')
@@ -701,7 +704,7 @@ contains
   ! tvs_allocTransmission
   !--------------------------------------------------------------------------
   subroutine tvs_allocTransmission(nlevels)
-
+    !
     ! :Purpose: Allocate the global rttov transmission structure used
     !           when this is needed for some purpose (e.g. used in 
     !           LETKF to determine peak pressure level of each radiance
@@ -711,6 +714,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: nlevels 
+
     ! Locals:
     integer :: allocStatus(2), jo, isens, nc
 
@@ -738,8 +742,8 @@ contains
     !
     ! :Purpose: to read namelist NAMTOV, initialize the observation error covariance and setup RTTOV-12.
     !
-
     implicit none
+
     ! Locals:
     integer  sensorIndex, ierr, nulnam
     integer, external :: fclos, fnom
@@ -962,6 +966,8 @@ contains
     ! :Purpose: release memory used by RTTOV-12.
     !
     implicit none
+
+    ! Locals:
     integer :: allocStatus(8)
     integer :: iSensor,iObs,nChans,nl
 
@@ -1036,6 +1042,8 @@ contains
     ! :Purpose: release memory used by RTTOV-12.
     !
     implicit none
+
+    ! Locals:
     integer :: allocStatus(8)
 
     Write(*,*) 'tvs_deallocateProfilesNlTlAd: Starting'
@@ -1076,7 +1084,7 @@ contains
     character(len=15) :: tempo_inst
     integer, external :: fnom, fclos
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=8) :: listinstrum(0:ninst-1) ! List of instrument names
     integer          :: listoffset(0:ninst-1)  ! Corresponding list of channel offset values
     namelist /NAMCHANOFFSET/ listoffset, listinstrum
@@ -1222,8 +1230,8 @@ contains
     implicit none
 
     ! Argument:
-    integer :: idatypListSize
-    integer :: idatypList(:)
+    integer, intent(out) :: idatypListSize
+    integer, intent(out) :: idatypList(:)
     
     ! Locals:
     logical, save :: first=.true.
@@ -1232,7 +1240,7 @@ contains
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=22) :: inst_names(ninst) ! List of instrument names for all radiance types
     namelist /namtovsinst/ inst_names
 
@@ -1288,7 +1296,7 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: idatyp
     
     ! Locals:
@@ -1298,7 +1306,7 @@ contains
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=22) :: inst_names(ninst) ! List of instrument names for all radiance types
     namelist /namtovsinst/ inst_names
 
@@ -1368,7 +1376,7 @@ contains
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=22) :: name_inst(ninst) ! List of instrument names for hyperspectral IR
     namelist /namhyper/ name_inst
 
@@ -1448,11 +1456,13 @@ contains
     !
     ! :Purpose: return RTTOV platform id (>0) from platform name.
     !           -1 if not found
+    !
     implicit none
 
-    !Argument:
-    character(len=*), intent(in) :: name !Platform name
-    !Locals:
+    ! Arguments:
+    character(len=*), intent(in) :: name ! Platform name
+
+    ! Locals:
     integer           :: platformIndex, length, ipos
     character(len=64) :: tempo_name
 
@@ -1486,10 +1496,10 @@ contains
     !
     implicit none
 
-    !Argument:
+    ! Arguments:
     character(len=*), intent(in) :: name ! Instrument name
 
-    !Locals:
+    ! Locals:
     integer           :: instrumentIndex, length
     character(len=64) :: tempo_name
 
@@ -1522,7 +1532,7 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrum     ! input Rttov instrument code
 
     ! Locals:
@@ -1532,7 +1542,7 @@ contains
     logical, save :: first = .true.
     integer, external :: fclos, fnom
 
-    ! namelist variables
+    ! Namelist variables:
     character (len=8) :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
     
@@ -1584,10 +1594,13 @@ contains
     ! :Purpose: given an instrument name
     !           returns if it is an hyperspectral one
     !           (information from namelist NAMHYPER)
+    !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=*), intent(in) :: cinstrum
-    !Locals:
+
+    ! Locals:
     integer, parameter :: maxsize = 20
     integer :: nulnam, ierr, i 
     integer, save :: ninst_hir
@@ -1595,7 +1608,7 @@ contains
     integer, external :: fclos, fnom
     character (len=8) :: name2
 
-    ! namelist variables
+    ! Namelist variables:
     character (len=8),save  :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
 
@@ -1643,7 +1656,7 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrum ! input Rttov instrument code
 
     ! Locals:
@@ -1653,7 +1666,7 @@ contains
     logical, save :: first = .true.
     integer, external :: fnom, fclos
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=8) :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEO/ name_inst
 
@@ -1706,8 +1719,9 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrumId     ! input Rttov instrument code
+    ! Result:
     logical             :: idExist
 
     ! Locals:
@@ -1732,8 +1746,9 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrumId     ! input Rttov instrument code
+    ! Result:
     logical             :: idExist
 
     ! Locals:
@@ -1758,8 +1773,9 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrumId     ! input Rttov instrument code
+    ! Result:
     logical             :: allskyTtAssim
 
     allskyTtAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId))
@@ -1775,8 +1791,9 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: instrumId     ! input Rttov instrument code
+    ! Result:
     logical             :: allskyHuAssim
 
     allskyHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingHydrometeors(instrumId))
@@ -1821,19 +1838,21 @@ contains
     !          FY1-MVISR              26                     ir
     !                AHI              56                     ir
     ! ==================  =====================  ==================
+    !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
     integer, intent(out) :: instrum      ! RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
   
-    !Locals:  
+    ! Locals:  
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp   = 100
     logical, save :: first = .true.
     integer :: nulnam, ier
     integer, external :: fnom, fclos
 
-    ! namelist variables
+    ! Namelist variables:
     integer, save ::   listburp(mxinstrumburp)           ! List of instrument ID values from obs file
     character(len=8), save :: listinstrum(mxinstrumburp) ! List of instrument names
     namelist /NAMINST/ listburp, listinstrum
@@ -1895,20 +1914,24 @@ contains
   !  tvs_isNameGeostationary
   !--------------------------------------------------------------------------
   logical function tvs_isNameGeostationary(cinstrum)
+    !
     ! :Purpose: given an instrument name following BUFR convention
     !           returns if it is a Geostationnary Imager
     !           (information from namelist NAMGEOBUFR)
+    !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=*), intent(in) :: cinstrum
-    !Locals:
+
+    ! Locals:
     integer, parameter :: maxsize = 100
     integer :: nulnam, ierr, i 
     integer, save :: ninst_geo
     logical, save :: lfirst = .true.
     integer, external :: fnom, fclos
 
-    ! namelist variables
+    ! Namelist variables:
     character (len=8),save :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEOBUFR/ name_inst
 
@@ -1990,7 +2013,6 @@ contains
     !     :iplatform: RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
     !     :isat: RTTOV-7 satellite ID numbers (e.g. 15)
     !
-
     implicit none
     
     ! Arguments:
@@ -2005,7 +2027,7 @@ contains
     integer, parameter:: mxsatburp = 100
     integer, save     :: numsatburp
 
-    ! namelist variables
+    ! Namelist variables:
     integer, save          :: listburp(mxsatburp) ! Table of BURP satellite identifier element #001007
     character(len=8), save :: listplat(mxsatburp) ! Table of RTTOV platform identifier
     integer, save          :: listsat (mxsatburp) ! Table of RTTOV satellite identifier
@@ -2076,11 +2098,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: sensorTovsIndexes(:)
-    type(struct_obs), intent(in)     :: obsSpaceData
-    type(rttov_chanprof), intent(out):: chanprof(:)
-    logical, intent(out), optional   :: lchannel_subset_opt(:,:)
-    integer, intent(out), optional   :: iptobs_cma_opt(:)
+    integer,              intent(in)  :: sensorTovsIndexes(:)
+    type(struct_obs),     intent(in)  :: obsSpaceData
+    type(rttov_chanprof), intent(out) :: chanprof(:)
+    logical,    optional, intent(out) :: lchannel_subset_opt(:,:)
+    integer,    optional, intent(out) :: iptobs_cma_opt(:)
 
     ! Locals:
     integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
@@ -2124,11 +2146,13 @@ contains
     ! :Purpose: to count radiances selected for assimilation
     !
     implicit none
-    integer, intent(in)          :: sensorTovsIndexes(:)
-    type(struct_obs)             :: obsSpaceData
-    integer, intent(in),optional :: assim_flag_val_opt
-    
 
+    ! Arguments:
+    integer,           intent(in) :: sensorTovsIndexes(:)
+    type(struct_obs),  intent(in) :: obsSpaceData
+    integer, optional, intent(in) :: assim_flag_val_opt
+    
+    ! Locals:
     integer :: profileIndex, headerIndex, istart, iend, bodyIndex, iobs, assim_flag_val
 
     if (present(assim_flag_val_opt)) then
@@ -2160,9 +2184,10 @@ contains
     ! :Purpose: to obtain new STYP value given observed STYP and TTYP value
     !
     implicit none
+
     ! Arguments:
-    integer, intent(in)          :: headerIndex
-    type(struct_obs)             :: obsSpaceData
+    integer,          intent(in) :: headerIndex
+    type(struct_obs), intent(in) :: obsSpaceData
     
     ! Locals:
     integer :: terrainType
@@ -2188,11 +2213,12 @@ contains
     !
     implicit none
 
-    !Arguments:
-    integer, intent(in)          :: sensorTovsIndexes(:)
-    type(struct_obs), intent(in) :: obsSpaceData
-    real(8), intent(out)         :: surfem(:)
+    ! Arguments:
+    integer,          intent(in)  :: sensorTovsIndexes(:)
+    type(struct_obs), intent(in)  :: obsSpaceData
+    real(8),          intent(out) :: surfem(:)
 
+    ! Locals:
     integer :: count, profileIndex, iobs, istart, iend, bodyIndex, headerIndex
 
     count = 0 
@@ -2224,12 +2250,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof), intent(in) :: chanprof(:)
-    integer, intent(in)              :: sensorTovsIndexes(:)
-    integer, intent(in)              :: sensorType
-    integer, intent(in)              :: instrument
-    real(8), intent(out)             :: surfem(:)
-    logical, intent(out)             :: calcemis(:)
+    type(rttov_chanprof), intent(in)  :: chanprof(:)
+    integer,              intent(in)  :: sensorTovsIndexes(:)
+    integer,              intent(in)  :: sensorType
+    integer,              intent(in)  :: instrument
+    real(8),              intent(out) :: surfem(:)
+    logical,              intent(out) :: calcemis(:)
     
     ! Locals:
     integer :: radiance_index, profileIndex, iobs, surfaceType
@@ -2274,7 +2300,7 @@ contains
     type(struct_columnData), intent(in)    :: columnTrl    ! Column structure
     type(struct_obs),        intent(inout) :: obsSpaceData ! obsSpaceData structure
     integer,                 intent(in)    :: datestamp    ! CMC date stamp
-    character (len=*), intent(in)          :: profileType
+    character(len=*),        intent(in)    :: profileType
     logical,                 intent(in)    :: beSilent     ! To control verbosity
 
     ! Locals:
@@ -2286,16 +2312,12 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(13)
-    
+    integer :: allocStatus(13)    
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
-
     integer, allocatable :: sensorTovsIndexes(:)
-    integer, allocatable :: sensorHeaderIndexes(:)
-  
+    integer, allocatable :: sensorHeaderIndexes(:)  
     type(struct_vco), pointer :: vco
-
     real(8), allocatable :: pressure (:,:)
     real(8), allocatable :: latitudes(:)
     real(8), allocatable :: ozone(:,:)
@@ -2745,11 +2767,14 @@ contains
     ! :Purpose: get properly corrected satellite Azimuth Angle from obsSpaceData header
     !
     implicit none
-    ! Arguments
+
+    ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData     ! obsSpaceData structure
-    integer, intent(in)          :: headerIndex      ! location in header
+    integer,          intent(in) :: headerIndex      ! location in header
+    ! Result:
     real(8)                      :: correctedAzimuth ! corrected azimuth (function result)
-    ! Locals
+
+    ! Locals:
     integer :: sensorNo, tovsIndex
 
     correctedAzimuth = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
@@ -2783,10 +2808,10 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData structure
-    logical, intent(in)             :: bgckMode       ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical, intent(in)             :: beSilent       ! flag to control verbosity
+    logical,          intent(in)    :: bgckMode      ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
+    logical,          intent(in)    :: beSilent      ! flag to control verbosity
 
     ! Locals:
     integer :: nlv_T
@@ -2801,8 +2826,7 @@ contains
     integer :: profileIndex, levelIndex, jj, btIndex
     integer :: instrum
     integer :: sensorType        ! sensor type (1=infrared; 2=microwave; 3=high resolution,4=polarimetric)
-    integer, allocatable:: sensorTovsIndexes(:)  
-    
+    integer, allocatable:: sensorTovsIndexes(:)
     type (rttov_emissivity), pointer :: emissivity_local(:)    ! emissivity structure with input and output
     type (rttov_chanprof), pointer :: chanprof(:)
     type (rttov_chanprof), allocatable :: chanprof1(:)
@@ -3316,12 +3340,14 @@ contains
   subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
     implicit none
 
-    real(8), intent(in)                  :: originalEmissivity(:)
-    type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
-    integer, intent(in)                  :: sensorId
-    type (rttov_chanprof), intent(in)    :: chanprof(:)
-    integer, intent(in)                  :: sensorTovsIndexes(:)
+    ! Arguments:
+    real(8),                 intent(in)  :: originalEmissivity(:)
+    type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)
+    integer,                 intent(in)  :: sensorId
+    type(rttov_chanprof),    intent(in)  :: chanprof(:)
+    integer,                 intent(in)  :: sensorTovsIndexes(:)
 
+    ! Locals:
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
     integer :: btCount, profileCount
@@ -3393,10 +3419,9 @@ contains
     ! :Purpose: Computes water infrared emissivity for a specific set of
     !           channel indices, wind speed and zenith angle.
     !
-  
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(out) :: emiss(nchn,np) ! emissivities (0.-1.)
     real(8), intent(in)  :: wind(np) ! wind: surface wind speed (m/s)
     real(8), intent(in)  :: angle(np) ! angle: viewing angle (deg)
@@ -3404,7 +3429,7 @@ contains
     integer, intent(in)  :: np     !number of locations
     integer, intent(in)  :: mchannel(nchn) ! vector of channel indices to process
 
-    !Locals
+    ! Locals:
     integer, parameter :: MaxWn = 19
     integer, parameter :: Nparm=3
     integer, parameter :: MaxChan=19
@@ -3474,7 +3499,6 @@ contains
     real (8) ww
     integer Index,Ichan,IP
 
-
     do Ichan = 1 , Nchn
 
       Index = Mchannel(Ichan)
@@ -3507,6 +3531,7 @@ contains
     ! :Purpose: Computes a low resolution feature form a high
     !           resolution one by averaging.
     !           example: use for percentage of water
+    !
     implicit none
 
     ! Arguments:
@@ -3583,9 +3608,6 @@ contains
     !
     ! :Purpose: Read information about ceres surface type and water fraction.
     !
-    ! :Arguments:
-    !        :none:
-    !
     implicit none
     
     ! Locals:
@@ -3635,12 +3657,11 @@ contains
     integer, intent(in)  :: nchannels_max          ! Total number of observations treated
     integer, intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
 
-    !Locals:
+    ! Locals:
     integer :: jc,jn
     integer :: ilat(nprf), ilon(nprf)
     real(8) :: latitudes(nprf), longitudes(nprf), satzang(nprf)
     real(8) :: wind_sfc(nprf), f_low(nprf), waven(nchn), em_oc(nchn,nprf), emi_mat(nchn,20)
-
 
     ! Information to extract (transvidage)
     ! latitudes(nprf) -- latitude (-90 to 90)
@@ -3716,10 +3737,10 @@ contains
     !
     ! :Purpose: Associate surface albedo, ice fraction, snow depth 
     !           and ceres surface type and water fraction to observations profiles.
-
+    !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(out) :: ilat(nprf)   ! y-coordinate of profile
     integer, intent(out) :: ilon(nprf)   ! x-coordinate of profile 
     integer, intent(in)  :: nprf         ! number of profiles
@@ -3757,7 +3778,6 @@ contains
     real(8), allocatable :: glace(:,:), neige(:,:), alb(:,:)
     ! fields on output grid
     real(8)              :: glace_intrpl(nprf,1), neige_intrpl(nprf,1), alb_intrpl(nprf,1)
-
 
     ! printout header
     write(*,*) 
@@ -4028,14 +4048,15 @@ contains
     ! 13= urban            14= mosaic           15= snow             16= barren (deserts)
     ! 17= water            18= toundra          19= fresh snow       20= sea ice
     ! ===================  ===================  ===================  =====================
+    !
     implicit none
 
-    ! Arguments
-    integer, intent(in) :: nchn              ! number of bands for which emissivity is needed
-    real(8), intent(in) :: waven(nchn)       ! wavenumbers (cm-1)
-    real(8), intent(out):: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
+    ! Arguments:
+    integer, intent(in)  :: nchn              ! number of bands for which emissivity is needed
+    real(8), intent(in)  :: waven(nchn)       ! wavenumbers (cm-1)
+    real(8), intent(out) :: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
 
-    ! locals
+    ! Locals:
     integer          :: i, nc, nt
     real(8)          :: dum
 
@@ -4088,8 +4109,6 @@ contains
          0.964d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0,  &
          0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0  /)
 
-
-
     do nt = 1, 20
       do nc = 1, nchn
         if ( waven(nc) > mid(1) ) then
@@ -4141,7 +4160,7 @@ contains
     integer, intent(in)    :: np           ! Number of profiles
     integer, intent(in)    :: nc           ! Number of channels
 
-    ! Locals
+    ! Locals:
     integer     :: i, k, l
     integer     :: imem(nc) 
     integer     :: mchan(2)
@@ -4154,9 +4173,7 @@ contains
          1087.0d0, 1041.7d0, 1000.0d0, 952.38d0, 909.09d0,                           &
          869.57d0, 833.33d0, 800.00d0, 769.23d0/)
 
-
     ! imem options
-
     imem(:) = 0
 
     do I = 1, nc
@@ -4217,10 +4234,13 @@ contains
     !:Purpose: get common channels among all MPI tasks
     !
     implicit none
-    !Arguments:
-    integer, intent(in) :: channels(:)
-    integer, intent(out):: countUniqueChannel, listAll(:)
-    !Locals:
+
+    ! Arguments:
+    integer, intent(in)  :: channels(:)
+    integer, intent(out) :: countUniqueChannel
+    integer, intent(out) :: listAll(:)
+
+    ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
     integer :: ierr, i, j
     integer, allocatable :: listGlobal(:)
@@ -4307,15 +4327,14 @@ contains
     !           No check will be done (options for task 0 will be used for all tasks). 
     !           Only differences in channel lists are accounted for.
     !
-
     implicit none
 
     ! Arguments:
-    integer(kind=jpim), intent(out) :: errorStatus  ! Error status
-    type(rttov_coefs),  intent(out) :: coefs        ! Rttov coefficient structure
-    type(rttov_options), intent(in) :: opts         ! Rttov option structure
-    integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
-    integer(kind=jpim), intent(in)  :: instrument(3)! Instrument vector
+    integer(kind=jpim),  intent(out) :: errorStatus   ! Error status
+    type(rttov_coefs),   intent(out) :: coefs         ! Rttov coefficient structure
+    type(rttov_options), intent(in)  :: opts          ! Rttov option structure
+    integer(kind=jpim),  intent(in)  :: channels(:)   ! Channel list
+    integer(kind=jpim),  intent(in)  :: instrument(3) ! Instrument vector
 
     ! Locals:
     real(8), allocatable :: bigArray(:,:,:,:)
@@ -4743,7 +4762,11 @@ contains
     contains
 
     subroutine nullify_gas_coef_pointers(fast_coef)
+      implicit none
+
+      ! Arguments:
       type(rttov_fast_coef), intent(inout) :: fast_coef
+
       nullify (fast_coef%mixedgas,&
            fast_coef%watervapour, &
            fast_coef%ozone,       &
@@ -4756,14 +4779,18 @@ contains
     end subroutine nullify_gas_coef_pointers
 
     subroutine dispatch_fast_coef(err, fast_coef, gas_ids, ncoefs, version, nlayers, ngas)
+      implicit none
+
+      ! Arguments:
       integer,                        intent(out)   :: err
       type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-      integer(jpim),         intent(in)             :: gas_ids(:)
-      integer(jpim),         intent(in)             :: ncoefs(:)
-      integer(jpim),         intent(in)             :: version
-      integer(jpim),         intent(in)             :: nlayers
-      integer(jpim),         intent(in)             :: ngas
+      integer(jpim),                  intent(in)    :: gas_ids(:)
+      integer(jpim),                  intent(in)    :: ncoefs(:)
+      integer(jpim),                  intent(in)    :: version
+      integer(jpim),                  intent(in)    :: nlayers
+      integer(jpim),                  intent(in)    :: ngas
 
+      ! Locals:
       integer(jpim) :: channelIndex, gasIndex, layerIndex, coefIndex
       real(8), allocatable :: bigArray(:,:,:,:)
       logical :: allocated0
@@ -4832,12 +4859,16 @@ contains
 
   end subroutine tvs_rttov_read_coefs
 
+
   subroutine extractI41dArray(array,oldSize,index)
     implicit none
-    integer, pointer :: array(:)
-    integer, intent(in) :: oldSize
-    integer, intent(in) :: index(:)
-    ! Locals
+
+    ! Arguments:
+    integer, pointer, intent(inout) :: array(:)
+    integer,          intent(in)    :: oldSize
+    integer,          intent(in)    :: index(:)
+
+    ! Locals:
     integer :: newSize, tmpI41d(oldSize), ierr, trueSize
 
     if (mmpi_myid == 0) then
@@ -4876,9 +4907,13 @@ contains
   
   subroutine extractR81dArray(array,oldSize,index)
     implicit none
-    real(8), pointer :: array(:)
-    integer, intent(in) :: oldSize, index(:)
-    !Locals
+
+    ! Arguments:
+    real(8), pointer, intent(inout) :: array(:)
+    integer,          intent(in)    :: oldSize
+    integer,          intent(in)    :: index(:)
+
+    ! Locals:
     integer :: newSize, ierr, trueSize
     real(8) :: tmpR81d(oldSize)
     
@@ -4916,12 +4951,18 @@ contains
     array( : ) =  tmpR81d( index(:) )
   end subroutine extractR81dArray
 
+
   subroutine extractR82dArray(array,oldSize1,oldSize2,index)
     !second dimension is for channels
     implicit none
-    real(8), pointer :: array(:,:)
-    integer, intent(in) :: oldSize1, oldSize2,index(:)
-    !Locals
+
+    ! Arguments:
+    real(8), pointer, intent(inout) :: array(:,:)
+    integer,          intent(in)    :: oldSize1
+    integer,          intent(in)    :: oldSize2
+    integer,          intent(in)    :: index(:)
+
+    ! Locals:
     integer :: newSize, ierr, trueSize,i
     real(8) :: tmpR82d(oldSize1,oldsize2)
     
@@ -4964,9 +5005,15 @@ contains
   subroutine extractR83dArray(array,oldSize1,oldSize2,oldSize3,index)
     !second dimension is for channels
     implicit none
-    real(8), pointer :: array(:,:,:)
-    integer, intent(in) :: oldSize1, oldSize2,oldSize3,index(:)
-    !Locals
+
+    ! Arguments:
+    real(8), pointer, intent(inout) :: array(:,:,:)
+    integer,          intent(in) :: oldSize1
+    integer,          intent(in) :: oldSize2
+    integer,          intent(in) :: oldSize3
+    integer,          intent(in) :: index(:)
+
+    ! Locals:
     integer :: newSize, ierr, trueSize,i
     real(8) :: tmpR83d(oldSize1,oldSize2,oldSize3)
     
@@ -5008,9 +5055,13 @@ contains
 
   subroutine extractCmplx81dArray(array,oldSize,index)
     implicit none
-    complex(kind=8), pointer :: array(:)
-    integer, intent(in) :: oldSize, index(:)
-    !Locals
+
+    ! Arguments:
+    complex(kind=8), pointer, intent(inout) :: array(:)
+    integer,                  intent(in) :: oldSize
+    integer,                  intent(in) :: index(:)
+
+    ! Locals:
     integer :: newSize, ierr, trueSize
     complex(kind=8) :: tmpCx81d(oldSize)
 
@@ -5051,8 +5102,11 @@ contains
 
   subroutine broadcastR82dArray(array)
     implicit none
-    real(kind=8), pointer :: array(:,:)
-    !Locals
+
+    ! Arguments:
+    real(kind=8), pointer, intent(inout) :: array(:,:)
+
+    ! Locals:
     logical :: associated0
     integer :: ierr
 
@@ -5073,8 +5127,11 @@ contains
 
   subroutine broadcastR81dArray(array)
     implicit none
-    real(kind=8), pointer :: array(:)
-    !Locals
+
+    ! Arguments:
+    real(kind=8), pointer, intent(inout) :: array(:)
+
+    ! Locals:
     logical :: associated0
     integer :: ierr
     
@@ -5096,8 +5153,11 @@ contains
 
   subroutine broadcastI41dArray(array)
     implicit none
-    integer(kind=4), pointer :: array(:)
-    !Locals
+
+    ! Arguments:
+    integer(kind=4), pointer, intent(inout) :: array(:)
+
+    ! Locals:
     logical :: associated0
     integer :: ierr
 
@@ -5125,7 +5185,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
 
     ! Locals:
@@ -5275,7 +5335,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     integer, intent(in)  :: idsat            ! Satellite index
     integer, intent(out) :: channelIndex_out ! Channel index
     integer, intent(in)  :: channelNumber_in ! Channel number
@@ -5440,11 +5500,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),   intent(in) :: obsSpaceData
-    integer,            intent(in) :: headerIndex
-    integer,            intent(in) :: bodyIndex
-    integer,           intent(out) :: channelNumber
-    integer,           intent(out) :: channelIndex
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: headerIndex
+    integer,          intent(in)  :: bodyIndex
+    integer,          intent(out) :: channelNumber
+    integer,          intent(out) :: channelIndex
 
     ! Locals:
     integer :: tovsIndex, sensorIndex

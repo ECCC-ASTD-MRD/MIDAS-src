@@ -1,6 +1,6 @@
 
 module columnVariableTransforms_mod
-  ! MODULE columnVariableTransforms (prefix='cvt' category='4. Data Object transformations')
+  ! MODULE columnVariableTransforms_mod (prefix='cvt' category='4. Data Object transformations')
   !
   ! :Purpose: To store various functions for variable transforms using inputs
   !           from column(s). Outputs are also placed in a column.
@@ -25,10 +25,10 @@ CONTAINS
   subroutine cvt_transform(columnInc, transform, columnRefOnIncLev_opt)
     implicit none
    
-    ! Arguments
-    type(struct_columnData), intent(inout)        :: columnInc
-    character(len=*), intent(in)                  :: transform
-    type(struct_columnData), optional, intent(in) :: columnRefOnIncLev_opt
+    ! Arguments:
+    type(struct_columnData),           intent(inout) :: columnInc
+    character(len=*),                  intent(in)    :: transform
+    type(struct_columnData), optional, intent(in)    :: columnRefOnIncLev_opt
     
     select case(trim(transform))
 

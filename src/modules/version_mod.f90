@@ -21,8 +21,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: progName
-    character(len=*) :: progDescription
+    character(len=*), intent(in) :: progName
+    character(len=*), intent(in) :: progDescription
 
     ! Locals:
     character(len=100), parameter :: ver_version = "GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE"

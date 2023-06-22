@@ -168,22 +168,19 @@ contains
     !           :analysisMode: logical indicating if following analysis mode or not (optional)
     !                          Assumed .true. if not present.
     !
-
     implicit none
     
-    !Arguments:
-    type(struct_obs)              :: obsSpaceData
-    type(struct_columnData)       :: columnTrlOnAnlIncLev
-    type(struct_hco), pointer     :: hco_anl
-    logical, intent(in), optional :: analysisMode_opt
+    ! Arguments:
+    type(struct_obs)       ,   intent(inout) :: obsSpaceData
+    type(struct_columnData),   intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_hco), pointer, intent(in)    :: hco_anl
+    logical,         optional, intent(in)    :: analysisMode_opt
     
-    !Locals:
+    ! Locals:
     logical :: nmlExists,anlm_mod    
     integer :: ierr
     integer :: dateprnt,timeprnt,newdate
     
-    ! write(*,*) 'osd_ObsSpaceDiag: Starting'
-
     if (present(analysisMode_opt)) then
        anlm_mod = analysisMode_opt
     else
@@ -204,8 +201,6 @@ contains
     
     call osd_calcInflation(obsSpaceData,columnTrlOnAnlIncLev,hco_anl,dateprnt)
 
-   ! write(*,*) 'osd_obsspace_diag: Completed'
-
   end subroutine osd_ObsSpaceDiag
   
   !--------------------------------------------------------------------------
@@ -219,25 +214,22 @@ contains
     implicit none
  
     ! Arguments:
-    type(struct_obs)            :: obsSpaceData
-    type(struct_columnData)     :: columnTrlOnAnlIncLev
-    type(struct_hco), pointer   :: hco_anl
-    integer                     :: dateprnt
+    type(struct_obs)         , intent(inout) :: obsSpaceData
+    type(struct_columnData)  , intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_hco), pointer, intent(in)    :: hco_anl
+    integer                  , intent(in)    :: dateprnt
 
     ! Locals:
     type(struct_gsv)            :: statevector
     type(struct_columnData)     :: column
     type(struct_vco), pointer   :: vco_anl
     real(8), allocatable,target :: controlVector(:)
-
     integer :: familyIndex,elementIndex,bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
     integer :: maxLat,maxLon,maxVertical
     real(8), allocatable :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
     integer, allocatable :: counts(:,:,:)
-
     real(8), allocatable :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
-    integer, allocatable :: my_counts(:,:,:)
-    
+    integer, allocatable :: my_counts(:,:,:)    
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
     integer :: ivar_count,nlev_max
     logical :: lpert_static, lpert_ens
@@ -604,14 +596,14 @@ contains
     !
     implicit none
 
-    !Arguments:
-    type(struct_obs) :: obsSpaceData
-    integer          :: bodyIndex
-    integer          :: latIndex
-    integer          :: lonIndex
-    integer          :: verticalIndex
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer         , intent(in)  :: bodyIndex
+    integer         , intent(out) :: latIndex
+    integer         , intent(out) :: lonIndex
+    integer         , intent(out) :: verticalIndex
 
-    !Locals:
+    ! Locals:
     real(8), parameter :: epsilon=0.001
     integer            :: headerIndex, bodyElem_i
 
@@ -660,10 +652,10 @@ contains
     !
     implicit none
 
-    !Arguments:
-    logical :: nmlExists
+    ! Arguments:
+    logical, intent(out) :: nmlExists
 
-    !Locals:
+    ! Locals:
     integer :: nulnam,ierr,fnom,fclos
     integer :: familyIndex, elementIndex
     
@@ -744,10 +736,9 @@ contains
     !           than OBS,OMA,OMP,OER,FGE,MRK in obsSpaceData
     !           Content can be augmented as needed.
     !
-
     implicit none
     
-    !Arguments:
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
 
     ! If needed, add effective temperature values in CH family obs file 
@@ -778,18 +769,17 @@ contains
     !       :deltaPressure:   Size of vertical bins for diagnostics (Pascal)
     !       :anlm_mode:       Logical indicating if OmA (and Jo) diagnostics to be generated.
     ! 
-
     implicit none
 
-    !Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    real(8), intent(in)     :: deltaLat
-    real(8), intent(in)     :: deltaLon
-    real(8), intent(in)     :: deltaPressure
-    logical, intent(in)     :: anlm_mode
-    
-    !Locals:
+    ! Arguments:
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    real(8),                 intent(in)    :: deltaLat
+    real(8),                 intent(in)    :: deltaLon
+    real(8),                 intent(in)    :: deltaPressure
+    logical,                 intent(in)    :: anlm_mode
+
+    ! Locals:
     integer, allocatable :: codtyplist(:)
     integer :: jelm,ifam
     
@@ -888,26 +878,24 @@ contains
     !     to osd_obsspace_diagn_add, it is recalculated in osd_obsspace_diagn_add since OBS_JOBS
     !     will be set to zero for diagnostic-only observations.
     !
-
     implicit none
 
-    !Arguments:
-    type(struct_obs)        :: obsSpaceData
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    character(len=*)        :: obsfam
-    character(len=*)        :: filename
-    integer, intent(in)     :: codtyplist(:)
-    real(8), intent(in)     :: deltaLat
-    real(8), intent(in)     :: deltaLon
-    real(8), intent(in)     :: deltaPressure
-    real(8), intent(in)     :: pressmin
-    logical, intent(in)     :: anlm_mode
-    logical, intent(in)     :: save_diagn
+    ! Arguments:
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    character(len=*)       , intent(in)    :: obsfam
+    character(len=*)       , intent(in)    :: filename
+    integer,                 intent(in)    :: codtyplist(:)
+    real(8),                 intent(in)    :: deltaLat
+    real(8),                 intent(in)    :: deltaLon
+    real(8),                 intent(in)    :: deltaPressure
+    real(8),                 intent(in)    :: pressmin
+    logical,                 intent(in)    :: anlm_mode
+    logical,                 intent(in)    :: save_diagn
 
-    !Locals:
+    ! Locals:
     type(struct_osd_diagn) :: obs_diagn
     integer :: headerIndex,bodyIndex,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
-
     integer, parameter :: nmax=100
     integer :: varno,varno_elemID(nmax)
     integer :: elemID,num_elemID,nset,iass
@@ -916,7 +904,6 @@ contains
     character(len=256) :: label
     real(8) :: lat,lon
     character(len=12) :: stnid
-
     real(8), allocatable :: lev(:), omp(:), oma(:), obs(:)
     real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)
@@ -1148,23 +1135,21 @@ contains
     !   :codtyplist:       Code type list associated to obsfam
     !   :status_hpht:      logical indicating if successfully retrieved sqrtHPHT from obs file
     !
-
     implicit none
 
-    !Arguments:
-    logical, intent(out) :: status_hpht
+    ! Arguments:
+    logical,          intent(out)   :: status_hpht
     type(struct_obs), intent(inout) :: obsSpaceData
-    character(len=*), intent(in) :: obsfam
-    integer :: codtyplist(:)
+    character(len=*), intent(in)    :: obsfam
+    integer,          intent(in)    :: codtyplist(:)
 
-    !Locals:
+    ! Locals:
     integer :: bodyIndex,headerIndex,rln,nlv,kk
     integer :: stat,varno,icodtyp
     integer, parameter :: max_nlev=500
     integer, parameter :: ndim=1
     real(8) :: array(max_nlev)
-    character(len=12), parameter :: stnid='************'
-    
+    character(len=12), parameter :: stnid='************'    
     type(struct_oss_obsdata) :: SqrtHPHT_struct
     
     write(*,*) 'osd_ReadSqrtHPHT: STARTING'
@@ -1242,17 +1227,16 @@ contains
     !     :deltaPressure:  pressures bin size in Pa (approximate)
     !     :pressmin:       bottom of top layer for diagnostics (in Pa).
     !
-
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
     real(8)               , intent(in)    :: deltaLat
     real(8)               , intent(in)    :: deltaLon
     real(8)               , intent(in)    :: deltaPressure
     real(8)               , intent(in)    :: pressmin
     
-    !Locals:
+    ! Locals:
     integer :: nlev,nlat,nlon,nbin,nstat
 
     obs_diagn%deltaLat = deltaLat
@@ -1303,7 +1287,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
     obs_diagn%OmP_stats(:,:,:,:) = 0.0d0
@@ -1330,7 +1314,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
     deallocate(obs_diagn%OmP_stats,obs_diagn%OmA_stats,obs_diagn%obs_stats)
@@ -1368,26 +1352,25 @@ contains
     !     :nlev_obs:       number of observations in the profile
     !     :unilevel:       if the observation does not have a defined height coordinate
     ! 
-
     implicit none
 
-    !Arguments:
-    type(struct_osd_diagn), intent(inout)        :: obs_diagn
-    real(8)               , intent(in)           :: lat
-    real(8)               , intent(in)           :: lon
-    integer               , intent(in)           :: nlev_obs
-    integer               , intent(in)           :: status(nlev_obs)
-    real(8)               , intent(in)           :: pressure(nlev_obs)
-    real(8)               , intent(in)           :: OmP(nlev_obs)
-    real(8)               , intent(in)           :: obs(nlev_obs)
-    real(8)               , intent(in)           :: sigma_obs(nlev_obs)
-    real(8)               , intent(in)           :: pressmin
-    logical               , intent(in)           :: unilevel
-    logical               , intent(in)           :: assim_obs
-    real(8)               , intent(in), optional :: OmA_opt(nlev_obs)
-    real(8)               , intent(in), optional :: sqrtHPHT_opt(nlev_obs)
+    ! Arguments:
+    type(struct_osd_diagn), intent(inout) :: obs_diagn
+    real(8)               , intent(in)    :: lat
+    real(8)               , intent(in)    :: lon
+    integer               , intent(in)    :: nlev_obs
+    integer               , intent(in)    :: status(nlev_obs)
+    real(8)               , intent(in)    :: pressure(nlev_obs)
+    real(8)               , intent(in)    :: OmP(nlev_obs)
+    real(8)               , intent(in)    :: obs(nlev_obs)
+    real(8)               , intent(in)    :: sigma_obs(nlev_obs)
+    real(8)               , intent(in)    :: pressmin
+    logical               , intent(in)    :: unilevel
+    logical               , intent(in)    :: assim_obs
+    real(8)     , optional, intent(in)    :: OmA_opt(nlev_obs)
+    real(8)     , optional, intent(in)    :: sqrtHPHT_opt(nlev_obs)
 
-    !Locals:
+    ! Locals:
     integer :: ilat,ilon,ilev,ilev_obs
 
     if (assim_obs) obs_diagn%assim_mode = .true.
@@ -1474,20 +1457,16 @@ contains
     !         
     ! :Purpose: Performs a MPI allreduce on diagnostic arrays in obs_diagn.
     !
-
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
-    !Locals:
-    
-    ! MPI global arrays
+    ! Locals:
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
     real(8), allocatable :: Jpa_global(:,:,:), diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
     logical :: assim_global
-
     integer :: nlat,nlon,nlev,nstat,nbin,ierr
 
     nlat = obs_diagn%nlat
@@ -1557,26 +1536,24 @@ contains
     !     :openfile_opt:   logical indicating if file filename is to be opened.
     !     :status_hpht:    logical indicating if sqrtHPHT were available.
     !
-    
     implicit none
 
-    !Arguments:
-    type(struct_osd_diagn), intent(inout)        :: obs_diagn
-    character(len=*)                             :: print_type
-    character(len=*)                             :: filename
-    real(8)                                      :: pressmin
-    logical               , intent(in)           :: status_hpht
-    logical               , intent(in)           :: save_diagn
-    logical               , intent(in), optional :: openfile_opt
-    character(len=256)    , intent(in), optional :: label_opt
+    ! Arguments:
+    type(struct_osd_diagn)      , intent(inout) :: obs_diagn
+    character(len=*)            , intent(in)    :: print_type
+    character(len=*)            , intent(in)    :: filename
+    real(8)                     , intent(in)    :: pressmin
+    logical                     , intent(in)    :: status_hpht
+    logical                     , intent(in)    :: save_diagn
+    logical           , optional, intent(in)    :: openfile_opt
+    character(len=256), optional, intent(in)    :: label_opt
 
-    !Locals:
+    ! Locals:
     integer, external :: fnom, fclos
     real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
     real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
     real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0
     integer, save :: counts_total=0, counts_total_assim=0
-
     integer :: ierr,unit,icount,nlat,nlon,nlev,ilev,ilat,ilon,icount_assim
     integer, allocatable :: ncounts(:), ncounts_assim(:)
     real(8), allocatable :: press_bins(:)
@@ -1811,7 +1788,7 @@ contains
       !
       implicit none
 
-      !Arguments:
+      ! Arguments:
       integer         , intent(in) :: unit
       integer         , intent(in) :: nobs
       integer         , intent(in) :: nobs_assim
@@ -1823,7 +1800,7 @@ contains
       real(8)         , intent(in) :: Jpa_assim
       real(8)         , intent(in) :: Jo_p_assim
 
-      !Locals:
+      ! Locals:
       real(8) :: Jo_analysis_norm,Jo_backgrnd_norm,Jt_assim
       real(8) :: Jpa_norm_assim,Jt_norm_assim,Jo_p_norm_assim
       character(len=100) :: fmt
@@ -1877,10 +1854,9 @@ contains
     ! print_stats
     !--------------------------------------------------------------------------
     subroutine print_stats( unit, obs_diagn, pressure, ilat_start, ilat_end, ilon_start, ilon_end, ilev_start, ilev_end )
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       type(struct_osd_diagn), intent(in) :: obs_diagn
       real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
       integer               , intent(in) :: unit
@@ -1891,7 +1867,7 @@ contains
       integer               , intent(in) :: ilev_start
       integer               , intent(in) :: ilev_end
 
-      !Locals:
+      ! Locals:
       integer :: ilev,level,counts(obs_diagn%nlev),N_assim,N_diagn,N_rej
       real(8) :: pres1,pres2,jo_a,jo_b,jo_a_norm,jo_b_norm,obs_sum,obs_mean,obs_std,OmP_mean,OmP_rms,OmA_mean,OmA_rms
       logical :: skip(obs_diagn%nlev)
@@ -2006,7 +1982,7 @@ contains
       !
       implicit none
 
-      !Arguments:
+      ! Arguments:
       type(struct_osd_diagn), intent(in) :: obs_diagn
       real(8)               , intent(in) :: pressure(obs_diagn%nlev+1)
       integer               , intent(in) :: unit
@@ -2018,7 +1994,7 @@ contains
       integer               , intent(in) :: ilev_end
       logical               , intent(in) :: status_hpht
 
-      !Locals:
+      ! Locals:
       integer :: ilev,level,N_assim(obs_diagn%nlev)
       real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
 

@@ -53,17 +53,17 @@ contains
                        pressureProfile_T_in, nWaveBand_in)
     implicit none
 
-    type(struct_gsv) :: statevector_template
-    type(struct_hco), pointer :: hco_core_in
+    ! Arguments:
+    type(struct_gsv),          intent(in)    :: statevector_template
+    type(struct_hco), pointer, intent(in)    :: hco_core_in
+    integer,                   intent(in)    :: nens_in
+    integer,                   intent(in)    :: nWaveBand_in
+    real(8), pointer,          intent(inout) :: pressureProfile_M_in(:)
+    real(8), pointer,          intent(inout) :: pressureProfile_T_in(:)
 
-    integer, intent(in) :: nens_in
-    integer, intent(in) :: nWaveBand_in
-
-    real(8), intent(in), pointer :: pressureProfile_M_in(:), pressureProfile_T_in(:)
-
+    ! Locals:
     integer :: nulnam, ierr, fclos, fnom
     integer :: nVar, varNameIndex, var2dIndex, var3dIndex
-
     character(len=4), pointer :: varNamesList(:)
 
     NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc,horizPadding
@@ -142,8 +142,9 @@ contains
   subroutine bmd_localizationRadii(ensPerts,waveBandIndex_opt)
     implicit none
 
-    type(struct_ens) :: ensPerts
-    integer,optional, intent(in) :: waveBandIndex_opt
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts
+    integer,optional, intent(in)    :: waveBandIndex_opt
 
     !
     !- Estimate the horionzontal and vertical localization radii
@@ -165,56 +166,44 @@ contains
   subroutine calcHorizLocalizationRadii(ensPerts,stride,waveBandIndex_opt)
     implicit none
 
-    type(struct_ens)    :: ensPerts
-    integer, intent(in) :: stride
-    integer,optional, intent(in) :: waveBandIndex_opt
+    ! Arguments:
+    type(struct_ens),  intent(inout) :: ensPerts
+    integer,           intent(in)    :: stride
+    integer, optional, intent(in)    :: waveBandIndex_opt
 
+    ! Locals:
     type(struct_gsv) :: statevector_ensStdDev
     type(struct_gsv) :: statevector_ensStdDev_tiles
     type(struct_gsv) :: statevector_oneMemberTiles
     type(struct_gsv) :: statevector_oneMember(nens)
-
     real(8), pointer :: ensStdDev(:,:,:)
     real(4), pointer :: ptr3d_r4(:,:,:)
-
     real(4), allocatable :: ensPert_local(:,:,:)
-
     real(8), allocatable :: meanCorrel(:,:)
     real(8), allocatable :: meanCorrelSquare(:,:)
     real(8), allocatable :: meanVarianceProduct(:,:)
     real(8), allocatable :: meanCovarianceSquare(:,:)
     real(8), allocatable :: meanFourthMoment(:,:)
-
     real(8), allocatable :: meanCorrel_local(:,:)
     real(8), allocatable :: meanCorrelSquare_local(:,:)
     real(8), allocatable :: meanVarianceProduct_local(:,:)
     real(8), allocatable :: meanCovarianceSquare_local(:,:)
     real(8), allocatable :: meanFourthMoment_local(:,:)
-
     real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
-
     real(8), allocatable :: localizationRadii(:,:)
-
     real(8), allocatable :: distanceBinThresholds(:) ! Maximum distance for each distance-bin
     real(8), allocatable :: distanceBinMean(:)       ! Mean distance for each distance-bin
     real(8), allocatable :: distanceBinWeight(:)     ! Weight given to each bin in the curve fitting step
-
     real(8), allocatable :: gridPointWeight(:,:,:)   ! Weight given to grid point in the statistic computation
-
     real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
     real(8), allocatable :: sumWeight_local(:,:)
-
     real(8), pointer :: PressureProfile(:)
-
     logical, allocatable :: gridPointAlreadyUsed(:,:)
-
     real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
     real(8) :: t1, t2, t3, rmse
-
     integer :: i, j, k, f, ens, bin, numbins, numFunctions, nSize
     integer :: iref, jref, ier
     integer :: nLevEns, jvar, mykBeg, mykEnd
-
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
     character(len=4), pointer :: varNamesList(:)
@@ -634,10 +623,14 @@ contains
   function findBinIndex(distance,distanceBinThresholds,numBins) result(binIndex)
     implicit none
 
-    integer :: numBins, binIndex
-    real(8) :: distance
-    real(8) :: distanceBinThresholds(numBins)
+    ! Arguments:
+    integer, intent(in) :: numBins
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: distanceBinThresholds(numBins)
+    ! Result:
+    integer :: binIndex
 
+    ! Locals:
     integer :: bin
 
     binIndex = -1
@@ -664,10 +657,14 @@ contains
     !          Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope,
     !          vol.68, no.2, 1984, p.159)
     implicit none
-    real(8) :: distanceInM
 
     ! Arguments:
-    real(8) :: lat1, lon1, lat2, lon2
+    real(8), intent(in) :: lat1
+    real(8), intent(in) :: lon1
+    real(8), intent(in) :: lat2
+    real(8), intent(in) :: lon2
+    ! Result:
+    real(8) :: distanceInM
 
     ! Locals:
     real(8) :: dlat, dlon, a, c
@@ -687,53 +684,42 @@ contains
   subroutine calcVertLocalizationRadii(ensPerts,stride,waveBandIndex_opt)
     implicit none
 
-    type(struct_ens)    :: ensPerts
-    integer, intent(in) :: stride
-    integer,optional, intent(in) :: waveBandIndex_opt
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts
+    integer,          intent(in)    :: stride
+    integer,optional, intent(in)    :: waveBandIndex_opt
 
+    ! Locals:
     type(struct_gsv) :: statevector_ensStdDev
-
     real(8), pointer :: ensStdDev(:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-
-    real*4, allocatable :: ensPert_local(:,:)
-
+    real(4), allocatable :: ensPert_local(:,:)
     real(8), allocatable :: meanCorrel(:,:)
     real(8), allocatable :: meanCorrelSquare(:,:)
     real(8), allocatable :: meanVarianceProduct(:,:)
     real(8), allocatable :: meanCovarianceSquare(:,:)
     real(8), allocatable :: meanFourthMoment(:,:)
-
     real(8), allocatable :: meanCorrel_local(:,:)
     real(8), allocatable :: meanCorrelSquare_local(:,:)
     real(8), allocatable :: meanVarianceProduct_local(:,:)
     real(8), allocatable :: meanCovarianceSquare_local(:,:)
     real(8), allocatable :: meanFourthMoment_local(:,:)
-
     real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
-
     real(8), allocatable :: localizationRadii(:,:)
-
     real(8), allocatable, target :: distanceBinInLnP_T(:,:) ! Distance between each pair of thermo vertical levels in ln(Pressure)
     real(8), allocatable, target :: distanceBinInLnP_M(:,:) ! Distance between each pair of momentum vertical levels in ln(Pressure)
     real(8), allocatable :: distanceBinWeight(:)    ! Weight given to each bin in the curve fitting step
-
     real(8), allocatable :: gridPointWeight(:,:)   ! Weight given to grid point in the statistic computation
-
     real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
     real(8), allocatable :: sumWeight_local(:,:)
-
     real(8), pointer :: PressureProfile(:)
     real(8), pointer :: distanceBinInLnP(:,:)
-
     real(8) :: dnens, correlation, covariance, fourthMoment, weight
     real(8) :: t1, t2, t3, rmse
-
     integer :: k, k2, kens, f, ens, bin, numbins, numFunctions
     integer :: iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
-
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
 

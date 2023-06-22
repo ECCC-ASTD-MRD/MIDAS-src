@@ -1,6 +1,6 @@
 
 module obsdbFiles_mod
-  ! MODULE obsdbFiles (prefix='odbf' category='3. Observation input/output')
+  ! MODULE obsdbFiles_mod (prefix='odbf' category='3. Observation input/output')
   !
   ! :Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
@@ -87,7 +87,7 @@ contains
     !
     implicit none
 
-    ! locals
+    ! Locals:
     integer            :: nulfile, ierr
     integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
@@ -141,21 +141,16 @@ contains
     !
     implicit none
 
-    ! locals
-    
+    ! Locals:
     integer            :: nulfile, ierr
     integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
-    
     character(len=512), parameter :: obsDbColumnFile = 'obsdbColumnTable.dat' 
-
     character(len=512) :: readLine
     character(len=lenSqlName) :: readDBColumn, readObsSpaceColumn, readBufrColumn  ! Strings to temporary assign 
                                                                                 ! read header and body column names
-    
     integer            :: headerTableRow, bodyTableRow, midasBodyTableRow, midasHeadTableRow ! Counters to determine the size of 
                                                                          ! header and body table
-    
     integer            :: countRow, countMatchRow, countVarRow                        
     integer            :: stringFoundIndex
     logical            :: obsColumnIsValid
@@ -437,11 +432,11 @@ contains
     !
     implicit none
     
-    ! arguments
+    ! Arguments:
     integer         , intent(out) :: dateStamp
     character(len=*), intent(in)  :: fileName
     
-    ! locals
+    ! Locals:
     integer,    allocatable :: headDateValues(:), headTimeValues(:)
     integer                 :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
     integer                 :: newdate
@@ -485,14 +480,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*)                 :: fileName
-    character(len=*)                 :: familyType
-    integer                          :: fileIndex
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
+    integer         ,  intent(in)    :: fileIndex
 
-    ! locals:
-    integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headIndexBegin
+    ! Locals:
+    integer :: bodyIndexBegin, headIndexBegin
     integer :: headIndexEnd, headIndex, obsRln
     integer :: numBody, numHead, columnIndex
     integer :: headTableIndex, numRowsHeadTable, bodyTableIndex, numRowsBodyTable
@@ -611,7 +606,6 @@ contains
                                  bodyValues, bodyIndexBegin, headIndexBegin)
 
     ! Get indexes of last rows added to obsSpaceData
-    bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
     !- 1.4 Set some other quantities in obsSpaceData Header table
@@ -672,13 +666,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: fileName   
     character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: fileIndex
 
-    ! locals:
+    ! Locals:
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
@@ -850,13 +844,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer(8), allocatable, intent(out) :: headPrimaryKey(:)
     integer(8), allocatable, intent(out) :: bodyPrimaryKey(:)
     integer(8), allocatable, intent(out) :: bodyHeadKey(:)
     character(len=*),        intent(in)  :: fileName
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns
     integer(8), allocatable   :: tempHeadKey(:,:), tempBodyKey(:,:)
     character(len=3000)       :: query
@@ -939,15 +933,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer,          intent(in)    :: headIndexBegin
     integer,          intent(in)    :: numRowsHeadTable
     character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: tableName
 
-
-    ! locals:
+    ! Locals:
     integer              :: numRows, numColumns, headTableIndex, headIndex
     integer, allocatable :: columnValues(:,:)
     character(len=3000)  :: query
@@ -1016,13 +1009,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: headCharSqlNames(:)
     character(len=*), intent(in)    :: headCharValues(:,:)
     integer,          intent(in)    :: headIndexBegin
 
-    ! locals:
+    ! Locals:
     character(len=lenSqlName), allocatable :: stIdSqlName(:), codeTypeSqlName(:)
     integer :: columnIndex, headTableIndex, headIndex
     integer :: numRowsHeadTable, codeType
@@ -1078,13 +1071,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer,          intent(in)    :: headDateValues(:)
     integer,          intent(in)    :: headTimeValues(:)
     integer,          intent(in)    :: headIndexBegin
 
-    ! locals:
+    ! Locals:
     integer :: headTableIndex, headIndex
     integer :: numRowsHeadTable
 
@@ -1112,14 +1105,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: headSqlNames(:)
     integer(8),       intent(in)    :: headPrimaryKey(:)
     real(8),          intent(in)    :: headValues(:,:)
     integer,          intent(in)    :: headIndexBegin
 
-    ! locals:
+    ! Locals:
     integer :: columnIndex, matchIndex, headTableIndex, headIndex
     integer :: numRowsHeadTable, obsColumnIndex
 
@@ -1193,7 +1186,7 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: bodySqlNames(:)
     integer(8),       intent(in)    :: bodyPrimaryKey(:)
@@ -1202,7 +1195,7 @@ contains
     integer,          intent(in)    :: bodyIndexBegin
     integer,          intent(in)    :: headIndexBegin
 
-    ! locals:
+    ! Locals:
     character(len=lenSqlName), allocatable :: obsValueSqlNames(:)
     integer :: columnIndex, matchIndex, bodyTableIndex, bodyIndex, headIndex
     integer :: numRowsBodyTable, obsNlv, obsValueIndex, numObsValues
@@ -1388,12 +1381,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer,          intent(in)    :: headIndexBegin
     integer,          intent(in)    :: headIndexEnd
 
-    ! locals:
+    ! Locals:
     integer :: headIndex, bodyIndexStart, bodyIndexEnd, bodyIndex
     integer :: instrument, obsSat, codeType, sensor
     real(8) :: obsLon, obsLat, surfEmiss
@@ -1486,11 +1479,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*), intent(in)           :: obsSpaceName
+    ! Result:
     character(len=lenSqlName), allocatable :: sqlName(:)
 
-    ! locals:
+    ! Locals:
     integer                   :: numMatchFound, matchFoundIndex
     integer, allocatable      :: matchIndexList(:)
 
@@ -1535,11 +1529,13 @@ contains
     !
     implicit none
 
-    ! arguments:
-    character(len=*), intent(in) :: obsSpaceName
-    character(len=lenSqlName), intent(in)    :: midasSQLColumnList(:,:)
+    ! Arguments:
+    character(len=*),          intent(in) :: obsSpaceName
+    character(len=lenSqlName), intent(in) :: midasSQLColumnList(:,:)
+    ! Result:
     character(len=lenSqlName)    :: sqlColName
-    ! locals:
+
+    ! Locals:
     integer :: matchIndex
 
     ! look in the midas table matching list
@@ -1565,11 +1561,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*), intent(in) :: sqlName
+    ! Result:
     integer                      :: varNo
 
-    ! locals:
+    ! Locals:
     integer           :: matchIndex
     character(len=10) :: varNoStr
   
@@ -1594,9 +1591,10 @@ contains
     !
     implicit none
     
-    ! arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
-    character(len=*),  intent(in)    :: fileName, familyType
+    character(len=*),  intent(in)    :: fileName
+    character(len=*),  intent(in)    :: familyType
     integer,           intent(in)    :: fileIndex
 
     call utl_tmg_start(14,'----UpdateObsDBfile')
@@ -1644,13 +1642,13 @@ contains
     !
     implicit none
     
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: familyType 
     integer,          intent(in)    :: fileIndex
     
-    ! locals:
+    ! Locals:
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
@@ -1667,7 +1665,7 @@ contains
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter     :: midasTableType = 'header' !Define the type of MIDAS table: header/body
     integer, parameter   :: maxItemNumber = 15
-    ! namelist variables
+    ! Namelist variables:
     integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
@@ -1874,13 +1872,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: fileName   
     character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: fileIndex
 
-    ! locals:
+    ! Locals:
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
@@ -1897,7 +1895,7 @@ contains
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
     integer, parameter   :: maxItemNumber = 15
-    ! namelist variables
+    ! Namelist variables:
     integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
@@ -2150,10 +2148,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*),              intent(in)  :: fileName
 
-    ! locals:
+    ! Locals:
     character(len=3000)         :: query
     type(fSQL_STATUS)           :: stat ! sqlite error status
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
@@ -2192,10 +2190,10 @@ contains
     !
     implicit none
 
-    ! arguments:
-    character(len=*),              intent(in)  :: fileName
+    ! Arguments:
+    character(len=*), intent(in)  :: fileName
 
-    ! locals:
+    ! Locals:
     character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
@@ -2236,11 +2234,11 @@ contains
 
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*),  intent(in) :: fileName
     character(len=*),  intent(in) :: familyType
 
-    ! locals:
+    ! Locals:
     character(len = 512)        :: query
     type(fSQL_STATUS)           :: stat ! sqlite error status
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
@@ -2248,7 +2246,7 @@ contains
     integer                     :: nulnam , ierr, fnom, fclos
     character(len = lenSqlName) :: flgSqlName
     
-    ! namelist variables
+    ! Namelist variables:
     logical, save               :: useVacuum ! choose to 'vacuum' the file after cleaning to reduce file size
 
     namelist/namObsDbClean/ useVacuum
@@ -2370,23 +2368,22 @@ contains
     !
     implicit none
 
-    ! arguments:
-    integer, intent(in)          :: numberUpdateItems               ! number of items in update list
-    character(len=4), intent(in) :: updateItemList(:)               ! update list
-    character(len=*), intent(in) :: midasTableType                  ! table type: 'header' or 'body'
+    ! Arguments:
+    integer,          intent(in)    :: numberUpdateItems            ! number of items in update list
+    character(len=4), intent(in)    :: updateItemList(:)            ! update list
+    character(len=*), intent(in)    :: midasTableType               ! table type: 'header' or 'body'
     character(len=*), intent(inout) :: queryCreateTable             ! query to create table
     character(len=*), intent(inout) :: queryInsertInTable           ! query to insert new columns in the table
     character(len=*), intent(inout) :: tableInsertColumnList        ! char of "combinedTableName.column1, combinedTableName.column2, .."
     integer         , intent(inout) :: obsSpaceColIndexSourceArr(:) ! list of obsSpaceData columnIndex for items in update list
 
-    ! locals:
+    ! Locals:
     integer :: updateItemIndex, ierr
     integer :: obsSpaceColIndexSource
     character(len=4)          :: obsSpaceColumnName
     character(len=20)         :: sqlDataType
     character(len=lenSqlName) :: sqlColumnName
     character(len=3000)       :: queryForValues
-
 
     do updateItemIndex = 1, numberUpdateItems
 
@@ -2457,13 +2454,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*), intent(in) :: fileName              ! obsDB filename
     character(len=*), intent(in) :: midasTableName        ! name of original midas table to add column to
     character(len=*), intent(in) :: jointColumnName       ! name of column used to match original midas table and temporary table
     character(len=*), intent(in) :: tableInsertColumnList ! char of "combinedTableName.column1, combinedTableName.column2, .." to add to original midas table
 
-    ! locals:
+    ! Locals:
     type(fSQL_STATUS)   :: stat ! sqlite error status
     type(fSQL_DATABASE) :: db   ! sqlite file handle
     character(len=3000) :: query

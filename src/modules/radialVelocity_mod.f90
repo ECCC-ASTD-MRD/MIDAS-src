@@ -30,7 +30,7 @@ contains
     !
     implicit none
 
-    ! Argument 
+    ! Arguments:
     real(pre_obsReal), intent(in)  :: antennaLat
     real(pre_obsReal), intent(in)  :: antennaLon
     real(pre_obsReal), intent(in)  :: beamElevation
@@ -41,7 +41,8 @@ contains
     real(pre_obsReal), intent(out) :: lonSlant
     real(pre_obsReal), intent(out) :: beamHeight
     real(pre_obsReal), intent(out) :: beamDistance
-    ! Local
+
+    ! Locals:
     real(pre_obsReal)              :: Re 
     
     ! Radius of sphere of equal area from earthconstants_mod.f90
@@ -67,12 +68,13 @@ contains
     !
     implicit none
     
-    ! Argument
+    ! Arguments:
     real(pre_obsReal) , intent(in)  :: beamHeight
     real(pre_obsReal) , intent(in)  :: radarAltitude
     real(pre_obsReal) , intent(in)  :: beamElevation
     real(pre_obsReal) , intent(out) :: beamRange 
-    ! Local
+
+    ! Locals:
     real(pre_obsReal)               :: a, b, c, Re
 
     if ( radarAltitude > beamHeight ) then 
@@ -93,8 +95,7 @@ contains
       beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
 
     end if
-  
-     
+
   end subroutine rdv_getRangefromH
 
 end module radialVelocity_mod

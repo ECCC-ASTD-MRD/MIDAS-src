@@ -5,6 +5,7 @@
 ! with additional provisions found in that same file.
 !
 module kdtree2_precision_mod
+  ! MODULE kdtree2_precision_mod (prefix='none' category='8. Low-level utilities and constants')
   
   integer, parameter :: sp = kind(0.0)
   integer, parameter :: dp = kind(0.0d0)
@@ -26,6 +27,7 @@ module kdtree2_precision_mod
 end module kdtree2_precision_mod
 
 module kdtree2_priority_queue_mod
+  ! MODULE kdtree2_priority_queue_mod (prefix='none' category='8. Low-level utilities and constants')
   use utilities_mod
   use kdtree2_precision_mod
   !

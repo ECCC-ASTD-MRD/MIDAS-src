@@ -94,24 +94,18 @@ contains
                        MpiMode, maxlevels_opt, gridDataOrder_opt)
     implicit none
 
-    type(struct_lst)                :: lst
-                                     ! Parameters available to the outside world
+    ! Arguments:
+    type(struct_lst),           intent(out) :: lst           ! Parameters available to the outside world
+    integer,                    intent(in)  :: ni_in         ! Global Grid point data horizontal dimensions
+    integer,                    intent(in)  :: nj_in         ! Global Grid point data horizontal dimensions
+    character(len=*),           intent(in)  :: MpiMode       ! MPI Strategy
+    real(8),                    intent(in)  :: dlon_in       ! Grid Spacing in Radians
+    integer,                    intent(in)  :: ktrunc_in     ! Spectral Truncation (global)
+    integer,          optional, intent(in)  :: maxlevels_opt ! Number of levels; Only needed when MpiMode = LatLev
+    character(len=*), optional, intent(in)  :: gridDataOrder_opt ! 'ijk' or 'kij'
 
-    integer,          intent(in)    :: ni_in, nj_in    
-                                     ! Global Grid point data horizontal dimensions
-    character(len=*), intent(in)    :: MpiMode
-                                     ! MPI Strategy
-    real(8),          intent(in)    :: dlon_in
-                                     ! Grid Spacing in Radians
-    integer,          intent(in)    :: ktrunc_in
-                                     ! Spectral Truncation (global)
-    integer, intent(in), optional   :: maxlevels_opt
-                                     ! Number of levels; Only needed when MpiMode = LatLev
-    character(len=*), intent(in), optional :: gridDataOrder_opt
-                                     ! 'ijk' or 'kij'
-
+    ! Locals:
     real(8), allocatable            :: Kr8fromMN(:,:)
-
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kref, mref, nref
@@ -699,8 +693,19 @@ contains
   ! lst_totalWaveNumber
   !--------------------------------------------------------------------------
   function lst_totalWaveNumber(m,n,mref,nref,kref) result(r)
-    integer :: m, n, mref, nref, kref
-    real(8) :: a, b, r
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: m
+    integer, intent(in) :: n
+    integer, intent(in) :: mref
+    integer, intent(in) :: nref
+    integer, intent(in) :: kref
+    ! Result:
+    real(8) :: r
+
+    ! Locals:
+    real(8) :: a, b
 
     a = real(m,8)/real(mref,8)
     b = real(n,8)/real(nref,8)
@@ -715,17 +720,12 @@ contains
                               TransformDirection, nk)
     implicit none
 
+    ! Arguments:
     type(struct_lst), intent(in)    :: lst
-
-    integer,          intent(in)    :: nk
-                                     ! Grid point data dimensions
-    character(len=*), intent(in)    :: TransformDirection
-                                     ! SpectralToGridPoint or
-                                     ! GridPointToSpectral
-    real(8),          intent(inout) :: GridState(:,:,:)
-                                     ! 3D field in grid point space
-    real(8),          intent(inout) :: SpectralStateVar(:,:,:)
-                                     ! 3D spectral coefficients
+    integer,          intent(in)    :: nk                      ! Grid point data dimensions
+    character(len=*), intent(in)    :: TransformDirection      ! SpectralToGridPoint or GridPointToSpectral
+    real(8),          intent(inout) :: GridState(:,:,:)        ! 3D field in grid point space
+    real(8),          intent(inout) :: SpectralStateVar(:,:,:) ! 3D spectral coefficients
 
     !
     !- 0. Some tests...
@@ -752,26 +752,20 @@ contains
                                   TransformDirection, nk)
     implicit none
 
+    ! Arguments:
     type(struct_lst), intent(in)    :: lst
+    integer,          intent(in)    :: nk                 ! Grid point data dimensions
+    character(len=*), intent(in)    :: TransformDirection ! SpectralToGridPoint or GridPointToSpectral
+    real(8),          intent(inout) :: GridState(lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd,nk) ! 3D field in grid point space
+    real(8),          intent(inout) :: SpectralStateVar(:,:,:) ! 3D spectral coefficients
 
-    integer,          intent(in)    :: nk
-                                     ! Grid point data dimensions
-    character(len=*), intent(in)    :: TransformDirection
-                                     ! SpectralToGridPoint or
-                                     ! GridPointToSpectral
-    real(8),          intent(inout) :: GridState(lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd,nk)
-                                     ! 3D field in grid point space
-    real(8),          intent(inout) :: SpectralStateVar(:,:,:)
-                                     ! 3D spectral coefficients
-
+    ! Locals:
     integer                         :: ni_l, nj_l, nip_l, njp_l
     integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
-
     real(8), allocatable            :: Step0(:,:,:)
     real(8), allocatable            :: Step1(:,:,:)
     real(8), allocatable            :: Step2(:,:,:)
     real(8), allocatable            :: Step3(:,:,:)
-
     character(len=1)                :: TransformAxe
 
     !
@@ -991,26 +985,20 @@ contains
                                   TransformDirection, nk)
     implicit none
 
+    ! Arguments:
     type(struct_lst), intent(in)    :: lst
+    integer,          intent(in)    :: nk                 ! Grid point data dimensions
+    character(len=*), intent(in)    :: TransformDirection ! SpectralToGridPoint or GridPointToSpectral
+    real(8),          intent(inout) :: GridState(nk,lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd) ! 3D field in grid point space
+    real(8),          intent(inout) :: SpectralStateVar(:,:,:) ! 3D spectral coefficients
 
-    integer,          intent(in)    :: nk
-                                     ! Grid point data dimensions
-    character(len=*), intent(in)    :: TransformDirection
-                                     ! SpectralToGridPoint or
-                                     ! GridPointToSpectral
-    real(8),          intent(inout) :: GridState(nk,lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd)
-                                     ! 3D field in grid point space
-    real(8),          intent(inout) :: SpectralStateVar(:,:,:)
-                                     ! 3D spectral coefficients
-
+    ! Locals:
     integer                         :: ni_l, nj_l, nip_l, njp_l
     integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
-
     real(8), allocatable            :: Step0(:,:,:)
     real(8), allocatable            :: Step1(:,:,:)
     real(8), allocatable            :: Step2(:,:,:)
     real(8), allocatable            :: Step3(:,:,:)
-
     character(len=1)                :: TransformAxe
 
     !
@@ -1242,18 +1230,18 @@ contains
                              ni_l, nj_l, nip_l, njp_l, kStart, kEnd)
     implicit none
 
-    integer,          intent(in)        :: ni_l, nj_l, kStart, kEnd
-                                         ! Grid point data dimensions
-    integer,          intent(in)        :: nip_l, njp_l
-                                         ! Extra point in spectral space
-    character(len=*), intent(in)        :: TransformDirection
-                                         ! SpectralToGridPoint or
-                                         ! GridPointToSpectral
-    character(len=*), intent(in)        :: TransformAxe
-                                         ! 'i' or 'j'
-    real(8),          intent(inout)     :: Field3d(1:ni_l+nip_l,1:nj_l+njp_l,kStart:kEnd)  
-                                         ! InOut 3D field
+    ! Arguments:
+    integer,          intent(in)    :: ni_l   ! Grid point data dimensions
+    integer,          intent(in)    :: nj_l   ! Grid point data dimensions
+    integer,          intent(in)    :: kStart ! Grid point data dimensions
+    integer,          intent(in)    :: kEnd   ! Grid point data dimensions
+    integer,          intent(in)    :: nip_l  ! Extra point in spectral space
+    integer,          intent(in)    :: njp_l  ! Extra point in spectral space
+    character(len=*), intent(in)    :: TransformDirection ! SpectralToGridPoint or GridPointToSpectral
+    character(len=*), intent(in)    :: TransformAxe ! 'i' or 'j'
+    real(8),          intent(inout) :: Field3d(1:ni_l+nip_l,1:nj_l+njp_l,kStart:kEnd) ! InOut 3D field
 
+    ! Locals:
     integer :: way
     integer :: axe, n, nlot, nfact, np, lot, nk
 
@@ -1346,18 +1334,18 @@ contains
                                  ni_l, nj_l, nip_l, njp_l, kStart, kEnd)
     implicit none
 
-    integer,          intent(in)        :: ni_l, nj_l, kStart, kEnd
-                                         ! Grid point data dimensions
-    integer,          intent(in)        :: nip_l, njp_l
-                                         ! Extra point in spectral space
-    character(len=*), intent(in)        :: TransformDirection
-                                         ! SpectralToGridPoint or
-                                         ! GridPointToSpectral
-    character(len=*), intent(in)        :: TransformAxe
-                                         ! 'i' or 'j'
-    real(8),          intent(inout)     :: Field3d(kStart:kEnd,1:ni_l+nip_l,1:nj_l+njp_l)  
-                                         ! InOut 3D field
+    ! Arguments:
+    integer,          intent(in)    :: ni_l   ! Grid point data dimensions
+    integer,          intent(in)    :: nj_l   ! Grid point data dimensions
+    integer,          intent(in)    :: kStart ! Grid point data dimensions
+    integer,          intent(in)    :: kEnd   ! Grid point data dimensions
+    integer,          intent(in)    :: nip_l  ! Extra point in spectral space
+    integer,          intent(in)    :: njp_l  ! Extra point in spectral space
+    character(len=*), intent(in)    :: TransformDirection ! SpectralToGridPoint or GridPointToSpectral
+    character(len=*), intent(in)    :: TransformAxe ! 'i' or 'j'
+    real(8),          intent(inout) :: Field3d(kStart:kEnd,1:ni_l+nip_l,1:nj_l+njp_l) ! InOut 3D field
 
+    ! Locals:
     integer :: way
     integer :: axe, n, nlot, nfact, np, lot, nk, k
 
@@ -1447,12 +1435,13 @@ contains
   subroutine transpose2d_LonToLev(gd_out, gd_in, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
+    real(8),          intent(out) :: gd_out(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
-    real(8), intent(out):: gd_out(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2
@@ -1500,12 +1489,13 @@ contains
   subroutine transpose2d_LonToLev_kij_mpitypes(gd_out, gd_in, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
+    ! Locals:
     integer :: nsize, ierr
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
@@ -1531,12 +1521,13 @@ contains
   subroutine transpose2d_LonToLev_kij(gd_out, gd_in, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(in) :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     real(8) :: gd_recv(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
@@ -1595,12 +1586,13 @@ contains
   subroutine transpose2d_LevToLon(gd_out,gd_in,nk,lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
+    real(8),          intent(in)  :: gd_in(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
-    real(8), intent(in) :: gd_in(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2
@@ -1648,12 +1640,13 @@ contains
   subroutine transpose2d_LevToLon_kij_mpitypes(gd_out,gd_in,nk,lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(in) :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
+    ! Locals:
     integer :: nsize, ierr
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
@@ -1679,12 +1672,13 @@ contains
   subroutine transpose2d_LevToLon_kij(gd_out,gd_in,nk,lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
+    real(8),          intent(in)  :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(out):: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
-    real(8), intent(in) :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
@@ -1743,11 +1737,12 @@ contains
   subroutine transpose2d_LatToM(gd_out, gd_in, lst)
     implicit none
 
-    type(struct_lst)     :: lst
-    
-    real(8), intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
-    real(8), intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst    
+    real(8),          intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
+    real(8),          intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
+    ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
@@ -1816,11 +1811,12 @@ contains
   subroutine transpose2d_LatToM_kij(gd_out, gd_in, lst)
     implicit none
 
-    type(struct_lst)     :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp )
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
-    real(8), intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp )
-    real(8), intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
-
+    ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
@@ -1889,11 +1885,12 @@ contains
   subroutine transpose2d_MtoLat(gd_out, gd_in, lst)
     implicit none
 
-    type(struct_lst)      :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(in)  :: gd_in (2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
+    real(8),          intent(out) :: gd_out(lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
-    real(8), intent(in)   :: gd_in (2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
-    real(8), intent(out)  :: gd_out(lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
-
+    ! Locals:
     real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
     real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
@@ -1962,11 +1959,12 @@ contains
   subroutine transpose2d_MtoLat_kij(gd_out, gd_in, lst)
     implicit none
 
-    type(struct_lst)      :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
-    real(8), intent(in)   :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
-    real(8), intent(out)  :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
-
+    ! Locals:
     real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
@@ -2035,12 +2033,13 @@ contains
   subroutine transpose2d_LevToN(SpectralStateVar, gd_in, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(in)  :: gd_in (2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(in) :: gd_in (2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
@@ -2098,12 +2097,13 @@ contains
   subroutine transpose2d_LevToN_kij(SpectralStateVar, gd_in, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(out) :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount, lst%nj+lst%njp)
 
-    integer, intent(in) :: nk
-    real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(in) :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount, lst%nj+lst%njp)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
@@ -2161,12 +2161,13 @@ contains
   subroutine transpose2d_NToLev(gd_out, SpectralStateVar, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(out) :: gd_out(2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
-    integer, intent(in) :: nk
-    real(8), intent(in):: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(out):: gd_out(2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
@@ -2229,12 +2230,13 @@ contains
   subroutine transpose2d_NToLev_kij(gd_out, SpectralStateVar, nk, lst)
     implicit none
 
-    type(struct_lst)    :: lst
+    ! Arguments:
+    type(struct_lst), intent(in)  :: lst
+    integer,          intent(in)  :: nk
+    real(8),          intent(in)  :: SpectralStateVar(lst%nla,lst%nphase,nk)
+    real(8),          intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
 
-    integer, intent(in) :: nk
-    real(8), intent(in) :: SpectralStateVar(lst%nla,lst%nphase,nk)
-    real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
-
+    ! Locals:
     real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
@@ -2298,13 +2300,15 @@ contains
                                Direction, kStart, kEnd, lst)
     implicit none
 
-    type(struct_lst)                :: lst
-
-    integer,          intent(in)    :: kStart, kEnd
+    ! Arguments:
+    type(struct_lst), intent(in)    :: lst
+    integer,          intent(in)    :: kStart
+    integer,          intent(in)    :: kEnd
     character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN
     real(8),          intent(inout) :: SpectralStateRpn(2*lst%mymCount,2*lst%mynCount,kStart:kEnd)
     real(8),          intent(inout) :: SpectralStateVar(lst%nla     ,lst%nphase,kStart:kEnd)
 
+    ! Locals:
     integer k, m, n, ila
 
     if (verbose) write(*,*) 'Entering lst_ReshapeTrunc'
@@ -2361,13 +2365,15 @@ contains
                                    Direction, kStart, kEnd, lst)
     implicit none
 
-    type(struct_lst)                :: lst
-
-    integer,          intent(in)    :: kStart, kEnd
+    ! Arguments:
+    type(struct_lst), intent(in)    :: lst
+    integer,          intent(in)    :: kStart
+    integer,          intent(in)    :: kEnd
     character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN
     real(8),          intent(inout) :: SpectralStateRpn(kStart:kEnd,2*lst%mymCount,2*lst%mynCount)
     real(8),          intent(inout) :: SpectralStateVar(lst%nla     ,lst%nphase,kStart:kEnd)
 
+    ! Locals:
     integer k, m, n, ila
 
     if (verbose) write(*,*) 'Entering lst_ReshapeTrunc_kij'
@@ -2423,20 +2429,16 @@ contains
   subroutine lst_Laplacian(lst, GridState, Mode, nk)
     implicit none
 
+    ! Arguments:
     type(struct_lst), intent(in)    :: lst
+    integer,          intent(in)    :: nk   ! Grid point data dimensions
+    real(8),          intent(inout) :: GridState(lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd,nk) ! 3D field in grid point space
+    character(len=*), intent(in)    :: Mode ! Forward or Inverse
 
-    integer,          intent(in)    :: nk
-                                     ! Grid point data dimensions
-    real(8),          intent(inout) :: GridState(lst%myLonBeg:lst%myLonEnd,lst%myLatBeg:lst%myLatEnd,nk)  
-                                     ! 3D field in grid point space
-    character(len=*), intent(in)    :: Mode
-                                     ! Forward or Inverse
-
+    ! Locals:
     real(8), allocatable            :: SpectralStateVar(:,:,:)
     real(8), allocatable            :: factor(:)
-
     integer :: k, ila, p
-
     character(len=24)   :: kind
 
     if (verbose) write(*,*) 'Entering lst_Laplacian'
@@ -2500,12 +2502,13 @@ contains
   subroutine ngfft(n)
     implicit none
 
+    ! Arguments:
     integer, intent(inout) :: n ! le plus petit entier >= n qui factorise
 
+    ! Locals:
     integer, parameter :: l = 3
     integer :: k(l) , m
     data m , k / 8 , 2 , 3 , 5 /
-
     integer :: i, j
 
     if (n <= m) n = m + 1

@@ -65,12 +65,13 @@ contains
   subroutine agd_SetupFromHCO( hco_ext_in, hco_core_opt )
     implicit none
 
-    type(struct_hco), pointer :: hco_ext_in
-    type(struct_hco), pointer, optional :: hco_core_opt
+    ! Arguments:
+    type(struct_hco), pointer,           intent(in) :: hco_ext_in
+    type(struct_hco), pointer, optional, intent(in) :: hco_core_opt
 
+    ! Locals:
     real(8), allocatable :: rlath  (:) ! Latitudes of half grid-points of gridpoints in lat-direction
     real(8), allocatable :: rrcos  (:) ! 1.0/Cos(Latitudes of gridpoints)
-    !real(8), allocatable :: rrcosh (:) ! 1.0/Cos(Half-Latitudes of gridpoints)
     real(8), allocatable :: rdmu   (:) ! Differences of mu=sin(lat)
     real(8), allocatable :: rdmuh  (:) ! Differences of muh=sin(lath)
     real(8), allocatable :: r1mmu2 (:) ! (1.-mu**2)
@@ -215,7 +216,6 @@ contains
     allocate(glmf%rlat(jstart:jend))
     allocate(rlath    (jstart:jend))
     allocate(rrcos    (jstart:jend))
-    !allocate(rrcosh   (jstart:jend))
     allocate(rdmu     (jstart:jend))
     allocate(rdmuh    (jstart:jend))
     allocate(r1mmu2   (jstart:jend))
@@ -266,7 +266,6 @@ contains
     !- 4.1  Compute local factors
     do j = jstart+1, jend-2
       rrcos  (j) = 1.0d0 / cos(glmf%rlat (j))
-      !rrcosh (j) = 1.0d0 / cos(rlath(j))
       rdmu   (j) = sin(glmf%rlat (j+1)) - sin(glmf%rlat (j))
       rdmuh  (j) = sin(rlath(j+1)) - sin(rlath(j))
       r1mmu2 (j) = (cos(glmf%rlat (j)))**2
@@ -352,7 +351,6 @@ contains
     !
     deallocate(rlath  )
     deallocate(rrcos  )
-    !deallocate(rrcosh )
     deallocate(rdmu   )
     deallocate(rdmuh  )
     deallocate(r1mmu2 )
@@ -372,9 +370,11 @@ contains
     !
     implicit none
 
+    ! Arguments:
     real(8), intent(inout) :: coef_inout(jstart:jend)
 
-    integer j
+    ! Locals:
+    integer :: j
     
     do j = jstart, 0
       coef_inout(j) = coef_inout(nj_ext+j)
@@ -392,21 +392,20 @@ contains
   subroutine agd_PsiChiToUV(psi, chi, uphy, vphy, nk)
     implicit none
 
-    integer,          intent(in)  :: nk
+    ! Arguments:
+    integer, intent(in)  :: nk
+    real(8), intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
-    real(8),          intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-
-    real(8),          intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-
+    ! Locals:
     real(8), allocatable :: psi_ext(:,:,:)
     real(8), allocatable :: chi_ext(:,:,:)
     real(8), allocatable :: uimg(:,:,:)
     real(8), allocatable :: vimg(:,:,:)
     real(8), allocatable :: uimgs(:,:,:)
     real(8), allocatable :: vimgs(:,:,:)
-
     integer :: i,j,k
 
     if ( hco_ext%global ) then
@@ -487,21 +486,20 @@ contains
   subroutine agd_PsiChiToUVAdj(psi, chi, uphy, vphy, nk)
     implicit none
 
-    integer,          intent(in)  :: nk
+    ! Arguments:
+    integer, intent(in)  :: nk
+    real(8), intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)    
+    real(8), intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
-    real(8),          intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    
-    real(8),          intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-
+    ! Locals:
     real(8), allocatable :: psi_ext(:,:,:)
     real(8), allocatable :: chi_ext(:,:,:)
     real(8), allocatable :: uimg(:,:,:)
     real(8), allocatable :: vimg(:,:,:)
     real(8), allocatable :: uimgs(:,:,:)
     real(8), allocatable :: vimgs(:,:,:)
-
     integer :: i,j,k
 
     if ( hco_ext%global ) then
@@ -596,12 +594,18 @@ contains
   subroutine uvStagToColloc(uStag, vStag, uColloc, vColloc, iBeg, iEnd, jBeg, jEnd , nk)
     implicit none
 
-    integer,          intent(in)  :: iBeg, iEnd, jBeg, JEnd, nk
-    real(8),          intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
-    real(8),          intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
+    ! Arguments:
+    integer, intent(in)  :: iBeg
+    integer, intent(in)  :: iEnd
+    integer, intent(in)  :: jBeg
+    integer, intent(in)  :: JEnd
+    integer, intent(in)  :: nk
+    real(8), intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8), intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
+    ! Locals:
     integer :: i,j,k
 
     !$OMP PARALLEL DO PRIVATE (k,j,i)
@@ -623,12 +627,18 @@ contains
   subroutine uvStagToCollocAdj(uStag, vStag, uColloc, vColloc, iBeg, iEnd, jBeg, jEnd , nk)
     implicit none
 
-    integer,          intent(in)  :: iBeg, iEnd, jBeg, jEnd, nk
-    real(8),          intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
-    real(8),          intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
-    real(8),          intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
+    ! Arguments:
+    integer, intent(in)  :: iBeg
+    integer, intent(in)  :: iEnd
+    integer, intent(in)  :: jBeg
+    integer, intent(in)  :: jEnd
+    integer, intent(in)  :: nk
+    real(8), intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8), intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8), intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
+    ! Locals:
     integer :: i, j, k
 
     !$OMP PARALLEL DO PRIVATE (k,j,i)
@@ -655,10 +665,17 @@ contains
     !          ready for finite differences
     !
     implicit none
-    integer, intent(in) :: iBeg, iEnd, jBeg, jEnd, nk
+
+    ! Arguments:
+    integer, intent(in) :: iBeg
+    integer, intent(in) :: iEnd
+    integer, intent(in) :: jBeg
+    integer, intent(in) :: jEnd
+    integer, intent(in) :: nk
     real(8), intent(out):: field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
     real(8), intent(in) :: field_in(iBeg:iEnd,jBeg:jEnd,nk)
 
+    ! Locals:
     real(8), allocatable :: field_8(:,:,:)
 
     integer :: ni,nj
@@ -688,12 +705,18 @@ contains
     !:Purpose: Adjoint of sub. symmetrize.
     !
     implicit none
-    integer, intent(in)  :: iBeg, iEnd, jBeg, jEnd, nk
+
+    ! Arguments:
+    integer, intent(in)  :: iBeg
+    integer, intent(in)  :: iEnd
+    integer, intent(in)  :: jBeg
+    integer, intent(in)  :: jEnd
+    integer, intent(in)  :: nk
     real(8), intent(in)  :: field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
     real(8), intent(out) :: field_out(iBeg:iEnd,jBeg:jEnd,nk)
 
+    ! Locals:
     real(8), allocatable :: field_8(:,:,:)
-
     integer :: i,j,k,ni,nj
 
     ni = iEnd-iBeg+1
@@ -738,12 +761,15 @@ contains
     !
     implicit none
 
-    integer,          intent(in)    :: ni, nj, nk
-    real(8),          intent(inout) :: gd(ni,nj,nk)
+    ! Arguments:
+    integer, intent(in)    :: ni
+    integer, intent(in)    :: nj
+    integer, intent(in)    :: nk
+    real(8), intent(inout) :: gd(ni,nj,nk)
 
+    ! Locals:
     integer :: istart, jstart
     integer :: i,j,k
-
     real(8) :: con, xp, yp, a0, a1, b1, b2
     real(8) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
@@ -826,12 +852,15 @@ contains
     !
     implicit none
 
-    integer,          intent(in)    :: ni, nj, nk
-    real(4),          intent(inout) :: gd(ni,nj,nk)
+    ! Arguments:
+    integer, intent(in)    :: ni
+    integer, intent(in)    :: nj
+    integer, intent(in)    :: nk
+    real(4), intent(inout) :: gd(ni,nj,nk)
 
+    ! Locals:
     integer :: istart, jstart
     integer :: i,j,k
-
     real(4) :: con, xp, yp, a0, a1, b1, b2
     real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
@@ -904,19 +933,18 @@ contains
   subroutine agd_UVToVortDiv(Vorticity, Divergence, uphy, vphy, nk)
     implicit none
 
-    integer,          intent(in)  :: nk
+    ! Arguments:
+    integer, intent(in)  :: nk
+    real(8), intent(out)  :: Vorticity (myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(out)  :: Divergence(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8), intent(in) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
-    real(8),          intent(out)  :: Vorticity (myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(out)  :: Divergence(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-
-    real(8),          intent(in) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(in) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-
+    ! Locals:
     real(8), allocatable :: uimg(:,:,:)
     real(8), allocatable :: vimg(:,:,:)
     real(8), allocatable :: uimg_sym(:,:,:)
     real(8), allocatable :: vimg_sym(:,:,:)
-
     integer :: i,j,k
 
     if ( hco_ext%global ) then
@@ -983,29 +1011,26 @@ contains
                                         grd_ext_x, grd_ext_y)
     implicit none
 
+    ! Arguments:
     character(len=*), intent(in) :: templateFileName
-    type(struct_hco) :: hco_core
-    type(struct_vco) :: vco
+    type(struct_hco), intent(in) :: hco_core
+    type(struct_vco), intent(in) :: vco
     integer         , intent(in) :: grd_ext_x
     integer         , intent(in) :: grd_ext_y
 
+    ! Locals:
     integer :: ni_ext, nj_ext, i, j, lev, ni, nj, nk
     integer :: iun = 0
     integer :: ier, fnom, fstouv, fstfrm, fclos, fstecr
-
     real(8), allocatable :: Field2d(:,:)
     real(8), allocatable :: lat_ext(:)
     real(8), allocatable :: lon_ext(:)
-
     real(4), allocatable :: dummy2D(:,:)
-
     real(8) :: dlat, dlon
     real(4) :: work
-
     integer :: dateo,npak,status
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
-
     character(len=1)  :: grtyp
     character(len=2)  :: typvar
     character(len=12) :: etiket

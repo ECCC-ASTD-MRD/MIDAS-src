@@ -220,6 +220,7 @@ contains
   subroutine check_bhi()
     implicit none
 
+    ! Locals:
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, cvIndex
     real(8), pointer :: field4d_r8(:,:,:,:), field3d_Ly_r8(:,:,:), field3d_x_r8(:,:,:)
 
@@ -330,8 +331,8 @@ contains
   subroutine check_bens()
     implicit none
 
+    ! Locals:
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex
-
     integer, allocatable :: cvDimPerInstance(:)
     real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
 
@@ -414,23 +415,18 @@ contains
   subroutine check_loc()
     implicit none
 
+    ! Locals:
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
     integer :: numStepAmplitude, amp3dStepIndex, memberIndex
-
     type(struct_ens) :: ensAmplitude_x
     type(struct_ens) :: ensAmplitude_Ly
-
     type(struct_loc), pointer :: loc => null()
-
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
-
     character(len=4), parameter  :: varNameALFAatm(1) = (/ 'ALFA' /)
     character(len=4), parameter  :: varNameALFAsfc(1) = (/ 'ALFS' /)
     character(len=4)             :: varNameALFA(1)
-
     integer,allocatable :: dateStampList(:)
-
     integer, allocatable :: cvDimPerInstance(:)
 
     allocate(dateStampList(tim_nstepobsinc))
@@ -694,25 +690,18 @@ contains
   subroutine check_advectionENS()
     implicit none
 
+    ! Locals:
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
-
     type(struct_adv)  :: adv_analInc
-
     type(struct_ens) :: ens_x, ens_Ly, ens_y, ens_LTx
-
     character(len=32)   :: directionAnlInc
     character(len=4), parameter  :: varNameALFA(1) = (/ 'ALFA' /)
-
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), pointer     :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
     real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
-
     real(8) :: delT_hour
-
     real(8), allocatable :: advectFactor(:)
-
     integer :: numStepAdvect, numStepReferenceFlow, nEns, memberIndex
-
     integer,allocatable :: dateStampList(:)
 
     allocate(dateStampList(tim_nstepobsinc))
@@ -845,20 +834,15 @@ contains
   subroutine check_advectionGSV()
     implicit none
 
+    ! Locals:
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, dateStamp
-
     type(struct_adv)  :: adv_analInc
-
     character(len=32)   :: directionAnlInc
-
     real(8) :: delT_hour
-
     real(8), allocatable :: advectFactor(:)
     real(8), pointer     :: field4d_x_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
     real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_Ly_r8(:,:,:,:)
-
     integer :: numStepAdvect, numStepReferenceFlow
-
     integer,allocatable :: dateStampList(:)
 
     allocate(dateStampList(tim_nstepobsinc))
@@ -971,11 +955,20 @@ contains
   !--------------------------------------------------------------------------
   subroutine euclid (pvalue,px,py,nis,nie,njs,nje,nk,nStep)
     implicit none
-    integer ::  nis,nie,njs,nje,nk,nStep
-    real(8) ::  px(nis:nie,njs:nje,nk,nStep), py(nis:nie,njs:nje,nk,nStep)
-    real(8) ::  pvalue
-    
-    integer i,j,k,s
+
+    ! Arguments:
+    integer, intent(in)    ::  nis
+    integer, intent(in)    ::  nie
+    integer, intent(in)    ::  njs
+    integer, intent(in)    ::  nje
+    integer, intent(in)    ::  nk
+    integer, intent(in)    ::  nStep
+    real(8), intent(in)    ::  px(nis:nie,njs:nje,nk,nStep)
+    real(8), intent(in)    ::  py(nis:nie,njs:nje,nk,nStep)
+    real(8), intent(inout) ::  pvalue
+
+    ! Locals:
+    integer :: i,j,k,s
 
     do s = 1, nStep
       do k = 1,nk
@@ -995,6 +988,7 @@ contains
   subroutine checkAndOutputInnerProd()
     implicit none
 
+    ! Locals:
     integer :: fun
 
     if ( mmpi_myid == 0 ) then

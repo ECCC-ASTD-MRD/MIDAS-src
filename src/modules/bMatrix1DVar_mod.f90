@@ -87,18 +87,19 @@ contains
     !
     implicit none
 
-    ! arguments:
-    type(struct_vco), pointer, intent(in) :: vco_in
-    type(struct_hco), pointer, intent(in) :: hco_in
-    type (struct_obs),         intent(in) :: obsSpaceData
+    ! Arguments:
+    type(struct_vco), pointer, intent(in)    :: vco_in
+    type(struct_hco), pointer, intent(in)    :: hco_in
+    type (struct_obs),         intent(inout) :: obsSpaceData
 
-    ! locals:
+    ! Locals:
     integer :: cvdim
     integer :: masterBmatIndex, bmatIndex
     logical :: active
     integer :: nulnam, ierr
     integer, external ::  fnom, fclos
     integer :: varIndex
+
     call utl_tmg_start(50, '--Bmatrix')
 
     ! default values for namelist variables
@@ -195,12 +196,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in)  :: vco_in
     type (struct_obs)        , intent(in)  :: obsSpaceData
     integer                  , intent(out) :: cvDim_out
 
-    ! locals:
+    ! Locals:
     integer :: levelIndex, ierr
     integer, external ::  fnom, fclos
     integer :: Vcode_anl
@@ -407,13 +408,13 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_vco), pointer, intent(in)  :: vco_in
-    type(struct_hco), pointer, intent(in)  :: hco_in
-    type (struct_obs)        , intent(in)  :: obsSpaceData
-    integer                  , intent(out) :: cvDim_out
+    ! Arguments
+    type(struct_vco), pointer, intent(in)    :: vco_in
+    type(struct_hco), pointer, intent(in)    :: hco_in
+    type (struct_obs)        , intent(inout) :: obsSpaceData
+    integer                  , intent(out)   :: cvDim_out
 
-    ! locals:
+    ! Locals:
     character(len=256) :: ensPathName = 'ensemble'
     character(len=256) :: ensFileName
     type(struct_vco), pointer :: vco_file => null()
@@ -776,12 +777,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8),                 intent(in)    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs),        intent(in)    :: obsSpaceData
 
-    ! locals:
+    ! Locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -837,12 +838,12 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8),                 intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
     type (struct_obs),       intent(in)    :: obsSpaceData
 
-    ! locals:
+    ! Locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -903,11 +904,11 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8),                 intent(in)    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
 
-    ! locals:
+    ! Locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -945,11 +946,11 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8),                 intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
 
-    ! locals:
+    ! Locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
     real(8), allocatable ::  oneDProfile(:)
@@ -1000,13 +1001,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer,                 intent(in)    :: cvdim
     real(8),                 intent(in)    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs),        intent(in)    :: obsSpaceData
 
-    ! locals:
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
 
@@ -1053,13 +1054,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer,                 intent(in)    :: cvdim
     real(8),                 intent(in)    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs),        intent(in)    :: obsSpaceData
 
-    ! locals:
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
 
@@ -1102,7 +1103,7 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8),                 intent(in)    :: incr_cv(:)
     type(struct_columnData), intent(inout) :: column
     type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev

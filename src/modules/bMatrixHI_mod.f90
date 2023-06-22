@@ -13,6 +13,7 @@ MODULE bMatrixHI_mod
   use globalSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
+  use timeCoord_mod
   use varNameList_mod
   use utilities_mod
   use gridVariableTransforms_mod
@@ -102,13 +103,14 @@ CONTAINS
   SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT, mode_opt)
     implicit none
 
-    type(struct_hco),pointer :: hco_in
-    type(struct_vco),pointer :: vco_in
-    integer                  :: cvDim_out
-    character(len=*), intent(in), optional :: mode_opt
+    ! Arguments:
+    type(struct_hco), pointer,  intent(in)  :: hco_in
+    type(struct_vco), pointer,  intent(in)  :: vco_in
+    integer                  ,  intent(out) :: cvDim_out
+    character(len=*), optional, intent(in)  :: mode_opt
 
+    ! Locals:
     character(len=15) :: bhi_mode
-
     integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
@@ -356,7 +358,11 @@ CONTAINS
 
   subroutine bhi_getScaleFactor(scaleFactor_out)
     implicit none
-    real(8) :: scaleFactor_out(:)
+
+    ! Arguments:
+    real(8), intent(out) :: scaleFactor_out(:)
+
+    ! Locals:
     integer :: jlev
 
     do jlev = 1, max(nLev_M,nLev_T)
@@ -369,6 +375,7 @@ CONTAINS
   SUBROUTINE BHI_scalestd
     implicit none
 
+    ! Locals:
     integer :: jlev, jlon, jlat, shift_level, Vcode_anl
 
     Vcode_anl = vco_anl%Vcode
@@ -410,13 +417,12 @@ CONTAINS
   SUBROUTINE BHI_SUCORNS2
     implicit none
 
+    ! Locals:
     real(8) :: eigenval(nkgdim2), eigenvec(nkgdim2,nkgdim2), result(nkgdim2,nkgdim2)
     real(8) :: eigenvalsqrt(nkgdim2), eigenvec2(nkgdim2,nkgdim2), eigenvalsqrt2(nkgdim2)
-
     integer :: jlat,jn,jk1,jk2,jk3
     integer :: ilwork,info,klatPtoT
     integer :: iulcorvert, ikey, nsize
-
     real(8) :: zwork(2*4*nkgdim2)
     real(8) :: ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2
@@ -425,7 +431,6 @@ CONTAINS
     real(8) :: corvert(nkgdim2,nkgdim2)
     real(8),allocatable :: corns_temp(:,:,:)
     logical :: lldebug, lfound_sqrt
-
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet 
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
@@ -845,8 +850,8 @@ CONTAINS
   SUBROUTINE WRITECORNS_SQRT
     implicit none
 
+    ! Locals:
     integer :: jn, nulcorns_sqrt, ierr
-
     ! standard file variables
     integer :: ip1,ip2,ip3
     integer :: idateo, ipak, idatyp
@@ -880,12 +885,14 @@ CONTAINS
 
   SUBROUTINE READCORNS_SQRT(lfound_sqrt)
     implicit none
-    logical :: lfound_sqrt
 
+    ! Arguments:
+    logical, intent(out) :: lfound_sqrt
+
+    ! Locals:
     integer :: jn, icornskey
     integer :: jcol,jrow
     real(8), allocatable :: zcornssrc(:,:)
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -938,9 +945,16 @@ CONTAINS
 
 
   FUNCTION GASPARICOHN(ztlen,zr)
+    implicit none
 
+    ! Arguments:
+    real(8), intent(in) :: ztlen
+    real(8), intent(in) :: zr
+    ! Result:
     real(8)  :: gasparicohn
-    real(8)  :: ztlen,zr,zlc
+
+    ! Locals:
+    real(8)  :: zlc
 
     zlc = ztlen/2.0d0
     if(zr.le.zlc) then
@@ -960,13 +974,15 @@ CONTAINS
 
   SUBROUTINE BHI_CALCCORR(zgd,pcscl,klev)
     implicit none
-    integer :: klev
-    real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
-    real(8) :: pcscl(klev)
 
+    ! Arguments:
+    integer, intent(in)  :: klev
+    real(8), intent(out) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
+    real(8), intent(in)  :: pcscl(klev)
+
+    ! Locals:
     integer :: jlev, jlat, jlon
     real(8) :: zr, dlfac, dltemp, dln, dlcsurn, dlc, dlcorr
-
     ! parameters that define the correlation function
     integer :: ntoar = 3
     real(8) :: dlalpha = 0.2d0
@@ -1013,9 +1029,9 @@ CONTAINS
 
 
   SUBROUTINE BHI_SUTG
-    use timeCoord_mod
     implicit none
 
+    ! Locals:
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
@@ -1029,12 +1045,9 @@ CONTAINS
     real(8) :: zsp_mpilocal(nla_mpilocal,2,nlev_T_even)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
-
     real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
-
     real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
-
     ! standard file variables
     integer :: ini,inj,ink, idatyp
     integer :: ip1,ip2,ip3
@@ -1042,23 +1055,18 @@ CONTAINS
     integer :: idateo
     integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
     integer :: ip1s(1), nulbgsts(1)
-
     integer :: TrlmNumberWanted
     integer :: fstlir, key, nultrl, ni_trial, nj_trial
     integer :: deet, npas, nbits, datyp
     integer :: ig1,ig2,ig3,ig4,swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
-    
     integer :: TrialGridID
-
     character(len=2)  :: cltypvar
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-
     character(len=2) :: flnum
     character(len=128) :: trialfile
-
     logical :: trialExists
 
     !
@@ -1430,12 +1438,12 @@ CONTAINS
   SUBROUTINE BHI_convol
     implicit none
 
+    ! Locals:
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
     integer jn,jlat,jk
     real(8) zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) dlwti(nj_l),zrmu(nj_l)
-
     real(8)         :: RPORVO   = 6000.D3
     real(8)         :: RPORDI   = 6000.D3
     real(8)         :: RPORTT   = 3000.D3
@@ -1532,7 +1540,11 @@ CONTAINS
   SUBROUTINE BHI_setCrossCorr(kn)
     implicit none
 
-    integer :: kn, jblock1, inbrblock, jblock2
+    ! Arguments:
+    integer, intent(in) :: kn
+
+    ! Locals:
+    integer :: jblock1, inbrblock, jblock2
     integer :: jk1, jk2, nlev_all(numvar3d), levOffset(numvar3d+1)
 
     inbrblock = numvar3d
@@ -1584,12 +1596,12 @@ CONTAINS
   SUBROUTINE BHI_READCORNS2
     implicit none
 
+    ! Locals:
     integer :: kip1
     integer :: jn, istdkey,icornskey
     integer :: iksdim,jcol,jrow
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1692,6 +1704,7 @@ CONTAINS
   SUBROUTINE BHI_RDSPSTD
     implicit none
 
+    ! Locals:
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx
@@ -1699,7 +1712,6 @@ CONTAINS
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T))
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -1841,13 +1853,13 @@ CONTAINS
   SUBROUTINE BHI_RDSTD
     implicit none
 
+    ! Locals:
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,inix,injx,inkx
     integer :: ikey
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
-
     ! standard file variables
     integer :: ini,inj,ink  
     integer :: ip1,ip2,ip3
@@ -1938,6 +1950,7 @@ CONTAINS
   SUBROUTINE BHI_RDSPSTD_NEWFMT
     implicit none
 
+    ! Locals:
     integer, parameter  :: inbrvar3d=5
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
@@ -1946,7 +1959,6 @@ CONTAINS
     real(8), allocatable :: zspbuf(:)
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
-
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -2096,14 +2108,14 @@ CONTAINS
   SUBROUTINE BHI_RDSPPTOT
     IMPLICIT NONE
 
+    ! Locals:
     integer :: jn, jk1, jk2, ikey, ilen,jlat,inix,injx,inkx
     real(8) :: zsptheta(0:ntrunc,nlev_M)
     real(8) :: zgrtheta(nj_l,nlev_M)
     real(8) :: zPtoTsrc(nlev_T+1,nlev_M)
     real(8) :: zspPtoT(0:ntrunc,nlev_T+1,nlev_M)
     real(8) :: zgrPtoT(nj_l,nlev_T+1,nlev_M)
-    real(8) :: ztheta(nlev_M)
-    
+    real(8) :: ztheta(nlev_M)    
     ! standard file variables
     integer :: ini,inj,ink
     integer :: ip1,ip2,ip3
@@ -2194,10 +2206,15 @@ CONTAINS
 
   SUBROUTINE BHI_truncateCV(controlVector_inout,ntruncCut)
     implicit none
-    ! set to zero all coefficients with total wavenumber > ntruncCut
+    !
+    !:Purpose: Set to zero all coefficients with total wavenumber > ntruncCut
+    !
 
-    real(8), pointer :: controlVector_inout(:)
-    integer          :: ntruncCut
+    ! Arguments:
+    real(8), pointer, intent(inout) :: controlVector_inout(:)
+    integer,          intent(in)    :: ntruncCut
+
+    ! Locals:
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
 
     if(.not. initialized) then
@@ -2239,12 +2256,12 @@ CONTAINS
   SUBROUTINE BHI_bSqrt(controlVector_in, statevector, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
-    real(8)                    :: controlVector_in(cvDim_mpilocal)
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    ! Arguments:
+    real(8),                    intent(in)    :: controlVector_in(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
 
@@ -2280,12 +2297,12 @@ CONTAINS
   SUBROUTINE BHI_bSqrtAd(statevector, controlVector_out, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
-    real(8)                    :: controlVector_out(cvDim_mpilocal)
-    type(struct_gsv)           :: statevector
-    type(struct_gsv), optional :: statevectorRef_opt
+    ! Arguments:
+    real(8),                    intent(inout) :: controlVector_out(cvDim_mpilocal)
+    type(struct_gsv),           intent(inout) :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
 
@@ -2321,8 +2338,12 @@ CONTAINS
 
   SUBROUTINE copyToStatevector(statevector,gd)
     implicit none
-    type(struct_gsv) :: statevector
-    real(8) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+
+    ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field_r8(:,:,:)
     real(4), pointer :: field_r4(:,:,:)
@@ -2379,8 +2400,12 @@ CONTAINS
 
   SUBROUTINE copyFromStatevector(statevector,gd)
     implicit none
-    type(struct_gsv) :: statevector
-    real(8)          :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    real(8),          intent(out)   :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+
+    ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field_r8(:,:,:)
     real(4), pointer :: field_r4(:,:,:)
@@ -2436,15 +2461,16 @@ CONTAINS
 
   SUBROUTINE BHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
+    ! Locals:
     real(8), allocatable :: cv_allMaxMpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
@@ -2584,15 +2610,16 @@ CONTAINS
 
   SUBROUTINE BHI_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
+    ! Locals:
     real(4), allocatable :: cv_allMaxMpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
@@ -2732,9 +2759,12 @@ CONTAINS
 
   SUBROUTINE BHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
 
+    ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
@@ -2859,9 +2889,12 @@ CONTAINS
 
   SUBROUTINE BHI_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
 
+    ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
@@ -2987,9 +3020,11 @@ CONTAINS
   SUBROUTINE BHI_cain(controlVector_in,hiControlVector_out)
     implicit none
 
-    real(8) :: controlVector_in(cvDim_mpilocal)
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
+    ! Arguments:
+    real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
+    real(8), intent(out) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
 
+    ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
@@ -3022,9 +3057,11 @@ CONTAINS
   SUBROUTINE BHI_cainAd(hiControlVector_in,controlVector_out)
     IMPLICIT NONE
 
-    real(8) :: controlVector_out(cvDim_mpilocal)
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
+    ! Arguments:
+    real(8), intent(out) :: controlVector_out(cvDim_mpilocal)
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
 
+    ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
@@ -3056,12 +3093,13 @@ CONTAINS
   SUBROUTINE BHI_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
-    real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    ! Arguments:
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(out) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
+    ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
@@ -3265,17 +3303,17 @@ CONTAINS
   SUBROUTINE BHI_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
-    real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    ! Arguments:
+    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(in)    :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
+    ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even)
     real(8) :: sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
-
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2, zp
     real(8) ,allocatable :: zsp(:,:,:), zsp2(:,:,:)
-
     integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8) :: dl1sa2, dla2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
     real(8),pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
@@ -3449,6 +3487,5 @@ CONTAINS
     end if
 
   END SUBROUTINE BHI_Finalize
-
 
 END MODULE bMatrixHI_mod

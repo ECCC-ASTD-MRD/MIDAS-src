@@ -7,6 +7,7 @@ MODULE localizationFunction_mod
   !           this module is also possible through curve fitting using
   !           pre-computed optimal separation-distance localization values.
   !
+  use earthConstants_mod
   use utilities_mod
   implicit none
   save
@@ -26,7 +27,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine lfn_Setup(LocFunctionWanted)
     implicit none
-    
+
+    ! Arguments:
     character(len=*), intent(in) :: LocFunctionWanted
   
     select case(trim(LocFunctionWanted))
@@ -49,8 +51,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function lfn_Response(distance,lengthscale) result(correlation)
     implicit none
-    
-    real(8) :: distance, lengthscale
+
+    ! Arguments:
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
+    ! Result:
     real(8) :: correlation
 
     if ( .not. initialized ) then
@@ -75,8 +80,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   function lfn_gradient(distance,lengthscale) result(gradient)
     implicit none
-    
-    real(8) :: distance, lengthscale
+
+    ! Arguments:
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
+    ! Result:
     real(8) :: gradient
 
     if ( .not. initialized ) then
@@ -101,9 +109,15 @@ CONTAINS
   !--------------------------------------------------------------------------
   function lfn_FifthOrderFunction(distance,lengthscale) result(correlation)
     implicit none
-    
-    real(8) :: distance, lengthscale, halflength
+
+    ! Arguments:
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
+    ! Result:
     real(8) :: correlation
+
+    ! Locals:
+    real(8) :: halflength
 
     halflength = lengthscale/2.d0
 
@@ -133,8 +147,14 @@ CONTAINS
   function lfn_FifthOrderFunctionGradient(distance,lengthscale) result(gradient)
     implicit none
 
-    real(8) :: distance, lengthscale, halflength
+    ! Arguments:
+    real(8), intent(in) :: distance
+    real(8), intent(in) :: lengthscale
+    ! Result:
     real(8) :: gradient
+
+    ! Locals:
+    real(8) :: halflength
 
     halflength = lengthscale/2.d0
 
@@ -164,15 +184,17 @@ CONTAINS
 ! lfn_CreateBiPerFunction
 !--------------------------------------------------------------------------
   SUBROUTINE  lfn_CreateBiPerFunction(gridpoint,CorrelLength,dlon,ni,nj,nk)
-    use earthConstants_mod
     implicit none
 
-    integer, intent(in)  :: ni,nj,nk
+    ! Arguments:
+    integer, intent(in)  :: ni
+    integer, intent(in)  :: nj
+    integer, intent(in)  :: nk
     real(8), intent(in)  :: dlon             ! in radian
     real(8), intent(in)  :: CorrelLength(nk) ! in km
-
     real(8), intent(out) :: gridpoint(ni,nj,nk)
 
+    ! Locals:
     integer          :: i, j, k, iref, jref
     real(8)          :: distance, distance_ref
 
@@ -238,17 +260,18 @@ CONTAINS
   ! LFN_LENGTHSCALE
   !--------------------------------------------------------------------------
   subroutine lfn_lengthscale(lengthscale, rmse, localizationValues, &
-       distance, weight, numbins)
+                             distance, weight, numbins)
     implicit none
 
-    integer, intent(in)  :: numBins
-    real(8), intent(in)  :: localizationValues(numBins)
-    real(8), intent(in)  :: distance(numBins)
-    real(8), intent(in)  :: weight(numBins)
-
+    ! Arguments:
+    integer, intent(in)    :: numBins
+    real(8), intent(in)    :: localizationValues(numBins)
+    real(8), intent(in)    :: distance(numBins)
+    real(8), intent(in)    :: weight(numBins)
     real(8), intent(inout) :: lengthscale
     real(8), intent(out)   :: rmse
 
+    ! Locals:
     integer :: ierr, ilist
     real(8) :: minv, fit
 
@@ -282,24 +305,24 @@ CONTAINS
     !          Heeswijk, M.V., and C.G. Fox, 1988: Iterative Method and Fortran
     !          Code for Nonlinear Curve Fitting, Computers and Geosciences, 14,
     !          4, pp. 489-503.
+    !
     implicit none
 
     ! Arguments:
-    INTEGER,            INTENT(IN)    :: Nn
-    REAL(8),            INTENT(IN)    :: x(Nn)
-    REAL(8),            INTENT(IN)    :: y(Nn)
-    REAL(8),            INTENT(IN)    :: w(Nn)
-    INTEGER,            INTENT(IN)    :: nmax
-    REAL(8),            INTENT(INOUT) :: param
-    REAL(8),            INTENT(IN)    :: minv
-    INTEGER,            INTENT(IN)    :: ilist
-    INTEGER,            INTENT(INOUT) :: ierr
-    REAL(8),            INTENT(OUT)   :: ssq
+    INTEGER, INTENT(IN)    :: Nn
+    REAL(8), INTENT(IN)    :: x(Nn)
+    REAL(8), INTENT(IN)    :: y(Nn)
+    REAL(8), INTENT(IN)    :: w(Nn)
+    INTEGER, INTENT(IN)    :: nmax
+    REAL(8), INTENT(INOUT) :: param
+    REAL(8), INTENT(IN)    :: minv
+    INTEGER, INTENT(IN)    :: ilist
+    INTEGER, INTENT(INOUT) :: ierr
+    REAL(8), INTENT(OUT)   :: ssq
 
     ! Locals:
     INTEGER, PARAMETER    :: icon = 100   ! max iteration
-    INTEGER, PARAMETER    :: lbis = 10    ! max bisection
-    
+    INTEGER, PARAMETER    :: lbis = 10    ! max bisection    
     REAL(8)              :: d(Nn)
     REAL(8)              :: g(Nn)
     REAL(8)              :: m
@@ -307,10 +330,8 @@ CONTAINS
     REAL(8)              :: gtg
     REAL(8)              :: gtginv
     REAL(8)              :: ssqold, rootmsq
-    REAL(8)              :: w_t
-    
+    REAL(8)              :: w_t    
     INTEGER           :: iter,nbis,i                     ! Loop counters.
-    
     CHARACTER(LEN=60) :: FMT1
     CHARACTER(LEN=12), PARAMETER :: RoutineName = 'lfn_curveFit'
     

@@ -178,10 +178,9 @@ program midas_pseudoSSTobs
     !
     ! :Purpose:  Control of the preprocessing of pseudo SST obs
     !
-
     implicit none
     
-    !Locals:	
+    ! Locals:	
     type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: myName = 'pseudoSSTobs_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'

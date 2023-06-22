@@ -152,6 +152,7 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     character(len=*), intent(in)  :: varName
+    ! Result:
     integer                       :: offset
 
     ! Locals:
@@ -177,6 +178,7 @@ module gridStateVector_mod
     ! Arguments
     type(struct_gsv), intent(in)  :: statevector
     integer,          intent(in)  :: kIndex
+    ! Result:
     character(len=4)              :: varName
 
     ! Locals:
@@ -208,6 +210,7 @@ module gridStateVector_mod
     ! Arguments
     type(struct_gsv), intent(in) :: statevector
     integer,          intent(in) :: kIndex
+    ! Result:
     integer                      :: levIndex
 
     ! Locals
@@ -239,6 +242,7 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
     integer,          intent(in) :: kIndex
+    ! Result:
     integer                      :: MpiId
     
     ! Locals:
@@ -272,6 +276,7 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), optional, intent(in)  :: statevector_opt
     character(len=*),           intent(in)  :: varName
+    ! Result:
     logical                                 :: varExist 
 
     if (varName == 'Z_*') then
@@ -375,6 +380,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in)  :: statevector ! stateVector for which variable names extracted
+    ! Result:
     character(len=:), allocatable :: string      ! allocated string with list of variable names
 
     ! Locals:
@@ -398,6 +404,7 @@ module gridStateVector_mod
     ! Arguments
     type(struct_gsv), intent(in)  :: statevector ! stateVector for which values provided
     character(len=*), intent(in)  :: varName     ! specified variable name for the calculation
+    ! Result:
     character(len=:), allocatable :: string      ! allocated string with min/max values
 
     ! Locals
@@ -433,8 +440,7 @@ module gridStateVector_mod
     type(struct_gsv),           intent(in) :: statevector ! Input statevector
     character(len=*),           intent(in) :: varLevel    ! Variable type in 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SS' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! Variable name when varLevel='OT'
-
-    ! Locals:
+    ! Result:
     integer                       :: nlev
 
     nlev = vco_getNumLev(statevector%vco,varLevel,varName_opt)
@@ -452,6 +458,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
+    ! Result:
     integer                       :: numK
 
     numK = 1 + statevector%mykEnd - statevector%mykBeg
@@ -468,8 +475,9 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
+    ! Result:
     integer                       :: dataKind
 
     dataKind = statevector%dataKind
@@ -488,6 +496,7 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     character(len=*), intent(in)  :: varName
+    ! Result:
     integer                       :: nlev
 
     nlev = statevector%varNumLev(vnl_varListIndex(varName))
@@ -505,7 +514,6 @@ module gridStateVector_mod
 
     ! Locals:
     integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
-
     ! namelist variables:
     character(len=4)  :: anlvar(vnl_numVarMax)           ! list of state variable names
     logical           :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
@@ -613,7 +621,12 @@ module gridStateVector_mod
     contains
 
       logical function varneed(varName)
-        character(len=*) :: varName
+        implicit none
+
+        ! Arguments:
+        character(len=*), intent(in) :: varName
+
+        ! Locals:
         integer :: varIndex
  
         varneed=.false.
@@ -636,7 +649,7 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! Argument:
+    ! Result:
     logical :: gsvInitialized
 
     gsvInitialized = .false.
@@ -656,6 +669,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in)  :: stateVector
+    ! Result:
     logical                       :: isAllocated
 
     isAllocated = stateVector%allocated
@@ -684,7 +698,7 @@ module gridStateVector_mod
     integer,          optional, intent(in)    :: dateStamp_opt          ! reference datestamp
     integer,          optional, intent(in)    :: dateStampList_opt(:)   ! explicit datestamp list
     logical,          optional, intent(in)    :: mpi_local_opt          ! if .false. no MPI distribution will be used 
-    character(len=*), optional, intent(in)    :: mpi_distribution_opt   ! MPI distribution strategy in {'Tiles', 'VarsLevs', 'None'} defaults to 'Tiles'
+    character(len=*), optional, intent(in)    :: mpi_distribution_opt   ! MPI distribution strategy in {'Tiles', 'VarsLevs', 'None'} default: 'Tiles'
     integer,          optional, intent(in)    :: horizSubSample_opt     ! horizontal subsampling factor (to get a coarser grid)
     character(len=*), optional, intent(in)    :: varNames_opt(:)        ! allow specification of variables
     integer,          optional, intent(in)    :: dataKind_opt           ! real kind (4 or 8 bytes; defaults to 8)
@@ -1295,6 +1309,7 @@ module gridStateVector_mod
 
     ! Arguments:
     character(len=*), intent(in)  :: UV_in
+    ! Result:
     character(len=4)              :: UV_out
 
     ! return UU on VV input, and vice versa
@@ -1316,7 +1331,7 @@ module gridStateVector_mod
     !
     implicit none
   
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),  intent(inout) :: statevector
     integer,           intent(in)    :: dateStamp
     logical, optional, intent(in)    :: modifyDateOrigin_opt
@@ -1667,13 +1682,10 @@ module gridStateVector_mod
     ! Locals:
     logical            :: timeMismatch, allowVarMismatch, varMismatch, allowVcoMismatch
     logical            :: beSilent
-
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
-
     real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
     real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
-
     character(len=4), allocatable :: varNameListCommon(:)
     character(len=4)              :: varName
     character(len=10)             :: gsvCopyType 
@@ -2085,8 +2097,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)     :: statevector_in
-    type(struct_gsv), intent(inout)  :: statevector_out
+    type(struct_gsv),  intent(in)    :: statevector_in
+    type(struct_gsv),  intent(inout) :: statevector_out
     logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
@@ -2231,7 +2243,6 @@ module gridStateVector_mod
     ! Locals:
     integer :: stepIndex,lonIndex,kIndex,latIndex
     integer :: lonBeg_in, lonEnd_in, latBeg_in, latEnd_in, kBeg, kEnd
-
     real(8) :: paddingValue_r8
     real(4) :: paddingValue_r4
 
@@ -2642,7 +2653,6 @@ module gridStateVector_mod
 
     ! Locals:
     integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-
     real(4), allocatable :: gd2d_tmp_r4(:,:)
     real(8), allocatable :: gd2d_tmp(:,:)
 
@@ -3053,8 +3063,9 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(in)        :: statevector
+    ! Result:
     logical                             :: isAssociated
 
     isAssociated = .false.
@@ -3073,8 +3084,9 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(in)           :: statevector
+    ! Result:
     real(8),pointer                        :: field(:,:)
 
     ! Locals:
@@ -3103,9 +3115,10 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),  intent(in)  :: statevector
     integer, optional, intent(in)  :: stepIndex_opt 
+    ! Result:
     integer                        :: dateStamp
 
     if (associated(statevector%dateStampList)) then
@@ -3134,7 +3147,10 @@ module gridStateVector_mod
     !           (vertical coordinate structure)
     !
     implicit none
+
+    ! Arguments:
     type(struct_gsv), intent(in) :: statevector
+    ! Result:
     type(struct_vco), pointer    :: vco_ptr
 
     vco_ptr => statevector%vco
@@ -3153,6 +3169,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
+    ! Result:
     type(struct_hco), pointer    :: hco_ptr
 
     hco_ptr => statevector%hco
@@ -3171,6 +3188,7 @@ module gridStateVector_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
+    ! Result:
     type(struct_hco), pointer    :: hco_ptr
 
     hco_ptr => statevector%hco_physics
@@ -3433,9 +3451,9 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)    :: statevector_in
-    type(struct_gsv), intent(inout) :: statevector_out
-    logical, optional, intent(in)   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector_in
+    type(struct_gsv),  intent(inout) :: statevector_out
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
@@ -5080,7 +5098,6 @@ module gridStateVector_mod
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
     integer :: kIndex, stepIndex, numStep
-
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
@@ -5236,6 +5253,7 @@ module gridStateVector_mod
 
     ! Arguments:
     character(len=*), intent(in) :: varKind    ! Variable kind (e.g. MT or CH)
+    ! Result:
     logical                      :: KindFound  ! Logical indicating whether var kind found 
 
     ! Locals:
@@ -5264,7 +5282,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: stateVector_a,stateVector_b
+    type(struct_gsv), intent(in)  :: stateVector_a
+    type(struct_gsv), intent(in)  :: stateVector_b
     real(8),          intent(out) :: dotsum
 
     ! Locals:
@@ -5320,26 +5339,25 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
-    integer, intent(in) :: nlong ! number of latitudes
-    integer, intent(in) :: nlat  ! number of longitudes
-    integer, intent(in) :: nlev  ! number of vertical levels
-    real(8), intent(in) :: xlong(nlong) ! longitudes (radians)
-    real(8), intent(in) :: xlat(nlat)   ! latitudes (radians)
-    real(8), intent(in) :: vlev(nlev)   ! vertical levels of input field (in pressure)
+    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
+    integer, intent(in)  :: nlong ! number of latitudes
+    integer, intent(in)  :: nlat  ! number of longitudes
+    integer, intent(in)  :: nlev  ! number of vertical levels
+    real(8), intent(in)  :: xlong(nlong) ! longitudes (radians)
+    real(8), intent(in)  :: xlat(nlat)   ! latitudes (radians)
+    real(8), intent(in)  :: vlev(nlev)   ! vertical levels of input field (in pressure)
     real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
-    integer, intent(in) :: nlongout ! number or latitudes
-    integer, intent(in) :: nlatout  ! number of target longitudes
-    integer, intent(in) :: nlevout  ! Number of target vertical levels
-    real(8), intent(in) :: xlongout(nlongout) ! target longitudes (radians) 
-    real(8), intent(in) :: xlatout(nlatout)   ! target of target latitudes (radians)
-    real(8), intent(in) :: vlevout(nlevout)   ! Target vertical levels (in pressure)
+    integer, intent(in)  :: nlongout ! number or latitudes
+    integer, intent(in)  :: nlatout  ! number of target longitudes
+    integer, intent(in)  :: nlevout  ! Number of target vertical levels
+    real(8), intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
+    real(8), intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
+    real(8), intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
 
     ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
     integer :: ilev,ilon,ilat,ilatp1,i,j,ilongout,ilatout
     logical :: same_vlev
-
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
 
     ! Check if vertical interpolation needed
@@ -5466,28 +5484,24 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), target,   intent(inout) :: stateVector_inout
     real(8),                    intent(in)    :: horizontalScale
-    logical, optional,          intent(in)    :: maskNegatives_opt
+    logical,          optional, intent(in)    :: maskNegatives_opt
     character(len=*), optional, intent(in)    :: varName_opt
-    real(4), optional, pointer, intent(in)    :: binInteger_opt(:,:,:)
-    real(8), optional, pointer, intent(in)    :: binReal_opt(:,:)
-    real(8), optional,          intent(in)    :: binRealThreshold_opt
+    real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:)
+    real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)
+    real(8),          optional, intent(in)    :: binRealThreshold_opt
 
     ! Locals:
     type(struct_gsv), pointer :: stateVector
     type(struct_gsv), target  :: stateVector_varsLevs
-
     integer :: latIndex, lonIndex, stepIndex, kIndex
     integer :: latIndex2, lonIndex2, maxDeltaIndex, count
     integer :: latBeg, latEnd, lonBeg, lonEnd
     integer :: myBinInteger
-
     real(8), allocatable :: smoothedField(:,:)
     real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance
     real(8) :: binRealThreshold, myBinReal
-
     real(4), pointer :: binInteger(:,:,:)
     real(8), pointer :: binReal(:,:)
-
     logical :: maskNegatives, binIntegerTest, binRealTest
     
     call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
@@ -5650,13 +5664,14 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! DBGmad : TODO use a `gsv_str()` string representation?
   subroutine gsv_getInfo(stateVector, message)
+    !
     !:Purpose: Writes out grid state vector parameters
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv), intent(in) :: stateVector
-    character(len=*) :: message
+    character(len=*), intent(in) :: message
 
     write(*,*)
     write(*,*) message
@@ -5721,15 +5736,16 @@ module gridStateVector_mod
   ! gsv_applyMaskLAM
   !--------------------------------------------------------------------------
   subroutine gsv_applyMaskLAM(statevector_inout, maskLAM)
+    !
     !:Purpose: To apply a mask to a state vector for LAM grid
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)  :: statevector_inout
     type(struct_gsv), intent(in)     :: maskLAM
 
-    ! Locals
+    ! Locals:
     real(4), pointer :: increment_r4(:,:,:,:)
     real(8), pointer :: increment_r8(:,:,:,:)
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
@@ -5781,15 +5797,17 @@ module gridStateVector_mod
   ! gsv_containsNonZeroValues
   !--------------------------------------------------------------------------
   function gsv_containsNonZeroValues(stateVector) result(stateVectorHasNonZeroValue)
+    !
     !:Purpose: To check if stateVector has any non-zero value.
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(in) :: stateVector
+    ! Result:
     logical                      :: stateVectorHasNonZeroValue
 
-    ! Locals
+    ! Locals:
     real(4), pointer             :: field_r4_ptr(:,:,:,:)
     real(8), pointer             :: field_r8_ptr(:,:,:,:)
     logical                      :: allZero, allZero_mpiglobal

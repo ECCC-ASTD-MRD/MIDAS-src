@@ -98,44 +98,38 @@ CONTAINS
                        statevector_steeringFlow_opt)
     implicit none
 
-    type(struct_adv) :: adv
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
-
-    character(len=*), intent(in) :: mode
-    character(len=*), intent(in) :: levTypeList
+    ! Arguments:
+    type(struct_adv),           intent(inout) :: adv
+    type(struct_hco), pointer,  intent(in) :: hco_in
+    type(struct_vco), pointer,  intent(in) :: vco_in
+    character(len=*),           intent(in) :: mode
+    character(len=*),           intent(in) :: levTypeList
     character(len=*), optional, intent(in) :: steeringFlowFilename_opt
-    integer, intent(in) :: numStepAdvectedField, numStepSteeringFlow_in
-    integer, intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
-    real(8), intent(in) :: steeringFlowFactor_in(vco_in%nLev_M)
-    real(8), intent(in) :: steeringFlowDelThour
+    integer,                    intent(in) :: numStepAdvectedField
+    integer,                    intent(in) :: numStepSteeringFlow_in
+    integer,                    intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
+    real(8),                    intent(in) :: steeringFlowFactor_in(vco_in%nLev_M)
+    real(8),                    intent(in) :: steeringFlowDelThour
+    type(struct_gsv), optional, intent(inout) :: statevector_steeringFlow_opt
 
-    type(struct_gsv), optional :: statevector_steeringFlow_opt
-
+    ! Locals:
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, stepIndexSF, stepIndexAF, ierr
     integer :: levIndexBelow, levIndexAbove
     integer :: gdxyfll, gdllfxy
     integer :: nLevType
-
     integer, allocatable :: dateStampListSteeringFlow(:)
     integer, allocatable :: advectedFieldAssociatedStepIndexSF(:)
     integer, allocatable :: advectionSteeringFlowStartingStepIndex(:)
     integer, allocatable :: advectionSteeringFlowEndingStepIndex  (:)
-
     real(8) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
     real(8), allocatable :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
     real(8), allocatable :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
-
     real(4) :: xpos_r4, ypos_r4, xposTH_r4, yposTH_r4
     real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4 
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
-
     character(len=100) :: filename
-
     type(struct_gsv) :: statevector_steeringFlow
-
     logical :: AdvectFileExists
-
     integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end 
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
@@ -554,15 +548,22 @@ CONTAINS
                                   uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, &
                                   nLev_M, nLev_T, myLatBeg, myLatEnd)
     implicit none
-    integer, intent(in) :: levTypeIndex, levIndex, nLev_M, nLev_T, myLatBeg, myLatEnd
-    real(8) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
-    real(8) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
 
+    ! Arguments:
+    integer, intent(in)  :: levTypeIndex
+    integer, intent(in)  :: levIndex
+    integer, intent(in)  :: nLev_M
+    integer, intent(in)  :: nLev_T
+    integer, intent(in)  :: myLatBeg
+    integer, intent(in)  :: myLatEnd
+    real(8), intent(out) :: uu_steeringFlow_mpiGlobalTiles(:,:,:,:)
+    real(8), intent(out) :: vv_steeringFlow_mpiGlobalTiles(:,:,:,:)
+
+    ! Locals:
     integer :: stepIndexSF, nsize, ierr 
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
     integer :: lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levIndexBelow, levIndexAbove
-
     real(8) :: uu, vv, latAdvect
 
     nsize = lonPerPE*latPerPE
@@ -663,13 +664,18 @@ CONTAINS
                             levIndex, stepIndexSF_start, stepIndexSF_end)
     implicit none
 
-    real(4), intent(out) :: xpos_r4, ypos_r4
-    integer, intent(in)  :: latIndex0, lonIndex0, stepIndexSF_start, stepIndexSF_end
+    ! Arguments:
+    real(4), intent(out) :: xpos_r4
+    real(4), intent(out) :: ypos_r4
+    integer, intent(in)  :: latIndex0
+    integer, intent(in)  :: lonIndex0
+    integer, intent(in)  :: stepIndexSF_start
+    integer, intent(in)  :: stepIndexSF_end
     integer, intent(in)  :: levIndex
 
+    ! Locals:
     integer :: subStepIndex, stepIndexSF, ierr, gdxyfll, latIndex, lonIndex
     integer :: alfa, ni, nj,  stepIndex_direction, stepIndex_first, stepIndex_last
-
     real(8) :: uu, vv, subDelT, lonAdvect, latAdvect
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
     real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4
@@ -895,10 +901,17 @@ CONTAINS
                          interpWeight_TL, interpWeight_TR, xpos_r4, ypos_r4)
     implicit none
 
-    integer, intent(out) :: lonIndex, latIndex
-    real(8), intent(out) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
-    real(4), intent(in)  :: xpos_r4, ypos_r4
+    ! Arguments:
+    integer, intent(out) :: lonIndex
+    integer, intent(out) :: latIndex
+    real(8), intent(out) :: interpWeight_BL
+    real(8), intent(out) :: interpWeight_BR
+    real(8), intent(out) :: interpWeight_TL
+    real(8), intent(out) :: interpWeight_TR
+    real(4), intent(in)  :: xpos_r4
+    real(4), intent(in)  :: ypos_r4
 
+    ! Locals:
     real(8) :: delx, dely, sumWeight
 
     ! Determine bottom left grid point
@@ -941,9 +954,11 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_ensemble_tl( ens, adv, nEns )
     implicit none
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
 
     if ( adv%nLev_M /= ens_getNumLev(ens,'MM') .or. adv%nLev_T /= ens_getNumLev(ens,'TH') ) then
       call utl_abort('adv_ensemble_tl: vertical levels are not compatible')
@@ -964,21 +979,21 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_ensemble_tl_r8( ens, adv, nEns )
     implicit none
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
 
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
+
+    ! Locals:
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
-
     integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
-
     logical :: gatheringDone
-
     character(len=4) :: varName
 
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
@@ -1071,21 +1086,21 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_ensemble_tl_r4( ens, adv, nEns )
     implicit none
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
 
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
+
+    ! Locals:
     real(4), pointer     :: ens_oneLev(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal(:,:,:)
-
     integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
-
     logical :: gatheringDone
-
     character(len=4) :: varName
 
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
@@ -1178,20 +1193,21 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_ensemble_ad( ens, adv, nEns )
     implicit none
-    type(struct_ens)    :: ens
-    type(struct_adv)    :: adv
-    integer, intent(in) :: nEns
 
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+    type(struct_adv), intent(in)    :: adv
+    integer,          intent(in)    :: nEns
+
+    ! Locals:
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles2(:,:,:,:)
-
     integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
-
     character(len=4) :: varName
 
     if ( .not. adv%singleTimeStepIndexSource ) then
@@ -1315,20 +1331,20 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_statevector_tl( statevector, adv)
     implicit none
-    type(struct_gsv)    :: statevector
-    type(struct_adv)    :: adv
 
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_adv), intent(in)    :: adv
+
+    ! Locals:
     real(8), pointer     :: field4D(:,:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles(:,:,:)
     real(8), allocatable :: field2D_mpiglobal(:,:)
-
     integer :: levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
-
     logical :: gatheringDone
-
     character(len=4) :: varName
 
     if ( gsv_getDataKind(statevector) /= 8 ) then
@@ -1437,19 +1453,20 @@ CONTAINS
   !--------------------------------------------------------------------------
   SUBROUTINE adv_statevector_ad( statevector, adv)
     implicit none
-    type(struct_gsv)    :: statevector
-    type(struct_adv)    :: adv
 
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_adv), intent(in)    :: adv
+
+    ! Locals:
     real(8), pointer     :: field4D(:,:,:,:)
     real(8), allocatable :: field2D_mpiglobal(:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles (:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles2(:,:,:)
-
     integer :: levIndex, lonIndex, latIndex, kIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
-
     character(len=4) :: varName
 
     if ( adv%singleTimeStepIndexSource ) then

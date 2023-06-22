@@ -1,6 +1,6 @@
 
 module windRotation_mod
-  ! MODULE windRotation (prefix='uvr' category='4. Data Object transformations')
+  ! MODULE windRotation_mod (prefix='uvr' category='4. Data Object transformations')
   !
   ! :Purpose: To transform winds FROM the rotated spherical coordinate system
   !           TO the non-rotated spherical coordinate system.
@@ -39,8 +39,8 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer    :: uvr    ! Wind rotation object
-    type(struct_hco), intent(in) :: hco_in ! Horizontal grid object
+    type(struct_uvr), pointer, intent(inout) :: uvr    ! Wind rotation object
+    type(struct_hco),          intent(in)    :: hco_in ! Horizontal grid object
 
     if ( associated(uvr) ) then
       if ( uvr%initialized ) then
@@ -101,14 +101,14 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer :: uvr          ! Wind rotation object
-    integer                   :: subGridIndex ! Horizontal subGrid index = 2
-    real(8), intent(in)       :: grd_xlon1    ! Horizontal grid xlon1_yan
-    real(8), intent(in)       :: grd_xlat1    ! Horizontal grid xlat1_yan
-    real(8), intent(in)       :: grd_xlon2    ! Horizontal grid xlon2_yan
-    real(8), intent(in)       :: grd_xlat2    ! Horizontal grid xlat2_yan
+    type(struct_uvr), pointer, intent(inout) :: uvr          ! Wind rotation object
+    integer,                   intent(in)    :: subGridIndex ! Horizontal subGrid index = 2
+    real(8),                   intent(in)    :: grd_xlon1    ! Horizontal grid xlon1_yan
+    real(8),                   intent(in)    :: grd_xlat1    ! Horizontal grid xlat1_yan
+    real(8),                   intent(in)    :: grd_xlon2    ! Horizontal grid xlon2_yan
+    real(8),                   intent(in)    :: grd_xlat2    ! Horizontal grid xlat2_yan
 
-    ! locals
+    ! Locals:
     integer :: j1, j2
     real(8) :: zxlon1_8,zxlat1_8,zxlon2_8,zxlat2_8
     real(8) :: a_8, b_8, c_8, d_8, xyz1_8(msize), xyz2_8(msize)
@@ -207,6 +207,7 @@ module windRotation_mod
     ! 
     implicit none
 
+    ! Arguments:
     real(8), intent(out) :: F_xyz_8(msize) ! output
     real(8), intent(in)  :: F_lon          ! Input in degrees  
     real(8), intent(in)  :: F_lat          ! Input in degrees
@@ -224,14 +225,14 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    real(8) :: pmat3(kdimi1,kdimj2)  ! output
-    real(8) :: pmat1(kdimi1,kdimj1)  ! input matrix one
-    real(8) :: pmat2(kdimj1,kdimj2)  ! input matrix two
-    integer :: kdimi1                ! first  dimension of the first  matrix
-    integer :: kdimj1                ! second dimension of the first  matrix 
-    integer :: kdimj2                ! second dimension of the second matrix
+    real(8), intent(out) :: pmat3(kdimi1,kdimj2)  ! output
+    real(8), intent(in)  :: pmat1(kdimi1,kdimj1)  ! input matrix one
+    real(8), intent(in)  :: pmat2(kdimj1,kdimj2)  ! input matrix two
+    integer, intent(in)  :: kdimi1                ! first  dimension of the first  matrix
+    integer, intent(in)  :: kdimj1                ! second dimension of the first  matrix 
+    integer, intent(in)  :: kdimj2                ! second dimension of the second matrix
 
-    ! locals
+    ! Locals:
     integer :: ji1,jj2,jj
 
     pmat3(:,:) = 0.d0
@@ -254,17 +255,17 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer :: uvr          ! Wind rotation object
-    integer, intent(in)       :: subGridIndex ! Current subgrid index
-    real(8), intent(inout)    :: uwind        ! interpUU
-    real(8), intent(inout)    :: vwind        ! interpVV
-    real(8), intent(in)       :: Lat          ! Latitude in radians
-    real(8), intent(in)       :: Lon          ! Longitude in radians
-    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
-    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
-    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
+    type(struct_uvr), pointer, intent(in)    :: uvr          ! Wind rotation object
+    integer,                   intent(in)    :: subGridIndex ! Current subgrid index
+    real(8),                   intent(inout) :: uwind        ! interpUU
+    real(8),                   intent(inout) :: vwind        ! interpVV
+    real(8),                   intent(in)    :: Lat          ! Latitude in radians
+    real(8),                   intent(in)    :: Lon          ! Longitude in radians
+    real(8),                   intent(in)    :: LatRot       ! Rotated latitude in radians
+    real(8),                   intent(in)    :: LonRot       ! Rotated longitude in radians 
+    character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslat, sinlat, coslon, sinlon, ezCoeff_C, ezCoeff_D
     real(8) :: xyz(msize), uvcart(msize)
@@ -322,17 +323,17 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer :: uvr          ! Wind rotation object
-    integer, intent(in)       :: subGridIndex ! Current subgrid index
-    real(8), intent(inout)    :: uwind        ! interpUU
-    real(8), intent(inout)    :: vwind        ! interpVV
-    real(8), intent(in)       :: Lat_in       ! Latitude in radians
-    real(8), intent(in)       :: Lon_in       ! Longitude in radians
-    real(8), intent(in)       :: LatRot_in    ! Rotated latitude in radians
-    real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
-    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
+    type(struct_uvr), pointer, intent(in)    :: uvr          ! Wind rotation object
+    integer,                   intent(in)    :: subGridIndex ! Current subgrid index
+    real(8),                   intent(inout) :: uwind        ! interpUU
+    real(8),                   intent(inout) :: vwind        ! interpVV
+    real(8),                   intent(in)    :: Lat_in       ! Latitude in radians
+    real(8),                   intent(in)    :: Lon_in       ! Longitude in radians
+    real(8),                   intent(in)    :: LatRot_in    ! Rotated latitude in radians
+    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians 
+    character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
     real(8) :: lat, lon, latRot, lonRot
@@ -408,17 +409,17 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer :: uvr          ! Wind rotation object
-    integer, intent(in)       :: subGridIndex ! Current subgrid index
-    real(8), intent(inout)    :: uwind        ! interpUU
-    real(8), intent(inout)    :: vwind        ! interpVV
-    real(8), intent(in)       :: Lat_in       ! Latitude in radians
-    real(8), intent(in)       :: Lon_in       ! Longitude in radians
-    real(8), intent(in)       :: LatRot_in    ! Rotated latitude in radians
-    real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
-    character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
+    type(struct_uvr), pointer, intent(in)    :: uvr          ! Wind rotation object
+    integer,                   intent(in)    :: subGridIndex ! Current subgrid index
+    real(8),                   intent(inout) :: uwind        ! interpUU
+    real(8),                   intent(inout) :: vwind        ! interpVV
+    real(8),                   intent(in)    :: Lat_in       ! Latitude in radians
+    real(8),                   intent(in)    :: Lon_in       ! Longitude in radians
+    real(8),                   intent(in)    :: LatRot_in    ! Rotated latitude in radians
+    real(8),                   intent(in)    :: LonRot_in    ! Rotated longitude in radians 
+    character(*),              intent(in)    :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
     real(8) :: lat, lon, latRot, lonRot
@@ -493,15 +494,15 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    type(struct_uvr), pointer :: uvr          ! Wind rotation object
-    integer, intent(in)       :: subGridIndex ! Current subgrid index
-    real(8), intent(in)       :: LatIn        ! Input latitude in radians
-    real(8), intent(in)       :: LonIn        ! Input longitude in radians
-    real(8), intent(out)      :: LatOut       ! Output latitude in radians
-    real(8), intent(out)      :: LonOut       ! Output longitude in radians 
-    character(*), intent(in)  :: mode         ! ToLatLonRot or ToLatLon
+    type(struct_uvr), pointer, intent(in)  :: uvr          ! Wind rotation object
+    integer,                   intent(in)  :: subGridIndex ! Current subgrid index
+    real(8),                   intent(in)  :: LatIn        ! Input latitude in radians
+    real(8),                   intent(in)  :: LonIn        ! Input longitude in radians
+    real(8),                   intent(out) :: LatOut       ! Output latitude in radians
+    real(8),                   intent(out) :: LonOut       ! Output longitude in radians 
+    character(*),              intent(in)  :: mode         ! ToLatLonRot or ToLatLon
 
-    ! locals
+    ! Locals:
     real(8) :: CartIn(msize),CartOut(msize)
     real(8) :: rLon,rLat
 
@@ -578,14 +579,13 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    real(8) :: pvec2(kdimi)      ! output vector
-    real(8) :: pmat(kdimi,kdimj) ! input matrix
-    real(8) :: pvec1(kdimj)      ! input vector
-    integer :: kdimi             ! first dimension
-    integer :: kdimj             ! second dimension
-    
+    real(8), intent(out) :: pvec2(kdimi)      ! output vector
+    real(8), intent(in)  :: pmat(kdimi,kdimj) ! input matrix
+    real(8), intent(in)  :: pvec1(kdimj)      ! input vector
+    integer, intent(in)  :: kdimi             ! first dimension
+    integer, intent(in)  :: kdimj             ! second dimension
 
-    ! locals
+    ! Locals:
     integer :: ji,jj
 
     pvec2(:) = 0.0d0

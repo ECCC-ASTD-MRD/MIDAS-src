@@ -21,8 +21,8 @@ module rMatrix_mod
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
 
  type rmat_matrix
-    real(8) ,pointer     :: Rmat(:,:)=>null()
-    integer ,pointer     :: listChans(:)=>null()
+    real(8), pointer     :: Rmat(:,:)=>null()
+    integer, pointer     :: listChans(:)=>null()
     integer              :: nchans=0
  END type rmat_matrix
 
@@ -39,12 +39,12 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    integer, intent (in) :: nsensors
-    integer, intent (in) :: nobtovs
+    integer, intent(in) :: nsensors
+    integer, intent(in) :: nobtovs
 
-    ! locals
+    ! Locals:
     integer :: nulnam,ierr
-    integer ,external:: fnom,fclos
+    integer, external:: fnom,fclos
     namelist /NAMRMAT/rmat_lnonDiagR
 
     ! Default value for parameter rmat_lnondiagr, don't use interchannel correlation by default
@@ -64,24 +64,27 @@ module rMatrix_mod
 
   end subroutine rmat_init
 
+
   subroutine rmat_cleanup()
     implicit none
+
     if (rmat_lnondiagr) then
       deallocate(Rcorr_inst)
       deallocate(R_tovs)
     end if
+
   end subroutine rmat_cleanup
 
+
   subroutine rmat_readCMatrix(instrument, sensor_id, ichan )
-   
     implicit none
     
-    ! Arguments
-    integer ,intent (in) :: instrument(3)
-    integer ,intent (in) :: sensor_id
-    integer ,intent (in) :: ichan(:)
+    ! Arguments:
+    integer, intent(in) :: instrument(3)
+    integer, intent(in) :: sensor_id
+    integer, intent(in) :: ichan(:)
 
-    ! locals
+    ! Locals:
     character (len=64) :: filename
     integer :: err
 
@@ -102,15 +105,15 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    character (len=*),intent(in) :: infile ! name of input file
-    type(rmat_matrix),intent(inout) :: C    ! correlation matrix structure
-    integer ,intent(in),optional :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
+    character (len=*), intent(in)    :: infile          ! name of input file
+    type(rmat_matrix), intent(inout) :: C               ! correlation matrix structure
+    integer, optional, intent(in)    :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
 
-    ! locals
+    ! Locals:
     integer :: i,j,iu,ierr,count,ich,nchn,nch
-    integer ,external :: fnom,fclos
+    integer, external :: fnom,fclos
     real(8) :: x
-    integer ,allocatable :: index(:)
+    integer, allocatable :: index(:)
 
     nchn = -1
     if (present(chanList_opt)) then
@@ -196,15 +199,15 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    integer , intent (in) :: sensor_id
-    integer , intent (in) :: nsubset
-    integer , intent(in)  :: list_sub(nsubset)
-    real(8) , intent(in)  :: list_oer(nsubset)
-    real(8) , intent(in)  :: obsIn(nsubset)
-    real(8) , intent(out) :: obsOut(nsubset)
-    integer , intent(in)  :: indexTovs
+    integer, intent(in)  :: sensor_id
+    integer, intent(in)  :: nsubset
+    integer, intent(in)  :: list_sub(nsubset)
+    real(8), intent(in)  :: list_oer(nsubset)
+    real(8), intent(in)  :: obsIn(nsubset)
+    real(8), intent(out) :: obsOut(nsubset)
+    integer, intent(in)  :: indexTovs
 
-    ! locals
+    ! Locals:
     real (8) :: Rsub(nsubset,nsubset), alpha, beta, product 
     integer :: index(nsubset)
     integer :: i,j
@@ -270,12 +273,13 @@ module rMatrix_mod
     !
     !:Purpose: To apply observation-error variances to ROBDATA8(k_src,*) and to
     !          store it in the elem_src_s of obsspacedata
+    !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsspacedata
-    integer, intent(in)  :: elem_dest_i ! destination index
-    integer, intent(in)  :: elem_src_i  ! source index
+    integer,          intent(in)    :: elem_dest_i ! destination index
+    integer,          intent(in)    :: elem_src_i  ! source index
 
     ! Locals:
     integer :: bodyIndex, headerIndex

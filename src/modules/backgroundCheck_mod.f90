@@ -115,7 +115,6 @@ module backgroundCheck_mod
     !
     !:Purpose:  Calculate a background check for a data family and set the
     !           appropriate quality-control flags in obsSpaceData
-   
     implicit none
 
     ! NOTE 1: gps_gb_YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
@@ -123,11 +122,12 @@ module backgroundCheck_mod
     !         (ALONG WITH gps_gb_YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
     !         gps_gb_YZDERRWGT AND gps_gb_YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
 
-    ! Arguments
+    ! Arguments:
     character(len=2), intent(in)    :: obsFamily   ! current observation family
     type(struct_obs), intent(inout) :: obsData     ! obsSpaceData
     logical         , intent(in)    :: new_bgck_sw
-    
+
+    ! Locals:
     real(8) :: averageFGE, averageOER
     integer :: obsFlag, obsVarno, headerIndex, codeType, bodyIndex, obsCount
     integer :: numberObs, numberObsRejected, INZOBS, INZREJ
@@ -482,11 +482,13 @@ module backgroundCheck_mod
       !
       implicit none
 
-      type(struct_columnData) :: columnTrlOnTrlLev
-      type(struct_obs) :: obsData
+      ! Arguments:
+      type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+      type(struct_obs),        intent(inout) :: obsData
+
+      ! Locals:
       type(struct_vco), pointer :: vco_trl
       real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
-
       integer :: headerIndex
       integer :: IDATYP, iProfile, varNum
       integer :: IDATA   , IDATEND, bodyIndex
@@ -590,15 +592,15 @@ module backgroundCheck_mod
     !:Purpose: Set BACKGROUND-CHECK FLAGS According to values set in a table.
     !          Original values in table come from ecmwf.
     !
-
     implicit none
-    integer isetflag
 
     ! Arguments:
-    character(len=2) :: obsFamily ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-    integer :: kodtyp ! BURP CODE TYPE
-    integer :: kvnam  ! VARIABLE NAME ( BURP )
-    real(8) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+    character(len=2), intent(in) :: obsFamily ! FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+    integer,          intent(in) :: kodtyp ! BURP CODE TYPE
+    integer,          intent(in) :: kvnam  ! VARIABLE NAME ( BURP )
+    real(8),          intent(in) :: zbgchk ! NORMALIZED BACKGROUND DEPARTURE
+    ! Result:
+    integer :: isetflag
 
     ! Locals:      
     real(8), parameter :: zsacrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
@@ -616,7 +618,6 @@ module backgroundCheck_mod
     real(8), parameter :: zLogViscrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
     ! Temporary hardcoded values for radar Doppler velocity
     real(8), parameter :: radvelcrit(3) = (/ 8.00D0, 20.00D0, 30.00D0 /)
-
     !real(8) :: zuvcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
     real(8) :: zuvcrit(3)
       

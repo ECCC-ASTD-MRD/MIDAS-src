@@ -26,6 +26,7 @@ contains
   subroutine ram_setup()
     implicit none
 
+    ! Locals:
     integer :: length_ram_disk_dir, status
 
     !
@@ -63,11 +64,15 @@ contains
     !          will copy the file to the ram disk directory, if it exists.
     !
     implicit none
-    character(len=512) :: fullWorkingPath
-    logical, optional  :: noAbort_opt
-    logical, optional  :: copyToRamDisk_opt
-    character(len=*)   :: fileName
 
+    ! Arguments:
+    logical, optional, intent(in) :: noAbort_opt
+    logical, optional, intent(in) :: copyToRamDisk_opt
+    character(len=*) , intent(in) :: fileName
+    ! Result:
+    character(len=512) :: fullWorkingPath
+
+    ! Locals:
     logical            :: fileExists, noAbort, copyToRamDisk
     character(len=256) :: fileName2, subDirectory
     integer            :: status
@@ -170,8 +175,13 @@ contains
     !           it is located on the ram disk (to free up memory)
     !
     implicit none
-    character(len=*) :: fullWorkingPath
+
+    ! Arguments:
+    character(len=*), intent(in) :: fullWorkingPath
+    ! Result:
     integer          :: returnCode
+
+    ! Locals:
     logical          :: fileExists
 
     if ( .not. initialized ) then
@@ -205,6 +215,8 @@ contains
   function ram_getRamDiskDir() result(fullWorkingPath)
 
     implicit none
+
+    ! Result:
     character(len=512) :: fullWorkingPath
 
     if ( ram_disk_dir_exists ) then

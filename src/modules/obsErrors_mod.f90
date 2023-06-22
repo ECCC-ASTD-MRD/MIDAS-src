@@ -176,6 +176,7 @@ contains
     use rmatrix_mod
     IMPLICIT NONE
 
+    ! Locals:
     INTEGER ::  ISENS
 
     if (tvs_nsensors == 0) then
@@ -325,9 +326,9 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer, parameter :: bgckColumnIndex = 1
     integer, parameter :: analysisColumnIndex = 2
-
     integer,external  :: FNOM, FCLOS
     integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM 
     integer :: INUMSAT, INUMSAT2, ISAT, IPLF
@@ -339,7 +340,6 @@ contains
     integer :: ICHN(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: ICHNIN(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: ICHNIN2(tvs_maxChannelNumber)
-
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
     real(8) :: cldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: errThreshAllskyInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
@@ -348,7 +348,6 @@ contains
     real(8) :: inflateErrAllskyCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: amsuaChannelOffset, amsuaChannelNum  
-
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
     write(*,*) 'oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing'
@@ -648,8 +647,12 @@ contains
       ! Code from Benthien's module: http://www.gbenthien.net/strings/index.html
       ! Converts multiple spaces and tabs to single spaces; deletes control characters;
       ! removes initial spaces.
+      implicit none
 
-      character(len=*):: str
+      ! Arguments:
+      character(len=*), intent(inout) :: str
+
+      ! Locals:
       character(len=1):: ch
       character(len=len_trim(str)):: outstr
       integer isp,k,lenstr,i,ich
@@ -695,11 +698,14 @@ contains
       ! output in 'before'. The characters after the found delimiter are
       ! output in 'str'. 
       !
+      implicit none
 
-      character(len=*) :: str
-      character(len=*) :: delims
-      character(len=*) :: before
+      ! Arguments:
+      character(len=*), intent(inout) :: str
+      character(len=*), intent(in)    :: delims
+      character(len=*), intent(out)   :: before
 
+      ! Locals:
       character :: ch,cha
       integer lenstr,i,k,ipos,iposa
       str=adjustl(str)
@@ -751,6 +757,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: fnom, fclos, ierr, jlev, jelm, jcat, icodtyp, nulstat
     logical             :: LnewExists
     character (len=128) :: ligne
@@ -891,12 +898,12 @@ contains
     !
     implicit none
 
+    ! Locals:
     external fnom, fclos
     integer :: fnom, fclos, ierr, jlev, jelm, nulstat
     logical            :: fileExists
     character(len=128) :: ligne
     character(len=15), parameter :: fileName = 'sea_ice_obs-err'
-
     ! Variables for the ASCAT backscatter anisotropy
     integer :: jcell_no, icell_no, imonth
     real :: tiePoint12, tiePoint13, tiePoint23
@@ -978,6 +985,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: fnom, fclos, nulnam, ierr, indexDataset
     namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
     
@@ -1014,8 +1022,8 @@ contains
   subroutine oer_readObsErrorsHydro
     implicit none
 
-    external fnom, fclos
-
+    ! Locals:
+    external :: fnom, fclos
     integer                      :: fnom, fclos, ierr, nulstat
     logical                      :: fileExists
     character(len=15), parameter :: fileName = 'obserr_hydro'    
@@ -1057,16 +1065,15 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_obs) :: obsSpaceData
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
 
-    !  locals
+    ! Locals:
     integer :: jn, JI, bodyIndex, headerIndex, ityp, iass, idata, idatend, codeType
     integer :: sensorIndex 
     integer :: isat, channelNumber, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
     integer :: ielem, icodtyp, header_prev, indexDataset, indexSensor
-
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
@@ -1075,9 +1082,7 @@ contains
     real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
     real(4), parameter :: minRetrievableSiValue_r4 = -10.0
     real(4), parameter :: maxRetrievableSiValue_r4 = 30.0
-
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
-
     character(len=2)  :: cfam
     character(len=12) :: cstnid
 
@@ -1620,9 +1625,10 @@ contains
       ! Arguments:
       real(8), intent(in) :: cldPredThresh1 ! first cloud predictor threshold
       real(8), intent(in) :: cldPredThresh2 ! second cloud predictor threshold
-      real(8), intent(in) :: errThresh1 ! sigmaO corresponding to first cloud predictor threshold
-      real(8), intent(in) :: errThresh2 ! sigmaO corresponding to second cloud predictor threshold
+      real(8), intent(in) :: errThresh1     ! sigmaO corresponding to first cloud predictor threshold
+      real(8), intent(in) :: errThresh2     ! sigmaO corresponding to second cloud predictor threshold
       real(8), intent(in) :: cldPredUsed    ! cloud predictor for the obs
+      ! Result:
       real(8) :: sigmaObsErrUsed            ! estimated sigmaO for the obs
 
       if (cldPredUsed <= cldPredThresh1) then
@@ -1651,6 +1657,7 @@ contains
       ! Arguments:
       integer, intent(in) :: sensorIndex ! index of sensor in tvs_nsensors
       integer, intent(in) :: headerIndex
+      ! Result:
       real(8) :: cldPredUsed             ! cloud predictor. CLW/SI for all-sky temperature/humidity
 
       ! Locals:
@@ -1720,10 +1727,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer,          intent(in)    :: bodyIndex
-    integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
-    logical, intent(in), optional   :: beSilent_opt     ! prints extra info to listing if .true.
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    integer,           intent(in)    :: bodyIndex
+    integer,           intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
+    logical, optional, intent(in)    :: beSilent_opt     ! prints extra info to listing if .true.
     
     ! Locals:
     integer :: headerIndex
@@ -1913,10 +1920,11 @@ contains
     !           the values computed by a previous MIDAS execution (e.g. GDPS).
     !
     implicit none
-    ! arguments
-    type(struct_obs) :: obsSpaceData
 
-    ! locals
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    ! Locals:
     character(len=1060) :: filename
     type(BURP_FILE)  :: fileIn
     type(BURP_BLOCK) :: blkoer
@@ -2055,9 +2063,11 @@ contains
     !
     implicit none
 
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs) :: obsSpaceData
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
 
+    ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
     real(8) :: zvar,zoer
@@ -2183,6 +2193,9 @@ contains
   ! get_height_error
   !--------------------------------------------------------------------------
   subroutine get_height_error(stnid, methode, terrain, htasmet, zlat, zlev, E_HEIGHT, J_SAT)
+    implicit none
+
+    ! Arguments:
     character(len=9), intent(in)     :: stnid
     integer,          intent(in)     :: methode
     integer,          intent(in)     :: terrain
@@ -2192,11 +2205,10 @@ contains
     real(8),          intent(in)     :: zlev
     real(8),          intent(out)    :: E_HEIGHT
 
+    ! Locals:
     integer, parameter :: NLVLVALUE=9
-
     integer :: I_HGT, jelm, jlev, jcat, i_typ, hemisphere
     real(8) :: zlev_hpa, ZWB, ZWT
-
     logical :: interpole
 
     if(zlat >= 0) hemisphere = 1
@@ -2268,11 +2280,13 @@ contains
     ! :Purpose: Compute estimated errors for GPSRO observations
     !
     IMPLICIT NONE
-    !
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    !
+
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+
+    ! Locals:
     integer headerIndex, IDATYP, bodyIndex, iProfile, varNum
     REAL*8 zLat, Lat, sLat
     REAL*8 zLon, Lon
@@ -2283,14 +2297,11 @@ contains
     REAL*8, allocatable :: zHeight(:)
     REAL*8, allocatable :: ZUU(:)
     REAL*8, allocatable :: ZVV(:)
-    !
     REAL*8 DH,DDH
     integer JL, isat, JH, NGPSLEV, NWNDLEV
     REAL*8 zMT, Rad, Geo, zP0
     REAL*8 HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
-    !
     LOGICAL  ASSIM, L1, L2, L3
-
     integer NH, NH1
     TYPE(GPS_PROFILE)           :: PRF
     REAL*8       , allocatable :: H   (:),AZMV(:)
@@ -2618,23 +2629,22 @@ contains
     !!       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
     !!       CORRELATIONS.
     !!
-    type(struct_columnData) :: columnTrlOnTrlLev
-    type(struct_obs)        :: obsSpaceData
-    logical                 :: beSilent
-    logical                 :: ldata
-    logical                 :: analysisMode
 
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs)       , intent(inout) :: obsSpaceData
+    logical                , intent(in)    :: beSilent
+    logical                , intent(out)   :: ldata
+    logical                , intent(in)    :: analysisMode
+
+    ! Locals:
     integer bodyIndex, headerIndex, ityp, iass, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
     integer nlev_T
-
     LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
     LOGICAL LLZWD
     character(len=12) :: cstnid
-
-    !
     REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, zlev, zval, ZZWD
     REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
-
     !
     !     ZZDERMIN = MIN ZTD OER VALUE (M)
     !     ZZDERMAX = MAX ZTD OER VALUE (M)
@@ -2671,8 +2681,7 @@ contains
     DATA  ZRCOEFF  /26.4D0/
     DATA  ZRCONST2 /6.67D0/
     DATA  ZRCOEFF2 /42.6D0/
-    !
-    !
+
     if (.not.beSilent) write(*,*) 'ENTER SETERRGPSGB'
     !
     DEBUG = .FALSE.
@@ -2854,11 +2863,12 @@ contains
     !
     implicit none
 
-    type(struct_obs)                  :: obsSpaceData
-    logical,               intent(in) :: beSilent
-    type(struct_columnData), optional :: columnTrlOnTrlLev_opt
+    ! Arguments:
+    type(struct_obs),                  intent(inout) :: obsSpaceData
+    logical,                           intent(in)    :: beSilent
+    type(struct_columnData), optional, intent(in)    :: columnTrlOnTrlLev_opt
 
-    ! locals
+    ! Locals:
     type(struct_columnData)   :: columnTrlOnTrlLev
     type(struct_hco), pointer :: hco_trl => null()
     type(struct_vco), pointer :: vco_trl => null()
@@ -2866,9 +2876,7 @@ contains
     integer :: headerIndex, bodyIndex
     integer :: idate, imonth, varno
     integer :: trackCellNum
-
     real(8) :: conc, obsErrStdDev
-
     character(len=*), parameter :: myName = 'oer_setErrBackScatAnisIce'
     character(len=8)            :: ccyymmdd
     logical :: alreadyReadGL
@@ -2946,6 +2954,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer, parameter :: ndim=1
     integer :: istnid
 
@@ -2977,177 +2986,176 @@ contains
     !:Purpose:  To read and store observation error std. dev. as needed for CH
     !           family obs.
     !
-  implicit none
+    implicit none
 
-  integer :: FNOM, FCLOS
-  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
-  logical :: LnewExists
-  character(len=11) :: chemAuxObsDataFile = 'obsinfo_chm'
-  
-  character (len=128) :: ligne
+    ! Locals:
+    integer :: FNOM, FCLOS
+    integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+    logical :: LnewExists
+    character(len=11) :: chemAuxObsDataFile = 'obsinfo_chm'
+    character (len=128) :: ligne
+    EXTERNAL FNOM,FCLOS
 
-  EXTERNAL FNOM,FCLOS
+    ! Initialization
 
-  ! Initialization
+    chm_std%n_stnid=0
 
-  chm_std%n_stnid=0
-  
-  ! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
+    ! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
 
-  INQUIRE(FILE=trim(chemAuxObsDataFile),EXIST=LnewExists)
-  IF (.not.LnewExists) then
-    WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: auxiliary file ' // trim(chemAuxObsDataFile) 
-    WRITE(*,*) 'WARNING! not available. Default CH family stddev to be applied if needed.'
-    WRITE(*,*) '---------------------------------------------------------------'
-    return
-  ENDIF
+    INQUIRE(FILE=trim(chemAuxObsDataFile),EXIST=LnewExists)
+    IF (.not.LnewExists) then
+      WRITE(*,*) '---------------------------------------------------------------'
+      WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: auxiliary file ' // trim(chemAuxObsDataFile) 
+      WRITE(*,*) 'WARNING! not available. Default CH family stddev to be applied if needed.'
+      WRITE(*,*) '---------------------------------------------------------------'
+      return
+    ENDIF
 
-  ! Read observation error std dev. from auxiliary file for constituent data
+    ! Read observation error std dev. from auxiliary file for constituent data
 
-  NULSTAT=0
-  IERR=FNOM(NULSTAT,trim(chemAuxObsDataFile),'SEQ',0)
-  IF (IERR .EQ. 0) THEN
-    open(unit=nulstat, file=trim(chemAuxObsDataFile), status='OLD')
-  ELSE
-    CALL utl_abort('chm_read_obs_err_stddev_file: COULD NOT OPEN AUXILIARY FILE ' // trim(chemAuxObsDataFile))
-  ENDIF
+    NULSTAT=0
+    IERR=FNOM(NULSTAT,trim(chemAuxObsDataFile),'SEQ',0)
+    IF (IERR .EQ. 0) THEN
+      open(unit=nulstat, file=trim(chemAuxObsDataFile), status='OLD')
+    ELSE
+      CALL utl_abort('chm_read_obs_err_stddev_file: COULD NOT OPEN AUXILIARY FILE ' // trim(chemAuxObsDataFile))
+    ENDIF
 
-  ! Read error standard deviations for constituents if available.
-  ! (CH family; ozone and others)
-  
-  ios=0
-  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:') 
+    ! Read error standard deviations for constituents if available.
+    ! (CH family; ozone and others)
+
+    ios=0
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:') 
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  end do    
-  
-  ! Read number of observation set sub-families (STNIDs and ...) and allocate space
+    end do
 
-  read(nulstat,*,iostat=ios,err=10,end=10) chm_std%n_stnid
-  read(nulstat,*,iostat=ios,err=10,end=10) isize
-  
-  allocate(chm_std%stnids(chm_std%n_stnid))
-  allocate(chm_std%std_type(chm_std%n_stnid),chm_std%n_lat(chm_std%n_stnid))
-  allocate(chm_std%source(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
-  allocate(chm_std%element(chm_std%n_stnid),chm_std%n_lvl(chm_std%n_stnid))
-  allocate(chm_std%std1(isize),chm_std%std2(chm_std%n_stnid),chm_std%std3(chm_std%n_stnid))
-  allocate(chm_std%levels(isize),chm_std%lat(isize))
- 
-  chm_std%element(:)=0
-  chm_std%source(:)=0
-  chm_std%std_type(:)=0
-  chm_std%n_lvl(:)=1
-  chm_std%n_lat(:)=1
+    ! Read number of observation set sub-families (STNIDs and ...) and allocate space
 
-  ! Begin reading for each sub-family
-  ! Important: Combination of STNID, BUFR element and number of vertical levels
-  !            to determine association to the observations.
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_std%n_stnid
+    read(nulstat,*,iostat=ios,err=10,end=10) isize
 
-  icount=0
-  STNIDLOOP: do jelm=1,chm_std%n_stnid
-    chm_std%ibegin(jelm)=icount+1
+    allocate(chm_std%stnids(chm_std%n_stnid))
+    allocate(chm_std%std_type(chm_std%n_stnid),chm_std%n_lat(chm_std%n_stnid))
+    allocate(chm_std%source(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
+    allocate(chm_std%element(chm_std%n_stnid),chm_std%n_lvl(chm_std%n_stnid))
+    allocate(chm_std%std1(isize),chm_std%std2(chm_std%n_stnid),chm_std%std3(chm_std%n_stnid))
+    allocate(chm_std%levels(isize),chm_std%lat(isize))
 
-    ! disregard line of dashes
-    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    chm_std%element(:)=0
+    chm_std%source(:)=0
+    chm_std%std_type(:)=0
+    chm_std%n_lvl(:)=1
+    chm_std%n_lat(:)=1
 
-    ! Read STNID (* as wildcard)    
-    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
-    
-    !   Read (1) BUFR element,
-    !        (2) Flag indication if EOR provided from this auxiliary file or
-    !            to be read from the observation file,
-    !        (3) Index specifying OER setup method,
-    !        (4) Number of vertical levels
-    !        (5) Number of latitudes
-    !
-    !   Important: Combination of STNID, BUFR element and number of vertical levels
-    !              to determine association to the observations.
-    
-    read(nulstat,*,iostat=ios,err=10,end=10) chm_std%element(jelm),chm_std%source(jelm),  &
-       chm_std%std_type(jelm), chm_std%n_lvl(jelm), chm_std%n_lat(jelm),  &
-       chm_std%std2(jelm), chm_std%std3(jelm)
+    ! Begin reading for each sub-family
+    ! Important: Combination of STNID, BUFR element and number of vertical levels
+    !            to determine association to the observations.
 
-    if (chm_std%n_lvl(jelm).lt.1) chm_std%n_lvl(jelm)=1
-    if (chm_std%n_lat(jelm).lt.1) chm_std%n_lat(jelm)=1
-    
-    if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
-       write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
-    end if
+    icount=0
+    STNIDLOOP: do jelm=1,chm_std%n_stnid
+      chm_std%ibegin(jelm)=icount+1
 
-    ! disregard line of dashes
-    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    
-    ! disregard data section if not needed
-    if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%source(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
-         cycle STNIDLOOP 
+      ! disregard line of dashes
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
-    if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
-    
-       ! Read one value only (independent of level and latitude)
-       
-       icount=icount+1
-       read(nulstat,*,iostat=ios,err=10,end=10) chm_std%std1(icount)
+      ! Read STNID (* as wildcard)    
+      read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
 
-    else if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).gt.1) then
-    
-!      Value dependent on latitude only
-       
-       ! Read reference latitudes (must be in order of increasing size)
-       
-       read(nulstat,*,iostat=ios,err=10,end=10)                      &
-              chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
-      
-       ! Read OER-related values
-  
-       read(nulstat,*,iostat=ios,err=10,end=10)                 &
-                 chm_std%std1(icount+1:icount+chm_std%n_lat(jelm))
+      !   Read (1) BUFR element,
+      !        (2) Flag indication if EOR provided from this auxiliary file or
+      !            to be read from the observation file,
+      !        (3) Index specifying OER setup method,
+      !        (4) Number of vertical levels
+      !        (5) Number of latitudes
+      !
+      !   Important: Combination of STNID, BUFR element and number of vertical levels
+      !              to determine association to the observations.
 
-       icount=icount+chm_std%n_lat(jelm)
+      read(nulstat,*,iostat=ios,err=10,end=10) chm_std%element(jelm),chm_std%source(jelm),  &
+           chm_std%std_type(jelm), chm_std%n_lvl(jelm), chm_std%n_lat(jelm),  &
+           chm_std%std2(jelm), chm_std%std3(jelm)
 
-    else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).eq.1) then
-    
-       ! Value dependent on vertical level only
-      
-       do jlev=1,chm_std%n_lvl(jelm)
+      if (chm_std%n_lvl(jelm).lt.1) chm_std%n_lvl(jelm)=1
+      if (chm_std%n_lat(jelm).lt.1) chm_std%n_lat(jelm)=1
+
+      if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
+        write(*,'(10X,"Max array size exceeded: ",I6)') isize
+        CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
+      end if
+
+      ! disregard line of dashes
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+
+      ! disregard data section if not needed
+      if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%source(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
+           cycle STNIDLOOP 
+
+      if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
+
+        ! Read one value only (independent of level and latitude)
+
+        icount=icount+1
+        read(nulstat,*,iostat=ios,err=10,end=10) chm_std%std1(icount)
+
+      else if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).gt.1) then
+
+        !      Value dependent on latitude only
+
+        ! Read reference latitudes (must be in order of increasing size)
+
+        read(nulstat,*,iostat=ios,err=10,end=10)                      &
+             chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+
+        ! Read OER-related values
+
+        read(nulstat,*,iostat=ios,err=10,end=10)                 &
+             chm_std%std1(icount+1:icount+chm_std%n_lat(jelm))
+
+        icount=icount+chm_std%n_lat(jelm)
+
+      else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).eq.1) then
+
+        ! Value dependent on vertical level only
+
+        do jlev=1,chm_std%n_lvl(jelm)
           icount=icount+1
-          
+
           ! Read vertical level and OER-related value.
-          
+
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
-                 chm_std%levels(icount),chm_std%std1(icount)
+               chm_std%levels(icount),chm_std%std1(icount)
 
-       end do
-   
-    else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).gt.1) then
-    
-       ! Value dependent on vertical level and latitude 
-       
-       ! Read reference latitudes (must be in order of increasing size)
-       read(nulstat,*,iostat=ios,err=10,end=10)                      &
-              chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
-       ! write(*, '(10X,20F9.3)') chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
-      
-       do jlev=1,chm_std%n_lvl(jelm)
-          
+        end do
+
+      else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).gt.1) then
+
+        ! Value dependent on vertical level and latitude 
+
+        ! Read reference latitudes (must be in order of increasing size)
+        read(nulstat,*,iostat=ios,err=10,end=10)                      &
+             chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+        ! write(*, '(10X,20F9.3)') chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+
+        do jlev=1,chm_std%n_lvl(jelm)
+
           ! Read vertical level and OER-related lat-dependent values.
-          
-          read(nulstat,*,iostat=ios,err=10,end=10)                   &
-                 chm_std%levels(icount+jlev),                           &
-                 chm_std%std1(icount+(jlev-1)*chm_std%n_lat(jelm)+1:icount+jlev*chm_std%n_lat(jelm))
 
-       end do
-       icount=icount+chm_std%n_lat(jelm)*chm_std%n_lvl(jelm)
+          read(nulstat,*,iostat=ios,err=10,end=10)                   &
+               chm_std%levels(icount+jlev),                           &
+               chm_std%std1(icount+(jlev-1)*chm_std%n_lat(jelm)+1:icount+jlev*chm_std%n_lat(jelm))
+
+        end do
+        icount=icount+chm_std%n_lat(jelm)*chm_std%n_lvl(jelm)
+      end if
+    end do STNIDLOOP
+
+10  if (ios.gt.0) then
+      WRITE(*,*) 'File read error message number: ',ios
+      CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
     end if
- end do STNIDLOOP
-   
- 10 if (ios.gt.0) then
-       WRITE(*,*) 'File read error message number: ',ios
-       CALL utl_abort('chm_read_obs_err_stddev_file: PROBLEM READING OBSERR STD DEV.')    
-    end if
- 
- 11 CLOSE(UNIT=NULSTAT)
+
+11  CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
   end subroutine chm_read_obs_err_stddev_file
@@ -3162,10 +3170,15 @@ contains
     !
     implicit none
 
+    ! Arguments:
     character(len=*), intent(in)  :: CSTNID
-    integer, intent(in)           :: NLEV,VARNO
-    real(8), intent(in)           :: ZLAT
-    integer, intent(out)          :: ISTNID,JINT
+    integer,          intent(in)  :: NLEV
+    integer,          intent(in)  :: VARNO
+    real(8),          intent(in)  :: ZLAT
+    integer,          intent(out) :: ISTNID
+    integer,          intent(out) :: JINT
+
+    ! Locals:
     integer                       :: JN,ibegin
     real(8)                       :: lat
 
@@ -3235,27 +3248,27 @@ contains
     !:Purpose: To return the observational error std dev for a CH family
     !          measurement
     implicit none
-    real(8)  :: obs_err_stddev 
    
     ! Arguments:
     character(len=*), intent(in) :: CSTNID ! station ID
-    integer, intent(in) :: NLEV ! number of levels
-    integer, intent(in) :: VARNO ! BUFR number
-    real(8), intent(in) :: ZLAT ! latitude (radians)
-    real(8), intent(in) :: ZLON ! longitude (radians)
-    integer, intent(in) :: IDATE ! date in YYYYMMDD format
-    integer, intent(in) :: ITIME ! time in HHMM format
-    real(8), intent(in) :: ZVAL  ! observation values
-    real(8), intent(in) :: ZLEV  ! vertical coordinate value
-    integer, intent(in) :: ILEV  ! observation number in the profile
-    logical, intent(in) :: IFIRST! true:  first call for a profile
+    integer,          intent(in) :: NLEV   ! number of levels
+    integer,          intent(in) :: VARNO  ! BUFR number
+    real(8),          intent(in) :: ZLAT   ! latitude (radians)
+    real(8),          intent(in) :: ZLON   ! longitude (radians)
+    integer,          intent(in) :: IDATE  ! date in YYYYMMDD format
+    integer,          intent(in) :: ITIME  ! time in HHMM format
+    real(8),          intent(in) :: ZVAL   ! observation values
+    real(8),          intent(in) :: ZLEV   ! vertical coordinate value
+    integer,          intent(in) :: ILEV   ! observation number in the profile
+    logical,          intent(in) :: IFIRST ! true:  first call for a profile
+    ! Result:
+    real(8)  :: obs_err_stddev 
 
     ! Locals:
     real(8) :: wgt,zwb,sigma
     integer :: ibegin,JLEV,JN,stat
-
     integer, save :: ISTNID,JINT
-    
+
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
     if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
@@ -3369,6 +3382,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: istnid
 
     if (chm_std%n_stnid.eq.0) return
@@ -3404,11 +3418,12 @@ contains
     !
     implicit none
     
-    character(len=20) :: value 
 
     ! Arguments:
     character(len=*), intent(in) :: item
     integer         , intent(in) :: itemIndex
+    ! Result:
+    character(len=20) :: value 
 
     select case(trim(item))      
       case('dataType')
@@ -3433,12 +3448,12 @@ contains
     !:Purpose: get integer item value from SSTdataParams derived type
     !
     implicit none
-    
-    integer :: value 
 
     ! Arguments:
-    character(len=*), intent(in)           :: item
-    integer         , intent(in), optional :: itemIndex_opt
+    character(len=*),  intent(in) :: item
+    integer, optional, intent(in) :: itemIndex_opt
+    ! Result:
+    integer :: value 
 
     if (present(itemIndex_opt)) then
       select case(trim(item))      
@@ -3469,12 +3484,12 @@ contains
     !:Purpose: get real(8) item value from SSTdataParams derived type
     !
     implicit none
-    
-    real(8) :: value 
 
     ! Arguments:
     character(len=*), intent(in) :: item
     integer         , intent(in) :: itemIndex
+    ! Result:
+    real(8) :: value 
 
     select case(trim(item))      
       case('dayError')

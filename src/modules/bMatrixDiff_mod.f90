@@ -67,10 +67,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_hco), intent(inout), pointer  :: hco_in
-    type(struct_vco), intent(inout), pointer  :: vco_in
-    integer         , intent(out)             :: cvDim_out
-    character(len=*), intent(in)   , optional :: mode_opt
+    type(struct_hco), pointer,  intent(in)  :: hco_in
+    type(struct_vco), pointer,  intent(in)  :: vco_in
+    integer         ,           intent(out) :: cvDim_out
+    character(len=*), optional, intent(in)  :: mode_opt
 
     ! Locals:
     character(len=15)         :: bdiff_mode
@@ -80,7 +80,6 @@ CONTAINS
     real(8)                   :: maxDistance
     real(8), allocatable      :: distance(:)
     character(len=*), parameter :: myName = 'bdiff_setup'
-
     ! namelist variables
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
@@ -301,8 +300,8 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_hco), pointer :: hco_in
-    type(struct_vco), pointer :: vco_in
+    type(struct_hco), pointer, intent(in) :: hco_in
+    type(struct_vco), pointer, intent(in) :: vco_in
     
     ! Locals:
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
@@ -453,7 +452,6 @@ CONTAINS
     ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
-
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_bSqrt'
     
@@ -499,7 +497,6 @@ CONTAINS
     ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
-
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_bSqrtAd'
 

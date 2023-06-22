@@ -1,6 +1,6 @@
 
 module obsFamilyList_mod
-  ! MODULE varNameList (prefix='ofl' category='7. Low-level data objects')
+  ! MODULE obsFamilyList_mod (prefix='ofl' category='7. Low-level data objects')
   !
   ! :Purpose: Contains a list of all recognizable observation families along with 
   !           additional information and procedures regarding these families.
@@ -53,11 +53,11 @@ module obsFamilyList_mod
       !
       ! :Purpose: To identify if input obs family is part of the available list 
       !
-
       implicit none
 
-      !Arguments:
-      character(len=2) :: familyName
+      ! Arguments:
+      character(len=*), intent(in) :: familyName
+      ! Result:
       logical          :: familyFound
 
       if ( any(ofl_familyList(:) == familyName) ) then

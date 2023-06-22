@@ -81,19 +81,28 @@ module utilities_mod
 contains
 
   function utl_fstlir(fld8, iun, ni, nj, nk, datev, etiket, &
-       ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
+                      ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
     implicit none
 
+    ! Arguments:
+    real(8),          intent(inout) :: fld8(*)
+    integer,          intent(in)    :: iun
+    integer,          intent(in)    :: ni
+    integer,          intent(in)    :: nj
+    integer,          intent(in)    :: nk
+    integer,          intent(in)    :: datev
+    integer,          intent(in)    :: ip1
+    integer,          intent(in)    :: ip2
+    integer,          intent(in)    :: ip3
+    character(len=*), intent(in)    :: etiket
+    character(len=*), intent(in)    :: nomvar
+    character(len=*), intent(in)    :: typvar
+    ! Result:
     integer :: vfstlir
-    real(8) :: fld8(*)
-    integer :: iun, ni, nj, nk, datev, ip1, ip2, ip3
-    character(len=*) :: etiket
-    character(len=*) :: nomvar
-    character(len=*) :: typvar
 
+    ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer4(:)
-
     integer :: fstluk, fstinf
 
     !     Get field dimensions and allow memory for REAL copy of fld8.
@@ -124,19 +133,28 @@ contains
   end function utl_fstlir
 
   function utl_fstlir_r4(fld_r4, iun, ni, nj, nk, datev, etiket, &
-       ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
+                         ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
     implicit none
 
+    ! Arguments:
+    real(4),          intent(inout) :: fld_r4(*)
+    integer,          intent(in)    :: iun
+    integer,          intent(in)    :: ni
+    integer,          intent(in)    :: nj
+    integer,          intent(in)    :: nk
+    integer,          intent(in)    :: datev
+    integer,          intent(in)    :: ip1
+    integer,          intent(in)    :: ip2
+    integer,          intent(in)    :: ip3
+    character(len=*), intent(in)    :: etiket
+    character(len=*), intent(in)    :: nomvar
+    character(len=*), intent(in)    :: typvar
+    ! Result:
     integer :: vfstlir
-    real(4) :: fld_r4(*)
-    integer :: iun, ni, nj, nk, datev, ip1, ip2, ip3
-    character(len=*) :: etiket
-    character(len=*) :: nomvar
-    character(len=*) :: typvar
 
+    ! Locals:
     integer :: key1,key2, ilen, jk1, jk2, jk3, la
     real(4), allocatable :: buffer_r4(:)
-
     integer :: fstluk, fstinf
 
     !     Get field dimensions.
@@ -167,26 +185,41 @@ contains
   end function utl_fstlir_r4
 
   function utl_fstecr(fld8, npak, iun, dateo, deet, &
-       npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
-       nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
-       datyp, rewrit) result(vfstecr)
+                      npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
+                      nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
+                      datyp, rewrit) result(vfstecr)
     implicit none
 
+    ! Arguments:
+    integer,          intent(in) :: ni
+    integer,          intent(in) :: nj
+    integer,          intent(in) :: nk
+    real(8),          intent(in) :: fld8(ni,nj,nk)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: ip1
+    integer,          intent(in) :: ip2
+    integer,          intent(in) :: ip3
+    integer,          intent(in) :: ig1
+    integer,          intent(in) :: ig2
+    integer,          intent(in) :: ig3
+    integer,          intent(in) :: ig4
+    integer,          intent(in) :: npak
+    integer,          intent(in) :: dateo
+    integer,          intent(in) :: deet
+    integer,          intent(in) :: npas
+    integer,          intent(in) :: datyp
+    logical,          intent(in) :: rewrit  
+    character(len=*), intent(in) :: etiket 
+    character(len=*), intent(in) :: typvar
+    character(len=*), intent(in) :: grtyp 
+    character(len=*), intent(in) :: nomvar            
+    ! Result:
     integer :: vfstecr
-    real(4) :: work
-    integer, intent(in) :: ni,nj,nk
-    real(8) :: fld8(ni,nj,nk)
-    integer :: iun, ip1, ip2, ip3, ig1, ig2, ig3, ig4
-    integer :: npak, dateo, deet, npas, datyp
-    logical :: rewrit  
-    character(len=*) :: etiket 
-    character(len=*) :: typvar
-    character(len=*) :: grtyp 
-    character(len=*) :: nomvar            
 
+    ! Locals:
+    real(4) :: work
     integer :: ikey, jk1, jk2, jk3
     real(4), allocatable :: buffer4(:,:,:)
-
     integer :: fstecr
 
     allocate(buffer4(ni,nj,nk))
@@ -215,11 +248,13 @@ contains
     !
     implicit none
 
-    integer, intent(in)           :: rank
-    real(8), intent(inout)        :: matrix(rank,rank)
-    real(8), intent(in)           :: exponentSign
-    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+    ! Arguments:
+    integer,           intent(in)    :: rank
+    real(8),           intent(inout) :: matrix(rank,rank)
+    real(8),           intent(in)    :: exponentSign
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
+    ! Locals:
     real(8), allocatable :: eigenValues(:)
     real(8), allocatable :: work(:)
     real(8), allocatable :: eigenVectors(:,:)
@@ -306,13 +341,13 @@ contains
     !
     implicit none
 
-    ! Arguments
-    integer, intent(in)              :: rank                 ! order of the matrix
-    real(8), intent(inout)           :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8), intent(inout), optional :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
-    logical, intent(in), optional    :: printInformation_opt ! switch to print be more verbose
+    ! Arguments:
+    integer,           intent(in)    :: rank                 ! order of the matrix
+    real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
-    ! Local variables
+    ! Locals:
     integer :: index1, index2, info, sizework
     real(8) :: sizework_r8
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
@@ -425,15 +460,15 @@ contains
     !
     implicit none
 
-    ! Arguments
-    real(8), intent(inout)        :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8), intent(out)          :: eigenValues(:)       ! computed eigenValues
-    real(8), intent(out)          :: eigenVectors(:,:)    ! computed eigenVectors
-    real(8), intent(in)           :: tolerance            ! threshold for eigenValue magnitude to be returned
-    integer, intent(out)          :: numReturned          ! number of eigenValues/Vectors returned
-    logical, intent(in), optional :: printInformation_opt ! switch to print be more verbose
+    ! Arguments:
+    real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8),           intent(out)   :: eigenValues(:)       ! computed eigenValues
+    real(8),           intent(out)   :: eigenVectors(:,:)    ! computed eigenVectors
+    real(8),           intent(in)    :: tolerance            ! threshold for eigenValue magnitude to be returned
+    integer,           intent(out)   :: numReturned          ! number of eigenValues/Vectors returned
+    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
 
-    ! Local variables
+    ! Locals:
     integer :: rank, index1, index2, info, sizework
     real(8) :: sizework_r8
     real(8), allocatable :: work(:), eigenVectorsOrig(:,:), eigenValuesOrig(:)
@@ -538,11 +573,13 @@ contains
     !:Purpose: to calculate the More-Penrose pseudo inverse of the matrix inputMatrix
     !
     implicit none
-    !Arguments:
-    real(8), intent(in)           :: inputMatrix(:,:)   ! Input Matrix
-    real(8), intent(out)          :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
-    real(8), optional, intent(in) :: threshold_opt 
-    !Locals:
+
+    ! Arguments:
+    real(8),           intent(in)  :: inputMatrix(:,:)   ! Input Matrix
+    real(8),           intent(out) :: pseudoInverse(:,:) ! its Moore Penrose Pseudo-Inverse
+    real(8), optional, intent(in)  :: threshold_opt 
+
+    ! Locals:
     real(8), allocatable :: copyMatrix(:,:), leftSingularVector(:,:), rightSingularVectorT(:,:)
     real(8), allocatable :: singularValues(:)
     integer :: info, lwork, lineIndex
@@ -599,8 +636,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_writeStatus(cmsg)
     implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: cmsg
+
+    ! Locals:
     INTEGER :: iulstatus,fnom,fclos, ierr
-    character(len=*) :: cmsg
     character(len=22):: clmsg
 
     clmsg='VAR3D_STATUS='//cmsg
@@ -623,21 +664,30 @@ contains
     !
     implicit none
 
-    integer :: kstampv,knmaxlev,knlev,kgid
-    integer :: kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
-    integer :: ktrials, koutmpg  
-    integer :: kinmpg(ktrials)
-    character(len=*) :: cdtypvar
-    character(len=*) :: cdvar
-    character(len=*) :: cdetiket
+    ! Arguments:
+    integer,          intent(out) :: kstampv
+    integer,          intent(in)  :: knmaxlev
+    integer,          intent(out) :: knlev
+    integer,          intent(out) :: kgid
+    integer,          intent(out) :: kip1s(knmaxlev)
+    integer,          intent(out) :: kip1style
+    integer,          intent(out) :: kip1kind
+    integer,          intent(out) :: kip2
+    integer,          intent(out) :: kip3
+    integer,          intent(in)  :: ktrials
+    integer,          intent(out) :: koutmpg
+    integer,          intent(in)  :: kinmpg(ktrials)
+    character(len=*), intent(out) :: cdtypvar
+    character(len=*), intent(out) :: cdvar
+    character(len=*), intent(out) :: cdetiket
 
+    ! Locals:
     integer :: fstinl,fstprm,ezqkdef,newdate
     integer :: ini,inj,ink,jlev,ier
-    integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf, &
-         iextra1, iextra2, iextra3, iig12, iig22, &
-         iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4, &
-         inpas,inpas2, iswa, iubc, iip2, iip3
-    !
+    integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf
+    integer :: iextra1, iextra2, iextra3, iig12, iig22
+    integer :: iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4
+    integer :: inpas,inpas2, iswa, iubc, iip2, iip3
     integer :: ipmode,idate2,idate3,idatefull
     integer :: k,ier1 
     real(4) :: zlev_r4
@@ -648,9 +698,9 @@ contains
     character(len=1) :: clgrtyp2,clgrtyp,clstring
     logical :: llflag
     integer :: ikeys(knmaxlev)
-    !
+
     knlev = 0
-    !
+
     do k=1,ktrials
        if(cdvar.eq.'U1') then
           clnomvar_3='UT1'
@@ -764,9 +814,12 @@ contains
 
 
   subroutine utl_abort(message)
-    
     implicit none
-    character(len=*) :: message
+
+    ! Arguments:
+    character(len=*), intent(in) :: message
+
+    ! Locals:
     integer :: comm, ierr, rpn_comm_comm
     
     write(6,9000) message
@@ -792,7 +845,11 @@ contains
     !          utl_stopAndWait4Debug.
     !
     implicit none
-    character(len=*) :: message
+
+    ! Arguments:
+    character(len=*), intent(in) :: message
+
+    ! Locals:
     integer :: comm, ierr, rpn_comm_comm
 
     write(6,9000) message
@@ -810,8 +867,11 @@ contains
     !
     implicit none
 
-    character(len=*), intent(in) :: filename
-    integer, intent(out) :: unit
+    ! Arguments:
+    character(len=*), intent(in)  :: filename
+    integer,          intent(out) :: unit
+
+    ! Locals:
     logical :: file_exists
     integer :: ier
     character(len=20) :: mode
@@ -840,9 +900,14 @@ contains
     !
     implicit none
 
-    integer, intent(inout) :: unit
-    character(len=*) :: filename,mode
+    ! Arguments:
+    integer,          intent(inout) :: unit
+    character(len=*), intent(in)    :: filename
+    character(len=*), intent(in)    :: mode
+    ! Result:
     integer :: ier
+
+    ! Locals:
     character(len=10) :: position,action
     integer :: fnom
 
@@ -877,10 +942,13 @@ contains
     !     
     implicit none
 
-    logical :: same
+    ! Arguments:
     character(len=*), intent(in) :: id1
     character(len=*), intent(in) :: id2
+    ! Result:
+    logical :: same
 
+    ! Locals:
     integer :: ilen1,ilen2,ji
 
     same=.true.
@@ -919,6 +987,7 @@ contains
     !
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: i
     
     write(utl_int2str,*) i
@@ -933,6 +1002,7 @@ contains
     !
     implicit none
 
+    ! Arguments:
     real(8), intent(in) :: x
 
     write(utl_float2str,*) x
@@ -947,8 +1017,11 @@ contains
     !
     implicit none
 
+    ! Arguments:
     real(8), pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,          intent(in)    :: dim1
+
+    ! Locals:
     real(8), pointer :: tmp(:)
     integer :: dim1_in,d1
 
@@ -975,8 +1048,11 @@ contains
     !
     implicit none
 
+    ! Arguments:
     integer, pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,          intent(in)    :: dim1
+
+    ! Locals:
     integer, pointer :: tmp(:)
     integer :: dim1_in,d1
 
@@ -1003,8 +1079,11 @@ contains
     !
     implicit none
 
+    ! Arguments:
     character(len=*), pointer, intent(inout) :: arr(:)
-    integer, intent(in) :: dim1
+    integer,                   intent(in)    :: dim1
+
+    ! Locals:
     character(len=len(arr(1))), pointer :: tmp(:)
     integer :: dim1_in,d1
 
@@ -1029,8 +1108,12 @@ contains
     !
     implicit none
 
+    ! Arguments:
     real(8), pointer, intent(inout) :: arr(:,:)
-    integer, intent(in) :: dim1,dim2
+    integer,          intent(in)    :: dim1
+    integer,          intent(in)    :: dim2
+
+    ! Locals:
     real(8), pointer :: tmp(:,:)
     integer :: dim1_in,dim2_in,d1,d2
 
@@ -1060,8 +1143,13 @@ contains
     !
     implicit none
 
+    ! Arguments:
     real(8), pointer, intent(inout) :: arr(:,:,:)
-    integer, intent(in) :: dim1,dim2,dim3
+    integer,          intent(in)    :: dim1
+    integer,          intent(in)    :: dim2
+    integer,          intent(in)    :: dim3
+
+    ! Locals:
     real(8), pointer :: tmp(:,:,:)
     integer :: dim1_in,dim2_in,dim3_in,d1,d2,d3
 
@@ -1095,12 +1183,15 @@ contains
     !
     implicit none
 
-    integer, intent(in)    :: Nmax,nobslev
-    integer, intent(inout) :: NListSize
-    integer, intent(out)   :: elemId
-    character(len=*), intent(in)     :: cstringin
+    ! Arguments:
+    integer,           intent(in)    :: Nmax
+    integer,           intent(in)    :: nobslev
+    integer,           intent(inout) :: NListSize
+    integer,           intent(out)   :: elemId
+    character(len=*),  intent(in)    :: cstringin
     character(len=*),  intent(inout) :: CList(Nmax)
 
+    ! Locals:
     integer :: i
     character(len=120) :: cstring
     
@@ -1155,10 +1246,14 @@ contains
     !
     implicit none
 
-    integer, intent(in)    :: Nmax,id
-    integer, intent(inout) :: NListSize,IdList(Nmax)
+    ! Arguments:
+    integer, intent(in)    :: Nmax
+    integer, intent(in)    :: id
+    integer, intent(inout) :: NListSize
+    integer, intent(inout) :: IdList(Nmax)
     integer, intent(out)   :: elemId
-  
+
+    ! Locals:
     integer :: i
     
     elemId=0
@@ -1211,23 +1306,29 @@ contains
     !
     implicit none
 
-    integer, intent(in) :: iip1,iip2,iip3
-    character(len=*), intent(in) :: varName,fname,etiketi
-    integer, intent(out) :: ni, nj, nkeys
-    integer, intent(out), optional :: kind_opt
-    real(8), intent(out), allocatable :: array(:,:,:)
-    real(8), intent(out), allocatable, optional :: lvls_opt(:), xlat_opt(:),xlong_opt(:)
+    ! Arguments:
+    integer,                        intent(in)  :: iip1
+    integer,                        intent(in)  :: iip2
+    integer,                        intent(in)  :: iip3
+    character(len=*),               intent(in)  :: varName
+    character(len=*),               intent(in)  :: fname
+    character(len=*),               intent(in)  :: etiketi
+    integer,                        intent(out) :: ni
+    integer,                        intent(out) :: nj
+    integer,                        intent(out) :: nkeys
+    integer, optional,              intent(out) :: kind_opt
+    real(8), allocatable,           intent(out) :: array(:,:,:)
+    real(8), allocatable, optional, intent(out) :: lvls_opt(:)
+    real(8), allocatable, optional, intent(out) :: xlat_opt(:)
+    real(8), allocatable, optional, intent(out) :: xlong_opt(:)
 
+    ! Locals:
     integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
-
     real(4) :: lvl_r4
-
     logical :: Exists
     character(len=1) :: string
-
     integer, parameter :: iun=0
     integer :: i,ier, kindi
-
     integer, parameter :: maxkeys=1000
     integer :: keys(maxkeys),ini,inj,nk
     integer :: dateo, deet, npas, nbits, datyp
@@ -1239,11 +1340,9 @@ contains
     character*4 nomvar
     character*12 cletiket
     real(4), allocatable :: buffer(:,:)
-
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     
     ! Open file
-    
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
       write(*,*) 'File missing=',fname
@@ -1254,7 +1353,6 @@ contains
     end if
 
     ! Find reports in file for specified varName and iip*.
-
     ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
 
     if(ier.lt.0.or.nkeys.eq.0) then
@@ -1356,12 +1454,14 @@ contains
 
 
   subroutine utl_checkAllocationStatus(status, message, alloc_opt)
-    
     implicit none
-    character(len=*),intent(in) :: message
-    integer, intent(in) :: status(:)
+
+    ! Arguments:
+    character(len=*),  intent(in) :: message
+    integer,           intent(in) :: status(:)
     logical, optional, intent(in) :: alloc_opt 
 
+    ! Locals:
     logical :: flag
 
     if ( present(alloc_opt) ) then
@@ -1386,14 +1486,15 @@ contains
   function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
     implicit none
 
-    ! arguments:
-    character(len=*), intent(in) :: varName
+    ! Arguments:
+    character(len=*),           intent(in) :: varName
     character(len=*), optional, intent(in) :: fileName_opt
-    integer, optional, intent(in) :: fileUnit_opt
+    integer,          optional, intent(in) :: fileUnit_opt
     character(len=*), optional, intent(in) :: typvar_opt
+    ! Result:
     logical :: found
 
-    ! locals:
+    ! Locals:
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: ni, nj, nk, key, ierr
     integer :: unit
@@ -1443,8 +1544,10 @@ contains
 
   subroutine utl_reAllocate_char_1d(array,dim1)
     implicit none
-    character(len=128), allocatable :: array(:)
-    integer :: dim1
+
+    ! Arguments:
+    character(len=128), allocatable, intent(inout) :: array(:)
+    integer,                         intent(in) :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1460,8 +1563,11 @@ contains
 
   subroutine utl_reAllocate_char_2d(array,dim1,dim2)
     implicit none
-    character(len=128), allocatable :: array(:,:)
-    integer :: dim1, dim2
+
+    ! Arguments:
+    character(len=128), allocatable, intent(inout) :: array(:,:)
+    integer,                         intent(in)    :: dim1
+    integer,                         intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1477,8 +1583,12 @@ contains
 
   subroutine utl_reAllocate_char_3d(array,dim1,dim2,dim3)
     implicit none
-    character(len=128), allocatable :: array(:,:,:)
-    integer :: dim1, dim2, dim3
+
+    ! Arguments:
+    character(len=128), allocatable, intent(inout) :: array(:,:,:)
+    integer,                         intent(in)    :: dim1
+    integer,                         intent(in)    :: dim2
+    integer,                         intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1494,8 +1604,10 @@ contains
 
   subroutine utl_reAllocate_log_1d(array,dim1)
     implicit none
-    logical, allocatable :: array(:)
-    integer :: dim1
+
+    ! Arguments:
+    logical, allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1512,8 +1624,11 @@ contains
 
   subroutine utl_reAllocate_log_2d(array,dim1,dim2)
     implicit none
-    logical, allocatable :: array(:,:)
-    integer :: dim1, dim2
+
+    ! Arguments:
+    logical, allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1530,8 +1645,12 @@ contains
 
   subroutine utl_reAllocate_log_3d(array,dim1,dim2,dim3)
     implicit none
-    logical, allocatable :: array(:,:,:)
-    integer :: dim1, dim2, dim3
+
+    ! Arguments:
+    logical, allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1548,8 +1667,10 @@ contains
 
   subroutine utl_reAllocate_int_1d(array,dim1)
     implicit none
-    integer, allocatable :: array(:)
-    integer :: dim1
+
+    ! Arguments:
+    integer, allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1566,8 +1687,11 @@ contains
 
   subroutine utl_reAllocate_int_2d(array,dim1,dim2)
     implicit none
-    integer, allocatable :: array(:,:)
-    integer :: dim1, dim2
+
+    ! Arguments:
+    integer, allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1584,8 +1708,12 @@ contains
 
   subroutine utl_reAllocate_int_3d(array,dim1,dim2,dim3)
     implicit none
-    integer, allocatable :: array(:,:,:)
-    integer :: dim1, dim2, dim3
+
+    ! Arguments:
+    integer, allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1602,8 +1730,10 @@ contains
 
   subroutine utl_reAllocate_r4_1d(array,dim1)
     implicit none
-    real(4), allocatable :: array(:)
-    integer :: dim1
+
+    ! Arguments:
+    real(4), allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1620,8 +1750,10 @@ contains
 
   subroutine utl_reAllocate_r8_1d(array,dim1)
     implicit none
-    real(8), allocatable :: array(:)
-    integer :: dim1
+
+    ! Arguments:
+    real(8), allocatable, intent(inout) :: array(:)
+    integer,              intent(in)    :: dim1
 
     if( allocated(array) ) then
       if ( size(array) == dim1 ) then
@@ -1638,8 +1770,11 @@ contains
 
   subroutine utl_reAllocate_r4_2d(array,dim1,dim2)
     implicit none
-    real(4), allocatable :: array(:,:)
-    integer :: dim1, dim2
+
+    ! Arguments:
+    real(4), allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1656,8 +1791,11 @@ contains
 
   subroutine utl_reAllocate_r8_2d(array,dim1,dim2)
     implicit none
-    real(8), allocatable :: array(:,:)
-    integer :: dim1, dim2
+
+    ! Arguments:
+    real(8), allocatable, intent(inout) :: array(:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2 ) then
@@ -1674,8 +1812,12 @@ contains
 
   subroutine utl_reAllocate_r4_3d(array,dim1,dim2,dim3)
     implicit none
-    real(4), allocatable :: array(:,:,:)
-    integer :: dim1, dim2, dim3
+
+    ! Arguments:
+    real(4), allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1693,8 +1835,12 @@ contains
 
   subroutine utl_reAllocate_r8_3d(array,dim1,dim2,dim3)
     implicit none
-    real(8), allocatable :: array(:,:,:)
-    integer :: dim1, dim2, dim3
+
+    ! Arguments:
+    real(8), allocatable, intent(inout) :: array(:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3 ) then
@@ -1712,8 +1858,13 @@ contains
 
   subroutine utl_reAllocate_r4_4d(array,dim1,dim2,dim3,dim4)
     implicit none
-    real(4), allocatable :: array(:,:,:,:)
-    integer :: dim1, dim2, dim3, dim4
+
+    ! Arguments:
+    real(4), allocatable, intent(inout) :: array(:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
@@ -1731,8 +1882,13 @@ contains
 
   subroutine utl_reAllocate_r8_4d(array,dim1,dim2,dim3,dim4)
     implicit none
-    real(8), allocatable :: array(:,:,:,:)
-    integer :: dim1, dim2, dim3, dim4
+
+    ! Arguments:
+    real(8), allocatable, intent(inout) :: array(:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4 ) then
@@ -1750,8 +1906,14 @@ contains
 
   subroutine utl_reAllocate_r4_5d(array,dim1,dim2,dim3,dim4,dim5)
     implicit none
-    real(4), allocatable :: array(:,:,:,:,:)
-    integer :: dim1, dim2, dim3, dim4, dim5
+
+    ! Arguments:
+    real(4), allocatable, intent(inout) :: array(:,:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
+    integer,              intent(in)    :: dim5
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
@@ -1769,8 +1931,14 @@ contains
 
   subroutine utl_reAllocate_r8_5d(array,dim1,dim2,dim3,dim4,dim5)
     implicit none
-    real(8), allocatable :: array(:,:,:,:,:)
-    integer :: dim1, dim2, dim3, dim4, dim5
+
+    ! Arguments:
+    real(8), allocatable, intent(inout) :: array(:,:,:,:,:)
+    integer,              intent(in)    :: dim1
+    integer,              intent(in)    :: dim2
+    integer,              intent(in)    :: dim3
+    integer,              intent(in)    :: dim4
+    integer,              intent(in)    :: dim5
 
     if( allocated(array) ) then
       if ( size(array) == dim1*dim2*dim3*dim4*dim5 ) then
@@ -1792,8 +1960,11 @@ contains
     !          to the first column
     ! 
     implicit none
+
+    ! Arguments:
     real(4), intent(inout) :: array(:,:)
 
+    ! Locals:
     real(4) :: values(2) ! temporary value
     integer :: i,j,nsize
     integer :: ileft,iright
@@ -1839,10 +2010,13 @@ contains
 
   subroutine utl_splitString(string,separator,stringArray)
     implicit none
-    character(len=*), intent(in) :: string
-    character(len=*), intent(in) :: separator
-    character(len=*), allocatable :: stringArray(:)
 
+    ! Arguments:
+    character(len=*),              intent(in) :: string
+    character(len=*),              intent(in) :: separator
+    character(len=*), allocatable, intent(inout) :: stringArray(:)
+
+    ! Locals:
     integer :: stringArraySize, stringIndex
 
     stringArraySize = count(transfer(string, 'a', len(string)) == separator) + 1
@@ -1936,9 +2110,12 @@ contains
 
   subroutine utl_stringArrayToIntegerArray(stringArray,integerArray)
     implicit none
-    character(len=256) :: stringArray(:)
-    integer, allocatable :: integerArray(:)
 
+    ! Arguments:
+    character(len=256),   intent(in)  :: stringArray(:)
+    integer, allocatable, intent(out) :: integerArray(:)
+
+    ! Locals:
     integer :: arraySize, arrayIndex
 
     arraySize = size(stringArray)
@@ -1961,10 +2138,14 @@ contains
     !:Purpose: To find if a namelist name tag is present in a namelist file
     ! 
     implicit none
-    logical :: found
+
+    ! Arguments:
     character(len=*), intent(in) :: namelistSectionName
     character(len=*), intent(in) :: namelistFileName
+    ! Result:
+    logical :: found
 
+    ! Locals:
     integer :: unit, fnom, fclos, ierr
     character (len=1000) :: text
     character (len=100)  :: word, namelistSectionNameUpper
@@ -2011,11 +2192,13 @@ contains
     !          the number of space-delimited columns in a string
     ! 
     implicit none
-    ! Arguments
-    character(len=*), intent(in) :: line
-    integer, intent(out) :: numColumns
-    character(len=*), intent(out), optional :: stringArray_opt(:)
-    ! Locals
+
+    ! Arguments:
+    character(len=*),           intent(in)  :: line
+    integer,                    intent(out) :: numColumns
+    character(len=*), optional, intent(out) :: stringArray_opt(:)
+
+    ! Locals:
     integer :: linePosition, wordPosition, lineLength
 
     linePosition = 1
@@ -2060,10 +2243,14 @@ contains
     !
     !
     implicit none
-    character(len=*) :: filein
-    character(len=*) :: fileout
+
+    ! Arguments:
+    character(len=*), intent(in) :: filein
+    character(len=*), intent(in) :: fileout
+    ! Result:
     integer :: status
 
+    ! Locals:
     integer :: ierr, unitin, unitout
     integer(8) :: numChar
     character :: bufferB
@@ -2166,6 +2353,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: charArray(:)
     character(len=*), intent(in) :: value
+    ! Result:
     integer                      :: location
 
     ! Locals:
@@ -2207,6 +2395,7 @@ contains
     ! Arguments:
     integer, intent(in) :: intArray(:)
     integer, intent(in) :: value
+    ! Result:
     integer             :: location
 
     ! Locals:
@@ -2247,6 +2436,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: charArray(:)
     character(len=*), intent(in) :: value
+    ! Result:
     integer, allocatable         :: locations(:)
 
     ! Locals:
@@ -2374,7 +2564,7 @@ contains
   end subroutine utl_tmg_stop  
   
   !--------------------------------------------------------------------------
-  ! utl_median
+  ! utl_medianIndex
   !--------------------------------------------------------------------------
   function utl_medianIndex(inputVector) result(medianIndex)
     ! 
@@ -2384,6 +2574,7 @@ contains
     
     ! Arguments:
     real(4), intent(in) :: inputVector(:)
+    ! Result:
     integer             :: medianIndex
 
     ! Locals:

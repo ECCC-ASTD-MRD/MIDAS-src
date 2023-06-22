@@ -105,13 +105,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer,                   intent(in)   :: nEns_in
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
     integer,                   intent(in)   :: ip2_in
 
-    ! locals
+    ! Locals:
     integer :: nulnam, ier
     integer :: fclos, fnom
     integer :: varIndex, levIndex, k
@@ -448,20 +448,17 @@ contains
     !
     implicit none
 
-    ! locals
-    real(8),allocatable :: SpVertCorrel(:,:,:)
-    real(8),allocatable :: TotVertCorrel(:,:)
-    real(8),allocatable :: NormB(:,:,:)
-    real(8),allocatable :: NormBsqrt(:,:,:)
-    real(8),allocatable :: PowerSpectrum(:,:)
-    real(8),allocatable :: HorizScale(:)
-
+    ! Locals:
+    real(8), allocatable :: SpVertCorrel(:,:,:)
+    real(8), allocatable :: TotVertCorrel(:,:)
+    real(8), allocatable :: NormB(:,:,:)
+    real(8), allocatable :: NormBsqrt(:,:,:)
+    real(8), allocatable :: PowerSpectrum(:,:)
+    real(8), allocatable :: HorizScale(:)
     character(len=4), pointer :: varNamesList(:)
-
     type(struct_gbi) :: gbi_horizontalMean
     type(struct_gsv) :: statevector_stdDev
     type(struct_gsv) :: statevector_mean, statevector_stdDevGridPoint
-
     integer :: ier
 
     write(*,*)
@@ -574,17 +571,14 @@ contains
     !
     implicit none
 
-    ! locals
-    real(8),allocatable :: SpVertCorrel(:,:,:)
-    real(8),allocatable :: NormB(:,:,:)
-    real(8),allocatable :: PowerSpectrum(:,:)
-
+    ! Locals:
+    real(8), allocatable :: SpVertCorrel(:,:,:)
+    real(8), allocatable :: NormB(:,:,:)
+    real(8), allocatable :: PowerSpectrum(:,:)
     integer :: nulnam, ier, fnom, fclos
-
     type(struct_gsv) :: statevector_stdDev
     type(struct_gsv) :: statevector_template
     character(len=4), pointer :: varNamesList(:)
-
     character(len=60) :: tool
 
     NAMELIST /NAMTOOLBOX/tool
@@ -701,30 +695,25 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_ens)        :: ensPerts
-    real(8), intent(out)    :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(out)    :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    real(8), intent(out)    :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts
+    real(8),          intent(out)   :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(out)   :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    real(8),          intent(out)   :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable    :: NormPowerSpectrum(:,:)
     real(8), allocatable    :: SpectralStateVar(:,:,:)
     real(8), allocatable    :: SpVertCorrel_local(:,:,:)
     real(8), allocatable    :: GridState(:,:,:)
     real(8), allocatable    :: SumWeight(:)
     real(8), allocatable    :: SumWeight_local(:)
-
     type(struct_lst)  :: lst_bhi ! Spectral transform Parameters
-
     real(4), pointer  :: ptr4d_r4(:,:,:,:)
-
     real(8)           :: weight
-
     integer           :: k1, k2, ens, e, ila, p, k, totwvnb
     integer           :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer           :: nSize, ier
-
     character(len=24) :: kind
 
     write(*,*)
@@ -912,20 +901,16 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(in)    :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
     real(8), intent(out)   :: NormPowerSpectrum(bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
-
     real(8)           :: sum
-
     integer           :: e, ila, p, k, totwvnb
-
     character(len=24) :: kind
-
     type(struct_lst)  :: lst_norm ! Spectral transform Parameters
 
     write(*,*)
@@ -1032,13 +1017,12 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(out) :: HorizScale(bhi%nVarLev)
     real(8), intent(in)  :: SpCovariance(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8) :: a, b, beta, dx, dist
-
     integer :: totwvnb, k, var
 
     write(*,*)
@@ -1095,14 +1079,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(out)    :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
     real(8), intent(in)     :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in)     :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable    :: TotVertCov(:,:)
-
     integer           :: k1, k2, totwvnb
 
     write(*,*)
@@ -1157,11 +1140,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(out)   :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
     real(8), intent(in)    :: B    (bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     integer :: totwvnb
 
     !
@@ -1184,12 +1167,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(inout) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable :: KeepOrDiscard(:,:)
-
     integer :: totwvnb, var1, var2, k1, k2 
 
     write(*,*)
@@ -1258,17 +1240,14 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_ens)     :: ensPerts
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts
 
-    ! locals
+    ! Locals:
     real(8), allocatable :: vertCorrel(:,:)
-
     real(4), pointer  :: ptr4d_k1_r4(:,:,:,:)
     real(4), pointer  :: ptr4d_k2_r4(:,:,:,:)
-
     real(8), allocatable :: vertCorrel_local(:,:)
-
     integer :: lonIndex, latIndex, k1, k2, memberIndex
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nSize, ier
     integer :: fstouv, fnom, fstfrm, fclos, iunstats
@@ -1355,22 +1334,17 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(in)    :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
-
     type(struct_gsv) :: statevector
     real(8), pointer :: ptr3d_r8(:,:,:)
-
     character(len=4), pointer :: varNamesList(:)
-
     integer   :: e, ila, p, k, totwvnb
-
     type(struct_lst)  :: lst_cor ! Spectral transform Parameters
-
     character(len=24) :: kind
 
     nullify(varNamesList)
@@ -1445,23 +1419,19 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(inout) :: NormPowerSpectrum(bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     real(8), allocatable   :: SpectralStateVar(:,:,:)
     real(8), allocatable   :: GridState(:,:,:)
     real(8), allocatable   :: GridStateLoc(:,:,:)
     real(8), allocatable   :: PowerSpectrum(:,:)
     real(8), allocatable   :: SumWeight(:)
     real(8), allocatable   :: local_length(:)
-
     type(struct_lst)  :: lst_hloc ! Spectral transform Parameters
-
     integer :: totwvnb, var, k, e, ila, p
-
     real(8)  :: hlocalize
-
     character(len=24) :: kind
 
     write(*,*)
@@ -1614,12 +1584,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(inout) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
 
-    ! locals
+    ! Locals:
     integer :: totwvnb, var1, var2, k1, k2, lev1, lev2
-
     real(8)  :: dist, fact, vLocalize, pres1, pres2, vLocalize1, vLocalize2
 
     write(*,*)
@@ -1737,10 +1706,10 @@ contains
     !
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector_stdDev
 
-    ! locals
+    ! Locals:
     real(8), pointer :: ptr3d_r8(:,:,:)
     real(8) :: multFactor
     integer :: nVarLev, varLevIndex, levIndex
@@ -1782,14 +1751,13 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in) :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    type(struct_gsv)    :: statevector_stdDev
+    ! Arguments:
+    real(8),          intent(in) :: Bsqrt(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    type(struct_gsv), intent(in) :: statevector_stdDev
 
-    ! locals
+    ! Locals:
     integer   :: ier, fstouv, fnom, fstfrm, fclos
     integer   :: iunstats
-
     character(len=24) :: fileName = './bgcov.fst'
 
     write(*,*)
@@ -1834,19 +1802,18 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in) :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
-    type(struct_gsv)    :: statevector_mean
-    type(struct_gsv)    :: statevector_stdDevGridPoint
-    real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    real(8), intent(in) :: HorizScale(bhi%nVarLev)
+    ! Arguments:
+    real(8),          intent(in) :: NormB(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
+    type(struct_gsv), intent(in) :: statevector_mean
+    type(struct_gsv), intent(in) :: statevector_stdDevGridPoint
+    real(8),          intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    real(8),          intent(in) :: HorizScale(bhi%nVarLev)
 
-    ! locals
+    ! Locals:
     integer   :: ier, fstouv, fnom, fstfrm, fclos
     integer   :: iunstats
-
     character(len=24) :: fileName = './bgcov_diag.fst'
 
     write(*,*)
@@ -1900,23 +1867,19 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
-    integer, intent(in) :: iun
+    ! Arguments:
+    real(8),          intent(in) :: SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
-    ! locals
+    ! Locals:
     real(4), allocatable :: work2d(:,:)
-
     real(4) :: work
-
     integer   :: ier, fstecr, totwvnb
-
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -1971,23 +1934,19 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
-    integer, intent(in) :: iun
+    ! Arguments:
+    real(8),          intent(in) :: TotVertCorrel(bhi%nVarLev,bhi%nVarLev)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
-    ! locals
+    ! Locals:
     real(4), allocatable :: workecr(:,:)
-
     real(4)   :: work
-
     integer   :: ier, fstecr
-
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -2036,24 +1995,20 @@ contains
     !
     implicit none
 
-    ! arguments
-    real(8), intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
-    integer, intent(in) :: iun
-    integer, intent(in) :: cv_type
+    ! Arguments:
+    real(8),          intent(in) :: PowerSpectrum(bhi%nVarLev,0:nTrunc)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: cv_type
     character(len=*), intent(in) :: Etiket_in
 
-    ! locals
+    ! Locals:
     real(4), allocatable :: workecr(:,:)
-
     real(4)   :: work
-
     integer   :: ier, fstecr
     integer   :: var, k, kgdim
-
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -2113,21 +2068,19 @@ contains
     !
     implicit none
 
-    real(8), intent(in) :: HorizScale(bhi%nVarLev)
-    integer, intent(in) :: iun
-    integer, intent(in) :: cv_type
+    ! Arguments:
+    real(8),          intent(in) :: HorizScale(bhi%nVarLev)
+    integer,          intent(in) :: iun
+    integer,          intent(in) :: cv_type
     character(len=*), intent(in) :: Etiket_in
 
+    ! Locals:
     real(4), allocatable :: workecr(:,:,:)
-
     real(4)   :: work
-
     integer   :: ier, fstecr, var
-
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -2181,21 +2134,17 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer, intent(in) :: iun
 
-    ! locals
+    ! Locals:
     integer :: ier, fstecr, fstecr_s
-
     real(8) :: work
-
     integer :: npak, var, dateo, ni, nj
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
-
     character(len=1)  :: grtyp
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
-
     character(len=4)  :: ControlModelVarnameList(bhi%nControlVariable)
     character(len=4)  :: ControlBhiVarnameList  (bhi%nControlVariable)
     character(len=2)  :: ControlVarGridTypeList (bhi%nControlVariable)
@@ -2277,9 +2226,8 @@ contains
     !
     implicit none
 
-    ! locals
+    ! Locals:
     character(len=128) :: outfilename
-
     integer :: jk
 
     outfilename = "./pressureProfile_M.txt"
@@ -2310,26 +2258,21 @@ contains
     !
     implicit none
 
-    ! arguments
-    type(struct_ens) :: ensPerts
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts
 
-    ! locals
+    ! Locals:
     type(struct_gsv) :: statevector_locHorizCor
     type(struct_gsv) :: statevector_oneMember
     type(struct_gsv) :: statevector_oneMemberTiles
-
     real(8), pointer :: ptr3d_r8(:,:,:)
     real(8), pointer :: ptr3d_r8_oneMember(:,:,:)
-
     real(8) :: dnEns
-
     integer :: i, j, k, ens
     integer :: blocklength_x, blocklength_y, blockpadding, nirefpoint, njrefpoint
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
-
     character(len=4), pointer :: varNamesList(:)
-
     integer :: ier, fclos, fnom, nulnam
 
     NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding

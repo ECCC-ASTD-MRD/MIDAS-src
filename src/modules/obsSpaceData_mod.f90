@@ -126,8 +126,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_index_list_depot), intent(inout) :: depot ! the depot to be finalized
 
+      ! Locals:
       integer :: list                   ! an index
 
       ! Deallocate each list
@@ -155,9 +157,11 @@ contains
       !
       implicit none
 
+      ! Arguments:
+      type(struct_index_list_depot), target,      intent(inout) :: depot            ! the depot containing the list
+      type(struct_index_list), pointer, optional, intent(inout) :: private_list_opt ! used instead of depot (for OMP blocks)
+      ! Result:
       type(struct_index_list), pointer                     :: empty_index_list      ! the returned list
-      type(struct_index_list_depot), intent(inout), target :: depot                 ! the depot containing the list
-      type(struct_index_list), pointer, intent(inout), optional :: private_list_opt ! used instead of depot (for OMP blocks)
 
       nullify(empty_index_list)
 
@@ -170,7 +174,7 @@ contains
       end if
 
       if(.not. associated(empty_index_list)) then
-!$omp critical
+        !$omp critical
          ! Increment (cyclicly) the index to the next list
          depot%list_last_attributed = depot%list_last_attributed + 1
          if (depot%list_last_attributed > NUMBER_OF_LISTS) &
@@ -178,7 +182,7 @@ contains
 
          ! Set the return pointer
          empty_index_list => depot%index_lists(depot%list_last_attributed)
-!$omp end critical
+         !$omp end critical
       end if
 
       ! Initialize some values in the list
@@ -198,15 +202,18 @@ contains
       !
       implicit none
 
-      integer :: next_index                                                ! the returned index
-      type(struct_index_list_depot), intent(inout), target :: depot        ! the depot containing the list
-                                                                           ! if present, do not increment
-      logical, intent(in), optional                        :: no_advance_opt ! current_element, just return next one
+      ! Arguments:
+      type(struct_index_list_depot), target, intent(inout) :: depot          ! the depot containing the list
+      logical, optional,                     intent(in)    :: no_advance_opt ! current_element, just return next one
+      ! Result:
+      integer :: next_index                                                  ! the returned index
+
+      ! Locals:
       type(struct_index_list), pointer                     :: current_list ! current list of the depot
       integer                                              :: next_element ! next element of the current list
 
       current_list => depot%current_list
-!$omp critical
+      !$omp critical
                                         ! Obtain the next element from the list
       next_element = current_list%current_element + 1
       next_index = current_list%indices(next_element)
@@ -214,7 +221,7 @@ contains
                                         ! Increment the current element
          current_list%current_element = next_element
       end if
-!$omp end critical
+      !$omp end critical
    end function ild_get_next_index_depot
 
 
@@ -225,10 +232,14 @@ contains
       !            return the element itself, the new current element.
       !
       implicit none
+
+      ! Arguments:
+      type(struct_index_list), pointer, intent(inout) :: private_list   ! the list of interest
+      logical, optional,                intent(in)    :: no_advance_opt ! current_element, just return next one
+      ! Result:
       integer :: next_index                                           ! the returned index
-      type(struct_index_list), pointer, intent(inout) :: private_list ! the list of interest
-                                                                      ! if present, do not increment
-      logical, intent(in), optional                   :: no_advance_opt ! current_element, just return next one
+
+      ! Locals:
       integer                                         :: next_element ! next element of the list
 
                                         ! Obtain the next element from the list
@@ -252,10 +263,13 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_index_list_depot), intent(inout) :: depot ! the depot to be initialized
                                                             ! max size of header or body of
                                                             ! struct_obs & hence of depot
       integer, intent(in) :: numHeaderBody_max
+
+      ! Locals:
       integer :: list                   ! an index
 
       ! Allocate each list
@@ -752,6 +766,8 @@ contains
 !      use pFUnit
 !#endif
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsDataColumn_mod:-------",/,8X,A)')cdmessage
@@ -774,11 +790,15 @@ contains
       !           the index into the list of all columns.
       !
       implicit none
+
+      ! Arguments:
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       integer                 , intent(in)    :: column_index_in
       logical, optional       , intent(in)    :: recompute_opt
+      ! Result:
       integer                                 :: active_index_out
 
+      ! Locals:
       integer :: active_index, &
                  column_index
       character(len=100) :: message
@@ -825,11 +845,13 @@ contains
      !
      !
       implicit none
+
+      ! Arguments:
       type(struct_obsDataColumn), intent(inout) :: odc
-      integer, intent(in) :: numRows
-      character(len=*), intent(in) :: name,dataType
-      real(pre_obsReal), pointer, intent(in) :: scratchReal(:)
-      integer          , pointer, intent(in) :: scratchInt(:)
+      integer,                    intent(in)    :: numRows
+      character(len=*),           intent(in)    :: name,dataType
+      real(pre_obsReal), pointer, intent(in)    :: scratchReal(:)
+      integer          , pointer, intent(in)    :: scratchInt(:)
 
       if(odc%allocated) then
          call odc_abort('ODC_ALLOCATE: column is already allocated. name=' &
@@ -864,9 +886,12 @@ contains
       !           allocation for this column without actually allocating the memory.
       !
       implicit none
-      type(struct_odc_flavour), intent(inout)  :: odc_flavour
-      integer, intent(in) :: column_index
 
+      ! Arguments:
+      type(struct_odc_flavour), intent(inout) :: odc_flavour
+      integer,                  intent(in)    :: column_index
+
+      ! Locals:
       integer :: active_index, dummy_index
 
       if(.not.odc_flavour%columnActive(column_index)) then
@@ -887,6 +912,9 @@ contains
       ! :Purpose: Set pointers according to the four column flavours (header /
       !           body, integer / real).
       !      
+      implicit none
+
+      ! Arguments:
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       character(len=*)        , intent(in)    :: dataType_in    ! REAL or INT
       character(len=*)        , intent(in)    :: headOrBody_in  ! HEAD or BODY
@@ -949,7 +977,7 @@ contains
       !
       implicit none
 
-      ! locals
+      ! Locals:
       logical, save :: firstCall = .true.
 
       if (firstCall) then
@@ -970,8 +998,11 @@ contains
       !
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
+
+      ! Arguments:
       character(len=*), intent(in) :: obsColumnMode
 
+      ! Locals:
       integer :: column_index, list_index, ii
       integer, parameter :: COLUMN_LIST_SIZE = 100
       integer, dimension(COLUMN_LIST_SIZE) :: hdr_int_column_list, &
@@ -1126,12 +1157,15 @@ contains
      !           method.
      !
      implicit none
+
+     ! Arguments:
      type(struct_obsDataColumn_Array), intent(in)  :: odc_array
      integer                         , intent(in)  :: column_index
      integer                         , intent(in)  :: row_index
      integer                         , intent(out) :: value_i
      real(pre_obsReal)               , intent(out) :: value_r
 
+     ! Locals:
      character(len=100) :: message
       
       if(      column_index >= odc_array%odc_flavour%ncol_beg &
@@ -1167,11 +1201,15 @@ contains
       !           flavour.
       !
       implicit none
+
+      ! Arguments:
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       integer                 , intent(in)    :: active_index_in
       logical, optional       , intent(in)    :: recompute_opt
+      ! Result:
       integer                                 :: column_index_out
 
+      ! Locals:
       integer :: active_index, &
                  column_index
 
@@ -1206,6 +1244,8 @@ contains
       !           method.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obsDataColumn_Array), intent(inout) :: odc_array
       integer                         , intent(in)    :: column_index
       integer                         , intent(in)    :: row_index
@@ -1214,6 +1254,7 @@ contains
       integer                         , intent(inout) :: numElements
       integer                         , intent(in)    :: numElements_max
 
+      ! Locals:
       character(len=100) :: message
 
       ! Validate the requested row_index, and
@@ -1273,6 +1314,8 @@ contains
       !           :odc: instance of the obsDataColumn type
       !
       implicit none
+
+      ! Arguments:
       type(struct_obsDataColumn), intent(inout) :: odc
 
       if(.not.odc%allocated) then
@@ -1304,9 +1347,13 @@ contains
       !           flavours.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obsDataColumn_Array), intent(in) :: odc_array
+      ! Result:
       integer :: numActiveColumn
 
+      ! Locals:
       integer :: column_index
 
       numActiveColumn=0
@@ -1681,6 +1728,8 @@ contains
 !      use pFUnit
 !#endif
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
@@ -1702,11 +1751,13 @@ contains
       !
       implicit none
 
-      type(struct_obs), intent(inout) :: obsdat
-      integer,          intent(in)    :: numHeader_max
-      integer,          intent(in)    :: numBody_max
-      logical, optional,intent(in)    :: silent_opt
+      ! Arguments:
+      type(struct_obs),  intent(inout) :: obsdat
+      integer,           intent(in)    :: numHeader_max
+      integer,           intent(in)    :: numBody_max
+      logical, optional, intent(in)    :: silent_opt
 
+      ! Locals:
       logical :: silent
       integer :: column_index
 
@@ -1817,11 +1868,15 @@ contains
       !           index from the "body".
       !
       implicit none
-      integer                       :: value_i
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer                       :: value_i
 
+      ! Locals:
       real(pre_obsReal) :: value_r         ! not used
 
       call odc_columnElem(obsdat%intBodies, column_index, row_index, &
@@ -1837,11 +1892,15 @@ contains
       !      index from the "body".
       !
       implicit none
-      real(pre_obsReal)             :: value_r
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
+      ! Result:
+      real(pre_obsReal)             :: value_r
 
+      ! Locals:
       integer :: value_i                ! not used
 
       call odc_columnElem(obsdat%realBodies, column_index, row_index, &
@@ -1854,9 +1913,12 @@ contains
       ! :Purpose: Get the body primary key value.
       !
       implicit none
-      integer(8)                    :: primaryKey
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer(8)                    :: primaryKey
 
       primaryKey = obsdat%bodyPrimaryKey(row_index)
 
@@ -1869,9 +1931,12 @@ contains
       !      To control access to the mpiglobal row_index into the "body".
       !
       implicit none
-      integer value
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer value
 
       value=obsdat%bodyIndex_mpiglobal(row_index)
    end function obs_bodyIndex_mpiglobal
@@ -1885,6 +1950,8 @@ contains
       !      index from the "body".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
@@ -1904,11 +1971,14 @@ contains
       !      index from the "body".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
       real(4)         , intent(in)     :: value_r4
 
+      ! Locals:
       real(pre_obsReal)                :: value_r
 
       value_r = value_r4
@@ -1927,11 +1997,14 @@ contains
       !      index from the "body".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
       real(8)         , intent(in)     :: value_r8
 
+      ! Locals:
       real(pre_obsReal)                :: value_r
 
       value_r = value_r8
@@ -1949,10 +2022,11 @@ contains
       !      class.
       !
       implicit none
-      ! mode controlling the subset of columns that are activated in all objects
-      character(len=*), intent(in)  :: obsColumnMode_in
 
-      ! The 'save' makes this a CLASS-CONSTANT variable
+      ! Arguments:
+      character(len=*), intent(in)  :: obsColumnMode_in ! mode controlling subset of columns activated in all objects
+
+      ! Locals:
       character(len=12), save :: obsColumnMode_class = '            '
 
       INITIALIZED: if(.not. obs_class_initialized) then
@@ -2006,14 +2080,15 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type (struct_obs), intent(inout) :: obsdat
+      real(8),           intent(inout) :: hx(:,:)
+      integer,           intent(in)    :: nens
+      integer,           intent(in)    :: nobsout
+      logical,           intent(in)    :: qcvar
+      logical, optional, intent(in)    :: checkZha_opt
 
-      real(8), intent(inout) :: hx(:,:)
-      integer, intent(in)    :: nens
-      integer, intent(in)    :: nobsout
-      logical, intent(in)    :: qcvar
-      logical, intent(in), optional :: checkZha_opt
-
+      ! Locals:
       integer :: iaccept,idata,ipnt,iwrite
       integer :: jdata,kobs,var3d,kobsout
       integer :: column_index
@@ -2123,8 +2198,10 @@ contains
      !
      implicit none
 
+     ! Arguments:
      type (struct_obs), intent(inout) :: obsdat
 
+     ! Locals:
      integer :: numBodyAccept,bodyIndexEnd,bodyIndexBeg,numBodyCleaned
      integer :: bodyIndex,headerIndex,numHeaderCleaned
      integer :: column_index
@@ -2203,8 +2280,11 @@ contains
       !      Return the active status for a column
       !
       implicit none
+
+      ! Arguments:
       type (struct_obs), intent(inout) :: obsdat
-      integer :: column_index
+      integer,           intent(in)    :: column_index
+      ! Result:
       logical :: columnActive
 
       columnActive = obsdat%intBodies%odc_flavour%columnActive(column_index)
@@ -2218,8 +2298,11 @@ contains
       !      Return the active status for a column
       !
       implicit none
+
+      ! Arguments:
       type (struct_obs), intent(inout) :: obsdat
-      integer :: column_index
+      integer,           intent(in)    :: column_index
+      ! Result:
       logical :: columnActive
 
       columnActive = obsdat%intHeaders%odc_flavour%columnActive(column_index)
@@ -2233,8 +2316,11 @@ contains
       !      Return the active status for a column
       !
       implicit none
+
+      ! Arguments:
       type (struct_obs), intent(inout) :: obsdat
-      integer :: column_index
+      integer,           intent(in)    :: column_index
+      ! Result:
       logical :: columnActive
 
       columnActive = obsdat%realBodies%odc_flavour%columnActive(column_index)
@@ -2248,8 +2334,11 @@ contains
       !      Return the active status for a column
       !
       implicit none
+
+      ! Arguments:
       type (struct_obs), intent(inout) :: obsdat
-      integer :: column_index
+      integer,           intent(in)    :: column_index
+      ! Result:
       logical :: columnActive
 
       columnActive = obsdat%realHeaders%odc_flavour%columnActive(column_index)
@@ -2264,9 +2353,13 @@ contains
       !      column, but needs to know its index. This method supplies the index.
       !
       implicit none
+
+      ! Arguments:
       character(len=*)        , intent(in) :: column_name
+      ! Result:
       integer                              :: column_index_out
 
+      ! Locals:
       integer            :: column_index
       logical            :: lfound
       character(len=100) :: message
@@ -2323,17 +2416,19 @@ contains
 
    end function obs_columnIndexFromName
 
+
   function obs_isColumnNameValid(column_name) result(isValid)  
     !
     ! :Purpose: Check if the obsSpaceData column name is valid.
     !      
     implicit none
 
-    ! arguements:
+    ! Arguments:
     character(len=*), intent(in)  :: column_name
+    ! Result:
     logical                       :: isValid
 
-    ! locals: 
+    ! Locals: 
     integer                       :: column_index
 
     call odc_initAllColumnFlavours()
@@ -2396,10 +2491,14 @@ contains
       !      column, but needs to know its index. This method supplies the index.
       !
       implicit none
+
+      ! Arguments:
       type(struct_odc_flavour), intent(in) :: odc_flavour
       character(len=*)        , intent(in) :: column_name
+      ! Result:
       integer                              :: column_index_out
 
+      ! Locals:
       integer            :: column_index
       logical            :: lfound
       character(len=100) :: message
@@ -2430,7 +2529,10 @@ contains
       !      flavour.
       !
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: column_name
+      ! Result:
       integer                      :: column_index
 
       column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IB, column_name)
@@ -2444,7 +2546,10 @@ contains
       !      flavour.
       !
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: column_name
+      ! Result:
       integer                      :: column_index
 
       column_index = obs_columnIndexFromNameForFlavour(odc_flavour_IH, column_name)
@@ -2458,7 +2563,10 @@ contains
       !      flavour.
       !
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: column_name
+      ! Result:
       integer                      :: column_index
 
       column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RB, column_name)
@@ -2472,7 +2580,10 @@ contains
       !      flavour.
       !
       implicit none
+
+      ! Arguments:
       character(len=*), intent(in) :: column_name
+      ! Result:
       integer                      :: column_index
 
       column_index = obs_columnIndexFromNameForFlavour(odc_flavour_RH, column_name)
@@ -2485,7 +2596,9 @@ contains
      !
      implicit none
 
+     ! Arguments:
      integer, intent(in) :: columnIndex
+     ! Result:
      character(len=7)    :: dataType
 
      if (columnIndex >= NHDR_INT_BEG .and. columnIndex <= NHDR_INT_END) then
@@ -2515,9 +2628,11 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(in)    :: obs_a
       type(struct_obs), intent(inout) :: obs_b
 
+      ! Locals:
       integer :: column_index
 
       ! check if object to be copied is empty and react appropriately
@@ -2595,8 +2710,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
+      ! Locals:
       integer :: ierr
       integer :: column_index
 
@@ -2692,10 +2809,12 @@ contains
       !
       implicit none
 
-      character(len=12) :: value
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       character(len=*), intent(in)  :: name
       integer         , intent(in)  :: row_index
+      ! Result:
+      character(len=12) :: value
 
       select case (trim(name))
       case ('STID'); value=obsdat%cstnid(row_index)
@@ -2717,9 +2836,12 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(in) :: obsdat
-      integer,      intent(in)  :: kstn, kulout
+      integer,          intent(in) :: kstn
+      integer,          intent(in) :: kulout
 
+      ! Locals:
       integer :: ipnt, idata, idata2, jdata, var3d
 
       ! general information
@@ -2785,9 +2907,12 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(in) :: obsdata
-      integer,      intent(in)  :: kobs, kulout
+      integer,          intent(in) :: kobs
+      integer,          intent(in) :: kulout
 
+      ! Locals:
       integer :: obsRLN, obsONM, obsDAT, obsETM, obsINS, obsIDF, obsITY
       integer :: obsNLV, obsPAS, obsREG, obsIP
       real(pre_obsReal) ::obsLAT, obsLON, obsALT, obsBX, obsBY, obsBZ, obsAZA
@@ -2853,8 +2978,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
+      ! Locals:
       integer, allocatable :: headerIndex_mpiglobal(:),all_headerIndex_mpiglobal(:,:)
       integer, allocatable :: bodyIndex_mpiglobal(:),all_bodyIndex_mpiglobal(:,:)
       integer(8), allocatable :: headerPrimaryKey_mpilocal(:), all_headerPrimaryKey_mpilocal(:,:)
@@ -2866,7 +2993,6 @@ contains
       integer, allocatable :: intBodies_mpilocal(:,:),all_intBodies_mpilocal(:,:,:)
       integer, allocatable :: all_numHeader_mpilocal(:), all_numBody_mpilocal(:)
       real(pre_obsReal), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
-
       integer :: ierr
       integer :: get_max_rss
       integer :: numHeader_mpilocalmax,numBody_mpilocalmax
@@ -2877,7 +3003,6 @@ contains
       integer :: headerIndexOffset,bodyIndexOffset
       integer :: nsize,sourcePE,nprocs_mpi,myid_mpi,procIndex
       integer :: charIndex,activeIndex,columnIndex
-      !!---------------------------------------------------------------
 
       write(*,*) 'Entering obs_expandToMpiGlobal'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -3297,12 +3422,12 @@ contains
      !
      implicit none
 
-     ! arguments
+     ! Arguments:
      real(pre_obsReal), intent(out) :: realBodyColumn(:)
-     type(struct_obs)     :: obsSpaceData
-     integer              :: obsColumnIndex
+     type(struct_obs),  intent(in)  :: obsSpaceData
+     integer,           intent(in)  :: obsColumnIndex
 
-     ! locals
+     ! Locals:
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
@@ -3317,12 +3442,12 @@ contains
      !
      implicit none
 
-     ! arguments
-     real(4), intent(out) :: realBodyColumn(:)
-     type(struct_obs)     :: obsSpaceData
-     integer              :: obsColumnIndex
+     ! Arguments:
+     real(4),          intent(out) :: realBodyColumn(:)
+     type(struct_obs), intent(in)  :: obsSpaceData
+     integer,          intent(in)  :: obsColumnIndex
 
-     ! locals
+     ! Locals:
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
@@ -3337,12 +3462,12 @@ contains
      !
      implicit none
 
-     ! arguments
-     integer, intent(out) :: intBodyColumn(:)
-     type(struct_obs)     :: obsSpaceData
-     integer              :: obsColumnIndex
+     ! Arguments:
+     integer,          intent(out) :: intBodyColumn(:)
+     type(struct_obs), intent(in)  :: obsSpaceData
+     integer,          intent(in)  :: obsColumnIndex
 
-     ! locals
+     ! Locals:
      integer :: bodyIndex
 
      do bodyIndex = 1, obs_numBody(obsSpaceData)
@@ -3359,12 +3484,12 @@ contains
      !
      implicit none
 
-     ! arguments
+     ! Arguments:
      real(pre_obsReal), intent(out) :: realHeaderColumn(:)
-     type(struct_obs)     :: obsSpaceData
-     integer              :: obsColumnIndex
+     type(struct_obs),  intent(in)  :: obsSpaceData
+     integer,           intent(in)  :: obsColumnIndex
 
-     ! locals
+     ! Locals:
      integer :: bodyIndex, headerIndex
 
      if (size(realHeaderColumn) == obs_numBody(obsSpaceData)) then
@@ -3390,12 +3515,12 @@ contains
      !
      implicit none
 
-     ! arguments
-     integer, intent(out) :: intHeaderColumn(:)
-     type(struct_obs)     :: obsSpaceData
-     integer              :: obsColumnIndex
+     ! Arguments:
+     integer,          intent(out) :: intHeaderColumn(:)
+     type(struct_obs), intent(in)  :: obsSpaceData
+     integer,          intent(in)  :: obsColumnIndex
 
-     ! locals
+     ! Locals:
      integer :: bodyIndex, headerIndex
 
      if (size(intHeaderColumn) == obs_numBody(obsSpaceData)) then
@@ -3421,6 +3546,8 @@ contains
       !      necessary before object deletion.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
       call obs_deallocate(obsdat)
@@ -3433,8 +3560,11 @@ contains
       !      Return the next element from the current body list
       !
       implicit none
-      integer :: row_index
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
+      ! Result:
+      integer :: row_index
 
       row_index = ild_get_next_index(obsdat%body_index_list_depot)
    end function obs_getBodyIndex_depot
@@ -3446,8 +3576,11 @@ contains
       !      Return the next element from the supplied private body list
       !
       implicit none
-      integer :: row_index
+
+      ! Arguments:
       type(struct_index_list), pointer, intent(inout) :: private_list
+      ! Result:
+      integer :: row_index
 
       row_index = ild_get_next_index(private_list)
    end function obs_getBodyIndex_private
@@ -3461,11 +3594,14 @@ contains
       !
       implicit none
 
-      character(len=2)              :: obs_getFamily
-      type(struct_obs), intent(in)  :: obsdat
+      ! Arguments:
+      type(struct_obs),  intent(in) :: obsdat
       integer, optional, intent(in) :: headerIndex_opt
       integer, optional, intent(in) :: bodyIndex_opt
+      ! Result:
+      character(len=2)              :: obs_getFamily
 
+      ! Locals:
       integer          :: headerIndex
 
       if(present(headerIndex_opt)) then
@@ -3483,12 +3619,13 @@ contains
 
 
    function obs_getNclassAvhrr() 
-      !
-      ! :Purpose:
-      !      to get the number of  AVHRR radiance classes
-      !
+     !
+     ! :Purpose:
+     !      to get the number of  AVHRR radiance classes
+     !
      implicit none
 
+     ! Result:
      integer :: obs_getNclassAvhrr
 
      obs_getNclassAvhrr = ( OBS_CF7 - OBS_CF1 + 1 )
@@ -3496,17 +3633,19 @@ contains
    end function obs_getNclassAvhrr
 
    function obs_getNchanAvhrr() 
-      !
-      ! :Purpose:
-      !      to get the number of AVHRR channels
-      !
+     !
+     ! :Purpose:
+     !      to get the number of AVHRR channels
+     !
      implicit none
 
+     ! Result:
      integer :: obs_getNchanAvhrr
 
      obs_getNchanAvhrr = ( OBS_M1C6 - OBS_M1C1 + 1 )
 
    end function obs_getNchanAvhrr
+
 
    function obs_getHeaderIndex(obsdat) result(row_index)
       !
@@ -3514,8 +3653,11 @@ contains
       !      Return the next element from the current header list.
       !
       implicit none
-      integer :: row_index
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
+      ! Result:
+      integer :: row_index
 
       row_index = ild_get_next_index(obsdat%header_index_list_depot)
    end function obs_getHeaderIndex
@@ -3529,11 +3671,15 @@ contains
       !      index from the "header".
       !
       implicit none
-      integer                       :: value_i
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer                       :: value_i
 
+      ! Locals:
       real(pre_obsReal) :: value_r         ! not used
 
       call odc_columnElem(obsdat%intHeaders, column_index, row_index, &
@@ -3549,11 +3695,15 @@ contains
       !      index from the "header".
       !
       implicit none
-      real(pre_obsReal)             :: value_r
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: column_index
       integer         , intent(in)  :: row_index
+      ! Result:
+      real(pre_obsReal)             :: value_r
 
+      ! Locals:
       integer :: value_i                ! unused
 
       call odc_columnElem(obsdat%realHeaders, column_index, row_index, &
@@ -3566,9 +3716,12 @@ contains
       ! :Purpose: Get the header primary key value.
       !
       implicit none
-      integer(8)                    :: primaryKey
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer(8)                    :: primaryKey
 
       primaryKey = obsdat%headerPrimaryKey(row_index)
 
@@ -3581,9 +3734,12 @@ contains
       !      To control access to the mpiglobal row_index into the "header".
       !
       implicit none
-      integer value
+
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: row_index
+      ! Result:
+      integer value
 
       value=obsdat%headerIndex_mpiglobal(row_index)
    end function obs_headerIndex_mpiglobal
@@ -3597,6 +3753,8 @@ contains
       !      index from the "header".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
@@ -3616,11 +3774,14 @@ contains
       !      index from the "header".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
       real(4)         , intent(in)     :: value_r4
 
+      ! Locals:
       real(pre_obsReal)                :: value_r
 
       value_r = value_r4
@@ -3639,11 +3800,14 @@ contains
       !      index from the "header".
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       integer         , intent(in)     :: column_index
       integer         , intent(in)     :: row_index
       real(8)         , intent(in)     :: value_r8
 
+      ! Locals:
       real(pre_obsReal)                :: value_r
 
       value_r = value_r8
@@ -3662,18 +3826,17 @@ contains
       !      parameters, header_max and body_max.
       !
       implicit none
-                                        ! instance of obsSpaceData
-      type(struct_obs),intent(inout):: obsdat !inout allows detection of 2nd call
-                                        ! number of header elements allocated
-      integer, optional, intent(in) :: numHeader_max_opt
-                                        ! total no. of body elements allocated
-      integer, optional, intent(in) :: numBody_max_opt
-      logical, optional, intent(in) :: mpi_local_opt
-      logical, optional, intent(in) :: silent_opt
 
+      ! Arguments:
+      type(struct_obs),  intent(inout) :: obsdat            ! inout allows detection of 2nd call
+      integer, optional, intent(in)    :: numHeader_max_opt ! number of header elements allocated
+      integer, optional, intent(in)    :: numBody_max_opt   ! total no. of body elements allocated
+      logical, optional, intent(in)    :: mpi_local_opt
+      logical, optional, intent(in)    :: silent_opt
+
+      ! Locals:
       logical :: silent
       integer :: nulnam,fnom,fclos,ierr
-
       character(len=120) :: message
 
       ! Namelist variables:
@@ -3776,8 +3939,11 @@ contains
       !           3dvar code, whereas the present module is shared code.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
+      ! Locals:
       integer :: headerIndex_mpiglobal,headerIndex_mpilocal
       integer ::   bodyIndex_mpiglobal,  bodyIndex_mpilocal
       integer :: numHeader_mpiLocal,numBody_mpiLocal,idata,idataend
@@ -3863,7 +4029,10 @@ contains
       !      method exists primarily to facilitate unit tests on this module.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
+
       obs_mpiLocal=obsdat%mpi_local
    end function obs_mpiLocal
 
@@ -3875,8 +4044,12 @@ contains
       !      mpi-local observation-data object.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
+
       obs_numBody=obsdat%numBody
+
    end function obs_numBody
 
 
@@ -3888,9 +4061,11 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
 
       obs_numBody_max=obsdat%numBody_max
+
    end function obs_numBody_max
 
 
@@ -3903,8 +4078,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
 
+      ! Locals:
       integer :: numBody_mpiGlobal, sizedata, ierr
 
       if(obsdat%mpi_local)then
@@ -3927,6 +4104,7 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
 
       obs_numHeader=obsdat%numHeader
@@ -3940,7 +4118,10 @@ contains
       !      observation-data object.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
+
       obs_numHeader_max=obsdat%numHeader_max
    end function obs_numHeader_max
 
@@ -3954,8 +4135,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs) , intent(in)  :: obsdat
 
+      ! Locals:
       integer :: numHeader_mpiGlobal, sizedata, ierr
 
       if(obsdat%mpi_local)then
@@ -3979,9 +4162,11 @@ contains
       !
       implicit none
 
-      type(struct_obs), intent(inout) :: obsdat
-      integer,         intent(in)    :: nobsout
+      ! Arguments:
+      type(struct_obs), intent(in) :: obsdat
+      integer,          intent(in) :: nobsout
 
+      ! Locals:
       integer :: jo
 
       do jo=1,obsdat%numHeader
@@ -4004,15 +4189,15 @@ contains
       !
       implicit none
 
-      type(struct_obs), intent(in)           :: obsdat
-      integer         , intent(in)           :: index_header
-      integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
+      ! Arguments:
+      type(struct_obs),  intent(in) :: obsdat
+      integer         ,  intent(in) :: index_header
+      integer, optional, intent(in) :: unitout_opt ! variable output unit facilitates unit testing
 
+      ! Locals:
       integer :: unitout_
-
       integer :: ipnt, idata, idata2, jdata, ivco
       character(len=13) :: ccordtyp(4)
-
       integer :: obsVNM, obsFLG, obsASS
       real(pre_obsReal) :: obsPPP, obsVAR, obsOMP, obsOMA, obsOER, obsHPHT, obsOMPE
 
@@ -4100,14 +4285,14 @@ contains
       !           :index_hd: index of the header to be printed
       !           :unitout_opt: unit number on which to print
       !
-
       implicit none
 
+      ! Arguments:
+      type(struct_obs),  intent(in) :: obsdata
+      integer         ,  intent(in) :: index_hd
+      integer, optional, intent(in) :: unitout_opt ! variable output unit facilitates unit testing
 
-      type(struct_obs), intent(in)           :: obsdata
-      integer         , intent(in)           :: index_hd
-      integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
-
+      ! Locals:
       integer :: unitout_
       integer :: obsRLN, obsONM, obsINS, obsIDF, obsITY
       integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
@@ -4179,18 +4364,17 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
-      ! Declare Local Variables
+      ! Locals:
       integer(8),        allocatable,dimension(:)   :: headerPrimaryKey_tmp
       integer(8),        allocatable,dimension(:)   :: bodyPrimaryKey_tmp
       character(len=12), allocatable,dimension(:)   :: cstnid_tmp
       character(len=2),  allocatable,dimension(:)   :: cfamily_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realHeaders_tmp
       real(pre_obsReal), allocatable,dimension(:,:) :: realBodies_tmp
-
       integer,allocatable,dimension(:,:) :: intHeaders_tmp,intBodies_tmp
-
       integer :: numHeader_mpilocal,numHeader_mpiglobal
       integer ::   numBody_mpilocal,  numBody_mpiglobal
       integer :: bodyIndex_mpilocal,bodyIndex_mpiglobal
@@ -4402,9 +4586,10 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
 
-      ! Declare Local Variables
+      ! Locals:
       integer(8),        allocatable :: headerPrimaryKey_tmp(:)
       integer(8),        allocatable :: bodyPrimaryKey_tmp(:)
       character(len=12), allocatable :: cstnid_tmp(:)
@@ -4556,10 +4741,11 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat_inout
-      integer :: target_ip_index
+      integer,          intent(in)    :: target_ip_index
 
-      ! Declare Local Variables
+      ! Locals:
       type(struct_obs) :: obsdat_tmp
       integer, allocatable :: numHeaderPE_mpilocal(:), numHeaderPE_mpiglobal(:)
       integer, allocatable :: numBodyPE_mpilocal(:), numBodyPE_mpiglobal(:)
@@ -5032,6 +5218,8 @@ contains
       !      To control access to the observation object.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout)  :: obsdat
       character(len=*), intent(in)     :: name
       integer         , intent(in)     :: row_index
@@ -5057,11 +5245,14 @@ contains
       !      the body depot.
       !
       implicit none
-      type(struct_obs), intent(inout), target :: obsdat
-      character(len=*), intent(in) :: family
-      logical, intent(out), optional :: list_is_empty_opt
-      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
+      ! Arguments:
+      type(struct_obs), target,                   intent(inout) :: obsdat
+      character(len=*),                           intent(in)    :: family
+      logical,                          optional, intent(out)   :: list_is_empty_opt
+      type(struct_index_list), pointer, optional, intent(out)   :: current_list_opt
+
+      ! Locals:
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
       integer :: index_header, list, list_index, row_index
@@ -5147,11 +5338,14 @@ contains
       !      the body depot.
       !
       implicit none
-      type(struct_obs), intent(inout), target :: obsdat
-      integer, intent(in) :: header
-      logical, intent(out), optional :: list_is_empty_opt
-      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
+      ! Arguments:
+      type(struct_obs), target,                   intent(inout) :: obsdat
+      integer,                                    intent(in)    :: header
+      logical,                          optional, intent(out)   :: list_is_empty_opt
+      type(struct_index_list), pointer, optional, intent(out)   :: current_list_opt
+
+      ! Locals:
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
       integer :: list, list_index, row_index
@@ -5227,10 +5421,13 @@ contains
       !      body depot.
       !
       implicit none
-      type(struct_obs), intent(inout), target :: obsdat
-      logical, intent(out), optional :: list_is_empty_opt
-      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
+      ! Arguments:
+      type(struct_obs), target,                   intent(inout) :: obsdat
+      logical,                          optional, intent(out)   :: list_is_empty_opt
+      type(struct_index_list), pointer, optional, intent(out)   :: current_list_opt
+
+      ! Locals:
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
       integer :: list, list_index, row_index, index_header
@@ -5317,9 +5514,12 @@ contains
       !      it in the header depot.
       !
       implicit none
-      type(struct_obs), intent(inout), target :: obsdat
-      character(len=*), intent(in) :: family
 
+      ! Arguments:
+      type(struct_obs), target, intent(inout) :: obsdat
+      character(len=*),         intent(in)    :: family
+
+      ! Locals:
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
       integer :: list, list_index, row_index
@@ -5369,8 +5569,11 @@ contains
       !      header depot.
       !
       implicit none
-      type(struct_obs), intent(inout), target :: obsdat
 
+      ! Arguments:
+      type(struct_obs), target, intent(inout) :: obsdat
+
+      ! Locals:
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
       integer :: list, list_index, row_index
@@ -5416,6 +5619,8 @@ contains
       !      Set to the indicated value the body primary key for the indicated body.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
       integer(8),       intent(in)    :: primaryKey
       integer,          intent(in)    :: bodyIndex
@@ -5435,6 +5640,8 @@ contains
       !      Set to the indicated value the header primary key for the indicated header.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
       integer(8),       intent(in)    :: primaryKey
       integer,          intent(in)    :: headerIndex
@@ -5454,11 +5661,14 @@ contains
       !      else for the indicated body.
       !
       implicit none
+
+      ! Arguments:
       type(struct_obs),  intent(inout) :: obsdat
       character(len=*),  intent(in)    :: Family_in
       integer, optional, intent(in)    :: headerIndex_opt
       integer, optional, intent(in)    :: bodyIndex_opt
 
+      ! Locals:
       integer          :: headerIndex
 
       if(present(headerIndex_opt)) then
@@ -5483,11 +5693,14 @@ contains
      ! :Purpose: Set the header index in the body table
      !
      implicit none
-     type(struct_obs) :: obsSpaceData
+
+     ! Arguments:
+     type(struct_obs), intent(inout) :: obsSpaceData
+
+     ! Locals:
      integer :: idata,idatend,bodyIndex,headerIndex
-     !
+
      ! Set the header index in the body of obsSpaceData
-     !
      do headerIndex = 1, obs_numheader(obsSpaceData)
         idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
@@ -5508,11 +5721,17 @@ contains
       !      be used by sekfeta.f
       !
       implicit none
-      type(struct_obs), intent(in) :: obsdat
-      real(8),      intent(in), dimension(:,:) :: hx
-      integer,      intent(in) :: nens,nobshdrout,nobsbdyout, &
-         nobshxout,nobsdimout
 
+      ! Arguments:
+      type(struct_obs), intent(in) :: obsdat
+      real(8),          intent(in) :: hx(:,:)
+      integer,          intent(in) :: nens
+      integer,          intent(in) :: nobshdrout
+      integer,          intent(in) :: nobsbdyout
+      integer,          intent(in) :: nobshxout
+      integer,          intent(in) :: nobsdimout
+
+      ! Locals:
       integer :: irealBodies,jo,nrealBodies
 
       irealBodies=1
@@ -5545,11 +5764,13 @@ contains
       !
       implicit none 
 
+      ! Arguments:
       type(struct_obs), intent(in) :: obsdat
-      integer, intent(in) ::  kobs,kulout
+      integer,          intent(in) :: kobs
+      integer,          intent(in) :: kulout
 
+      ! Locals:
       integer :: ipnt,idata,j,jdata,k
-
 
       ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs) 
       idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
@@ -5583,14 +5804,15 @@ contains
       !
       implicit none
 
+      ! Arguments:
       type(struct_obs), intent(in)  :: obsdat
       integer         , intent(in)  :: kobs
       integer         , intent(in)  :: kulout
       integer         , intent(in)  :: irealBodies
       integer         , intent(out) :: nrealBodies
 
+      ! Locals:
       integer :: i,j,nprocs_mpi,ierr
-
 
       ! (note that as a part of the writing, the body is being sorted
       !  so that the order of the observations in the body array 
@@ -5645,11 +5867,13 @@ contains
       !
       implicit none 
 
+      ! Arguments:
       type(struct_obs), intent(in) :: obsdat
-      real(8), intent(in), dimension(:,:) :: hx
-      integer, intent(in) :: kobs
-      integer, intent(in) :: kulout
+      real(8),          intent(in) :: hx(:,:)
+      integer,          intent(in) :: kobs
+      integer,          intent(in) :: kulout
 
+      ! Locals:
       integer :: ipnt,idata,iens,jdata,nens
 
       nens = size(hx,1)
@@ -5681,11 +5905,14 @@ contains
      !
      implicit none 
 
+     ! Arguments:
+     type(struct_obs),  intent(in) :: obsdat
+     character(len=2),  intent(in) :: family
+     logical, optional, intent(in) :: localMPI_opt
+     ! Result:
      logical                                :: obs_famExist  ! Logical indicating if 'family' is part of the list
-     type(struct_obs), intent(in)           :: obsdat
-     character(len=2), intent(in)           :: family
-     logical         , intent(in), optional :: localMPI_opt
-     
+
+     ! Locals:
      integer :: index_header,ierr
      logical :: famExist,local
 

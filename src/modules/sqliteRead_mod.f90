@@ -1,6 +1,6 @@
 
 module sqliteRead_mod
-  ! MODULE sqliteRead (prefix='sqlr' category='3. Observation input/output')
+  ! MODULE sqliteRead_mod (prefix='sqlr' category='3. Observation input/output')
   !
   ! :Purpose: To read and update SQLITE observation files. Data is stored in 
   !           obsSpaceData object.
@@ -173,7 +173,6 @@ module sqliteRead_mod
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBodyRows, numberBodyColumns, numberIDsRows, numberIDsColumns
     integer                  :: columnIndex
-
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
     character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN','LAT','LON','CODTYP', &
@@ -788,7 +787,7 @@ module sqliteRead_mod
     character(len=*)   , intent(in)    :: fileName    
     character(len=*)   , intent(in)    :: tableName   
     character(len=*)   , intent(in)    :: columnName   
-    integer, intent(in)         :: obsSpaceColIndexSource  
+    integer,             intent(in)    :: obsSpaceColIndexSource  
 
     ! Locals: 
     character(len=3000)         :: query
@@ -796,7 +795,6 @@ module sqliteRead_mod
     character(len=*), parameter :: myName = 'sqlr_addColumn'
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
-
 
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
@@ -855,9 +853,9 @@ module sqliteRead_mod
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
-
     integer, parameter :: maxNumberUpdate = 15
-    ! namelist variables:
+
+    ! Namelist variables:
     integer          :: numberUpdateItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
     integer          :: numberUpdateItemsRadar               ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=3) :: itemUpdateList(maxNumberUpdate)      ! List of columns to be updated (e.g.'OMA','OMP')
@@ -1106,8 +1104,8 @@ module sqliteRead_mod
 
     ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    type(struct_obs),    intent(in) :: obsdat
-    integer,             intent(in) :: fileNumber
+    type(struct_obs),    intent(in)    :: obsdat
+    integer,             intent(in)    :: fileNumber
 
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
@@ -1184,11 +1182,11 @@ module sqliteRead_mod
     implicit none
 
     ! Arguments:
-    type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
-    type(struct_obs)       :: obsdat
-    character(len=*)       :: familyType
-    character(len=*)       :: fileName
-    integer                :: fileNumber
+    type(fSQL_DATABASE), intent(inout) :: db   ! type for SQLIte  file handle
+    type(struct_obs),    intent(in)    :: obsdat
+    character(len=*),    intent(in)    :: familyType
+    character(len=*),    intent(in)    :: fileName
+    integer         ,    intent(in)    :: fileNumber
 
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
@@ -1202,7 +1200,7 @@ module sqliteRead_mod
     logical                :: llok    
     integer, parameter     :: maxNumberInsertItems = 15
 
-    ! namelist variables
+    ! Namelist variables
     integer :: itemInsertList(maxNumberInsertItems) ! List of bufr element ids to insert in sql file data table
     integer :: numberInsertItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
 
@@ -1372,7 +1370,7 @@ module sqliteRead_mod
 
     ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
-    character(len=*),    intent(in) :: fileName
+    character(len=*),    intent(in)    :: fileName
 
     ! Locals:
     character(len = 128) :: query

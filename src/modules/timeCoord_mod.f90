@@ -1,6 +1,6 @@
 
 module timeCoord_mod
-  ! MODULE timeCoord (prefix='tim' category='7. Low-level data objects')
+  ! MODULE timeCoord_mod (prefix='tim' category='7. Low-level data objects')
   !
   ! :Purpose: To store public variables and procedures related to the time
   !           coordinate.
@@ -58,11 +58,11 @@ contains
     !
     implicit none
 
-    ! locals
+    ! Locals:
     integer :: nulnam, ierr, fnom, fclos
     logical, save :: firstCall = .true.
 
-    ! namelist variables:
+    ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)
     real(8) :: dstepobsinc   ! time step length for increment and/or B matrix (in hours)
     real(8) :: dwindowsize   ! length of assimilation window (in hours)
@@ -132,10 +132,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, intent(inout) :: dateStamp
 
-    ! locals:
+    ! Locals:
     integer    :: lengthValidDateStr, status, datePrint, timePrint, imode, ierr
     integer(8) :: dateTimePrint
     character(len=256) :: validDateStr
@@ -193,10 +193,10 @@ contains
     !
     implicit none
 
-    ! arguments
-    character(len=*), optional :: fileNameForDate_opt
+    ! Arguments:
+    character(len=*), optional, intent(in) :: fileNameForDate_opt
 
-    ! locals
+    ! Locals:
     integer :: ierr, newdate, imode, prntdate, prnttime
     integer :: dateStampEnvVar
 
@@ -252,6 +252,8 @@ contains
 
   function tim_initialized() result(initialized_out)
     implicit none
+
+    ! Result:
     logical initialized_out
 
     initialized_out = initialized
@@ -265,12 +267,13 @@ contains
     !
     implicit none
 
-    ! arguments
-    character(len=*)           :: fileName
-    character(len=*), optional :: varNameForDate_opt
+    ! Arguments:
+    character(len=*),           intent(in) :: fileName
+    character(len=*), optional, intent(in) :: varNameForDate_opt
+    ! Result:
     integer :: dateStamp_out
 
-    ! locals
+    ! Locals:
     integer :: nulFile, ierr
     integer, parameter :: maxNumDates = 2000
     integer :: numDates, ikeys(maxNumDates), varIndex
@@ -395,6 +398,8 @@ contains
     !           of the window centre of analysis validity to the indicated value.
     !
     implicit none
+
+    ! Arguments:
     integer, intent(in) :: datestamp_in
 
     if (.not.initialized) call utl_abort('tim_setDateStamp: module not initialized')
@@ -410,6 +415,8 @@ contains
     !           of the window centre of analysis validity.
     !
     implicit none
+
+    ! Result:
     integer :: datestamp_out
 
     if (.not.initialized) call utl_abort('tim_getDateStamp: module not initialized')
@@ -425,12 +432,12 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer, intent(in)  :: numStep ! number of step obs
     integer, intent(in)  :: referenceDateStamp ! Synoptic time
     integer, intent(out) :: datestamplist(numStep) 
 
-    ! locals
+    ! Locals:
     integer :: stepIndex
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
@@ -477,17 +484,16 @@ contains
     !
     ! :Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
-
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(out) :: dnstepobs          ! number of stepobs from reference time
-    integer, intent(in)  :: referenceDateStamp    ! Synop CMC date-time stamp
+    integer, intent(in)  :: referenceDateStamp ! Synop CMC date-time stamp
     integer, intent(in)  :: obsYYYMMDD         ! Obs date YYYYMMDD
     integer, intent(in)  :: obsHHMM            ! Obs time HHMM
     integer, intent(in)  :: numStep            ! number of stepobs in assimilation window
 
-    ! locals
+    ! Locals:
     integer :: newdate, istat, imode
     real(8) :: dddt      ! delta time in hours
     integer :: istobs    ! obs CMC date-time stamp
@@ -552,16 +558,15 @@ contains
     !
     ! :Purpose: to get day (DD), month (MM), number of days in this month 
     !           and year (YYYY) from dateStamp
-    !  
-    
+    !
     implicit none
   
-    ! arguments
-    integer, intent(in)           :: dateStamp
-    integer, intent(inout)        :: prnttime, dd, mm, ndays, yyyy
-    logical, intent(in), optional :: verbose_opt
+    ! Arguments:
+    integer,           intent(in)    :: dateStamp
+    integer,           intent(inout) :: prnttime, dd, mm, ndays, yyyy
+    logical, optional, intent(in)    :: verbose_opt
     
-    ! locals
+    ! Locals:
     character(len=8)            :: yyyymmdd
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     integer                     :: ndaysM(12)    
@@ -599,13 +604,13 @@ contains
   subroutine tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, intent(in)  :: headDateValues(:)
     integer, intent(in)  :: headTimeValues(:)
     integer, intent(out) :: validDate
     integer, intent(out) :: validTime
 
-    ! locals:
+    ! Locals:
     integer                 :: numDates, numWindowsPerDay, windowIndex, timeMin, timeMax, dateMin, dateMax
     integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax 
     integer(8)              :: dateTimeMin, dateTimeMax

@@ -388,7 +388,6 @@ contains
     character(len=64) :: dynamicCoeffFile, staticCoeffFile
     logical           :: corrected
     integer           :: nfov, npredictors
-
     character(len=10) :: satsDynamic(tvs_nsensors)       ! satellite names
     integer           :: chansDynamic(tvs_nsensors,tvs_maxchannelnumber)    ! channel numbers
     real(8)           :: fovbiasDynamic(tvs_nsensors,tvs_maxchannelnumber,maxfov)! bias as F(fov)
@@ -400,7 +399,6 @@ contains
     character(len=7)  :: cinstrumDynamic      ! string: instrument (e.g. AMSUB) 
     character(len=2)  :: ptypesDynamic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors)
     integer           :: ndataDynamic(tvs_nsensors,tvs_maxchannelnumber)    !number of channels
-
     character(len=10) :: satsStatic(tvs_nsensors)       ! satellite names
     integer           :: chansStatic(tvs_nsensors,tvs_maxchannelnumber)    !channel numbers 
     real(8)           :: fovbiasStatic(tvs_nsensors,tvs_maxchannelnumber,maxfov)!bias as F(fov)
@@ -412,7 +410,6 @@ contains
     character(len=7)  :: cinstrumStatic      ! string: instrument (e.g. AMSUB) 9
     character(len=2)  :: ptypesStatic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors)
     integer           :: ndataStatic(tvs_nsensors,tvs_maxchannelnumber)    ! number of channels
-
 
     if (biasActive .and. biasMode == "apply") then
 
@@ -646,7 +643,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_obs),        intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
@@ -963,8 +960,10 @@ contains
 
     subroutine handleError(stat, message)
       implicit none
-      type(FSQL_STATUS), intent(in)  :: stat
-      character(len=*), intent(in) :: message
+
+      ! Arguments:
+      type(FSQL_STATUS), intent(in) :: stat
+      character(len=*),  intent(in) :: message
 
       write(*,*) message, fSQL_errmsg(stat)
       call utl_abort(trim(message))
@@ -1291,9 +1290,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)                    :: cv_in(:)
-    integer, intent(in)                    :: obsColumnIndex
-    type(struct_obs),  intent(inout)       :: obsSpaceData
+    real(8),                 intent(in)    :: cv_in(:)
+    integer,                 intent(in)    :: obsColumnIndex
+    type(struct_obs),        intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
@@ -1399,7 +1398,7 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
-    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
     integer  :: headerIndex, idatyp, iobs
@@ -1470,12 +1469,16 @@ contains
   contains
 
     function logInterpHeight(columnTrlOnTrlLev, headerIndex, p) result(height)
-      !Arguments:
+      implicit none
+
+      ! Arguments:
       type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
-      integer, intent(in) :: headerIndex
-      real(8), intent(in) :: p
+      integer,                 intent(in)    :: headerIndex
+      real(8),                 intent(in)    :: p
+      ! Result:
       real(8) :: height
-      !Locals
+
+      ! Locals:
       integer :: jk, nlev, ik
       real(8) :: zpt, zpb, zwt, zwb
       real(8), pointer :: col_ptr(:)
@@ -1509,7 +1512,7 @@ contains
     implicit none
 
     ! Arguments:
-    real(8)  :: cv_bias(:)
+    real(8), intent(in) :: cv_bias(:)
 
     ! Locals:
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
@@ -1580,15 +1583,17 @@ contains
   !-----------------------------------
   ! bcs_getPredictors
   !---------------------------------- 
-   subroutine bcs_getPredictors(predictor, headerIndex, obsIndex, chanindx, obsSpaceData)
-     !
-     ! :Purpose: get predictors
-     !
+  subroutine bcs_getPredictors(predictor, headerIndex, obsIndex, chanindx, obsSpaceData)
+    !
+    ! :Purpose: get predictors
+    !
     implicit none
 
     ! Arguments:
-    real(8), intent(out)            :: predictor(NumPredictors)
-    integer, intent(in)             :: headerIndex, obsIndex, chanindx
+    real(8),          intent(out)   :: predictor(NumPredictors)
+    integer,          intent(in)    :: headerIndex
+    integer,          intent(in)    :: obsIndex
+    integer,          intent(in)    :: chanindx
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
@@ -1643,9 +1648,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in)  :: cv_out(:)
-    integer, intent(in)  :: obsColumnIndex
-    type(struct_obs)     :: obsSpaceData
+    real(8),          intent(in)    :: cv_out(:)
+    integer,          intent(in)    :: obsColumnIndex
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     integer  :: headerIndex, bodyIndex, iobs, idatyp
@@ -1995,14 +2000,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)           :: maxsat, maxpred
-    character(len=*), intent(in)  :: coeff_file
-    logical, optional, intent(in) :: updateCoeff_opt
-    integer, intent(out)          :: chans(maxsat,tvs_maxChannelNumber)       ! channel numbers
-    integer, intent(out)          :: nsat, nfov
-    integer, intent(out)          :: nchan(maxsat)  ! number of channels
-    character(len=10), intent(out):: sats(maxsat) ! Satellite names
-    character(len=*), intent(out) :: cinstrum     ! instrument (e.g. AMSUB)
+    integer,           intent(in)  :: maxsat, maxpred
+    character(len=*),  intent(in)  :: coeff_file
+    logical, optional, intent(in)  :: updateCoeff_opt
+    integer,           intent(out) :: chans(maxsat,tvs_maxChannelNumber) ! channel numbers
+    integer,           intent(out) :: nsat
+    integer,           intent(out) :: nfov
+    integer,           intent(out) :: nchan(maxsat) ! number of channels
+    character(len=10), intent(out) :: sats(maxsat)  ! Satellite names
+    character(len=*),  intent(out) :: cinstrum      ! instrument (e.g. AMSUB)
 
     ! Locals:
     real(8)            :: fovbias(maxsat,tvs_maxChannelNumber,maxfov)
@@ -2033,6 +2039,7 @@ contains
     !   if returned nsat = 0, coeff_file was empty
     !   maxpred (input) is max number of predictors
     !   maxsat (input)  is max number of satellites
+
     ! There are three parts in this subroutine, read, update and write out the coeff files
     ! 
     !- 1. read in the background coeff files, this program is read_coeff from genbiascorr
@@ -2233,8 +2240,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsSpaceData
-    character(len=2), intent(in), optional :: family_opt
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    character(len=2), optional, intent(in)    :: family_opt
 
     ! Locals:
     integer :: nbcor
@@ -2498,9 +2505,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsSpaceData
-    integer, intent(in)                    :: column !obsSpaceData column
-    character(len=2), intent(in), optional :: family_opt
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    integer,                    intent(in)    :: column !obsSpaceData column
+    character(len=2), optional, intent(in)    :: family_opt
 
     ! Locals:
     integer :: nbcor
@@ -2552,7 +2559,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_obs),        intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     if (.not.biasActive) return
@@ -2575,8 +2582,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    logical, intent(in), optional   :: lmodify_obserror_opt
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    logical, optional, intent(in)    :: lmodify_obserror_opt
 
     ! Locals:
     integer :: iobs, headerIndex, idatyp, nobs, bodyIndex, stepIndex
@@ -2663,7 +2670,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)        :: obsSpaceData
+    type(struct_obs),        intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
@@ -2948,8 +2955,10 @@ contains
     ! :Purpose: compute and output OmF-predictors covariance and correlation matrices
     !
     implicit none
+
     ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
+
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
     integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
@@ -3219,6 +3228,7 @@ contains
 
     ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     ! Locals:
@@ -3249,6 +3259,7 @@ contains
     
     ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     if (trim(nameIn) == 'MHS') then
@@ -3271,8 +3282,9 @@ contains
   function SatNameinCoeffFile(nameIn) result(nameOut)
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     if (trim(nameIn) == 'MSG1') then
@@ -3302,11 +3314,14 @@ contains
 
     ! Arguments:
     character(len=*), intent(in)  :: bcifFile
-    logical, intent(in)           :: hspec
-    integer, intent(out)          :: exitcode, ncan
-    integer, intent(out)          :: can(tvs_maxchannelnumber), npred(tvs_maxchannelnumber)
+    logical,          intent(in)  :: hspec
+    integer,          intent(out) :: exitcode
+    integer,          intent(out) :: ncan
+    integer,          intent(out) :: can(tvs_maxchannelnumber)
+    integer,          intent(out) :: npred(tvs_maxchannelnumber)
     character(len=3), intent(in)  :: global_opt
-    character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber), bctype(tvs_maxchannelnumber)
+    character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber)
+    character(len=1), intent(out) :: bctype(tvs_maxchannelnumber)
     character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictorsBCIF)
 
     ! Locals:
@@ -3316,6 +3331,7 @@ contains
     integer                      :: xcan, xnpred, chknp
     character(len=1)             :: xbcmode, xbctype
     character(len=2)             :: xpred(numpredictors)
+
     ! Reads channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     ! Channel 0 values are global or default values (optionally applied to all channels).
     ! Returns BC information for all channels to calling routine.
@@ -3512,17 +3528,17 @@ contains
 
     ! Arguments:
     character(len=10), intent(out) :: sats(:)       ! dim(maxsat), satellite names 1
-    integer, intent(out)           :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers 2
-    real(8), intent(out)           :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
-    real(8), intent(out)           :: coeff(:,:,:)  ! dim(maxsat,maxchan,maxpred+1) 4
-    integer, intent(out)           :: nsat          !5
-    integer, intent(out)           :: nchan(:)      ! dim(maxsat), number of channels 6
-    integer, intent(out)           :: nfov          !7
-    integer, intent(out)           :: npred(:,:)    ! dim(maxsat, maxchan), number of predictors !8
-    character(len=7), intent(out)  :: cinstrum      ! string: instrument (e.g. AMSUB) 9
-    character(len=*), intent(in)   :: coeff_file    ! 10
-    character(len=2), intent(out)  :: ptypes(:,:,:) ! dim(maxsat,maxchan,maxpred) 11
-    integer, intent(out)           :: ndata(:,:)    ! dim(maxsat, maxchan), number of channels 12
+    integer,           intent(out) :: chans(:,:)    ! dim(maxsat, maxchan), channel numbers 2
+    real(8),           intent(out) :: fovbias(:,:,:)! dim(maxsat,maxchan,maxfov), bias as F(fov) 3
+    real(8),           intent(out) :: coeff(:,:,:)  ! dim(maxsat,maxchan,maxpred+1) 4
+    integer,           intent(out) :: nsat          !5
+    integer,           intent(out) :: nchan(:)      ! dim(maxsat), number of channels 6
+    integer,           intent(out) :: nfov          !7
+    integer,           intent(out) :: npred(:,:)    ! dim(maxsat, maxchan), number of predictors !8
+    character(len=7),  intent(out) :: cinstrum      ! string: instrument (e.g. AMSUB) 9
+    character(len=*),  intent(in)  :: coeff_file    ! 10
+    character(len=2),  intent(out) :: ptypes(:,:,:) ! dim(maxsat,maxchan,maxpred) 11
+    integer,           intent(out) :: ndata(:,:)    ! dim(maxsat, maxchan), number of channels 12
 
     ! Locals:
     character(len=8)               :: sat
@@ -3534,6 +3550,7 @@ contains
     integer                        :: iun
     integer                        :: maxsat    
     integer                        :: maxpred 
+
     !   sats(nsat)            = satellite names
     !   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
     !   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
@@ -3543,7 +3560,6 @@ contains
     !   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
     !   nsat, nchan, nfov, cinstrum (output) are determined from file
     !   if returned nsat = 0, coeff_file was empty
-
 
     inquire(file=trim(coeff_file), exist=fileExists)
     if (fileExists) then
@@ -3697,9 +3713,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: idsat, indexBody
-    integer, intent(out)             :: chanIndx
-    type(struct_obs), intent(inout)  :: obsSpaceData
+    integer,          intent(in)    :: idsat
+    integer,          intent(in)    :: indexBody
+    integer,          intent(out)   :: chanIndx
+    type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
     logical, save :: first =.true.
@@ -3742,6 +3759,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: codeType
+    ! Result:
     character(len=20)   :: fileName
  
     if (codtyp_get_name(codeType) == 'radianceclear') then
@@ -3771,10 +3789,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    character(len=*), intent(in)    :: obsFamily    
-    integer, intent(out)            :: idObs, idData
-    integer, optional, intent(in)   :: codeTypeList_opt(:)
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    character(len=*),  intent(in)    :: obsFamily    
+    integer,           intent(out)   :: idObs
+    integer,           intent(out)   :: idData
+    integer, optional, intent(in)    :: codeTypeList_opt(:)
 
     ! Locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
