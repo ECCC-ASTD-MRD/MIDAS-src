@@ -73,9 +73,11 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
   logical :: dumpBmatrixTofile
+  logical :: doAveraging
   real(8) :: latMin, latMax, lonMin, lonMax
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
-       vLocalize, includeAnlVar, numIncludeAnlVar, dumpBmatrixTofile, latMin, latMax, lonMin, lonMax
+      vLocalize, includeAnlVar, numIncludeAnlVar, dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, &
+      doAveraging
 
 contains
 
@@ -113,6 +115,7 @@ contains
     includeAnlVar(:)= ''
     numIncludeAnlVar = MPC_missingValue_INT
     dumpBmatrixTofile = .false.
+    doAveraging = .false.
     latMin = MPC_missingValue_R8
     latMax = MPC_missingValue_R8
     lonMin = MPC_missingValue_R8
@@ -432,7 +435,8 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat, varLevIndexCol
-    integer :: numStep, levIndexColumn
+    integer :: taskIndex, dumpedIndex
+    integer :: numStep, levIndexColumn, ierr, status
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, zr, latitude, longitude
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -443,14 +447,18 @@ contains
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer :: nulmat
-    integer :: yyyymmdd, hhmm, countDumped
+    integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
+    integer :: globalCountDumped
+    integer :: tag
     integer, external ::  fnom, fclos, newdate
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
+    real(8), allocatable :: tempoBmatrix(:,:)
+    real(8), allocatable :: outLats(:),outLons(:),outBmatrix(:,:,:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
+    integer, allocatable :: obsOffset(:), countDumpedAllTasks(:),listColumnDumped(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
-    character(len=4) :: cmyidx, cmyidy
     character(len=2) :: varLevel    
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
@@ -754,14 +762,10 @@ contains
 
     do varLevIndexBmat =1, nkgdim
       write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
-                 sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
+          sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
     end do
     
     if (dumpBmatrixTofile) then
-      nulmat = 0
-      write(cmyidy,'(i4.4)') (mmpi_myidy + 1)
-      write(cmyidx,'(i4.4)') (mmpi_myidx + 1)
-      ierr = fnom(nulmat, './Bmatrix_' // trim(cmyidx) // '_' // trim(cmyidy), 'FTN+SEQ+UNF', 0)
       countDumped = 0
       do columnIndex = 1, var1D_validHeaderCount 
         headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -774,12 +778,31 @@ contains
           countDumped = countDumped + 1
         end if
       end do
-      if (countDumped > 0) then
-        ierr = newdate( dateStampList(1+ numstep / 2), yyyymmdd, hhmm, -3)
-        write(nulmat) yyyymmdd * 10000 + hhmm, vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
-            vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, countDumped, nkgdim
-        write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
-        do columnIndex = 1, var1D_validHeaderCount
+      call rpn_comm_barrier("GRID",ierr)
+      allocate( obsOffset(0:mmpi_nprocs-1) )
+      if (mmpi_myid ==0) then
+        allocate( countDumpedAllTasks(mmpi_nprocs) )
+      else
+        allocate(countDumpedAllTasks(1))
+      end if
+      call rpn_comm_gather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
+      if (mmpi_myId ==0) then
+        countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
+        countDumpedMax = maxval( countDumpedAllTasks(:) )
+        obsOffset(0) = 0
+        do taskIndex = 1, mmpi_nprocs - 1
+          obsOffset(taskIndex) = obsOffset(taskIndex - 1) + countDumpedAllTasks(taskIndex)
+        end do
+        write(*,*) 'var1D_transferColumnToYGrid: obsOffset: ', obsOffset(:)
+      end if
+      call rpn_comm_bcast(obsOffset, mmpi_nprocs, 'MPI_INTEGER', 0,  "GRID", ierr)
+      call rpn_comm_bcast(countDumpedMax, 1, 'MPI_INTEGER', 0,  "GRID", ierr)
+
+      if (countDumpedMax > 0) then
+        allocate(listColumnDumped(countDumpedMax))
+        listColumnDumped(:) = -1
+        countDumped = 0
+        do columnIndex = 1, var1D_validHeaderCount 
           headerIndex = var1D_validHeaderIndex(columnIndex)
           latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
           longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
@@ -787,18 +810,78 @@ contains
               latitude  <= latMax .and. &
               longitude >= lonMin .and. &
               longitude <= lonMax) then
-            write(nulmat) latitude, longitude, bSqrtEns(columnIndex, :, :)
+            countDumped = countDumped + 1
+            listColumnDumped(countDumped) = columnIndex
           end if
         end do
+        if (mmpi_myId == 0) then
+          nulmat = 0
+          ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
+          ierr = newdate(dateStampList(1 + numstep / 2), yyyymmdd, hhmm, -3)
+          write(nulmat) yyyymmdd * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
+              vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, nkgdim, countDumped
+          write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
+          allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, nkgdim, nkgdim))
+          allocate(tempoBmatrix(nkgdim, nkgdim))
+        end if
       end if
-      ierr = fclos(nulmat)
-    end if
+      
+      do dumpedIndex = 1, countDumpedMax
+        columnIndex = listColumnDumped(dumpedIndex)
+        if (columnIndex > 0) then
+          headerIndex = var1D_validHeaderIndex(columnIndex)
+          latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        else
+          latitude = MPC_missingValue_R8
+          longitude = MPC_missingValue_R8
+        end if
+        if (mmpi_myId == 0) then
+          outBmatrix(dumpedIndex, :, :) = bSqrtEns(columnIndex, :, :)
+          outLats(dumpedIndex) = latitude
+          outLons(dumpedIndex) = longitude
+        else
+          tag = 3 * mmpi_myID
+          call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
+          call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
+          call rpn_comm_send(bSqrtEns(columnIndex, :, :) , nkgdim*nkgdim, 'mpi_real8', 0, tag + 2, 'GRID', ierr )
+        end if
+        if (mmpi_myId == 0) then
+          do taskIndex = 1,  mmpi_nprocs - 1
+            tag = 3 * taskIndex
+            call rpn_comm_recv(latitude, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
+            call rpn_comm_recv(longitude, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr)
+            call rpn_comm_recv(tempoBmatrix(:,:), nkgdim*nkgdim, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr )
+            if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then 
+              globalCountDumped = countDumped + obsOffset(taskIndex)
+              outBmatrix(globalCountDumped, :, :) = tempoBmatrix(:, :)
+              outLats(globalCountDumped)= latitude
+              outLons(globalCountDumped)= longitude
+            end if
+          end do
+        end if
+      end do
 
+      if (mmpi_myId == 0) then
+        do dumpedIndex = 1, countDumpedMpiGlobal          
+          write(nulmat) outLats(dumpedIndex), outLons(dumpedIndex), outBmatrix(dumpedIndex, :, :)
+        end do
+        ierr = fclos(nulmat)
+        deallocate(outLats)
+        deallocate(outLOns)
+        deallocate(outBmatrix)
+        deallocate(tempoBmatrix)
+      end if
+      deallocate(obsOffset)
+      deallocate(countDumpedAllTasks)
+      if (allocated(listColumnDumped)) deallocate(listColumnDumped)
+    end if
+    
     write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
     do columnIndex = 1, var1D_validHeaderCount
       call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
-
+    
     deallocate(varLevColFromVarLevBmat) 
     deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
@@ -811,7 +894,7 @@ contains
     
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
-
+    
   end subroutine bmat1D_setupBEns
   
   !--------------------------------------------------------------------------
