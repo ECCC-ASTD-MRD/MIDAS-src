@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Removed file `src/modules/obsdbColumnTable.dat` (#843 and !752)
 
 ## [3.9.0-rc5]
 
