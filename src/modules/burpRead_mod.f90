@@ -5338,12 +5338,26 @@ CONTAINS
     integer                :: ind012163,ind212163
     integer                :: flag_passage, flagval
     character(len=9)       :: station_id
+    !! This is for 'burp_set_options'
+    character(len=7), parameter :: opt_missing='MISSING'
+    real, parameter             :: val_option = -9999.0
 
     write(*,*) '----------------------------------------------------------'
     write(*,*) '-- Begin subroutine brpr_updateMissingObsFlags----'
     write(*,*) '----------------------------------------------------------'
 
     ! Initialisation
+    call burp_set_options(                 &
+         real_optname       = opt_missing, &
+         real_optname_value = val_option,  &
+         iostat             = error )
+    call handle_error(error, "brpr_updateMissingObsFlags: burp_set_options")
+
+    call burp_init(inputFile,iostat=error)
+    call handle_error(error, "brpr_updateMissingObsFlags: burp_init inputFile")
+    call burp_init(inputReport,copyReport)
+    call burp_init(inputBlock)
+
     ! Opening file
     write(*,*) 'OPENED FILE = ', trim(burpFile)
 
