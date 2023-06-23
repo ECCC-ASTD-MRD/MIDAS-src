@@ -14,9 +14,9 @@
  &NAMBEN
    NTRUNC       = 80,
    NENS         = 16
-   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
-   WAVEBANDPEAKS = 80,20,4
-   waveBandIndexSelected = 1
+   horizLocalizationType = 'ScaleDependentWithSpectralLoc'
+   horizWaveBandPeaks = 80,20,4
+   horizWaveBandIndexSelected = 1
    hLocalize    = 250.d0
    vLocalize    = -1.d0
    SCALEFACTOR  = 100*1.00D0
@@ -27,9 +27,9 @@
  &NAMBEN
    NTRUNC       = 80,
    NENS         = 16
-   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
-   WAVEBANDPEAKS = 80,20,4
-   waveBandIndexSelected = 2
+   horizLocalizationType = 'ScaleDependentWithSpectralLoc'
+   horizWaveBandPeaks = 80,20,4
+   horizWaveBandIndexSelected = 2
    hLocalize    = 500.d0
    vLocalize    = -1.d0
    SCALEFACTOR  = 100*1.00D0
@@ -40,9 +40,9 @@
  &NAMBEN
    NTRUNC       = 80,
    NENS         = 16
-   LOCALIZATIONTYPE = 'ScaleDependentWithSpectralLoc'
-   WAVEBANDPEAKS = 80,20,4
-   waveBandIndexSelected = 3
+   horizLocalizationType = 'ScaleDependentWithSpectralLoc'
+   horizWaveBandPeaks = 80,20,4
+   horizWaveBandIndexSelected = 3
    hLocalize    = 1000.d0
    vLocalize    = -1.d0
    SCALEFACTOR  = 100*1.00D0
