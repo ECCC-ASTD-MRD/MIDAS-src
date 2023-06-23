@@ -77,12 +77,14 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 7
+  integer, parameter    :: NumPredictors = 9
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
   
+  real(8), allocatable  :: trialHeight300m850(:)
+  real(8), allocatable  :: trialHeight300m900(:)
   real(8), allocatable  :: trialHeight300m1000(:)
   real(8), allocatable  :: trialHeight50m200(:)
   real(8), allocatable  :: trialHeight1m10(:)
@@ -91,7 +93,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -101,7 +103,7 @@ module biasCorrectionSat_mod
   logical  :: weightedestimate  ! flag to activate radiosonde weighting for bias correction computation in "reg" mode
   logical  :: filterObs         ! flag to activate additional observation filtering in "reg" mode. If it is .false. only observations selected for assimilation will be used in the linear regression
   logical  :: removeBiasCorrection  ! flag to activate removal of an already present bias correction
-  logical  :: refreshBiasCorrection !flag to replace an existing bias correction with a new one
+  logical  :: refreshBiasCorrection ! flag to replace an existing bias correction with a new one
   logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
   logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
   logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
@@ -300,6 +302,10 @@ contains
                 kpred = 6
               case('TG')
                 kpred = 7
+              case('T5')
+                kpred = 8
+              case('T6')
+                kpred = 9 
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1408,6 +1414,8 @@ contains
     real(8)  :: height1, height2
 
     if (tvs_nobtov > 0) then
+      allocate(trialHeight300m850(tvs_nobtov))
+      allocate(trialHeight300m900(tvs_nobtov))
       allocate(trialHeight300m1000(tvs_nobtov))
       allocate(trialHeight50m200(tvs_nobtov))
       allocate(trialHeight5m50(tvs_nobtov))
@@ -1438,6 +1446,14 @@ contains
       
       trialHeight300m1000(iobs) = height2 - height1
 
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 900.d0)
+      
+      trialHeight300m900(iobs) = height2 - height1
+
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 850.d0)
+      
+      trialHeight300m850(iobs) = height2 - height1
+      
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 200.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 50.d0)
 
@@ -1463,9 +1479,11 @@ contains
     end if
 
     trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion factor
+    trialHeight300m900(:) = 0.1d0 * trialHeight300m900(:) ! conversion factor
+    trialHeight300m850(:) = 0.1d0 * trialHeight300m850(:) ! conversion factor
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
-    trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
+    trialHeight1m10(:) = 0.1d0 *  trialHeight1m10(:)
 
     write(*,*) 'bcs_getTrialPredictors: end'
 
@@ -1629,6 +1647,12 @@ contains
       else if (iPredictor == 7) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(obsIndex)
+      else if (iPredictor == 8) then
+        ! Height300-Height900 (dam) /1000    T5
+        predictor(iPredictor) = trialHeight300m900(obsIndex) / 1000.0d0   
+      else if (iPredictor == 9) then
+        ! Height300-Height850 (dam) /1000    T6
+        predictor(iPredictor) = trialHeight300m850(obsIndex) / 1000.0d0
       end if
 
     end do
@@ -3196,6 +3220,8 @@ contains
     if (.not. biasActive) return
 
     if (allocated(trialHeight300m1000)) deallocate(trialHeight300m1000)
+    if (allocated(trialHeight300m900)) deallocate(trialHeight300m900)
+    if (allocated(trialHeight300m850)) deallocate(trialHeight300m850)
     if (allocated(trialHeight50m200)) deallocate(trialHeight50m200)
     if (allocated(trialHeight1m10)) deallocate(trialHeight1m10)
     if (allocated(trialHeight5m50)) deallocate(trialHeight5m50)
