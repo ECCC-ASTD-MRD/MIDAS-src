@@ -11,6 +11,7 @@ module biasCorrectionSat_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
+  use earthConstants_mod
   use obsSpaceData_mod
   use controlVector_mod
   use midasMpi_mod
@@ -77,7 +78,7 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 9
+  integer, parameter    :: NumPredictors = 10
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
@@ -89,11 +90,12 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialHeight50m200(:)
   real(8), allocatable  :: trialHeight1m10(:)
   real(8), allocatable  :: trialHeight5m50(:)
+  real(8), allocatable  :: trialTotalWaterContent(:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -305,7 +307,9 @@ contains
               case('T5')
                 kpred = 8
               case('T6')
-                kpred = 9 
+                kpred = 9
+              case('WC')
+                kpred = 10
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1421,6 +1425,7 @@ contains
       allocate(trialHeight5m50(tvs_nobtov))
       allocate(trialHeight1m10(tvs_nobtov))
       allocate(trialTG(tvs_nobtov))
+      allocate(trialTotalWaterContent(tvs_nobtov))
       allocate(RadiosondeWeight(tvs_nobtov))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
@@ -1471,6 +1476,10 @@ contains
 
       trialTG(iobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
 
+      trialTotalWaterContent(iobs) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
+      !write(*,*) "SYLTWCSYL", obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+      !    obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8 , trialTotalWaterContent(iobs)
+
     end do HEADER2
 
     if (trialTG(1) > 150.0d0) then
@@ -1484,6 +1493,7 @@ contains
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) = 0.1d0 *  trialHeight1m10(:)
+    trialTotalWaterContent(:) = 10.d0 * trialTotalWaterContent(:) !scaling factor chose to get the predictor approximately in the range [0;1.0]
 
     write(*,*) 'bcs_getTrialPredictors: end'
 
@@ -1520,6 +1530,37 @@ contains
       height = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    
     end function logInterpHeight
+
+    function integrateWaterVapor(columnTrlOnTrlLev, headerIndex) result(totalWaterContent)
+      implicit none
+
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
+      integer,                 intent(in)    :: headerIndex
+      ! Result:
+      real(8) :: totalWaterContent
+
+      ! Locals:
+      integer :: levelIndex, nlev
+      real(8) :: topPressure, bottomPressure
+      real(8) :: topWaterVapor, bottomWaterVapor
+      real(8), pointer :: waterVaporProfile(:)
+
+
+      totalWaterContent = 0.d0
+      waterVaporProfile => col_getColumn(columnTrlOnTrlLev, headerIndex, 'HU')
+ 
+      nlev = col_getNumLev(columnTrlOnTrlLev, 'TH')
+      do levelIndex = 1, nlev - 1
+        topPressure = col_getPressure(columnTrlOnTrlLev, levelIndex, headerIndex, 'TH')
+        bottomPressure = col_getPressure(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'TH')
+        topWaterVapor = waterVaporProfile(levelIndex)
+        bottomWaterVapor = waterVaporProfile(levelIndex+1)
+        totalWaterContent = totalWaterContent + 0.5d0 * (bottomPressure - topPressure) * (topWaterVapor + bottomWaterVapor)
+      end do
+      totalWaterContent = totalWaterContent / (ec_wgs_GammaM * MPC_DENSITY_WATER_R8)
+    end function integrateWaterVapor
+    
 
   end subroutine bcs_getTrialPredictors
 
@@ -1653,6 +1694,9 @@ contains
       else if (iPredictor == 9) then
         ! Height300-Height850 (dam) /1000    T6
         predictor(iPredictor) = trialHeight300m850(obsIndex) / 1000.0d0
+      else if (iPredictor == 10) then
+        ! Total Water Vapor Content (aka precipitable water)
+        predictor(iPredictor) = trialTotalWaterContent(obsIndex)
       end if
 
     end do
@@ -3226,6 +3270,7 @@ contains
     if (allocated(trialHeight1m10)) deallocate(trialHeight1m10)
     if (allocated(trialHeight5m50)) deallocate(trialHeight5m50)
     if (allocated(trialTG)) deallocate(trialTG)
+    if (allocated(trialTotalWaterContent)) deallocate(trialTotalWaterContent)
     if (allocated(RadiosondeWeight)) deallocate(RadiosondeWeight)
 
     do iSensor = 1, tvs_nSensors
