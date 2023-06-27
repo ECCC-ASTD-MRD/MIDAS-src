@@ -19,7 +19,7 @@ module calcStatsGlb_mod
   use calcHeightAndPressure_mod
   use earthConstants_mod
   use utilities_mod
-  use spectralFilter_mod
+  use scaleDecomposition_mod
   use menetrierDiag_mod
   use fileNames_mod
   use timeCoord_mod
@@ -1791,7 +1791,7 @@ module calcStatsGlb_mod
       outfilename = "./ResponseFunction_"//wbnum//".txt"
       open (unit=99,file=outfilename,action="write",status="new")
       do jn = 0, ntrunc
-        ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
+        ResponseFunction(jn) = scd_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
         if ( jn /= 0) then
           waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
         else
@@ -1884,7 +1884,7 @@ module calcStatsGlb_mod
         open (unit=99,file=outfilename,action="write",status="new")
       end if
       do jn = 0, ntrunc
-        ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
+        ResponseFunction(jn) = scd_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
         if ( jn /= 0) then
           waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
         else
@@ -3501,7 +3501,7 @@ module calcStatsGlb_mod
       open (unit=99,file=outfilename,action="write",status="new")
     end if
     do modeIndex = 1, nModeMax
-      ResponseFunction(modeIndex) = spf_filterResponseFunction(dble(modeIndex), waveBandIndex, &
+      ResponseFunction(modeIndex) = scd_filterResponseFunction(dble(modeIndex), waveBandIndex, &
                                                                vertWaveBandPeaks, nVertWaveBand)
       write(* ,'(I4,2X,F5.3)') modeIndex, ResponseFunction(modeIndex)
       if (mmpi_myid == 0) then

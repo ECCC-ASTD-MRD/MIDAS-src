@@ -21,13 +21,13 @@ module bMatrixEnsemble_mod
   use utilities_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
-  use spectralFilter_mod
   use varNameList_mod
   use advection_mod
   use gridBinning_mod
   use humidityLimits_mod
   use lamAnalysisGridTransforms_mod
   use calcHeightAndPressure_mod
+  use scaleDecomposition_mod
   implicit none
   save
   private
@@ -429,7 +429,8 @@ CONTAINS
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
     character(len=32)   :: direction, directionEnsPerts, directionAnlInc
-
+    character(len=32)   :: decompositionMode, filterResponseFunctionMode
+    
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
     
     write(*,*) 'ben_setupOneInstance: enspathname = ', trim(bEns(instanceIndex)%ensPathName)
@@ -1116,10 +1117,24 @@ CONTAINS
     !- 2.8 Compute and write Std. Dev.
     if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'FullPerturbations')
 
-    !- 2.9 Partitioned the ensemble perturbations into wave bands
+    !- 2.9 Partitioned the ensemble perturbations into horizontal wave bands
     if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent'                .or. &
         trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependentWithSpectralLoc') then
-      call horizScaleDecomposition(instanceIndex)
+      
+      if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
+        decompositionMode='Split'
+        filterResponseFunctionMode='SumToOne'
+      else
+        decompositionMode='Select'
+        filterResponseFunctionMode='SquareSumToOne'
+      end if
+      
+      call scd_horizontal(bEns(instanceIndex)%ensPerts(:,1),                                     & ! INOUT
+                          bEns(instanceIndex)%nEnsOverDimension,                                 & ! IN
+                          bEns(instanceIndex)%nHorizWaveBandForFiltering,                        & ! IN
+                          bEns(instanceIndex)%horizWaveBandPeaks,                                & ! IN
+                          decompositionMode, filterResponseFunctionMode,                         & ! IN
+                          horizWaveBandIndexSelected_opt=bEns(instanceIndex)%horizWaveBandIndexSelected) ! IN
       if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'WaveBandPerturbations')
     end if
 
@@ -1609,278 +1624,6 @@ CONTAINS
     end do ! levIndex
 
   end subroutine ben_getEnsMean
-
-  !--------------------------------------------------------------------------
-  ! horizScaleDecomposition
-  !--------------------------------------------------------------------------
-  subroutine horizScaleDecomposition(instanceIndex)
-    implicit none
-
-    ! Arguments:
-    integer, intent(in) :: instanceIndex
-
-    ! Locals:
-    integer :: horizWaveBandIndex, memberindex, stepIndex, levIndex, latIndex, lonIndex
-    integer :: ila_filter, p, nla_filter, nphase_filter
-    real(8), allocatable :: ResponseFunction(:,:)
-    real(8), allocatable :: bandSum(:,:)
-    real(8) :: totwvnb_r8
-    real(8), allocatable :: ensPertSP(:,:,:)
-    real(8), allocatable :: ensPertSPfiltered(:,:,:)
-    real(8), allocatable :: ensPertGD(:,:,:)
-    real(4), pointer     :: ptr4d_r4(:,:,:,:)
-    integer, allocatable :: nIndex_vec(:)
-    integer :: nTrunc
-    integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
-    integer :: mymCount, mynCount
-    integer :: horizWaveBandIndexStart, horizWaveBandIndexEnd
-    integer :: horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
-    type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
-    character(len=19)   :: kind
-
-    !
-    ! --> For SDL
-    !
-    ! --- Ensemble Perturbation Data at the Start  ---
-    ! ensPerts(1               ,:) contains the full perturbations
-    ! ensPerts(2:nHorizWaveBand,:) already allocated but empty
-    !
-    ! --- Ensemble Perturbation Data at the End    ---
-    ! ensPerts(nHorizWaveBand,:) contains the largest scales
-    ! ...
-    ! ensPerts(1        ,:) contains the smallest scales
-    !
-
-    !
-    ! --> For SDLwSL
-    !
-    ! --- Ensemble Perturbation Data at the Start  ---
-    ! ensPerts(1,:) contains the full perturbations
-    !
-    ! --- Ensemble Perturbation Data at the End    ---
-    ! ensPerts(1,:) contains the selected scales
-    !
-
-    if ( mmpi_myid == 0 ) then
-      write(*,*)
-      write(*,*) 'Scale decomposition of the ensemble perturbations'
-      write(*,*) '   number of WaveBands for filtering = ', bEns(instanceIndex)%nHorizWaveBandForFiltering
-      write(*,*) '   WaveBand Peaks (total wavenumber)...'
-      do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBandForFiltering
-        write(*,*) horizWaveBandIndex, bEns(instanceIndex)%horizWaveBandPeaks(horizWaveBandIndex)
-      end do
-    end if
-
-    !
-    !- Setup a spectral transform for filtering (nk = nEnsOverDimension)
-    !
-    if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
-      nTrunc = bEns(instanceIndex)%horizWaveBandPeaks(1)
-    else ! ScaleDependentWithSpectralLoc
-      if (bEns(instanceIndex)%horizWaveBandIndexSelected == 1) then
-        nTrunc = -1 ! no truncation needed to extract the smallest scales
-      else
-        nTrunc = bEns(instanceIndex)%horizWaveBandPeaks(bEns(instanceIndex)%horizWaveBandIndexSelected-1)
-      end if
-    end if
-
-    if (bEns(instanceIndex)%hco_ens%global) then
-      ! Global mode
-      gstFilterID = gst_setup(bEns(instanceIndex)%ni,bEns(instanceIndex)%nj,nTrunc,bEns(instanceIndex)%nEnsOverDimension)
-      if (mmpi_myid == 0) write(*,*) 'ben : returned value of gstFilterID = ',gstFilterID
-
-      nla_filter = gst_getNla(gstFilterID)
-      nphase_filter = 2
-
-      allocate(nIndex_vec(nla_filter))
-      call mmpi_setup_m(nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
-      call mmpi_setup_n(nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
-      ila_filter = 0
-      do mIndex = mymBeg, mymEnd, mymSkip
-        do nIndex = mynBeg, mynEnd, mynSkip
-          if (mIndex.le.nIndex) then
-            ila_filter = ila_filter + 1
-            nIndex_vec(ila_filter) = nIndex
-          end if
-        end do
-      end do
-
-    else
-      ! LAM mode
-      call lst_Setup(lst_ben_filter,                                                                           & ! OUT
-                     bEns(instanceIndex)%ni, bEns(instanceIndex)%nj, bEns(instanceIndex)%hco_ens%dlon, nTrunc, & ! IN
-                     'LatLonMN', maxlevels_opt=bEns(instanceIndex)%nEnsOverDimension, gridDataOrder_opt='kij' )  ! IN
-
-      nla_filter    = lst_ben_filter%nla
-      nphase_filter = lst_ben_filter%nphase
-    end if
-
-    !
-    !- 1.  Scale decomposition for every wave band except for wave band #1
-    !
-    if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
-      horizWaveBandIndexStart     = 2 ! Skip the smallest scales
-      horizWaveBandIndexEnd       = bEns(instanceIndex)%nHorizWaveBand
-      horizWaveBandIndexLoopStart = horizWaveBandIndexEnd ! Start with the largest scales
-      horizWaveBandIndexLoopEnd   = horizWaveBandIndexStart
-      horizWaveBandIndexLoopDirection = -1 
-    else ! ScaleDependentWithSpectralLoc
-      horizWaveBandIndexStart     = bEns(instanceIndex)%horizWaveBandIndexSelected
-      horizWaveBandIndexEnd       = bEns(instanceIndex)%horizWaveBandIndexSelected
-      horizWaveBandIndexLoopStart = horizWaveBandIndexStart
-      horizWaveBandIndexLoopEnd   = horizWaveBandIndexEnd 
-      horizWaveBandIndexLoopDirection = 1 
-    end if
-
-    allocate(ResponseFunction(nla_filter,horizWaveBandIndexStart:horizWaveBandIndexEnd))
-    allocate(ensPertSP(nla_filter,nphase_filter,bEns(instanceIndex)%nEnsOverDimension))
-    allocate(ensPertSPfiltered(nla_filter,nphase_filter,bEns(instanceIndex)%nEnsOverDimension))
-    allocate(ensPertGD(bEns(instanceIndex)%nEnsOverDimension,bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
-
-    ensPertSP        (:,:,:) = 0.0d0
-    ensPertSPfiltered(:,:,:) = 0.0d0
-
-    !- 1.1 Pre-compute the response function
-    do horizWaveBandIndex = horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
-      do ila_filter = 1, nla_filter
-        if (bEns(instanceIndex)%hco_ens%global) then
-          totwvnb_r8 = real(nIndex_vec(ila_filter),8)
-        else
-          totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
-        end if
-        ResponseFunction(ila_filter,horizWaveBandIndex) = &
-             spf_FilterResponseFunction(totwvnb_r8,horizWaveBandIndex, bEns(instanceIndex)%horizWaveBandPeaks, &
-                                        bEns(instanceIndex)%nHorizWaveBandForFiltering)
-        if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependentWithSpectralLoc') then
-          ResponseFunction(ila_filter,horizWaveBandIndex) = sqrt(ResponseFunction(ila_filter,horizWaveBandIndex)) 
-        end if
-        write(*,*) totwvnb_r8, ResponseFunction(ila_filter,horizWaveBandIndex)
-      end do
-    end do
-    if (bEns(instanceIndex)%hco_ens%global) deallocate(nIndex_vec)
-
-    do stepIndex = 1, bEns(instanceIndex)%numStep ! Loop on ensemble time bin
-      do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(1,1)) ! Loop on variables and vertical levels
-
-        ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-          
-        !- 1.2 GridPoint space -> Spectral Space
-        !$OMP PARALLEL DO PRIVATE (latIndex)
-        do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-          ensPertGD(:,:,latIndex) = 0.0d0
-        end do
-        !$OMP END PARALLEL DO
-        !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
-        do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-          do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-            do memberIndex = 1, bEns(instanceIndex)%nEns
-              ensPertGD(memberIndex,lonIndex,latIndex) = dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-        if (bEns(instanceIndex)%hco_ens%global) then
-          ! Global Mode
-          call gst_setID(gstFilterID) ! IN
-          call gst_reespe_kij(ensPertSP, & ! OUT
-                              ensPertGD)   ! IN
-        else
-          ! LAM mode
-          kind = 'GridPointToSpectral'
-          call lst_VarTransform(lst_ben_filter,                             & ! IN
-                                ensPertSP,                                  & ! OUT
-                                ensPertGD,                                  & ! IN 
-                                kind, bEns(instanceIndex)%nEnsOverDimension ) ! IN
-        end if
-
-        !- 1.3 Filtering and transformation back to grid point space 
-        do horizWaveBandIndex = horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
-
-          ! Filtering
-          !$OMP PARALLEL DO PRIVATE (memberIndex,p,ila_filter)
-          do memberIndex = 1, bEns(instanceIndex)%nEns
-            do p = 1, nphase_filter
-              do ila_filter = 1, nla_filter
-                ensPertSPfiltered(ila_filter,p,memberIndex) = &
-                     ensPertSP(ila_filter,p,memberIndex) * ResponseFunction(ila_filter,horizWaveBandIndex)
-              end do
-            end do
-          end do
-          !$OMP END PARALLEL DO
-
-          ! Spectral Space -> GridPoint space
-          if (bEns(instanceIndex)%hco_ens%global) then
-            ! Global Mode
-            call gst_setID(gstFilterID) ! IN
-            call gst_speree_kij(ensPertSPfiltered, & ! IN
-                                ensPertGD)           ! OUT
-          else
-            ! LAM mode
-            kind = 'SpectralToGridPoint'
-            call lst_VarTransform(lst_ben_filter,                             & ! IN
-                                  ensPertSPfiltered,                          & ! IN
-                                  ensPertGD,                                  & ! OUT
-                                  kind, bEns(instanceIndex)%nEnsOverDimension ) ! IN
-          end if
-
-          if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
-            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,1),levIndex)
-          else
-            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-          end if
-          !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
-          do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-            do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-              do memberIndex = 1, bEns(instanceIndex)%nEns
-                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(ensPertGD(memberIndex,lonIndex,latIndex))
-              end do
-            end do
-          end do
-          !$OMP END PARALLEL DO
-
-        end do ! horizWaveBandIndex
-      end do ! time bins
-    end do ! variables&levels
-
-    deallocate(ensPertGD)
-    deallocate(ResponseFunction)
-    deallocate(ensPertSP)
-    deallocate(ensPertSPfiltered)
-
-    !
-    !- 2.  For SDL only, Isolate the smallest scales in horizWaveBandIndex = 1 by difference in grid point space
-    !
-    if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
-
-      allocate(bandSum(bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
-      do stepIndex = 1, bEns(instanceIndex)%numStep
-        !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,horizWaveBandIndex,bandsum,ptr4d_r4)
-        do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(1,1))
-          do memberIndex = 1, bEns(instanceIndex)%nEns
-            bandSum(:,:) = 0.d0
-            do horizWaveBandIndex = 2, bEns(instanceIndex)%nHorizWaveBand
-              ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,1),levIndex)
-              do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-                do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
-                end do
-              end do
-            end do
-            ptr4d_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-            do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
-              do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
-                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
-              end do
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end do
-      deallocate(bandSum)
-
-    end if
-
-  end subroutine horizScaleDecomposition
 
   !--------------------------------------------------------------------------
   ! ben_reduceToMPILocal
