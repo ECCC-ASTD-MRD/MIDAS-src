@@ -78,7 +78,7 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 10
+  integer, parameter    :: NumPredictors = 13
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
@@ -95,7 +95,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -310,6 +310,12 @@ contains
                 kpred = 9
               case('WC')
                 kpred = 10
+              case('L1')
+                kpred = 11
+              case('L2')
+                kpred = 12
+              case('L3')
+                kpred = 13
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1493,7 +1499,7 @@ contains
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) = 0.1d0 *  trialHeight1m10(:)
-    trialTotalWaterContent(:) = 10.d0 * trialTotalWaterContent(:) !scaling factor chose to get the predictor approximately in the range [0;1.0]
+    trialTotalWaterContent(:) = 10.d0 * trialTotalWaterContent(:) !scaling factor chosen to get the predictor approximately in the range [0;1.0]
 
     write(*,*) 'bcs_getTrialPredictors: end'
 
@@ -1545,7 +1551,6 @@ contains
       real(8) :: topPressure, bottomPressure
       real(8) :: topWaterVapor, bottomWaterVapor
       real(8), pointer :: waterVaporProfile(:)
-
 
       totalWaterContent = 0.d0
       waterVaporProfile => col_getColumn(columnTrlOnTrlLev, headerIndex, 'HU')
@@ -1659,10 +1664,15 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer  :: iSensor, iPredictor, jPredictor
-    real(8)  :: zenithAngle
+    integer  :: sensorIndex, iPredictor, jPredictor
+    real(8)  :: zenithAngle, normalizedScanPosition
 
     predictor(:) = 0.0d0
+
+    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    
+    !computation of scan bias position normalized to[-1;1]
+    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
     
     do iPredictor = 1, NumPredictors
 
@@ -1697,14 +1707,23 @@ contains
       else if (iPredictor == 10) then
         ! Total Water Vapor Content (aka precipitable water)
         predictor(iPredictor) = trialTotalWaterContent(obsIndex)
+      else if (iPredictor == 11) then
+        ! first order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = normalizedScanPosition
+      else if (iPredictor == 12) then
+        ! second order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.5d0 * (3.d0*normalizedScanPosition*normalizedScanPosition - 1.d0)
+      else if (iPredictor == 13) then
+        ! third order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
       end if
-
     end do
 
-    iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
-    do  iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
-      jPredictor = bias(iSensor)%chans(chanIndx)%predictorIndex(iPredictor)
-      predictor(jPredictor) = predictor(jPredictor) - bias(iSensor)%chans(chanindx)%coeff_offset(iPredictor)
+    !if (sensorIndex == 26) write(*,'(A9,1x,3e14.6)') "SYLLEGSYL", predictor(11:13)
+
+    do  iPredictor = 1, bias(sensorIndex)%chans(chanIndx)%numActivePredictors
+      jPredictor = bias(sensorIndex)%chans(chanIndx)%predictorIndex(iPredictor)
+      predictor(jPredictor) = predictor(jPredictor) - bias(sensorIndex)%chans(chanindx)%coeff_offset(iPredictor)
     end do
    
   end subroutine bcs_getPredictors
@@ -3214,28 +3233,30 @@ contains
               if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
                    sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
             end do
-            do predictorIndex = 1, numPredictors
-              do predictorIndex2 =1, numPredictors
-                correlation(predictorIndex, predictorIndex2) =  &
-                     matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
-                     (sigma(predictorIndex) * sigma(predictorIndex2) )
+            if ( all(sigma(:) > 0.d0) ) then
+              do predictorIndex = 1, numPredictors
+                do predictorIndex2 =1, numPredictors
+                  correlation(predictorIndex, predictorIndex2) =  &
+                      matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
+                      (sigma(predictorIndex) * sigma(predictorIndex2) )
+                end do
               end do
-            end do
-            write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
-                 bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
-                 trim(tvs_instrumentName(sensorIndex))," ", &
-                 trim(tvs_satelliteName(sensorIndex))
-            write(iuncorr,'(10x,A6)',advance="no") "OmF"
-            do predictorIndex = 2, numPredictors
-              write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
-            end do
-            write(iuncorr,*)
-            write(iuncorr,'(A6)',advance="no") "Omf"
-            write(iuncorr,'(100f12.6)') correlation(1,:)
-            do predictorIndex = 2, numPredictors
-              write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
-              write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
-            end do
+              write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
+                  bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
+                  trim(tvs_instrumentName(sensorIndex))," ", &
+                  trim(tvs_satelliteName(sensorIndex))
+              write(iuncorr,'(10x,A6)',advance="no") "OmF"
+              do predictorIndex = 2, numPredictors
+                write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+              end do
+              write(iuncorr,*)
+              write(iuncorr,'(A6)',advance="no") "Omf"
+              write(iuncorr,'(100f12.6)') correlation(1,:)
+              do predictorIndex = 2, numPredictors
+                write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
+                write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
+              end do
+            end if
           end if
         end do
         ierr = fclos(iuncov)
