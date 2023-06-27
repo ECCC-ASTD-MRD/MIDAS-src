@@ -78,7 +78,7 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 13
+  integer, parameter    :: NumPredictors = 14
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
@@ -95,7 +95,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -316,6 +316,8 @@ contains
                 kpred = 12
               case('L3')
                 kpred = 13
+              case('SA')
+                kpred = 14
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1716,10 +1718,14 @@ contains
       else if (iPredictor == 13) then
         ! third order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
+      else if (iPredictor == 14) then
+        ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
+        predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
       end if
     end do
 
     !if (sensorIndex == 26) write(*,'(A9,1x,3e14.6)') "SYLLEGSYL", predictor(11:13)
+    !write(*,'(A9,1x,i2,1x,e14.6)') "SYLSUNSYL", sensorIndex, predictor(14)
 
     do  iPredictor = 1, bias(sensorIndex)%chans(chanIndx)%numActivePredictors
       jPredictor = bias(sensorIndex)%chans(chanIndx)%predictorIndex(iPredictor)
