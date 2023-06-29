@@ -121,7 +121,7 @@ rm -fR $GRAPHDIR/programs/*
 
 echo "GENERATING DEPENDENCY GRAPHS FOR ALL PROGRAMS"
 for program in ${programfilelist}; do
-  programname=`grep -i "^ *program *[a-zA-Z]" ${SRCDIR}/programs/$program | sed 's/program //Ig' | tr '[:upper:]' '[:lower:]'`
+  programname=`grep -i "^ *program *[a-zA-Z]" ${SRCDIR}/programs/$program | sed 's/program //Ig'`
 
   dependencies_done=""
   all_modules=""
@@ -135,7 +135,7 @@ for program in ${programfilelist}; do
   echo "${programname} [URL=\"${programname}.html\"];" >> $GRAPHDIR/programs/${programname}.gv
 
   # build a list of modules used by the main program
-  uses1=`grep -i '^ *use *.*_mod' ${SRCDIR}/programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
+  uses1=`grep -i '^ *use *.*_mod' ${SRCDIR}/programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | sort -u`
   for use1 in $uses1; do 
     index1=${modulename_index[$use1]}
     all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`

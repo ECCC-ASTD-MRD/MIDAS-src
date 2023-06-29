@@ -37,7 +37,8 @@ for file in $program_filelist ; do
   program_name=`grep -i '^program ' $file | awk '{print $2}'`
   program_name_lc=`echo $program_name |tr '[:upper:]' '[:lower:]'`
   echo ADDING THIS PROGRAM TO THE LIST: $program_name_lc
-  program_names[$numPrograms]="$program_name_lc"
+  program_names[$numPrograms]="$program_name"
+  program_names_lc[$numPrograms]="$program_name_lc"
   program_files[$numPrograms]="$file"
   program_bfiles[$numPrograms]=`basename "$file"`
 done
@@ -67,11 +68,11 @@ mkdir _src_files
 # FIRST CREATE DUMMY FORTRAN MODULES FOR ALL THAT HAVE NOT YET BEEN MODIFIED
 for index in `seq 1 $numModules`; do
 cat >> _src_files/${filenames[$index]} <<EOF
-module ${modulenames[$index]}
-! MODULE ${modulenames[$index]} (prefix='${prefixes[$index]}' category='${categories[$index]}. ${module_category[${categories[$index]}]}')
+module ${modulenames_lc[$index]}
+! MODULE ${modulenames_lc[$index]} (prefix='${prefixes[$index]}' category='${categories[$index]}. ${module_category[${categories[$index]}]}')
 !
 ! **Purpose:** Temporary place holder for modules that have not yet been modified
-end module ${modulenames[$index]}
+end module ${modulenames_lc[$index]}
 EOF
 done
 
@@ -146,9 +147,10 @@ done
 # GENERATE THE RST FILES FOR THE MODULES
 
 for index in `seq 1 $numModules`; do
+module_name_lc=${modulenames_lc[$index]}
 module_name=${modulenames[$index]}
 
-cat > ./modules/${module_name}_src.rst <<EOF
+cat > ./modules/${module_name_lc}_src.rst <<EOF
 ==========================================
 ${module_name} source
 ==========================================
@@ -159,29 +161,29 @@ ${module_name} source
 
 EOF
 
-cat > ./modules/${module_name}.rst <<EOF
+cat > ./modules/${module_name_lc}.rst <<EOF
 ==========================================
 $module_name
 ==========================================
 
-    :doc:\`link to source code <${module_name}_src>\`
+    :doc:\`link to source code <${module_name_lc}_src>\`
 
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-  cat >> ./modules/${module_name}.rst <<EOF
+  cat >> ./modules/${module_name_lc}.rst <<EOF
 
     **Dependency Diagrams:**
 
 EOF
   # if module have no downward dependencies: do not show image
-  if [ "${numberuses[${modulename_index[${module_name}]}]}" = "0" ]; then
-    cat >> ./modules/${module_name}.rst <<EOF
+  if [ "${numberuses[${modulename_index[${module_name_lc}]}]}" = "0" ]; then
+    cat >> ./modules/${module_name_lc}.rst <<EOF
       No Direct Dependency
 
 EOF
   else
-    cat >> ./modules/${module_name}.rst <<EOF
+    cat >> ./modules/${module_name_lc}.rst <<EOF
     .. figure:: /${module_name}.svg
         :height: 100px
 
@@ -189,7 +191,7 @@ EOF
 
 EOF
   fi
-  cat >> ./modules/${module_name}.rst <<EOF
+  cat >> ./modules/${module_name_lc}.rst <<EOF
     .. figure:: /${module_name}_rev.svg
         :height: 100px
 
@@ -198,9 +200,9 @@ EOF
 EOF
 
 fi
-cat >> ./modules/${module_name}.rst <<EOF
+cat >> ./modules/${module_name_lc}.rst <<EOF
 
-    .. f:automodule:: ${module_name}
+    .. f:automodule:: ${module_name_lc}
 
 EOF
 
@@ -273,7 +275,7 @@ EOF
 
 module_list=''
 for index in `seq 1 $numModules`; do
-  module_list="${module_list} ${modulenames[$index]}"
+  module_list="${module_list} ${modulenames_lc[$index]}"
 done
 module_list_sort=`echo $module_list | tr ' ' '\n' | sort | tr '\n' ' '`
 

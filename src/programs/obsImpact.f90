@@ -1,4 +1,4 @@
-program midas_obsimpact
+program midas_obsImpact
   !
   !:Purpose: Main program for computing the Forecast Sensitivity to Observation Impact (FSOI)
   !
@@ -359,4 +359,4 @@ program midas_obsimpact
 
   call rpn_comm_finalize(ierr)
 
-end program midas_obsimpact 
+end program midas_obsImpact 

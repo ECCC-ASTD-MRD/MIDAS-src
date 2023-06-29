@@ -23,6 +23,7 @@ numModules=0
 filenames[$numModules]=""
 fullfilenames[$numModules]=""
 modulenames[$numModules]="UNKNOWN"
+modulenames_lc[$numModules]="UNKNOWN"
 useslist[$numModules]=""
 revmodlist[$numModules]=""
 revpgmlist[$numModules]=""
@@ -34,22 +35,23 @@ prefixes[$numModules]=""
 for fullfilename in modules/*_mod.f*90; do
   filename=`basename $fullfilename`
   modulenamelist=`grep -i "^ *module *[a-zA-Z]" $fullfilename \
-    | grep -iv "^ *module *procedure *" | sed 's/module //Ig' | tr '[:upper:]' '[:lower:]'`
+    | grep -iv "^ *module *procedure *" | sed 's/module //Ig'`
   for modulename in $modulenamelist; do
+    modulename_lc=`echo ${modulename} | tr '[:upper:]' '[:lower:]'`
     usedbymod=''
     usedbypgm=''
     numModules=$((numModules + 1))
     #-- gather all forward dependencies of the module
-    uses=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename \
-      | grep -B 10000000 -iE "^ *end *module *${modulename}" \
+    uses=`grep -A 10000000 -iE "^ *module *${modulename_lc}" $fullfilename \
+      | grep -B 10000000 -iE "^ *end *module *${modulename_lc}" \
       | grep -i "^ *use *.*_mod\>" | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' \
       | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
 
     #-- gather all reverse dependencies (all modules and programs using the module)
-    usedbymod_files=`grep -il "^ *use *${modulename}" modules/*_mod.f*90`
+    usedbymod_files=`grep -il "^ *use *${modulename_lc}" modules/*_mod.f*90`
     if [ ! -z "${usedbymod_files}" ]; then 
       for modfile in ${usedbymod_files}; do
-        lines=`grep -in "^ *use *${modulename}" ${modfile} | cut -d':' -f1`
+        lines=`grep -in "^ *use *${modulename_lc}" ${modfile} | cut -d':' -f1`
         for line in ${lines}; do
           # find which module use it
           usedbymod="${usedbymod} `cat ${modfile} | head -n ${line} \
@@ -58,7 +60,7 @@ for fullfilename in modules/*_mod.f*90; do
         done
       done
     fi
-    usedbypgm_files=`grep -il "^ *use *${modulename}" programs/*.f90`
+    usedbypgm_files=`grep -il "^ *use *${modulename_lc}" programs/*.f90`
     if [ ! -z "${usedbypgm_files}" ]; then
       for pgmfile in ${usedbypgm_files}; do
         usedbypgm="${usedbypgm} `grep -i '^ *program .*$' ${pgmfile} \
@@ -71,17 +73,18 @@ for fullfilename in modules/*_mod.f*90; do
     prefix=`grep "prefix=" $fullfilename | sed "s/.*prefix=['\"]\([a-z0-9]*\).*/\1/"`
     # If multiple modules found in the file, then assume category and prefix info is inside each module
     if [ `echo $category |wc -w` -gt 1 ]; then
-      category=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename \
-        | grep -B 10000000 -iE "^ *end *module *${modulename}" |grep "category=" \
+      category=`grep -A 10000000 -iE "^ *module *${modulename_lc}" $fullfilename \
+        | grep -B 10000000 -iE "^ *end *module *${modulename_lc}" |grep "category=" \
         | sed "s/.*category=['\"]\([0-9]*\).*/\1/"`
-      prefix=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename \
-        | grep -B 10000000 -iE "^ *end *module *${modulename}" |grep "prefix=" \
+      prefix=`grep -A 10000000 -iE "^ *module *${modulename_lc}" $fullfilename \
+        | grep -B 10000000 -iE "^ *end *module *${modulename_lc}" |grep "prefix=" \
         | sed "s/.*prefix=['\"]\([a-z0-9]*\).*/\1/"`
     fi
 
     filenames[$numModules]=$filename
     fullfilenames[$numModules]=$fullfilename
     modulenames[$numModules]=$modulename
+    modulenames_lc[$numModules]=$modulename_lc
     useslist[$numModules]=$uses
     revmodlist[$numModules]=${usedbymod}
     revpgmlist[$numModules]=${usedbypgm}
@@ -90,7 +93,7 @@ for fullfilename in modules/*_mod.f*90; do
     categories[$numModules]=$category
     prefixes[$numModules]=$prefix
 
-    [ "${verbose}" = "yes" ] && echo "$numModules $fullfilename $filename $modulename ${revnumberuses[$numModules]} ($(echo ${revmodlist[$numModules]} | wc -w)+$(echo ${revpgmlist[$numModules]} | wc -w))"
+    [ "${verbose}" = "yes" ] && echo "$numModules $fullfilename $filename $modulename_lc ${revnumberuses[$numModules]} ($(echo ${revmodlist[$numModules]} | wc -w)+$(echo ${revpgmlist[$numModules]} | wc -w))"
     [ "${verbose}" = "yes" ] && echo
   done
   
@@ -99,4 +102,4 @@ done
 echo "Finished scanning $numModules modules"
 echo
 
-make_index modulename_index "${modulenames[@]}"
+make_index modulename_index "${modulenames_lc[@]}"
