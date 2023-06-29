@@ -355,10 +355,10 @@ GITDESC=$(git describe --abbrev=7 --dirty=_M)
 OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
 make depend
 
-cat > namelists_in_each_program.rst << 'EOF'
+cat > ${ORIG_PWD}/namelists_in_each_program.rst << 'EOF'
 
-Namelists (possibly) used in each MIDAS program
-===============================================
+Namelists used in each MIDAS program
+====================================
 
 EOF
 
@@ -396,7 +396,8 @@ for programName in ${programList}; do
     nameListList=`echo $nameListList | tr " " "\n" | sort -u`
     echo $nameListList
     for nameList in ${nameListList}; do
-      echo "- ${nameList}" >> ${ORIG_PWD}/namelists_in_each_program.rst
+      nameList2=`echo $nameList | tr '[:lower:]' '[:upper:]'`
+      echo "- \`${nameList} <namelists.html#${nameList2}>\`_" >> ${ORIG_PWD}/namelists_in_each_program.rst
     done
     echo >> ${ORIG_PWD}/namelists_in_each_program.rst
 done
@@ -444,4 +445,3 @@ rm -fR _src_files
 rm -fR _build
 rm -fR *.rst programs modules namelist_listing.txt
 rm -fR graphs
-rm -fR ${SRCDIR}/namelists_in_each_program.rst

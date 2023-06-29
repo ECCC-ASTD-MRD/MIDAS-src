@@ -37,7 +37,7 @@ for filename in $directory/*.f* ; do
       fi
       namelistname2=`echo $namelistname | tr '[:lower:]' '[:upper:]'`
       filename2=`basename $filename`
-      echo "<H3>NAMELIST: $namelistname2 (in file $filename2)</H3>" >> $docdir/namelists_html
+      echo "<H3><a name=\"$namelistname2\"/>NAMELIST: $namelistname2 (in file $filename2)</H3>" >> $docdir/namelists_html
 
       namelistnames="$namelistnames $namelistname"
       namelistvars=`grep -hi "namelist */ *${namelistname} */" $filename |grep -iv [a-zA-Z0-9]namelist |grep -iv namelist[a-zA-Z0-9] |grep -v '^ *!'|cut -d"/" -f3`
