@@ -2,7 +2,7 @@
 module interpolation_mod
   ! MODULE interpolation_mod (prefix='int' category='4. Data Object transformations')
   !
-  ! :Purpose: The grid-point state vector interpolation.
+  !:Purpose: The grid-point state vector interpolation.
   !
   use midasMpi_mod
   use gridstatevector_mod

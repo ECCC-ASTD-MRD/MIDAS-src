@@ -2,11 +2,11 @@
 module bCovarSetupChem_mod 
   ! MODULE bCovarSetupChem_mod (prefix='bcsc' category='6. High-level data objects')
   !
-  ! :Purpose: Contains routines for the reading and preparation of
+  !:Purpose:  Contains routines for the reading and preparation of
   !           background-error covariance elements. Correlation matrices 
   !           based on horizontally homogeneous/isotropic correlations.  
   !
-  ! :Comments:
+  !:Comments:
   !
   !   1. Covariances uncoupled from weather variable.
   !
@@ -18,8 +18,9 @@ module bCovarSetupChem_mod
   !      covariance matrices within this module instead of a single covariance
   !      matrix setup (similarly to what was done for corvert*).
   !
+
   ! Public Subroutines:
-  
+  !
   !    bcsc_setupCH:    Must be called first. Sets of background covariance
   !                     matrix (and balance operators if any are eventually
   !                     added)

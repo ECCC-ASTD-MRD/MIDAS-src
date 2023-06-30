@@ -2,23 +2,26 @@
 module bMatrix_mod
   ! MODULE bMatrix_mod (prefix='bmat' category='2. B and R matrices')
   !
-  ! :Purpose: A higher-level module that takes care of calling subroutines 
-  !           in the lower-level modules bmatrixHI/lambmatrixHI and
-  !           bmatrixEnsemble
+  !:Purpose:  A higher-level module that takes care of calling subroutines 
+  !           in the lower-level modules for each specific type of B matrix:
+  !            * bMatrixHI/lamBmatrixHI
+  !            * bMatrixEnsemble
+  !            * bMatrixDiff
+  !            * bMatrixChem
   !
-  ! :Comments:
+  !:Comments:
   !           - Considerations for ensemble-based and regional static
   !             covariances for constituents are not yet included.
   !
   use midasMpi_mod
   use bMatrixHI_mod
+  use lamBmatrixHI_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod
   use bMatrixDiff_mod
   use controlVector_mod
   use verticalCoord_mod
   use gridStateVector_mod
-  use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use utilities_mod
   implicit none

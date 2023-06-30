@@ -2,8 +2,8 @@
 module rMatrix_mod
   ! MODULE rMatrix_mod (prefix='rmat' category='2. B and R matrices')
   !
-  ! :Purpose: Module to handle non-diagonal observation-error covariance
-  !           matrices for assimilation of radiances
+  !:Purpose:  Module to handle non-diagonal observation-error covariance
+  !           matrices for assimilation of radiances.
   !
   use rttovInterfaces_mod
   use midasMpi_mod

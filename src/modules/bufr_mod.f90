@@ -2,22 +2,23 @@
 module bufr_mod
   ! MODULE bufr_mod (prefix='bufr' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: This module is a holder for information that is needed from *the
+  !:Purpose:  This module is a holder for information that is needed from *the
   !           Binary Universal Form for the Representation of meteorological
-  !           data* (BUFR), maintained by the World Meteorological Organization
+  !           data* (BUFR), maintained by the World Meteorological Organization.
   !
-
-  ! Public routines:
   !
-  !       - "bufr_IsAtmosConstituent" determines if observation is
+  !:Routines:
+  !
+  !       - bufr_IsAtmosConstituent: determines if observation is
   !         constituent/chemistry data
   !
-  !       - "bufr_IsIntegral" determines if vertical integral measurement
+  !       - bufr_IsIntegral: determines if vertical integral measurement
   !
-  !       - "bufr_isWindComponent" determines if a wind component variable
+  !       - bufr_isWindComponent: determines if a wind component variable
   !
-
- public
+  !       - bufr_isOceanObs: determines if it is an ocean observation
+  !
+  public
 
  ! Table B:
  !          Universal Field-Identity Numbers

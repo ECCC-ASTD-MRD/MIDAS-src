@@ -2,7 +2,7 @@
 module obsErrors_mod
   ! MODULE obsErrors_mod (prefix='oer' category='2. B and R matrices')
   !
-  ! :Purpose: Subroutines to set up the observation-error standard deviations.
+  !:Purpose: Subroutines to set up the observation-error standard deviations.
   !
   use midasMpi_mod
   use mathPhysConstants_mod

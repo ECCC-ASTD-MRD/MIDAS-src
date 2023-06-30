@@ -2,7 +2,7 @@
 module bgckOcean_mod
   ! MODULE bgckOcean_mod (prefix='ocebg' category='1. High-level functionality')
   !
-  ! :Purpose: to perform ocean data background Check
+  !:Purpose: to perform ocean data background check.
   !
   use midasMpi_mod
   use utilities_mod

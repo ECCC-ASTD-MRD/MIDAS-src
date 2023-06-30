@@ -1,12 +1,14 @@
 !
 !(c) Matthew Kennel, Institute for Nonlinear Science (2004)
 !
-! Licensed under the Academic Free License version 1.1 found in file LICENSE_kdtree2.txt
+! Licensed under the Academic Free License version 1.1 found in file LICENSE_kdTree2.txt
 ! with additional provisions found in that same file.
 !
 module kdtree2_precision_mod
   ! MODULE kdtree2_precision_mod (prefix='none' category='8. Low-level utilities and constants')
-  
+  !
+  !: Purpose: Module used by the kdTree2_mod module.
+  !
   integer, parameter :: sp = kind(0.0)
   integer, parameter :: dp = kind(0.0d0)
 
@@ -28,6 +30,9 @@ end module kdtree2_precision_mod
 
 module kdtree2_priority_queue_mod
   ! MODULE kdtree2_priority_queue_mod (prefix='none' category='8. Low-level utilities and constants')
+  !
+  !: Purpose: Module used by the kdTree2_mod module.
+  !
   use utilities_mod
   use kdtree2_precision_mod
   !

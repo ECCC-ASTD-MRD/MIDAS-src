@@ -2,7 +2,7 @@
 module controlVector_mod
   ! MODULE controlVector_mod (prefix='cvm' category='6. High-level data objects')
   !
-  ! :Purpose: The control vector and related information.  
+  !:Purpose: The control vector and related information.  
   !
   use utilities_mod
   implicit none

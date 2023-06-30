@@ -2,7 +2,7 @@
 module multiIRbgck_mod
   ! MODULE multiIRbgck_mod (prefix='irbg' category='1. High-level functionality')
   !
-  ! :Purpose: Variables for multispectral infrared background check and quality
+  !:Purpose:  Variables for multispectral infrared background check and quality
   !           control.
   !
   use rttovInterfaces_mod

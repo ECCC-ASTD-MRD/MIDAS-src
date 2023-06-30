@@ -2,59 +2,60 @@
 module burpRead_mod
   ! MODULE burpRead_mod (prefix='brpr' category='3. Observation input/output')
   !
-  ! :Purpose: To read and update BURP observation files. Data is stored in 
+  !:Purpose:  To read and update BURP observation files. Data is stored in 
   !           obsSpaceData object.
   !
 
-use codePrecision_mod
-use bufr_mod
-use burp_module
-use ObsSpaceData_mod
-use MathPhysConstants_mod
-use earthConstants_mod
-use utilities_mod
-use obsUtil_mod
-use obsVariableTransforms_mod
-use obsFilter_mod
-use tovsNL_mod
-use kdTree2_mod
-use codtyp_mod
+  use codePrecision_mod
+  use bufr_mod
+  use burp_module
+  use ObsSpaceData_mod
+  use MathPhysConstants_mod
+  use earthConstants_mod
+  use utilities_mod
+  use obsUtil_mod
+  use obsVariableTransforms_mod
+  use obsFilter_mod
+  use tovsNL_mod
+  use kdTree2_mod
+  use codtyp_mod
 
-implicit none
-save
+  implicit none
+  save
 
-private
+  private
 
-! public procedures
-public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
-public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
+  ! public procedures
+  public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
+  public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
-integer, parameter :: maxItems = 20
-integer, parameter :: maxElements = 20
-! Namelist variables
-INTEGER          :: NELEMS           ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: NELEMS_SFC       ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: NELEMS_GPS       ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: LISTE_ELE_GPS(maxElements) ! list of bufr element ids to read
-INTEGER          :: BLISTELEMENTS(maxElements) ! list of bufr element ids to read
-INTEGER          :: BLISTELEMENTS_SFC(maxElements) ! list of bufr element ids to read
-INTEGER          :: BN_ITEMS         ! MUST NOT BE INCLUDED IN NAMELIST!
-CHARACTER(len=3) :: BITEMLIST(maxItems) ! list of blocks to include in updated file (e.g. 'OMP','OMA')
-CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'      ! can be 'BGCKALT', 'POSTALT' or 'DERIALT'
-LOGICAL          :: ENFORCE_CLASSIC_SONDES       ! choose to ignore high-res raobs lat/lon/time information
-LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs 
-LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES ! choose to read flag of higher precision elements for raobs
-LOGICAL          :: READ_QI_GA_MT_SW ! read additional QC-related elements for AMV obs
-logical          :: addBtClearToBurp ! choose to write clear-sky radiance to file in all-sky mode
-integer          :: clwFgElementId   ! bufr element id of cloud liquid water from background in all-sky mode
-integer          :: siFgElementId    ! bufr element id of scattering index in all-sky mode
-integer          :: btClearElementId ! bufr element id of clear-sky radiance in all-sky mode
+  integer, parameter :: maxItems = 20
+  integer, parameter :: maxElements = 20
+  ! Namelist variables
+  INTEGER          :: NELEMS           ! MUST NOT BE INCLUDED IN NAMELIST!
+  INTEGER          :: NELEMS_SFC       ! MUST NOT BE INCLUDED IN NAMELIST!
+  INTEGER          :: NELEMS_GPS       ! MUST NOT BE INCLUDED IN NAMELIST!
+  INTEGER          :: LISTE_ELE_GPS(maxElements) ! list of bufr element ids to read
+  INTEGER          :: BLISTELEMENTS(maxElements) ! list of bufr element ids to read
+  INTEGER          :: BLISTELEMENTS_SFC(maxElements) ! list of bufr element ids to read
+  INTEGER          :: BN_ITEMS         ! MUST NOT BE INCLUDED IN NAMELIST!
+  CHARACTER(len=3) :: BITEMLIST(maxItems) ! list of blocks to include in updated file (e.g. 'OMP','OMA')
+  CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'      ! can be 'BGCKALT', 'POSTALT' or 'DERIALT'
+  LOGICAL          :: ENFORCE_CLASSIC_SONDES       ! choose to ignore high-res raobs lat/lon/time information
+  LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs 
+  LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES ! choose to read flag of higher precision elements for raobs
+  LOGICAL          :: READ_QI_GA_MT_SW ! read additional QC-related elements for AMV obs
+  logical          :: addBtClearToBurp ! choose to write clear-sky radiance to file in all-sky mode
+  integer          :: clwFgElementId   ! bufr element id of cloud liquid water from background in all-sky mode
+  integer          :: siFgElementId    ! bufr element id of scattering index in all-sky mode
+  integer          :: btClearElementId ! bufr element id of clear-sky radiance in all-sky mode
 
-CONTAINS
+contains
 
   character(len=7) function brpr_getTypeResume
     brpr_getTypeResume=TYPE_RESUME
   end function brpr_getTypeResume
+
 
   subroutine brpr_updateBurp(obsdat,familytype,brp_file,filenumb)
     !

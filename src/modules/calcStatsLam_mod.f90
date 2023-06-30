@@ -2,7 +2,7 @@
 module calcStatsLam_mod
   ! MODULE calcStatsLam_mod (prefix='csl' category='1. High-level functionality')
   !
-  ! :Purpose: To compute homogeneous and isotropic background error covariances 
+  !:Purpose:  To compute homogeneous and isotropic background error covariances 
   !           from forecast error estimate in model variable space (limited-area
   !           version).
   !
@@ -11,7 +11,7 @@ module calcStatsLam_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use lamSpectralTransform_mod
-  use analysisGrid_mod
+  use lamAnalysisGridTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use localizationFunction_mod
@@ -207,7 +207,7 @@ contains
 
     !- 3.1 Create the extended and non-extended grid prototype file
     if (mmpi_myid == 0) then
-      call agd_createLamTemplateGrids('./analysisgrid', hco_ens, vco_bhi, & ! IN
+      call lgt_createLamTemplateGrids('./analysisgrid', hco_ens, vco_bhi, & ! IN
                                       grd_ext_x, grd_ext_y)                 ! IN
     end if
     call rpn_comm_barrier("GRID",ier)
@@ -216,7 +216,7 @@ contains
     call hco_setupFromFile( hco_bhi,'./analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
 
     !- 3.3 Setup the LAM analysis grid metrics
-    call agd_setupFromHCO( hco_bhi, hco_ens ) ! IN
+    call lgt_setupFromHCO( hco_bhi, hco_ens ) ! IN
 
     !
     !- 4. Read the ensemble

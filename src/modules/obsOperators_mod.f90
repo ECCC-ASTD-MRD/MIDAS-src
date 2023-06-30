@@ -2,7 +2,7 @@
 module obsOperators_mod
   ! MODULE obsOperators_mod (prefix='oop' category='5. Observation operators')
   !
-  ! :Purpose: All observation operators, including nonlinear, tangent-linear
+  !:Purpose:  All observation operators, including nonlinear, tangent-linear
   !           and adjoint versions.
   !
   use codePrecision_mod

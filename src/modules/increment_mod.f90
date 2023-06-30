@@ -2,7 +2,7 @@
 module increment_mod
   ! MODULE increment_mod (prefix='inc' category='1. High-level functionality')
   !
-  ! :Purpose: To add a 4D increment to a given 4D background/reference state and
+  !:Purpose:  To add a 4D increment to a given 4D background/reference state and
   !           to output the results
   !
   use codePrecision_mod

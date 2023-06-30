@@ -2,7 +2,7 @@
 module verticalCoord_mod
   ! MODULE verticalCoord_mod (prefix='vco' category='7. Low-level data objects')
   !
-  ! :Purpose: Derived type and procedures related to the vertical levels.
+  !:Purpose:  Derived type and procedures related to the vertical levels.
   !           The derived type includes a pointer to the associated VGRID
   !           descriptor.
   !

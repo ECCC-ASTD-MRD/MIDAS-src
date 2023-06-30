@@ -2,7 +2,7 @@
 module obsSpaceErrorStdDev_mod
   ! MODULE obsSpaceErrorStdDev_mod (prefix='ose' category='1. High-level functionality')
   !
-  ! :Purpose: Contains subroutines for computing background-error and OmP-error
+  !:Purpose:  Contains subroutines for computing background-error and OmP-error
   !           standard deviations in observation space
   !
   use midasMpi_mod

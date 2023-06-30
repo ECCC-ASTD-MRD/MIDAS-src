@@ -2,7 +2,7 @@
 module minimization_mod
   ! MODULE minimization_mod (prefix='min' category='1. High-level functionality')
   !
-  ! :Purpose: Minimization for variational assimilation, including the
+  !:Purpose:  Minimization for variational assimilation, including the
   !           subroutine that evaluates the cost function and its gradient.
   !
   use codePrecision_mod

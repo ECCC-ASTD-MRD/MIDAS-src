@@ -2,9 +2,8 @@
 module obsUtil_mod
   ! MODULE obsUtil_mod (prefix='obsu' category='3. Observation input/output')
   !
-  ! :Purpose: Common routines used by burpfiles_mod and sqlitefiles_mod
-  !  
-  
+  !:Purpose: Common routines used by burpfiles_mod and sqlitefiles_mod
+  !
   use obsSpaceData_mod
   use bufr_mod
   use mathPhysConstants_mod

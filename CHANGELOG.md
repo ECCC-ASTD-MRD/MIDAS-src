@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Keep camelCase on main sphinx pages and rename `analysisGrid_mod` (#844 and !753)
 
 ### Fixed
 

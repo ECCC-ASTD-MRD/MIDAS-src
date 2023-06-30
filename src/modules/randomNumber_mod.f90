@@ -2,7 +2,8 @@
 module randomNumber_mod
   ! MODULE randomNumber_mod (prefix='rng' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: A Gaussian random number generator (RNG) module
+  !:Purpose: A Gaussian random number generator (RNG) module. The actual calculation
+  !          is performed by functions in an external library.
   !
   use ISO_C_BINDING
   implicit none

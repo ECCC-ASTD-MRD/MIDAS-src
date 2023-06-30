@@ -2,7 +2,7 @@
 module bMatrixChem_mod 
   ! MODULE bMatrixChem_mod (prefix='bchm' category='2. B and R matrices')
   !
-  ! :Purpose: Contains routines involving the application of
+  !:Purpose:  Contains routines involving the application of
   !           background-error covariance matrix(ces). Matrix based on
   !           horizontally homogeneous/isotropic correlations. This module
   !           includes the transform from control vector (spectral space) to 
@@ -10,7 +10,7 @@ module bMatrixChem_mod
   !
   !           Based on elements of bmatrixHI_mod.ftn90
   !
-  ! :Comments:
+  !:Comments:
   !
   !   1. Covariances uncoupled from weather variable.
   !
@@ -18,7 +18,7 @@ module bMatrixChem_mod
   !      identical to those in bmatrixhi_mod.ftn90 (except possibly in name) so
   !      that one copy is present in the code.
   !
-  !
+
   ! Public Subroutines:
   !
   !    bchm_setupCH:  Must be called first. 

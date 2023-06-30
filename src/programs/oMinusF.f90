@@ -1,4 +1,4 @@
-program midas_ominusf
+program midas_oMinusF
   !
   !:Purpose: Main program for Observation minus Forecast (O-F) computation.
   !
@@ -247,4 +247,4 @@ program midas_ominusf
     call utl_writeStatus('VAR3D_END')
   endif
 
-end program midas_ominusf
+end program midas_oMinusF

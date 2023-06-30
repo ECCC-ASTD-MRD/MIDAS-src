@@ -2,7 +2,8 @@
 module gridStateVectorFileIO_mod
   ! MODULE gridStateVectorFileIO_mod (prefix='gio' category='4. Data Object transformations')
   !
-  ! :Purpose: The grid-point state vector I/O methods.
+  !:Purpose: The grid-point state vector I/O methods for reading from and writing to
+  !          files.
   !
   use mpi
   use midasMpi_mod

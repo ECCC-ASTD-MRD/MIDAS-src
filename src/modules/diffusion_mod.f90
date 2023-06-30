@@ -2,19 +2,19 @@
 module diffusion_mod
   ! MODULE diffusion_mod (prefix='diff' category='4. Data Object transformations')
   !
-  ! :Purpose: Diffusion operator and storage of related diffusion configuration used to model
+  !:Purpose:  Diffusion operator and storage of related diffusion configuration used to model
   !           background-error horizontal correlations. Both explicit and implicit
   !           formulations are included, with implicit being preferred when using large
   !           correlation length scales relative to the grid spacing. For implicit the
   !           MPI topology must have npex=1, i.e. 1xNPEYxNUMTHREADS. A 2D MPI topology
   !           can be used for the explicit formulation.
   !
-  ! :Reference: Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
+  !:Reference:  Weaver, A. T., and P. Courtier, 2001: Correlation modelling on
   !             the sphere using a generalized diffusion equation.
   !             Q. J. R. Meteorol. Soc., 127, 1815-1846.
   !
-  ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
-  !                   stab    = k*dt/dx^2     (2)
+  !:Basic equations: * Lcorr^2 = 2*k*dt*numt   (1)
+  !                  * stab    = k*dt/dx^2     (2)
   !
   use midasMpi_mod
   use horizontalCoord_mod

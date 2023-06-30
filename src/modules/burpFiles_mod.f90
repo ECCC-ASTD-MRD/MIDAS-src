@@ -2,8 +2,8 @@
 module burpFiles_mod
   ! MODULE burpFiles_mod (prefix='brpf' category='3. Observation input/output')
   !
-  ! :Purpose: To store the filenames of the burp observation files and call
-  !           subroutines in readBurp to read and update burp files.
+  !:Purpose:  To store the filenames of the burp observation files and call
+  !           subroutines in readBurp_mod to read and update burp files.
   !
   use codePrecision_mod
   use mathPhysConstants_mod

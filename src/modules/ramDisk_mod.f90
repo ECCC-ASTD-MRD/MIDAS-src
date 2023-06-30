@@ -2,7 +2,7 @@
 module ramDisk_mod
   ! MODULE ramDisk_mod (prefix='ram' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: To control the file manipulations/enquiries on the RAM disk
+  !:Purpose: To control the file manipulations/enquiries on the RAM disk.
   !
   use utilities_mod
   use clibInterfaces_mod

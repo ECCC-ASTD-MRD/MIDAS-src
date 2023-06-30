@@ -114,7 +114,6 @@ program midas_pseudoSSTobs
   use utilities_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use analysisGrid_mod
   use midasMpi_mod
   use oceanObservations_mod
   use gridStateVector_mod
@@ -181,7 +180,6 @@ program midas_pseudoSSTobs
     implicit none
     
     ! Locals:	
-    type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: myName = 'pseudoSSTobs_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'
     
@@ -219,16 +217,6 @@ program midas_pseudoSSTobs
     if(mmpi_myid == 0) write(*,*)''
     if(mmpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
-
-    if (hco_anl % global) then
-      call agd_SetupFromHCO(hco_anl) ! IN
-    else
-      !- Initialize the core (Non-Extended) analysis grid
-      if(mmpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
-      call hco_SetupFromFile(hco_core, gridFile, 'COREGRID', 'AnalysisCore') ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO(hco_anl, hco_core) ! IN
-    end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file

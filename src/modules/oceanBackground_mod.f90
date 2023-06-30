@@ -2,7 +2,7 @@
 module oceanBackground_mod
   ! MODULE oceanBackground_mod (prefix='obgd' category='1. High-level functionality')
   !
-  ! :Purpose: storage for ocean background related subroutines
+  !:Purpose: storage for ocean background related subroutines
   !
   use codtyp_mod
   use gridStateVector_mod

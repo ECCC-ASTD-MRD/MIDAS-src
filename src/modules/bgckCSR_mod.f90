@@ -2,7 +2,8 @@
 module bgckCSR_mod
   ! MODULE bgckCSR_mod (prefix='csrbg' category='1. High-level functionality')
   !
-  ! :Purpose: To perform CSR data background Check
+  !:Purpose: To perform CSR (clear-sky radiance from geostationary
+  !          satellite platforms) data background check.
   !
   use midasMpi_mod
   use utilities_mod

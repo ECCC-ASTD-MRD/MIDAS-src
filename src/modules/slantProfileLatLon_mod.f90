@@ -2,7 +2,7 @@
 module slantProfileLatLon_mod
   ! MODULE slantProfileLatLon_mod (prefix='slp' category='5. Observation operators')
   !
-  ! :Purpose: To calculate latitudes/longitudes on slant-path based on
+  !:Purpose:  To calculate latitudes/longitudes on slant-path based on
   !           ColumnData.
   !
   use midasMpi_mod

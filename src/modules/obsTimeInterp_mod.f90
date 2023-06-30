@@ -2,7 +2,7 @@
 module obsTimeInterp_mod
   ! MODULE obsTimeInterp_mod (prefix='oti' category='4. Data Object transformations')
   !
-  ! :Purpose: To store public variables and procedures related to the time
+  !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
   use midasMpi_mod

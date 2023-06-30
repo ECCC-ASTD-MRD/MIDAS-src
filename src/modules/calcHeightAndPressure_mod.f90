@@ -2,13 +2,13 @@
 module calcHeightAndPressure_mod
   ! MODULE calcHeightAndPressure_mod (prefix='czp' category='4. Data Object transformations')
   !
-  ! :Purpose: Subroutines for computing height and/or pressure on statevectors
+  !:Purpose:  Subroutines for computing height and/or pressure on statevectors
   !           and columns depending on the vgrid kind.
   !           Nonlinear, tangent-linear and adjoint versions of these
   !           transformations are included in separate subroutines.
   !           Depending on the vertical representation of the state or column,
   !           pressure or height values are either computed or retrieved using
-  !           the [vgrid](https://gitlab.science.gc.ca/RPN-SI/vgrid) library.
+  !           the vgrid (https://gitlab.science.gc.ca/RPN-SI/vgrid) library.
   !           When computation is required (for instance to compute height on a
   !           GEM-P, represented on pressure coordinates), thermodynamical 
   !           variables are required, typically `P0`, `TT` and `HU`.

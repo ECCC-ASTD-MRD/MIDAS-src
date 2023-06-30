@@ -1,8 +1,8 @@
 
 module costFunction_mod
-  ! MODULE costFunction_mod, (prefix="cfn" category='5. Observation operators')
+  ! MODULE costFunction_mod, (prefix='cfn' category='5. Observation operators')
   !
-  ! :Purpose: To compute Jo term
+  !:Purpose: To compute Jo term.
   !
   use midasMpi_mod
   use obsSpaceData_mod

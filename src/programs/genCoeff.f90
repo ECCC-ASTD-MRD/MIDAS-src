@@ -1,4 +1,4 @@
-program midas_gencoeff
+program midas_genCoeff
   !
   !:Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
@@ -307,4 +307,4 @@ contains
 
 
 
-end program midas_gencoeff
+end program midas_genCoeff

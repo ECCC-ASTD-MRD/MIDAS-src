@@ -2,7 +2,7 @@
 module innovation_mod
   ! MODULE innovation_mod (prefix='inn' category='1. High-level functionality')
   !
-  ! :Purpose: Several high-level subroutines used to compute the innovations:
+  !:Purpose:  Several high-level subroutines used to compute the innovations:
   !           that is, the observation-minus-background values. This includes
   !           the subroutine that reads in the gridded high-res background state
   !           from standard files.

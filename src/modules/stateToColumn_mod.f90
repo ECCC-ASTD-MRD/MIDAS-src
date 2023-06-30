@@ -2,7 +2,7 @@
 module stateToColumn_mod
   ! MODULE stateToColumn_mod (prefix='s2c' category='4. Data Object transformations')
   !
-  ! :Purpose: Non-linear, tangent-linear and adjoint versions of
+  !:Purpose:  Non-linear, tangent-linear and adjoint versions of
   !           horizontal-temporal interpolation between a gridStateVector object
   !           and a columnData object.
   !

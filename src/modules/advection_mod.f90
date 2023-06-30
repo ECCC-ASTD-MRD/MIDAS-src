@@ -1,8 +1,8 @@
 
 MODULE advection_mod
-  ! MODULE advection_mod (prefix="adv" category='4. Data Object transformations')
+  ! MODULE advection_mod (prefix='adv' category='4. Data Object transformations')
   !
-  ! :Purpose: To perform forward and/or backward advection (based on 
+  !:Purpose:  To perform forward and/or backward advection (based on 
   !           semi-lagrangian trajectories) for both gridStateVector and
   !           ensemble of gridStateVectors
   !

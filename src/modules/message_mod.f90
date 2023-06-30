@@ -1,7 +1,7 @@
 module message_mod
   ! MODULE message_mod (prefix='msg' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: Output message interface with configurable verbosity.
+  !:Purpose:  Output message interface with configurable verbosity.
   !           Also provides string representation for some intrinsic types.
   !
   use midasMpi_mod

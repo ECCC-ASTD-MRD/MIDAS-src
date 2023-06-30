@@ -2,7 +2,7 @@
 module radialVelocity_mod
   ! MODULE radialVelocity_mod (prefix='rdv' category='5. Observation operators')
   !
-  ! :Purpose: Containing commonly used functions for the assimilation of Doppler velocity
+  !:Purpose: Containing commonly used functions for the assimilation of Doppler velocity.
   !
   !
   use codePrecision_mod

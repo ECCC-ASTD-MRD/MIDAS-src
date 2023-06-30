@@ -2,7 +2,7 @@
 module timeCoord_mod
   ! MODULE timeCoord_mod (prefix='tim' category='7. Low-level data objects')
   !
-  ! :Purpose: To store public variables and procedures related to the time
+  !:Purpose:  To store public variables and procedures related to the time
   !           coordinate.
   !
   use midasMpi_mod

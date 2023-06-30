@@ -2,7 +2,7 @@
 module regions_mod
   ! MODULE regions_mod (prefix='reg' category='7. Low-level data objects')
   !
-  ! :Purpose: This is a subset of the EnKF module that deals with 
+  !:Purpose:  This is a subset of the EnKF module that deals with 
   !           operations involving the generation of a set of regions. 
   !           Each region consists of a small number of observations 
   !           which is to be assimilated simultaneously in the 

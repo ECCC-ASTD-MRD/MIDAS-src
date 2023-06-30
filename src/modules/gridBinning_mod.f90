@@ -2,7 +2,7 @@
 module gridBinning_mod
   ! MODULE gridBinning_mod (prefix='gbi' category='4. Data Object transformations')
   !
-  ! :Purpose: To compute categorical mean and standard deviation for gridded data
+  !:Purpose:  To compute categorical mean and standard deviation for gridded data
   !           contained in a gridStateVector or in an ensemble of
   !           gridStateVectors (e.g. the respective mean over land and sea)
   !

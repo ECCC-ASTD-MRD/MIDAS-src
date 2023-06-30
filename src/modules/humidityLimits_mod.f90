@@ -2,7 +2,7 @@
 module humidityLimits_mod
   ! MODULE humidityLimits_mod (prefix='qlim' category='4. Data Object transformations')
   !
-  ! :Purpose: Various manipulations of humidity-related quantities.
+  !:Purpose: Various manipulations of humidity-related quantities.
   !
   use midasMpi_mod
   use utilities_mod

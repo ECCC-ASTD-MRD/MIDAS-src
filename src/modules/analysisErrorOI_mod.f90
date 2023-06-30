@@ -2,13 +2,10 @@
 module analysisErrorOI_mod
   ! MODULE analysisErrorOI_mod (prefix='aer' category='1. High-level functionality')
   !
-  ! :Purpose: Calculate the analysis-error standard deviation.
+  !:Purpose:  Calculate the analysis-error standard deviation.
   !           The method used is Optimal Interpolation,
   !           where it is assumed that only a subset of the
   !           total number of observations influence the analysis at a given grid point.
-  !           By default, everything in the module is private.
-  !           The data is accessed by external subroutines through public subroutines
-  !           and functions calls.
   !
 
   use columnData_mod

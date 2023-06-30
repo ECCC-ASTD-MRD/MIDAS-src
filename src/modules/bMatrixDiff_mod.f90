@@ -2,9 +2,10 @@
 MODULE bMatrixDiff_mod
   ! MODULE bMatrixDiff_mod (prefix='bdiff' category='2. B and R matrices')
   !
-  ! :Purpose: Performs transformation from control vector to analysis increment 
-  !           using the background-error covariance matrix based on correlations
-  !           modelled using a diffusion operator.
+  !:Purpose:  Performs transformation from control vector to analysis increment 
+  !           (and the adjoint transformation) using the background-error
+  !           covariance matrix based on correlations modelled using a
+  !           diffusion operator.
   !
   use midasMpi_mod
   use gridStateVector_mod

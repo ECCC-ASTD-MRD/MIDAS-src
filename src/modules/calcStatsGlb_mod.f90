@@ -2,7 +2,7 @@
 module calcStatsGlb_mod
   ! MODULE calcStatsGlb_mod (prefix='csg' category='1. High-level functionality')
   !
-  ! :Purpose: To compute homogeneous and isotropic background error covariances
+  !:Purpose:  To compute homogeneous and isotropic background error covariances
   !           from forecast error estimate in model variable space (global
   !           version).
   !

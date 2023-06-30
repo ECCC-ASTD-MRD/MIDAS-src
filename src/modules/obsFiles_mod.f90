@@ -2,7 +2,7 @@
 module obsFiles_mod
   ! MODULE obsFiles_mod (prefix='obsf' category='3. Observation input/output')
   !
-  ! :Purpose: High-level module to handle reading/writing of observations that
+  !:Purpose:  High-level module to handle reading/writing of observations that
   !           can be stored in one of several different formats. Currently, the
   !           only supported formats are:
   !

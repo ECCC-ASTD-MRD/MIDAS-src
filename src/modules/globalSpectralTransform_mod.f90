@@ -2,7 +2,7 @@
 module globalSpectralTransform_mod
   ! MODULE globalSpectralTransform_mod (prefix='gst' category='4. Data Object transformations')
   !
-  ! :Purpose: To perform global spectral transform (spherical harmonic transform
+  !:Purpose:  To perform global spectral transform (spherical harmonic transform
   !           with grid-point field on a standard global Gaussian grid). 
   !
   use codePrecision_mod

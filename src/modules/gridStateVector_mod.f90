@@ -2,7 +2,7 @@
 module gridStateVector_mod
   ! MODULE gridStateVector_mod (prefix='gsv' category='6. High-level data objects')
   !
-  ! :Purpose: The grid-point state vector and related information.
+  !:Purpose: The grid-point state vector and related information.
   !
   use mpi, only : mpi_status_size ! this is the mpi library module
   use codePrecision_mod

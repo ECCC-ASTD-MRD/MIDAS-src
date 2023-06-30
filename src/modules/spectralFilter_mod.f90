@@ -2,7 +2,7 @@
 module spectralFilter_mod
   ! MODULE spectralFilter_mod (prefix='spf' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: For computing spectral filter functions
+  !:Purpose: For computing spectral filter functions.
   !
   implicit none
   save

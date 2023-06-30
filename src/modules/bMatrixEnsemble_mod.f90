@@ -2,9 +2,10 @@
 module bMatrixEnsemble_mod
   ! MODULE bMatrixEnsemble_mod (prefix='ben' category='2. B and R matrices')
   !
-  ! :Purpose: Performs transformation from control vector to analysis increment 
-  !           using the spatially localized ensemble covariance matrix. This 
-  !           module works for both global and limited-area applications.
+  !:Purpose:  Performs transformation from control vector to analysis increment 
+  !           (and the adjoint transformation) using the spatially localized
+  !           ensemble covariance matrix. This module works for both global and
+  !           limited-area applications.
   !
   use midasMpi_mod
   use fileNames_mod
@@ -25,7 +26,7 @@ module bMatrixEnsemble_mod
   use advection_mod
   use gridBinning_mod
   use humidityLimits_mod
-  use analysisGrid_mod
+  use lamAnalysisGridTransforms_mod
   use calcHeightAndPressure_mod
   implicit none
   save
@@ -363,7 +364,7 @@ CONTAINS
       bEns(nInstance)%vco_anl  => vco_anl_in
 
       !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
+      call lgt_setupFromHCO( hco_anl_in, hco_core_in ) ! IN
       
       !- Set the instance
       call ben_setupOneInstance(nInstance,               & ! IN

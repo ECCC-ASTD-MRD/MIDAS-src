@@ -1,4 +1,4 @@
-program midas_calcstats
+program midas_calcStats
   !
   !:Purpose: Swiss-knife type program originally used only for computing background-error covariances
   !          (**B**) based on homogeneous and isotropic (HI) correlations that was extended with time
@@ -199,4 +199,4 @@ program midas_calcstats
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
-end program midas_calcstats
+end program midas_calcStats

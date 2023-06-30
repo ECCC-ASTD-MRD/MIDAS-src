@@ -2,11 +2,10 @@
 module tovsLin_mod
   ! MODULE tovsLin_mod (prefix='tvslin' category='5. Observation operators')
   !
-  ! :Purpose: Derived types, public variables and procedures related to the 
+  !:Purpose:  Derived types, public variables and procedures related to the 
   !           tangent-linear and adjoint versions of RTTOV
   !
   use rttovInterfaces_mod
-
   use rttov_types, only :   &
        rttov_profile       ,&
        rttov_profile_cloud ,&
