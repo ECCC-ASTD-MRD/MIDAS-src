@@ -2,7 +2,7 @@
 module lamBmatrixHI_mod
   ! MODULE lamBmatrixHI_mod (prefix='lbhi' category='2. B and R matrices')
   !
-  ! :Purpose: Performs transformation from control vector to analysis increment 
+  !:Purpose:  Performs transformation from control vector to analysis increment 
   !           using the homogeneous and isotropic background error covariance 
   !           matrix.
   !
@@ -11,7 +11,7 @@ module lamBmatrixHI_mod
   use verticalCoord_mod
   use LamSpectralTransform_mod
   use gridStateVector_mod
-  use analysisGrid_mod
+  use lamAnalysisGridTransforms_mod
   use utilities_mod
   use gridVariableTransforms_mod
   use varNameList_mod
@@ -131,7 +131,7 @@ contains
     end if
 
     !- Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
+    call lgt_SetupFromHCO( hco_anl_in, hco_core_in ) ! IN
     
     trunc = ntrunc
     write(*,*)
@@ -894,7 +894,7 @@ contains
           end if
 
           !  4.2.1 Do Transform
-          call agd_PsiChiToUV(psi, chi,           & ! IN
+          call lgt_PsiChiToUV(psi, chi,           & ! IN
                               uphy, vphy,         & ! OUT
                               nlev_M)               ! IN
 
@@ -954,7 +954,7 @@ contains
           vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
 
           !  4.2.1 Do Transform
-          call agd_PsiChiToUVAdj( psi, chi,           & ! OUT
+          call lgt_PsiChiToUVAdj( psi, chi,           & ! OUT
                                   uphy, vphy,         & ! IN
                                   nlev_M)               ! IN
 

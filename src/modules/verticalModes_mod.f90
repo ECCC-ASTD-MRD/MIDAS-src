@@ -2,7 +2,7 @@
 module verticalModes_mod
   ! MODULE verticalModes_mod (prefix='vms' category='4. Data Object transformations')
   !
-  ! :Purpose: To 1) compute empirical orthogonal functions (EOFs) from either ensemble-derived
+  !:Purpose:  To 1) compute empirical orthogonal functions (EOFs) from either ensemble-derived
   !           vertical background-error covariances matrices or a prescribed vertical correlation
   !           function (i.e., the so-called vertical modes) and to 2) project back or forth
   !           ensemble pertubations onto these modes.
@@ -610,7 +610,7 @@ contains
     ig4    = 0
     datyp  = 5
 
-    !- Covert to real 4
+    !- Convert to real 4
     workecr(:,:) = real(matrix2d(:,:),4)
 
     !- Writing 
@@ -672,7 +672,7 @@ contains
     ig4    = 0
     datyp  = 5
 
-    !- Covert to real 4
+    !- Convert to real 4
     workecr(:) = real(array(:),4)
 
     !- Writing 

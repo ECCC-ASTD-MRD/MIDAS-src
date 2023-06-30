@@ -2,10 +2,10 @@
 MODULE bMatrixHI_mod
   ! MODULE bMatrixHI_mod (prefix='bhi' category='2. B and R matrices')
   !
-  ! :Purpose: Performs transformation from control vector to analysis increment 
-  !           using the background-error covariance matrix based on homogeneous
-  !           and isotropic correlations. This is the Global version. A separate 
-  !           module exists for limited-area applications.
+  !:Purpose:  Performs transformation from control vector to analysis increment 
+  !           (and adjoint transformation) using the background-error covariance
+  !           matrix based on homogeneous and isotropic correlations. This is
+  !           the Global version. A separate module exists for limited-area applications.
   !
   use midasMpi_mod
   use earthConstants_mod

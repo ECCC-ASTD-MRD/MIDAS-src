@@ -1,8 +1,8 @@
 
 MODULE biasCorrectionConv_mod
-  ! MODULE biasCorrectionConv_mod (prefix="bcc" category='1. High-level functionality')
+  ! MODULE biasCorrectionConv_mod (prefix='bcc' category='1. High-level functionality')
   !
-  ! :Purpose: Performs bias correction for conventional observations
+  !:Purpose: Performs bias correction for conventional observations.
   !
   use utilities_mod
   use obsSpaceData_mod

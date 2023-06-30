@@ -2,9 +2,9 @@
 module varQC_mod
   ! MODULE varQC_mod (prefix='vqc' category='1. High-level functionality')
   !
-  ! :Purpose: Procedures related to variational quality control including
+  !:Purpose:  Procedures related to variational quality control including
   !           hard-coded values that determine how quickly the observation
-  !           weight begins to be reduced
+  !           weight begins to be reduced.
   !
   use MathPhysConstants_mod
   use earthConstants_mod

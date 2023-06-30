@@ -2,7 +2,7 @@
 module obsDiagFiles_mod
   ! MODULE obsDiagFiles_mod (prefix='diaf' category='3. Observation input/output')
   !
-  ! :Purpose: To write the "diag" format SQLITE observation files. Data is stored in 
+  !:Purpose:  To write the "diag" format SQLITE observation files. Data is stored in 
   !           obsSpaceData object.
   !
   use obsSpaceData_mod

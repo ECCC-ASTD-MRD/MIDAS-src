@@ -2,9 +2,7 @@
 module gps_mod
   ! MODULE gps_mod (prefix='gps' category='5. Observation operators')
   !
-  ! :Purpose: Code related to GPS-RO and ground-based GPS observation operators.
-  !
-  ! :Note: prefix not used for all public variables
+  !:Purpose: Code related to GPS-RO and ground-based GPS observation operators.
   !
   use midasMpi_mod
   use utilities_mod

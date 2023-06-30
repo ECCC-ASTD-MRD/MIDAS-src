@@ -1,11 +1,13 @@
 MODULE earthConstants_mod
   ! MODULE earthConstants_mod (prefix='ec' category='8. Low-level utilities and constants')
-  ! Prefixes:
-  !    ec_ (Earth constants), for miscellaneous values from diverse sources
-  ! or
-  !    ec_wgs_ (World Geodetic Syatem) when they are explicitly from WGS84 specification.
   !
-  use MathPhysConstants_mod
+  !:Purpose: Define public constants related to the Earth.
+  !
+  !          Prefixes:
+  !           * ec_ (Earth constants), for miscellaneous values from diverse sources or
+  !           * ec_wgs_ (World Geodetic Syatem) when they are explicitly from WGS84 specification.
+  !
+  use mathPhysConstants_mod
   !
   ! The following constants should ultimately be taken from module
   ! modgps02wgs84const OR module modgps06gravity.  They have been placed here

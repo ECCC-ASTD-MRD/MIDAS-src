@@ -2,7 +2,7 @@
 module gridVariableTransforms_mod
   ! MODULE gridVariableTransforms_mod (prefix='gvt' category='4. Data Object transformations')
   !
-  ! :Purpose: To store various functions for variable transforms using inputs
+  !:Purpose:  To store various functions for variable transforms using inputs
   !           from gridStateVector(s). Outputs are also placed in a
   !           gridStateVector.
   !
@@ -17,7 +17,7 @@ module gridVariableTransforms_mod
   use ensembleStateVector_mod
   use lamSpectralTransform_mod
   use globalSpectralTransform_mod
-  use analysisGrid_mod
+  use lamAnalysisGridTransforms_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -76,7 +76,7 @@ CONTAINS
     hco_anl => hco_in
     vco_anl => vco_in
 
-    call agd_setupFromHco(hco_anl,hco_core)
+    call lgt_setupFromHco(hco_anl,hco_core)
 
     write(*,*) 'gvt_setup: done'
 
@@ -1406,7 +1406,7 @@ CONTAINS
       call utl_abort('UVtoVortDiv_gsv: global mode not available')
     else
       do stepIndex = 1, statevector%numStep
-        call agd_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
+        call lgt_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
                              uu_ptr(:,:,:,stepIndex), vv_ptr(:,:,:,stepIndex), & ! IN
                              nlev_M )                                            ! IN          
       end do

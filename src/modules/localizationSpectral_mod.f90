@@ -2,7 +2,7 @@
 MODULE localizationSpectral_mod
   ! MODULE localizationSpectral_mod (prefix='lsp' category='2. B and R matrices')
   !
-  ! :Purpose: To compute localized 3D gridpoint amplitude fields for each
+  !:Purpose:  To compute localized 3D gridpoint amplitude fields for each
   !           ensemble member from a given (1D) control vector of
   !           SPECTRAL ELEMENTS
   !

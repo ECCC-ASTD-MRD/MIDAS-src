@@ -2,7 +2,7 @@
 module bMatrix1DVar_mod
   ! MODULE bMatrix1DVar_mod (prefix='bmat1D' category='2. B and R matrices')
   !
-  ! :Purpose: contains all 1Dvar B matrices.
+  !:Purpose: contains all 1Dvar B matrices.
   !
   use mathPhysConstants_mod
   use columnData_mod

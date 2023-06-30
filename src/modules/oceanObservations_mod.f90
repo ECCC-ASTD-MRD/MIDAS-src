@@ -2,7 +2,7 @@
 module oceanObservations_mod
   ! MODULE oceanObservations_mod (prefix='oobs' category='1. High-level functionality')
   !
-  !:Purpose: storage for ocean observations related subroutines
+  !:Purpose: storage for ocean observations related subroutines.
   !
   use midasMpi_mod
   use utilities_mod

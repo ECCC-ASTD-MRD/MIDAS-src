@@ -2,7 +2,7 @@
 module sstBias_mod
   ! MODULE sstBias_mod (prefix='sstb' category='1. High-level functionality')
   !
-  !:Purpose: Compute SST satellite data bias estimation and correction
+  !:Purpose: Compute SST satellite data bias estimation and correction.
   !
   use obsSpaceData_mod  
   use horizontalCoord_mod

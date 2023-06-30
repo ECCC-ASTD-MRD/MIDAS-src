@@ -2,7 +2,7 @@
 MODULE ensembleObservations_mod
   ! MODULE ensembleObservations_mod (prefix='eob' category='6. High-level data objects')
   !
-  ! :Purpose: Store and manipulate ensemble of quanitites in observation space.
+  !:Purpose:  Store and manipulate ensemble of quanitites in observation space.
   !           This module uses the kdtree2 module for efficiently finding the
   !           nearest observations within the local volume.
   !

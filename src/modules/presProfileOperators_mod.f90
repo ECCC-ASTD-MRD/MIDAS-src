@@ -2,7 +2,7 @@
 module presProfileOperators_mod
   ! MODULE presProfileOperators_mod (prefix='ppo' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: Vertical interpolation, integration, and layer averaging subroutines.
+  !:Purpose:  Vertical interpolation, integration, and layer averaging subroutines.
   !           Includes the special routines designed to interpolate to the 
   !           (widely spaced) RTTOV pressure levels.
   !

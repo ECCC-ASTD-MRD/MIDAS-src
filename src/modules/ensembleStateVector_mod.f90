@@ -2,7 +2,7 @@
 module ensembleStateVector_mod
   ! MODULE ensembleStateVector_mod (prefix='ens' category='6. High-level data objects')
   !
-  ! :Purpose: Store and manipulate ensemble of state vectors and the ensemble
+  !:Purpose:  Store and manipulate ensemble of state vectors and the ensemble
   !           mean.
   !
   use ramDisk_mod
@@ -13,7 +13,7 @@ module ensembleStateVector_mod
   use interpolation_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use analysisGrid_mod
+  use lamAnalysisGridTransforms_mod
   use oceanMask_mod
   use timeCoord_mod
   use utilities_mod
@@ -2542,7 +2542,7 @@ CONTAINS
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
             call gsv_getField(statevector_member_r4,ptr3d_r4)
-            call agd_mach_r4(ptr3d_r4,    & ! INOUT
+            call lgt_mach_r4(ptr3d_r4,    & ! INOUT
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
 

@@ -2,7 +2,7 @@
 module residual_mod
   ! MODULE residual_mod (prefix='res' category='1. High-level functionality')
   !
-  ! :Purpose: To compute OMA (= OMP - H dx) and its adjoint
+  !:Purpose: To compute OMA (= OMP - H dx) and its adjoint.
   !
   use obsSpaceData_mod
   implicit none

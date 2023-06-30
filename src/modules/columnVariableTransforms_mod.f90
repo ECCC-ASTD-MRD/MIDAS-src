@@ -2,7 +2,7 @@
 module columnVariableTransforms_mod
   ! MODULE columnVariableTransforms_mod (prefix='cvt' category='4. Data Object transformations')
   !
-  ! :Purpose: To store various functions for variable transforms using inputs
+  !:Purpose:  To store various functions for variable transforms using inputs
   !           from column(s). Outputs are also placed in a column.
   !
   use columnData_mod

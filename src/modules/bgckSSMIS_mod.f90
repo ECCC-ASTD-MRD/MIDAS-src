@@ -2,7 +2,7 @@
 module bgckSSMIS_mod
   ! MODULE bgckSSMIS_mod (prefix='ssbg' category='1. High-level functionality')
   !
-  ! :Purpose: Variables for ssmis background check and quality control.
+  !:Purpose: To perform background check and quality control for SSMIS radiance observations.
   !
   use midasMpi_mod
   use MathPhysConstants_mod

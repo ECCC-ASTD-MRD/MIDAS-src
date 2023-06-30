@@ -2,14 +2,14 @@
 ! This file is considered to be the source of the contained module for the
 ! assimilation code.  It can be noted, however, that it was produced with the aid
 ! of the script, thermoconsts_to_MathPhysConstants.py.  That script is simply a
-! convenient tool that may or may not be used to update this file.   This is the
+! convenient tool that may or may not be used to update this file. This is the
 ! command that produces this file:
 !          ./thermoconsts_to_MathPhysConstants.py
 
 MODULE mathPhysConstants_mod
   ! MODULE mathPhysConstants_mod (prefix='mpc' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: To supply mathematical and physical constants in a universal,
+  !:Purpose:  To supply mathematical and physical constants in a universal,
   !           reliable fashion.
   !
   implicit none

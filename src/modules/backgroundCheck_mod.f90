@@ -2,7 +2,7 @@
 module backgroundCheck_mod
   ! MODULE backgroundCheck_mod (prefix='bgck' category='1. High-level functionality')
   !
-  ! :Purpose: Performs the background check on all conventional observations
+  !:Purpose: Performs the background check on all conventional observations
   !
   use mathPhysConstants_mod
   use bufr_mod

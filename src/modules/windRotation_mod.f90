@@ -2,8 +2,9 @@
 module windRotation_mod
   ! MODULE windRotation_mod (prefix='uvr' category='4. Data Object transformations')
   !
-  ! :Purpose: To transform winds FROM the rotated spherical coordinate system
-  !           TO the non-rotated spherical coordinate system.
+  !:Purpose:  To transform winds FROM the rotated spherical coordinate system
+  !           TO the non-rotated spherical coordinate system. Also includes
+  !           tangent-linear and adjoint versions of the transformation.
   !
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -13,7 +14,8 @@ module windRotation_mod
   save
   private
 
-  public :: struct_uvr ! Public derived type definition
+  ! Public derived type definition
+  public :: struct_uvr
 
   ! Public Subroutines
   public :: uvr_setup, uvr_rotateWind_nl, uvr_rotateWind_tl, uvr_rotateWind_ad, uvr_rotateLatLon

@@ -2,7 +2,7 @@
 module oceanMask_mod
   ! MODULE oceanMask_mod (prefix='ocm' category='7. Low-level data objects')
   !
-  ! :Purpose: The horizontal mask indicating land (=.false.) and water (=.true.) grid points.
+  !:Purpose:  The horizontal mask indicating land (.false.) and water (.true.) grid points.
   !           This mask is either:
   !                 * In the case of variables on ocean depth levels, it varies with vertical level.
   !                 * In other cases it is a single 2D field used for all variables.

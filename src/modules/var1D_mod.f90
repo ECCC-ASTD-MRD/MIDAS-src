@@ -2,7 +2,7 @@
 module var1D_mod
   ! MODULE var1D_mod (prefix='var1D' category='4. Data Object transformations')
   !
-  ! :Purpose: contains all 1Dvar-related methods.
+  !:Purpose: contains all 1Dvar-related methods.
   !
   use columnData_mod
   use gridStatevector_mod

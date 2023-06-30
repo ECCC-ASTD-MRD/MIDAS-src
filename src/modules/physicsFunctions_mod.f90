@@ -2,8 +2,8 @@
 module physicsFunctions_mod
   ! MODULE physicsFunctions_mod (prefix='phf' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: A collection of basic functions for various purposes 
-  !           (e.g. computing saturation vapour pressure)
+  !:Purpose:  A collection of basic functions for various purposes 
+  !           (e.g. computing saturation vapour pressure).
   !
   use MathPhysConstants_mod
   use earthConstants_mod

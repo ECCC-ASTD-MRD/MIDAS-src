@@ -2,7 +2,8 @@
 module bgckMicrowave_mod
   ! MODULE bgckMicrowave_mod (prefix='mwbg' category='1. High-level functionality')
   !
-  !:Purpose: Variables for microwave background check and quality control.
+  !:Purpose: Perform background check and quality control for all microwave
+  !          satellite radiance observations: AMSU-A, AMSU-B/MHS, ATMS, MWHS2.
   !
   use midasMpi_mod
   use MathPhysConstants_mod

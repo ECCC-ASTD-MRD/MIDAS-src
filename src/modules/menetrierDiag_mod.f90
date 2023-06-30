@@ -2,7 +2,7 @@
 module menetrierDiag_mod
   ! MODULE menetrierDiag_mod (prefix='bmd' category='1. High-level functionality')
   !
-  ! :Purpose: To compute optimal localization radii according to the theory 
+  !:Purpose:  To compute optimal localization radii according to the theory 
   !           developed by Benjamin Menetrier (Meteo-France) and reported
   !           in Menetrier, Michel, Montmerle and Berre, 2015, Parts 1 and 2.
   !

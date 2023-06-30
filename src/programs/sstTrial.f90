@@ -73,7 +73,6 @@ program midas_sstTrial
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use analysisGrid_mod
   use oceanBackground_mod
   
   implicit none
@@ -135,7 +134,6 @@ program midas_sstTrial
     integer, intent(out) :: analysisDateStamp
     
     ! Locals:	
-    type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: gridFile = './analysis'
     integer                     :: prntdate, prnttime, imode, newdate, indexMonth
     namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim
@@ -195,16 +193,6 @@ program midas_sstTrial
     if(mmpi_myid == 0) write(*,*)''
     if(mmpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, trim(etiketAnalysis)) ! IN
-
-    if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
-    else
-      !- Initialize the core (Non-Extended) analysis grid
-      if(mmpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for core grid'
-      call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file

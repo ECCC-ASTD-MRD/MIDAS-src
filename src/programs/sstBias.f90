@@ -115,7 +115,6 @@ program midas_sstBias
   use gridStateVector_mod
   use obsFiles_mod
   use innovation_mod
-  use analysisGrid_mod
   use sstBias_mod
   use columnData_mod
   
@@ -127,8 +126,8 @@ program midas_sstBias
   type(struct_obs), target    :: obsSpaceData
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
-  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
-                                 varMode        = 'analysis'
+  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES'
+  character(len=48),parameter :: varMode        = 'analysis'
   type(struct_columnData)     :: column                  ! column data
   integer                     :: dateStampFromObs
   
@@ -178,7 +177,6 @@ program midas_sstBias
     character(len=*), intent(in)  :: obsColumnMode
     
     ! Locals:	
-    type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: gridFile = './analysisgrid'
     
     write(*,*) ''
@@ -221,16 +219,6 @@ program midas_sstBias
     if(mmpi_myid == 0) write(*,*)''
     if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'GRID' ) ! IN
-
-    if ( hco_anl % global ) then
-      call agd_SetupFromHCO( hco_anl ) ! IN
-    else
-      !- Initialize the core (Non-Extended) analysis grid
-      if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for core grid'
-      call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
-      !- Setup the LAM analysis grid metrics
-      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file

@@ -1,8 +1,8 @@
 
 module obsSpaceDiag_mod
-  ! MODULE obsSpaceDiag_mod (prefix="osd" category='1. High-level functionality')
+  ! MODULE obsSpaceDiag_mod (prefix='osd' category='1. High-level functionality')
   !
-  ! :Purpose: Some experimental procedures for computing various diagnostics in
+  !:Purpose:  Some experimental procedures for computing various diagnostics in
   !           observation space.
   !
   use codePrecision_mod

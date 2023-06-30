@@ -1,9 +1,12 @@
 
 module biasCorrectionSat_mod
-  ! MODULE biasCorrectionSat_mod (prefix="bcs" category='1. High-level functionality')
+  ! MODULE biasCorrectionSat_mod (prefix='bcs' category='1. High-level functionality')
   !
-  ! :Purpose: Performs the variational bias correction for satellite radiance
-  !           data
+  !:Purpose: Performs the bias correction for satellite radiance
+  !          data. This includes both the traditional approach based
+  !          on regression and the variational bias correction approach
+  !          for estimating the bias. Existing bias correction estimates
+  !          can also be applied to observations.
   !
   use utilities_mod
   use ramDisk_mod
@@ -2945,7 +2948,6 @@ contains
     end do SENSORS
 
   end subroutine bcs_do_regression
-
 
   !-----------------------------------------
   ! bcs_outputCvOmPPred

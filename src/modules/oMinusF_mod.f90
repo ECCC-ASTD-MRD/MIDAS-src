@@ -2,7 +2,7 @@
 module oMinusF_mod
   ! MODULE oMinusF_mod (prefix='omf' category='1. High-level functionality')
   !
-  ! :Purpose: Module for Observation minus Forecast (O-F) computation
+  !:Purpose: Module for Observation minus Forecast (O-F) computation
   !
   use codePrecision_mod
   use ramDisk_mod

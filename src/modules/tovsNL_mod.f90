@@ -2,10 +2,9 @@
 module tovsNL_mod
   ! MODULE tovsNL_mod (prefix='tvs' category='5. Observation operators')
   !
-  ! :Purpose: Derived types, public variables and procedures related to the
+  !:Purpose:  Derived types, public variables and procedures related to the
   !           nonlinear version of RTTOV
   !
-
   use rttovInterfaces_mod
   use rttov_types, only :   &
        rttov_coefs         ,&
@@ -19,7 +18,6 @@ module tovsNL_mod
        rttov_transmission  ,&
        rttov_chanprof      ,&
        rttov_emissivity
-
   use rttov_const, only :           &
        platform_name               ,&
        nplatforms                  ,&
@@ -57,12 +55,9 @@ module tovsNL_mod
        wmax                        ,&
        pmin                        ,&
        pmax
-
   use parkind1, only : jpim, jplm
-
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
-
   use midasMpi_mod
   use codtyp_mod
   use mpi

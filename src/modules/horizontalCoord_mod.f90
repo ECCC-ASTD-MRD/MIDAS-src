@@ -2,7 +2,7 @@
 module horizontalCoord_mod
   ! MODULE horizontalCoord_mod (prefix='hco' category='7. Low-level data objects')
   !
-  ! :Purpose: Derived type and procedures related to the horizontal grid
+  !:Purpose:  Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
   !
   use midasMpi_mod

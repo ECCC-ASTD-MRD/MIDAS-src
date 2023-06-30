@@ -2,7 +2,7 @@
 module fsoi_mod
   ! MODULE fsoi_mod (prefix='fso' category='1. High-level functionality')
   !
-  ! :Purpose: Observation impact (FSOI) library
+  !:Purpose: Observation impact (FSOI) library.
   !
   use midasMpi_mod
   use codePrecision_mod

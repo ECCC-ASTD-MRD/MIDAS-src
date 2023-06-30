@@ -2,7 +2,7 @@
 module ensPostProcess_mod
   ! MODULE ensPostProcess_mod (prefix='epp' category='1. High-level functionality')
   !
-  ! :Purpose: Various routines that are used to modify or process
+  !:Purpose:  Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
   use midasMpi_mod

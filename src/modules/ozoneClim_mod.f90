@@ -2,7 +2,7 @@
 module ozoneClim_mod
   ! MODULE ozoneClim_mod (prefix='ozo' category='5. Observation operators')
   !
-  ! :Purpose: Climatological ozone (1998)
+  !:Purpose: Climatological ozone (1998)
   !
   use obsSpaceData_mod
   use presProfileOperators_mod

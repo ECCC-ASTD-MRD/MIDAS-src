@@ -3,7 +3,8 @@
 module quasiNewton_mod
   ! MODULE quasiNewton_mod (prefix='qna' category='1. High-level functionality')
   !
-  ! Purpose: The n1qn3 routine, and its supporting subroutines
+  !:Purpose: The n1qn3 routine, and its supporting subroutines. The original code was
+  !          modified to support MPI parallelization.
   !
       use midasMpi_mod
       implicit none

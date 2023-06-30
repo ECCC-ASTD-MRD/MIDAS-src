@@ -2,7 +2,7 @@
 module fileNames_mod
   ! MODULE fileNames_mod (prefix='fln' category='7. Low-level data objects')
   !
-  ! :Purpose: Routines related to file names
+  !:Purpose: Routines related to file names.
   !
   use utilities_mod
   use clibInterfaces_mod

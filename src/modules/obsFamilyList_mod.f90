@@ -2,10 +2,9 @@
 module obsFamilyList_mod
   ! MODULE obsFamilyList_mod (prefix='ofl' category='7. Low-level data objects')
   !
-  ! :Purpose: Contains a list of all recognizable observation families along with 
+  !:Purpose:  Contains a list of all recognizable observation families along with 
   !           additional information and procedures regarding these families.
   !
-  
   implicit none
   save
   private

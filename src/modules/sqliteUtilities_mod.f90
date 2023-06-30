@@ -2,25 +2,25 @@
 module sqliteUtilities_mod
   ! MODULE sqliteUtilities_mod (prefix='sqlu' category='3. Observation input/output')
   !
-  ! :Purpose: A place to collect utilities for SQLite files.
+  !:Purpose: A place to collect utilities for SQLite files.
+  !
+  use fSQLite
+  use clibInterfaces_mod
+  use obsSpaceData_mod
+  use midasMpi_mod
+  use utilities_mod
+  use mathPhysConstants_mod
 
-use fSQLite
-use clibInterfaces_mod
-use obsSpaceData_mod
-use midasMpi_mod
-use utilities_mod
-use mathPhysConstants_mod
+  implicit none
+  save
+  private
+  public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
+  public :: sqlu_query, sqlu_handleError
+  public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDateStr, sqlu_getColumnValuesChar
+  public :: sqlu_getInitialIdObsData
 
-implicit none
-save
-private
-public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
-public :: sqlu_query, sqlu_handleError
-public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDateStr, sqlu_getColumnValuesChar
-public :: sqlu_getInitialIdObsData
-
-! Arrays used to match SQLite column names with obsSpaceData column names
-integer, parameter :: lenSqlName = 60
+  ! Arrays used to match SQLite column names with obsSpaceData column names
+  integer, parameter :: lenSqlName = 60
 
 contains
    

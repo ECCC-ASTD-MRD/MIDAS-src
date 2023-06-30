@@ -2,7 +2,7 @@
 module enkf_mod
   ! MODULE enkf_mod (prefix='enkf' category='1. High-level functionality')
   !
-  ! :Purpose: Various routines that are useful for implementing
+  !:Purpose:  Various routines that are useful for implementing
   !           an EnKF in MIDAS, including the LETKF.
   !
   use mpi, only : mpi_statuses_ignore ! this is the mpi library module

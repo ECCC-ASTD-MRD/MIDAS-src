@@ -2,10 +2,10 @@
 module thinning_mod
   ! MODULE thinning_mod (prefix='thn' category='1. High-level functionality')
   !
-  ! :Purpose: Using observation-type-specific algorithms, set bit 11 of 'flag'
+  !:Purpose:  Using observation-type-specific algorithms, set bit 11 of 'flag'
   !           on data that are not to be assimilated.
   !
-  ! :Note:    This module is intended to group all of the thinning methods in a
+  !:Note:     This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
   use midasMpi_mod

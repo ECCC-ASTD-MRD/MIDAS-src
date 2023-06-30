@@ -2,7 +2,7 @@
 module getGridPosition_mod
   ! MODULE getGridPosition_mod (prefix='gpos' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: A place to collect numerous interpolation related routines.
+  !:Purpose:  A place to collect numerous interpolation related routines.
   !           The main task of the module is to compute the grid XY position from a lat-lon.
   !           This simply calls the ezsint routine gdxyfll for simple grids. For
   !           Yin-Yan grids it calls the function gpos_xyfll_yinYangGrid

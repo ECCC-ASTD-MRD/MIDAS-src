@@ -2,7 +2,7 @@
 module utilities_mod
   ! MODULE utilities_mod (prefix='utl' category='8. Low-level utilities and constants')
   !
-  !:Purpose: A place to collect numerous simple utility routines
+  !:Purpose: A place to collect numerous simple utility routines.
   !
   use clibInterfaces_mod
   use randomNumber_mod

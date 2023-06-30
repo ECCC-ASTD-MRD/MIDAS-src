@@ -11,9 +11,9 @@ module IndexListDepot_mod
   !           The selection of rows could be from either the header table or the
   !           body table. ObsSpaceData_mod currently populates the list with one
   !           of:
-  !                 all header members of a given family
-  !                 all   body members of a given family
-  !                 all   body members of a given header row index
+  !                * all header members of a given family
+  !                * all   body members of a given family
+  !                * all   body members of a given header row index
   !
   ! :Usage:
   !    An ObsSpaceData_mod client must first call either
@@ -291,10 +291,10 @@ end module IndexListDepot_mod
 module ObsColumnNames_mod
   ! MODULE obsColumnNames_mod (prefix='ocn' category='7. Low-level data objects and utilities')
   !
-  ! :Purpose: This module simply groups together many fortran paramters that
+  !:Purpose:  This module simply groups together many fortran paramters that
   !           serve as column names for ObsSpaceData_mod.
   !
-  ! :NOTE: This module is logistically a part of the ObsSpaceData_mod module.
+  !:NOTE:  This module is logistically a part of the ObsSpaceData_mod module.
   !        In fact, if fortran allowed it, ObsColumnNames_mod would be
   !        'contain'ed inside the ObsSpaceData_mod module. For this reason, and
   !        more importantly because these parameters constitute a part of the
@@ -648,7 +648,7 @@ module ObsDataColumn_mod
   !
   ! MODULE obsDataColumn_mod (prefix='odc' category='7. Low-level data objects and utilities')
   !
-  ! :Purpose:
+  !:Purpose:
   !    This module is used exclusively by the obsSpaceData module which follows
   !    in this file. The derived type is used to represent a "column" of
   !    observation data in an instance of the struct_obs defined in obsSpaceData.
@@ -1370,7 +1370,7 @@ end module ObsDataColumn_mod
 module ObsSpaceData_mod
   ! MODULE obsSpaceData_mod (prefix='obs' category='6. High-level data objects')
   !
-  ! :Purpose: This module contains the definition of the structure named "struct_obs" and
+  !:Purpose:  This module contains the definition of the structure named "struct_obs" and
   !           methods for accessing its data.  An instance of struct_obs contains
   !           all information pertaining to a set of observation-space data.
   !
@@ -1458,13 +1458,13 @@ module ObsSpaceData_mod
   !                 :align: center
   !
   !
-  ! :What:  The module  "ObsSpaceData_mod" relies on three other modules:
+  !:What:   The module  "ObsSpaceData_mod" relies on three other modules:
   !
   !          * ``IndexListDepot_mod``
   !          * ``ObsColumnNames_mod``
   !          * ``ObsDataColumn_mod``
   ! 
-  ! :Note:  Throughout this file:
+  !:Note:   Throughout this file:
   !
   !          * Column_index  is not (in general) indexed from one.  
   !          * Each column index has an equivalent name, ``OBS_*`` as defined in ``ObsColumnNames_mod``.
@@ -1472,10 +1472,6 @@ module ObsSpaceData_mod
   !          * row_index is indexed from one.  It has no equivalent name.
   !          * ``bodyIndex``, etc. is necessarily a row index
   !          * ``HeaderIndex``, etc. is necessarily a row index
-  !
-  !
-  ! :Schematics:
-  ! 
   !
    use codePrecision_mod
    use ObsColumnNames_mod

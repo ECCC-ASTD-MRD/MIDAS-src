@@ -3,7 +3,7 @@ module midasMpi_mod
   !
   ! MODULE midasMpi_mod (prefix='mmpi' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: Subroutine and public variables related to general aspects of mpi.
+  !:Purpose:  Subroutine and public variables related to general aspects of mpi.
   !           Also, subroutine and public variables related to the mpi decomposition
   !           specific to the MIDAS code.
   !
