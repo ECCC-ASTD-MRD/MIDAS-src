@@ -1,13 +1,13 @@
 
-module analysisGrid_mod
-  ! MODULE analysisGrid_mod (prefix='agd' category='7. Low-level data objects')
+module lamAnalysisGridTransforms_mod
+  ! MODULE lamAnalysisGridTransforms_mod (prefix='lgt' category='7. Low-level data objects')
   !
-  ! :Purpose: Performs horizontal grid-point variable transforms 
+  !:Purpose:  Performs some horizontal grid-point variable transforms 
   !           for the limited-area computational analysis grids (extended and
   !           non-extended).
   !
   use earthConstants_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use midasMpi_mod
@@ -18,9 +18,9 @@ module analysisGrid_mod
   private
 
   ! public procedures
-  public :: agd_SetupFromHCO, agd_mach, agd_mach_r4
-  public :: agd_PsiChiToUV, agd_PsiChiToUVAdj, agd_UVToVortDiv
-  public :: agd_createLamTemplateGrids
+  public :: lgt_setupFromHCO, lgt_mach, lgt_mach_r4
+  public :: lgt_PsiChiToUV, lgt_PsiChiToUVAdj, lgt_UVToVortDiv
+  public :: lgt_createLamTemplateGrids
 
   ! Definition of some parameters characterizing the geometry of
   ! the Limited-Area (LA) analysis grid and associated metric factors
@@ -60,9 +60,9 @@ module analysisGrid_mod
 contains
 
   !--------------------------------------------------------------------------
-  ! agd_SetupFromHCO
+  ! lgt_SetupFromHCO
   !--------------------------------------------------------------------------
-  subroutine agd_SetupFromHCO( hco_ext_in, hco_core_opt )
+  subroutine lgt_SetupFromHCO( hco_ext_in, hco_core_opt )
     implicit none
 
     ! Arguments:
@@ -91,7 +91,7 @@ contains
     end if
 
     write(*,*)
-    write(*,*) 'agd_SetupFromHCO: Starting...'
+    write(*,*) 'lgt_SetupFromHCO: Starting...'
 
     initialized = .true.
 
@@ -108,16 +108,16 @@ contains
     if ( (.not. hco_core%initialized) .or.  & 
          (.not. hco_ext%initialized) ) then
       write(*,*)
-      write(*,*) 'agd_SetupFromHCO: At least one hco structure was not initilzed'
+      write(*,*) 'lgt_SetupFromHCO: At least one hco structure was not initilzed'
       write(*,*) 'hco_core = ', hco_core%initialized
       write(*,*) 'hco_ext = ', hco_ext%initialized
-      call utl_abort('agd_SetupFromHCO: abort')
+      call utl_abort('lgt_SetupFromHCO: abort')
     end if
 
     if ( (hco_core%global) .or.  & 
          (hco_ext%global) ) then
       write(*,*)
-      write(*,*) 'agd_SetupFromHCO: At least one hco structure is from a global grid, skipping rest of setup'
+      write(*,*) 'lgt_SetupFromHCO: At least one hco structure is from a global grid, skipping rest of setup'
       write(*,*) 'hco_core = ', hco_core%global
       write(*,*) 'hco_ext = ', hco_ext%global
       return
@@ -139,10 +139,10 @@ contains
 
     if ( ext_i == 0 .and. ext_j == 0 ) then
       write(*,*)
-      write(*,*) 'agd_SetupFromHCO: LAM core and extended grids are identical'
+      write(*,*) 'lgt_SetupFromHCO: LAM core and extended grids are identical'
     else if ( ext_i < 10 .or. ext_j < 10 ) then
       write(*,*)
-      write(*,*) 'agd_SetupFromHCO: LAM domain extension is less than 10 gridpoints'
+      write(*,*) 'lgt_SetupFromHCO: LAM domain extension is less than 10 gridpoints'
       write(*,*) ' ext_i = ', ext_i,' ext_j = ', ext_j
     end if
 
@@ -157,11 +157,11 @@ contains
       dlon_test = hco_core%lon(i) - hco_core%lon(i-1)
       if ( (dlon_test - dlon_ref) > dlon_ref/100.0d0 ) then
         write(*,*)
-        write(*,*) 'agd_SetupFromHCO: Core grid spacing is not uniform in x-direction'
+        write(*,*) 'lgt_SetupFromHCO: Core grid spacing is not uniform in x-direction'
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call utl_abort('agd_SetupFromHCO')
+        call utl_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -170,11 +170,11 @@ contains
       dlat_test = hco_core%lat(j) - hco_core%lat(j-1) 
       if ( (dlat_test - dlat_ref) > dlat_ref/100.0d0 ) then
         write(*,*)
-        write(*,*) 'agd_SetupFromHCO: Core grid spacing is not uniform in x-direction'
+        write(*,*) 'lgt_SetupFromHCO: Core grid spacing is not uniform in x-direction'
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('agd_SetupFromHCO') 
+        call utl_abort('lgt_SetupFromHCO') 
       end if
     end do
 
@@ -184,11 +184,11 @@ contains
       dlon_test = hco_ext%lon(i) - hco_ext%lon(i-1)
       if ( (dlon_test - dlon_ref) > dlon_ref/100.0d0 ) then
         write(*,*)
-        write(*,*) 'agd_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
+        write(*,*) 'lgt_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call utl_abort('agd_SetupFromHCO')
+        call utl_abort('lgt_SetupFromHCO')
       end if
     end do
 
@@ -197,11 +197,11 @@ contains
       dlat_test = hco_ext%lat(j) - hco_ext%lat(j-1)
       if ( (dlat_test - dlat_ref) > dlat_ref/100.0d0 ) then
         write(*,*)
-        write(*,*) 'agd_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
+        write(*,*) 'lgt_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call utl_abort('agd_SetupFromHCO') 
+        call utl_abort('lgt_SetupFromHCO') 
       end if
     end do
 
@@ -273,13 +273,13 @@ contains
     end do
 
     !- 4.2  Bi-periodize and symmetrize Metric coefficients
-    call agd_mach(rdmu   (1:nj_ext), & ! INOUT
+    call lgt_mach(rdmu   (1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN
-    call agd_mach(rdmuh  (1:nj_ext), & ! INOUT
+    call lgt_mach(rdmuh  (1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN 
-    call agd_mach(r1mmu2 (1:nj_ext), & ! INOUT
+    call lgt_mach(r1mmu2 (1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN
-    call agd_mach(r1mmu2h(1:nj_ext), & ! INOUT
+    call lgt_mach(r1mmu2h(1:nj_ext), & ! INOUT
                    1, nj_ext,1)        ! IN
 
     call symmetrize_coef(rdmu   ) ! INOUT
@@ -317,7 +317,7 @@ contains
     allocate(glmf%conphy(nj_ext))
     allocate(glmf%conima(nj_ext))
 
-    call agd_mach(rrcos(1:nj_ext),  & ! INOUT
+    call lgt_mach(rrcos(1:nj_ext),  & ! INOUT
                   1, nj_ext,1)        ! IN
 
     do j = 1, nj_ext
@@ -357,9 +357,9 @@ contains
     deallocate(r1mmu2h)
 
     write(*,*)
-    write(*,*) 'agd_SetupFromHCO: Done!'
+    write(*,*) 'lgt_SetupFromHCO: Done!'
 
-  end subroutine agd_SetupFromHCO
+  end subroutine lgt_SetupFromHCO
 
   !--------------------------------------------------------------------------
   ! symmetrize_coef
@@ -387,9 +387,9 @@ contains
   end subroutine symmetrize_coef
 
   !--------------------------------------------------------------------------
-  ! agd_PsiChiToUV
+  ! lgt_PsiChiToUV
   !--------------------------------------------------------------------------
-  subroutine agd_PsiChiToUV(psi, chi, uphy, vphy, nk)
+  subroutine lgt_PsiChiToUV(psi, chi, uphy, vphy, nk)
     implicit none
 
     ! Arguments:
@@ -409,11 +409,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('agd_PsiChiToUV: Not compatible with global grid')
+      call utl_abort('lgt_PsiChiToUV: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('agd_PsiChiToUV: AnalysisGrid not initialized')
+      call utl_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -478,12 +478,12 @@ contains
     deallocate(uimgs)
     deallocate(vimgs)
 
-  end subroutine agd_PsiChiToUV
+  end subroutine lgt_PsiChiToUV
 
   !--------------------------------------------------------------------------
-  ! agd_PsiChiToUVAdj
+  ! lgt_PsiChiToUVAdj
   !--------------------------------------------------------------------------
-  subroutine agd_PsiChiToUVAdj(psi, chi, uphy, vphy, nk)
+  subroutine lgt_PsiChiToUVAdj(psi, chi, uphy, vphy, nk)
     implicit none
 
     ! Arguments:
@@ -503,11 +503,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('agd_PsiChiToUVAdj: Not compatible with global grid')
+      call utl_abort('lgt_PsiChiToUVAdj: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('agd_PsiChiToUV: AnalysisGrid not initialized')
+      call utl_abort('lgt_PsiChiToUV: AnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -586,7 +586,7 @@ contains
     deallocate(uimgs)
     deallocate(vimgs)
 
-  end subroutine agd_PsiChiToUVAdj
+  end subroutine lgt_PsiChiToUVAdj
 
   !--------------------------------------------------------------------------
   ! uvStagToColloc
@@ -744,9 +744,9 @@ contains
   end subroutine symmetrizeAdj
 
   !--------------------------------------------------------------------------
-  ! agd_Mach
+  ! lgt_Mach
   !--------------------------------------------------------------------------
-  subroutine agd_mach(gd,ni,nj,nk)
+  subroutine lgt_mach(gd,ni,nj,nk)
     !
     !:Purpose:  [to be completed]
     !
@@ -774,16 +774,16 @@ contains
     real(8) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( hco_ext%global ) then
-      call utl_abort('agd_Mach: Not compatible with global grid')
+      call utl_abort('lgt_Mach: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('agd_Mach: AnalysisGrid not initialized')
+      call utl_abort('lgt_Mach: AnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call utl_abort('agd_Mach: Invalid Dimensions')
+      call utl_abort('lgt_Mach: Invalid Dimensions')
     end if
 
     !$OMP PARALLEL
@@ -834,12 +834,12 @@ contains
     !$OMP END DO
     !$OMP END PARALLEL
 
-  end subroutine agd_mach
+  end subroutine lgt_mach
 
   !--------------------------------------------------------------------------
-  ! agd_Mach_r4
+  ! lgt_Mach_r4
   !--------------------------------------------------------------------------
-  subroutine agd_mach_r4(gd,ni,nj,nk)
+  subroutine lgt_mach_r4(gd,ni,nj,nk)
     !:Purpose:  [to be completed]
     !
     !:Arguments:
@@ -865,16 +865,16 @@ contains
     real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( hco_ext%global ) then
-      call utl_abort('agd_Mach_r4: Not compatible with global grid')
+      call utl_abort('lgt_Mach_r4: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('agd_Mach_r4: AnalysisGrid not initialized')
+      call utl_abort('lgt_Mach_r4: AnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call utl_abort('agd_Mach_r4 : Invalid Dimensions')
+      call utl_abort('lgt_Mach_r4 : Invalid Dimensions')
     end if
 
     !$OMP PARALLEL
@@ -925,12 +925,12 @@ contains
     !$OMP END DO
     !$OMP END PARALLEL
 
-  end subroutine agd_mach_r4
+  end subroutine lgt_mach_r4
 
   !--------------------------------------------------------------------------
-  ! agd_UVToVortDiv
+  ! lgt_UVToVortDiv
   !--------------------------------------------------------------------------
-  subroutine agd_UVToVortDiv(Vorticity, Divergence, uphy, vphy, nk)
+  subroutine lgt_UVToVortDiv(Vorticity, Divergence, uphy, vphy, nk)
     implicit none
 
     ! Arguments:
@@ -948,11 +948,11 @@ contains
     integer :: i,j,k
 
     if ( hco_ext%global ) then
-      call utl_abort('agd_UVToVortDiv: Not compatible with global grid')
+      call utl_abort('lgt_UVToVortDiv: Not compatible with global grid')
     endif
 
     if ( .not. initialized ) then
-      call utl_abort('agd_UVToVortDiv: AnalysisGrid not initialized')
+      call utl_abort('lgt_UVToVortDiv: AnalysisGrid not initialized')
     endif
 
     allocate(uimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -1002,12 +1002,12 @@ contains
     deallocate(uimg_sym)
     deallocate(vimg_sym)
 
-  end subroutine agd_UVToVortDiv
+  end subroutine lgt_UVToVortDiv
 
   !--------------------------------------------------------------------------
-  ! agd_createLamTemplateGrids
+  ! lgt_createLamTemplateGrids
   !--------------------------------------------------------------------------
-  subroutine agd_createLamTemplateGrids(templateFileName, hco_core, vco, &
+  subroutine lgt_createLamTemplateGrids(templateFileName, hco_core, vco, &
                                         grd_ext_x, grd_ext_y)
     implicit none
 
@@ -1249,6 +1249,6 @@ contains
     ier = fstfrm(iun)
     ier = fclos (iun)
 
-  end subroutine agd_createLamTemplateGrids
+  end subroutine lgt_createLamTemplateGrids
 
-end module analysisGrid_mod
+end module lamAnalysisGridTransforms_mod
