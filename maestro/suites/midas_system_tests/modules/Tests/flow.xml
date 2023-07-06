@@ -536,6 +536,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="Bcolumns-vertSDL"/>
+    <FAMILY  name="Bcolumns-vertSDL">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="Bcolumns-ImplicitDiff"/>
     <FAMILY  name="Bcolumns-ImplicitDiff">
       <SUBMITS sub_name="UnitTest"/>

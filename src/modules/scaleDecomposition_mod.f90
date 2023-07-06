@@ -1,23 +1,28 @@
+
 module scaleDecomposition_mod
   ! MODULE scaleDecomposition_mod (prefix='scd' category='4. Data Object transformations')
   !
-  ! :Purpose: To
+  ! :Purpose: To perform horizontal and vertical scale decomposition of an ensemble state vector
   !
-  !use earthConstants_mod
   use utilities_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use ensembleStatevector_mod
+  use gridStateVector_mod
   use midasMpi_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
+  use verticalModes_mod
+  use varNameList_mod
+  use timeCoord_mod
+  use earthConstants_mod
+  use mathPhysConstants_mod
   implicit none
   save
   private
 
   ! Public subroutines
-  public :: scd_horizontal !, scd_vertical
-  public :: scd_filterResponseFunction
+  public :: scd_horizontal, scd_vertical
   
 contains
 
@@ -26,43 +31,11 @@ contains
   !-------------------------------------------------------------------------- 
   subroutine scd_horizontal(ensembleStateVector, nEnsOverDimension, nHorizWaveBand, horizWaveBandPeaks, &
                             decompositionMode, filterResponseFunctionMode, &
-                            horizWaveBandIndexSelected_opt)
-    implicit none
-
-    ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleStateVector(:)
-    integer, intent(in) :: nEnsOverDimension
-    integer, intent(in) :: nHorizWaveBand
-    integer, intent(in) :: horizWaveBandPeaks(:)
-    character(len=*), intent(in) :: decompositionMode
-    character(len=*), intent(in) :: filterResponseFunctionMode
-    integer, optional, intent(in) :: horizWaveBandIndexSelected_opt
-    
-    ! Locals:
-    type(struct_hco), pointer :: hco
-    type(struct_vco), pointer :: vco
-    integer :: nEns, nTrunc, horizWaveBandIndexSelected
-    integer :: horizWaveBandIndex, memberindex, stepIndex, levIndex, latIndex, lonIndex
-    integer :: ila_filter, p, nla_filter, nphase_filter
-    real(8), allocatable :: ResponseFunction(:,:)
-    real(8), allocatable :: bandSum(:,:)
-    real(8) :: totwvnb_r8
-    real(8), allocatable :: ensPertSP(:,:,:)
-    real(8), allocatable :: ensPertSPfiltered(:,:,:)
-    real(8), allocatable :: ensPertGD(:,:,:)
-    real(4), pointer     :: ptr4d_r4(:,:,:,:)
-    integer, allocatable :: nIndex_vec(:)
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
-    integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
-    integer :: mymCount, mynCount
-    integer :: horizWaveBandIndexStart, horizWaveBandIndexEnd
-    integer :: horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
-    type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
-    character(len=19)   :: kind
-
+                            horizWaveBandIndexSelected_opt, writeResponseFunction_opt)
     !
-    ! --> Mode Split (e.g. for SDL)
+    ! :Purpose: Perform a horizontal scale decomposition of an ensemble state vector
+    !
+    ! --> Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
     !
     ! --- Ensemble Data at the Start  ---
     ! ensembleStateVector(1               ) contains the full data
@@ -73,9 +46,7 @@ contains
     ! ...
     ! ensembleStateVector(1               ) contains the smallest scales
     !
-
-    !
-    ! --> Mode Select (e.g. for SDLwSL)
+    ! --> Mode Select (e.g. for SDLwSL in bMatrixEnsemble_mod)
     !
     ! --- Ensemble Data at the Start  ---
     ! ensembleStateVector(1) contains the full data
@@ -83,10 +54,48 @@ contains
     ! --- Ensemble Data at the End    ---
     ! ensembleStateVector(1) contains the selected scales
     !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensembleStateVector(:)
+    integer, intent(in) :: nEnsOverDimension
+    integer, intent(in) :: nHorizWaveBand
+    integer, intent(in) :: horizWaveBandPeaks(:)
+    character(len=*), intent(in) :: decompositionMode
+    character(len=*), intent(in) :: filterResponseFunctionMode
+    integer, optional, intent(in) :: horizWaveBandIndexSelected_opt
+    logical, optional, intent(in) :: writeResponseFunction_opt
+    
+    ! Locals:
+    type(struct_hco), pointer :: hco
+    type(struct_vco), pointer :: vco
+    integer :: nEns, nTrunc, horizWaveBandIndexSelected
+    integer :: horizWaveBandIndex, memberindex, stepIndex, levIndex, latIndex, lonIndex
+    integer :: ila_filter, p, nla_filter, nphase_filter
+    real(8), allocatable :: ResponseFunction(:,:)
+    real(8), allocatable :: bandSum(:,:)
+    real(8) :: totwvnb_r8, temp_r8, waveLength
+    real(8), allocatable :: ensPertSP(:,:,:)
+    real(8), allocatable :: ensPertSPfiltered(:,:,:)
+    real(8), allocatable :: ensPertGD(:,:,:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
+    integer, allocatable :: nIndex_vec(:)
+    integer :: totwvnb, totwvnbMax
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
+    integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
+    integer :: mymCount, mynCount
+    integer :: horizWaveBandIndexStart, horizWaveBandIndexEnd
+    integer :: horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
+    type(struct_lst)   :: lst_ben_filter ! Spectral transform Parameters for filtering
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+    character(len=19)  :: kind
+    logical :: writeResponseFunction
 
     if ( mmpi_myid == 0 ) then
       write(*,*)
-      write(*,*) 'Scale decomposition of the ensemble perturbations'
+      write(*,*) 'Horizontal scale decomposition of ensemble'
       write(*,*) '   number of WaveBands for filtering = ', nHorizWaveBand
       write(*,*) '   WaveBand Peaks (total wavenumber)...'
       do horizWaveBandIndex = 1, nHorizWaveBand
@@ -94,6 +103,12 @@ contains
       end do
     end if
 
+    if (present(writeResponseFunction_opt)) then
+      writeResponseFunction = writeResponseFunction_opt
+    else
+      writeResponseFunction = .false.
+    end if
+    
     nEns = ens_getNumMembers(ensembleStateVector(1))
     
     hco => ens_getHco(ensembleStateVector(1))
@@ -143,8 +158,8 @@ contains
       nphase_filter = 2
 
       allocate(nIndex_vec(nla_filter))
-      call mmpi_setup_m(nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
-      call mmpi_setup_n(nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
+      call mmpi_setup_m(gst_getNtrunc(gstFilterID),mymBeg,mymEnd,mymSkip,mymCount)
+      call mmpi_setup_n(gst_getNtrunc(gstFilterID),mynBeg,mynEnd,mynSkip,mynCount)
       ila_filter = 0
       do mIndex = mymBeg, mymEnd, mymSkip
         do nIndex = mynBeg, mynEnd, mynSkip
@@ -192,21 +207,55 @@ contains
 
     !- 1.1 Pre-compute the response function
     do horizWaveBandIndex = horizWaveBandIndexLoopStart, horizWaveBandIndexLoopEnd, horizWaveBandIndexLoopDirection
+
+      totwvnbMax=-1
       do ila_filter = 1, nla_filter
         if (hco%global) then
           totwvnb_r8 = real(nIndex_vec(ila_filter),8)
         else
           totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
         end if
-        ResponseFunction(ila_filter,horizWaveBandIndex) = &
+        totwvnbMax=max(totwvnbMax,nint(totwvnb_r8))
+
+        responseFunction(ila_filter,horizWaveBandIndex) = &
              scd_filterResponseFunction(totwvnb_r8,horizWaveBandIndex, horizWaveBandPeaks, &
                                         nHorizWaveBand)
         if (trim(filterResponseFunctionMode) == 'SquareSumToOne') then
           responseFunction(ila_filter,horizWaveBandIndex) = sqrt(responseFunction(ila_filter,horizWaveBandIndex)) 
         end if
+
         write(*,*) totwvnb_r8, ResponseFunction(ila_filter,horizWaveBandIndex)
       end do
-    end do
+
+      ! For visualization only: Compute and output the response function for each integer total wave number
+      if (writeResponseFunction .and. mmpi_myid == 0) then
+        
+        write(wbnum,'(I2.2)') horizWaveBandIndex
+        outfilename = "./ResponseFunction_"//wbnum//".txt"
+        open (unit=99,file=outfilename,action="write",status="new")
+
+        do totwvnb = 0, totwvnbMax
+          temp_r8 = scd_filterResponseFunction(real(totwvnb,8),horizWaveBandIndex, horizWaveBandPeaks, nHorizWaveBand)
+          if (trim(filterResponseFunctionMode) == 'SquareSumToOne') then
+            temp_r8 = sqrt(temp_r8)
+          end if
+          if (hco%global) then
+            if (totwvnb /= 0) then
+              waveLength=2.d0*MPC_PI_R8*ec_ra/real(totwvnb,8)
+            else
+              waveLength=0.d0
+            end if
+            write(99,'(I4,2X,F7.1,2X,F5.3)') totwvnb, waveLength/1000.d0, temp_r8
+          else
+            write(99,'(I4,2X,F5.3)') totwvnb, temp_r8
+          end if
+        end do
+        
+        close(unit=99)
+      end if
+
+    end do ! horizWaveBandIndex
+
     if (hco%global) deallocate(nIndex_vec)
 
     do stepIndex = 1, ens_getNumStep(ensembleStateVector(1)) ! Loop on ensemble time bin
@@ -332,6 +381,289 @@ contains
 
   end subroutine scd_horizontal
 
+  !--------------------------------------------------------------------------
+  ! scd_vertical
+  !--------------------------------------------------------------------------
+  subroutine scd_vertical(ensembleStateVector, nVertWaveBand,                &
+                          vertWaveBandPeaks, vertmodesLengthScale,           &
+                          decompositionMode, vertWaveBandIndexSelected_opt,  &
+                          writeResponseFunction_opt, writeTransformInfo_opt)
+    !
+    ! :Purpose: Perform a vertical scale decomposition of an ensemble state vector
+    !
+    ! --> Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
+    !
+    ! --- Ensemble Data at the Start  ---
+    ! ensembleStateVector(1               ) contains all the vertical scales
+    ! ensembleStateVector(2:nVertWaveBand) already allocated but empty
+    !
+    ! --- Ensemble Data at the End    ---
+    ! ensembleStateVector(nVertWaveBand  ) contains the deepest scales
+    ! ...
+    ! ensembleStateVector(1               ) contains the shallowest scales
+    !
+    ! --> Mode Select (e.g. for calcStatsGlb_mod)
+    !
+    ! --- Ensemble Data at the Start  ---
+    ! ensembleStateVector(1) contains all the vertical scales
+    !
+    ! --- Ensemble Data at the End    ---
+    ! ensembleStateVector(1) contains the selected scales
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensembleStateVector(:)
+    integer, intent(in) :: nVertWaveBand
+    integer, intent(in) :: vertWaveBandPeaks(:)
+    real(8), intent(in) :: vertModesLengthScale(2)
+    character(len=*), intent(in) :: decompositionMode
+    integer, optional, intent(in) :: vertWaveBandIndexSelected_opt
+    logical, optional, intent(in) :: writeResponseFunction_opt
+    logical, optional, intent(in) :: writeTransformInfo_opt
+
+    ! Locals:
+    type(struct_gsv), allocatable :: gridStateVector_oneMember(:)
+    type(struct_hco), pointer :: hco
+    real(8), allocatable :: vertModesState4d(:,:,:,:)
+    real(8), allocatable :: vertModesState4dFiltered(:,:,:,:)
+    real(8), pointer     :: gridState4d(:,:,:,:)
+    real(8), allocatable :: responseFunction(:,:)
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+    character(len=4), pointer :: varNamesList(:)
+    integer :: vertWaveBandIndexSelected
+    integer :: nMode, nModeMax, modeIndex, latIndex, lonIndex
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
+    integer :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
+    integer :: numVar, varIndex, memberIndex
+    integer :: numStep, stepIndex
+    integer :: nLev, nLev_M, nLev_T
+    integer :: vertWaveBandIndex, vertWaveBandIndexStart, vertWaveBandIndexEnd
+    integer :: vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
+    logical :: writeResponseFunction
+    logical :: writeTransformInfo
+    type(struct_vms), save :: vModes
+    logical,          save :: firstTime = .true.
+
+    if ( mmpi_myid == 0 ) then
+      write(*,*)
+      write(*,*) 'Vertical scale decomposition of ensemble'
+      write(*,*) '   number of WaveBands for filtering = ', nVertWaveBand
+      write(*,*) '   WaveBand Peaks (total wavenumber)...'
+      do vertWaveBandIndex = 1, nVertWaveBand
+        write(*,*) vertWaveBandIndex, vertWaveBandPeaks(vertWaveBandIndex)
+      end do
+    end if
+    
+    !
+    !- 1.  Setup some variables
+    !
+    if (present(vertWaveBandIndexSelected_opt)) then
+      vertWaveBandIndexSelected = vertWaveBandIndexSelected_opt
+    else
+      vertWaveBandIndexSelected = -1
+    end if
+    
+    if (trim(decompositionMode) == 'Split') then
+      vertWaveBandIndexStart     = 1
+      vertWaveBandIndexEnd       = nVertWaveBand
+      vertWaveBandIndexLoopStart = vertWaveBandIndexEnd ! Start with the largest scales
+      vertWaveBandIndexLoopEnd   = vertWaveBandIndexStart
+      vertWaveBandIndexLoopDirection = -1
+    else if (trim(decompositionMode) == 'Select') then
+      if (vertWaveBandIndexSelected == -1) then
+        call utl_abort('scd_vertical: vertWaveBandIndexSelected_opt must be provided in Select mode')
+      end if
+      vertWaveBandIndexStart     = vertWaveBandIndexSelected
+      vertWaveBandIndexEnd       = vertWaveBandIndexSelected
+      vertWaveBandIndexLoopStart = vertWaveBandIndexStart
+      vertWaveBandIndexLoopEnd   = vertWaveBandIndexEnd 
+      vertWaveBandIndexLoopDirection = 1 
+    else
+      write(*,*)
+      write(*,*) 'decomposition mode = ', trim(decompositionMode)
+      call utl_abort('scd_vertocal: unknown decomposition mode')
+    end if
+
+    nLev_M = ens_getNumLev(ensembleStateVector(1),'MM')
+    nLev_T = ens_getNumLev(ensembleStateVector(1),'TH')
+    nModeMax=max(nLev_M,nLev_T)
+
+    numStep = ens_getNumStep(ensembleStateVector(1))
+
+    hco => ens_getHco(ensembleStateVector(1))
+    call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    
+    !- Pre-compute the response function
+    if (present(writeResponseFunction_opt)) then
+      writeResponseFunction = writeResponseFunction_opt
+    else
+      writeResponseFunction = .false.
+    end if
+    if (present(writeTransformInfo_opt)) then
+      writeTransformInfo = writeTransformInfo_opt
+    else
+      writeTransformInfo = .false.
+    end if
+
+    allocate(responseFunction(nModeMax,vertWaveBandIndexStart:vertWaveBandIndexEnd))
+
+    do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
+      
+      if (writeResponseFunction .and. mmpi_myid == 0) then
+        write(wbnum,'(I2.2)') vertWaveBandIndex
+        outfilename = "./vertResponseFunction_"//wbnum//".txt"
+        open (unit=99,file=outfilename,action="write",status="new")
+      end if
+      
+      do modeIndex = 1, nModeMax
+        responseFunction(modeIndex,vertWaveBandIndex) = &
+             scd_filterResponseFunction(dble(modeIndex), vertWaveBandIndex, &
+                                        vertWaveBandPeaks, nVertWaveBand)
+        if (mmpi_myid == 0) then
+          write(* ,'(I4,2X,F5.3)') modeIndex, responseFunction(modeIndex,vertWaveBandIndex)
+          if (writeResponseFunction) then
+            write(99,'(I4,2X,F5.3)') modeIndex, responseFunction(modeIndex,vertWaveBandIndex)
+          end if
+        end if
+      end do
+
+      if (writeResponseFunction .and. mmpi_myid == 0) then
+        close(unit=99)
+      end if
+      
+    end do
+
+    !
+    !- 2. Setup transform
+    !
+    if (firstTime) then
+      call vms_computeModesFromFunction(ens_getVco(ensembleStateVector(1)),               & ! IN
+                                        vertModesLengthScale(1), vertModesLengthScale(2), & ! IN
+                                        vModes)                                             ! OUT
+      if (writeTransformInfo) then
+        call vms_writeModes(vModes)
+      end if
+      firstTime = .false.
+    end if
+
+    !
+    !- 3.  Vertical scale decomposition
+    !
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensembleStateVector(1))
+    numVar = size(varNamesList)
+
+    if (trim(decompositionMode) == 'Split') then
+      allocate(gridStateVector_oneMember(nVertWaveBand))
+      do vertWaveBandIndex = 1, nVertWaveBand
+        call gsv_allocate(gridStateVector_oneMember(vertWaveBandIndex), numStep,                  &
+                          ens_getHco(ensembleStateVector(1)), ens_getVco(ensembleStateVector(1)), &
+                          varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
+                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
+      end do
+    else ! Select
+      allocate(gridStateVector_oneMember(1))
+      call gsv_allocate(gridStateVector_oneMember(1), numStep,                                    &
+                        ens_getHco(ensembleStateVector(1)), ens_getVco(ensembleStateVector(1)), &
+                        varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
+                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
+    end if
+
+    do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
+      call ens_copyMember(ensembleStateVector(1), gridStateVector_oneMember(1), memberIndex) ! extract all the vertical scales
+
+      do varIndex = 1, numVar
+
+        nullify(gridState4d)
+        call gsv_getField(gridStateVector_oneMember(1),gridState4d,varName_opt=varNamesList(varIndex))
+        
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
+          nLev  = nLev_M
+          nMode = nLev
+        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
+          nLev  = nLev_T
+          nMode = nLev
+        else
+          gridState4d(:,:,:,:) = 0.d0
+          cycle
+        end if
+
+        if (allocated(vertModesState4d)) deallocate(vertModesState4d)
+        allocate(vertModesState4d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
+
+        !- GridPoint space -> Vertical modes space
+        do stepIndex = 1, numStep ! Loop on ensemble time bin
+          call vms_transform(vModes, vertModesState4d(:,:,:,stepIndex),            &
+                             gridState4d(:,:,:,stepIndex), 'GridPointToVertModes', &
+                             myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
+                             varNamesList(varIndex))
+        end do
+
+        !- Filtering
+        if (allocated(vertModesState4dFiltered)) deallocate(vertModesState4dFiltered)
+        allocate(vertModesState4dFiltered(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
+        
+        do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
+
+          if (trim(decompositionMode) == 'Split') then
+            nullify(gridState4d)
+            call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),gridState4d,varName_opt=varNamesList(varIndex))
+          end if
+
+          do stepIndex = 1, numStep ! Loop on ensemble time bin
+            
+            !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
+            do modeIndex = 1, nMode
+              do latIndex = myLatBeg, myLatEnd
+                do lonIndex = myLonBeg, myLonEnd
+                  vertModesState4dFiltered(lonIndex,latIndex,modeIndex,stepIndex) =   &
+                       responseFunction(modeIndex,vertWaveBandIndex) *        &
+                       vertModesState4d(lonIndex,latIndex,modeIndex,stepIndex)
+                end do
+              end do
+            end do
+            !$OMP END PARALLEL DO
+
+            !- Vertical modes space -> GridPoint space
+            call vms_transform(vModes, vertModesState4dFiltered(:,:,:,stepIndex),    &
+                               gridState4d(:,:,:,stepIndex), 'VertModesToGridPoint', &
+                               myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
+                               varNamesList(varIndex))
+
+          end do ! stepIndex
+        end do ! vertWaveBandIndex
+      end do ! variables
+
+      if (trim(decompositionMode) == 'Split') then
+        do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
+          call ens_insertMember(ensembleStateVector(vertWaveBandIndex),                  &
+                                gridStateVector_oneMember(vertWaveBandIndex), memberIndex)
+        end do
+      else ! Select
+        call ens_insertMember(ensembleStateVector(1), gridStateVector_oneMember(1), memberIndex)
+      end if
+ 
+    end do ! memberIndex
+
+    !
+    !- 3.  Ending
+    !
+    deallocate(vertModesState4dFiltered)
+    deallocate(vertModesState4d)
+    if (trim(decompositionMode) == 'Split') then
+      do vertWaveBandIndex = 1, nVertWaveBand
+        call gsv_deallocate(gridStateVector_oneMember(vertWaveBandIndex))
+      end do
+    else
+      call gsv_deallocate(gridStateVector_oneMember(1))
+    end if
+    deallocate(responseFunction)
+    
+  end subroutine scd_vertical
+  
   !--------------------------------------------------------------------------
   ! scd_filterResponseFunction
   !--------------------------------------------------------------------------

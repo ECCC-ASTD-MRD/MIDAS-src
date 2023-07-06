@@ -246,6 +246,12 @@ contains
     integer :: var3dIndex
     character(len=4) :: varNamesList(2)
 
+    if (lengthScaleTop <= 0.d0 .or. lengthScaleBot <= 0.d0) then
+      write(*,*) 'lengthScaleTop =', lengthScaleTop
+      write(*,*) 'lengthScaleBot =', lengthScaleBot
+      call utl_abort('vms_computeModes: problem with the provided lengthScales')
+    end if
+
     !
     !- Structure initialization
     !

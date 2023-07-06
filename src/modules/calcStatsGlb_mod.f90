@@ -60,14 +60,14 @@ module calcStatsGlb_mod
 
   ! For wave band decomposition
   integer, parameter  :: maxNumLocalLength = 20
-  integer             :: nWaveBand
+  integer             :: nHorizWaveBand
   integer             :: nVertWaveBand
 
   logical :: initialized = .false.
 
   ! Namelist variables
   integer :: ntrunc
-  integer :: waveBandPeaks(maxNumLocalLength) ! For horizontal wave band decomposition
+  integer :: horizWaveBandPeaks(maxNumLocalLength) ! For horizontal wave band decomposition
   integer :: vertWaveBandPeaks(maxNumLocalLength) ! For vertical wave band decomposition
   
   contains
@@ -87,11 +87,11 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: nulnam, ierr, waveBandIndex, memberIndex
+    integer :: nulnam, ierr, horizWaveBandIndex, vertWaveBandIndex, memberIndex
     integer :: fclos, fnom
     real(8) :: zps
 
-    NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks,vertWaveBandPeaks
+    NAMELIST /NAMCALCSTATS_GLB/ntrunc,horizWaveBandPeaks,vertWaveBandPeaks
 
     write(*,*)
     write(*,*) 'csg_setup: Starting...'
@@ -109,7 +109,7 @@ module calcStatsGlb_mod
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
     ntrunc=108
-    waveBandPeaks(:) = -1.0d0
+    horizWaveBandPeaks(:) = -1.0d0
     vertWaveBandPeaks(:) = -1.0d0
     
     nulnam=0
@@ -201,11 +201,11 @@ module calcStatsGlb_mod
     !
     !- Horizontal wave band decomposition option
     !
-    nWaveBand = count(waveBandPeaks >= 0)
-    if ( nWaveBand < 1 ) then
-       nWaveBand = 1
-    else if (nWaveBand == 1) then
-       write(*,*) 'You have specified only ONE waveBandPeaks'
+    nHorizWaveBand = count(horizWaveBandPeaks >= 0)
+    if ( nHorizWaveBand < 1 ) then
+       nHorizWaveBand = 1
+    else if (nHorizWaveBand == 1) then
+       write(*,*) 'You have specified only ONE horizWaveBandPeaks'
        call utl_abort('calbmatrix_glb')
     else
        write(*,*)
@@ -213,15 +213,15 @@ module calcStatsGlb_mod
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
-    do waveBandIndex = 1, nWaveBand-1
-       if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
-          write(*,*) 'csg_setup: waveBandPeaks are not in decreasing wavenumber order'
+    do horizWaveBandIndex = 1, nHorizWaveBand-1
+       if ( horizWaveBandPeaks(horizWaveBandIndex)-horizWaveBandPeaks(horizWaveBandIndex+1) <= 0 ) then
+          write(*,*) 'csg_setup: horizWaveBandPeaks are not in decreasing wavenumber order'
           call utl_abort('calbmatrix_glb')
        end if
     end do
 
-    ! Make sure the truncation is compatible with the waveBandPeaks
-    if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
+    ! Make sure the truncation is compatible with the horizWaveBandPeaks
+    if ( ntrunc < nj-1 .and. nHorizWaveBand > 1 ) then
        write(*,*) 'csg_setup: The truncation is not compatible with wave band decomposition'
        write(*,*) '                 ntrunc should = ', nj-1
        call utl_abort('calbmatrix_glb')
@@ -234,7 +234,7 @@ module calcStatsGlb_mod
     if ( nVertWaveBand < 1 ) then
        nVertWaveBand = 1
     else if (nVertWaveBand == 1) then
-       write(*,*) 'You have specified only ONE waveBandPeaks'
+       write(*,*) 'You have specified only ONE horizWaveBandPeaks'
        call utl_abort('calbmatrix_glb')
     else
        write(*,*)
@@ -242,8 +242,8 @@ module calcStatsGlb_mod
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
-    do waveBandIndex = 1, nVertWaveBand-1
-       if ( vertWaveBandPeaks(waveBandIndex)-vertWaveBandPeaks(waveBandIndex+1) <= 0 ) then
+    do vertWaveBandIndex = 1, nVertWaveBand-1
+       if ( vertWaveBandPeaks(vertWaveBandIndex)-vertWaveBandPeaks(vertWaveBandIndex+1) <= 0 ) then
           write(*,*) 'csg_setup: vertWaveBandPeaks are not in decreasing mode order'
           call utl_abort('calbmatrix_glb')
        end if
@@ -379,9 +379,9 @@ module calcStatsGlb_mod
     stddev3d_ptr(myLonBeg:,myLatBeg:,1:) => stddev3d(:,:,(2*nLevEns_M+2*nLevEns_T+1):(2*nLevEns_M+2*nLevEns_T+1))
     call multiply3d(ens_ptr, stddev3d_ptr, 1)
 
-    call spectralFilter(ensPerturbations,nkgdimens)
+    call spectralFilterLegacy(ensPerturbations,nkgdimens)
 
-    call spectralFilter(ensBalPerturbations,nLevEns_T+1)
+    call spectralFilterLegacy(ensBalPerturbations,nLevEns_T+1)
 
     call calcStddev3d(ensPerturbations,stddev3dUnbal,nkgdimens)
 
@@ -541,12 +541,12 @@ module calcStatsGlb_mod
     !       (no variable transform!!!)
 
     ! Locals:
-    integer :: waveBandIndex
+    integer :: waveBandIndex, vertWaveBandIndex
     integer :: nulnam, ierr, fclos, fnom, numStep
     real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
     integer, allocatable :: dateStampList(:)    
-    type(struct_ens), target  :: ensPerts, ensPertsFilt
-    type(struct_ens), pointer :: ensPerts_ptr    
+    type(struct_ens), target  :: ensPerts
+    type(struct_ens), target  :: ensPertsScaleDecomp(1)
     type(struct_gsv) :: statevector_template
     type(struct_gbi) :: gbi_zonalMean
     type(struct_gbi) :: gbi_globalMean    
@@ -556,7 +556,6 @@ module calcStatsGlb_mod
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
     real(8) :: vertModesLengthScale(2)
-    real(8) :: lengthScaleTop, lengthScaleBot    
     character(len=60) :: tool
     character(len=2)  :: wbnum
     character(len=2)  :: ctrlVarHumidity
@@ -585,12 +584,9 @@ module calcStatsGlb_mod
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
     ierr = fclos(nulnam)
 
-    lengthScaleTop = vertModesLengthScale(1)
-    if (vertModesLengthScale(2) == -1.d0) then
-      lengthScaleBot = lengthScaleTop
-    else
-      lengthScaleBot = vertModesLengthScale(2)
-    end if
+     if (vertModesLengthScale(2) == -1.d0) then
+      vertModesLengthScale(2) = vertModesLengthScale(1)
+     end if
     
     !
     !- Read ensemble
@@ -600,13 +596,6 @@ module calcStatsGlb_mod
     dateStampList(:)  = -1
     call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList)
 
-    if (nWaveBand > 1 .or. nVertWaveBand > 1) then
-      call ens_allocate(ensPertsFilt, nEns, numStep, hco_ens, vco_ens, dateStampList)
-      ensPerts_ptr => ensPertsFilt
-    else
-      ensPerts_ptr => ensPerts
-    end if
-
     makeBiPeriodic = .false.
     call ens_readEnsemble(ensPerts, './ensemble', makeBiPeriodic, &
                           containsFullField_opt=ensContainsFullField)
@@ -614,9 +603,6 @@ module calcStatsGlb_mod
     if ( ctrlVarHumidity == 'LQ' .and. ensContainsFullField ) then
       call gvt_transform(ensPerts,'HUtoLQ')
       call ens_modifyVarName(ensPerts, 'HU', 'LQ')
-      if (nWaveBand > 1 .or. nVertWaveBand > 1) then
-        call ens_modifyVarName(ensPerts_ptr, 'HU', 'LQ')
-      end if
     end if
 
     !
@@ -637,17 +623,15 @@ module calcStatsGlb_mod
         call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
       end if
        
-      call spectralFilter2(ensPerts,          & ! IN
-                           ensPerts_ptr,      & ! OUT
-                           waveBandIndex_opt=1) ! IN
-      call ens_computeStdDev(ensPerts_ptr)
-      call ens_normalize(ensPerts_ptr)
-      call ens_removeGlobalMean(ensPerts_ptr)
+      call spectralFilter(ensPerts) ! INOUT
+      call ens_computeStdDev(ensPerts)
+      call ens_normalize(ensPerts)
+      call ens_removeGlobalMean(ensPerts)
 
       allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
       allocate(rstddev(nkgdimEns,0:ntrunc))
        
-      call calcCorrelations2(ensPerts_ptr, & ! IN
+      call calcCorrelations2(ensPerts, & ! IN
                              corns,        & ! OUT (vertical correlation in spectral space)
                              rstddev)        ! OUT ( sqrt(normalized power spectrum) )
 
@@ -663,12 +647,10 @@ module calcStatsGlb_mod
       write(*,*) 'Computing Local Correlation'
 
       call ens_removeGlobalMean(ensPerts)
-      call spectralFilter2(ensPerts,          & ! IN
-                           ensPerts_ptr,      & ! OUT
-                           waveBandIndex_opt=1) ! IN
-      call ens_computeStdDev(ensPerts_ptr)
-      call ens_normalize(ensPerts_ptr)
-      call calcLocalCorrelations(ensPerts_ptr) ! IN
+      call spectralFilter(ensPerts) ! INOUT
+      call ens_computeStdDev(ensPerts)
+      call ens_normalize(ensPerts)
+      call calcLocalCorrelations(ensPerts) ! IN
 
     case ('VCORRMATRIX')
       write(*,*)
@@ -676,74 +658,80 @@ module calcStatsGlb_mod
 
       if (doSpectralFilter) then
         call ens_removeGlobalMean(ensPerts)
-        call spectralFilter2(ensPerts,          & ! IN
-                             ensPerts_ptr,      & ! OUT
-                             waveBandIndex_opt=1) ! IN
+        call spectralFilter(ensPerts) ! INOUT
       end if
-      call ens_computeStdDev(ensPerts_ptr)
-      call ens_normalize(ensPerts_ptr)
-      call calcLocalVertCorrMatrix(ensPerts_ptr) ! IN
+      call ens_computeStdDev(ensPerts)
+      call ens_normalize(ensPerts)
+      call calcLocalVertCorrMatrix(ensPerts) ! IN
 
     case ('LOCALIZATIONRADII')
       write(*,*)
       write(*,*) 'Estimating the optimal covariance localization radii'
 
-      if (nWaveBand > 1 .and. nVertWaveBand > 1) then
+      if (nHorizWaveBand > 1 .and. nVertWaveBand > 1) then
         call utl_abort('csg_toolbox: cannot do horizontal AND vertical scale-decomposition')
       end if
 
+      call ens_allocate(ensPertsScaleDecomp(1), nEns, numStep, hco_ens, vco_ens, dateStampList)
+      if ( ctrlVarHumidity == 'LQ' .and. ensContainsFullField ) then
+        call ens_modifyVarName(ensPertsScaleDecomp(1), 'HU', 'LQ')
+      end if
+      
       call ens_removeGlobalMean(ensPerts)
+      call spectralFilter(ensPerts)
 
-      do waveBandIndex = 1, max(nWaveBand,nVertWaveBand)
+      do waveBandIndex = 1, max(nHorizWaveBand,nVertWaveBand)
 
+        call ens_copy(ensPerts,                & ! IN
+                      ensPertsScaleDecomp(1))    ! OUT
+        
         if (nVertWaveBand > 1) then
-          if (waveBandIndex == 1) then
-            call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
-                                              vModes)                                    ! OUT
-          end if
-          call vertModesFilter(ensPerts,             & ! IN
-                               ensPerts_ptr,         & ! OUT
-                               vModes, waveBandIndex)  ! IN
-        else
-          call spectralFilter2(ensPerts,                      & ! IN
-                               ensPerts_ptr,                  & ! OUT
-                               waveBandIndex_opt=waveBandIndex) ! IN
+          call scd_vertical(ensPertsScaleDecomp,                                    & ! INOUT
+                            nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale, & ! IN
+                            'Select', vertWaveBandIndexSelected_opt=waveBandIndex,  & ! IN
+                            writeResponseFunction_opt=.true.)                         ! IN
+        else if (nHorizWaveBand > 1) then
+          call scd_horizontal(ensPertsScaleDecomp,                                   & ! INOUT
+                              nEnsOverDimension, nHorizWaveBand, horizWaveBandPeaks, & ! IN
+                              'Select', 'SumToOne',                                  & ! IN
+                              horizWaveBandIndexSelected_opt=waveBandIndex,          & ! IN
+                              writeResponseFunction_opt=.true.)                        ! IN
         end if
-          
-        call ens_computeStdDev(ensPerts_ptr)
+
+        call ens_computeStdDev(ensPertsScaleDecomp(1))
        
         if (waveBandIndex == 1) then
-          call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
+          call ens_copyEnsStdDev(ensPertsScaleDecomp(1), statevector_template) ! IN
           call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
-                         pressureProfile_T, max(nWaveBand,nVertWaveBand))          ! IN
+                         pressureProfile_T, max(nHorizWaveBand,nVertWaveBand))     ! IN
         end if
 
-        call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
+        call bmd_localizationRadii(ensPertsScaleDecomp(1), waveBandIndex_opt=waveBandIndex) ! IN
 
       end do
-      
+
     case ('STDDEV')
       write(*,*)
       write(*,*) 'Computing standard deviations using PSI/CHI for winds'
 
       ! u,v to psi,chi 
       call gvt_setup(hco_ens, hco_ens, vco_ens)
-      call gvt_transform(ensPerts_ptr, 'UVtoPsiChi')
-      if (.not. ens_varExist(ensPerts_ptr,'PP') .and. &
-          .not. ens_varExist(ensPerts_ptr,'CC') ) then
-        call ens_modifyVarName(ensPerts_ptr, 'UU', 'PP')
-        call ens_modifyVarName(ensPerts_ptr, 'VV', 'CC')
+      call gvt_transform(ensPerts, 'UVtoPsiChi')
+      if (.not. ens_varExist(ensPerts,'PP') .and. &
+          .not. ens_varExist(ensPerts,'CC') ) then
+        call ens_modifyVarName(ensPerts, 'UU', 'PP')
+        call ens_modifyVarName(ensPerts, 'VV', 'CC')
       end if
 
       ! Compute the grid point std dev
-      call ens_computeStdDev(ensPerts_ptr)
-      call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
+      call ens_computeStdDev(ensPerts)
+      call ens_copyEnsStdDev(ensPerts, statevector_template) ! IN
       call gio_writeToFile(statevector_template, './stddev.fst', 'STDDEV_GRIDP', &
                            typvar_opt = 'E', numBits_opt = 32)
 
       ! Compute the zonal std dev
       call gbi_setup(gbi_zonalMean, 'YrowBand', statevector_template, hco_ens)
-      call gbi_stdDev(gbi_zonalMean, ensPerts_ptr, & ! IN
+      call gbi_stdDev(gbi_zonalMean, ensPerts, & ! IN
                       statevector_template)          ! OUT
       call gio_writeToFile(statevector_template, './stddev.fst', 'STDDEV_ZONAL', &
                            typvar_opt = 'E', numBits_opt = 32)
@@ -752,7 +740,7 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Computing power spectra'
 
-      call calcPowerSpec(ensPerts_ptr, & ! IN
+      call calcPowerSpec(ensPerts, & ! IN
                          powerSpec)      ! OUT
       call writePowerSpec(powerSpec, modelSpace) ! IN
 
@@ -760,15 +748,16 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Computing vertical modes spectra'
 
-      if (nWaveBand > 1 .or. nVertWaveBand > 1) then
+      if (nHorizWaveBand > 1 .or. nVertWaveBand > 1) then
         call utl_abort('csg_toolbox: waveband decomposition cannot be use when TOOLBOX=VERTMODES_SPEC')
       end if
 
-      call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
-                                        vModes)                                   ! OUT
+      call vms_computeModesFromFunction(vco_ens, vertModesLengthScale(1), & ! IN
+                                        vertModesLengthScale(2),          & ! IN
+                                        vModes)                             ! OUT
       call vms_writeModes(vModes)
 
-      call calcVertModesSpec(ensPerts_ptr,vModes) ! IN
+      call calcVertModesSpec(ensPerts,vModes) ! IN
 
     case ('VERTMODES_WAVEBAND')
       write(*,*)
@@ -777,37 +766,42 @@ module calcStatsGlb_mod
       if (nVertWaveBand == 1) then
         call utl_abort('csg_toolbox: please specify a vertical waveband decomposition when TOOLBOX=VERTMODES_WAVEBAND')
       end if
+
+      call ens_allocate(ensPertsScaleDecomp(1), nEns, numStep, hco_ens, vco_ens, dateStampList)
+      if ( ctrlVarHumidity == 'LQ' .and. ensContainsFullField ) then
+        call ens_modifyVarName(ensPertsScaleDecomp(1), 'HU', 'LQ')
+      end if
       
-      call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
-                                        vModes)                                    ! OUT
-      call vms_writeModes(vModes)
-
-      do waveBandIndex = 1, nVertWaveBand
+      do vertWaveBandIndex = 1, nVertWaveBand
         
-        call vertModesFilter(ensPerts,     & ! IN
-                             ensPerts_ptr, & ! OUT
-                             vModes, waveBandIndex)  ! IN
-
-        write(wbnum,'(I2.2)') waveBandIndex
-
+        call ens_copy(ensPerts,                & ! IN
+                      ensPertsScaleDecomp(1))    ! OUT
+        
+        call scd_vertical(ensPertsScaleDecomp,                                           & ! INOUT
+                          nVertWaveBand, vertWaveBandPeaks, vertModesLengthScale,        & ! IN
+                          'Select', vertWaveBandIndexSelected_opt=vertWaveBandIndex,     & ! IN
+                          writeResponseFunction_opt=.true., writeTransformInfo_opt=.true.) ! IN
+        
+        write(wbnum,'(I2.2)') vertWaveBandIndex
+        
         ! Compute the grid point std dev
-        call ens_computeStdDev(ensPerts_ptr)
-        call ens_copyEnsStdDev(ensPerts_ptr,       & ! IN
-                               statevector_template) ! OUT
+        call ens_computeStdDev(ensPertsScaleDecomp(1))
+        call ens_copyEnsStdDev(ensPertsScaleDecomp(1), & ! IN
+                               statevector_template)     ! OUT
         call gio_writeToFile(statevector_template, './stddev_'//trim(wbnum)//'.fst', 'STD_GRIDP_'//trim(wbnum), &
                              typvar_opt = 'E', numBits_opt = 32)
 
         ! Compute the global std dev
-        if (waveBandIndex == 1) then
+        if (vertWaveBandIndex == 1) then
           call gbi_setup(gbi_globalMean, 'HorizontalMean', statevector_template, hco_ens)
         end if
-        call gbi_stdDev(gbi_globalMean, ensPerts_ptr, & ! IN
+        call gbi_stdDev(gbi_globalMean, ensPertsScaleDecomp(1), & ! IN
                         statevector_template)           ! OUT
         call gio_writeToFile(statevector_template, './stddev_'//trim(wbnum)//'.fst', 'STD_GLB_'//trim(wbnum), &
                              typvar_opt = 'E', numBits_opt = 32)
 
         ! Write the scale-decomposed ensemble perturbations for member=1
-        call ens_copyMember(ensPerts_ptr, stateVector_template, 1)
+        call ens_copyMember(ensPertsScaleDecomp(1), stateVector_template, 1)
         call gio_writeToFile(statevector_template, './ensPert_0001_'//trim(wbnum)//'.fst', 'ENSPERT_'//trim(wbnum), &
                              numBits_opt = 32)
         
@@ -1408,7 +1402,7 @@ module calcStatsGlb_mod
     if (mmpi_myid /= 0) return
     
     nulstats=0
-    if ( nWaveBand == 1 ) then
+    if ( nHorizWaveBand == 1 ) then
        outfilename='./bgcov.fst'
     else
        if (.not. present(waveBandIndex_opt)) then
@@ -1758,9 +1752,9 @@ module calcStatsGlb_mod
   end subroutine writeStddevBal
 
   !--------------------------------------------------------------------------
-  ! SPECTRALFILTER
+  ! spectralFilterLegacy
   !--------------------------------------------------------------------------
-  subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex_opt)
+  subroutine spectralFilterLegacy(ensPerturbations,nlev)
     !
     !:Purpose: Apply a spectral filter
     !
@@ -1769,39 +1763,11 @@ module calcStatsGlb_mod
     ! Arguments:
     real(4), pointer,  intent(inout) :: ensPerturbations(:,:,:,:)
     integer,           intent(in)    :: nlev
-    integer, optional, intent(in)    :: waveBandIndex_opt
 
     ! Locals:
     real(8) :: spectralState(nla_mpilocal,2,nlev)
     real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev)
-    integer :: ensIndex, jk, jn, jm, ila_mpilocal, ila_mpiglobal
-    real(8), allocatable :: ResponseFunction(:)
-    real(8) :: waveLength
-    character(len=128) :: outfilename
-    character(len=2) :: wbnum
-
-    if ( nWaveBand /= 1 ) then
-      write(*,*) 'Bandpass filtering step'
-      if (.not. present(waveBandIndex_opt)) then
-        write(*,*) 'Error: No waveBandIndex was supplied!!!'
-        call utl_abort('calbmatrix_glb')
-      end if
-      allocate(ResponseFunction(0:ntrunc))
-      write(wbnum,'(I2.2)') waveBandIndex_opt
-      outfilename = "./ResponseFunction_"//wbnum//".txt"
-      open (unit=99,file=outfilename,action="write",status="new")
-      do jn = 0, ntrunc
-        ResponseFunction(jn) = scd_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
-        if ( jn /= 0) then
-          waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
-        else
-          waveLength=0.d0
-        end if
-        write(* ,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
-        write(99,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
-      end do
-      close(unit=99)
-    end if
+    integer :: ensIndex
 
     do ensIndex=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))     
@@ -1814,91 +1780,32 @@ module calcStatsGlb_mod
         call utl_abort('spectralFilter: spectral transform not initialized for this number of levels')
       end if
       call gst_reespe(spectralState,member)
-      if ( nWaveBand /= 1 ) then
-        !$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila_mpilocal,ila_mpiglobal)
-        do jk = 1, nlev
-          do jn = mynBeg, mynEnd, mynSkip
-            do jm = mymBeg, mymEnd, mymSkip
-              if(jm.le.jn) then
-                ila_mpiglobal = gst_getNind(jm,gstID_nkgdimEns) + jn - jm
-                ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-                spectralState(ila_mpilocal,1,jk) = spectralState(ila_mpilocal,1,jk) * ResponseFunction(jn)
-                spectralState(ila_mpilocal,2,jk) = spectralState(ila_mpilocal,2,jk) * ResponseFunction(jn)
-              end if
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end if
       call gst_speree(spectralState,member)
       ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
     end do
 
-    if ( nWaveBand /= 1 ) then
-       deallocate(ResponseFunction)
-    end if
-
     write(*,*) 'finished applying spectral filter...'
 
-  end subroutine spectralFilter
+  end subroutine spectralFilterLegacy
 
   !--------------------------------------------------------------------------
-  ! SPECTRALFILTER2
+  ! spectralFilter
   !--------------------------------------------------------------------------
-  subroutine spectralFilter2(ensPerts_in,ensPerts_out,waveBandIndex_opt)
+  subroutine spectralFilter(ensPerts)
     !
     !:Purpose: Apply a spectral filter
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens),  intent(inout) :: ensPerts_in
-    type(struct_ens),  intent(inout) :: ensPerts_out
-    integer, optional, intent(in)  :: waveBandIndex_opt
+    type(struct_ens),  intent(inout) :: ensPerts
 
     ! Locals:
     real(8), allocatable :: ensPertSP(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:)    
     integer :: memberIndex, levIndex, latIndex, lonIndex
-    integer :: jn, jm, ila_mpilocal, ila_mpiglobal
     integer :: gstFilterID
-    real(8), allocatable :: ResponseFunction(:)
-    real(8) :: waveLength
-    character(len=128) :: outfilename
-    character(len=2) :: wbnum
-
-    !
-    !- 1.  Pre-compute the response function (if needed)
-    !
-    if ( nWaveBand /= 1 ) then
-      write(*,*) 'Bandpass filtering step'
-      if (.not. present(waveBandIndex_opt)) then
-        write(*,*) 'Error: No waveBandIndex was supplied!!!'
-        call utl_abort('calbmatrix_glb: spectralFilter2')
-      end if
-      allocate(ResponseFunction(0:ntrunc))
-      write(wbnum,'(I2.2)') waveBandIndex_opt
-      outfilename = "./ResponseFunction_"//wbnum//".txt"
-      if (mmpi_myid == 0) then
-        open (unit=99,file=outfilename,action="write",status="new")
-      end if
-      do jn = 0, ntrunc
-        ResponseFunction(jn) = scd_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
-        if ( jn /= 0) then
-          waveLength=2*MPC_PI_R8*ec_ra/dble(jn)
-        else
-          waveLength=0.d0
-        end if
-        write(* ,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
-        if (mmpi_myid == 0) then
-          write(99,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
-        end if
-      end do
-      if (mmpi_myid == 0) then
-        close(unit=99)
-      end if
-    end if
 
     !
     !- 2.  Apply Filter
@@ -1909,9 +1816,9 @@ module calcStatsGlb_mod
     allocate(ensPertGD(nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
     ensPertSP(:,:,:) = 0.0d0
     
-    do levIndex = 1, ens_getNumK(ensPerts_in) ! Loop on variables and vertical levels
+    do levIndex = 1, ens_getNumK(ensPerts) ! Loop on variables and vertical levels
 
-      ptr4d_r4 => ens_getOneLev_r4(ensPerts_in,levIndex)
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
 
       do latIndex = myLatBeg, myLatEnd
         ensPertGD(:,:,latIndex) = 0.0d0
@@ -1932,30 +1839,10 @@ module calcStatsGlb_mod
       call gst_reespe_kij(ensPertSP, & ! OUT
                           ensPertGD)   ! IN
 
-      !- Filtering
-      if ( nWaveBand /= 1 ) then
-        !$OMP PARALLEL DO PRIVATE (memberIndex,jn,jm,ila_mpilocal,ila_mpiglobal)
-        do memberIndex = 1, nEns
-          do jn = mynBeg, mynEnd, mynSkip
-            do jm = mymBeg, mymEnd, mymSkip
-              if (jm <= jn) then
-                ila_mpiglobal = gst_getNind(jm,gstFilterID) + jn - jm
-                ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-                ensPertSP(ila_mpilocal,1,memberIndex) = ensPertSP(ila_mpilocal,1,memberIndex) * ResponseFunction(jn)
-                ensPertSP(ila_mpilocal,2,memberIndex) = ensPertSP(ila_mpilocal,2,memberIndex) * ResponseFunction(jn)
-              end if
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end if
-
       ! Spectral Space -> GridPoint space
       call gst_setID(gstFilterID) ! IN
       call gst_speree_kij(ensPertSP, & ! IN
                           ensPertGD)   ! OUT
-
-      ptr4d_r4 => ens_getOneLev_r4(ensPerts_out,levIndex)
 
       !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
       do latIndex = myLatBeg, myLatEnd
@@ -1969,15 +1856,12 @@ module calcStatsGlb_mod
 
     end do
 
-    if ( nWaveBand /= 1 ) then
-       deallocate(ResponseFunction)
-    end if
     deallocate(ensPertGD)
     deallocate(ensPertSP)
     
     write(*,*) 'finished applying spectral filter...'
 
-  end subroutine spectralFilter2
+  end subroutine spectralFilter
   
   !--------------------------------------------------------------------------
   ! CALCTHETA
@@ -2777,7 +2661,7 @@ module calcStatsGlb_mod
     !- 4.  Write to file
     !
     if (mmpi_myid == 0) then
-      if ( nWaveBand /= 1 ) then
+      if ( nHorizWaveBand /= 1 ) then
         if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
@@ -2786,7 +2670,7 @@ module calcStatsGlb_mod
       end if
       
       !- 4.1 2D correlation function in fst format
-      if ( nWaveBand == 1 ) then
+      if ( nHorizWaveBand == 1 ) then
         outfilename = "./horizCorrel.fst"
       else
         outfilename = "./horizCorrel_"//wbnum//".fst"
@@ -2798,7 +2682,7 @@ module calcStatsGlb_mod
       iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
       
       do varIndex = 1, nvar3d
-        if ( nWaveBand == 1 ) then
+        if ( nHorizWaveBand == 1 ) then
           outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//".txt"
         else
           outfilename = "./horizCorrel_"//trim(nomvar3d(varIndex,variableType))//"_"//wbnum//".txt"
@@ -2828,7 +2712,7 @@ module calcStatsGlb_mod
       end do
       
       do varIndex = 1, nvar2d
-        if ( nWaveBand == 1 ) then
+        if ( nHorizWaveBand == 1 ) then
           outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//".txt"
         else
           outfilename = "./horizCorrel_"//trim(nomvar2d(varIndex,variableType))//"_"//wbnum//".txt"
@@ -2930,9 +2814,9 @@ module calcStatsGlb_mod
   end subroutine write3d
 
   !--------------------------------------------------------------------------
-  ! CALCHORIZSCALE
+  ! calcHorizScale
   !--------------------------------------------------------------------------
-  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex_opt)
+  subroutine calcHorizScale(rstddev,variableType,waveBandIndex_opt)
     !
     !:Purpose: Calculate the horizontal correlation length scale
     !
@@ -2983,7 +2867,7 @@ module calcStatsGlb_mod
     !
     !- 2. Write the results
     !
-    if ( nWaveBand /= 1 ) then
+    if ( nHorizWaveBand /= 1 ) then
        if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
@@ -2995,7 +2879,7 @@ module calcStatsGlb_mod
        write(*,*)
        write(*,*) nomvar3d(varIndex,variableType)
 
-       if ( nWaveBand == 1 ) then
+       if ( nHorizWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar3d(varIndex,variableType))//".txt"
        else
           outfilename = "./horizScale_"//trim(nomvar3d(varIndex,variableType))//"_"//wbnum//".txt"
@@ -3021,7 +2905,7 @@ module calcStatsGlb_mod
        write(*,*)
        write(*,*) nomvar2d(varIndex,variableType)
        
-       if ( nWaveBand == 1 ) then
+       if ( nHorizWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar2d(varIndex,variableType))//".txt"
        else
           outfilename = "./horizScale_"//trim(nomvar2d(varIndex,variableType))//"_"//wbnum//".txt"
@@ -3462,122 +3346,5 @@ module calcStatsGlb_mod
     end if
     
   end subroutine calcVertModesSpec
-
-  !--------------------------------------------------------------------------
-  ! vertModesFilter
-  !--------------------------------------------------------------------------
-  subroutine vertModesFilter(ensPerts_in, ensPerts_out, vModes, waveBandIndex)
-    !
-    ! :Purpose: Filter the ensemble perturbations to isolate a given vertical
-    !           waveband of vertical modes.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_ens), intent(inout) :: ensPerts_in
-    type(struct_ens), intent(inout) :: ensPerts_out
-    type(struct_vms), intent(in)    :: vModes
-    integer,          intent(in)    :: waveBandIndex
-
-    ! Locals:
-    type(struct_gsv)     :: gridStateVector_oneMember    
-    real(8), allocatable :: vertModesState3d(:,:,:)
-    real(8), pointer     :: gridState3d(:,:,:)
-    real(8), allocatable :: ResponseFunction(:)
-    character(len=128) :: outfilename
-    character(len=2)   :: wbnum
-    character(len=4), pointer :: varNamesList(:)
-    integer :: nMode, nModeMax, modeIndex, latIndex, lonIndex
-    integer :: numVar, nLev, varIndex, memberIndex
-
-    !
-    !- 1.  Pre-compute the response function
-    !
-    nModeMax=max(nLevEns_M,nLevEns_T)
-    allocate(ResponseFunction(nModeMax))
-    write(wbnum,'(I2.2)') waveBandIndex
-    outfilename = "./vertResponseFunction_"//wbnum//".txt"
-    if (mmpi_myid == 0) then
-      open (unit=99,file=outfilename,action="write",status="new")
-    end if
-    do modeIndex = 1, nModeMax
-      ResponseFunction(modeIndex) = scd_filterResponseFunction(dble(modeIndex), waveBandIndex, &
-                                                               vertWaveBandPeaks, nVertWaveBand)
-      write(* ,'(I4,2X,F5.3)') modeIndex, ResponseFunction(modeIndex)
-      if (mmpi_myid == 0) then
-        write(99,'(I4,2X,F5.3)') modeIndex, ResponseFunction(modeIndex)
-      end if
-    end do
-    if (mmpi_myid == 0) then
-      close(unit=99)
-    end if
-
-    !
-    !- 2.  Apply Filter
-    !
-    nullify(varNamesList)
-    call ens_varNamesList(varNamesList,ensPerts_in)
-    numVar = size(varNamesList)
-
-    call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ensPerts_in), &
-                      ens_getHco(ensPerts_in), ens_getVco(ensPerts_in), varNames_opt=varNamesList, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                         &
-                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
-    
-    do memberIndex = 1, nEns
-      call ens_copyMember(ensPerts_in, gridStateVector_oneMember, memberIndex)
-
-      do varIndex = 1, numVar
-
-        nullify(gridState3d)
-        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
-        
-        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
-          nLev  = nLevEns_M
-          nMode = nLev
-        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
-          nLev  = nLevEns_T
-          nMode = nLev
-        else
-          gridState3d(:,:,:) = 0.d0
-          cycle
-        end if
-
-        if (allocated(vertModesState3d)) deallocate(vertModesState3d)
-        allocate(vertModesState3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode))
-
-        !- GridPoint space -> Vertical modes space
-        call vms_transform(vModes, vertModesState3d, gridState3d, &
-                          'GridPointToVertModes', myLonBeg, myLonEnd, &
-                           myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
-
-        !- Filtering
-        !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
-        do modeIndex = 1, nMode
-          do latIndex = myLatBeg, myLatEnd
-            do lonIndex = myLonBeg, myLonEnd
-              vertModesState3d(lonIndex,latIndex,modeIndex) = ResponseFunction(modeIndex) * &
-                   vertModesState3d(lonIndex,latIndex,modeIndex)
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-
-        !- Vertical modes space -> GridPoint space
-        call vms_transform(vModes, vertModesState3d, gridState3d, &
-                          'VertModesToGridPoint', myLonBeg, myLonEnd, &
-                          myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
-
-      end do
-
-      call ens_insertMember(ensPerts_out, gridStateVector_oneMember, memberIndex)
-      
-    end do
-    
-    deallocate(vertModesState3d)
-    call gsv_deallocate(gridStateVector_oneMember)
-    deallocate(ResponseFunction)
-    
-  end subroutine vertModesFilter
   
 end module calcStatsGlb_mod

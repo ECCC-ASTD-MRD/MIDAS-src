@@ -294,12 +294,10 @@ CONTAINS
       end do
 
       !- 3.2 Compute sqrt of the matrix
-      if (vertLengthScale > 0.0d0) then
-        call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
-      end if
+      call utl_matSqrt(lsp%LvertSqrt(1,1),lsp%nLev,1.0d0,.false.)
 
     else
-      lsp%LvertSqrt(:,:) = 1.d0 ! no vertical localization
+      lsp%LvertSqrt(:,:) = 1.d0/sqrt(real(lsp%nLev,8)) ! no vertical localization
     end if
 
   END SUBROUTINE setupLocalizationMatrices

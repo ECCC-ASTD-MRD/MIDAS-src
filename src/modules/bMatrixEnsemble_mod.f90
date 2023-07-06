@@ -19,8 +19,6 @@ module bMatrixEnsemble_mod
   use mathPhysConstants_mod
   use gridVariableTransforms_mod
   use utilities_mod
-  use globalSpectralTransform_mod
-  use lamSpectralTransform_mod
   use varNameList_mod
   use advection_mod
   use gridBinning_mod
@@ -124,7 +122,7 @@ module bMatrixEnsemble_mod
     integer             :: horizWaveBandPeaks(maxNumLocalLength)
     integer             :: horizWaveBandIndexSelected
     integer             :: vertWaveBandPeaks(maxNumLocalLength)
-    real(8)             :: vertModesLengthScale 
+    real(8)             :: vertModesLengthScale(2) 
     logical             :: ensDiagnostic
     logical             :: advDiagnostic
     character(len=2)    :: ctrlVarHumidity
@@ -203,7 +201,7 @@ CONTAINS
     integer             :: horizWaveBandPeaks(maxNumLocalLength)  ! total wavenumber corresponding to peak of each waveband for SDL in the horizontal
     integer             :: horizWaveBandIndexSelected             ! for multiple NAMBEN blocks, horizontal waveband index of this block
     integer             :: vertWaveBandPeaks(maxNumLocalLength)   ! mode corresponding to peak of each waveband for SDL in the vertical
-    real(8)             :: vertModesLengthScale                   ! LengthScale of the correlation function use to perform vertical-scale-decomposition
+    real(8)             :: vertModesLengthScale(2)                ! LengthScale of the correlation function use to perform vertical-scale-decomposition
     logical             :: ensDiagnostic                          ! when `.true.` write diagnostic info related to ens. to files
     logical             :: advDiagnostic                          ! when `.true.` write diagnostic info related to advection to files 
     character(len=2)    :: ctrlVarHumidity                        ! name of humidity variable used for ensemble perturbations (LQ or HU)
@@ -272,7 +270,8 @@ CONTAINS
       horizWaveBandIndexSelected =   -1
       vertLocalizationType       = 'OneSize'
       vertWaveBandPeaks(:)       =   -1.0d0
-      vertModesLengthScale       =   -1.0d0
+      vertModesLengthScale(:)    =   -1.0d0
+      vertModesLengthScale(1)    =    6.0d0
       ensDiagnostic         = .false.
       advDiagnostic         = .false.
       hLocalize(:)          =   -1.0d0
@@ -349,7 +348,7 @@ CONTAINS
       bEns(nInstance)%horizWaveBandIndexSelected = horizWaveBandIndexSelected
       bEns(nInstance)%vertLocalizationType       = vertLocalizationType
       bEns(nInstance)%vertWaveBandPeaks(:)       = vertWaveBandPeaks(:)
-      bEns(nInstance)%vertModesLengthScale       = vertModesLengthScale
+      bEns(nInstance)%vertModesLengthScale(:)    = vertModesLengthScale(:)
       bEns(nInstance)%ensDiagnostic              = ensDiagnostic
       bEns(nInstance)%advDiagnostic              = advDiagnostic
       bEns(nInstance)%ctrlVarHumidity            = ctrlVarHumidity
@@ -428,6 +427,7 @@ CONTAINS
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
+    logical        :: scaleDecompositionNeeded = .false.
     character(len=32)   :: direction, directionEnsPerts, directionAnlInc
     character(len=32)   :: decompositionMode, filterResponseFunctionMode
     
@@ -666,6 +666,7 @@ CONTAINS
         bEns(instanceIndex)%nHorizWaveBand = 1
 
       case('ScaleDependent','ScaleDependentWithSpectralLoc')
+        scaleDecompositionNeeded = .true.
         if (mmpi_myid == 0) write(*,*)
         if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
           if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used in the horizontal'
@@ -742,9 +743,10 @@ CONTAINS
         bEns(instanceIndex)%nVertWaveBand = 1
 
       case('ScaleDependent')
+        scaleDecompositionNeeded = .true.
         if (mmpi_myid == 0) write(*,*)
         if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used in the vertical'
-
+        
         ! You must provide nVertWaveBand wavenumbers in decreasing order
         ! e.g. For a 3 vertical wave bands decomposition...
         !      wavenumber #1 = where the response function for wave band 1 (hgh res) reaches 1 
@@ -754,6 +756,8 @@ CONTAINS
         !                      and stays at 1 for lower wavenumbers
         ! See FilterResponseFunction for further info...
 
+        bEns(instanceIndex)%nVertWaveBand = count(bEns(instanceIndex)%vertWaveBandPeaks >= 0)
+        
         ! Make sure that the wavenumbers are in the correct (decreasing) order
         do vertWaveBandIndex = 1, bEns(instanceIndex)%nVertWaveBand-1
           if ( bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex)-bEns(instanceIndex)%vertWaveBandPeaks(vertWaveBandIndex+1) <= 0 ) then
@@ -766,14 +770,19 @@ CONTAINS
           if ( bEns(instanceIndex)%vLocalize(vertWaveBandIndex) <= 0.0d0 ) then
             call utl_abort('ben_setupOneInstance: Invalid VERTICAL localization length scale')
           end if
-          if (trim(bEns(instanceIndex)%horizLocalizationType) /= 'ScaleDependent') then
-            if ( bEns(instanceIndex)%hLocalize(vertWaveBandIndex) <= 0.0d0 .and. &
-                 (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
-              call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
-            end if
-          end if
+          !if (trim(bEns(instanceIndex)%horizLocalizationType) /= 'ScaleDependent') then
+          !  if ( bEns(instanceIndex)%hLocalize(vertWaveBandIndex) <= 0.0d0 .and. &
+          !       (bEns(instanceIndex)%nLevInc_M > 1 .or. bEns(instanceIndex)%nLevInc_T > 1) ) then
+          !    call utl_abort('ben_setupOneInstance: Invalid HORIZONTAL localization length scale')
+          !  end if
+          !end if
         end do
 
+        ! Make sure that the bottom lengthscale is appropriately set
+        if (bEns(instanceIndex)%vertModesLengthScale(2) == -1.d0) then
+          bEns(instanceIndex)%vertModesLengthScale(2) = bEns(instanceIndex)%vertModesLengthScale(1)
+        end if
+        
       case default
         call utl_abort('ben_setupOneInstance: Invalid mode for vertLocalizationType')
       end select
@@ -1117,24 +1126,37 @@ CONTAINS
     !- 2.8 Compute and write Std. Dev.
     if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'FullPerturbations')
 
-    !- 2.9 Partitioned the ensemble perturbations into horizontal wave bands
-    if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent'                .or. &
-        trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependentWithSpectralLoc') then
+    !- 2.9 Partitioned the ensemble perturbations into horizontal and/or vertical wave bands
+    if (scaleDecompositionNeeded) then
+      if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent'                .or. &
+          trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependentWithSpectralLoc') then
       
-      if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
-        decompositionMode='Split'
-        filterResponseFunctionMode='SumToOne'
-      else
-        decompositionMode='Select'
-        filterResponseFunctionMode='SquareSumToOne'
+        if (trim(bEns(instanceIndex)%horizLocalizationType) == 'ScaleDependent') then
+          decompositionMode='Split'
+          filterResponseFunctionMode='SumToOne'
+        else
+          decompositionMode='Select'
+          filterResponseFunctionMode='SquareSumToOne'
+        end if
+      
+        call scd_horizontal(bEns(instanceIndex)%ensPerts(:,1),                                     & ! INOUT
+                            bEns(instanceIndex)%nEnsOverDimension,                                 & ! IN
+                            bEns(instanceIndex)%nHorizWaveBandForFiltering,                        & ! IN
+                            bEns(instanceIndex)%horizWaveBandPeaks,                                & ! IN
+                            decompositionMode, filterResponseFunctionMode,                         & ! IN
+                            horizWaveBandIndexSelected_opt=bEns(instanceIndex)%horizWaveBandIndexSelected) ! IN
+      end if
+
+      if (trim(bEns(instanceIndex)%vertLocalizationType) == 'ScaleDependent') then
+        do horizWaveBandIndex = 1, bEns(instanceIndex)%nHorizWaveBand
+          call scd_vertical(bEns(instanceIndex)%ensPerts(horizWaveBandIndex,:),       & ! INOUT
+                            bEns(instanceIndex)%nVertWaveBand,                        & ! IN
+                            bEns(instanceIndex)%vertWaveBandPeaks,                    & ! IN
+                            bEns(nInstance)%vertModesLengthScale,                     & ! IN
+                            'Split')                                                    ! IN
+        end do
       end if
       
-      call scd_horizontal(bEns(instanceIndex)%ensPerts(:,1),                                     & ! INOUT
-                          bEns(instanceIndex)%nEnsOverDimension,                                 & ! IN
-                          bEns(instanceIndex)%nHorizWaveBandForFiltering,                        & ! IN
-                          bEns(instanceIndex)%horizWaveBandPeaks,                                & ! IN
-                          decompositionMode, filterResponseFunctionMode,                         & ! IN
-                          horizWaveBandIndexSelected_opt=bEns(instanceIndex)%horizWaveBandIndexSelected) ! IN
       if (bEns(instanceIndex)%ensDiagnostic) call ensembleDiagnostic(instanceIndex,'WaveBandPerturbations')
     end if
 
