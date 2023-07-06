@@ -429,16 +429,19 @@ contains
     real(8), allocatable :: vertModesState4dFiltered(:,:,:,:)
     real(8), pointer     :: gridState4d(:,:,:,:)
     real(8), allocatable :: responseFunction(:,:)
+    real(8), allocatable :: bandSum(:,:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
     character(len=4), pointer :: varNamesList(:)
     integer :: vertWaveBandIndexSelected
-    integer :: nMode, nModeMax, modeIndex, latIndex, lonIndex
+    integer :: nMode, nModeMax, modeIndex, modeBeg, modeEnd, mTrunc
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer :: numVar, varIndex, memberIndex
     integer :: numStep, stepIndex
     integer :: nLev, nLev_M, nLev_T
+    integer :: levIndex,latIndex,lonIndex
     integer :: vertWaveBandIndex, vertWaveBandIndexStart, vertWaveBandIndexEnd
     integer :: vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
     logical :: writeResponseFunction
@@ -466,15 +469,21 @@ contains
     end if
     
     if (trim(decompositionMode) == 'Split') then
-      vertWaveBandIndexStart     = 1
+      mTrunc = vertWaveBandPeaks(1)
+      vertWaveBandIndexStart     = 2 ! Skip the shallowest scales
       vertWaveBandIndexEnd       = nVertWaveBand
-      vertWaveBandIndexLoopStart = vertWaveBandIndexEnd ! Start with the largest scales
+      vertWaveBandIndexLoopStart = vertWaveBandIndexEnd ! Start with the deepest scales
       vertWaveBandIndexLoopEnd   = vertWaveBandIndexStart
       vertWaveBandIndexLoopDirection = -1
     else if (trim(decompositionMode) == 'Select') then
       if (vertWaveBandIndexSelected == -1) then
         call utl_abort('scd_vertical: vertWaveBandIndexSelected_opt must be provided in Select mode')
+      else if (vertWaveBandIndexSelected == 1) then
+        mTrunc = -1 ! no truncation needed to extract the shallowest scales
+      else
+        mTrunc = vertWaveBandPeaks(vertWaveBandIndexSelected-1)
       end if
+      
       vertWaveBandIndexStart     = vertWaveBandIndexSelected
       vertWaveBandIndexEnd       = vertWaveBandIndexSelected
       vertWaveBandIndexLoopStart = vertWaveBandIndexStart
@@ -599,7 +608,7 @@ contains
           call vms_transform(vModes, vertModesState4d(:,:,:,stepIndex),            &
                              gridState4d(:,:,:,stepIndex), 'GridPointToVertModes', &
                              myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
-                             varNamesList(varIndex))
+                             varNamesList(varIndex), modeEnd_opt=mTrunc)
         end do
 
         !- Filtering
@@ -613,10 +622,22 @@ contains
             call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),gridState4d,varName_opt=varNamesList(varIndex))
           end if
 
+          ! Select only the modes needed to make the transform faster
+          if (vertWaveBandIndex == nVertWaveBand ) then
+            modeBeg = 1
+            modeEnd = vertWaveBandPeaks(vertWaveBandIndex-1)
+          else if ( vertWaveBandIndex /= 1 ) then
+            modeBeg = vertWaveBandPeaks(vertWaveBandIndex+1)
+            modeEnd = vertWaveBandPeaks(vertWaveBandIndex-1)
+          else
+            modeBeg = vertWaveBandPeaks(vertWaveBandIndex+1)
+            modeEnd = nMode
+          end if
+          
           do stepIndex = 1, numStep ! Loop on ensemble time bin
             
             !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
-            do modeIndex = 1, nMode
+            do modeIndex = modeBeg, modeEnd ! 1, nMode
               do latIndex = myLatBeg, myLatEnd
                 do lonIndex = myLonBeg, myLonEnd
                   vertModesState4dFiltered(lonIndex,latIndex,modeIndex,stepIndex) =   &
@@ -631,7 +652,8 @@ contains
             call vms_transform(vModes, vertModesState4dFiltered(:,:,:,stepIndex),    &
                                gridState4d(:,:,:,stepIndex), 'VertModesToGridPoint', &
                                myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
-                               varNamesList(varIndex))
+                               varNamesList(varIndex), modeBeg_opt=modeBeg,          &
+                               modeEnd_opt=modeEnd)
 
           end do ! stepIndex
         end do ! vertWaveBandIndex
@@ -648,9 +670,6 @@ contains
  
     end do ! memberIndex
 
-    !
-    !- 3.  Ending
-    !
     deallocate(vertModesState4dFiltered)
     deallocate(vertModesState4d)
     if (trim(decompositionMode) == 'Split') then
@@ -661,6 +680,39 @@ contains
       call gsv_deallocate(gridStateVector_oneMember(1))
     end if
     deallocate(responseFunction)
+    
+    !
+    !- 3.  In split mode, isolate the shallowest scales in vertWaveBandIndex = 1 by difference in grid point space
+    !
+    if (trim(decompositionMode) == 'Split') then
+
+      allocate(bandSum(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+      do stepIndex = 1, ens_getNumStep(ensembleStateVector(1))
+        !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,vertWaveBandIndex,bandsum,ptr4d_r4)
+        do levIndex = 1, ens_getNumK(ensembleStateVector(1))
+          do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
+            bandSum(:,:) = 0.d0
+            do vertWaveBandIndex = 2, nVertWaveBand
+              ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(vertWaveBandIndex),levIndex)
+              do latIndex = myLatBeg, myLatEnd
+                do lonIndex = myLonBeg, myLonEnd
+                  bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
+                end do
+              end do
+            end do
+            ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(1),levIndex)
+            do latIndex = myLatBeg, myLatEnd
+              do lonIndex = myLonBeg, myLonEnd
+                ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
+              end do
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end do
+      deallocate(bandSum)
+
+    end if
     
   end subroutine scd_vertical
   

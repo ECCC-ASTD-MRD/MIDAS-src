@@ -373,9 +373,9 @@ contains
   !--------------------------------------------------------------------------
   ! vms_transform
   !--------------------------------------------------------------------------
-  subroutine vms_transform(vModes, VertModesState, GridState, &
-                           TransformDirection, lonBeg, lonEnd, &
-                           latBeg, latEnd, nLev, varName)
+  subroutine vms_transform(vModes, vertModesState, gridState,             &
+                           TransformDirection, lonBeg, lonEnd, latBeg,    &
+                           latEnd, nLev, varName, modeBeg_opt, modeEnd_opt)
     !
     ! :Purpose: To project back or forth ensemble pertubations onto the vertical
     !           modes contained in the vModes structure.
@@ -389,15 +389,18 @@ contains
     integer,          intent(in)    :: latBeg
     integer,          intent(in)    :: latEnd
     integer,          intent(in)    :: nLev
-    real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D vertical modes coefficients
-    real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D field in grid point space
+    real(8),          intent(inout) :: vertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D vertical modes coefficients
+    real(8),          intent(inout) :: gridState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D field in grid point space
     character(len=*), intent(in)    :: TransformDirection ! VertModesToGridPoint or GridPointToVertModes
     character(len=*), intent(in)    :: varName
+    integer, optional,intent(in)    :: modeBeg_opt
+    integer, optional,intent(in)    :: modeEnd_opt
 
     ! Locals:
-    integer :: latIndex, lonIndex, nMode
+    integer :: latIndex, lonIndex
     integer :: varIndexAssociated, varIndex
-
+    integer :: nMode, modeBeg, modeEnd 
+    
     !
     !- 1.  Find the appropriate modes for the provided varName
     !
@@ -447,6 +450,21 @@ contains
       call utl_abort('vms_transform: the number of levels are not consistent')
     end if
     nMode = nLev
+
+    if (present(modeBeg_opt)) then
+      modeBeg = modeBeg_opt
+    else
+      modeBeg = 1
+    end if
+    if (present(modeEnd_opt)) then
+      if (modeEnd_opt /= -1) then
+        modeEnd = modeEnd_opt
+      else
+        modeEnd = nMode
+      end if
+    else
+      modeEnd = nMode
+    end if
     
     !
     !- 2.  Do the transform
@@ -457,8 +475,8 @@ contains
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
       do latIndex = latBeg, latEnd
         do lonIndex = lonBeg, lonEnd
-          vertModesState(lonIndex,latIndex,1:nMode) = &
-               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectorsInv(1:nMode,1:nLev), &
+          vertModesState(lonIndex,latIndex,modeBeg:modeEnd) = &
+               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectorsInv(modeBeg:modeEnd,1:nLev), &
                       gridState(lonIndex,latIndex,1:nLev))
         end do
       end do
@@ -470,12 +488,12 @@ contains
       do latIndex = latBeg, latEnd
         do lonIndex = lonBeg, lonEnd
           gridState(lonIndex,latIndex,1:nLev) = &
-               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectors(1:nLev,1:nMode), &
-                      vertModesState(lonIndex,latIndex,1:nMode))
+               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectors(1:nLev,modeBeg:modeEnd), &
+                      vertModesState(lonIndex,latIndex,modeBeg:modeEnd))
         end do
       end do
       !$OMP END PARALLEL DO
-      
+
     case default
       write(*,*)
       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
