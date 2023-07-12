@@ -26,8 +26,8 @@ module var1D_mod
 
   logical              :: initialized = .false.
   integer, external    :: get_max_rss
-  integer, allocatable :: var1D_validHeaderIndex(:)    ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
-  integer              :: var1D_validHeaderCount !taille effective de  var1D_validHeaderIndex
+  integer, allocatable :: var1D_validHeaderIndex(:)! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
+  integer              :: var1D_validHeaderCount   !taille effective de  var1D_validHeaderIndex
 
 contains
 

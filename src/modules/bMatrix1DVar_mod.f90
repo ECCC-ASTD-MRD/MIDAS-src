@@ -448,7 +448,7 @@ contains
     integer :: nLevInc_M, nLevInc_T
     integer :: nulmat
     integer :: yyyymmdd, hhmm, countDumped, countDumpedMax, countDumpedMpiGlobal
-    integer :: globalCountDumped, countDumpedOut
+    integer :: globalDumpedIndex, countDumpedOut
     integer :: tag
     integer, external ::  fnom, fclos, newdate
     real(8) :: logP1, logP2
@@ -770,7 +770,7 @@ contains
       do columnIndex = 1, var1D_validHeaderCount 
         headerIndex = var1D_validHeaderIndex(columnIndex)
         latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-        longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         if (latitude  >= latMin .and. &
             latitude  <= latMax .and. &
             longitude >= lonMin .and. &
@@ -805,7 +805,7 @@ contains
         do columnIndex = 1, var1D_validHeaderCount 
           headerIndex = var1D_validHeaderIndex(columnIndex)
           latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
           if (latitude  >= latMin .and. &
               latitude  <= latMax .and. &
               longitude >= lonMin .and. &
@@ -833,15 +833,17 @@ contains
         if (columnIndex > 0) then
           headerIndex = var1D_validHeaderIndex(columnIndex)
           latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         else
           latitude = MPC_missingValue_R8
           longitude = MPC_missingValue_R8
         end if
         if (mmpi_myId == 0) then
-          outBmatrix(dumpedIndex, :, :) = bSqrtEns(columnIndex, :, :)
-          outLats(dumpedIndex) = latitude
-          outLons(dumpedIndex) = longitude
+          if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then 
+            outBmatrix(dumpedIndex, :, :) = bSqrtEns(columnIndex, :, :)
+            outLats(dumpedIndex) = latitude
+            outLons(dumpedIndex) = longitude
+          end if
         else
           tag = 3 * mmpi_myID
           call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
@@ -855,10 +857,10 @@ contains
             call rpn_comm_recv(longitude, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr)
             call rpn_comm_recv(tempoBmatrix(:,:), nkgdim*nkgdim, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr )
             if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then 
-              globalCountDumped = countDumped + obsOffset(taskIndex)
-              outBmatrix(globalCountDumped, :, :) = tempoBmatrix(:, :)
-              outLats(globalCountDumped)= latitude
-              outLons(globalCountDumped)= longitude
+              globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
+              outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
+              outLats(globalDumpedIndex) = latitude
+              outLons(globalDumpedIndex) = longitude
             end if
           end do
         end if
@@ -866,16 +868,16 @@ contains
 
       if (mmpi_myId == 0) then
         if (doAveraging) then
-          write(nulmat) sum(outLats(:))/countDumpedMpiGlobal, sum(outLons(:))/countDumpedMpiGlobal, &
+          write(nulmat) real(sum(outLats(:))/countDumpedMpiGlobal, kind=4), real(sum(outLons(:))/countDumpedMpiGlobal, kind=4), &
               sum(outBmatrix(:, :, :),dim=1)/countDumpedMpiGlobal
         else
           do dumpedIndex = 1, countDumpedMpiGlobal          
-            write(nulmat) outLats(dumpedIndex), outLons(dumpedIndex), outBmatrix(dumpedIndex, :, :)
+            write(nulmat) real(outLats(dumpedIndex), kind=4), real(outLons(dumpedIndex), kind=4), outBmatrix(dumpedIndex, :, :)
           end do
         end if
         ierr = fclos(nulmat)
         deallocate(outLats)
-        deallocate(outLOns)
+        deallocate(outLons)
         deallocate(outBmatrix)
         deallocate(tempoBmatrix)
       end if
