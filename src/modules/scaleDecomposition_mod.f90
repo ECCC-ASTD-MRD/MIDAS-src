@@ -387,7 +387,8 @@ contains
   subroutine scd_vertical(ensembleStateVector, nVertWaveBand,                &
                           vertWaveBandPeaks, vertmodesLengthScale,           &
                           decompositionMode, vertWaveBandIndexSelected_opt,  &
-                          writeResponseFunction_opt, writeTransformInfo_opt)
+                          writeResponseFunction_opt, writeTransformInfo_opt, &
+                          TGhandling_opt)
     !
     ! :Purpose: Perform a vertical scale decomposition of an ensemble state vector
     !
@@ -421,19 +422,23 @@ contains
     integer, optional, intent(in) :: vertWaveBandIndexSelected_opt
     logical, optional, intent(in) :: writeResponseFunction_opt
     logical, optional, intent(in) :: writeTransformInfo_opt
+    character(len=*), optional, intent(in) :: TGhandling_opt
 
     ! Locals:
     type(struct_gsv), allocatable :: gridStateVector_oneMember(:)
     type(struct_hco), pointer :: hco
     real(8), allocatable :: vertModesState4d(:,:,:,:)
     real(8), allocatable :: vertModesState4dFiltered(:,:,:,:)
-    real(8), pointer     :: gridState4d(:,:,:,:)
+    real(8), allocatable, target :: gridState4d(:,:,:,:)
+    real(8), pointer     :: ptr4d_r8(:,:,:,:)
     real(8), allocatable :: responseFunction(:,:)
     real(8), allocatable :: bandSum(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
+    character(len=4), pointer :: varNamesList(:)
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
-    character(len=4), pointer :: varNamesList(:)
+    character(len=4)   :: varNameForTransform
+    character(len=64)  :: TGhandling    
     integer :: vertWaveBandIndexSelected
     integer :: nMode, nModeMax, modeIndex, modeBeg, modeEnd, mTrunc
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
@@ -467,7 +472,13 @@ contains
     else
       vertWaveBandIndexSelected = -1
     end if
-    
+
+    if (present(TGhandling_opt)) then
+      TGhandling=TGhandling_opt
+    else
+      TGhandling='fullPertsInMediumScales'
+    end if
+
     if (trim(decompositionMode) == 'Split') then
       mTrunc = vertWaveBandPeaks(1)
       vertWaveBandIndexStart     = 2 ! Skip the shallowest scales
@@ -492,7 +503,7 @@ contains
     else
       write(*,*)
       write(*,*) 'decomposition mode = ', trim(decompositionMode)
-      call utl_abort('scd_vertocal: unknown decomposition mode')
+      call utl_abort('scd_vertical: unknown decomposition mode')
     end if
 
     nLev_M = ens_getNumLev(ensembleStateVector(1),'MM')
@@ -575,7 +586,7 @@ contains
       end do
     else ! Select
       allocate(gridStateVector_oneMember(1))
-      call gsv_allocate(gridStateVector_oneMember(1), numStep,                                    &
+      call gsv_allocate(gridStateVector_oneMember(1), numStep,                                  &
                         ens_getHco(ensembleStateVector(1)), ens_getVco(ensembleStateVector(1)), &
                         varNames_opt=varNamesList, datestamp_opt=tim_getDatestamp(),            &
                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8)
@@ -583,32 +594,51 @@ contains
 
     do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
       call ens_copyMember(ensembleStateVector(1), gridStateVector_oneMember(1), memberIndex) ! extract all the vertical scales
-
+      
       do varIndex = 1, numVar
 
-        nullify(gridState4d)
-        call gsv_getField(gridStateVector_oneMember(1),gridState4d,varName_opt=varNamesList(varIndex))
-        
+        varNameForTransform = varNamesList(varIndex)
+        nullify(ptr4d_r8)
         if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
           nLev  = nLev_M
-          nMode = nLev
+          call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
+          
         else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
           nLev  = nLev_T
-          nMode = nLev
+          call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
         else
-          gridState4d(:,:,:,:) = 0.d0
-          cycle
+          if (trim(varNamesList(varIndex)) == 'TG') then
+            if (trim(TGhandling) == 'expandWithTT') then
+              if (allocated(gridState4d)) deallocate(gridState4d)
+              call expandTG(gridStateVector_oneMember(1), gridState4d, nLev)
+              ptr4d_r8 => gridState4d
+              varNameForTransform = 'TT'
+            else
+              cycle ! varIndex
+            end if
+          else if (trim(varNamesList(varIndex)) == 'P0') then
+            ! Temporary measures
+            call gsv_getField(gridStateVector_oneMember(1),ptr4d_r8,varName_opt=varNamesList(varIndex))
+            ptr4d_r8(:,:,:,:) = 0.d0
+            cycle ! varIndex
+          else
+            write(*,*)
+            write(*,*) 'varname  = ', trim(varNamesList(varIndex))
+            write(*,*) 'varlevel = ', vnl_varLevelFromVarName(trim(varNamesList(varIndex)))
+            call utl_abort('scd_vertical: variable not handle yet')
+          end if
         end if
-
+        nMode = nLev
+        
         if (allocated(vertModesState4d)) deallocate(vertModesState4d)
         allocate(vertModesState4d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode,numStep))
 
         !- GridPoint space -> Vertical modes space
         do stepIndex = 1, numStep ! Loop on ensemble time bin
-          call vms_transform(vModes, vertModesState4d(:,:,:,stepIndex),            &
-                             gridState4d(:,:,:,stepIndex), 'GridPointToVertModes', &
-                             myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
-                             varNamesList(varIndex), modeEnd_opt=mTrunc)
+          call vms_transform(vModes, vertModesState4d(:,:,:,stepIndex),         &
+                             ptr4d_r8(:,:,:,stepIndex), 'GridPointToVertModes', &
+                             myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,      &
+                             varNameForTransform, modeEnd_opt=mTrunc)
         end do
 
         !- Filtering
@@ -617,9 +647,10 @@ contains
         
         do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
 
-          if (trim(decompositionMode) == 'Split') then
-            nullify(gridState4d)
-            call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),gridState4d,varName_opt=varNamesList(varIndex))
+          if (trim(decompositionMode) == 'Split' .and. trim(varNamesList(varIndex)) /= 'TG' ) then
+            ! Note that this step will only be done if TGhandling = 'expandWithTT'
+            nullify(ptr4d_r8)
+            call gsv_getField(gridStateVector_oneMember(vertWaveBandIndex),ptr4d_r8,varName_opt=varNamesList(varIndex))
           end if
 
           ! Select only the modes needed to make the transform faster
@@ -637,7 +668,7 @@ contains
           do stepIndex = 1, numStep ! Loop on ensemble time bin
             
             !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
-            do modeIndex = modeBeg, modeEnd ! 1, nMode
+            do modeIndex = modeBeg, modeEnd
               do latIndex = myLatBeg, myLatEnd
                 do lonIndex = myLonBeg, myLonEnd
                   vertModesState4dFiltered(lonIndex,latIndex,modeIndex,stepIndex) =   &
@@ -649,15 +680,31 @@ contains
             !$OMP END PARALLEL DO
 
             !- Vertical modes space -> GridPoint space
-            call vms_transform(vModes, vertModesState4dFiltered(:,:,:,stepIndex),    &
-                               gridState4d(:,:,:,stepIndex), 'VertModesToGridPoint', &
-                               myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,         &
-                               varNamesList(varIndex), modeBeg_opt=modeBeg,          &
+            call vms_transform(vModes, vertModesState4dFiltered(:,:,:,stepIndex), &
+                               ptr4d_r8(:,:,:,stepIndex), 'VertModesToGridPoint', &
+                               myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev,      &
+                               varNameForTransform, modeBeg_opt=modeBeg,          &
                                modeEnd_opt=modeEnd)
 
           end do ! stepIndex
+
+          if (trim(varNamesList(varIndex)) == 'TG') then
+            ! Note that this step will only be done if TGhandling = 'expandWithTT'
+            if (trim(decompositionMode) == 'Split') then
+              call extractTG(gridStateVector_oneMember(vertWaveBandIndex), gridState4d, nLev)
+            else
+              call extractTG(gridStateVector_oneMember(1), gridState4d, nLev)
+            end if
+          end if
+          
         end do ! vertWaveBandIndex
       end do ! variables
+
+      if (ens_varExist(ensembleStateVector(1),'TG') .and. trim(TGhandling) /= 'expandWithTT') then
+        call adhocTGdecomposition(gridStateVector_oneMember, decompositionMode, TGhandling, &
+                                  vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, &
+                                  vertWaveBandIndexLoopDirection, nVertWaveBand)
+      end if
 
       if (trim(decompositionMode) == 'Split') then
         do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
@@ -816,5 +863,151 @@ contains
     end if
 
   end function scd_filterResponseFunction
+
+  !--------------------------------------------------------------------------
+  ! expandTG
+  !--------------------------------------------------------------------------
+   subroutine expandTG(statevector, gridState4d, nLev)
+    !
+    ! :Purpose: Combine TT and TG to create a new 4D field with TG at the lower boundary
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)    , intent(in)  :: statevector
+    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:)
+    integer             , intent(out) :: nLev
+
+    ! Locals:
+    real(8), pointer     :: TTptr4d_r8(:,:,:,:)
+    real(8), pointer     :: TGptr4d_r8(:,:,:,:)
+    integer :: stepIndex, levIndex, lonIndex, latIndex
+
+    call gsv_getField(stateVector,TTptr4d_r8,varName_opt='TT')
+    call gsv_getField(stateVector,TGptr4d_r8,varName_opt='TG')
+
+    nLev = gsv_getNumLevFromVarName(stateVector,'TT')
+
+    allocate(gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep))
+
+    !$OMP PARALLEL DO PRIVATE (stepIndex,levIndex,latIndex,lonIndex)
+    do stepIndex = 1, statevector%numStep
+      do levIndex = 1, nLev
+        do latIndex = statevector%myLatBeg, statevector%myLatEnd
+          do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+            if (levIndex == nLev) then
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = TGptr4d_r8(lonIndex,latIndex,1,stepIndex)
+            else
+              gridState4d(lonIndex,latIndex,levIndex,stepIndex) = TTptr4d_r8(lonIndex,latIndex,levIndex,stepIndex)
+            end if
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine expandTG
+
+  !--------------------------------------------------------------------------
+  ! extractTG
+  !--------------------------------------------------------------------------
+  subroutine extractTG(statevector, gridState4d, nLev)
+    !
+    ! :Purpose: Copy the TG field from gridState4d into the input stateVector
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    integer,          intent(in)    :: nLev
+    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep)
+
+    ! Locals:
+    real(8), pointer :: TGptr4d_r8(:,:,:,:)
+    integer :: stepIndex, lonIndex, latIndex
+
+    call gsv_getField(stateVector,TGptr4d_r8,varName_opt='TG')
+    
+    !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
+    do stepIndex = 1, stateVector%numStep
+      do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+        do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+          TGptr4d_r8(lonIndex,latIndex,1,stepIndex) = gridState4d(lonIndex,latIndex,nLev,stepIndex)
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine extractTG
+
+  !--------------------------------------------------------------------------
+  ! adhocTGdecomposition
+  !--------------------------------------------------------------------------
+  subroutine adhocTGdecomposition(statevector, decompositionMode, TGhandling, &
+                                  vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, &
+                                  vertWaveBandIndexLoopDirection, nVertWaveBand)
+    !
+    ! :Purpose: Decompose TG with an ad hoc (i.e. crude) procedure
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector(:)
+    character(len=*), intent(in)    :: decompositionMode
+    character(len=*), intent(in)    :: TGhandling
+    integer,          intent(in)    :: vertWaveBandIndexLoopStart
+    integer,          intent(in)    :: vertWaveBandIndexLoopEnd
+    integer,          intent(in)    :: vertWaveBandIndexLoopDirection
+    integer,          intent(in)    :: nVertWaveBand
+    
+    ! Locals:
+    real(8), pointer :: TGfullPtr4d_r8(:,:,:,:)
+    real(8), pointer :: TGdecompPtr4d_r8(:,:,:,:)
+    real(8) :: factor
+    integer :: vertWaveBandIndex, fullPertsInThisWaveBandIndex
+
+    nullify(TGfullPtr4d_r8)
+    call gsv_getField(stateVector(1),TGfullPtr4d_r8,varName_opt='TG')
+
+    select case (trim(TGhandling))
+    case ('fullPertsInShallowScales')
+      fullPertsInThisWaveBandIndex = 1
+    case ('fullPertsInMediumScales')
+      fullPertsInThisWaveBandIndex = nint(real(nVertWaveBand,8) / 2.d0)
+    case ('splitEvenly')
+      factor = 1.d0 / real(nVertWaveBand,8)
+    case default
+      write(*,*)
+      write(*,*) 'Error:  Unknown TGhandling ', trim(TGhandling)
+      call utl_abort('scaleDecomposition : adhocTGdecomposition')
+    end select
+
+    if (trim(decompositionMode) == 'Split') then
+      do vertWaveBandIndex = vertWaveBandIndexLoopStart, vertWaveBandIndexLoopEnd, vertWaveBandIndexLoopDirection
+        nullify(TGdecompPtr4d_r8)
+        call gsv_getField(stateVector(vertWaveBandIndex),TGdecompPtr4d_r8,varName_opt='TG')
+        if (trim(TGhandling) == 'splitEvenly') then
+          TGdecompPtr4d_r8(:,:,:,:) = TGfullPtr4d_r8(:,:,:,:) * factor
+        else
+          if (vertWaveBandIndex == fullPertsInThisWaveBandIndex) then
+            TGdecompPtr4d_r8(:,:,:,:) = TGfullPtr4d_r8(:,:,:,:)
+          else
+            TGdecompPtr4d_r8(:,:,:,:) = 0.d0
+          end if
+        end if
+      end do
+    else ! select
+      if (trim(TGhandling) == 'splitEvenly') then
+          TGfullPtr4d_r8(:,:,:,:) = TGfullPtr4d_r8(:,:,:,:) / factor
+        else
+          if (vertWaveBandIndexLoopStart == fullPertsInThisWaveBandIndex) then
+            TGfullPtr4d_r8(:,:,:,:) = TGfullPtr4d_r8(:,:,:,:)
+          else
+            TGfullPtr4d_r8(:,:,:,:) = 0.d0
+          end if
+        end if
+    end if
+
+  end subroutine adhocTGdecomposition
   
 end module scaleDecomposition_mod
