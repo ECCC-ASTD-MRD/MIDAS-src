@@ -1,13 +1,19 @@
  &NAMBMAT1D
   scalefactorEns=200*1.0,
-  nEns = 24
-  vLocalize = 3.d0
+  nEns = 24,
+  vLocalize = 3.d0,
   includeAnlVar(1)= 'UU',
   includeAnlVar(2)= 'VV',
   includeAnlVar(3)= 'TT',
   includeAnlVar(4)= 'HU',
   includeAnlVar(5)= 'P0',
   includeAnlVar(6)= 'TG',
+  dumpBmatrixToFile=.true.,
+  lonMin=148.,
+  lonMax=162.,
+  latMin=10.0,
+  latMax=20.0,
+  doAveraging=.true.
 /
  &NAMMIN
    NVAMAJ = 7,
