@@ -832,8 +832,8 @@ contains
         columnIndex = listColumnDumped(dumpedIndex)
         if (columnIndex > 0) then
           headerIndex = var1D_validHeaderIndex(columnIndex)
-          latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+          longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
         else
           latitude = MPC_missingValue_R8
           longitude = MPC_missingValue_R8
