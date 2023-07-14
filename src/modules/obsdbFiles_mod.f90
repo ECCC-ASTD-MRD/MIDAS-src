@@ -2295,7 +2295,18 @@ contains
 
     call fSQL_exec_stmt(stmt)
   
-    query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) // &
+            ' from '// trim(midasBodyTableName) //';'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_do_many( db, query, stat )
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+    write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+    call utl_abort('obdf_clean: Problem with fSQL_do_many')
+    end if
+
+    query = 'create temporary table good_bodies as select distinct '// trim(obsHeadKeySqlName) // ',' // &
+            trim(obsBodyKeySqlName) // ' from '// trim(midasBodyTableName) //';'
     write(*,*) 'obdf_clean: query = ', trim(query)
     call fSQL_do_many(db, query, stat)
 
@@ -2316,8 +2327,10 @@ contains
 
     call fSQL_exec_stmt(stmt)
 
-    query = 'delete from '// trim(bodyTableName) //' where '// trim(obsHeadKeySqlName) // &
-            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
+    query = 'delete from '// trim(bodyTableName) // &
+            ' where ('// trim(obsHeadKeySqlName) // ','// trim(obsBodyKeySqlName) // ')' // &
+            ' not in ( select '// trim(obsHeadKeySqlName) // ',' // trim(obsBodyKeySqlName) // &
+            ' from good_bodies );'
     write(*,*) 'obdf_clean: query = ', trim(query)
     call fSQL_prepare(db, query, stmt, stat)
 
