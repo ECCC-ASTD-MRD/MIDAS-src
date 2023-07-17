@@ -1275,8 +1275,10 @@ contains
           cldPredMissing = (scatIndexOverWaterObs == MPC_missingValue_R8)
         end if
 
-        if (.not. cldPredMissing .and. scatwUsedForQC > scatwUsedForQcThresh) then
+        if (cldPredMissing) then
           FULLREJCT = .TRUE.
+        else
+          if (scatwUsedForQC > scatwUsedForQcThresh) FULLREJCT = .TRUE.
         end if
       end if
 
