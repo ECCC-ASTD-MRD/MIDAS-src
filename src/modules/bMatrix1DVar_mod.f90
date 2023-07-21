@@ -786,17 +786,17 @@ contains
   !--------------------------------------------------------------------------
   ! dumpBmatrices
   !--------------------------------------------------------------------------
-  subroutine dumpBmatrices(vco_in, obsSpaceData, dateStampList, bSqrtEns)
+  subroutine dumpBmatrices(vco_in, obsSpaceData, dateStampList, bEns)
     !
     ! :Purpose: output B matrices or their average to binary file Bmatrix.bin
     !
     implicit none
     
     ! Arguments:
-    type(struct_vco), pointer, intent(in)    :: vco_in
-    type (struct_obs)        , intent(inout) :: obsSpaceData
-    integer                  , intent(in)    :: dateStamplist(:)
-    real(8)                  , intent(in)    :: bSqrtEns(:,:,:)
+    type(struct_vco), pointer, intent(in)    :: vco_in           ! Analysis vertical grid descriptor
+    type (struct_obs)        , intent(inout) :: obsSpaceData     ! ObsSpaceData structure
+    integer                  , intent(in)    :: dateStamplist(:) ! List of datestamps
+    real(8)                  , intent(in)    :: bEns(:,:,:)      ! B matrices (first dimension is location index)
 
     ! Locals:
     integer :: nulmat, ierr
@@ -860,7 +860,7 @@ contains
           listColumnDumped(countDumped) = columnIndex
         end if
       end do
-      nkgdim = size(bSqrtEns, dim=2)
+      nkgdim = size(bEns, dim=2)
       if (mmpi_myId == 0) then
         nulmat = 0
         ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
@@ -887,19 +887,10 @@ contains
       end if
       if (mmpi_myId == 0) then
         if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then 
-          outBmatrix(dumpedIndex, :, :) = bSqrtEns(columnIndex, :, :)
+          outBmatrix(dumpedIndex, :, :) = bEns(columnIndex, :, :)
           outLats(dumpedIndex) = latitude
           outLons(dumpedIndex) = longitude
         end if
-      else
-        tag = 3 * mmpi_myID
-        call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
-        call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
-        if (columnIndex > 0) then
-          call rpn_comm_send(bSqrtEns(columnIndex, :, :), nkgdim*nkgdim, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
-        end if
-      end if
-      if (mmpi_myId == 0) then
         do taskIndex = 1,  mmpi_nprocs - 1
           tag = 3 * taskIndex
           call rpn_comm_recv(latitude, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
@@ -912,6 +903,13 @@ contains
             outLons(globalDumpedIndex) = longitude
           end if
         end do
+      else
+        tag = 3 * mmpi_myID
+        call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
+        call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
+        if (columnIndex > 0) then
+          call rpn_comm_send(bEns(columnIndex, :, :), nkgdim*nkgdim, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
+        end if
       end if
     end do
 
