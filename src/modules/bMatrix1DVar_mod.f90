@@ -829,20 +829,16 @@ contains
         countDumped = countDumped + 1
       end if
     end do
-    call rpn_comm_barrier("GRID", ierr)
+    call rpn_comm_barrier('GRID', ierr)
     
-    call rpn_comm_gather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
-    if (mmpi_myId ==0) then
-      countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
-      countDumpedMax = maxval( countDumpedAllTasks(:) )
-      obsOffset(0) = 0
-      do taskIndex = 1, mmpi_nprocs - 1
-        obsOffset(taskIndex) = obsOffset(taskIndex - 1) + countDumpedAllTasks(taskIndex)
-      end do
-      write(*,*) 'dumpBmatrices: obsOffset: ', obsOffset(:)
-    end if
-    call rpn_comm_bcast(obsOffset, mmpi_nprocs, 'MPI_INTEGER', 0,  "GRID", ierr)
-    call rpn_comm_bcast(countDumpedMax, 1, 'MPI_INTEGER', 0,  "GRID", ierr)
+    call rpn_comm_allgather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 'GRID', ierr)
+    countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
+    countDumpedMax = maxval( countDumpedAllTasks(:) )
+    obsOffset(0) = 0
+    do taskIndex = 1, mmpi_nprocs - 1
+      obsOffset(taskIndex) = obsOffset(taskIndex - 1) + countDumpedAllTasks(taskIndex)
+    end do
+    write(*,*) 'dumpBmatrices: obsOffset: ', obsOffset(:)
     
     if (countDumpedMax > 0) then
       allocate(listColumnDumped(countDumpedMax))
