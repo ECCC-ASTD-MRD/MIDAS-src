@@ -119,10 +119,10 @@ contains
     numIncludeAnlVar = MPC_missingValue_INT
     dumpBmatrixTofile = .false.
     doAveraging = .false.
-    latMin = MPC_missingValue_R8
-    latMax = MPC_missingValue_R8
-    lonMin = MPC_missingValue_R8
-    lonMax = MPC_missingValue_R8
+    latMin = -1000.d0
+    latMax = 1000.d0
+    lonMin = -1000.d0
+    lonMax = 1000.d0
     
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
