@@ -792,11 +792,11 @@ contains
     !
     implicit none
     
-    ! Arguments
+    ! Arguments:
     type(struct_vco), pointer, intent(in)    :: vco_in
     type (struct_obs)        , intent(inout) :: obsSpaceData
     integer                  , intent(in)    :: dateStamplist(:)
-    real(8)                  , intent(inout) :: bSqrtEns(:,:,:)
+    real(8)                  , intent(in)    :: bSqrtEns(:,:,:)
 
     ! Locals:
     integer :: nulmat, ierr
@@ -807,10 +807,12 @@ contains
     integer :: tag, status
     integer :: numstep, nkgdim
     integer, external ::  fnom, fclos, newdate
-    integer, allocatable :: obsOffset(:), countDumpedAllTasks(:),listColumnDumped(:)
+    integer              :: obsOffset(0:mmpi_nprocs-1)
+    integer              :: countDumpedAllTasks(mmpi_nprocs)
+    integer, allocatable :: listColumnDumped(:)
     real(8) :: latitude, longitude
     real(8), allocatable :: tempoBmatrix(:,:)
-    real(8), allocatable :: outLats(:),outLons(:),outBmatrix(:,:,:)
+    real(8), allocatable :: outLats(:),outLons(:), outBmatrix(:,:,:)
 
     if (mmpi_myid == 0) write(*,*) 'dumpBmatrices: Starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -829,12 +831,6 @@ contains
     end do
     call rpn_comm_barrier("GRID", ierr)
     
-    allocate( obsOffset(0:mmpi_nprocs-1) )
-    if (mmpi_myid ==0) then
-      allocate( countDumpedAllTasks(mmpi_nprocs) )
-    else
-      allocate(countDumpedAllTasks(1))
-    end if
     call rpn_comm_gather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
     if (mmpi_myId ==0) then
       countDumpedMpiGlobal = sum( countDumpedAllTasks(:) )
@@ -934,8 +930,6 @@ contains
       deallocate(outBmatrix)
       deallocate(tempoBmatrix)
     end if
-    deallocate(obsOffset)
-    deallocate(countDumpedAllTasks)
     if (allocated(listColumnDumped)) deallocate(listColumnDumped)
   end subroutine dumpBmatrices
 
