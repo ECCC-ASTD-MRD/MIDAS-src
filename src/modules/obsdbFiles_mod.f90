@@ -2301,8 +2301,8 @@ contains
     call fSQL_do_many( db, query, stat )
 
     if ( fSQL_error(stat) /= FSQL_OK ) then
-    write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-    call utl_abort('obdf_clean: Problem with fSQL_do_many')
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('obdf_clean: Problem with fSQL_do_many')
     end if
 
     query = 'create temporary table good_bodies as select distinct '// trim(obsHeadKeySqlName) // ',' // &
