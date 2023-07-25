@@ -61,7 +61,7 @@ clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assi
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.8
+clone_projet --no-central -c v_3.9 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.9
 ```
 
 If you created a new branch with the GitLab web UI, then the branch
