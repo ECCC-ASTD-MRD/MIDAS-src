@@ -9,16 +9,13 @@ module verticalModes_mod
   !           Therefore, capablity #2 behaves like a spectral transform but in the vertical
   !           dimension.
   !
-  use earthConstants_mod
   use utilities_mod
   use varNameList_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use localizationFunction_mod
   use calcHeightAndPressure_mod
-  use gridStatevector_mod
   use ensembleStatevector_mod
-  use timeCoord_mod
   use midasMpi_mod
   implicit none
   save

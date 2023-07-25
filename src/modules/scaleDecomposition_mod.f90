@@ -35,36 +35,36 @@ contains
     !
     ! :Purpose: Perform a horizontal scale decomposition of an ensemble state vector
     !
-    ! --> Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
+    !           Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
     !
-    ! --- Ensemble Data at the Start  ---
-    ! ensembleStateVector(1               ) contains the full data
-    ! ensembleStateVector(2:nHorizWaveBand) already allocated but empty
+    !           - --- Ensemble Data at the Start  ---
+    !             - ensembleStateVector(1               ) contains the full data
+    !             - ensembleStateVector(2:nHorizWaveBand) already allocated but empty
     !
-    ! --- Ensemble Data at the End    ---
-    ! ensembleStateVector(nHorizWaveBand  ) contains the largest scales
-    ! ...
-    ! ensembleStateVector(1               ) contains the smallest scales
+    !           - --- Ensemble Data at the End    ---
+    !             - ensembleStateVector(nHorizWaveBand  ) contains the largest scales
+    !             - ...
+    !             - ensembleStateVector(1               ) contains the smallest scales
     !
-    ! --> Mode Select (e.g. for SDLwSL in bMatrixEnsemble_mod)
+    !           Mode Select (e.g. for SDLwSL in bMatrixEnsemble_mod)
     !
-    ! --- Ensemble Data at the Start  ---
-    ! ensembleStateVector(1) contains the full data
+    !           - --- Ensemble Data at the Start  ---
+    !             - ensembleStateVector(1) contains the full data
     !
-    ! --- Ensemble Data at the End    ---
-    ! ensembleStateVector(1) contains the selected scales
+    !           - --- Ensemble Data at the End    ---
+    !             - ensembleStateVector(1) contains the selected scales
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleStateVector(:)
-    integer, intent(in) :: nEnsOverDimension
-    integer, intent(in) :: nHorizWaveBand
-    integer, intent(in) :: horizWaveBandPeaks(:)
-    character(len=*), intent(in) :: decompositionMode
-    character(len=*), intent(in) :: filterResponseFunctionMode
-    integer, optional, intent(in) :: horizWaveBandIndexSelected_opt
-    logical, optional, intent(in) :: writeResponseFunction_opt
+    type(struct_ens),  intent(inout) :: ensembleStateVector(:) ! Array of ensemble perturbations. Contains the full horizontal perturbations in input and one or more horinzontal wavebands in output
+    integer,           intent(in)    :: nEnsOverDimension ! Ensemble size used for the spectral transform
+    integer,           intent(in)    :: nHorizWaveBand ! Number of horizontal wavebands
+    integer,           intent(in)    :: horizWaveBandPeaks(:) ! Total wavenumbers corresponding to the peaks of each waveband
+    character(len=*),  intent(in)    :: decompositionMode ! 'Split' or 'Select'
+    character(len=*),  intent(in)    :: filterResponseFunctionMode ! 'SumToOne' or 'SquareSumToOne'
+    integer, optional, intent(in)    :: horizWaveBandIndexSelected_opt ! Use the select the approprate waveband when 'decompositionMode' = 'select'
+    logical, optional, intent(in)    :: writeResponseFunction_opt ! Option to write the filter response functions to text files
     
     ! Locals:
     type(struct_hco), pointer :: hco
@@ -181,7 +181,7 @@ contains
     end if
 
     !
-    !- 1.  Scale decomposition for every wave band except for wave band #1
+    !- 1.  Scale decomposition for every waveband except for waveband #1
     !
     if (trim(decompositionMode) == 'Split') then
       horizWaveBandIndexStart     = 2 ! Skip the smallest scales
@@ -392,37 +392,37 @@ contains
     !
     ! :Purpose: Perform a vertical scale decomposition of an ensemble state vector
     !
-    ! --> Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
+    !           Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
     !
-    ! --- Ensemble Data at the Start  ---
-    ! ensembleStateVector(1               ) contains all the vertical scales
-    ! ensembleStateVector(2:nVertWaveBand) already allocated but empty
+    !           - --- Ensemble Data at the Start  ---
+    !             - ensembleStateVector(1               ) contains all the vertical scales
+    !             - ensembleStateVector(2:nVertWaveBand) already allocated but empty
     !
-    ! --- Ensemble Data at the End    ---
-    ! ensembleStateVector(nVertWaveBand  ) contains the deepest scales
-    ! ...
-    ! ensembleStateVector(1               ) contains the shallowest scales
+    !           - --- Ensemble Data at the End    ---
+    !             - ensembleStateVector(nVertWaveBand  ) contains the deepest scales
+    !             - ...
+    !             - ensembleStateVector(1               ) contains the shallowest scales
     !
-    ! --> Mode Select (e.g. for calcStatsGlb_mod)
+    !           Mode Select (e.g. for calcStatsGlb_mod)
     !
-    ! --- Ensemble Data at the Start  ---
-    ! ensembleStateVector(1) contains all the vertical scales
+    !           - --- Ensemble Data at the Start  ---
+    !             - ensembleStateVector(1) contains all the vertical scales
     !
-    ! --- Ensemble Data at the End    ---
-    ! ensembleStateVector(1) contains the selected scales
+    !           - --- Ensemble Data at the End    ---
+    !             - ensembleStateVector(1) contains the selected scales
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleStateVector(:)
-    integer, intent(in) :: nVertWaveBand
-    integer, intent(in) :: vertWaveBandPeaks(:)
-    real(8), intent(in) :: vertModesLengthScale(2)
-    character(len=*), intent(in) :: decompositionMode
-    integer, optional, intent(in) :: vertWaveBandIndexSelected_opt
-    logical, optional, intent(in) :: writeResponseFunction_opt
-    logical, optional, intent(in) :: writeTransformInfo_opt
-    character(len=*), optional, intent(in) :: TGhandling_opt
+    type(struct_ens),           intent(inout) :: ensembleStateVector(:) ! Array of ensemble perturbations. Contains the full vertical perturbations in input and one or more vertical wavebands in output
+    integer,                    intent(in)    :: nVertWaveBand ! Number of vertical wavebands
+    integer,                    intent(in)    :: vertWaveBandPeaks(:) ! Eigenvectors corresponding to the peaks of each waveband
+    real(8),                    intent(in)    :: vertModesLengthScale(2) ! Correlation lenghtscales used to compute the vertical correlation matrix for the eigendecomposition
+    character(len=*),           intent(in)    :: decompositionMode ! 'Split' or 'Select'
+    integer, optional,          intent(in)    :: vertWaveBandIndexSelected_opt ! Use the select the approprate waveband when 'decompositionMode' = 'select'
+    logical, optional,          intent(in)    :: writeResponseFunction_opt ! Option to write the filter response functions to text files
+    logical, optional,          intent(in)    :: writeTransformInfo_opt ! Option to write the eigenvectors to text files
+    character(len=*), optional, intent(in)    :: TGhandling_opt ! Option related to the handling of the 2D field TG
 
     ! Locals:
     type(struct_gsv), allocatable :: gridStateVector_oneMember(:)
@@ -767,23 +767,26 @@ contains
   ! scd_filterResponseFunction
   !--------------------------------------------------------------------------
   function scd_filterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, &
-                                      nWaveBand) result(ResponseFunction) 
+                                      nWaveBand) result(ResponseFunction)
+    !
+    ! :Purpose: Compute the filter response function for a given total wavenumber and a given waveband
+    !
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: totalWaveNumber
-    integer, intent(in) :: waveBandIndex
-    integer, intent(in) :: nWaveBand
-    integer, intent(in) :: waveBandPeaks(:)
+    real(8), intent(in) :: totalWaveNumber ! Total wavenumber
+    integer, intent(in) :: waveBandIndex ! Waveband wanted
+    integer, intent(in) :: nWaveBand ! Number of horizontal wavebands
+    integer, intent(in) :: waveBandPeaks(:) ! Total wavenumbers corresponding to the peaks of each waveband
     ! Result:
-    real(8) :: ResponseFunction 
+    real(8) :: ResponseFunction ! Response function value
 
     ! Locals:
     real(8) :: linearResponse, lowerLimit, center, upperLimit
     real(8), parameter :: pi = 2.d0*asin(1.d0)
 
     if (waveBandIndex == nWaveBand ) then
-       ! This wave band contains the largest scales.
+       ! This waveband contains the largest scales.
        !
        ! The response function is 1 total wave number <= waveBandPeaks(nWaveBand)
        ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
@@ -807,7 +810,7 @@ contains
        end if
 
     else if ( waveBandIndex /= 1 ) then
-       ! This wave band contains intermediate scales (i.e., not the largest or the smallest).
+       ! This waveband contains intermediate scales (i.e., not the largest or the smallest).
        !
        ! The response function is 1 (only) for the total wave number = waveBandPeaks(waveBandIndex)
        ! and decreases to 0 at both waveBandPeaks(waveBandIndex+1) and waveBandPeaks(waveBandIndex-1)
@@ -837,7 +840,7 @@ contains
 
     else
        !
-       ! This wave band contains the smallest scales.
+       ! This waveband contains the smallest scales.
        !
        ! The response function is 1 total wave number >= waveBandPeaks(nWaveBand)
        ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
@@ -874,9 +877,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv)    , intent(in)  :: statevector
-    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:)
-    integer             , intent(out) :: nLev
+    type(struct_gsv)    , intent(in)  :: statevector ! Gridded state vector contaning the full state of an ensemble member
+    real(8), allocatable, intent(out) :: gridState4d(:,:,:,:) ! Combined TT and TG gridded state
+    integer             , intent(out) :: nLev ! Number of vertical levels for the 3D temperature field
 
     ! Locals:
     real(8), pointer     :: TTptr4d_r8(:,:,:,:)
@@ -918,9 +921,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector
-    integer,          intent(in)    :: nLev
-    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep)
+    type(struct_gsv), intent(inout) :: statevector ! Gridded state vector contaning a vertical scale decomposed ensemble member
+    integer,          intent(in)    :: nLev ! Number of vertical levels for the 3D temperature field
+    real(8),          intent(in)    :: gridState4d(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nLev,statevector%numStep) ! Combined TT and TG gridded state after vertical scale decomposition
 
     ! Locals:
     real(8), pointer :: TGptr4d_r8(:,:,:,:)
@@ -952,13 +955,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector(:)
-    character(len=*), intent(in)    :: decompositionMode
-    character(len=*), intent(in)    :: TGhandling
-    integer,          intent(in)    :: vertWaveBandIndexLoopStart
-    integer,          intent(in)    :: vertWaveBandIndexLoopEnd
-    integer,          intent(in)    :: vertWaveBandIndexLoopDirection
-    integer,          intent(in)    :: nVertWaveBand
+    type(struct_gsv), intent(inout) :: statevector(:) ! Gridded state vector contaning a full ensemble member in input and the scale decomposed state in output
+    character(len=*), intent(in)    :: decompositionMode ! 'Split' or 'Select'
+    character(len=*), intent(in)    :: TGhandling ! Chosen approach to decompose the 2D field TG
+    integer,          intent(in)    :: vertWaveBandIndexLoopStart ! First vertical waveband to treat
+    integer,          intent(in)    :: vertWaveBandIndexLoopEnd ! Last vertical waveband to treat
+    integer,          intent(in)    :: vertWaveBandIndexLoopDirection ! Vertical wavebands treatment order
+    integer,          intent(in)    :: nVertWaveBand ! Number of vertical wavebands
     
     ! Locals:
     real(8), pointer :: TGfullPtr4d_r8(:,:,:,:)
