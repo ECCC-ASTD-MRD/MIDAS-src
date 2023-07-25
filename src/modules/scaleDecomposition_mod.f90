@@ -2,7 +2,8 @@
 module scaleDecomposition_mod
   ! MODULE scaleDecomposition_mod (prefix='scd' category='4. Data Object transformations')
   !
-  ! :Purpose: To perform horizontal and vertical scale decomposition of an ensemble state vector
+  ! :Purpose: To perform horizontal and vertical scale decomposition of an ensemble
+  !           state vector
   !
   use utilities_mod
   use horizontalCoord_mod
@@ -37,22 +38,26 @@ contains
     !
     !           Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
     !
-    !           - --- Ensemble Data at the Start  ---
-    !             - ensembleStateVector(1               ) contains the full data
-    !             - ensembleStateVector(2:nHorizWaveBand) already allocated but empty
+    !             - --- Ensemble Data at the Start  ---
     !
-    !           - --- Ensemble Data at the End    ---
-    !             - ensembleStateVector(nHorizWaveBand  ) contains the largest scales
-    !             - ...
-    !             - ensembleStateVector(1               ) contains the smallest scales
+    !               - ensembleStateVector(1               ) contains the full data
+    !               - ensembleStateVector(2:nHorizWaveBand) already allocated but empty
+    !
+    !             - --- Ensemble Data at the End    ---
+    !
+    !               - ensembleStateVector(nHorizWaveBand  ) contains the largest scales
+    !               - ...
+    !               - ensembleStateVector(1               ) contains the smallest scales
     !
     !           Mode Select (e.g. for SDLwSL in bMatrixEnsemble_mod)
     !
-    !           - --- Ensemble Data at the Start  ---
-    !             - ensembleStateVector(1) contains the full data
+    !             - --- Ensemble Data at the Start  ---
     !
-    !           - --- Ensemble Data at the End    ---
-    !             - ensembleStateVector(1) contains the selected scales
+    !               - ensembleStateVector(1) contains the full data
+    !
+    !             - --- Ensemble Data at the End    ---
+    !
+    !               - ensembleStateVector(1) contains the selected scales
     !
     implicit none
 
@@ -394,22 +399,26 @@ contains
     !
     !           Mode Split (e.g. for SDL in bMatrixEnsemble_mod)
     !
-    !           - --- Ensemble Data at the Start  ---
-    !             - ensembleStateVector(1               ) contains all the vertical scales
-    !             - ensembleStateVector(2:nVertWaveBand) already allocated but empty
+    !             - --- Ensemble Data at the Start  ---
     !
-    !           - --- Ensemble Data at the End    ---
-    !             - ensembleStateVector(nVertWaveBand  ) contains the deepest scales
-    !             - ...
-    !             - ensembleStateVector(1               ) contains the shallowest scales
+    !               - ensembleStateVector(1               ) contains all the vertical scales
+    !               - ensembleStateVector(2:nVertWaveBand) already allocated but empty
+    !
+    !             - --- Ensemble Data at the End    ---
+    !
+    !               - ensembleStateVector(nVertWaveBand  ) contains the deepest scales
+    !               - ...
+    !               - ensembleStateVector(1               ) contains the shallowest scales
     !
     !           Mode Select (e.g. for calcStatsGlb_mod)
     !
-    !           - --- Ensemble Data at the Start  ---
-    !             - ensembleStateVector(1) contains all the vertical scales
+    !             - --- Ensemble Data at the Start  ---
     !
-    !           - --- Ensemble Data at the End    ---
-    !             - ensembleStateVector(1) contains the selected scales
+    !               - ensembleStateVector(1) contains all the vertical scales
+    !
+    !             - --- Ensemble Data at the End    ---
+    !
+    !               - ensembleStateVector(1) contains the selected scales
     !
     implicit none
 
