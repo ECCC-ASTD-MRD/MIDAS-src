@@ -23,7 +23,7 @@ module globalSpectralTransform_mod
   public :: gst_ilaList_mpilocal, gst_ilaList_mpiglobal
   ! public functions
   public :: gst_getRmu, gst_getRwt, gst_getnind, gst_getrlati, gst_getr1qm2, gst_getrsqm2
-  public :: gst_getrnnp1, gst_getr1snp1, gst_getzleg, gst_getNla
+  public :: gst_getrnnp1, gst_getr1snp1, gst_getzleg, gst_getNla, gst_getNtrunc
 
 
   type  :: T_gst
@@ -131,7 +131,28 @@ contains
 
   end function GST_getNla
 
+  integer function GST_getNtrunc(gstID_opt)
+    !
+    ! :Purpose: To know the internal nTrunc use when nTrunc_in was set to -1 (no truncation) in gst_setup
+    !
+    implicit none
 
+    ! Arguments:
+    integer, optional, intent(in) :: gstID_opt
+
+    ! Locals:
+    integer :: gstID_l
+
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
+    else
+      gstID_l = gstIdDefault
+    endif
+
+    gst_getNtrunc = gst(gstID_l)%nTrunc
+    
+  end function GST_getNtrunc
+  
   real(8) function GST_getRmu(latIndex,gstID_opt)
     implicit none
 

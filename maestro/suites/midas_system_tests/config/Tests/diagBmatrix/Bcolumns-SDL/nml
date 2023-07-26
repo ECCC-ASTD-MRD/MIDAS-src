@@ -12,8 +12,8 @@
  &NAMBEN
    NTRUNC       = 80,
    NENS         = 16
-   LOCALIZATIONTYPE = 'ScaleDependent'
-   WAVEBANDPEAKS = 80,20,4
+   horizLocalizationType = 'ScaleDependent'
+   horizWaveBandPeaks = 80,20,4
    hLocalize    = 250.d0 , 500.d0, 1000.0d0
    vLocalize    = -1.d0
    SCALEFACTOR  = 100*1.00D0
