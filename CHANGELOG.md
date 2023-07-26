@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
 
 ### Changed
