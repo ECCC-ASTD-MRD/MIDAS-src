@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
 
 ### Removed
 

@@ -1348,7 +1348,7 @@ contains
         real(8) ::  ScaleFactorBottom, ScaleFactorTop
         real(8), allocatable :: delThick(:,:,:,:)
         real(8), pointer     :: height_M_ptr(:,:,:,:),height_T_ptr(:,:,:,:)
-        real(8), allocatable :: delHeight_M(:,:,:,:),delHeight_T(:,:,:,:)
+        real(8), allocatable :: delHeight_M(:,:,:,:)
         real(8), pointer     :: P_M(:,:,:,:),P_T(:,:,:,:)
         real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
         real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
@@ -1365,12 +1365,9 @@ contains
         allocate(delHeight_M(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
                              statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
                              nlev_M,numStep))
-        allocate(delHeight_T(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
-                             statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
-                             nlev_T,numStep))
         allocate(delThick(statevectorRef%myLonBeg:statevectorRef%myLonEnd, &
                           statevectorRef%myLatBeg:statevectorRef%myLatEnd, &
-                          0:nlev_T,numStep))
+                          nlev_T,numStep))
 
         ! generate the height coefficients on the grid
         call calcHeightCoeff_gsv(statevectorRef)
@@ -1389,7 +1386,6 @@ contains
         call gsv_getField(statevector,delP_T_r48,'P_T')
         call gsv_getField(statevector,delP_M_r48,'P_M')
         delHeight_M(:,:,:,:) = delHeight_M_ptr_r48(:,:,:,:)
-        delHeight_T(:,:,:,:) = delHeight_T_ptr_r48(:,:,:,:)
 
         if_computeHeight_gsv_ad_vcodes : if(Vcode == 5002) then
 
@@ -1405,39 +1401,39 @@ contains
                   if (lev_T == 1) then
                     delHeight_M(lonIndex,latIndex,1,stepIndex)  =  &
                         delHeight_M(lonIndex,latIndex,1,stepIndex) + &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delTT_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delTT_r48(lonIndex,latIndex,1,stepIndex) + &
                         coeff_T_TT_gsv(lonIndex,latIndex,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delHU_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delHU_r48(lonIndex,latIndex,1,stepIndex) + &
                         coeff_T_HU_gsv   (lonIndex,latIndex,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delP_M_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delP_M_r48(lonIndex,latIndex,1,stepIndex) + &
                         coeff_T_P0_delP1_gsv(lonIndex,latIndex,stepIndex) / &
                         P_M(lonIndex,latIndex,1,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delP_T_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delP_T_r48(lonIndex,latIndex,1,stepIndex) - &
                         coeff_T_P0_delP1_gsv(lonIndex,latIndex,stepIndex) / &
                         P_T(lonIndex,latIndex,1,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delP_T_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delP_T_r48(lonIndex,latIndex,1,stepIndex) + &
                         coeff_T_P0_dP_delPT_gsv(lonIndex,latIndex,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
 
                     delP0_r48(lonIndex,latIndex,1,stepIndex) =  &
                         delP0_r48(lonIndex,latIndex,1,stepIndex) + &
                         coeff_T_P0_dp_delP0_gsv(lonIndex,latIndex,stepIndex) * &
-                        delHeight_T(lonIndex,latIndex,1,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,1,stepIndex)
                   else
                     ScaleFactorBottom =  &
                         (height_T_ptr(lonIndex,latIndex,lev_T,stepIndex) - &
@@ -1449,12 +1445,12 @@ contains
                     delHeight_M(lonIndex,latIndex,lev_M-1,stepIndex) =  &
                         delHeight_M(lonIndex,latIndex,lev_M-1,stepIndex) + &
                         ScaleFactorTop * &
-                        delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
 
                     delHeight_M(lonIndex,latIndex,lev_M,stepIndex) =  &
                         delHeight_M(lonIndex,latIndex,lev_M  ,stepIndex) + &
                         ScaleFactorBottom * &
-                        delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
+                        delHeight_T_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
                   end if
                 end do
               end do
@@ -1462,7 +1458,7 @@ contains
           end do
 
           ! adjoint of compute height increment on momentum levels above the surface
-          delThick(:,:,0:1,:) = 0.0d0
+          delThick(:,:,1,:) = 0.0d0
           do stepIndex = 1, numStep
             do lev_M = 1, (nlev_M-1)
               do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
@@ -1536,26 +1532,30 @@ contains
                   delHeight_M(lonIndex,latIndex,lev_M-1,stepIndex) = &
                       delHeight_M(lonIndex,latIndex,lev_M-1,stepIndex) + &
                       ScaleFactorTop * &
-                      delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
+                      delHeight_T_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
                   delHeight_M(lonIndex,latIndex,lev_M,stepIndex) = &
                       delHeight_M(lonIndex,latIndex,lev_M  ,stepIndex) + &
                       ScaleFactorBottom * &
-                      delHeight_T(lonIndex,latIndex,lev_T,stepIndex)
+                      delHeight_T_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
                 end do
               end do
             end do
           end do
 
           ! adjoint of compute height increment on momentum levels
-          delThick(:,:,0,:) = 0.0d0
           do stepIndex = 1, numStep
             do lev_M = 1, (nlev_M-1)
               do latIndex = statevectorRef%myLatBeg, statevectorRef%myLatEnd
                 do lonIndex = statevectorRef%myLonBeg, statevectorRef%myLonEnd
                   lev_T = lev_M ! thermo level just below momentum level being computed
-                  delThick(lonIndex,latIndex,lev_T,stepIndex) = &
-                      delThick(lonIndex,latIndex,lev_T-1,stepIndex) + &
-                      delHeight_M (lonIndex,latIndex,lev_M,stepIndex)
+                  if (lev_T == 1) then
+                    delThick(lonIndex,latIndex,lev_T,stepIndex) = &
+                        delHeight_M (lonIndex,latIndex,lev_M,stepIndex)
+                  else
+                    delThick(lonIndex,latIndex,lev_T,stepIndex) = &
+                        delThick(lonIndex,latIndex,lev_T-1,stepIndex) + &
+                        delHeight_M (lonIndex,latIndex,lev_M,stepIndex)
+                  end if
                 end do
               end do
             end do
@@ -1609,7 +1609,6 @@ contains
 
         deallocate(delThick)
         deallocate(delHeight_M)
-        deallocate(delHeight_T)
 
         call msg('calcHeight_gsv_ad_vcode5xxx (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_gsv_ad_vcode5xxx
@@ -2088,6 +2087,7 @@ contains
     end do
 
     deallocate(Psfc)
+    if (Vcode == 5100) deallocate(PsfcLS)
 
     call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'END', verb_opt=4)
   end subroutine calcPressure_gsv_nl_vcode5xxx_r8
@@ -3075,7 +3075,7 @@ contains
         real(8) :: ScaleFactorBottom, ScaleFactorTop
         real(8), allocatable :: delThick(:,:)
         real(8), pointer     :: height_M_ptr(:,:),height_T_ptr(:,:)
-        real(8), allocatable :: delHeight_M(:,:),delHeight_T(:,:)
+        real(8), allocatable :: delHeight_M(:,:)
         real(8), pointer     :: P_M(:,:),P_T(:,:)
         real(8), pointer     :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
         real(8), pointer     :: delTT(:,:),delHU(:,:),delP0(:,:)
@@ -3088,7 +3088,6 @@ contains
         numColumns = col_getNumCol(columnIncRef)
 
         allocate(delHeight_M(nlev_M,numColumns))
-        allocate(delHeight_T(nlev_T,numColumns))
         allocate(delThick(0:nlev_T,numColumns))
 
         ! generate the height coefficients on the grid
@@ -3108,7 +3107,6 @@ contains
         delP_T          => col_getAllColumns(columnInc,'P_T')
 
         delHeight_M(:,:) = delHeight_M_ptr(:,:)
-        delHeight_T(:,:) = delHeight_T_ptr(:,:)
 
         if_computeHeight_col_ad_vcodes : if(Vcode == 5002) then
 
@@ -3121,33 +3119,33 @@ contains
               if (lev_T == 1) then
                 delHeight_M(1,colIndex)  =  &
                      delHeight_M(1,colIndex) + &
-                     delHeight_T(1,colIndex)
+                     delHeight_T_ptr(1,colIndex)
 
                 delTT(1,colIndex) =  &
                      delTT(1,colIndex) + &
-                     coeff_T_TT_col(colIndex) * delHeight_T(1,colIndex)
+                     coeff_T_TT_col(colIndex) * delHeight_T_ptr(1,colIndex)
 
                 delHU(1,colIndex) =  &
                      delHU(1,colIndex) + &
-                     coeff_T_HU_col   (colIndex) * delHeight_T(1,colIndex)
+                     coeff_T_HU_col   (colIndex) * delHeight_T_ptr(1,colIndex)
 
                 delP_M(1,colIndex) =  &
                      delP_M(1,colIndex) + &
                      coeff_T_P0_delP1_col(colIndex) / P_M(1,colIndex) * &
-                     delHeight_T(1,colIndex)
+                     delHeight_T_ptr(1,colIndex)
 
                 delP_T(1,colIndex) =  &
                      delP_T(1,colIndex) - &
                      coeff_T_P0_delP1_col(colIndex) / P_T(1,colIndex) * &
-                     delHeight_T(1,colIndex)
+                     delHeight_T_ptr(1,colIndex)
 
                 delP_T(1,colIndex) =  &
                      delP_T(1,colIndex) + &
-                     coeff_T_P0_dP_delPT_col(colIndex) * delHeight_T(1,colIndex)
+                     coeff_T_P0_dP_delPT_col(colIndex) * delHeight_T_ptr(1,colIndex)
 
                 delP0(1,colIndex) =  &
                      delP0(1,colIndex) + &
-                     coeff_T_P0_dp_delP0_col(colIndex) * delHeight_T(1,colIndex)
+                     coeff_T_P0_dp_delP0_col(colIndex) * delHeight_T_ptr(1,colIndex)
               else
                 ScaleFactorBottom =  &
                     (height_T_ptr(lev_T,colIndex) - &
@@ -3158,11 +3156,11 @@ contains
 
                 delHeight_M(lev_M-1,colIndex) =  &
                      delHeight_M(lev_M-1,colIndex) + &
-                     ScaleFactorTop * delHeight_T(lev_T,colIndex)
+                     ScaleFactorTop * delHeight_T_ptr(lev_T,colIndex)
 
                 delHeight_M(lev_M,colIndex) =  &
                      delHeight_M(lev_M  ,colIndex) + &
-                     ScaleFactorBottom * delHeight_T(lev_T,colIndex)
+                     ScaleFactorBottom * delHeight_T_ptr(lev_T,colIndex)
               end if
             end do
           end do
@@ -3223,9 +3221,9 @@ contains
                     height_M_ptr(lev_M-1,colIndex))
               ScaleFactorTop    = 1 - ScaleFactorBottom
               delHeight_M(lev_M-1,colIndex) = delHeight_M(lev_M-1,colIndex) + &
-                  ScaleFactorTop * delHeight_T(lev_T  ,colIndex)
+                  ScaleFactorTop * delHeight_T_ptr(lev_T  ,colIndex)
               delHeight_M(lev_M,colIndex)   = delHeight_M(lev_M  ,colIndex) + &
-                  ScaleFactorBottom * delHeight_T(lev_T  ,colIndex)
+                  ScaleFactorBottom * delHeight_T_ptr(lev_T  ,colIndex)
             end do
           end do
 
@@ -3276,7 +3274,6 @@ contains
 
         deallocate(delThick)
         deallocate(delHeight_M)
-        deallocate(delHeight_T)
 
         call msg('calcHeight_col_ad_vcode5xxx (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_col_ad_vcode5xxx
@@ -4065,6 +4062,9 @@ contains
       write(*,*) 'czp_ensureCompatibleTops: destPressureLevels   = ', destPressureLevels(1,1,:)
       call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
     end if
+
+    deallocate(sourcePressureLevels)
+    deallocate(destPressureLevels)
 
   end subroutine czp_ensureCompatibleTops
 
