@@ -1396,6 +1396,7 @@ contains
     call gsv_deallocate( statevector_VarsLevs )
     if (calcHeightPressIncrOnColumn) then
       call gsv_deallocate( stateVector )
+      deallocate(stateVector)
     end if
     
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
@@ -1624,6 +1625,10 @@ contains
     end if
 
     call gsv_deallocate( statevector_VarsLevs )
+    if (calcHeightPressIncrOnColumn) then
+      call gsv_deallocate( statevector )
+      deallocate(stateVector)
+    end if
 
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
