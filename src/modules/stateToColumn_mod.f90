@@ -2748,6 +2748,10 @@ contains
 
         fpr = bilinearFootprint
 
+      else if (cstnid(1:3) == 'RCM') then
+
+        fpr = 0.8e3
+
       else
 
         call utl_abort('s2c_getFootprintRadius: UNKNOWN station id: '//cstnid)
