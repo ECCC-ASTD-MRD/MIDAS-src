@@ -121,21 +121,6 @@ module sqliteFiles_mod
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
     end do
 
-    do bodyIndex = bodyIndexBegin, bodyIndexEnd
-      if (obs_columnActive_RB(obsdat, OBS_OMA))  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_OMP))  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_OER))  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR ,bodyIndex, missingValue)
-    end do
-
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD data (element 15031)
     if (trim(familyType) == 'GP') then
