@@ -343,8 +343,8 @@ module bgckOcean_mod
     character(len=12)    :: cstnid
     integer, external    :: newdate
     integer              :: imode, prntdate, prnttime
-    integer, parameter   :: numStationMax = 11              ! maximum number of 'idStation' values
-    
+    integer, parameter   :: numStationMax = 14              ! maximum number of 'idStation' values
+
     ! Namelist variables: (local)
     integer           :: numStation = MPC_missingValue_INT  ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=12) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
