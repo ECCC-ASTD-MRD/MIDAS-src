@@ -1167,7 +1167,7 @@ contains
 
      ! Locals:
      character(len=100) :: message
-      
+
       if(      column_index >= odc_array%odc_flavour%ncol_beg &
          .and. column_index <= odc_array%odc_flavour%ncol_end) then
          if(odc_array%odc_flavour%columnActive(column_index)) then
