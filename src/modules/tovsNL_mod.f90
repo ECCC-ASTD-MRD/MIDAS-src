@@ -40,7 +40,6 @@ module tovsNL_mod
        platform_id_himawari        ,&
        platform_id_eos             ,&
        errorstatus_success         ,&
-       mair, mh2o, mo3             ,&
        surftype_land               ,&
        surftype_seaice             ,&
        surftype_sea                ,&
@@ -74,9 +73,11 @@ module tovsNL_mod
   use mpi
   use utilities_mod
   use obsSpaceData_mod
+  use obsSubSpaceData_mod
   use earthConstants_mod
   use MathPhysConstants_mod
   use climatologies_mod
+  use bufr_mod
   use columnData_mod 
   use mod_rttov_emis_atlas
   use verticalCoord_mod
@@ -133,11 +134,9 @@ module tovsNL_mod
   public :: tvs_getHydrometeorsIndex
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl, tvs_useSfcEmissObsSpace
   ! Module parameters
-  ! units conversion from  mixing ratio to ppmv and vice versa
-  real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
-  real(8), parameter :: qppmv2Mixratio  = mh2o / (1000000.0d0 * mair)
-  real(8), parameter :: o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
-  real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
+  ! units conversion from  micrograms/kg to kg/kg
+  real(8), parameter :: microg2kg  = 1.0d-9
+
   real(pre_obsReal), parameter :: tvs_defaultEmissivity = 0.95
 
   integer, parameter :: tvs_maxChannelNumber    = 8461 ! Max. value for channel number
@@ -219,7 +218,9 @@ module tovsNL_mod
   logical tvs_computeJacobian                      ! Compute Jacobian for brightness temperature
 
   integer, external :: get_max_rss
- 
+
+  integer, parameter :: maxsize = 100              ! Max number of instruments
+  
 contains
 
   !--------------------------------------------------------------------------
@@ -1534,7 +1535,6 @@ contains
     integer, intent(in) :: instrum     ! input Rttov instrument code
 
     ! Locals:
-    integer, parameter :: maxsize = 100
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
@@ -1596,8 +1596,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: cinstrum
 
-    ! Locals:
-    integer, parameter :: maxsize = 20
+    !Locals:
     integer :: ierr, i 
     integer, save :: ninst_hir
     logical, save :: lfirst = .true.
@@ -1654,7 +1653,6 @@ contains
     integer, intent(in) :: instrum ! input Rttov instrument code
 
     ! Locals:
-    integer, parameter :: maxsize = 100
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_geo
     logical, save :: first = .true.
@@ -1928,8 +1926,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: cinstrum
 
-    ! Locals:
-    integer, parameter :: maxsize = 100
+    !Locals:
     integer :: ierr, i 
     integer, save :: ninst_geo
     logical, save :: lfirst = .true.
@@ -2369,6 +2366,7 @@ contains
     integer, allocatable :: sensorHeaderIndexes(:)  
     type(struct_vco), pointer :: vco
     real(8), allocatable :: pressure (:,:)
+    real(8), allocatable :: height(:,:)
     real(8), allocatable :: latitudes(:)
     real(8), allocatable :: ozone(:,:)
     character(len=4)     :: ozoneVarName
@@ -2382,7 +2380,7 @@ contains
     logical :: runObsOperatorWithHydrometeors
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
-    real(8), pointer :: column_ptr(:)
+    real(8), pointer :: column_ptr(:),column_ptrHU(:)
     real(8) :: zmax, wind
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: Starting'
@@ -2480,8 +2478,8 @@ contains
 
     !  1.2   Read ozone climatology
 
-    if (tvs_useO3Climatology) call clm_readOzoneClimatology(datestamp)
-
+    if (tvs_useO3Climatology) call clm_readFields()
+   
     !     2.  Fill profiles structure
     
     ! loop over all instruments
@@ -2517,6 +2515,7 @@ contains
       allocate(latitudes(profileCount))
       allocate(ozone(nlv_T,profileCount)) 
       allocate(pressure(nlv_T,profileCount))
+
       if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
         allocate(clw(nlv_T,profileCount))
         clw(:,:) = qlim_getMinValueCloud('LWCR')
@@ -2533,6 +2532,8 @@ contains
       end if
       allocate(surfTypeIsWater(profileCount)) 
       surfTypeIsWater(:) = .false.
+      
+      allocate (height(nlv_T,profileCount))
 
       profileCount = 0
       ! second loop over all obs.
@@ -2599,6 +2600,7 @@ contains
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
+          height(levelIndex,profileCount) = col_getHeight(columnTrl,levelIndex,headerIndex,'TH') ! in meters
           if ((runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. &
               (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
 
@@ -2658,19 +2660,23 @@ contains
           end if ! runObsOperatorWithHydrometeors .and. surfTypeIsWater
         end do ! levelIndex
         
+	! Constituents assumed to be in micrograms/kg
         if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
+	  ! Get ozone from trial field
           column_ptr => col_getColumn(columnTrl, headerIndex, trim(ozoneVarName) )
-          ! Conversion from microgram/km to ppmv (to have the same units as climatology when tvs_useO3Climatology is .true.
-          ! Conversion to kg/kg for use by RTTOV in done later
-          ozone(:,profileCount) = column_ptr(:) * 1.0D-9 * o3Mixratio2ppmv
+          ozone(:,profileCount) = column_ptr(:)
+	else if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
+          ! Get ozone profiles (ug/kg) from climatology
+	  column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
+	  column_ptrHU => col_getColumn(columnTrl, headerIndex,'HU' )
+          call clm_setColumn(nlv_T,pressure(:,profileCount)*MPC_PA_PER_MBAR_R8, &
+                             height(:,profileCount),latitudes(profileCount), &
+                             obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+			     profileCount,maxsize,BUFR_NECH_O3,tt_opt=column_ptr,hu_opt=column_ptrHU, &
+			     climatProfile_opt=ozone(:,profileCount))
         end if
 
       end do bobs2
-
-      !    2.5  Get ozone profiles (ppmv) from climatology if necessary
-      if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
-        call clm_getOzoneProfile (ozone, latitudes, pressure, nlv_T, profileCount)
-      end if
 
       !   2.5  Fill profiles structure
 
@@ -2734,10 +2740,10 @@ contains
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
         call validateRttovProfile(profiles(tovsIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
-        if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
-          profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv over dry air                                                                                                            ! because atmosphere is very dry where there is significant absorption by ozone)
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * microg2kg ! micrograms/kg to kg/kg
           if (.not. tvs_useO3Climatology)  then
-            profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
+            profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * microg2kg 
           end if
           call validateRttovProfile(profiles(tovsIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
         end if
@@ -2799,6 +2805,7 @@ contains
         deallocate(cloudFraction)
       end if
       deallocate(surfTypeIsWater)
+      deallocate (height)
      
     end do sensor_loop
 

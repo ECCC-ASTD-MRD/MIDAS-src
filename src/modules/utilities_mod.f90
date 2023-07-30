@@ -1525,20 +1525,21 @@ contains
     real(4) :: lvl_r4
     logical :: Exists
     character(len=1) :: string
-    integer, parameter :: iun=0
+    integer :: iun=0
     integer :: i,ier, kindi
     integer, parameter :: maxkeys=1000
     integer :: keys(maxkeys),ini,inj,nk
     integer :: dateo, deet, npas, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
-    integer :: ig1, ig2, ig3, ig4  
+    integer :: ig1, ig2, ig3, ig4 
     character*1 clgrtyp
     character*2 cltypvar
     character*4 nomvar
     character*12 cletiket
     real(4), allocatable :: buffer(:,:)
-    real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+    real(4), allocatable :: buffer3D(:,:,:)
+    real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
     
     ! Open file
     inquire(file=trim(fname),exist=Exists)
@@ -1557,8 +1558,10 @@ contains
       write(*,*) 'Search field missing ',varName, ' from file ',fname
       call utl_abort('utl_read_fst_field: did not find field.')
     else if (nk.gt.1) then
-      write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
-      call utl_abort('utl_read_fst_field')      
+      if (nkeys > 1 .or. present(kind_opt) .or. present(lvls_opt) ) then
+        write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
+        call utl_abort('utl_read_fst_field') 
+      end if             
     end if
 
     if (present(xlat_opt).and.present(xlong_opt)) then
@@ -1574,34 +1577,83 @@ contains
                     datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
                     clgrtyp, ig1, ig2, ig3,                           &
                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
-    
-       if (ni.gt.1) then
-          ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
-          if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1) 
+
+       if (trim(clgrtyp) /= 'B') then    
+         if (ni.gt.1) then
+           ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
+           if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1) 
+         end if
+         if (nj.gt.1) then
+            ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
+            if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)     
+         end if
+         deallocate(buffer)
        end if
-       if (nj.gt.1) then
-          ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
-          if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)     
-       end if
-       deallocate(buffer)
 
        if ( trim(clgrtyp) == 'Z' ) then
 
-          ! Check for rotated grid
+         ! Check for rotated grid
+	 
+         ier = fstprm(ier,                                         & ! IN
+                 dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
+                 datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
+                 clgrtyp, ig1, ig2, ig3,                           & ! OUT
+                 ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )  ! OUT
 
-          ier = fstprm(ier,                                         & ! IN
-                  dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
-                  datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
-                  clgrtyp, ig1, ig2, ig3,                           & ! OUT
-                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+         call cigaxg (clgrtyp,                                     & ! IN
+                      xlat1_4, xlon1_4, xlat2_4, xlon2_4,          & ! OUT
+                      ig1, ig2, ig3, ig4 ) ! IN
 
-          call cigaxg (clgrtyp,                                     & ! IN
-                     xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
-                     ig1, ig2, ig3, ig4 ) ! IN
+         if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
+           call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
+       
+       else if (trim(clgrtyp) == 'B') then
+       
+         ! Set B type lat-long grid
+	 
+         dincr=360.0d0/(ni-1)
+         do i=1,ni
+	   xlong_opt(i) = (i-1)*dincr
+         end do
 
-          if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
-             call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
-          
+	 if (ig1 == 0) then
+	   ! Global
+	   dincr=180.0d0/(nj-1)
+	   if (ig2 == 0) then
+	     do i=1,nj
+	       xlat_opt(i) = -90.0 + (i-1)*dincr
+	     end do
+	   else
+	     do i=1,nj
+	       xlat_opt(i) = 90.0 - (i-1)*dincr
+	     end do
+	   end if
+	 else if (ig1 == 1) then
+	   ! Northern hemispheric
+	   dincr=90.0d0/(nj-1)
+	   if (ig2 == 0) then
+	     do i=1,nj
+	       xlat_opt(i) = 0.0 + (i-1)*dincr
+	     end do
+	   else
+	     do i=1,nj
+	       xlat_opt(i) = 90.0 - (i-1)*dincr
+	     end do
+	   end if
+	 else
+	   ! Southern hemispheric
+	   dincr=90.0d0/(nj-1)
+	   if (ig2 == 0) then
+	     do i=1,nj
+	       xlat_opt(i) = -90.0 + (i-1)*dincr
+	     end do
+	   else 
+	     do i=1,nj
+	       xlat_opt(i) = 0 - (i-1)*dincr
+	     end do
+	   end if
+	 end if
+	  
        else if (trim(clgrtyp) /= 'G') then
 
          call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
@@ -1636,14 +1688,22 @@ contains
 
     ! Get field
     
-    allocate(array(ni,nj,nkeys),buffer(ni,nj))
-
-    do i=1,nkeys
-       ier=fstluk(buffer,keys(i),ni,nj,nk)
-       array(:,:,i)=buffer(:,:)
-    end do
-    
-    deallocate(buffer)
+    if ( nk == 1 ) then 
+      if (allocated(buffer)) deallocate(buffer)
+      allocate(array(ni,nj,nkeys),buffer(ni,nj))    
+      do i=1,nkeys
+        ier=fstluk(buffer,keys(i),ni,nj,nk)
+        array(:,:,i)=buffer(:,:)
+      end do    
+      deallocate(buffer)
+    else
+      if (allocated(buffer3D)) deallocate(buffer3D)
+      allocate(array(ni,nj,nk),buffer3D(ni,nj,nk))    
+      ier=fstluk(buffer,keys(1),ni,nj,nk)
+      array(:,:,:)=buffer3D(:,:,:)
+      deallocate(buffer3D)
+      nkeys=nk
+    end if
     
     ier=fstfrm(iun)  
     ier=fclos(iun)  

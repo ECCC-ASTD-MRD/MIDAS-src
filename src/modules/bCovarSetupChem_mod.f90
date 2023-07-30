@@ -680,6 +680,11 @@ module bCovarSetupChem_mod
             zcornssrc(jrow,jrow) = 1.0D0
           end do
         end if
+	!!!!! TEMPORARY to check impact in the absence of vertical correlations.
+        ! zcornssrc(1:jnum,1:jnum) = 0.0D0
+        !do jrow = 1, jnum
+        !  zcornssrc(jrow,jrow) = 1.0D0
+        !end do
           
         rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
         bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)= &
@@ -2357,7 +2362,7 @@ module bCovarSetupChem_mod
   subroutine bcsc_addBgStddev(headerIndex,stddevIn,obsdataMaxsize)
     !
     ! :Purpose: To add background stddev profiles (and inverse) to bgStddev
-    !          which can be retrieved later using a header index.
+    !           which can be retrieved later using a header index.
     !
     implicit none 
 
