@@ -1,5 +1,6 @@
  &NAMBMAT1D
   scalefactorEns=200*1.0,
+  scaleFactorEnsSkinTemp = 0.5,
   nEns = 24,
   vLocalize = 3.d0,
   includeAnlVar(1)= 'UU',

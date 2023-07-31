@@ -70,17 +70,20 @@ module bMatrix1DVar_mod
   integer :: numIncludeAnlVar                          ! MUST NOT BE INCLUDED IN NAMELIST!
   real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
   real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
+  real(8) :: scaleFactorHISkinTemp                     ! scaling factors for HI skin temperature variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
+  real(8) :: scaleFactorEnsSkinTemp                    ! scaling factors for Ens skin temperature variances
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
   real(8) :: latMin                                    ! minimum latitude of the Bmatrix latitude-longitude output box
   real(8) :: latMax                                    ! maximum latitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
-  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
-      vLocalize, includeAnlVar, numIncludeAnlVar, dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, &
-      doAveraging
+  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHISkinTemp, &
+      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsSkinTemp, &
+      nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
+      dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
 
 contains
 
@@ -111,8 +114,11 @@ contains
     ! default values for namelist variables
     scaleFactorHI(:) = 0.d0
     scaleFactorHIHumidity(:) = 1.d0
+    scaleFactorHISkinTemp = 1.d0
     scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
+    scaleFactorEnsSkinTemp = 1.d0
+    
     nEns = -1
     vLocalize = -1.d0
     includeAnlVar(:)= ''
@@ -440,7 +446,7 @@ contains
     integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
-    real(8) :: scaleFactor_SF, zr
+    real(8) :: scaleFactor_SF, scaleFactor_TG, zr
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
     real(8), pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
@@ -606,6 +612,8 @@ contains
       end if
     end if
 
+    scaleFactorEnsSkinTemp = sqrt(scaleFactorEnsSkinTemp)
+
     !- 1.5 Domain Partionning
     call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
     call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -688,9 +696,15 @@ contains
           else                              ! SF
             multFactor(varLevIndexBmat) = scaleFactor_SF
           end if
+
           if (varNameFromVarLevIndexBmat(varLevIndexBmat) == 'HU') then
             multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsHumidity(levIndex)
           end if
+
+          if (varNameFromVarLevIndexBmat(varLevIndexBmat) == 'TG') then
+            multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsSkinTemp
+          end if
+
           if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndexBmat, levIndex
         end if
       end do
