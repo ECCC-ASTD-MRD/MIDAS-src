@@ -276,6 +276,12 @@ contains
       end if
     end do
 
+    if(scaleFactorHISkinTemp > 0.0d0) then 
+      scaleFactorHISkinTemp = sqrt(scaleFactorHISkinTemp)
+    else
+      scaleFactorHISkinTemp = 0.0d0
+    end if
+
     if ( sum(scaleFactorHI(1:vco_maxNumLevels)) == 0.0d0 ) then
       if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
@@ -322,7 +328,10 @@ contains
             varLevIndexBmat = varLevIndexBmat + 1
             multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex+shiftLevel)
           end do
-        case('P0','TG')
+        case('TG')
+          varLevIndexBmat = varLevIndexBmat + 1
+          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))* scaleFactorHISkinTemp
+        case('P0')
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case default
@@ -355,6 +364,8 @@ contains
       call utl_matsqrt(bSqrtLand(locationIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     ierr = fclos(nulbgst)
+
+    write(*,*) 'ZQ_bSqrtLand', bSqrtLand(1, nkgdim, nkgdim)
 
     inquire(file=trim(oneDBmatSea), exist=fileExists)
     if ( fileExists ) then
@@ -612,7 +623,7 @@ contains
       end if
     end if
 
-    if (scaleFactorEnsSkinTemp(levIndex) > 0.0d0) then 
+    if (scaleFactorEnsSkinTemp > 0.0d0) then 
       scaleFactorEnsSkinTemp = sqrt(scaleFactorEnsSkinTemp)
     else 
       scaleFactorEnsSkinTemp = 0.0d0
