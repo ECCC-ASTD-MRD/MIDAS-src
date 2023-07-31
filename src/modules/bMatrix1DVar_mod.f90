@@ -612,7 +612,11 @@ contains
       end if
     end if
 
-    scaleFactorEnsSkinTemp = sqrt(scaleFactorEnsSkinTemp)
+    if (scaleFactorEnsSkinTemp(levIndex) > 0.0d0) then 
+      scaleFactorEnsSkinTemp = sqrt(scaleFactorEnsSkinTemp)
+    else 
+      scaleFactorEnsSkinTemp = 0.0d0
+    end if 
 
     !- 1.5 Domain Partionning
     call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
