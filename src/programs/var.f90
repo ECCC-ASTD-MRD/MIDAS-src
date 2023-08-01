@@ -127,7 +127,7 @@ program midas_var
   !               - Setup the observation error statistics in ``obsSpaceData``
   !                 object: ``oer_setObsErrors``. If useTovsUtil is set to .true.
   !                 an additionnal channel filtering is performed for radiances
-  !                 based othe UTIL column of stats_tovs file.
+  !                 based on the UTIL column of stats_tovs file.
   !
   !               - Allocate a stateVector object on the trial grid and then
   !                 read the trials: ``gio_readTrials``.
@@ -315,7 +315,7 @@ program midas_var
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
-  logical :: useTovsUtil                               ! do channel filtering based on UTIL column ot the stats_tovs file 
+  logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file 
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
 
@@ -427,8 +427,7 @@ program midas_var
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN
 
-  
-   ! Call suprep again to filter out channels according to 'util' column of stats_tovs
+   ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
   if (useTovsUtil) call filt_suprep(obsSpaceData)
   call msg_memUsage('var')
 
