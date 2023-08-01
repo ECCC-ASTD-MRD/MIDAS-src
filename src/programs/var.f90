@@ -427,7 +427,7 @@ program midas_var
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN
 
-   ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
+  ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
   if (useTovsUtil) call filt_suprep(obsSpaceData)
   call msg_memUsage('var')
 
