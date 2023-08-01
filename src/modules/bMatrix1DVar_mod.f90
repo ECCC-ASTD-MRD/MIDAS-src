@@ -74,6 +74,7 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
   real(8) :: scaleFactorEnsSkinTemp                    ! scaling factors for Ens skin temperature variances
+  real(8) :: scaleFactorTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
   real(8) :: latMin                                    ! minimum latitude of the Bmatrix latitude-longitude output box
@@ -81,7 +82,7 @@ module bMatrix1DVar_mod
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHISkinTemp, &
-      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsSkinTemp, &
+      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsSkinTemp, scaleFactorTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
       dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
 
@@ -118,6 +119,7 @@ contains
     scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
     scaleFactorEnsSkinTemp = 1.d0
+    scaleFactorTGCorrelation = -1.d0
     
     nEns = -1
     vLocalize = -1.d0
@@ -365,8 +367,6 @@ contains
     end do
     ierr = fclos(nulbgst)
 
-    write(*,*) 'ZQ_bSqrtLand', bSqrtLand(1, nkgdim, nkgdim)
-
     inquire(file=trim(oneDBmatSea), exist=fileExists)
     if ( fileExists ) then
       ierr = fnom(nulbgst, trim(oneDBmatSea), 'FTN+SEQ+UNF+OLD+R/O', 0)
@@ -457,7 +457,7 @@ contains
     integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
-    real(8) :: scaleFactor_SF, scaleFactor_TG, zr
+    real(8) :: scaleFactor_SF, zr
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
     real(8), pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
@@ -758,17 +758,20 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) / (nEns - 1)
+      
+      do varLevIndexBmat = 1, nkgdim
+        varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
+        varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
+        if (varLevel=='SF') then
+          meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
+        else
+          levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
+          meanPressureProfile(varLevIndexBmat) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
+        end if
+      end do
+
+      ! Apply vertical localization
       if (vLocalize > 0.0d0) then
-        do varLevIndexBmat = 1, nkgdim
-          varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
-          if (varLevel=='SF') then
-            meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
-          else
-            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
-            meanPressureProfile(varLevIndexBmat) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
-          end if
-        end do
         do varLevIndex1 = 1, nkgdim 
           logP1 = log(meanPressureProfile(varLevIndex1))
           do varLevIndex2 = 1, nkgdim
@@ -780,6 +783,25 @@ contains
           end do
         end do
       end if
+
+      ! Apply background error correlation scale factor between TG and other variables
+      if (scaleFactorTGCorrelation > 0.0d0) then
+        do varLevIndex1 = 1, nkgdim 
+          logP1 = log(meanPressureProfile(varLevIndex1))
+          do varLevIndex2 = 1, nkgdim
+            !-  do Schurr product with 5'th order function
+            logP2 = log(meanPressureProfile(varLevIndex2))
+            zr = abs(logP2 - logP1)
+            if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
+                (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then 
+                
+                bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
+                    bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, scaleFactorTGCorrelation)
+            end if
+          end do
+        end do
+      end if
+
     end do
     !$OMP END PARALLEL DO
 
