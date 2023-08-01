@@ -271,7 +271,8 @@ program midas_var
   use varQC_mod
   use tovsNL_mod
   use stateToColumn_mod
-
+  use obsFilter_mod
+  
   implicit none
 
   integer :: istamp, exdb, exfin
