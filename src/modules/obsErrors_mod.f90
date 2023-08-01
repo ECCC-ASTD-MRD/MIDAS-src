@@ -1537,6 +1537,8 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(8))
             else if (cstnid == 'CIS_REGIONAL') then
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(9))
+            else if (index(cstnid,'RCM') == 1) then
+              ! For RCM, obs-error comes from SQLite file
             else
               call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if
@@ -1582,7 +1584,8 @@ contains
           !              not. 3dvar will abort in this case.
           !***********************************************************************
 
-          if (obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)  <=  0.0D0) then
+          obsOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+          if (obsOER  <=  0.0D0) then
 
             write(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',cfam
 
@@ -1593,13 +1596,16 @@ contains
                  zlon*MPC_DEGREES_PER_RADIAN_R8
 
             obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-            obsOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
             write(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
                  ityp, obsPPP, obsOER
 
             call utl_abort('oer_fillObsErrors: PROBLEM OBSERR VARIANCE.')
 
           end if
+
+        else
+
+          call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, MPC_missingValue_R8)
 
         end if ! end of iass == obs_assimilated
 

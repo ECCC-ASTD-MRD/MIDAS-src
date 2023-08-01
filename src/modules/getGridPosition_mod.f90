@@ -529,7 +529,7 @@ contains
 
     ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - upperLeftCornerDistSquared)/(2.0*(gridSpacingSquared))
 
-    if ( abs(ypos_r4 - yIndexMin) > 1.1 .or. abs(xpos_r4 - xIndexMin) > 1.1 ) then
+    if ( abs(ypos_r4 - yIndexMin) > 1.8 .or. abs(xpos_r4 - xIndexMin) > 3.3 ) then
       write(*,*) 'xpos_r4 = ',xpos_r4
       write(*,*) 'ypos_r4 = ',ypos_r4
       write(*,*) 'xIndexMin = ',xIndexMin

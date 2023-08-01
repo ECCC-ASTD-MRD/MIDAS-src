@@ -126,7 +126,7 @@ contains
     !
     if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
     if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
-    
+
     !
     !- Filter out data from the obs data base
     !

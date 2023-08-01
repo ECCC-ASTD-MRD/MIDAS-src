@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added RCM data for sea ice concentration analysis (#848 and !761)
 
 ### Changed
 

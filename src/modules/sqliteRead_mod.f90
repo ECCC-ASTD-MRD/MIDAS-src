@@ -117,7 +117,7 @@ module sqliteRead_mod
     end do
 
     call fSQL_finalize(stmt)
-    call fSQL_close(db, stat) 
+    call fSQL_close(db, stat)
 
   end subroutine sqlr_readSqlite_avhrr
 
@@ -150,7 +150,7 @@ module sqliteRead_mod
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
-    real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue
+    real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, obsError
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: trackCellNum, iceChartID
     real(pre_obsReal)        :: modelWindSpeed
@@ -182,6 +182,7 @@ module sqliteRead_mod
          'ID_PROF','CHARTINDEX','TRACK_CELL_NO','MOD_WIND_SPD'/)
     real(8),                   allocatable :: bodyValues(:,:), codtypInFileList(:,:)
     logical :: beamRangeFound
+    real(pre_obsReal)           :: missingValue
 
     ! Namelist variables:
     integer                  :: numberElem        ! MUST NOT BE INCLUDED IN NAMELIST!
@@ -206,6 +207,8 @@ module sqliteRead_mod
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLsst/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull, &
                           sqlExtraDat_sat,sqlExtraHeader_sat,codtyp_sat
+
+    missingValue = real(MPC_missingValue_R8,pre_obsReal)
 
     write(*,*) 'sqlr_readSqlite: fileName   : ', trim(fileName)
     write(*,*) 'sqlr_readSqlite: familyType : ', trim(familyType)
@@ -351,7 +354,7 @@ module sqliteRead_mod
                  trim(headSqlNames(columnIndex))
     end do
     call utl_combineString(columnsHeader, ',', headSqlNames)
-    
+
     ! ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
     sqlDataOrder = ' order by id_obs, varno, id_data' 
 
@@ -400,7 +403,7 @@ module sqliteRead_mod
 
     if (numberIDsRows /= numberBodyRows) then
       call utl_abort('sqlr_readSqlite: number of body keys not equal to number of rows in bodyValues')
-    end if 
+    end if
 
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
@@ -429,6 +432,19 @@ module sqliteRead_mod
       bodyIndex = bodyIndex + 1
       obsNlv    = obsNlv + 1
       call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKeys(rowIndex))
+
+      if (obs_columnActive_RB(obsdat, OBS_OMA))  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMA0)) call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP))  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OMP6)) call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OER))  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_HAHT)) call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGI)) call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, missingValue)
 
       READHEADER: if (obsNlv == 1) then
         headerIndex = headerIndex + 1
@@ -653,6 +669,11 @@ module sqliteRead_mod
               obsValue = real(MPC_missingValue_R8,pre_obsReal)
             end if
             call obs_bodySet_r(obsdat, OBS_VAR, bodyIndex, obsValue)
+          case('OBS_ERROR')
+            obsError = bodyValues(rowIndex,columnIndex)
+            if (obsError > 0.0D0) then
+              call obs_bodySet_r(obsdat, OBS_OER, bodyIndex, obsError)
+            end if
           case('FLAG')
             obsFlag = int(bodyValues(rowIndex,columnIndex))
             if (obsFlag == mpc_missingValue_INT) obsFlag = 0
@@ -770,6 +791,18 @@ module sqliteRead_mod
     call obs_bodySet_i(obsdat, OBS_VCO,  numberData, vertCoordType)
     call obs_bodySet_r(obsdat, OBS_LATD, numberData, obs_missingValue_R)
     call obs_bodySet_r(obsdat, OBS_LOND, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OMA))  call obs_bodySet_r(obsdat, OBS_OMA , numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OMA0)) call obs_bodySet_r(obsdat, OBS_OMA0, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OMP))  call obs_bodySet_r(obsdat, OBS_OMP , numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OMP6)) call obs_bodySet_r(obsdat, OBS_OMP6, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OER))  call obs_bodySet_r(obsdat, OBS_OER , numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_HPHT)) call obs_bodySet_r(obsdat, OBS_HPHT, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_HAHT)) call obs_bodySet_r(obsdat, OBS_HAHT, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_WORK)) call obs_bodySet_r(obsdat, OBS_WORK, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_SIGI)) call obs_bodySet_r(obsdat, OBS_SIGI, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, numberData, obs_missingValue_R)
 
   end subroutine sqlr_addExtraDataRow
 
@@ -1489,12 +1522,12 @@ module sqliteRead_mod
 
       headerIndex = obs_getHeaderIndex(obsData)
       if (headerIndex < 0) exit HEADER
-        
+
       codeType  = obs_headElem_i(obsData, OBS_ITY, headerIndex)
       obsRln    = obs_headElem_i(obsData, OBS_RLN, headerIndex)
       obsNlv    = obs_headElem_i(obsData, OBS_NLV, headerIndex)
-      idStation = obs_elem_c    (obsData, 'STID' , headerIndex) 
-      altitude  = obs_headElem_r(obsData, OBS_ALT, headerIndex)      
+      idStation = obs_elem_c    (obsData, 'STID' , headerIndex)
+      altitude  = obs_headElem_r(obsData, OBS_ALT, headerIndex)
       lon       = obs_headElem_r(obsData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       lat       = obs_headElem_r(obsData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       if (lon > 180.) lon = lon - 360.
