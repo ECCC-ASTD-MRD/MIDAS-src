@@ -125,7 +125,9 @@ program midas_var
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``.
+  !                 object: ``oer_setObsErrors``. If useTovsUtil is set to .true.
+  !                 an additionnal channel filtering is performed for radiances
+  !                 based othe UTIL column of stats_tovs file.
   !
   !               - Allocate a stateVector object on the trial grid and then
   !                 read the trials: ``gio_readTrials``.
