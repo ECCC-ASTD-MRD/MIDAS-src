@@ -312,8 +312,9 @@ program midas_var
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
+  logical :: useTovsUtil                               ! do channel filtering based on UTIL column ot the stats_tovs file 
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ computeFinalNlJo
+  NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -344,6 +345,7 @@ program midas_var
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
   computeFinalNlJo = .false.
+  useTovsUtil = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
   call msg('midas-var','namvar is missing in the namelist. '&
@@ -420,7 +422,11 @@ program midas_var
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, varMode) ! IN
+  call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN
+
+  
+   ! Call suprep again to filter out channels according to 'util' column of stats_tovs
+  if (useTovsUtil) call filt_suprep(obsSpaceData)
   call msg_memUsage('var')
 
   ! Initialize list of analyzed variables.
