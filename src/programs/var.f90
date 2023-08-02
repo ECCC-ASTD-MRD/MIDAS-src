@@ -125,7 +125,9 @@ program midas_var
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``.
+  !                 object: ``oer_setObsErrors``. If useTovsUtil is set to .true.
+  !                 an additionnal channel filtering is performed for radiances
+  !                 based on the UTIL column of stats_tovs file.
   !
   !               - Allocate a stateVector object on the trial grid and then
   !                 read the trials: ``gio_readTrials``.
@@ -269,7 +271,8 @@ program midas_var
   use varQC_mod
   use tovsNL_mod
   use stateToColumn_mod
-
+  use obsFilter_mod
+  
   implicit none
 
   integer :: istamp, exdb, exfin
@@ -312,8 +315,9 @@ program midas_var
   integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
   logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
   logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
+  logical :: useTovsUtil                               ! do channel filtering based on UTIL column of the stats_tovs file 
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
-  NAMELIST /NAMVAR/ computeFinalNlJo
+  NAMELIST /NAMVAR/ computeFinalNlJo, useTovsUtil
 
   istamp = exdb('VAR','DEBUT','NON')
 
@@ -344,6 +348,7 @@ program midas_var
   limitHuInOuterLoop = .false.
   numIterMaxInnerLoop(:) = 0
   computeFinalNlJo = .false.
+  useTovsUtil = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
   call msg('midas-var','namvar is missing in the namelist. '&
@@ -420,7 +425,10 @@ program midas_var
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, varMode) ! IN
+  call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN
+
+  ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
+  if (useTovsUtil) call filt_suprep(obsSpaceData)
   call msg_memUsage('var')
 
   ! Initialize list of analyzed variables.

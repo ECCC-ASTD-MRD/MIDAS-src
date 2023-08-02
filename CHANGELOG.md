@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Implemented vertical-scale-dependent vertical localization capability in `bMatrixEnsemble_mod` for 3D variables and TG (#838 and !757) 
+ * Added namelist variable `useTovsUtil` to control radiance channel filtering in `var` based on `stats_tovs` UTIL column (#852 and !760)
+ * Implemented vertical-scale-dependent vertical localization capability in `bMatrixEnsemble_mod` for 3D variables and TG (#838 and !757)
    * WARNING: `NAMBEN` namelist variables `waveBandPeaks` and `localizationType` are now named `horizWaveBandPeaks` and `horizLocalizationType`, respectively.
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
