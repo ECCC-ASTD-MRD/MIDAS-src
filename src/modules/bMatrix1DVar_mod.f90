@@ -470,7 +470,7 @@ contains
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
-    character(len=2) :: varLevel    
+    character(len=2) :: varLevel
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -785,23 +785,17 @@ contains
       end if
 
       ! Apply background error correlation scale factor between TG and other variables
-      if (scaleFactorTGCorrelation > 0.0d0) then
+      if (scaleFactorTGCorrelation >= 0.0d0) then
         do varLevIndex1 = 1, nkgdim 
-          logP1 = log(meanPressureProfile(varLevIndex1))
           do varLevIndex2 = 1, nkgdim
-            !-  do Schurr product with 5'th order function
-            logP2 = log(meanPressureProfile(varLevIndex2))
-            zr = abs(logP2 - logP1)
             if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
                 (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then 
-                
                 bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
-                    bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, scaleFactorTGCorrelation)
+                    bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * scaleFactorTGCorrelation
             end if
           end do
         end do
       end if
-
     end do
     !$OMP END PARALLEL DO
 
