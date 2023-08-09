@@ -5,7 +5,7 @@
 /
  &NAMBMAT1D
   scalefactorHI=200*1.0
-  scaleFactorHITG=1,
+  scaleFactorHITG=1.0d0,
   includeAnlVar(1)= 'UU',
   includeAnlVar(2)= 'VV',
   includeAnlVar(3)= 'TT',

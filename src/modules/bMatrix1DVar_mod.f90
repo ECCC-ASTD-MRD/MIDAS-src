@@ -74,7 +74,7 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
   real(8) :: scaleFactorEnsTG                    ! scaling factors for Ens skin temperature variances
-  real(8) :: scaleFactorTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
+  real(8) :: scaleFactorEnsTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
   real(8) :: latMin                                    ! minimum latitude of the Bmatrix latitude-longitude output box
@@ -82,7 +82,7 @@ module bMatrix1DVar_mod
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHITG, &
-      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorTGCorrelation, &
+      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorEnsTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
       dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
 
@@ -119,7 +119,7 @@ contains
     scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
     scaleFactorEnsTG = 1.d0
-    scaleFactorTGCorrelation = -1.d0
+    scaleFactorEnsTGCorrelation = 1.d0
     
     nEns = -1
     vLocalize = -1.d0
@@ -785,13 +785,13 @@ contains
       end if
 
       ! Apply background error correlation scale factor between TG and other variables
-      if (scaleFactorTGCorrelation >= 0.0d0) then
+      if (scaleFactorEnsTGCorrelation /= 1.0d0) then
         do varLevIndex1 = 1, nkgdim 
           do varLevIndex2 = 1, nkgdim
             if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
                 (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then 
                 bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
-                    bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * scaleFactorTGCorrelation
+                    bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * scaleFactorEnsTGCorrelation
             end if
           end do
         end do
