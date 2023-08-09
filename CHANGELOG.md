@@ -8,12 +8,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Option to inflate the background skin temperature error and error correlation (#855 and !762) 
  * Added namelist variable `useTovsUtil` to control radiance channel filtering in `var` based on `stats_tovs` UTIL column (#852 and !760)
  * Implemented vertical-scale-dependent vertical localization capability in `bMatrixEnsemble_mod` for 3D variables and TG (#838 and !757)
    * WARNING: `NAMBEN` namelist variables `waveBandPeaks` and `localizationType` are now named `horizWaveBandPeaks` and `horizLocalizationType`, respectively.
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
- * Option to inflate the background skin temperature error and error correlation (#855 and !762)
 
 ### Changed
 
@@ -705,22 +705,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
       - On rend facultatif l'etape `reunir_obs` si on utilise
        `oavar.launch ... -oavar_reunir_obs no`
    * La variable `OAVAR_OBS_MPI_ORDERING` est mise a `regular` par
-     défaut
-      - Cela est cohérent avec le code de MIDAS depuis la version
+     dï¿½faut
+      - Cela est cohï¿½rent avec le code de MIDAS depuis la version
        `v_3.5.0`.
    * Adaptation des scripts pour pouvoir tourner `midas-genCoeff`
    * `oavar.mpi_barrier`:
       - Le script est beaucoup moins verbose qu'auparavant.  On peut
        utiliser la variable d'environnement
-       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour réactiver le `set -x` dans ce
+       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour rï¿½activer le `set -x` dans ce
        script.
    * `oavar.launch` et `oavar.var_mpi`:
       - Ajout du mode `distribute` pour `-splitobs_mode` pour distribuer
-      les fichiers sur chacune des tuiles MPI plutôt que d'utiliser le
+      les fichiers sur chacune des tuiles MPI plutï¿½t que d'utiliser le
       programme `splitobs.Abs` pour ce faire
    * `oavar.check_ensemble`:
       - Adaptation de la manipulation du namelist pour transformer un
-        EnVar en 3D-Var pour les versions après `v_3.4.2`
+        EnVar en 3D-Var pour les versions aprï¿½s `v_3.4.2`
  * Changed IR quality control and background check to add protection against missing values for angles (#349 and !341)
   * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
   * Efficiency improvements (mostly for global EnVar) (#235 and !337):
@@ -761,9 +761,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
        * On a generalise les scripts pour tourner les programmes du LETKF.
          * Ces changements sont compatibles arriere.
        * `oavar.mpirun`: set `TBB_MALLOC_USE_HUGE_PAGES=1` on `sles-15-*`
-       * `oavar.var_mpi`: On corrige le mode `fasttmp=no` pour éviter que les
-         fichiers complets se retrouvent dans le meme répertoire que les
-         fichiers splittés.
+       * `oavar.var_mpi`: On corrige le mode `fasttmp=no` pour ï¿½viter que les
+         fichiers complets se retrouvent dans le meme rï¿½pertoire que les
+         fichiers splittï¿½s.
        * `oavar.launch`: Ajout d'une cle `-analinc_mask`
  * Update to `rpn/utils/19.5.1` and `cmda/utils/19.5-3` (#339 and !321)
  * Unify the `bgckMW` program for AMSUA and ATMS QC (#308 and !315)
@@ -1146,7 +1146,7 @@ mpi task during the redistribution step (!38 and #42)
 This is the initial version delivered in final cycles for the GDPS 6.1 project in 2018.
 
 ### Added
-- Includes backward comptatible changes to conventional observations by Stéphane Laroche
+- Includes backward comptatible changes to conventional observations by Stï¿½phane Laroche
 
 ### Changed
 - Introducing the use of RTTOV-12 library (release `1.0`) (non backward compatible) (Sylvain Heilliette)
