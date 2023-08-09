@@ -1,6 +1,6 @@
  &NAMBMAT1D
   scalefactorEns=200*1.0,
-  scaleFactorEnsSkinTemp = 1,
+  scaleFactorEnsTG = 1,
   scaleFactorTGCorrelation = 1, 
   nEns = 24,
   vLocalize = 3.d0,

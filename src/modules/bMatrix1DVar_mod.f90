@@ -73,7 +73,7 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorHISkinTemp                     ! scaling factors for HI skin temperature variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
-  real(8) :: scaleFactorEnsSkinTemp                    ! scaling factors for Ens skin temperature variances
+  real(8) :: scaleFactorEnsTG                    ! scaling factors for Ens skin temperature variances
   real(8) :: scaleFactorTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
@@ -82,7 +82,7 @@ module bMatrix1DVar_mod
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHISkinTemp, &
-      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsSkinTemp, scaleFactorTGCorrelation, &
+      scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
       dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
 
@@ -118,7 +118,7 @@ contains
     scaleFactorHISkinTemp = 1.d0
     scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
-    scaleFactorEnsSkinTemp = 1.d0
+    scaleFactorEnsTG = 1.d0
     scaleFactorTGCorrelation = -1.d0
     
     nEns = -1
@@ -623,10 +623,10 @@ contains
       end if
     end if
 
-    if (scaleFactorEnsSkinTemp > 0.0d0) then 
-      scaleFactorEnsSkinTemp = sqrt(scaleFactorEnsSkinTemp)
+    if (scaleFactorEnsTG > 0.0d0) then 
+      scaleFactorEnsTG = sqrt(scaleFactorEnsTG)
     else 
-      scaleFactorEnsSkinTemp = 0.0d0
+      scaleFactorEnsTG = 0.0d0
     end if 
 
     !- 1.5 Domain Partionning
@@ -717,7 +717,7 @@ contains
           end if
 
           if (varNameFromVarLevIndexBmat(varLevIndexBmat) == 'TG') then
-            multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsSkinTemp
+            multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsTG
           end if
 
           if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndexBmat, levIndex
