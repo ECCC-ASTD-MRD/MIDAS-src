@@ -70,7 +70,7 @@ module bMatrix1DVar_mod
   integer :: numIncludeAnlVar                          ! MUST NOT BE INCLUDED IN NAMELIST!
   real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
   real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
-  real(8) :: scaleFactorHISkinTemp                     ! scaling factors for HI skin temperature variances
+  real(8) :: scaleFactorHITG                     ! scaling factors for HI skin temperature variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
   real(8) :: scaleFactorEnsTG                    ! scaling factors for Ens skin temperature variances
@@ -81,7 +81,7 @@ module bMatrix1DVar_mod
   real(8) :: latMax                                    ! maximum latitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
-  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHISkinTemp, &
+  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHITG, &
       scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
       dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
@@ -115,7 +115,7 @@ contains
     ! default values for namelist variables
     scaleFactorHI(:) = 0.d0
     scaleFactorHIHumidity(:) = 1.d0
-    scaleFactorHISkinTemp = 1.d0
+    scaleFactorHITG = 1.d0
     scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
     scaleFactorEnsTG = 1.d0
@@ -278,10 +278,10 @@ contains
       end if
     end do
 
-    if(scaleFactorHISkinTemp > 0.0d0) then 
-      scaleFactorHISkinTemp = sqrt(scaleFactorHISkinTemp)
+    if(scaleFactorHITG > 0.0d0) then 
+      scaleFactorHITG = sqrt(scaleFactorHITG)
     else
-      scaleFactorHISkinTemp = 0.0d0
+      scaleFactorHITG = 0.0d0
     end if
 
     if ( sum(scaleFactorHI(1:vco_maxNumLevels)) == 0.0d0 ) then
@@ -332,7 +332,7 @@ contains
           end do
         case('TG')
           varLevIndexBmat = varLevIndexBmat + 1
-          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))* scaleFactorHISkinTemp
+          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))* scaleFactorHITG
         case('P0')
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
