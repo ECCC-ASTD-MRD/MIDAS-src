@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Option to inflate the background skin temperature error and error correlation (#855 and !762) 
  * Added namelist variable `useTovsUtil` to control radiance channel filtering in `var` based on `stats_tovs` UTIL column (#852 and !760)
  * Implemented vertical-scale-dependent vertical localization capability in `bMatrixEnsemble_mod` for 3D variables and TG (#838 and !757)
    * WARNING: `NAMBEN` namelist variables `waveBandPeaks` and `localizationType` are now named `horizWaveBandPeaks` and `horizLocalizationType`, respectively.
