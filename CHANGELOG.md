@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * WARNING: `NAMBEN` namelist variables `waveBandPeaks` and `localizationType` are now named `horizWaveBandPeaks` and `horizLocalizationType`, respectively.
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
+ * Option to inflate the background skin temperature error and error correlation (#855 and !762)
 
 ### Changed
 
