@@ -23,7 +23,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
+  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, odbf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -2223,9 +2223,9 @@ contains
   end subroutine odbf_createMidasBodyTable
 
   !--------------------------------------------------------------------------
-  ! obdf_clean
+  ! odbf_clean
   !--------------------------------------------------------------------------
-  subroutine obdf_clean(fileName, familyType)
+  subroutine odbf_clean(fileName, familyType)
 
     ! :Purpose: After the observational thinning procedure, this subroutine removes
     !           rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
@@ -2245,7 +2245,10 @@ contains
     type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
     integer                     :: nulnam , ierr, fnom, fclos
     character(len = lenSqlName) :: flgSqlName
-    
+    character(len=256)                     :: numHeadTableRow, numBodyTableRow, numMidasHeadTableRow, numMidasBodyTableRow
+    character(len=256)                     :: numCleanHeadTableRow, numCleanBodyTableRow
+    character(len=256)                     :: numCleanMidasHeadTableRow, numCleanMidasBodyTableRow
+    character(len=lenSqlName), allocatable :: varSqlName(:)
     ! Namelist variables:
     logical, save               :: useVacuum ! choose to 'vacuum' the file after cleaning to reduce file size
 
@@ -2264,111 +2267,148 @@ contains
       nulnam  = 0
       ierr = fnom(nulnam ,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam , nml=namObsDbClean, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
+      if ( ierr /= 0 ) call utl_abort('odbf_clean: Error reading namelist')
       ierr = fclos(nulnam )
     end if
     if ( mmpi_myid == 0 ) write(*, nml=namObsDbClean)
 
     write(*,*)
-    write(*,*) 'obdf_clean: Starting'
+    write(*,*) 'odbf_clean: Starting'
     write(*,*)
-    write(*,*) 'obdf_clean: FileName   : ', trim(FileName)
-    write(*,*) 'obdf_clean: FamilyType : ', FamilyType
+    write(*,*) 'odbf_clean: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_clean: FamilyType : ', FamilyType
 
     ! open the obsDB file
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: fSQL_open')
+      write(*,*) 'odbf_clean: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_open')
     end if
     
+    ! Determine the number of rows in each table before cleaning
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';' 
+    numHeadTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';' 
+    numBodyTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';' 
+    numMidasHeadTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';' 
+    numMidasBodyTableRow = sqlu_query(db,trim(query))
+
     flgSqlName = odbf_midasTabColFromObsSpaceName('FLG', midasBodyNamesList)
 
-    ! Mark for deletion all records with bit 11 (2048) set
-    query = ' delete from '// trim(midasBodyTableName) //' where '// trim(flgSqlName) //' & 2048 =2048;'
+    ! Create temporary table of distinct header id with bit 11 (2048) not set
+    query = 'create temporary table good_headers as select distinct '//  trim(obsHeadKeySqlName) &
+                 //' from '// trim(midasBodyTableName) //' where not ('// trim(flgSqlName) //' & 2048 =2048);'
 
+    write(*,*) 'odbf_clean: query = ', trim(query)
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: fSQL_prepare')
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
     end if
-
     call fSQL_exec_stmt(stmt)
-  
-    query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) // &
-            ' from '// trim(midasBodyTableName) //';'
-    write(*,*) 'obdf_clean: query = ', trim(query)
-    call fSQL_do_many( db, query, stat )
 
+    ! Delete headers rows in all ObsDB tables that are not in the good_header tables.
+    query = 'delete from '// trim(midasBodyTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
+
+    write(*,*) 'odbf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: Problem with fSQL_do_many')
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
     end if
-
-    query = 'create temporary table good_bodies as select distinct '// trim(obsHeadKeySqlName) // ',' // &
-            trim(obsBodyKeySqlName) // ' from '// trim(midasBodyTableName) //';'
-    write(*,*) 'obdf_clean: query = ', trim(query)
-    call fSQL_do_many(db, query, stat)
-
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: Problem with fSQL_do_many')
-    end if
+    call fSQL_exec_stmt(stmt)
 
     query = 'delete from '// trim(midasHeadTableName) //' where '// trim(obsHeadKeySqlName) // &
             ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
-    write(*,*) 'obdf_clean: query = ', trim(query)
-    call fSQL_prepare(db, query, stmt, stat)
-    
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: fSQL_prepare')
-    end if
 
+    write(*,*) 'odbf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
+    end if
     call fSQL_exec_stmt(stmt)
 
-    query = 'delete from '// trim(bodyTableName) // &
-            ' where ('// trim(obsHeadKeySqlName) // ','// trim(obsBodyKeySqlName) // ')' // &
-            ' not in ( select '// trim(obsHeadKeySqlName) // ',' // trim(obsBodyKeySqlName) // &
-            ' from good_bodies );'
-    write(*,*) 'obdf_clean: query = ', trim(query)
+    query = 'delete from '// trim(bodyTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
+
+    write(*,*) 'odbf_clean: query = ', trim(query)
     call fSQL_prepare(db, query, stmt, stat)
-
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: fSQL_prepare')
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
     end if
-
     call fSQL_exec_stmt(stmt)
 
     query = 'delete from '// trim(headTableName) //' where '// trim(obsHeadKeySqlName) // &
-            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
-    write(*,*) 'obdf_clean: query = ', trim(query)
+            ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
+
+    write(*,*) 'odbf_clean: query = ', trim(query)
     call fSQL_prepare(db, query, stmt, stat)
-
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-      call utl_abort('obdf_clean: fSQL_prepare')
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
     end if
-
     call fSQL_exec_stmt(stmt)
+
+    ! Remove rows with missing obsvalue in body table.
+    varSqlName = odbf_sqlnamefromobsspacename('VAR')
+    query = 'delete from '// trim(bodyTableName) //' where '// trim(varSqlName(1)) // ' is null;'
+
+    write(*,*) 'odbf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_clean: fSQL_prepare')
+    end if
+    call fSQL_exec_stmt(stmt)
+
     call fSQL_finalize(stmt)
+
+    ! Determine the number of rows in each table after cleaning
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(headTableName) //';' 
+    numCleanHeadTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(bodyTableName) //';' 
+    numCleanBodyTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasHeadTableName) //';' 
+    numCleanMidasHeadTableRow = sqlu_query(db,trim(query))
+
+    query = 'select count(' // trim(obsHeadKeySqlName) // ') from ' // trim(midasBodyTableName) //';' 
+    numCleanMidasBodyTableRow = sqlu_query(db,trim(query))
+
+    write(*,*) 'odbf_clean: Cleaning Summary:'
+    write(*,'(A, A9, A9)') ' odbf_clean: Header count before/after cleaning in ' //  trim(headTableName), &
+                trim(numHeadTableRow), trim(numCleanHeadTableRow)
+    write(*,'(A, A9, A9)') ' odbf_clean: Header count before/after cleaning in ' //  trim(bodyTableName), &
+                trim(numBodyTableRow), trim(numCleanBodyTableRow)
+    write(*,'(A, A9, A9)') ' odbf_clean: Header count before/after cleaning in ' //  trim(midasHeadTableName), &
+                trim(numMidasHeadTableRow), trim(numCleanMidasHeadTableRow)
+    write(*,'(A, A9, A9)') ' odbf_clean: Header count before/after cleaning in ' //  trim(midasBodyTableName), &
+                trim(numMidasBodyTableRow), trim(numCleanMidasBodyTableRow)
 
     ! Reduces the size of SQL file 
     if ( useVacuum ) then
       query = 'vacuum;'
-      write(*,*) 'obdf_clean: query = ', trim(query)
+      write(*,*) 'odbf_clean: query = ', trim(query)
       call fSQL_do_many(db, query, stat)
 
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('obdf_clean: Problem with fSQL_do_many')
+        call utl_abort('odbf_clean: Problem with fSQL_do_many')
       end if
     end if
 
     call fSQL_close(db, stat)
 
-  end subroutine obdf_clean
+  end subroutine odbf_clean
 
   !--------------------------------------------------------------------------
   ! getCreateTableInsertQueries
