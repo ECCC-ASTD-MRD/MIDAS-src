@@ -1155,46 +1155,47 @@ contains
   !--------------------------------------------------------------------------
   ! int_vInterp_col
   !--------------------------------------------------------------------------
-  subroutine int_vInterp_col(column_in,column_out,varName,useColumnPressure_opt)
+  subroutine int_vInterp_col(column_in,column_out,varName,sfcPressureRef_opt)
     !
     ! :Purpose: Vertical interpolation of a columData object
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column_in              ! ColumnData input
-    type(struct_columnData),  intent(inout) :: column_out             ! columnData with the vert structure and results
-    character(len=*),         intent(in)    :: varName                ! variable name to be interpolated
-    logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by calcHeightAndPressure_mod
+    type(struct_columnData), target, intent(in)    :: column_in               ! ColumnData input
+    type(struct_columnData), target, intent(inout) :: column_out              ! columnData with the vert structure and results
+    character(len=*), intent(in)                   :: varName                 ! variable name to be interpolated
+    real(8), optional, intent(in)                  :: sfcPressureRef_opt(:,:) ! Use supplied surface pressure if present
 
     ! Locals:
     real(8), pointer :: varInterp_in(:), varInterp_out(:)
     real(8), pointer :: coordRef_in(:)  , coordRef_out(:)
-    real(8), pointer :: ZT_in(:,:), ZM_in(:,:), PT_in(:,:), PM_in(:,:)
+    real(8), pointer :: PT_in(:,:), PM_in(:,:)
     real(8), pointer :: PT_out(:,:), PM_out(:,:)
+    real(8), pointer :: pSfcIn_ptr(:,:), pSfcOut_ptr(:,:)
     character(len=4) :: varLevel
     real(8)          :: zwb, zwt
     integer          :: levIndex_out, levIndex_in, columnIndex
     integer          :: vcode_in, vcode_out
     integer          :: nLevIn_T, nLevIn_M, nLevOut_T, nLevOut_M
-    logical          :: vInterp, useColumnPressure
+    logical          :: vInterp, useSfcPressureRef
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
+    type(struct_columnData), pointer :: columnInRef_ptr, columnOutRef_ptr
 
     call msg('int_vInterp_col', 'START', verb_opt=2)
     varLevel = vnl_varLevelFromVarname(varName)
 
-    if ( present(useColumnPressure_opt) ) then
-      useColumnPressure = useColumnPressure_opt
+    if ( present(sfcPressureRef_opt) ) then
+      useSfcPressureRef = .true.
     else
-      useColumnPressure = .true.
+      useSfcPressureRef = .false.
     end if
 
-    call msg('int_vInterp_col', varName//' ('//varLevel &
-         //'), useColumnPressure='//str(useColumnPressure), verb_opt=3)
-
     vInterp = .true.
-    if ( .not. col_varExist(column_in,'P0' ) ) then
+    if( useSfcPressureRef ) then
+      call msg('int_vInterp_col', 'Use external Surface Pressure')
+    else if( .not. col_varExist(column_in,'P0' ) ) then
       call msg('int_vInterp_col', 'P0 is missing. Vertical interpolation WILL NOT BE PERFORMED')
       vInterp = .false.
     else if ( col_getNumLev(column_in ,'TH') <= 1 .or. &
@@ -1211,44 +1212,52 @@ contains
     nLevOut_M = col_getNumLev(column_out, 'MM')
 
     if_vInterp: if (vInterp) then
-      if ( .not. useColumnPressure ) then
+      if ( useSfcPressureRef ) then
+        call msg('int_vInterp_col', 'Use Reference Surface Pressure to compute the &
+                                       pressure level')
 
-        call msg('int_vInterp_col', 'vcode_in='//str(vcode_in)//', '&
-             //'vcode_out='//str(vcode_out), verb_opt=3)
+        allocate(columnInRef_ptr)
+        call col_setVco(columnInRef_ptr, col_getVco(column_in))
+        call col_allocate(columnInRef_ptr, col_getNumCol(column_in),mpiLocal_opt=.true.)
 
-        ! Compute interpolation variables (pressures and or heights)
-        allocate(PT_in( col_getNumCol(column_in),  nLevIn_T))
-        allocate(PM_in( col_getNumCol(column_in),  nLevIn_M))
-        allocate(ZT_in( col_getNumCol(column_in),  nLevIn_T))
-        allocate(ZM_in( col_getNumCol(column_in),  nLevIn_M))
-        allocate(PT_out(col_getNumCol(column_out), nLevOut_T))
-        allocate(PM_out(col_getNumCol(column_out), nLevOut_M))
+        allocate(columnOutRef_ptr)
+        call col_setVco(columnOutRef_ptr, col_getVco(column_out))
+        call col_allocate(columnOutRef_ptr, col_getNumCol(column_out),mpiLocal_opt=.true.)
 
-        call czp_calcReturnPressure_col_nl(column_in, PT_in, PM_in)
-        call czp_calcReturnHeight_col_nl(column_in, ZT_in, ZM_in)
-        call czp_calcReturnPressure_col_nl(column_out, PT_out, PM_out)
+        pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, varName_opt ='P0')
+        pSfcOut_ptr => col_getAllColumns(columnOutRef_ptr, varName_opt ='P0')
 
-      end if    ! useColumnPressure
+        pSfcIn_ptr = sfcPressureRef_opt
+        pSfcOut_ptr = sfcPressureRef_opt
+      else 
+        call msg('int_vInterp_col', 'Use Surface Pressure in the columns to compute the &
+                                       pressure level')
+        columnInRef_ptr => column_in
+        columnOutRef_ptr => column_out
+      end if
+
+      call msg('int_vInterp_col', 'vcode_in='//str(vcode_in)//', '&
+                        //'vcode_out='//str(vcode_out), verb_opt=3)
+
+      ! Compute interpolation variables (pressures and or heights)
+      !allocate(PT_in( col_getNumCol(columnRef$$$_in),  nLevIn_T))
+      allocate(PT_in( nLevIn_T, col_getNumCol(columnInRef_ptr)))
+      allocate(PM_in( nLevIn_M, col_getNumCol(columnInRef_ptr)))
+      allocate(PT_out( nLevOut_T, col_getNumCol(columnOutRef_ptr)))
+      allocate(PM_out(nLevOut_M, col_getNumCol(columnOutRef_ptr)))
+
+      call czp_calcReturnPressure_col_nl(columnInRef_ptr, PT_in, PM_in)
+      call czp_calcReturnPressure_col_nl(columnOutRef_ptr, PT_out, PM_out)
 
       do columnIndex = 1, col_getNumCol(column_out)
 
         ! coordRef_{in,out}
         if ( varLevel == 'TH' ) then
-          if ( .not. useColumnPressure ) then
-            coordRef_in  => PT_in(columnIndex,:)
-            coordRef_out => PT_out(columnIndex,:)
-          else
-            coordRef_in  => col_getColumn(column_in,columnIndex,'P_T')
-            coordRef_out => col_getColumn(column_out,columnIndex,'P_T')
-          end if
+          coordRef_in  => PT_in(:, columnIndex)
+          coordRef_out => PT_out(:, columnIndex)
         else if ( varLevel == 'MM' ) then
-          if ( .not. useColumnPressure ) then
-            coordRef_in  => PM_in(columnIndex,:)
-            coordRef_out => PM_out(columnIndex,:)
-          else
-            coordRef_in  => col_getColumn(column_in,columnIndex,'P_M')
-            coordRef_out => col_getColumn(column_out,columnIndex,'P_M')
-          end if
+          coordRef_in  => PM_in(:, columnIndex)
+          coordRef_out => PM_out(:, columnIndex)
         else
           call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if
@@ -1257,8 +1266,7 @@ contains
         varInterp_out => col_getColumn(column_out,columnIndex,varName)
 
         if ( columnIndex == 1 .and. (trim(varName) == 'P_T' ) ) then
-          call msg('int_vInterp_col', 'useColumnPressure='//str(useColumnPressure) &
-               //', '//trim(varName)//':' &
+          call msg('int_vInterp_col', trim(varName)//':' &
                //new_line('')//'COLUMN_IN(1):'//str(varInterp_in(:))&
                //new_line('')//'COLUMN_OUT(1):'//str(varInterp_out(:)), &
                mpiAll_opt=.false.)
@@ -1281,11 +1289,8 @@ contains
           zwb = log(coordRef_out(levIndex_out)/coordRef_in(levIndex_in))/  &
                log(coordRef_in(levIndex_in+1)/coordRef_in(levIndex_in))
           zwt = 1. - zwb
-          if (  useColumnPressure .and. &
-              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
-            ! do nothing, i.e. use the pressures from column_in
-          else if ( .not. useColumnPressure .and. &
-              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
+
+          if ( trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) then
             varInterp_out(levIndex_out) = exp(zwb*log(varInterp_in(levIndex_in+1)) + zwt*log(varInterp_in(levIndex_in)))
           else
             varInterp_out(levIndex_out) = zwb*varInterp_in(levIndex_in+1) + zwt*varInterp_in(levIndex_in)
@@ -1346,6 +1351,11 @@ contains
       end if
 
     end if if_vInterp
+
+    if ( useSfcPressureRef ) then
+      call col_deallocate(columnInRef_ptr)
+      call col_deallocate(columnOutRef_ptr)
+    end if
 
     call msg('int_vInterp_col', 'END', verb_opt=2)
   end subroutine int_vInterp_col

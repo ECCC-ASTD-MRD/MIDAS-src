@@ -297,6 +297,10 @@ contains
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
+    ! ZQ-For testing
+    real(8), allocatable       :: pSfcRef(:,:)
+    integer                    :: numColumns
+    ! ZQ
     if (col_getNumCol(columnTrlOnAnlIncLev) == 0) return
 
     call msg('inn_setupColumnsOnAnlIncLev','START',verb_opt=2)
@@ -318,6 +322,15 @@ contains
       end do
     end do
 
+    !ZQ-For testing
+    numColumns = col_getNumCol(columnTrlOnTrlLev)
+    allocate(pSfcRef(1,numColumns))
+    do columnIndex = 1, numColumns
+      pSfcRef(1, columnIndex) = col_getElem(columnTrlOnTrlLev, 1, columnIndex, 'P0')
+    end do
+
+    !ZQ-For testing
+
     !
     !- Vertical interpolation of 3D variables from trials levels to analysis increment levels
     !
@@ -326,7 +339,7 @@ contains
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
       call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, &
-                            vnl_varNameList3D(jvar), useColumnPressure_opt=.false.)
+                            vnl_varNameList3D(jvar), sfcPressureRef_opt=pSfcRef)
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU

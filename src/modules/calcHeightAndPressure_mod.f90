@@ -2590,6 +2590,8 @@ contains
 
     call msg('calcZandP_col_tl (czp)', 'START', verb_opt=2)
 
+    if (col_getNumCol(columnInc) == 0) return
+
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
@@ -2633,6 +2635,8 @@ contains
     integer   :: Vcode
 
     call msg('calcZandP_col_ad (czp)', 'START', verb_opt=2)
+
+    if (col_getNumCol(columnInc) == 0) return
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
@@ -2754,8 +2758,8 @@ contains
     end do
 
     call fetch3DLevels_r8(column%vco, hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
-    Z_M(:,:) = hPtrM(1,:,:)
-    Z_T(:,:) = hPtrT(1,:,:)
+    Z_M(:,:) = transpose(hPtrM(1,:,:))
+    Z_T(:,:) = transpose(hPtrT(1,:,:))
     deallocate(hPtrM, hPtrT)
 
     deallocate(hSfc)
@@ -2813,6 +2817,8 @@ contains
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_col_tl (czp)', 'START', verb_opt=2)
+
+    if (col_getNumCol(columnInc) == 0) return
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3023,6 +3029,8 @@ contains
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_col_ad (czp)', 'START', verb_opt=2)
+
+    if (col_getNumCol(columnInc) == 0) return
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3403,21 +3411,21 @@ contains
       tv(nlev_T) = tv0*cmp
       dh = Z_T - rMT
       Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
-      P_T(colIndex, nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
+      P_T(nlev_T, colIndex) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
       ! momentum diagnostic level
       Z_M = col_getHeight(column,nLev_M,colIndex,'MM')
       dh = Z_M - rMT
       Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
-      P_M(colIndex, nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
+      P_M(nlev_M, colIndex) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
       call msg('calcPressure_col_nl_vcode2100x (czp)', &
            'Column index '//str(colIndex) //': lat='//str(lat)&
            //'   Surface: height='//str(rMT)//', P0='//str(P0) &
            //'   TH_diag_lvl ('//str(nLev_T)//'): height='//str(Z_T)&
-                                  //', P_T='//str(P_T(colIndex, nlev_T)) &
+                                  //', P_T='//str(P_T(nlev_T, colIndex)) &
            //'   MM_diag_lvl ('//str(nLev_M)//'): height='//str(Z_M)&
-                                  //', P_M='//str(P_M(colIndex, nlev_M)), &
+                                  //', P_M='//str(P_M(nlev_M, colIndex)), &
            verb_opt=6)
 
       ! compute pressure on all levels above except the last
@@ -3434,26 +3442,26 @@ contains
         Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
 
         ! approximation of tv from pressure on previous momentum level
-        cmp = gpscompressibility(P_M(colIndex, lev_M+1),tt,hu)
+        cmp = gpscompressibility(P_M(lev_M+1, colIndex),tt,hu)
         tv(lev_T) = tv0*cmp
-        P_M(colIndex, lev_M) = P_M(colIndex, lev_M+1) * &
+        P_M(lev_M, colIndex) = P_M(lev_M+1, colIndex) * &
                             exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
         ! first interpolation of thermo pressure
         scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
-        logP = (1.0D0-scaleFactorBottom)*log(P_M(colIndex, lev_M+1)) + &
-                              scaleFactorBottom*log(P_M(colIndex, lev_M))
-        P_T(colIndex, lev_T) = exp(logP)
+        logP = (1.0D0-scaleFactorBottom)*log(P_M(lev_M+1, colIndex)) + &
+                              scaleFactorBottom*log(P_M(lev_M, colIndex))
+        P_T(lev_T, colIndex) = exp(logP)
 
         ! second iteration on tv
-        cmp = gpscompressibility(P_T(colIndex, lev_T),tt,hu)
+        cmp = gpscompressibility(P_T(lev_T, colIndex),tt,hu)
         tv(lev_T) = tv0*cmp
-        P_M(colIndex, lev_M) = P_M(colIndex, lev_M+1) * &
+        P_M(lev_M, colIndex) = P_M(lev_M+1, colIndex) * &
                             exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
 
         ! second iteration interpolation of thermo pressure
-        logP = (1.0D0-scaleFactorBottom)*log(P_M(colIndex, lev_M+1)) + &
-                              scaleFactorBottom*log(P_M(colIndex, lev_M))
-        P_T(colIndex, lev_T) = exp(logP)
+        logP = (1.0D0-scaleFactorBottom)*log(P_M(lev_M+1, colIndex)) + &
+                              scaleFactorBottom*log(P_M(lev_M, colIndex))
+        P_T(lev_T, colIndex) = exp(logP)
 
       end do
     end do do_onAllColumns
@@ -3513,8 +3521,8 @@ contains
     else
       call fetch3DLevels_r8(column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
     end if
-    P_M(:,:) = zppobsM(1,:,:)
-    P_T(:,:) = zppobsT(1,:,:)
+    P_M(:,:) = transpose(zppobsM(1,:,:))
+    P_T(:,:) = transpose(zppobsT(1,:,:))
     deallocate(zppobsM, zppobsT)
     deallocate(Psfc)
 
@@ -3539,6 +3547,8 @@ contains
     integer :: Vcode
 
     call msg('calcPressure_col_tl (czp)', 'START', verb_opt=2)
+
+    if (col_getNumCol(columnInc) == 0) return
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3659,6 +3669,8 @@ contains
     integer :: Vcode
 
     call msg('calcPressure_col_ad (czp)', 'START', verb_opt=2)
+
+    if (col_getNumCol(columnInc) == 0) return
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
