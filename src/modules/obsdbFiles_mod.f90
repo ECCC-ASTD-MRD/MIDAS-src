@@ -2302,7 +2302,7 @@ contains
 
     ! Create temporary table of distinct header id with bit 11 (2048) not set
     query = 'create temporary table good_headers as select distinct '//  trim(obsHeadKeySqlName) &
-                 //' from '// trim(midasBodyTableName) //' where not ('// trim(flgSqlName) //' & 2048 =2048);'
+                 //' from '// trim(midasBodyTableName) //' where ('// trim(flgSqlName) //' & 2048 = 0);'
 
     write(*,*) 'odbf_clean: query = ', trim(query)
     call fSQL_prepare(db, query, stmt, stat)
