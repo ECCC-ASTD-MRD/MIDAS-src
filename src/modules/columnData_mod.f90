@@ -27,7 +27,7 @@ module columnData_mod
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
-  public :: col_getLevIndexFromVarLevIndex
+  public :: col_getLevIndexFromVarLevIndex, col_add, col_copy
 
   type struct_columnData
     integer           :: nk, numCol
@@ -707,5 +707,107 @@ contains
     column%vco => vco_ptr
 
   end subroutine col_setVco
+
+  !--------------------------------------------------------------------------
+  ! col_add
+  !--------------------------------------------------------------------------
+  subroutine col_add(columnIn, columnInout, scaleFactor_opt)
+    !
+    ! :Purpose: Adds two columns
+    !           columnInout = columnInout + scaleFactor_opt * columnIn
+    !
+
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData)           :: columnIn           ! first operand 
+    type(struct_columnData)           :: columnInout        ! second operand, will receive the result
+    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
+
+    ! Locals:
+    real(8), pointer                  :: ptrColInOut(:,:)
+    real(8), pointer                  :: ptrColIn(:,:)
+
+    if (columnInout%nk /= columnIn%nk) &
+                call utl_abort('col_add: Number of levels between two column object are not the same')
+
+    if (columnInout%numCol /= columnIn%numCol) &
+                call utl_abort('col_add: Number of columns between two column object are not the same')
+
+    ptrColInOut => col_getAllColumns(columnInout)
+    ptrColIn => col_getAllColumns(columnIn)
+
+    if (present(scaleFactor_opt)) then
+      ptrColInOut(:,:) = ptrColInOut(:,:) + scaleFactor_opt * ptrColIn(:,:)
+    else
+      ptrColInOut(:,:) = ptrColInOut(:,:) + ptrColIn(:,:)
+    end if
+
+  end subroutine col_add
+
+  !--------------------------------------------------------------------------
+  ! col_copy
+  !--------------------------------------------------------------------------
+  subroutine col_copy(columnIn, columnOut)
+    !
+    ! :Purpose: Copy column object from columnIn to columnOut
+    !
+
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData)           :: columnIn
+    type(struct_columnData)           :: columnOut
+
+    ! Locals:
+    real(8), pointer                  :: ptrHeightSfcIn(:), ptrHeightSfcOut(:)
+    real(8), pointer                  :: ptrOltvIn(:,:,:), ptrOltvOut(:,:,:)
+    real(8), pointer                  :: ptrColOut(:,:), ptrColIn(:,:)
+    integer, pointer                  :: ptrvarOffsetIn(:), ptrvarOffsetOut(:)
+    integer, pointer                  :: ptrVarNumLevIn(:), ptrVarNumLevOut(:)
+    real(8), pointer                  :: ptrLatIn(:), ptrLatOut(:)
+
+    call col_setVco(columnOut, col_getVco(columnIn))
+    call col_allocate(columnOut,col_getNumCol(columnIn),mpiLocal_opt=.true.)
+    
+
+    columnOut%nk = columnIn%nk
+    columnOut%numCol = columnIn%numCol
+    columnOut%mpi_local = columnIn%mpi_local
+    columnOut%varExistList = columnIn%varExistList
+    columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
+    columnOut%varExistList = columnIn%varExistList
+
+    ! Copy all
+    ptrColOut => col_getAllColumns(columnOut)
+    ptrColIn => col_getAllColumns(columnIn)
+    ptrColOut = ptrColIn
+    
+    ! Copy heightSfc
+    ptrHeightSfcOut => columnOut%heightSfc(:)
+    ptrHeightSfcIn => columnIn%heightSfc(:)
+    ptrHeightSfcOut = ptrHeightSfcIn
+
+    ! Copy oltv
+    ptrOltvOut => columnOut%oltv(:,:,:) 
+    ptrOltvIn => columnIn%oltv(:,:,:) 
+    ptrOltvOut = ptrOltvIn
+
+    ! Copy varOffset
+    ptrvarOffsetOut => columnOut%varOffset(:) 
+    ptrvarOffsetIn => columnIn%varOffset(:) 
+    ptrvarOffsetOut = ptrvarOffsetIn
+
+    ! Copy varNumLev
+    ptrVarNumLevOut => columnOut%varNumLev(:) 
+    ptrVarNumLevIn => columnIn%varNumLev(:) 
+    ptrVarNumLevOut = ptrVarNumLevIn
+
+    ! Copy lat
+    ptrLatOut => columnOut%lat(:) 
+    ptrLatIn => columnIn%lat(:) 
+    ptrLatOut = ptrLatIn
+
+  end subroutine col_copy
 
 end module columnData_mod
