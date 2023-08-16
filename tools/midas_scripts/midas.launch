@@ -445,18 +445,18 @@ if [ -n "${observations}" ]; then
                 if [ "${fam}" = uas -o "${fam}" = uan ]; then
                     [ ! -d diafiles_ua.updated ] && mkdir diafiles_ua.updated
                 else
-                    mkdir diafiles_${fam}.updated
+                    [ ! -d diafiles_${fam}.updated ] && mkdir diafiles_${fam}.updated
                 fi
             fi
             if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
-                mkdir bcrfiles_${fam}.updated
+                [ ! -d bcrfiles_${fam}.updated ] && mkdir bcrfiles_${fam}.updated
             fi
             if [ "${doThinning}" -ne 0 ]; then
-                mkdir obsfiles_${fam}.beforeThinning
+                [ ! -d obsfiles_${fam}.beforeThinning ] && mkdir obsfiles_${fam}.beforeThinning
             fi
         fi ## updatedObsFilesNeeded = yes
         if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
-            mkdir obsfiles_${fam}
+            [ ! -d obsfiles_${fam} ] && mkdir obsfiles_${fam}
         fi
     done
 else
