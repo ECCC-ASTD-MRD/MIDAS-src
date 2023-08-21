@@ -326,7 +326,7 @@ contains
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
       call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, &
-                            vnl_varNameList3D(jvar), useColumnPressure_opt=.false.)
+                            vnl_varNameList3D(jvar))
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU
