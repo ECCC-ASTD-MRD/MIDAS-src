@@ -1240,10 +1240,9 @@ contains
                         //'vcode_out='//str(vcode_out), verb_opt=3)
 
       ! Compute interpolation variables (pressures and or heights)
-      !allocate(PT_in( col_getNumCol(columnRef$$$_in),  nLevIn_T))
-      allocate(PT_in( nLevIn_T, col_getNumCol(columnInRef_ptr)))
-      allocate(PM_in( nLevIn_M, col_getNumCol(columnInRef_ptr)))
-      allocate(PT_out( nLevOut_T, col_getNumCol(columnOutRef_ptr)))
+      allocate(PT_in(nLevIn_T, col_getNumCol(columnInRef_ptr)))
+      allocate(PM_in(nLevIn_M, col_getNumCol(columnInRef_ptr)))
+      allocate(PT_out(nLevOut_T, col_getNumCol(columnOutRef_ptr)))
       allocate(PM_out(nLevOut_M, col_getNumCol(columnOutRef_ptr)))
 
       call czp_calcReturnPressure_col_nl(columnInRef_ptr, PT_in, PM_in)
