@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduce ability to copy and add column data objects (#858 and !764)
  * Add option to supply external surface pressure for interpolating column data objects (#857 and !763)
  * Option to inflate the background skin temperature error and error correlation (#855 and !762) 
  * Added namelist variable `useTovsUtil` to control radiance channel filtering in `var` based on `stats_tovs` UTIL column (#852 and !760)
