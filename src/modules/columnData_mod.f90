@@ -716,13 +716,12 @@ contains
     ! :Purpose: Adds two columns
     !           columnInout = columnInout + scaleFactor_opt * columnIn
     !
-
     implicit none
 
     ! Arguments:
-    type(struct_columnData)           :: columnIn           ! first operand 
-    type(struct_columnData)           :: columnInout        ! second operand, will receive the result
-    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
+    type(struct_columnData), intent(in)     :: columnIn           ! first operand 
+    type(struct_columnData), intent(inout)  :: columnInout        ! second operand, will receive the result
+    real(8), optional,       intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
 
     ! Locals:
     real(8), pointer                  :: ptrColInOut(:,:)
@@ -752,12 +751,11 @@ contains
     !
     ! :Purpose: Copy column object from columnIn to columnOut
     !
-
     implicit none
 
     ! Arguments:
-    type(struct_columnData)           :: columnIn
-    type(struct_columnData)           :: columnOut
+    type(struct_columnData), intent(in)   :: columnIn  ! Source column to be copied from
+    type(struct_columnData), intent(out)  :: columnOut ! Destination column to be copied to
 
     ! Locals:
     real(8), pointer                  :: ptrHeightSfcIn(:), ptrHeightSfcOut(:)
@@ -770,7 +768,6 @@ contains
     call col_setVco(columnOut, col_getVco(columnIn))
     call col_allocate(columnOut,col_getNumCol(columnIn),mpiLocal_opt=.true.)
     
-
     columnOut%nk = columnIn%nk
     columnOut%numCol = columnIn%numCol
     columnOut%mpi_local = columnIn%mpi_local
