@@ -749,24 +749,25 @@ contains
     type(struct_columnData), intent(in)   :: columnIn  ! Source column to be copied from
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
-    if (.not. columnIn%allocated) &
-          call utl_abort('col_copy: columnIn is not allocated')
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_copy: columnIn is not allocated')
+    end if
 
-    if (.not. columnOut%allocated) &
-          call utl_abort('col_copy: columnOut is not allocated')
+    if (.not. columnOut%allocated) then
+      call utl_abort('col_copy: columnOut is not allocated')
+    end if
 
-    if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) &
-          call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
+    if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) then
+      call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
+    end if
    
-    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) &
-          call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
+    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) then
+      call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
+    end if
     
     !Copy Content
-    columnOut%nk = columnIn%nk
-    columnOut%numCol = columnIn%numCol
     columnOut%varExistList = columnIn%varExistList
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
-    columnOut%varExistList = columnIn%varExistList
     columnOut%all(:,:) =  columnIn%all(:,:)
     columnOut%heightSfc(:) = columnIn%heightSfc(:)
     columnOut%oltv(:,:,:) = columnIn%oltv(:,:,:)

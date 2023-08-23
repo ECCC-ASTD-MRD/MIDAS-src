@@ -675,7 +675,7 @@ contains
 
     call col_setVco(meanColumn, vco_ens)
     call col_allocate(meanColumn, obs_numheader(obsSpaceData), &
-                      mpiLocal_opt=.true., setToZero_opt=.true.)
+                      setToZero_opt=.true.)
     call s2c_nl(stateVectorMean, obsSpaceData, meanColumn, hco_in, &
                 timeInterpType='NEAREST' )
 
