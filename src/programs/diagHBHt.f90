@@ -348,7 +348,7 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
 
     !
     !- Initialize the observation error covariances
@@ -410,7 +410,7 @@ contains
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(columnAnlInc,vco_anl)
-    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev))
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)

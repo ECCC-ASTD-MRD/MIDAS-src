@@ -231,7 +231,7 @@ program midas_var1D
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Memory allocation for background column data
-  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
@@ -296,7 +296,7 @@ program midas_var1D
   call bcs_writebias(controlVectorIncr)
 
   call col_setVco(columnAnlInc, col_getVco(columnTrlOnAnlIncLev))
-  call col_allocate(columnAnlInc, col_getNumCol(columnTrlOnAnlIncLev), mpiLocal_opt=.true.)
+  call col_allocate(columnAnlInc, col_getNumCol(columnTrlOnAnlIncLev))
   call col_zero(columnAnlInc)
   ! get final increment
   call bmat1D_get1DvarIncrement(controlVectorIncr, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, cvm_nvadim)

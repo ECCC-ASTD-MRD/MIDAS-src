@@ -831,7 +831,7 @@ module obsSpaceErrorStdDev_mod
 
     !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)
-    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
     !- 1.5 Create a working a array to sum H ensPert HT
     allocate(HBHT_ens(obs_numBody(obsSpaceData)))

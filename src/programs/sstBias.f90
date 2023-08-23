@@ -237,7 +237,7 @@ program midas_sstBias
     call col_setup
 
     !- Memory allocation for background column data
-    call col_allocate(column, obs_numHeader(obsSpaceData), mpiLocal_opt = .true.)
+    call col_allocate(column, obs_numHeader(obsSpaceData))
 
     if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: done.'
     

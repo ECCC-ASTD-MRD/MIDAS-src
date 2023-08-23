@@ -258,7 +258,7 @@ contains
 
     ! initialize columnData object for increment
     call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
-    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
     ! initialize gridStateVector object for increment
     vco_anl => col_getVco(columnTrlOnAnlIncLev)

@@ -326,7 +326,7 @@ program midas_obsSelection
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt = .true.)
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   !
   !- Initialize the observation error covariances

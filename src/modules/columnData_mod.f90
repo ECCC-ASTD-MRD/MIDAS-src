@@ -27,12 +27,11 @@ module columnData_mod
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
-  public :: col_getLevIndexFromVarLevIndex
+  public :: col_getLevIndexFromVarLevIndex, col_add, col_copy
 
   type struct_columnData
     integer           :: nk, numCol
     logical           :: allocated=.false.
-    logical           :: mpi_local
     real(8), pointer  :: all(:,:)
     real(8), pointer  :: heightSfc(:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
@@ -208,13 +207,12 @@ contains
   !--------------------------------------------------------------------------
   ! col_allocate
   !--------------------------------------------------------------------------
-  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
+  subroutine col_allocate(column, numCol, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
     ! Arguments:
     type(struct_columnData),    intent(inout) :: column
     integer,                    intent(in)    :: numCol
-    logical,          optional, intent(in)    :: mpiLocal_opt
     logical,          optional, intent(in)    :: beSilent_opt
     logical,          optional, intent(in)    :: setToZero_opt
     character(len=*), optional, intent(in)    :: varNames_opt(:)
@@ -265,12 +263,6 @@ contains
     end if
 
     column%numCol = numCol
-    if(present(mpiLocal_opt)) then
-      column%mpi_local=mpiLocal_opt
-    else
-      column%mpi_local=.true.
-      if (mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
-    end if
 
     if(.not.column%vco%initialized) then
       call utl_abort('col_allocate: VerticalCoord has not been initialized!')
@@ -707,5 +699,105 @@ contains
     column%vco => vco_ptr
 
   end subroutine col_setVco
+
+  !--------------------------------------------------------------------------
+  ! col_add
+  !--------------------------------------------------------------------------
+  subroutine col_add(columnIn, columnInout, scaleFactor_opt)
+    !
+    ! :Purpose: Adds two columns
+    !           columnInout = columnInout + scaleFactor_opt * columnIn
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)     :: columnIn           ! first operand 
+    type(struct_columnData), intent(inout)  :: columnInout        ! second operand, will receive the result
+    real(8), optional,       intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
+
+    ! Locals:
+    real(8), pointer                        :: ptrColInOut(:,:)
+    real(8), pointer                        :: ptrColIn(:,:)
+
+    if (columnInout%nk /= columnIn%nk) then
+      call utl_abort('col_add: Number of levels in columnIn and columnInout are not equal')
+    end if
+
+    if (columnInout%numCol /= columnIn%numCol) then
+      call utl_abort('col_add: Number of columns in columnIn and columnInout are not equal')
+    end if
+
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_add: columnIn is not allocated')
+    end if
+
+    if (.not. columnInout%allocated) then
+      call utl_abort('col_add: columnInout is not allocated')
+    end if
+
+    if (any(columnIn%varNumLev(:) /= columnInout%varNumLev(:))) then
+      call utl_abort('col_add: varNumLev in columnIn and columnInout are not equal')
+    end if
+   
+    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnInout))) then
+      call utl_abort('col_add: Vco in columnIn and columnInout are not equal')
+    end if
+
+    ptrColInOut => col_getAllColumns(columnInout)
+    ptrColIn => col_getAllColumns(columnIn)
+
+    if (present(scaleFactor_opt)) then
+      ptrColInOut(:,:) = ptrColInOut(:,:) + scaleFactor_opt * ptrColIn(:,:)
+    else
+      ptrColInOut(:,:) = ptrColInOut(:,:) + ptrColIn(:,:)
+    end if
+
+  end subroutine col_add
+
+  !--------------------------------------------------------------------------
+  ! col_copy
+  !--------------------------------------------------------------------------
+  subroutine col_copy(columnIn, columnOut)
+    !
+    ! :Purpose: Copy column object from columnIn to columnOut
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)     :: columnIn  ! Source column to be copied from
+    type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
+
+    if (columnOut%nk /= columnIn%nk) then
+      call utl_abort('col_copy: Number of levels in columnIn and columnOut are not equal')
+    end if
+
+    if (columnOut%numCol /= columnIn%numCol) then
+      call utl_abort('col_copy: Number of columns in columnIn and columnOut are not equal')
+    end if
+
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_copy: columnIn is not allocated')
+    end if
+
+    if (.not. columnOut%allocated) then
+      call utl_abort('col_copy: columnOut is not allocated')
+    end if
+
+    if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) then
+      call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
+    end if
+   
+    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) then
+      call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
+    end if
+    
+    !Copy Content
+    columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
+    columnOut%all(:,:) =  columnIn%all(:,:)
+    columnOut%heightSfc(:) = columnIn%heightSfc(:)
+    columnOut%oltv(:,:,:) = columnIn%oltv(:,:,:)
+    columnOut%lat(:) = columnIn%lat(:)
+
+  end subroutine col_copy
 
 end module columnData_mod

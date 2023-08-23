@@ -241,7 +241,7 @@ contains
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
 
     call col_setVco(columnTrlOnTrlLev,vco_trl)
-    call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData))
 
     ! copy latitude from obsSpaceData
     if ( obs_numHeader(obsSpaceData) > 0 ) then

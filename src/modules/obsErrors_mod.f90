@@ -2917,7 +2917,7 @@ contains
               call gio_readFromFile( stateVector, './bgSeaIceConc', '', 'P@', &
                                      unitConversion_opt = .false. )
               call col_setVco(columnTrlOnTrlLev, vco_trl)
-              call col_allocate(columnTrlOnTrlLev, obs_numHeader(obsSpaceData), mpiLocal_opt=.true.)
+              call col_allocate(columnTrlOnTrlLev, obs_numHeader(obsSpaceData))
               call s2c_nl( stateVector, obsSpaceData, columnTrlOnTrlLev, hco_trl, &
                            timeInterpType='NEAREST' )
               call gsv_deallocate( stateVector )
