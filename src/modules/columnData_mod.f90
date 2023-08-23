@@ -716,14 +716,32 @@ contains
     real(8), optional,       intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
 
     ! Locals:
-    real(8), pointer                  :: ptrColInOut(:,:)
-    real(8), pointer                  :: ptrColIn(:,:)
+    real(8), pointer                        :: ptrColInOut(:,:)
+    real(8), pointer                        :: ptrColIn(:,:)
 
-    if (columnInout%nk /= columnIn%nk) &
-                call utl_abort('col_add: Number of levels between two column object are not the same')
+    if (columnInout%nk /= columnIn%nk) then
+      call utl_abort('col_add: Number of levels in columnIn and columnInout are not equal')
+    end if
 
-    if (columnInout%numCol /= columnIn%numCol) &
-                call utl_abort('col_add: Number of columns between two column object are not the same')
+    if (columnInout%numCol /= columnIn%numCol) then
+      call utl_abort('col_add: Number of columns in columnIn and columnInout are not equal')
+    end if
+
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_add: columnIn is not allocated')
+    end if
+
+    if (.not. columnInout%allocated) then
+      call utl_abort('col_add: columnInout is not allocated')
+    end if
+
+    if (any(columnIn%varNumLev(:) /= columnInout%varNumLev(:))) then
+      call utl_abort('col_add: varNumLev in columnIn and columnInout are not equal')
+    end if
+   
+    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnInout))) then
+      call utl_abort('col_add: Vco in columnIn and columnInout are not equal')
+    end if
 
     ptrColInOut => col_getAllColumns(columnInout)
     ptrColIn => col_getAllColumns(columnIn)
@@ -746,8 +764,16 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)   :: columnIn  ! Source column to be copied from
+    type(struct_columnData), intent(in)     :: columnIn  ! Source column to be copied from
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
+
+    if (columnOut%nk /= columnIn%nk) then
+      call utl_abort('col_copy: Number of levels in columnIn and columnOut are not equal')
+    end if
+
+    if (columnOut%numCol /= columnIn%numCol) then
+      call utl_abort('col_copy: Number of columns in columnIn and columnOut are not equal')
+    end if
 
     if (.not. columnIn%allocated) then
       call utl_abort('col_copy: columnIn is not allocated')
@@ -766,7 +792,6 @@ contains
     end if
     
     !Copy Content
-    columnOut%varExistList = columnIn%varExistList
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
     columnOut%all(:,:) =  columnIn%all(:,:)
     columnOut%heightSfc(:) = columnIn%heightSfc(:)
