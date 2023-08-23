@@ -161,7 +161,7 @@ module fsoi_mod
 
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
-    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)

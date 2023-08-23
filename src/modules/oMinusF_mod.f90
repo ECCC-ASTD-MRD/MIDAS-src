@@ -131,7 +131,7 @@ module oMinusF_mod
 
       !- 1.12 Memory allocation for background column data
       if ( addHBHT ) then
-        call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+        call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
       end if
 
       if ( addSigmaO ) then
@@ -295,7 +295,7 @@ module oMinusF_mod
 
       !- 1.12 Memory allocation for background column data
       if ( addHBHT ) then
-        call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+        call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
       end if
 
       if ( addSigmaO ) then

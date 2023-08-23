@@ -236,7 +236,7 @@ CONTAINS
     controlVectorIncrSumZero(:) = 0.0d0
 
     call col_setVco(columnAnlInc,col_getVco(columnTrlOnAnlIncLev))
-    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev))
 
     write(*,*) 'oti_timeBinning: For 4D increment'
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)

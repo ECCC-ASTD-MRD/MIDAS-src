@@ -422,7 +422,7 @@ program midas_var
   call msg_memUsage('var')
 
   !- Memory allocation for background column data
-  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN

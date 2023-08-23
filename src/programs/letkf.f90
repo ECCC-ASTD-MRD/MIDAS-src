@@ -461,7 +461,7 @@ program midas_letkf
   call col_setup
   call col_setVco(column, vco_ens)
   call col_allocate(column, obs_numheader(obsSpaceData),  &
-                    mpiLocal_opt=.true., setToZero_opt=.true.)
+                    setToZero_opt=.true.)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.7 Read the sfc height from ensemble member 1 - only if we are doing NWP

@@ -1218,11 +1218,11 @@ contains
 
         allocate(columnInRef_ptr)
         call col_setVco(columnInRef_ptr, col_getVco(column_in))
-        call col_allocate(columnInRef_ptr, col_getNumCol(column_in),mpiLocal_opt=.true.)
+        call col_allocate(columnInRef_ptr, col_getNumCol(column_in))
 
         allocate(columnOutRef_ptr)
         call col_setVco(columnOutRef_ptr, col_getVco(column_out))
-        call col_allocate(columnOutRef_ptr, col_getNumCol(column_out),mpiLocal_opt=.true.)
+        call col_allocate(columnOutRef_ptr, col_getNumCol(column_out))
 
         pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, varName_opt ='P0')
         pSfcOut_ptr => col_getAllColumns(columnOutRef_ptr, varName_opt ='P0')

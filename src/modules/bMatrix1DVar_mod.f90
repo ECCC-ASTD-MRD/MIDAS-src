@@ -667,7 +667,7 @@ contains
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
-                        mpiLocal_opt=.true., setToZero_opt=.true.)
+                        setToZero_opt=.true.)
       call s2c_nl(stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
                   timeInterpType='NEAREST', dealloc_opt=.false. )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))

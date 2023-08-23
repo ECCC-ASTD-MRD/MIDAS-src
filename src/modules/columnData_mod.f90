@@ -32,7 +32,6 @@ module columnData_mod
   type struct_columnData
     integer           :: nk, numCol
     logical           :: allocated=.false.
-    logical           :: mpi_local
     real(8), pointer  :: all(:,:)
     real(8), pointer  :: heightSfc(:)
     real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
@@ -208,13 +207,12 @@ contains
   !--------------------------------------------------------------------------
   ! col_allocate
   !--------------------------------------------------------------------------
-  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
+  subroutine col_allocate(column, numCol, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
     ! Arguments:
     type(struct_columnData),    intent(inout) :: column
     integer,                    intent(in)    :: numCol
-    logical,          optional, intent(in)    :: mpiLocal_opt
     logical,          optional, intent(in)    :: beSilent_opt
     logical,          optional, intent(in)    :: setToZero_opt
     character(len=*), optional, intent(in)    :: varNames_opt(:)
@@ -265,12 +263,6 @@ contains
     end if
 
     column%numCol = numCol
-    if(present(mpiLocal_opt)) then
-      column%mpi_local=mpiLocal_opt
-    else
-      column%mpi_local=.true.
-      if (mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
-    end if
 
     if(.not.column%vco%initialized) then
       call utl_abort('col_allocate: VerticalCoord has not been initialized!')
@@ -755,55 +747,30 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in)   :: columnIn  ! Source column to be copied from
-    type(struct_columnData), intent(out)  :: columnOut ! Destination column to be copied to
+    type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
-    ! Locals:
-    real(8), pointer                  :: ptrHeightSfcIn(:), ptrHeightSfcOut(:)
-    real(8), pointer                  :: ptrOltvIn(:,:,:), ptrOltvOut(:,:,:)
-    real(8), pointer                  :: ptrColOut(:,:), ptrColIn(:,:)
-    integer, pointer                  :: ptrvarOffsetIn(:), ptrvarOffsetOut(:)
-    integer, pointer                  :: ptrVarNumLevIn(:), ptrVarNumLevOut(:)
-    real(8), pointer                  :: ptrLatIn(:), ptrLatOut(:)
+    if (.not. columnIn%allocated) &
+          call utl_abort('col_copy: columnIn is not allocated')
 
-    call col_setVco(columnOut, col_getVco(columnIn))
-    call col_allocate(columnOut,col_getNumCol(columnIn),mpiLocal_opt=.true.)
+    if (.not. columnOut%allocated) &
+          call utl_abort('col_copy: columnOut is not allocated')
+
+    if (any(columnIn%varNumLev(:) /= columnOut%varNumLev(:))) &
+          call utl_abort('col_copy: varNumLev in columnIn and columnOut are not equal')
+   
+    if (.not. vco_equal(col_getVco(columnIn), col_getVco(columnOut))) &
+          call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
     
+    !Copy Content
     columnOut%nk = columnIn%nk
     columnOut%numCol = columnIn%numCol
-    columnOut%mpi_local = columnIn%mpi_local
     columnOut%varExistList = columnIn%varExistList
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
     columnOut%varExistList = columnIn%varExistList
-
-    ! Copy all
-    ptrColOut => col_getAllColumns(columnOut)
-    ptrColIn => col_getAllColumns(columnIn)
-    ptrColOut = ptrColIn
-    
-    ! Copy heightSfc
-    ptrHeightSfcOut => columnOut%heightSfc(:)
-    ptrHeightSfcIn => columnIn%heightSfc(:)
-    ptrHeightSfcOut = ptrHeightSfcIn
-
-    ! Copy oltv
-    ptrOltvOut => columnOut%oltv(:,:,:) 
-    ptrOltvIn => columnIn%oltv(:,:,:) 
-    ptrOltvOut = ptrOltvIn
-
-    ! Copy varOffset
-    ptrvarOffsetOut => columnOut%varOffset(:) 
-    ptrvarOffsetIn => columnIn%varOffset(:) 
-    ptrvarOffsetOut = ptrvarOffsetIn
-
-    ! Copy varNumLev
-    ptrVarNumLevOut => columnOut%varNumLev(:) 
-    ptrVarNumLevIn => columnIn%varNumLev(:) 
-    ptrVarNumLevOut = ptrVarNumLevIn
-
-    ! Copy lat
-    ptrLatOut => columnOut%lat(:) 
-    ptrLatIn => columnIn%lat(:) 
-    ptrLatOut = ptrLatIn
+    columnOut%all(:,:) =  columnIn%all(:,:)
+    columnOut%heightSfc(:) = columnIn%heightSfc(:)
+    columnOut%oltv(:,:,:) = columnIn%oltv(:,:,:)
+    columnOut%lat(:) = columnIn%lat(:)
 
   end subroutine col_copy
 
