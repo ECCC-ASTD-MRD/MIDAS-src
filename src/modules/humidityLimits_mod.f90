@@ -20,7 +20,7 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
-  public :: qlim_getMinValueCloud, qlim_getMaxValueCloud, qlim_rttovLimit_col
+  public :: qlim_getMinValueCloud, qlim_getMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF, qlim_minValueCLDR
@@ -36,6 +36,7 @@ module humidityLimits_mod
   interface qlim_rttovLimit
     module procedure qlim_rttovLimit_gsv
     module procedure qlim_rttovLimit_ens
+    module procedure qlim_rttovLimit_col
   end interface qlim_rttovLimit
 
   ! interface for qlim_setMin
@@ -1073,7 +1074,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
+    type(struct_columnData), intent(inout) :: column  ! Column that RTTOV limits are  being imposed on.
     
     ! Locals:
     character(len=256)   :: fileName
