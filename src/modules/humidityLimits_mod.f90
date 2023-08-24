@@ -1176,15 +1176,15 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: press_src(numLev_src) ! Vertical levels, pressure (source)
-    real(8), intent(in) :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
-    real(8), intent(in) :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
-    integer, intent(in) :: numLev_src            ! Number of input levels (source)
-    integer, intent(in) :: numColumn_dest        ! Number of profiles
-    integer, intent(in) :: numLev_dest           ! Number of output levels (destination)
-    real(8)             :: press_dest(:,:)       ! Vertical levels, pressure (destination)
-    real(8)             :: qmin_dest(:,:)        ! Interpolated profiles (destination)
-    real(8)             :: qmax_dest(:,:)        ! Interpolated profiles (destination)
+    real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
+    real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
+    real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
+    integer, intent(in)  :: numLev_src            ! Number of input levels (source)
+    integer, intent(in)  :: numColumn_dest        ! Number of profiles
+    integer, intent(in)  :: numLev_dest           ! Number of output levels (destination)
+    real(8), intent(in)  :: press_dest(:,:)       ! Vertical levels, pressure (destination)
+    real(8), intent(out) :: qmin_dest(:,:)        ! Interpolated profiles (destination)
+    real(8), intent(out) :: qmax_dest(:,:)        ! Interpolated profiles (destination)
 
     ! Locals:
     integer :: ji, jk, jo, ii, ik, iorder
