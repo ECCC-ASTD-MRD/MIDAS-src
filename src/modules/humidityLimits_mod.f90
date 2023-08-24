@@ -13,6 +13,7 @@ module humidityLimits_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
   use calcHeightAndPressure_mod
+  use columnData_mod
   implicit none
   save
   private
@@ -35,6 +36,7 @@ module humidityLimits_mod
   interface qlim_rttovLimit
     module procedure qlim_rttovLimit_gsv
     module procedure qlim_rttovLimit_ens
+    module procedure qlim_rttovLimit_col
   end interface qlim_rttovLimit
 
   ! interface for qlim_setMin
@@ -1061,5 +1063,187 @@ contains
     end do
 
   end function cloudExistInStateVector
+
+  !--------------------------------------------------------------------------
+  ! qlim_rttovLimit_gsv
+  !--------------------------------------------------------------------------
+  subroutine qlim_rttovLimit_col(column)
+    !
+    !:Purpose: To impose RTTOV limits on humidity/LWCR for column data objects
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: column  ! Column that RTTOV limits are  being imposed on.
+    
+    ! Locals:
+    character(len=256)   :: fileName
+    integer              :: fnom, fclos, ierr, nulfile
+    integer              :: numLev, numLev_rttov, numCol, lev1, lev2
+    real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
+    real(8), allocatable :: qmin2D_rttov(:,:), qmax2D_rttov(:,:)
+    logical, save        :: firstTime=.true.
+    integer              :: levIndex, columnIndex
+    real(8), pointer     :: huColPtr(:,:), pressTColPtr(:,:)
+    real(8)              :: hu, hu_modified
+
+    if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_col: STARTING'
+
+    if (.not. col_varExist(column,'HU')) then
+      if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_col: column does not ' // &
+           'contain humidity ... doing nothing'
+      return
+    end if
+
+    ! Read in RTTOV humidity limits
+    fileName = "rttov_h2o_limits.dat"
+    nulfile = 0
+    ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
+    if (ierr /= 0) then
+      if (mmpi_myid == 0) write(*,*) 'fileName = ', fileName
+      call utl_abort('qlim_rttovLimit_col: error opening the humidity limits file')
+    end if
+
+    read(nulfile,*) numLev_rttov
+    if (mmpi_myid == 0 .and. firstTime) write(*,*) 'qlim_rttovLimit_col: rttov number of levels = ', numLev_rttov
+    allocate(press_rttov(numLev_rttov))
+    allocate(qmin_rttov(numLev_rttov))
+    allocate(qmax_rttov(numLev_rttov))
+    do levIndex = 1, numLev_rttov
+      read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
+    end do
+    ierr = fclos(nulfile)
+    press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
+    qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
+    qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
+
+    if (firstTime) then
+      write(*,*) ' '
+      do levIndex = 1, numLev_rttov
+        if (mmpi_myid == 0) write(*,fmt='(" qlim_rttovLimit_col:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+             levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
+      end do
+      firstTime = .false.
+    end if
+
+    huColPtr => col_getAllColumns(column,'HU')
+    pressTColPtr => col_getAllColumns(column,'P_T')
+    
+    numCol = col_getNumCol(column)
+    lev1 = 1
+    lev2 = col_getNumLev(column,'TH')
+    numLev = lev2 - lev1 + 1
+
+    write(*,*) 'numLev', numLev
+    allocate( qmin2D_rttov(numCol,numLev) )
+    allocate( qmax2D_rttov(numCol,numLev) )
+
+    call qlim_lintv_minmax_col(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
+                               numCol, numLev, pressTColPtr, qmin2D_rttov, qmax2D_rttov)
+
+    !$OMP PARALLEL DO PRIVATE (levIndex, columnIndex, hu, hu_modified) 
+    do columnIndex = 1, numCol
+      do levIndex = lev1, lev2
+        hu = huColPtr(levIndex, columnIndex)
+
+        ! limit the humidity according to the rttov limits
+        hu_modified = max(hu, qmin2D_rttov(columnIndex, levIndex) )
+        hu_modified = min(hu_modified, qmax2D_rttov(columnIndex, levIndex) )
+          
+        huColPtr(levIndex, columnIndex) = hu_modified
+      end do ! levIndex
+    end do ! columnIndex
+    !$OMP END PARALLEL DO
+
+    deallocate(qmin2D_rttov)
+    deallocate(qmax2D_rttov)
+    deallocate(qmax_rttov)
+    deallocate(qmin_rttov)
+    deallocate(press_rttov)
+
+  end subroutine qlim_rttovLimit_col
+
+  !--------------------------------------------------------------------------
+  ! qlim_lintv_minmax_col
+  !--------------------------------------------------------------------------
+  subroutine qlim_lintv_minmax_col(press_src, qmin_src, qmax_src, numLev_src, &
+                                   numColumn_dest, numLev_dest, press_dest, &
+                                   qmin_dest, qmax_dest)
+
+    !
+    !:Purpose: To perform the vertical interpolation in log of pressure and
+    !          and constant value extrapolation of one-dimensional column.
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
+    real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
+    real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
+    integer, intent(in)  :: numLev_src            ! Number of input levels (source)
+    integer, intent(in)  :: numColumn_dest        ! Number of profiles
+    integer, intent(in)  :: numLev_dest           ! Number of output levels (destination)
+    real(8), intent(in)  :: press_dest(:,:)       ! Vertical levels, pressure (destination)
+    real(8), intent(out) :: qmin_dest(:,:)        ! Interpolated profiles (destination)
+    real(8), intent(out) :: qmax_dest(:,:)        ! Interpolated profiles (destination)
+
+    ! Locals:
+    integer :: ji, jk, jo, ii, ik, iorder
+    real(8) :: zpo(numLev_dest)
+    integer :: il(numLev_dest)
+    real(8) :: zpi(0:numLev_src+1)
+    real(8) :: zqmin_src(0:numLev_src+1), zqmax_src(0:numLev_src+1)
+    real(8) :: zw1, zw2, zp, xi, zrt, zp1, zp2
+
+    zpi(0)=200000.d0
+    zpi(numLev_src+1)=200000.d0
+
+    ! Determine if input pressure levels are in ascending or
+    ! descending order.
+    if (press_src(1) < press_src(numLev_src)) then
+      iorder = 1
+    else
+      iorder = -1
+    end if
+
+    ! Source levels
+    do jk = 1, numLev_src
+      zpi(jk) = press_src(jk)
+      zqmin_src(jk) = qmin_src(jk)
+      zqmax_src(jk) = qmax_src(jk)
+    end do
+
+    zqmin_src(0) = qmin_src(1)
+    zqmin_src(numLev_src+1) = qmin_src(numLev_src)
+    zqmax_src(0) = qmax_src(1)
+    zqmax_src(numLev_src+1) = qmax_src(numLev_src)
+
+    do ii = 1, numColumn_dest
+      zpo(:) = press_dest(:,ii)
+
+      ! Find the adjacent level below
+      il(:) = 0
+      do ji = 1, numLev_src
+        do jo = 1, numLev_dest
+          zrt = zpo(jo)
+          zp = zpi(ji)
+          xi = sign(1.0d0,iorder*(zrt-zp))
+          il(jo) = il(jo) + max(0.0d0,xi)
+        end do
+      end do
+
+      ! Interpolation/extrapolation
+      do jo = 1, numLev_dest
+        ik = il(jo)
+        zp = zpo(jo)
+        zp1 = zpi(ik)
+        zp2 = zpi(ik+1)
+        zw1 = log(zp/zp2)/log(zp1/zp2)
+        zw2 = 1.d0 - zw1
+        qmin_dest(ii,jo) = zw1*zqmin_src(ik) +  zw2*zqmin_src(ik+1)
+        qmax_dest(ii,jo) = zw1*zqmax_src(ik) +  zw2*zqmax_src(ik+1)
+      end do
+
+    end do
+  end subroutine qlim_lintv_minmax_col
 
 end module humidityLimits_mod
