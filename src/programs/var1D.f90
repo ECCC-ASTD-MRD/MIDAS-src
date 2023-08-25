@@ -10,7 +10,10 @@ program midas_var1D
   !            observations are present. The B matrix can be either an explicit representation of
   !            the covariances produced by the program extractBmatrixFor1Dvar or from an ensemble
   !            (controlled by the namelists). The resulting analysis and analysis increment at the
-  !            observation locations/times are output in standard files on a "Y" grid.
+  !            observation locations/times are output in standard files on a "Y" grid. There is an 
+  !            option to conduct idealized simulation by simulating the background and observations
+  !            based on a prescribed true state, the background and observation error covariance 
+  !            matrices.
   !
   !            --
   !
@@ -31,7 +34,12 @@ program midas_var1D
   ! ``pm1q``                                       In/Out - Preconditioning file (Hessian of the cost function)
   ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on Y grid
   ! ``anlm_$MMMm``                                 Out - Analysis on Y grid
-  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task 
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! ``SimTrialOnTrlLev_$MMMm``                     Out - Simulated background on trial vert. level (Idealized Simulation)
+  ! ``TruthOnTrlLev_$MMMm``                        Out - True state on trial vert. level (Idealized Simulation)
+  ! ``TruthOnAnlLev_$MMMm``                        Out - True state on analysis vert. level grid (Idealized Simulation)
+  ! ``PertOnTrlLev_$MMMm``                         Out - Simulated perturbation on trial level grid (Idealized Simulation)
+  ! ``PertOnAnlLev_$MMMm``                         Out - Simulated perturbation on analysis level grid (Idealized Simulation)
   ! Remainder are files related to radiance obs:
   ! ``stats_tovs``                                 In - Observation error file for radiances
   ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
@@ -75,6 +83,8 @@ program midas_var1D
   !
   !               - Horizontally interpolate high-resolution stateVectorUpdate to trial columns: ``inn_setupColumnsOnTrlLev``
   !
+  !               - Simulate background if specified in NAM1DVAR ``var1DIdealize_simulateBackgroundState``
+  !
   !               - Interpolate trial columns to analysis levels and setup for linearized H: ``inn_setupColumnsOnAnlIncLev``
   !
   !               - Compute observation innovations and prepare obsSpaceData for minimization: ``inn_computeInnovation``
@@ -112,6 +122,9 @@ program midas_var1D
   !              * includeAnlVar list of variable for the B matrix
   !              * numIncludeAnlVar number of variables in  includeAnlVar (to be removed later)
   !
+  !           - The option to simulate the background and observations in idealized simulation controlled 
+  !             by namelist NAM1DVAR
+  !
   !           --
   !
   use version_mod
@@ -137,6 +150,7 @@ program midas_var1D
   use biasCorrectionSat_mod
   use var1D_mod
   use bMatrix1Dvar_mod
+  use var1DIdealize_mod
  
   implicit none
 
@@ -149,6 +163,7 @@ program midas_var1D
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
   type(struct_columnData), target :: columnTrlOnTrlLev
+  type(struct_columnData), target :: columnTrlOnTrlLevTruth
   type(struct_columnData), target :: columnAnlInc
   type(struct_gsv)                :: stateVectorIncr
   type(struct_gsv)                :: stateVectorTrialHighRes
@@ -161,6 +176,12 @@ program midas_var1D
 
   integer :: outerLoopIndex, numIterMaxInnerLoop
   logical :: allocHeightSfc
+  integer :: nulnam, fclos, fnom
+  logical :: simBgAndObs, estHBHT, useSimObsErr
+  integer :: simBgSeed, simObsSeed, estHBHTNumSeed
+
+  NAMELIST /NAM1DVAR/ simBgAndObs, estHBHT, useSimObsErr
+  NAMELIST /NAM1DVAR/ simBgSeed, simObsSeed, estHBHTNumSeed 
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -183,6 +204,43 @@ program midas_var1D
   call ram_setup
 
   ! Do initial set up
+
+  !  Set/Read values for the namelist NAM1DVAR
+  ! setting default values
+  simBgAndObs = .False.
+  estHBHT = .False.
+  simBgSeed = 0
+  simObsSeed = 0
+  estHBHTNumSeed = 0
+  useSimObsErr = .False.
+
+  ! Check if NAM1DVAR exist
+  if (.not. utl_isNamelistPresent('NAM1DVAR','./flnml')) then
+    write(*,*)
+    write(*,*) 'var1D: Namelist block NAM1DVAR is missing in the namelist.'
+    write(*,*) '       the default values will be taken.'
+  else
+    ! Read the namelist
+    nulnam=0
+    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=NAM1DVAR, iostat=ierr)
+    if(ierr.ne.0) call utl_abort('midas-var1D: Error reading namelist')
+    ierr=fclos(nulnam)
+  end if
+
+  if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
+
+  if (estHBHT) then 
+    if (.not. simBgAndObs) then 
+      call utl_abort('var1D: simulate background and observation must &
+                      be enabled to compute HBHT')
+    end if
+
+    if (estHBHTNumSeed < 1) then
+      call utl_abort('var1D: Estimated Background Error is enabled, &
+                    but number of realizations is less than 1')
+    end if
+  end if
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
@@ -276,6 +334,19 @@ program midas_var1D
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                 stateVectorTrialHighRes )
+
+  ! Simulate the Background and Observation in idealized experiements
+  if (simBgAndObs) then
+    call col_setVco(columnTrlOnTrlLevTruth, col_getVco(columnTrlOnTrlLev))
+    call col_allocate(columnTrlOnTrlLevTruth, col_getNumCol(columnTrlOnTrlLev), &
+                      setToZero_opt=.true.)
+    call col_copy(columnTrlOnTrlLev, columnTrlOnTrlLevTruth)
+    call col_deallocate(columnTrlOnTrlLev)
+    
+    ! Simulate Background state columnTrlOnTrlLev
+    call var1DIdealize_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
+                                                obsSpaceData, vco_anl, simBgSeed)
+  end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
