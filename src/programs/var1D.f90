@@ -177,11 +177,12 @@ program midas_var1D
   integer :: outerLoopIndex, numIterMaxInnerLoop
   logical :: allocHeightSfc
   integer :: nulnam, fclos, fnom
-  logical :: simBgAndObs, estHBHT, useSimObsErr
-  integer :: simBgSeed, simObsSeed, estHBHTNumSeed
 
-  NAMELIST /NAM1DVAR/ simBgAndObs, estHBHT, useSimObsErr
-  NAMELIST /NAM1DVAR/ simBgSeed, simObsSeed, estHBHTNumSeed 
+  ! namelist variables:
+  logical :: simBgAndObs  ! Simulate Background and Observation
+  integer :: simBgSeed    ! Random seed used to generate perturbation sampling 
+
+  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -208,11 +209,7 @@ program midas_var1D
   !  Set/Read values for the namelist NAM1DVAR
   ! setting default values
   simBgAndObs = .False.
-  estHBHT = .False.
   simBgSeed = 0
-  simObsSeed = 0
-  estHBHTNumSeed = 0
-  useSimObsErr = .False.
 
   ! Check if NAM1DVAR exist
   if (.not. utl_isNamelistPresent('NAM1DVAR','./flnml')) then
@@ -229,18 +226,6 @@ program midas_var1D
   end if
 
   if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
-
-  if (estHBHT) then 
-    if (.not. simBgAndObs) then 
-      call utl_abort('var1D: simulate background and observation must &
-                      be enabled to compute HBHT')
-    end if
-
-    if (estHBHTNumSeed < 1) then
-      call utl_abort('var1D: Estimated Background Error is enabled, &
-                    but number of realizations is less than 1')
-    end if
-  end if
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
