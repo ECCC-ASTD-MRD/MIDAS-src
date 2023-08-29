@@ -178,7 +178,7 @@ program midas_var1D
   logical :: allocHeightSfc
   integer :: nulnam, fclos, fnom
 
-  ! namelist variables:
+  ! Namelist variables:
   logical :: simBgAndObs  ! Simulate Background and Observation
   integer :: simBgSeed    ! Random seed used to generate perturbation sampling 
 
