@@ -1,19 +1,3 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
-
 module var1DIdealize_mod
     ! MODULE var1DIdealize_mod (prefix='var1D' category='4. Data Object transformations')
     !
@@ -51,17 +35,6 @@ module var1DIdealize_mod
     ! public procedures
     public :: var1DIdealize_simulateBackgroundState
 
-    ! namelist variables
-    integer  :: writeNumBits
-    logical  :: writeHiresIncrement
-    logical  :: imposeRttovHuLimits, useAnalIncMask
-    character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
-    character(len=12) :: hInterpolationDegree
-    logical :: applyLiebmann
-    logical :: SSTSpread  
-    integer :: SSTSpreadMaxBoxSize
-    character(len=10) :: SSTSubgrid
-
   contains
 
   !--------------------------------------------------------------------------
@@ -69,18 +42,17 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   subroutine var1DIdealize_simulateBackgroundState(columnTruthOnTrlLev, columnSimTrlOnTrlLev, &
                                                    obsSpaceData, vco_anl, seed)
-
     !
     !:Purpose: Simulate the background state by adding a perturbation from the reference state (Truth)
     !
     implicit none
 
-    ! arguments
-    type(struct_columnData), target, intent(inout) :: columnTruthOnTrlLev
-    type(struct_columnData), target, intent(out)   :: columnSimTrlOnTrlLev
-    type(struct_obs),                intent(in)    :: obsSpaceData
-    type(struct_vco), pointer,       intent(in)    :: vco_anl
-    integer,                         intent(in)    :: seed
+    ! Arguments:
+    type(struct_columnData), target, intent(inout) :: columnTruthOnTrlLev   ! The true state column
+    type(struct_columnData), target, intent(out)   :: columnSimTrlOnTrlLev  ! Simulated background column
+    type(struct_obs),                intent(in)    :: obsSpaceData          ! ObsSpacedata object
+    type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
+    integer,                         intent(in)    :: seed                  ! Seed to random number generator 
     
     ! locals:
     type(struct_columnData), target :: columnPertOnAnLev
