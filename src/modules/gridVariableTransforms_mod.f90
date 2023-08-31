@@ -25,7 +25,8 @@ module gridVariableTransforms_mod
   use calcHeightAndPressure_mod
   use utilities_mod
   use humiditylimits_mod
-  
+  use getGridPosition_mod
+
   implicit none
   save
   private
@@ -400,7 +401,7 @@ CONTAINS
       if (.not.present(varName_opt)) then
         call utl_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
       end if	
-      call gvt_oceanIceContinous(statevector, stateVectorRef_opt, varName_opt)
+      call gvt_oceanIceContinuous(statevector, stateVectorRef_opt, varName_opt)
 
     case ('SSTSpread')
       if (.not.present(varName_opt)) then
@@ -1856,9 +1857,9 @@ CONTAINS
   end subroutine CH_bounds
 
   !--------------------------------------------------------------------------
-  ! gvt_oceanIceContinous
+  ! gvt_oceanIceContinuous
   !--------------------------------------------------------------------------
-  subroutine gvt_oceanIceContinous(stateVector, stateVectorRef, outputVarName)
+  subroutine gvt_oceanIceContinuous(stateVector, stateVectorRef, outputVarName)
     !
     ! :Purpose: Solve laplaces equation at a subset of gridpoints
     !           subject to the boundary conditions imposed by the
@@ -1893,7 +1894,7 @@ CONTAINS
     
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
-      call utl_abort('gvt_oceanIceContinous: 3D mask present - this case not properly handled')
+      call utl_abort('gvt_oceanIceContinuous: 3D mask present - this case not properly handled')
     end if
 
     ! allocate statevector for single time steps
@@ -1913,7 +1914,7 @@ CONTAINS
                           stateVectorRef%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/outputVarName/))
       else
-      	call utl_abort('gvt_oceanIceContinous: unrecognized variable name: '//trim(outputVarName))		  
+      	call utl_abort('gvt_oceanIceContinuous: unrecognized variable name: '//trim(outputVarName))
       end if
     end if
 
@@ -1933,6 +1934,8 @@ CONTAINS
 
       alpha = 1.975d0
       if (stateVector%ni == 4322 .and. stateVector%nj == 3059) then
+! Following does not work because stateVector%hco%lat and stateVector%hco%lon are not set
+!      if( gpos_gridIsOrca(stateVector%ni, stateVector%nj, stateVector%hco%lat, stateVector%hco%lon) ) then
         orca12 = .true.
         numPass = 1000
         factor = alpha*0.88d0
@@ -1942,17 +1945,17 @@ CONTAINS
         factor = alpha
       end if
 
-      write(*,*) 'gvt_oceanIceContinous: Liebmann relaxation'
-      write(*,*) 'gvt_oceanIceContinous: Number of free points: ',  count(.not. stateVector%oceanMask%mask)
-      write(*,*) 'gvt_oceanIceContinous: Number of fixed points: ', count(      stateVector%oceanMask%mask)
-      write(*,*) 'gvt_oceanIceContinous: Total number of grid points: ', stateVector%ni*stateVector%nj
-      write(*,*) 'gvt_oceanIceContinous: Total number of iterations: ', numPass
+      write(*,*) 'gvt_oceanIceContinuous: Liebmann relaxation'
+      write(*,*) 'gvt_oceanIceContinuous: Number of free points: ',  count(.not. stateVector%oceanMask%mask)
+      write(*,*) 'gvt_oceanIceContinuous: Number of fixed points: ', count(      stateVector%oceanMask%mask)
+      write(*,*) 'gvt_oceanIceContinuous: Total number of grid points: ', stateVector%ni*stateVector%nj
+      write(*,*) 'gvt_oceanIceContinuous: Total number of iterations: ', numPass
 
       do stepIndex = 1, statevector%numStep
-        write(*,*) 'gvt_oceanIceContinous: stepIndex = ', stepIndex
+        write(*,*) 'gvt_oceanIceContinuous: stepIndex = ', stepIndex
         do levIndex = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(outputVarName))
 
-          write(*,*) 'gvt_oceanIceContinous: levIndex = ',levIndex
+          write(*,*) 'gvt_oceanIceContinuous: levIndex = ',levIndex
 
           ! Initialisation
           do latIndex = 1, stateVector%nj
@@ -2076,14 +2079,14 @@ CONTAINS
 
           if(numCorrect > 0) rms = sqrt(rms / real(numCorrect))
 
-          write(*,*) 'gvt_oceanIceContinous: number of points corrected = ', numCorrect
-          write(*,*) 'gvt_oceanIceContinous: RMS correction during last iteration: ', rms
-          write(*,*) 'gvt_oceanIceContinous: MAX absolute correction during last iteration: ', maxAbsCorr
-          write(*,*) 'gvt_oceanIceContinous: Field min value = ', minval(analysis_ptr(:,:,levIndex,stepIndex))
-          write(*,*) 'gvt_oceanIceContinous: Field max value = ', maxval(analysis_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinuous: number of points corrected = ', numCorrect
+          write(*,*) 'gvt_oceanIceContinuous: RMS correction during last iteration: ', rms
+          write(*,*) 'gvt_oceanIceContinuous: MAX absolute correction during last iteration: ', maxAbsCorr
+          write(*,*) 'gvt_oceanIceContinuous: Field min value = ', minval(analysis_ptr(:,:,levIndex,stepIndex))
+          write(*,*) 'gvt_oceanIceContinuous: Field max value = ', maxval(analysis_ptr(:,:,levIndex,stepIndex))
 
           if(maxAbsCorr > 1.0) then
-            call utl_abort('gvt_oceanIceContinous: Unstable algorithm !')
+            call utl_abort('gvt_oceanIceContinuous: Unstable algorithm !')
           end if
 
         end do
@@ -2104,7 +2107,7 @@ CONTAINS
       call gsv_deallocate(stateVector_trial_1step_r8)
     end if
 
-  end subroutine gvt_oceanIceContinous
+  end subroutine gvt_oceanIceContinuous
 
   !--------------------------------------------------------------------------
   ! gvt_SSTSpread
@@ -2162,7 +2165,7 @@ CONTAINS
                           stateVector%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/variableName/))
       else
-      	call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))		  
+      	call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))
       end if
     end if
 
@@ -2252,7 +2255,7 @@ CONTAINS
         field_ptr(:, latIndexBeg:latIndexEnd, 1, 1) = updatedField(:,:)
 
       end do boxSizeLoop
-          
+
       write(*,*) 'gvt_SSTSpread: Field min value = ', minval(field_ptr(:, latIndexBeg:latIndexEnd, 1, 1))
       write(*,*) 'gvt_SSTSpread: Field max value = ', maxval(field_ptr(:, latIndexBeg:latIndexEnd, 1, 1))
 
@@ -2267,7 +2270,7 @@ CONTAINS
     deallocate(isWaterValue)
     deallocate(updatedIsWaterValue)
     deallocate(updatedField)
-    
+
   end subroutine gvt_SSTSpread
 
 end module gridVariableTransforms_mod
