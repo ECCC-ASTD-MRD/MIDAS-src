@@ -87,7 +87,7 @@ module sqliteFiles_mod
     integer         ,  intent(in)    :: fileIndex
 
     ! Locals:
-    integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
+    integer :: headerIndexBegin, headerIndexEnd, headerIndex
     integer :: numBody, numHeader
     character(len=*), parameter :: my_name = 'sqlf_readFile'
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
@@ -101,10 +101,8 @@ module sqliteFiles_mod
     write(*,*) my_name//': FileName   : ', trim(FileName)
     write(*,*) my_name//': FamilyType : ', FamilyType
 
-    bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
     call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName))
-    bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
     if (trim(familyType) == 'TO') then
       call sqlr_readSqlite_avhrr(obsdat, trim(fileName), headerIndexBegin, headerIndexEnd)
