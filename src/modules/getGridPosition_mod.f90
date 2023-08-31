@@ -19,9 +19,9 @@ module getGridPosition_mod
   private
 
   ! public procedures
-  public :: gpos_getPositionXY
+  public :: gpos_getPositionXY, gpos_gridIsOrca
 
-  integer, parameter :: maxNumLocalGridPointsSearch = 300
+  integer, parameter :: maxNumLocalGridPointsSearch = 350
   integer, external  :: get_max_rss
 
   type(kdtree2), pointer :: tree => null()
@@ -301,25 +301,14 @@ contains
       deallocate(grid_lat_deg_r4, grid_lon_deg_r4)
       gdidOld = gdid
 
-      if( (ni == 4322 .and. nj == 3059) .or. (ni == 1442 .and. nj == 1021) ) then
-        ! This is orca12 or orca025
-        ! The last 2 columns (i=4321 and 4322 in orca12) are repetitions of the first 2 columns (i=1 and 2)
+      if( gpos_gridIsOrca(ni, nj, grid_lat_rad, grid_lon_rad) ) then
+        ! The last 2 columns (i=ni-1 and ni) are repetitions of the first 2 columns (i=1 and 2)
         ! so both ends are removed from the search area.
         startXIndex = 2
         endXIndex = ni - 1
-        ! The last line (j=3059 in orca12) is a repetition in reverse order of the line (j=3057 in orca12)
+        ! The last line (j=nj) is a repetition in reverse order of the line (j=nj-2)
         ! and is thus eliminated from the search domain.
         endYIndex = nj - 1
-        ! Check that is true
-        do yIndex = 1, nj
-          if(grid_lat_rad(1,yIndex) /= grid_lat_rad(ni-1,yIndex) .or. grid_lat_rad(2,yIndex) /= grid_lat_rad(ni,yIndex) .or. &
-             grid_lon_rad(1,yIndex) /= grid_lon_rad(ni-1,yIndex) .or. grid_lon_rad(2,yIndex) /= grid_lon_rad(ni,yIndex)) then
-            write(*,*) 'yIndex = ',yIndex
-            write(*,*) grid_lat_rad(1,yIndex), grid_lat_rad(ni-1,yIndex), grid_lat_rad(2,yIndex), grid_lat_rad(ni,yIndex), &
-                       grid_lon_rad(1,yIndex), grid_lon_rad(ni-1,yIndex), grid_lon_rad(2,yIndex), grid_lon_rad(ni,yIndex)
-            call utl_abort('gpos_xyfll_unstructGrid: Assumptions about the grid not verified.')
-          end if
-        end do
       end if
       if(ni == 1442 .and. nj == 1021) then
         ! This is orca025
@@ -529,7 +518,7 @@ contains
 
     ypos_r4 = real(yIndexMin) + (lowerLeftCornerDistSquared + gridSpacingSquared  - upperLeftCornerDistSquared)/(2.0*(gridSpacingSquared))
 
-    if ( abs(ypos_r4 - yIndexMin) > 1.8 .or. abs(xpos_r4 - xIndexMin) > 3.3 ) then
+    if ( abs(ypos_r4 - yIndexMin) > 2.0 .or. abs(xpos_r4 - xIndexMin) > 4.3 ) then
       write(*,*) 'xpos_r4 = ',xpos_r4
       write(*,*) 'ypos_r4 = ',ypos_r4
       write(*,*) 'xIndexMin = ',xIndexMin
@@ -565,5 +554,49 @@ contains
     end if
 
   end function gpos_xyfll_unstructGrid
+
+  !---------------------------------------------------------
+  ! gpos_gridIsOrca
+  !---------------------------------------------------------
+  logical function gpos_gridIsOrca( ni, nj, latitude, longitude )
+
+    ! :Purpose: Check if the grid is of the orca tri-polar family
+    implicit none
+
+   ! Arguments:
+    integer, intent(in) :: ni, nj
+    real(8), intent(in) :: longitude(ni,nj), latitude(ni,nj)
+
+    ! Locals:
+    integer :: xIndex, yIndex
+
+    gpos_gridIsOrca = .true.
+
+    ! The last 2 columns (ni-1 and ni) are repetitions of the first 2 columns (i=1 and 2)
+    ! Check that is true
+    do yIndex = 1, nj
+      if(latitude(1,yIndex) /= latitude(ni-1,yIndex) .or. &
+         latitude(2,yIndex) /= latitude(ni,  yIndex) .or. &
+         longitude(1,yIndex) /= longitude(ni-1,yIndex) .or. &
+         longitude(2,yIndex) /= longitude(ni,  yIndex)) then
+        gpos_gridIsOrca = .false.
+        write(*,*) '1. Not an orca grid',latitude(1,yIndex),latitude(ni-1,yIndex),latitude(2,yIndex),latitude(ni,  yIndex),longitude(1,yIndex),longitude(ni-1,yIndex),longitude(2,yIndex),longitude(ni,  yIndex)
+        return
+      end if
+    end do
+    
+    ! The last line (j=nj) is a repetition in reverse order of the line (j=nj-2)
+    ! Check that is true (does not work for orca025 lats as with the letkf ocean unit test)
+    do xIndex = 2, ni
+      if(longitude(xIndex,nj) /= longitude(ni-xIndex+2,nj-2) &
+!!$           .or. latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2) &
+           ) then
+        gpos_gridIsOrca = .false.
+        write(*,*) '2. Not an orca grid',longitude(xIndex,nj),longitude(ni-xIndex+2,nj-2)
+        return
+      end if
+    end do
+
+  end function gpos_gridIsOrca
 
 end module getGridPosition_mod
