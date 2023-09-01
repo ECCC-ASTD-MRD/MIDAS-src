@@ -72,6 +72,7 @@ module tovsNL_mod
   use codePrecision_mod
   use humidityLimits_mod
   use interpolation_mod
+  use randomNumber_mod
 
   implicit none
   save
@@ -166,6 +167,18 @@ module tovsNL_mod
   logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
   logical tvs_userDefinedDoAzimuthCorrection
   logical tvs_userDefinedIsAzimuthValid
+  logical tvs_simEmissSeed                         ! Seed used to simulate surface emissivity
+  integer tvs_maxSfcSenChan                        ! Highest peaking AMSUA channels to be considered to simulate surface meissivity (Idealized)
+  integer tvs_maxmWAtlasChan                       ! Highest peaking AMSUA channels in the mWAtlas
+
+  ! Emissivity Error Covariance Matrix Data
+  type tvs_Fmatrix
+    real(8) ,pointer     :: Fmat(:,:)=>null()
+    integer ,pointer     :: listChans(:)=>null()
+    integer              :: nchans=0
+  end type tvs_Fmatrix
+  type(tvs_Fmatrix),target,allocatable  :: Fcorr_inst(:) ! non diagonal Correlation matrices for each instrument
+  type(tvs_Fmatrix),target,allocatable  :: FSqrt(:) ! Sqaure root of emissivity error covariance matrix F
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -763,6 +776,9 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
+    integer :: simEmissSeed ! Seed to Random sampling for perturbing surface emissivity
+    integer :: maxSfcSenChan ! Max AMSU-A channel to be consider surface sensitive
+    integer :: maxmWAtlasChan  ! Max AMSU-A channel in the emissivity atlas
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -773,6 +789,7 @@ contains
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
     namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs
+    namelist /NAMTOV/ simEmissSeed, maxSfcSenChan, maxmWAtlasChan
 
     ! return if the NAMTOV does not exist
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
@@ -805,6 +822,10 @@ contains
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     mpiTask0ReadCoeffs = .true.
+    simEmissSeed = 0
+    maxSfcSenChan = 0
+    maxmWAtlasChan = 0
+
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -846,6 +867,10 @@ contains
     tvs_cloudScaleFactor = cloudScaleFactor 
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
+    tvs_simEmissSeed = simEmissSeed
+    tvs_maxSfcSenChan = maxSfcSenChan
+    tvs_maxmWAtlasChan = maxmWAtlasChan
+
 
     !  1.4 Validate namelist values
     
@@ -2796,7 +2821,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent)
+  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt)
     !
     ! :Purpose: Interface for RTTOV non linear operator
     !           tvs_fillProfiles should be called before
@@ -2804,9 +2829,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData structure
-    logical,          intent(in)    :: bgckMode      ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical,          intent(in)    :: beSilent      ! flag to control verbosity
+    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
+    logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
+    logical,           intent(in)    :: beSilent        ! flag to control verbosity
+    logical, optional, intent(in)    :: SimSfcEmiss_opt ! Option to simulate surface emissivity
 
     ! Locals:
     integer :: nlv_T
@@ -2839,6 +2865,7 @@ contains
     logical :: ifBodyIndexFound
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
+    logical :: SimSfcEmiss
 
     if ( .not. beSilent ) write(*,*) 'tvs_rttov: Starting'
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2849,11 +2876,23 @@ contains
     !$omp parallel
     max_nthreads = omp_get_num_threads()
     !$omp end parallel
+
+    if ( present(SimSfcEmiss_opt) ) then
+      SimSfcEmiss = SimSfcEmiss_opt
+    else
+      SimSfcEmiss = .false.
+    end if
+
     allocStatus(:) = 0
     allocate(sensorTovsIndexes(tvs_nobtov),stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
     
-    
+    ! Initialize random number generation for simulating surface emissivity
+    ! used in tvs_simulateEmissivity
+    if ( SimSfcEmiss ) then
+      call rng_setup(abs(tvs_simEmissSeed))
+    end if
+
     !   1.1   Read surface information
     if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
 
@@ -3050,6 +3089,9 @@ contains
       else if (sensorType == sensor_id_mw) then
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
              sensorTovsIndexes(1:profileCount))
+        if ( SimSfcEmiss ) then
+          call tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local)
+        end if
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -5513,5 +5555,356 @@ contains
     channelIndex = utl_findloc(tvs_ichan(:,sensorIndex),channelNumber)
 
   end subroutine tvs_getChannelNumIndexFromPPP
+
+  !--------------------------------------------------------------------------
+  ! tvs_simulateEmissivity
+  !--------------------------------------------------------------------------
+  subroutine tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity)
+    !
+    !:Purpose: Simulate surface emissivity (Only work for AMSU-A channel 1-5)
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),        intent(inout)  :: obsSpaceData         ! ObsSpaceData object
+    integer,                 intent(in)     :: sensorTovsIndexes(:) ! Sensor TOVS Indexes
+    type (rttov_emissivity), intent(inout)  :: sfcEmissivity(:)     ! Simulated Surf. Emissivity
+
+    ! Locals:
+    integer, allocatable :: emissChanList(:)
+    real, allocatable    :: emissStdErr(:)
+    integer              :: emissNumChan
+    integer              :: idata, idatend
+    real(8), allocatable :: pert(:), emissPert(:), list_EMER(:)
+    integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:), list_btIndex(:)
+    integer              :: headerIndex, bodyIndex, obsIndex, count, channelNumber, channelIndex, tovsIndex, matchChanIndex
+    real(8)              :: emissErrStdPerChan
+    integer, parameter   :: chanOffSetAmsua = 27
+    character (len=64)   :: filenameCorrEmiss
+    integer              :: btIndex, profileIndex
+    
+    write(*,*) 'tvs_simulateEmissivity: STARTING'
+
+    ! Read Surface Emissivity Error Stdev
+    call tvs_readEmissError(emissChanList, emissStdErr, emissNumChan)
+
+    allocate(Fcorr_inst(1))
+    allocate(FSqrt(tvs_nobtov))
+    filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
+    ! Read Surface Emissivity Error Correlation Matrix
+    call tvs_readCEmissMatrixByFileName(filenameCorrEmiss, Fcorr_inst(1))
+
+    ! The count of btIndex follows the same logic in tvs_countRadiances
+    btIndex = 0
+
+    PROFILE: do profileIndex = 1, size(sensorTovsIndexes)
+      tovsIndex = sensorTovsIndexes(profileIndex)
+      headerIndex = tvs_headerIndex(tovsIndex)
+      if (headerIndex < 0) exit PROFILE
+
+      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+      
+      allocate(pert(emissNumChan))
+      allocate(emissPert(emissNumChan))
+      allocate(list_EMER(emissNumChan))
+      allocate(list_chanNumber(emissNumChan))
+      allocate(list_chanIndex(emissNumChan))
+      allocate(list_bodyIndex(emissNumChan))
+      allocate(list_btIndex(emissNumChan))
+
+      count = 0
+      do bodyIndex = idata, idatend
+        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+
+          btIndex = btIndex +1
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+          
+          if (channelNumber + chanOffSetAmsua <= tvs_maxSfcSenChan) then
+            count = count + 1
+
+            ! Match tvs_channelnumber with the channel index in emissivity error std file
+            matchChanIndex = FINDLOC(emissChanList, channelNumber + chanOffSetAmsua, dim=1)
+            emissErrStdPerChan = emissStdErr(matchChanIndex)
+            list_EMER(count) = emissErrStdPerChan
+            list_bodyIndex(count) = bodyIndex
+            list_chanNumber(count) = channelNumber
+            list_chanIndex(count) = channelIndex
+            pert(count) = rng_gaussian()
+            list_btIndex(count) = btIndex
+          end if
+        end if
+      end do
+
+      if ( .not. (count > 0 .and. tovsIndex >0) ) then 
+        if (allocated(pert)) deallocate(pert)
+        if (allocated(emissPert)) deallocate(emissPert)
+        if (allocated(list_EMER)) deallocate(list_EMER)
+        if (allocated(list_chanNumber)) deallocate(list_chanNumber)
+        if (allocated(list_chanIndex)) deallocate(list_chanIndex)
+        if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
+        if (allocated(list_btIndex)) deallocate(list_btIndex)
+        cycle Profile
+      end if
+
+      ! Generate the emissivity errors
+      call tvs_Fsqrt(count, pert( 1:count ), emissPert( 1:count ) , list_chanNumber(1:count), list_EMER(1:count), tovsIndex)
+
+      do obsIndex = 1, count
+      
+        ! Generate the simulated emissivity
+        sfcEmissivity(list_btIndex(obsIndex))%emis_in = sfcEmissivity(list_btIndex(obsIndex))%emis_in + emissPert(obsIndex)
+
+        !Store simulated emissivity and its error STDev. into ObsSpaceData
+        call obs_bodySet_r(obsSpaceData, OBS_SSEM, list_bodyIndex(obsIndex), sfcEmissivity(list_btIndex(obsIndex))%emis_in)
+        call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
+      
+        ! QC check: Simulated surface emissivity can only be between 0 and 1
+        ! However, the QC value will not be reflected in ObsSpaceData
+        if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1) then
+          sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1
+        else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0) then
+          sfcEmissivity(list_btIndex(obsIndex))%emis_in = 0
+        end if
+      end do
+
+      if (allocated(pert)) deallocate(pert)
+      if (allocated(emissPert)) deallocate(emissPert)
+      if (allocated(list_EMER)) deallocate(list_EMER)
+      if (allocated(list_chanNumber)) deallocate(list_chanNumber)
+      if (allocated(list_chanIndex)) deallocate(list_chanIndex)
+      if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
+      if (allocated(list_btIndex)) deallocate(list_btIndex)
+
+    end do PROFILE
+    if (allocated(Fcorr_inst)) deallocate(Fcorr_inst)
+    if (allocated(FSqrt)) deallocate(FSqrt)
+
+    write(*,*) 'tvs_simulateEmissivity: FINISHED'
+  end subroutine tvs_simulateEmissivity
+
+  !--------------------------------------------------------------------------
+  ! tvs_readEmissError
+  !--------------------------------------------------------------------------
+  subroutine tvs_readEmissError( chanList, emissStdErr, numChan)
+    !
+    ! :Purpose: Reading emissivity error std for AMSU-A
+    !
+    implicit none
+
+    ! Arguemnts:
+    integer, allocatable, intent(out) :: chanList(:)    ! Channel List
+    real, allocatable,    intent(out) :: emissStdErr(:) ! Surf. Emissivity Error Stdev.
+
+    ! Locals:
+    integer, external      :: fnom, fclos
+    integer                :: iluemis, ierr
+    character(len=20)      :: fileName
+    character(len = 512)   :: tmpStr
+    integer                :: numChan, ich
+
+    fileName = 'EmissErrStd.dat'
+    iluemis = 0
+    ierr =  fnom(iluemis, fileName,'SEQ+FMT',0)
+    if ( ierr /= 0 ) call utl_abort('tvs_readEmissError: Error reading &
+                                     surface emissivity error stdev. file') 
+
+    ! Read temporary strings 
+    read(iluemis,*) tmpStr
+    read(iluemis,'(A)') tmpStr
+    read(iluemis,'(A)') tmpStr
+    read(iluemis,'(A)') tmpStr
+
+    ! Read number of channels
+    read(iluemis, *) numChan
+
+    read(iluemis,'(A)') tmpStr
+
+    allocate(chanList(numChan))
+    allocate(emissStdErr(numChan))
+
+    ! Read Emissivity Error Stdev.
+    do ich = 1, numChan
+      read(iluemis,*) chanList(ich), emissStdErr(ich)
+      write(*,*) chanList(ich), emissStdErr(ich), ich
+    end do
+    read(iluemis,'(A)') tmpStr
+    write(*,'(A)') tmpStr
+
+    ierr = fclos(iluemis)
+    if (ierr /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+
+
+    if ( tvs_maxSfcSenChan > maxval(chanList) ) then
+      write(*,*) 'The selected highest peaking channel is not in the emissivity error std file'
+      call utl_abort('tvs_readEmissError')
+    end if
+
+  end subroutine tvs_readEmissError
+
+  !--------------------------------------------------------------------------
+  ! tvs_readCEmissMatrixByFileName
+  !--------------------------------------------------------------------------
+  subroutine tvs_readCEmissMatrixByFileName(infile,C,chanList_opt)
+    !
+    !:Purpose:  Read surface emissivity error correlation file
+    !
+    implicit none
+
+    ! Arguments:
+    character (len=*), intent(in)    :: infile          ! Name of input file
+    type(tvs_Fmatrix), intent(inout) :: C               ! Correlation matrix structure
+    integer, optional, intent(in)    :: chanList_opt(:) ! List of requested channels (if missing will read all file content)
+
+    ! Locals:
+    integer              :: i, j, iu, ierr, count, ich, nchn, nch
+    integer, external    :: fnom,fclos
+    real(8)              :: x
+    integer, allocatable :: index(:)
+ 
+    nchn = -1
+    if (present(chanList_opt)) then
+      nchn=size(chanList_opt)
+    end if
+
+    iu = 0
+    ierr = fnom(iu,trim(infile),'FTN+SEQ+R/O',0)
+    if (ierr /= 0) then
+      write(*,*) "Cannot open "//trim(infile)
+      call utl_abort("tvs_readCEmissMatrixByFileName")
+    end if
+
+    write(*,*) "tvs_readCEmissMatrixByFileName: Reading "//trim(infile)
+    
+    read(iu,*) nch
+    if (nchn == -1) then
+      nchn = nch
+    else
+      if(nchn > nch) then
+        write(*,*) "Not enough channels in "//trim(infile)
+        write(*,*) nchn,nch
+        call utl_abort("tvs_readCEmissMatrixByFileName")
+      end if
+    end if
+    allocate(index(nch))
+    
+    C%nchans = nchn
+    allocate(C%Fmat(nchn,nchn))
+    allocate(C%listChans(nchn))
+    C%Fmat = 0.d0
+    do i = 1,nchn
+      C%Fmat(i,i) = 1.d0
+    end do
+    count = 0
+    index = -1
+    do i=1,nch
+      read(iu,*) ich
+      if (present(chanList_opt)) then
+        bj:do j=1,nchn
+          if (ich == chanList_opt(j)) then
+            count = count + 1
+            index(i) = j
+            C%listChans(count) = ich
+            exit bj
+          end if
+        end do bj
+      else
+        index(i) = i
+        C%listChans(i) = ich
+        count = count + 1
+      end if
+    end do
+    if (count /= nchn) then
+      write(*,*) "Warning: Missing information in "//trim(infile)
+      do j=1,nchn
+        write(*,*) j, chanList_opt(j) 
+      end do
+      write(*,*) "Not important if there is no observation of this family"
+    end if
+
+    do
+      read(iu,*,iostat=ierr) i,j,x
+      if (ierr /= 0) exit
+      if (index(i) /= -1 .and. index(j) /= -1) then
+        C%Fmat(index(i),index(j)) = x
+        C%Fmat(index(j),index(i)) = x
+      end if
+    end do
+
+    ierr= fclos(iu)
+    deallocate(index)
+
+  end subroutine tvs_readCEmissMatrixByFileName
+
+  !--------------------------------------------------------------------------
+  ! tvs_Fsqrt
+  !--------------------------------------------------------------------------
+  subroutine tvs_Fsqrt(nsubset,obsIn,obsOut,list_sub,list_oer,indexTovs)
+    !
+    ! :Purpose: Apply the operator F**1/2 to obsIn
+    !           result in obsOut for the subset of channels specified
+    !           in list_sub
+    !
+    implicit none
+
+    ! Arguments:
+    integer , intent(in)  :: nsubset
+    integer , intent(in)  :: list_sub(nsubset)
+    real(8) , intent(in)  :: list_oer(nsubset)
+    real(8) , intent(in)  :: obsIn(nsubset)
+    real(8) , intent(out) :: obsOut(nsubset)
+    integer , intent(in)  :: indexTovs
+
+    ! Locals:
+    real (8) :: Fsub(nsubset,nsubset), alpha, beta, product 
+    integer  :: index(nsubset)
+    integer  :: i,j
+  
+    index = -1
+    do i=1,nsubset
+      bj: do j = 1,  Fcorr_inst(1)%nchans
+        if (list_sub(i) ==  Fcorr_inst(1)%listChans(j)) then
+          index(i) = j
+          exit bj 
+        end if
+      end do bj
+    end do
+
+    if (any(index == -1)) then
+      write(*,*) "Missing information for some channel !"
+      write(*,*) list_sub(:)
+      write(*,*) index(:)
+      call utl_abort('tvs_Fsqrt')
+    end if
+
+    FSqrt(indexTovs)%nchans = nsubset
+    allocate(FSqrt(indexTovs)%listChans(nsubset))
+    FSqrt(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
+    do j=1,nsubset
+      do i=1,nsubset
+        product = list_oer(i) * list_oer(j)
+        Fsub(i,j) = product *  Fcorr_inst(1)%Fmat(index(i),index(j))
+      end do
+    end do
+
+    ! Calculation of F**1/2
+    call utl_matSqrt(Fsub,nsubset,1.d0,.false.)
+
+    allocate(FSqrt(indexTovs)%Fmat(nsubset,nsubset))
+    do j=1,nsubset
+      do i=1,nsubset
+        FSqrt(indexTovs)%Fmat(i,j) = Fsub(i,j)
+      end do
+    end do
+
+    alpha = 1.d0
+    beta = 0.d0
+    obsOut = 0.d0
+
+    ! Optimized symetric matrix vector product from Lapack
+    call dsymv("L", nsubset, alpha, FSqrt(indexTovs)%Fmat, nsubset,obsIn, 1, beta, obsOut, 1)
+
+  end subroutine tvs_Fsqrt
 
 end module tovsNL_mod
