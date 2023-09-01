@@ -18,7 +18,7 @@ module rMatrix_mod
   ! public variables
   public :: rmat_lnondiagr
   ! public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
 
  type rmat_matrix
     real(8), pointer     :: Rmat(:,:)=>null()
@@ -27,7 +27,8 @@ module rMatrix_mod
  END type rmat_matrix
 
   type(rmat_matrix),target,allocatable  :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
-  type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances
+  type(rmat_matrix),target,allocatable  :: R_tovs(:)     ! non diagonal R matrices used for the assimilation of all radiances
+  type(rmat_matrix),target,allocatable  :: RSqrt_tovs(:) ! non diagonal Squre root of R matrices
 
   ! namelist variable
   logical :: rmat_lnondiagr ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
@@ -60,6 +61,7 @@ module rMatrix_mod
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(nobtovs))
+      allocate(RSqrt_tovs(nobtovs))
     end if
 
   end subroutine rmat_init
@@ -346,5 +348,85 @@ module rMatrix_mod
     end do !loop on header
  
   end subroutine rmat_RsqrtInverseAllObs
+
+  !--------------------------------------------------------------------------
+  ! rmat_Rsqrt
+  !--------------------------------------------------------------------------
+  subroutine rmat_Rsqrt(sensor_id,nsubset,obsIn,obsOut,list_sub,list_oer,indexTovs)
+    !
+    ! :Purpose: Apply the operator R**1/2 to obsIn
+    !           result in obsOut for the subset of channels specified
+    !           in list_sub
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent (in) :: sensor_id          ! Sensor ID
+    integer, intent (in) :: nsubset            ! Number of subset channels in R-matrix
+    real(8), intent(in)  :: obsIn(nsubset)     ! Sampling Perturbation
+    real(8), intent(out) :: obsOut(nsubset)    ! Error Perturbation
+    integer, intent(in)  :: list_sub(nsubset)  ! List of subset channels in R-matrix
+    real(8), intent(in)  :: list_oer(nsubset)  ! List of Obs Error  
+    integer, intent(in)  :: indexTovs          ! TOVS Index
+    
+    ! Locals:
+    real (8)                        :: Rsub(nsubset,nsubset), alpha, beta, product 
+    integer                         :: index(nsubset)
+    integer                         :: i,j
+
+    if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
+      write(*,*) "invalid sensor_id",sensor_id,size(Rcorr_inst)
+      call utl_abort('rmat_Rsqrt')
+    end if
+
+    ! Check error correlation for all channels are available
+    index = -1
+    do i=1,nsubset
+      bj: do j = 1,  Rcorr_inst(sensor_id)%nchans
+        if (list_sub(i) ==  Rcorr_inst(sensor_id)%listChans(j)) then
+          index(i) = j
+          exit bj 
+        end if
+      end do bj
+    end do
+    if (any(index == -1)) then
+      write(*,*) "Missing information for some channel !"
+      write(*,*) list_sub(:)
+      write(*,*) index(:)
+      call utl_abort('rmat_Rsqrt')
+    end if
+
+    ! Construct the R-Matrix
+    RSqrt_tovs(indexTovs)%nchans = nsubset
+    allocate(RSqrt_tovs(indexTovs)%listChans(nsubset))
+    RSqrt_tovs(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
+    do j=1,nsubset
+      do i=1,nsubset
+        product = list_oer(i) * list_oer(j)
+        Rsub(i,j) = product *  Rcorr_inst(sensor_id)%Rmat(index(i),index(j))
+      end do
+    end do
+
+    ! Calculation of R**1/2
+    call utl_tmg_start(20,'----RmatMatSqrt')
+    call utl_matSqrt(Rsub,nsubset,1.d0,.false.)
+    call utl_tmg_stop(20)
+    allocate(RSqrt_tovs(indexTovs)%Rmat(nsubset,nsubset))
+    do j=1,nsubset
+      do i=1,nsubset
+        RSqrt_tovs(indexTovs)%Rmat(i,j) = Rsub(i,j)
+      end do
+    end do
+
+    call utl_tmg_start(21,'----RmatMatMult')
+    alpha = 1.d0
+    beta = 0.d0
+    obsOut = 0.d0
+    ! Optimized symetric matrix vector product from Lapack
+    call dsymv("L", nsubset, alpha, RSqrt_tovs(indexTovs)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
+    call utl_tmg_stop(21)
+
+  end subroutine rmat_Rsqrt
+
 
 end module rMatrix_mod
