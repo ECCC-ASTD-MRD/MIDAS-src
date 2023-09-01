@@ -107,6 +107,7 @@ contains
     integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
+    real(8), allocatable :: localColumn(:)
     real(8), allocatable, target :: dummy(:)
     integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr, status
     real(8) :: lat, lon
@@ -189,7 +190,9 @@ contains
       end if
       call rpn_comm_bcast(varDim, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       allocate(dummy(varDim))
+      allocate(localColumn(varDim))
       dummy(:) = MPC_missingValue_R8
+      localColumn(:) = MPC_missingValue_R8
       do obsIndex = 1, var1D_validHeaderCountMax
         if (obsIndex <= var1D_validHeaderCount ) then
           headerIndex = var1D_validHeaderIndex(obsIndex) 
@@ -209,10 +212,10 @@ contains
         if (mmpi_myId == 0) then
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
-            call rpn_comm_recv(myColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
-            if (all( myColumn /=  MPC_missingValue_R8)) then
+            call rpn_comm_recv(localColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
+            if (all( localColumn /=  MPC_missingValue_R8)) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
-              myField(1, globalObsIndex, :) = myColumn(:)
+              myField(1, globalObsIndex, :) = localColumn(:)
             end if
           end do
         end if
@@ -220,6 +223,7 @@ contains
 
       write(*,*) 'var1D_transferColumnToYGrid: end of dissemination for ', varList(varIndex)
       deallocate(dummy)
+      deallocate(localColumn)
 
     end do
 
