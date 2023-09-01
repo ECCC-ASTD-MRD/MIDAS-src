@@ -628,9 +628,13 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! obs LONgitude in Data table (radians)
    integer, parameter, public :: OBS_BTCL= OBS_LOND+1 ! clear-sky simulated observation
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
+   integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space 
+   integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
+   integer, parameter, public :: OBS_SSEM= OBS_EMER+1 ! simulate surface emissivity
+
    
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_LOCI
+   integer, parameter :: NBDY_REAL_END = OBS_SSEM
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -639,7 +643,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI' /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM' /)
 end module ObsColumnNames_mod
 
 
@@ -1089,7 +1093,8 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER , &
               OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
-              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, (0,ii=21,100) /)
+              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, OBS_TRUO, &
+              OBS_EMER, OBS_SSEM, (0,ii=24,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1644,7 +1649,8 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OMAM, OBS_OER
    public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
-   public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI
+   public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
+   public :: OBS_EMER, OBS_SSEM
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

@@ -180,9 +180,12 @@ program midas_var1D
 
   ! Namelist variables:
   logical :: simBgAndObs  ! Simulate Background and Observation
-  integer :: simBgSeed    ! Random seed used to generate perturbation sampling 
+  integer :: simBgSeed    ! Random seed used to generate background perturbation sampling
+  integer :: simObsSeed   ! Random seed used to generate observation perturbation sampling
+  logical :: useSimObsErr ! Simulate Observation Error Covariance
+  
 
-  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed
+  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -210,6 +213,8 @@ program midas_var1D
   ! setting default values
   simBgAndObs = .False.
   simBgSeed = 0
+  simObsSeed = 0
+  useSimObsErr = .False.
 
   ! Check if NAM1DVAR exist
   if (.not. utl_isNamelistPresent('NAM1DVAR','./flnml')) then
@@ -319,18 +324,22 @@ program midas_var1D
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                 stateVectorTrialHighRes )
-
+                            
   ! Simulate the Background and Observation in idealized experiements
   if (simBgAndObs) then
     call col_setVco(columnTrlOnTrlLevTruth, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnTrlOnTrlLevTruth, col_getNumCol(columnTrlOnTrlLev), &
                       setToZero_opt=.true.)
     call col_copy(columnTrlOnTrlLev, columnTrlOnTrlLevTruth)
+
     call col_deallocate(columnTrlOnTrlLev)
     
     ! Simulate Background state columnTrlOnTrlLev
     call var1DIdealize_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
                                                 obsSpaceData, vco_anl, simBgSeed)
+
+    call var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
+                                           simObsSeed, useSimObsErr, varMode)                                            
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
