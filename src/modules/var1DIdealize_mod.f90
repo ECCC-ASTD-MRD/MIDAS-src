@@ -279,7 +279,7 @@ module var1DIdealize_mod
     if(mmpi_myid == 0) write(*,*) 'var1DIdealize_writeSimTrial: Finished'
   end subroutine var1DIdealize_writeSimTrial
 
-   !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   ! var1DIdealize_simulateObservation
   !--------------------------------------------------------------------------
   subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr, varMode)
@@ -304,6 +304,7 @@ module var1DIdealize_mod
     integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex, tmpObs_OER
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
+    real(8), allocatable :: obsErrStdev(:,:)
     
     beSilent = .false.
     bgckMode = .false.
@@ -416,7 +417,7 @@ module var1DIdealize_mod
         end if
         
         ! Compute Observation Perturbation
-        call rmat_Rsqrt( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
+        call rmat_Rsqrt( tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
                          list_OER(1:count), tvs_tovsIndex(headerIndex))
 
         ! Update the obs value in ObsSpacedata
@@ -434,6 +435,10 @@ module var1DIdealize_mod
     end do HEADER2
     write(*,*) 'Finish var1DIdealize_simulateObservation'
 
+    allocate(obsErrStdev(tvs_nsensors, tvs_maxChannelNumber))
+    call oer_estimateObsErrorTOVS(obsSpaceData, obsErrStdev)
+
+    deallocate(obsErrStdev)
   end subroutine var1DIdealize_simulateObservation
 
 end module var1DIdealize_mod
