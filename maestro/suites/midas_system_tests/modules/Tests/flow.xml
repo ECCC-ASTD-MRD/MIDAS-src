@@ -429,6 +429,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="ocean_NEMO"/>
+    <FAMILY  name="ocean_NEMO">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="glb_benchmark"/>
     <FAMILY  name="glb_benchmark">
       <SUBMITS sub_name="UnitTest"/>
