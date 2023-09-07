@@ -6,7 +6,8 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
-
+  use netcdf
+  
   implicit none
   save
   private
@@ -1483,7 +1484,6 @@ contains
   end subroutine utl_checkAllocationStatus
 
 
-<<<<<<< HEAD
   function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
     !
     !:Purpose: Determine if a given variable name is present within a file.
@@ -1595,7 +1595,7 @@ contains
       fileType = 'FST'
     case (6)
       fileType = 'BURP'
-    case (35)
+    case (38)
       fileType = 'NetCDF'
     case default
       ! check if filename contain '.nc' in case it is a new netCDF version
