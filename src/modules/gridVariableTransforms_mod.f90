@@ -1933,9 +1933,7 @@ CONTAINS
       call gsv_getField(stateVector_trial_1step_r8, trial_ptr, outputVarName)
 
       alpha = 1.975d0
-      if (stateVector%ni == 4322 .and. stateVector%nj == 3059) then
-! Following does not work because stateVector%hco%lat and stateVector%hco%lon are not set
-!      if( gpos_gridIsOrca(stateVector%ni, stateVector%nj, stateVector%hco%lat, stateVector%hco%lon) ) then
+      if( gpos_gridIsOrca(stateVector%ni, stateVector%nj, real(stateVector%hco%lat2d_4,8), real(stateVector%hco%lon2d_4,8)) ) then
         orca12 = .true.
         numPass = 1000
         factor = alpha*0.88d0
