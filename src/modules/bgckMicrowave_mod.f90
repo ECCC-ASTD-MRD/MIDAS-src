@@ -26,6 +26,7 @@ module bgckMicrowave_mod
   real(8) :: mwbg_minSiOverWaterThreshold ! for AMSUB/MHS
   real(8) :: mwbg_maxSiOverWaterThreshold ! for AMSUB/MHS
   real(8) :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
+  logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
 
@@ -66,6 +67,7 @@ module bgckMicrowave_mod
   real(4)            :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real(4)            :: cloudySiThresholdBcorr        !
+  logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
   logical            :: RESETQC                       ! reset Qc flags option
   logical            :: modLSQ                        !
@@ -77,7 +79,8 @@ module bgckMicrowave_mod
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     cloudyClwThresholdBcorr, modLSQ, &
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
-                    cloudySiThresholdBcorr, skipTestArr
+                    cloudySiThresholdBcorr, rejectWhenSiMissing, &
+                    skipTestArr
                     
 
 contains
@@ -100,6 +103,7 @@ contains
     minSiOverWaterThreshold = -10.0
     maxSiOverWaterThreshold = 30.0
     cloudySiThresholdBcorr  = 5.0
+    rejectWhenSiMissing     = .false.
     RESETQC                 = .false.
     modLSQ                  = .false.
     skipTestArr(:)          = .false.
@@ -118,6 +122,7 @@ contains
     mwbg_minSiOverWaterThreshold = real(minSiOverWaterThreshold,8)
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
+    mwbg_rejectWhenSiMissing = rejectWhenSiMissing
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -1275,8 +1280,10 @@ contains
           cldPredMissing = (scatIndexOverWaterObs == MPC_missingValue_R8)
         end if
 
-        if (.not. cldPredMissing .and. scatwUsedForQC > scatwUsedForQcThresh) then
+        if (cldPredMissing .and. mwbg_rejectWhenSiMissing) then
           FULLREJCT = .TRUE.
+        else
+          if (.not. cldPredMissing .and. scatwUsedForQC > scatwUsedForQcThresh) FULLREJCT = .TRUE.
         end if
       end if
 
