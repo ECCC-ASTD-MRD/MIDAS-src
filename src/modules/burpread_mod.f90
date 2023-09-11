@@ -5033,7 +5033,6 @@ CONTAINS
         call burp_init_report_write(inputFile, copyReport, iostat=error)
 
         call burp_get_property(inputReport, stnid = station_id)
-        write(*,*) "brpr_addElementsToBurp: station_id = ", station_id
 
         ! loop on blocks
         ! --------------------
