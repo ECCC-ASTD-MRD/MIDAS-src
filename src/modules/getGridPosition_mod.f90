@@ -558,19 +558,23 @@ contains
   !---------------------------------------------------------
   ! gpos_gridIsOrca
   !---------------------------------------------------------
-  logical function gpos_gridIsOrca( ni, nj, latitude, longitude )
+  function gpos_gridIsOrca( ni, nj, latitude, longitude ) result(gridIsOrca)
 
     ! :Purpose: Check if the grid is of the orca tri-polar family
     implicit none
 
    ! Arguments:
-    integer, intent(in) :: ni, nj
-    real(8), intent(in) :: longitude(ni,nj), latitude(ni,nj)
+    integer, intent(in) :: ni                ! first  dimension of the grid
+    integer, intent(in) :: nj                ! second dimension of the grid
+    real(8), intent(in) :: longitude(ni,nj)  ! longitude (degrees or radians)
+    real(8), intent(in) :: latitude(ni,nj)   ! latitude  (degrees or radians)
+    ! Result:
+    logical :: gridIsOrca  ! returned value of function
 
     ! Locals:
     integer :: xIndex, yIndex
 
-    gpos_gridIsOrca = .true.
+    gridIsOrca = .true.
 
     ! The last 2 columns (ni-1 and ni) are repetitions of the first 2 columns (i=1 and 2)
     ! Check that is true
@@ -579,20 +583,32 @@ contains
          latitude(2,yIndex) /= latitude(ni,  yIndex) .or. &
          longitude(1,yIndex) /= longitude(ni-1,yIndex) .or. &
          longitude(2,yIndex) /= longitude(ni,  yIndex)) then
-        gpos_gridIsOrca = .false.
+        gridIsOrca = .false.
         write(*,*) '1. Not an orca grid',latitude(1,yIndex),latitude(ni-1,yIndex),latitude(2,yIndex),latitude(ni,  yIndex),longitude(1,yIndex),longitude(ni-1,yIndex),longitude(2,yIndex),longitude(ni,  yIndex)
         return
       end if
     end do
     
     ! The last line (j=nj) is a repetition in reverse order of the line (j=nj-2)
-    ! Check that is true (does not work for orca025 lats as with the letkf ocean unit test)
+    ! Check that is true (does not work at (ni/2 + 1) for orca025 lats as with the letkf ocean unit test)
     do xIndex = 2, ni
-      if(longitude(xIndex,nj) /= longitude(ni-xIndex+2,nj-2) &
-!!$           .or. latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2) &
-           ) then
-        gpos_gridIsOrca = .false.
-        write(*,*) '2. Not an orca grid',longitude(xIndex,nj),longitude(ni-xIndex+2,nj-2)
+      if(longitude(xIndex,nj) /= longitude(ni-xIndex+2,nj-2)) then
+        gridIsOrca = .false.
+        write(*,*) '2. Not an orca grid',xIndex,longitude(xIndex,nj),longitude(ni-xIndex+2,nj-2)
+        return
+      end if
+    end do
+    do xIndex = 2, ni/2
+      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+        gridIsOrca = .false.
+        write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
+        return
+      end if
+    end do
+    do xIndex = ni/2 + 2, ni
+      if(latitude(xIndex,nj) /= latitude(ni-xIndex+2,nj-2)) then
+        gridIsOrca = .false.
+        write(*,*) '3. Not an orca grid',xIndex,latitude(xIndex,nj),latitude(ni-xIndex+2,nj-2)
         return
       end if
     end do
