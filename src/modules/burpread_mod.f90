@@ -5032,6 +5032,12 @@ CONTAINS
 
         call burp_init_report_write(inputFile, copyReport, iostat=error)
 
+        call burp_get_property(inputReport, stnid = station_id)
+        write(*,*) "brpr_addElementsToBurp: station_id = ", station_id
+        if (station_id == ">>DERIALT") then
+          cycle reports
+        end if
+
         ! loop on blocks
         ! --------------------
         ref_blk = 0
