@@ -1,0 +1,35 @@
+ &NAMCONF
+   MODE   = 'BHI'
+/
+ &NAMCOMPUTEBHI
+   FORMULATION = 'latbands'
+/
+ &NAMCOMPUTEBHILATBANDS
+   latBandsCorrelCalc=.false.
+   scaleFactor(1:100)=100*0.5d0
+   separableCorrel =.false.
+   hFitType(1) = 'ThirdOrder'
+   hFitType(2) = 'SecondOrder'
+   hFitType(3) = 'FirstOrder'
+   setFittedHCorrel(1:3) = 3*.true.
+   vFitType(1) = 'ThirdOrder'
+   setFittedVCorrel(1) = .true.
+   vFitType(2) = 'SecondOrder'
+   setFittedVCorrel(2) = .false.
+   fitSmoothingTimes = 2
+   writeCorrelBlocks = .true.
+   writeGridDescriptors = .true.
+/
+ &NAMSTATE
+   ANLVAR(1)   ='LQ'
+   ANLVAR(2)   ='TT'
+   ANLVAR(3)   ='P0'
+/
+ &NAMENS
+   NENS=16
+/
+ &NAMCALCSTATS_GLB
+   NTRUNC=380
+/
+ &NAMTIME
+/

@@ -14,7 +14,9 @@ program midas_calcStats
   !                         For global applications, two formulations based on sperical-harmonics spectral representation
   !                         are available and controlled controlled by ``NAMCOMPUTEBHI``: 1) the legacy CVT formulation
   !                         described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein,
-  !                         and 2) an experimental-only formulation that mimics the CVT model used in the limited-area mode.
+  !                         and 2) the latbands CVT formulation which can also be run globally and, contrary to the
+  !                         legacy formulation, does not impose balance operators. (2) is not restricted to the standard 
+  !                         weather fields and provides additional options controlled by ``NAMCOMPUTEBHILATBANDS``.
   !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
   !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
   !                an ensemble of background-error estimates in model-variable and/or control-variable space,
@@ -28,6 +30,12 @@ program midas_calcStats
   !                Note that the above options are not all available in both global and limited-area
   !                applications.
   !            ---
+  !
+  !            Vertical coordinates input for the atmospheric case (i.e., when !! is provided): When the ensemble  
+  !            files do not include TT and UU, then TH and MM records are required at least in the ensemble member 
+  !            file with suffix $NNNN=0001 in order to set the vertical coordinates. Alternatively, if stats
+  !            are not to be generated for TT an HU, TT and UU can be provided as substitutes for TH and MM
+  !            in the file with $NNNN=0001.
   !
   !============================================= ==============================================================
   ! Input and Output Files                        Description of file
@@ -47,7 +55,7 @@ program midas_calcStats
   !
   !               - Setup horizontal and vertical grid objects using the first ensemble member
   !
-  !               - Various modules are setup: ``gridStateVector_mod``, ``timeCoord_mod`` and ``bmatrix_mod``
+  !               - Related modules are setup: ``gridStateVector_mod`` and ``timeCoord_mod``
   !
   !             - **Statistics and Diagnostics:**
   !
