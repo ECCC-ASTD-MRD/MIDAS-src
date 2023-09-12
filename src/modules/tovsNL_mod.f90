@@ -75,7 +75,7 @@ module tovsNL_mod
   use obsSpaceData_mod
   use obsSubSpaceData_mod
   use earthConstants_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use climatologies_mod
   use bufr_mod
   use columnData_mod 
