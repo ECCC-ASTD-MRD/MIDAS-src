@@ -5039,9 +5039,9 @@ CONTAINS
         ref_blk = 0
       
         blocks: do
-          !! We skip the writing of the block in the resume record
-          !! because writing it may lead to 'floating point exception'
-          !! with 'mrbcvt' as called inside 'burp_write_block'.
+          ! We skip the writing of the block in the resume record
+          ! because writing it may lead to 'floating point exception'
+          ! with 'mrbcvt' as called inside 'burp_write_block'.
           if (station_id == ">>DERIALT") then
             exit blocks
           end if
