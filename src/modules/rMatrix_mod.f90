@@ -16,9 +16,9 @@ module rMatrix_mod
   save
 
   ! public variables
-  public :: rmat_lnondiagr
+  public :: rmat_lnondiagr, rmat_matrix
   ! public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt, rmat_estimateR
 
  type rmat_matrix
     real(8), pointer     :: Rmat(:,:)=>null()
@@ -428,5 +428,218 @@ module rMatrix_mod
 
   end subroutine rmat_Rsqrt
 
+  !--------------------------------------------------------------------------
+  ! rmat_estimateR
+  !--------------------------------------------------------------------------
+  subroutine rmat_estimateR(obsSpaceData, estR)
+    !
+    !:Purpose: Estimate observation error std and their correlations 
+    !          based on truth and simulated obs
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),     intent(inout) :: obsSpaceData     ! ObsSpaceData object
+    type(rmat_matrix), target, intent(out), allocatable  :: estR(:) ! non diagonal Correlation matrices for each instrument   
+
+    ! Locals: 
+    integer              :: tovsIndex
+    integer              :: headerIndex, bodyIndex, sensorIdIndex
+    integer              :: idata, idatend, idatyp, taskIndex
+    real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:), residualSqrd(:,:), obsErrStdev(:,:)
+    integer              :: numAssimChan, chanIndexI, chanIndexJ, ierr, assimChan, chanIndex, localObsErr, globalheaderIndex
+    integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:), obsOffset(:,:)
+    integer              :: channelNumber, channelIndex
+    integer              :: tag, status
+    real(8), allocatable :: vector(:,:), localRmat(:,:)
+    real(8)              :: obsErr
+    
+    
+
+    allocate(headerCountMpiGlobal(tvs_nsensors))
+    allocate(obsErrSum(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
+    allocate(obsErrSumAllTasks(tvs_nsensors, maxval(tvs_nchanMpiGlobal), mmpi_nprocs))
+    allocate(headerCount(tvs_nsensors))
+    allocate(headerCountAllTasks(tvs_nsensors, mmpi_nprocs))
+    allocate(meanObsErrMpiGlobal(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
+
+    ! Allocate estimate R-Matrix
+    allocate(estR(tvs_nsensors))
+
+    do sensorIdIndex = 1, tvs_nsensors
+      estR(sensorIdIndex)%nchans = tvs_nchanMpiGlobal(sensorIdIndex)
+      allocate(estR(sensorIdIndex)%Rmat(tvs_nchanMpiGlobal(sensorIdIndex),tvs_nchanMpiGlobal(sensorIdIndex)))
+      allocate(estR(sensorIdIndex)%listChans(tvs_nchanMpiGlobal(sensorIdIndex)))
+      estR(sensorIdIndex)%Rmat(:, :) = 0
+    end do
+
+    ! Initialize values
+    meanObsErrMpiGlobal(:,:) = 0
+    headerCount(:) = 0
+    headerCountMpiGlobal(:) = 0
+    obsErrSum(:,:) = 0
+
+    ! Count the number of header profile that will be used to compute R-Matrix.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER1
+
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'oer_estimateObsErrorTOVS: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER1
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIdIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+
+      if (tovsIndex == -1) cycle HEADER1
+
+      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+      if (tvs_isIdBurpTovs(idatyp)) then
+        ! Check if all required channels are assimilated. If not, do not include profile in the R-Matrix computation. 
+        assimChan = 0
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) assimChan = assimChan + 1  
+        end do
+        if (assimChan /= tvs_nchanMpiGlobal(sensorIdIndex)) cycle HEADER1
+
+        headerCount(sensorIdIndex) = headerCount(sensorIdIndex) + 1
+
+        assimChan = 0
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+            assimChan = assimChan + 1
+
+            ! Append channel list into estR object
+            if (headerCount(sensorIdIndex) == 1) then
+              call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+
+              
+              estR(sensorIdIndex)%listChans(assimChan) = channelNumber
+            end if
+
+            ! Compute the observation error based on observation and truth
+            obsErr = obs_bodyElem_r(obsspacedata, OBS_VAR, bodyIndex) - &
+                    obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
+            
+            ! Compute the sum of observation per sensor, per channel
+            obsErrSum(sensorIdIndex, assimChan) = obsErrSum(sensorIdIndex, assimChan) + obsErr
+          end if
+        end do
+
+      end if
+    end do HEADER1
+    
+    ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
+    call rpn_comm_barrier('GRID', ierr)
+    call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors,'MPI_INTEGER', 'GRID', ierr)
+    call rpn_comm_allgather(obsErrSum, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', &
+                              obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal),'mpi_real8', 'GRID', ierr)
+
+    ! Compute the mean of observation error
+    if (mmpi_myid == 0) then
+      do sensorIdIndex = 1, tvs_nsensors
+        headerCountMpiGlobal(sensorIdIndex) = sum(headerCountAllTasks(sensorIdIndex,:))
+        do chanIndex = 1, tvs_nchanMpiGlobal(sensorIdIndex)
+          meanObsErrMpiGlobal(sensorIdIndex, chanIndex) = sum(obsErrSumAllTasks(:, sensorIdIndex, chanIndex)) / &
+                                      headerCountMpiGlobal(sensorIdIndex)
+        end do
+      end do
+    end if
+
+    deallocate(obsErrSum)
+    deallocate(obsErrSumAllTasks)
+
+    ! Broadcast total profile count to all MPI tasks
+    call rpn_comm_bcast(meanObsErrMpiGlobal(:,:), tvs_nsensors *maxval(tvs_nchanMpiGlobal), 'mpi_real8', 0, 'GRID', ierr)
+
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER2: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER2
+
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'oer_estimateObsErrorTOVS: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER2
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIdIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+
+      if (allocated(vector)) deallocate(vector)
+      allocate(vector(1, tvs_nchanMpiGlobal(sensorIdIndex)))
+
+      if (tovsIndex == -1) cycle HEADER2
+
+      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+      if (tvs_isIdBurpTovs(idatyp)) then
+        ! Check if all required channels are assimilated. If not, do not include in the R-Matrix computation. 
+        assimChan = 0
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) assimChan = assimChan + 1  
+        end do
+        if (assimChan /= tvs_nchanMpiGlobal(sensorIdIndex)) cycle HEADER2
+
+        headerCount(sensorIdIndex) = headerCount(sensorIdIndex) + 1
+
+        assimChan = 0
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+            assimChan = assimChan + 1
+            obsErr = obs_bodyElem_r(obsspacedata, OBS_VAR, bodyIndex) - &
+                    obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
+
+            vector(1, assimChan) = obsErr - meanObsErrMpiGlobal(sensorIdIndex, assimChan)
+          end if
+        end do
+
+        estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) + &
+                                        matmul(transpose(vector), vector)
+      end if
+      deallocate(vector)
+    end do HEADER2
+
+    call rpn_comm_barrier("GRID",ierr)
+    do sensorIdIndex = 1, tvs_nsensors
+      write(*,*) 'ZQ_estR(sensorIdIndex)%Rmat(:,:)', mmpi_myid, sensorIdIndex, estR(sensorIdIndex)%Rmat(1,:)
+      if (mmpi_myid > 0) then 
+        tag = mmpi_myId
+        call rpn_comm_send(estR(sensorIdIndex)%Rmat(:,:) , tvs_nchanMpiGlobal(sensorIdIndex) * tvs_nchanMpiGlobal(sensorIdIndex), &
+                          'mpi_real8', 0, tag, 'GRID', ierr )
+      end if
+
+      if (mmpi_myid == 0) then 
+        allocate(localRmat(tvs_nchanMpiGlobal(sensorIdIndex), tvs_nchanMpiGlobal(sensorIdIndex)))
+        do taskIndex = 1,  mmpi_nprocs - 1
+          tag = taskIndex
+          call rpn_comm_recv(localRmat,  tvs_nchanMpiGlobal(sensorIdIndex) * tvs_nchanMpiGlobal(sensorIdIndex), &
+                        'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
+          write(*,*) 'ZQ_localRmat', tag, localRmat(1,:)
+          estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) + localRmat
+        end do
+        deallocate(localRmat)
+      end if
+      estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) / (headerCountMpiGlobal(sensorIdIndex) -1)
+      call rpn_comm_bcast(estR(sensorIdIndex)%Rmat, tvs_nchanMpiGlobal(sensorIdIndex)* tvs_nchanMpiGlobal(sensorIdIndex), &
+                          'mpi_real8', 0, 'GRID', ierr)
+      
+    end do
+    write(*,*) 'ZQ_finalEstR', estR(1)%Rmat(1,:) 
+    !call rpn_comm_barrier('GRID', ierr)
+    !call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')  
+    
+    deallocate(headerCount)
+    deallocate(headerCountAllTasks)
+    deallocate(headerCountMpiGlobal)
+    deallocate(meanObsErrMpiGlobal)
+  end subroutine rmat_estimateR
 
 end module rMatrix_mod

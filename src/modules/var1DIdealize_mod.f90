@@ -305,6 +305,7 @@ module var1DIdealize_mod
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
     real(8), allocatable :: obsErrStdev(:,:)
+    type(rmat_matrix), allocatable, target :: estR(:) 
     
     beSilent = .false.
     bgckMode = .false.
@@ -435,10 +436,12 @@ module var1DIdealize_mod
     end do HEADER2
     write(*,*) 'Finish var1DIdealize_simulateObservation'
 
-    allocate(obsErrStdev(tvs_nsensors, tvs_maxChannelNumber))
-    call oer_estimateObsErrorTOVS(obsSpaceData, obsErrStdev)
+    !call oer_estimateObsErrorTOVS(obsSpaceData, obsErrStdev)
+    call rmat_estimateR(obsSpaceData, estR)
+    write(*,*)'ZQ_ideaizedestR', estR(1)%Rmat(1,:)
 
-    deallocate(obsErrStdev)
+
+    call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
   end subroutine var1DIdealize_simulateObservation
 
 end module var1DIdealize_mod
