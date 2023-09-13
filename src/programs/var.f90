@@ -621,7 +621,7 @@ program midas_var
   call s2c_deallocInterpInfo( inputStateVectorType='nl' )
   call s2c_deallocInterpInfo( inputStateVectorType='tlad' )
 
-  ! Post processing of analyis before writing (variable transform+humidity clipping)
+  ! Post processing of analysis before writing (variable transform+humidity clipping)
   call inc_analPostProcessing( stateVectorPsfcHighRes, stateVectorUpdateHighRes, &  ! IN 
                                stateVectorTrial, stateVectorPsfc, stateVectorAnal ) ! OUT
   call gsv_deallocate( stateVectorUpdateHighRes )

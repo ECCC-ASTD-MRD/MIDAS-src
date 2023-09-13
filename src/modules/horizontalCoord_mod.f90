@@ -11,7 +11,7 @@ module horizontalCoord_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
-  
+
   implicit none
   save
   private
@@ -378,7 +378,7 @@ contains
                    iu_template,                                & ! IN
                    ni_t, nj_t, nlev_t,                         & ! OUT
                    dateo, etiket, ip1, ip2, ip3, typvar, nomvar) ! IN
-    
+
       if (ier < 0) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Unable to find ^> grid descriptors'
@@ -397,67 +397,67 @@ contains
       !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = MPC_missingValue_R8
       lat_8(:) = MPC_missingValue_R8
-      
+
       !-  2.5.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
       if (numSubGrid /= 2) then
         call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
-      
+
       !-  2.5.3 Determine parameters related to Yin and Yan grid rotations
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
-      
+
       ier = ezgprm(EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
       call cigaxg (grtypTicTac,                        & ! IN
                    xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
                    ig1_yy, ig2_yy, ig3_yy, ig4_yy)       ! IN
-      
+
       ier = ezgprm(EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
       call cigaxg (grtypTicTac,                                        & ! IN
                    xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
                    ig1_yy, ig2_yy, ig3_yy, ig4_yy)                       ! IN
-      
+
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
-      
+
       !-  2.5.3 We know this is a global grid
       global = .true.
-      
+
       !- 2.5 Irregular structure
     else if (trim(grtyp) == 'Y') then
-      
+
       !- 2.6.1 This grid type is not rotated
       rotated = .false.
       xlat1_4 = 0.0
       xlon1_4 = 0.0
       xlat2_4 = 1.0
       xlon2_4 = 1.0
-      
+
       grtypTicTac = 'L'
-      
+
       !- 2.6.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
       call global_or_lam(global,  & ! OUT
                          lon_8, ni) ! IN
-      
+
       !-  2.6.3 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = MPC_missingValue_R8
       lat_8(:) = MPC_missingValue_R8
-      
+
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or B or U or Y are supported !, grtyp = ', trim(grtyp)
       call utl_abort('hco_setupFromFile')
     end if
-    
+
     !
     !- 3.  Initialized Horizontal Grid Structure
     !
     allocate(hco%lat(1:nj))
     allocate(hco%lon(1:ni))
-    
+
     if (present(gridName_opt)) then
       hco%gridname     = trim(gridName_opt)
     else
@@ -489,13 +489,13 @@ contains
     hco%xlat2_yan            = real(xlat2_yan_4,8)
     hco%xlon2_yan            = real(xlon2_yan_4,8)
     hco%initialized          = .true.
-  
+
     hco%lat2d_4(:,:) = hco%lat2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
     hco%lon2d_4(:,:) = hco%lon2d_4(:,:) * MPC_RADIANS_PER_DEGREE_R8
-  
+
     deallocate(lat_8)
     deallocate(lon_8)
-    
+
     !- 3.1 Compute maxGridSpacing 
 
     latIndexBeg = 1
@@ -504,7 +504,7 @@ contains
     else
       latIndexEnd = nj
     end if
-    
+
     maxDeltaLat = 0.0d0
     do lonIndex = 1, ni - 1
       do latIndex = latIndexBeg, latIndexEnd - 1
@@ -536,27 +536,27 @@ contains
 
         deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
         if (deltaLon > maxDeltaLon) maxDeltaLon = deltaLon
-	
+
       end do
     end do
 
     maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon, maxDeltaLat)
-  
+
     if (mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious) then
       maxGridSpacingPrevious = maxGridSpacing
       write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
     end if
-  
+
     if (maxGridSpacing > 1.0d6) then
       call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
     end if
-    
+
     hco%maxGridSpacing = maxGridSpacing
 
     !- 3.2 Compute minGridSpacing 
-    
+
     minDeltaLat = 1.0d6
     do lonIndex = 1, ni - 1
       do latIndex = latIndexBeg, latIndexEnd - 1
@@ -574,7 +574,7 @@ contains
     minDeltaLon = 1.0d6
     do lonIndex = 1, ni - 1
       do latIndex = latIndexBeg, latIndexEnd - 1
-        
+
         if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
 
           deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
@@ -597,26 +597,26 @@ contains
     end do
 
     minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
-  
+
     if (mmpi_myid == 0 .and. minGridSpacing /= minGridSpacingPrevious) then
       minGridSpacingPrevious = minGridSpacing
       write(*,*) 'hco_setupFromFile: minDeltaLat=', minDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: minDeltaLon=', minDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: minGridSpacing=', minGridSpacing, ' m'
     end if
-  
+
     if (minGridSpacing > 1.0d6) then
       call utl_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
     end if
-    
+
     hco%minGridSpacing = minGridSpacing
-  
+
     !
     !- 4.  Close the input file
     !
     ier = fstfrm(iu_template)
     ier = fclos (iu_template)
-    
+
   end subroutine hco_SetupFromFile
 
   !--------------------------------------------------------------------------
@@ -635,10 +635,10 @@ contains
 
     ! Locals:
     real(8) :: dx, next_lon
-    
+
     dx       = lon(2) - lon(1)
     next_lon = lon(ni) + 1.5d0 * dx
-    
+
     write(*,*)
     write(*,*) 'dx       = ',dx
     write(*,*) 'lon(ni)  = ',lon(ni)
