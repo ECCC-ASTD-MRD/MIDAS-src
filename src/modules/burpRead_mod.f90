@@ -5824,11 +5824,19 @@ contains
         call burp_init_report_write(inputFile, copyReport, iostat=error)
         call handle_error(error, "brpr_addElementsToBurp: burp_init_report_write")
 
+        call burp_get_property(inputReport, stnid = station_id)
+
         ! loop on blocks
         ! --------------------
         ref_blk = 0
       
         blocks: do
+          ! We skip the writing of the block in the resume record
+          ! because writing it may lead to 'floating point exception'
+          ! with 'mrbcvt' as called inside 'burp_write_block'.
+          if (station_id(1:2) == ">>") then
+            exit blocks
+          end if
 
           ref_blk = burp_find_block(inputReport, &
                block       = inputBlock,         &
