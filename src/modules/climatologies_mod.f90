@@ -1,18 +1,3 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END --------------------------------------
 
 module climatologies_mod
   ! MODULE climatologies_mod (prefix='clm' category='5. Observation operators')
@@ -39,9 +24,12 @@ module climatologies_mod
 
   ! public structures
   public :: struct_clm_field
-  
-  ! Arrays containing input climatology/reference fields and fields interpolated 
-  ! to obs locations
+
+  !------------------------------------------------------------------------- 
+  ! Declaration of structures and parameters
+   
+  ! Arrays containing input climatology/reference fields and fields 
+  ! interpolated to obs locations
   
   type :: struct_clm_field
 
@@ -77,8 +65,10 @@ module climatologies_mod
   integer :: maxNumFields ! Number of variables with climatologies
   integer, parameter :: maxNumConstituents=BUFR_NECH_maxValue
   logical :: nearestNeighbourInterp(0:maxNumConstituents)
-  
-contains
+
+  !**************************************************************************
+    
+  contains
 
   !--------------------------------------------------------------------------
   ! clm_readFields
@@ -126,7 +116,7 @@ contains
                5.000d0, 7.000d0, 10.00d0, 20.00d0, 30.00d0, 50.00d0, 70.00d0,   &
                100.0d0, 150.0d0, 200.0d0, 300.0d0, 500.0d0, 700.0d0, 1000.d0 / 
 
-    ! Namelist parameters only needed within this routine
+    ! Namelist variables (local):
     character(len=4) :: requiredConstituents(maxNumConstituents+1) 
     character(len=256) :: climatSourceFileDefault
     character(len=256) :: climatSourceFiles(maxNumConstituents+1)
@@ -146,9 +136,7 @@ contains
     namelist /NAMCLIMATOLOGY/ fieldDimension    ! Dimension of input field
     namelist /NAMCLIMATOLOGY/ climatLevels      ! Pressure levels (hPa) needed if fieldDimension=1 or 2.
 
-    if (initialized) then
-      return
-    end if
+    if (initialized) return
 
     ! Set defaults
     requiredConstituents(:)=''
@@ -471,6 +459,10 @@ contains
               climatFields(constituentId,sourceIndex)%field(:,:,:) &
               *scaleFactor*vnl_varMassFromVarName(trim(varName)) &
               /MPC_MOLAR_MASS_DRY_AIR_R8
+	else if (trim(varNameClim) == 'O3CE') then  
+	  ! Convert kg/kg to ug/kg for ozone
+          climatFields(constituentId,sourceIndex)%field(:,:,:)= 1.0D9 &
+              *climatFields(constituentId,sourceIndex)%field(:,:,:)           
         end if
  
         if (allocated(array1)) deallocate(array1,lvls,xlat,xlong)
@@ -754,7 +746,7 @@ contains
     !  
     implicit none
   
-    ! Arguments
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: climatProfileSet  ! Profile set
     character(len=*),         intent(in)    :: code              ! unique obs identifying code    
     ! Result:
@@ -780,8 +772,8 @@ contains
     implicit none
 
     ! Arguments:
-
     character(len=*), intent(in) :: varName   ! Variable name
+    ! Result:
     logical :: ghg_identified                 ! Indicates if varName is a GHG
     
     if (trim(varName) == 'TCO2' .or. &
@@ -814,6 +806,7 @@ contains
     ! Arguments:
     character(len=*), intent(in) :: varName   ! Variable name
     integer, intent(in) :: iyear  ! Year for required scaling factor
+    ! Result:
     integer :: scaleFactor        ! Units scaling factor
 
     ! Locals:
@@ -821,8 +814,7 @@ contains
     integer :: MRYear, countSpecies, varNum
     character(len=6) :: lineOffset,speciesNames(numSpecies),speciesUnits(numSpecies)
     character(len=13), parameter :: climScaling  = 'climatScaling'
-    real(8) :: speciesMR(numSpecies)
-   
+    real(8) :: speciesMR(numSpecies)   
     integer, external :: fnom, fclos
     integer :: ierr, nulunScaling, iosScaling
     logical :: fileExists    

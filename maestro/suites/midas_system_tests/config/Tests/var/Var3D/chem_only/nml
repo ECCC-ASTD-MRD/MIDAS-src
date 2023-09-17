@@ -96,6 +96,11 @@
    diagn_stnid(1,2)='R2362400'
    diagn_stnid(1,3)='78538700'   
 /
+ &NAMCLIMATOLOGY
+   climatSourceFiles(1)='climatFields' 
+   nearNeighbourInterp(1)=.false.
+   timeInterpolation=.true.
+/
  &NAMCHEM
   MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
   assim_all(1)=.false.
@@ -104,7 +109,8 @@
   assim_stnid(1,2)='R2362400'  ! SBUV2 with 6 layers (Removed OMPS-NP for this test)
   assim_stnid(1,3)='78538700'  ! MLS on AURA
   operatorSubType(1,1)='78538700'
-  operatorSubType(2,1)='wgtAvg'
+  operatorSubType(2,1)='genOperInterp'
   operatorSubType(1,2)='AUROMI00'
   operatorSubType(2,2)='genOper'
+  genOperConstraintType(0)='Diff'
 /
