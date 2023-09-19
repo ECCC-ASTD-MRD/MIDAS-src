@@ -135,6 +135,8 @@ program midas_prepcma
   logical :: suprep                   ! choose to execute 'suprep' obs filtering
   logical :: rejectOutsideTimeWindow  ! choose to reject obs outside time window
   logical :: thinning                 ! choose to apply 'extra' thinning of some obs types
+  logical :: thinningConv             ! choose to apply 'extra' thinning of conventional (AI+SW+SC) obs types
+  logical :: thinningRadiance         ! choose to apply 'extra' thinning of radiance (TO) obs types
   logical :: applySatUtil             ! choose to reject satellite obs based on 'util' column of stats_tovs
   logical :: modifyAmsubObsError      ! choose to modify the obs error stddev for AMSUB/MHS in the tropics
   logical :: rejectHighLatIR          ! choose to reject IR data in high latitudes
@@ -143,7 +145,8 @@ program midas_prepcma
   logical :: writeAsciiCmaFiles       ! choose to write ascii output
 
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
-                        suprep, rejectOutsideTimeWindow, thinning, &
+                        suprep, rejectOutsideTimeWindow, &
+                        thinning, thinningConv, thinningRadiance, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
                         obsClean, writeObsFiles, writeAsciiCmaFiles
 
@@ -170,6 +173,8 @@ program midas_prepcma
   suprep                  = .true.
   rejectOutsideTimeWindow = .true.
   thinning                = .true.
+  thinningConv            = .true.
+  thinningRadiance        = .true.
   applySatUtil            = .true.
   modifyAmsubObsError     = .true.
   rejectHighLatIR         = .true.
@@ -262,13 +267,13 @@ program midas_prepcma
   !- Perform thinning for several observation types
   if (thinning) then
     ! perform thinning for aircraft observations
-    call thinning_fam(obsSpaceData, nai_pmax, nai_target, 'AI')
-    ! perform thinning for scatterometer observations
-    call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
-    ! perform thinning for radiance observations
-    call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+    if (thinningConv)     call thinning_fam(obsSpaceData, nai_pmax, nai_target, 'AI')
     ! perform thinning for satwind observations
-    call thinning_fam(obsSpaceData, nsw_pmax, nsw_target, 'SW')
+    if (thinningConv)     call thinning_fam(obsSpaceData, nsw_pmax, nsw_target, 'SW')
+    ! perform thinning for scatterometer observations
+    if (thinningConv)     call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
+    ! perform thinning for radiance observations
+    if (thinningRadiance) call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
   end if
 
   !- Write the results
