@@ -11,6 +11,8 @@ module rMatrix_mod
   use utilities_mod
   use obsSpaceData_mod
   use tovsNL_mod
+  use mathPhysConstants_mod
+
   implicit none
   private
   save
@@ -19,6 +21,7 @@ module rMatrix_mod
   public :: rmat_lnondiagr, rmat_matrix
   ! public subroutines
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt, rmat_estimateR
+  public :: rmat_updateRmat, rmat_writeRCorrFile
 
  type rmat_matrix
     real(8), pointer     :: Rmat(:,:)=>null()
@@ -32,7 +35,10 @@ module rMatrix_mod
 
   ! namelist variable
   logical :: rmat_lnondiagr ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
-
+  real(8) :: rmat_estLatMax ! Max latitude criteria for obs to be used in estimating R-Matrix
+  real(8) :: rmat_estLatMin ! Min latitude criteria for obs to be used in estimating R-Matrix
+  integer :: rmat_estLandSeaExcl ! Land/Sea criteria to exclude obs to be used in estimating R-Matrix(0: land, 1: sea)
+  real(8) :: rmat_estElevMax ! max sfc elevation criteria to exclude obs to be used in estimating R-Matrix (km)
   contains
 
   subroutine rmat_init(nsensors,nobtovs)
@@ -46,10 +52,15 @@ module rMatrix_mod
     ! Locals:
     integer :: nulnam,ierr
     integer, external:: fnom,fclos
-    namelist /NAMRMAT/rmat_lnonDiagR
+    namelist /NAMRMAT/rmat_lnonDiagR, rmat_estLatMax, rmat_estLatMin, rmat_estLandSeaExcl
+    namelist /NAMRMAT/rmat_estElevMax
 
     ! Default value for parameter rmat_lnondiagr, don't use interchannel correlation by default
     rmat_lnonDiagR = .false.
+    rmat_estLatMax = mpc_missingvalue_r8 
+    rmat_estLatMin = mpc_missingvalue_r8 
+    rmat_estLandSeaExcl = mpc_missingvalue_int  
+    rmat_estElevMax = mpc_missingvalue_r8
 
     ! Read the parameters from NAMRMAT
     nulnam = 0
@@ -234,6 +245,7 @@ module rMatrix_mod
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
         write(*,*) index(:)
+        write(*,*) 'ZQ_sensor_id', sensor_id
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
       R_tovs(indexTovs)%nchans = nsubset
@@ -439,23 +451,20 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsSpaceData     ! ObsSpaceData object
-    type(rmat_matrix), target, intent(out), allocatable  :: estR(:) ! non diagonal Correlation matrices for each instrument   
+    type(struct_obs),          intent(inout)               :: obsSpaceData  ! ObsSpaceData object
+    type(rmat_matrix), target, intent(inout), allocatable  :: estR(:)       ! R matrices for each instrument   
 
     ! Locals: 
-    integer              :: tovsIndex
-    integer              :: headerIndex, bodyIndex, sensorIdIndex
-    integer              :: idata, idatend, idatyp, taskIndex
-    real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:), residualSqrd(:,:), obsErrStdev(:,:)
-    integer              :: numAssimChan, chanIndexI, chanIndexJ, ierr, assimChan, chanIndex, localObsErr, globalheaderIndex
-    integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:), obsOffset(:,:)
+    integer              :: headerIndex, bodyIndex, sensorIndex, tovsIndex, taskIndex, chanIndex
     integer              :: channelNumber, channelIndex
+    integer              :: idata, idatend, idatyp
+    integer              :: ierr, assimChan
     integer              :: tag, status
+    integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:)
+    real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:)
     real(8), allocatable :: vector(:,:), localRmat(:,:)
     real(8)              :: obsErr
-    
-    
-
+  
     allocate(headerCountMpiGlobal(tvs_nsensors))
     allocate(obsErrSum(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
     allocate(obsErrSumAllTasks(tvs_nsensors, maxval(tvs_nchanMpiGlobal), mmpi_nprocs))
@@ -464,13 +473,11 @@ module rMatrix_mod
     allocate(meanObsErrMpiGlobal(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
 
     ! Allocate estimate R-Matrix
-    allocate(estR(tvs_nsensors))
-
-    do sensorIdIndex = 1, tvs_nsensors
-      estR(sensorIdIndex)%nchans = tvs_nchanMpiGlobal(sensorIdIndex)
-      allocate(estR(sensorIdIndex)%Rmat(tvs_nchanMpiGlobal(sensorIdIndex),tvs_nchanMpiGlobal(sensorIdIndex)))
-      allocate(estR(sensorIdIndex)%listChans(tvs_nchanMpiGlobal(sensorIdIndex)))
-      estR(sensorIdIndex)%Rmat(:, :) = 0
+    do sensorIndex = 1, tvs_nsensors
+      estR(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
+      allocate(estR(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)))
+      allocate(estR(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
+      estR(sensorIndex)%Rmat(:, :) = 0
     end do
 
     ! Initialize values
@@ -492,9 +499,33 @@ module rMatrix_mod
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIdIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
       if (tovsIndex == -1) cycle HEADER1
+
+      ! Exclude observation with land sea mask
+      if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. & 
+          obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) == rmat_estLandSeaExcl) then
+        cycle HEADER1
+      end if
+
+      ! Exclude observation with elevation greater than rmat_estElevMax
+      if (rmat_estElevMax /= mpc_missingvalue_r8 .and. &
+          obs_headElem_r( obsspacedata, OBS_ELEV, headerIndex) > rmat_estElevMax) then 
+        cycle HEADER1
+      end if
+
+      ! Max latitude criteria
+      if (rmat_estLatMax /= mpc_missingvalue_r8 .and. &
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 > rmat_estLatMax) then 
+        cycle HEADER1
+      end if
+
+      ! Min latitude criteria
+      if (rmat_estLatMin /= mpc_missingvalue_r8 .and. & 
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 < rmat_estLatMin) then 
+        cycle HEADER1
+      end if
 
       idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
@@ -503,24 +534,27 @@ module rMatrix_mod
         ! Check if all required channels are assimilated. If not, do not include profile in the R-Matrix computation. 
         assimChan = 0
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) assimChan = assimChan + 1  
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) assimChan = assimChan + 1  
         end do
-        if (assimChan /= tvs_nchanMpiGlobal(sensorIdIndex)) cycle HEADER1
+        if (assimChan /= tvs_nchanMpiGlobal(sensorIndex)) cycle HEADER1
 
-        headerCount(sensorIdIndex) = headerCount(sensorIdIndex) + 1
+        headerCount(sensorIndex) = headerCount(sensorIndex) + 1
+
+        if (headerCount(sensorIndex) < 50) then
+          write(*,*) 'ZQ_ELEV', obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        end if
 
         assimChan = 0
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             assimChan = assimChan + 1
 
             ! Append channel list into estR object
-            if (headerCount(sensorIdIndex) == 1) then
+            if (headerCount(sensorIndex) == 1) then
               call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
 
-              
-              estR(sensorIdIndex)%listChans(assimChan) = channelNumber
+              estR(sensorIndex)%listChans(assimChan) = channelNumber
             end if
 
             ! Compute the observation error based on observation and truth
@@ -528,26 +562,26 @@ module rMatrix_mod
                     obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
             
             ! Compute the sum of observation per sensor, per channel
-            obsErrSum(sensorIdIndex, assimChan) = obsErrSum(sensorIdIndex, assimChan) + obsErr
+            obsErrSum(sensorIndex, assimChan) = obsErrSum(sensorIndex, assimChan) + obsErr
           end if
         end do
 
       end if
     end do HEADER1
-    
-    ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
     call rpn_comm_barrier('GRID', ierr)
+
+    ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
     call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors,'MPI_INTEGER', 'GRID', ierr)
     call rpn_comm_allgather(obsErrSum, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', &
                               obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal),'mpi_real8', 'GRID', ierr)
 
     ! Compute the mean of observation error
     if (mmpi_myid == 0) then
-      do sensorIdIndex = 1, tvs_nsensors
-        headerCountMpiGlobal(sensorIdIndex) = sum(headerCountAllTasks(sensorIdIndex,:))
-        do chanIndex = 1, tvs_nchanMpiGlobal(sensorIdIndex)
-          meanObsErrMpiGlobal(sensorIdIndex, chanIndex) = sum(obsErrSumAllTasks(:, sensorIdIndex, chanIndex)) / &
-                                      headerCountMpiGlobal(sensorIdIndex)
+      do sensorIndex = 1, tvs_nsensors
+        headerCountMpiGlobal(sensorIndex) = sum(headerCountAllTasks(sensorIndex,:))
+        do chanIndex = 1, tvs_nchanMpiGlobal(sensorIndex)
+          meanObsErrMpiGlobal(sensorIndex, chanIndex) = sum(obsErrSumAllTasks(:, sensorIndex, chanIndex)) / &
+                                      headerCountMpiGlobal(sensorIndex)
         end do
       end do
     end if
@@ -557,6 +591,9 @@ module rMatrix_mod
 
     ! Broadcast total profile count to all MPI tasks
     call rpn_comm_bcast(meanObsErrMpiGlobal(:,:), tvs_nsensors *maxval(tvs_nchanMpiGlobal), 'mpi_real8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(headerCountMpiGlobal(:), tvs_nsensors, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+    write(*,*) 'ZQ_headerCountMpiGlobal',headerCountMpiGlobal
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER2: do
@@ -570,12 +607,36 @@ module rMatrix_mod
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIdIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
       if (allocated(vector)) deallocate(vector)
-      allocate(vector(1, tvs_nchanMpiGlobal(sensorIdIndex)))
+      allocate(vector(1, tvs_nchanMpiGlobal(sensorIndex)))
 
       if (tovsIndex == -1) cycle HEADER2
+
+      ! Exclude observation with land sea mask
+      if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. & 
+          obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) == rmat_estLandSeaExcl) then
+        cycle HEADER2
+      end if
+
+      ! Exclude observation with elevation greater than rmat_estElevMax
+      if (rmat_estElevMax /= mpc_missingvalue_r8 .and. &
+          obs_headElem_r( obsspacedata, OBS_ELEV, headerIndex) > rmat_estElevMax) then 
+        cycle HEADER2
+      end if
+
+      ! Max latitude criteria
+      if (rmat_estLatMax /= mpc_missingvalue_r8 .and. &
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 > rmat_estLatMax) then 
+        cycle HEADER2
+      end if
+
+      ! Min latitude criteria
+      if (rmat_estLatMin /= mpc_missingvalue_r8 .and. & 
+          obs_headElem_r(obsspacedata, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8 < rmat_estLatMin) then 
+        cycle HEADER2
+      end if
 
       idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
@@ -586,60 +647,216 @@ module rMatrix_mod
         do bodyIndex = idata, idatend
           if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) assimChan = assimChan + 1  
         end do
-        if (assimChan /= tvs_nchanMpiGlobal(sensorIdIndex)) cycle HEADER2
 
-        headerCount(sensorIdIndex) = headerCount(sensorIdIndex) + 1
-
+        if (assimChan /= tvs_nchanMpiGlobal(sensorIndex)) cycle HEADER2
+        
+        headerCount(sensorIndex) = headerCount(sensorIndex) + 1
         assimChan = 0
+
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             assimChan = assimChan + 1
             obsErr = obs_bodyElem_r(obsspacedata, OBS_VAR, bodyIndex) - &
                     obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
 
-            vector(1, assimChan) = obsErr - meanObsErrMpiGlobal(sensorIdIndex, assimChan)
+            vector(1, assimChan) = obsErr - meanObsErrMpiGlobal(sensorIndex, assimChan)
           end if
         end do
 
-        estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) + &
+        estR(sensorIndex)%Rmat(:,:) = estR(sensorIndex)%Rmat(:,:) + &
                                         matmul(transpose(vector), vector)
       end if
       deallocate(vector)
     end do HEADER2
 
     call rpn_comm_barrier("GRID",ierr)
-    do sensorIdIndex = 1, tvs_nsensors
-      write(*,*) 'ZQ_estR(sensorIdIndex)%Rmat(:,:)', mmpi_myid, sensorIdIndex, estR(sensorIdIndex)%Rmat(1,:)
+
+    ! Compute the R Matrix.
+    do sensorIndex = 1, tvs_nsensors
+      ! Send Rmat from all MPI tasks to MPI task 0.
       if (mmpi_myid > 0) then 
         tag = mmpi_myId
-        call rpn_comm_send(estR(sensorIdIndex)%Rmat(:,:) , tvs_nchanMpiGlobal(sensorIdIndex) * tvs_nchanMpiGlobal(sensorIdIndex), &
+        call rpn_comm_send(estR(sensorIndex)%Rmat(:,:) , tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
                           'mpi_real8', 0, tag, 'GRID', ierr )
       end if
 
+      ! Collect Rmat from all MPI tasks and take the sum, normalized it by N-1.
+      ! Broadcase it to all MPI tasks.
       if (mmpi_myid == 0) then 
-        allocate(localRmat(tvs_nchanMpiGlobal(sensorIdIndex), tvs_nchanMpiGlobal(sensorIdIndex)))
+        allocate(localRmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
         do taskIndex = 1,  mmpi_nprocs - 1
           tag = taskIndex
-          call rpn_comm_recv(localRmat,  tvs_nchanMpiGlobal(sensorIdIndex) * tvs_nchanMpiGlobal(sensorIdIndex), &
+          call rpn_comm_recv(localRmat,  tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
                         'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
-          write(*,*) 'ZQ_localRmat', tag, localRmat(1,:)
-          estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) + localRmat
+          estR(sensorIndex)%Rmat(:,:) = estR(sensorIndex)%Rmat(:,:) + localRmat
         end do
         deallocate(localRmat)
+
+        estR(sensorIndex)%Rmat(:,:) = estR(sensorIndex)%Rmat(:,:) / (headerCountMpiGlobal(sensorIndex) -1)
       end if
-      estR(sensorIdIndex)%Rmat(:,:) = estR(sensorIdIndex)%Rmat(:,:) / (headerCountMpiGlobal(sensorIdIndex) -1)
-      call rpn_comm_bcast(estR(sensorIdIndex)%Rmat, tvs_nchanMpiGlobal(sensorIdIndex)* tvs_nchanMpiGlobal(sensorIdIndex), &
+
+      call rpn_comm_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex)* tvs_nchanMpiGlobal(sensorIndex), &
                           'mpi_real8', 0, 'GRID', ierr)
-      
+
     end do
-    write(*,*) 'ZQ_finalEstR', estR(1)%Rmat(1,:) 
-    !call rpn_comm_barrier('GRID', ierr)
-    !call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')  
+
+    ! Broadcast estR(sensorIndex)%listChans from the first MPI task that has non-empty values
+    Sensor: do sensorIndex = 1, tvs_nsensors
+      do taskIndex = 1,  mmpi_nprocs
+        if (headerCountAllTasks(sensorIndex, taskIndex) > 0) then
+          call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', 0, 'GRID', ierr)
+          cycle Sensor
+        end if
+      end do
+    end do Sensor
+
+    call rpn_comm_barrier('GRID', ierr)
     
     deallocate(headerCount)
     deallocate(headerCountAllTasks)
     deallocate(headerCountMpiGlobal)
     deallocate(meanObsErrMpiGlobal)
   end subroutine rmat_estimateR
+
+  !--------------------------------------------------------------------------
+  ! rmat_updateRmat
+  !--------------------------------------------------------------------------
+  subroutine rmat_updateRmat(estR, obsspacedata)
+    !
+    !:Purpose: Update observatione error Stedev. and correlation matrix from the R-matrix.
+    !
+    implicit none
+
+    ! Arguments:
+    type(rmat_matrix), intent(inout) :: estR(:)       ! R matrices for each instrument
+    type(struct_obs),  intent(inout) :: obsSpaceData  ! ObsSpacedata object
+    
+    ! Locals:
+    integer                        :: numchan, ichan, jchan
+    integer                        :: headerIndex, bodyIndex, tovsIndex, sensorIndex
+    integer                        :: idata, idatend, idatyp
+    type(rmat_matrix), allocatable :: RCorr(:)
+    real(8), allocatable           :: obsErrStdev(:,:), tmpObsErr
+    integer                        :: channelNumber, channelIndex
+
+     ! Allocate estimate R-Matrix
+    allocate(RCorr(tvs_nsensors))
+    do sensorIndex = 1, tvs_nsensors
+      RCorr(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
+      allocate(RCorr(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)))
+      allocate(RCorr(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
+    end do
+    
+    allocate(obsErrStdev(tvs_nsensors, maxval(tvs_nchanMpiGlobal)))
+    do sensorIndex = 1, tvs_nsensors
+      numchan = estR(sensorIndex)%nchans
+     
+      ! Extract observation error Stdev
+      do ichan = 1, numchan
+        obsErrStdev(sensorIndex, ichan) = SQRT(estR(sensorIndex)%Rmat(ichan, ichan))
+      end do
+      write(*,*) 'ZQ_obsErrStdev(',obsErrStdev(sensorIndex, :)
+      write(*,*) 'ZQ_listChans', estR(sensorIndex)%listChans
+      ! Exteact observation error correlation matrix
+      do ichan = 1, numchan
+        do jchan = 1, numchan
+          RCorr(sensorIndex)%Rmat(ichan, jchan)= estR(sensorIndex)%Rmat(ichan, jchan) /&
+                       (obsErrStdev(sensorIndex, ichan) * obsErrStdev(sensorIndex, jchan))
+        end do
+        write(*,*) 'ZQ_Rcorr', RCorr(sensorIndex)%Rmat(ichan, :)
+      end do
+    end do
+
+    ! Update simga(o) into ObsSpaceData
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+    
+      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      if (tovsIndex == -1) cycle HEADER
+
+      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+      do bodyIndex = idata, idatend
+        if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+
+          ! Copy observation error from OBS_OER to OBS_OERI
+          tmpObsErr = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
+          call obs_bodySet_r(obsSpaceData, OBS_OERI, bodyIndex, tmpObsErr)
+
+          ! Update observation error
+          call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsErrStdev(sensorIndex, channelIndex))
+        end if 
+      end do
+    end do HEADER    
+
+    ! Copy R-Matrix related content into Rcorr_inst object
+    do sensorIndex = 1, tvs_nsensors
+      Rcorr_inst(sensorIndex)%Rmat = RCorr(sensorIndex)%Rmat
+      Rcorr_inst(sensorIndex)%listChans = estR(sensorIndex)%listChans
+      Rcorr_inst(sensorIndex)%nchans = estR(sensorIndex)%nchans
+    end do
+
+    deallocate(obsErrStdev)
+    deallocate(RCorr)
+  end subroutine rmat_updateRmat
+
+  !--------------------------------------------------------------------------
+  ! rmat_writeRCorrFile
+  !--------------------------------------------------------------------------
+  subroutine rmat_writeRCorrFile
+    !
+    !:Purpose: Write the observation error correlation matrix into Cmat files
+    !
+    implicit none
+
+    ! Locals: 
+    integer :: sensorIndex
+    character (len=64) :: filename
+    integer :: err, iu, numChan, ich, jch
+    integer, external :: fnom,fclos
+
+    SENSOR: do sensorIndex = 1, tvs_nsensors  
+      if (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSOR
+
+      ! Construct correlation file name
+      call rttov_coeffname (err, tvs_listSensors(:,sensorIndex), coeffname=filename, filetype="Cmat")
+      if (err /= errorstatus_success) then
+        write(*,*) "Unknown instrument ", tvs_listSensors(:,sensorIndex)
+        call utl_abort("rmat_writeRCorrFile")
+      end if
+
+      numChan = Rcorr_inst(sensorIndex)%nchans
+
+      iu = 0
+      err = fnom(iu,trim(filename),'FTN+SEQ+R/W',0)
+      write(iu,'(I3)') numChan
+
+      do ich = 1, numChan
+        write(iu, '(I3)') Rcorr_inst(sensorIndex)%listChans(ich)
+      end do
+
+      do ich = 1, numChan
+        do jch = ich + 1, numChan
+          write(iu, '(I3, I3, F9.5)') Rcorr_inst(sensorIndex)%listChans(ich), Rcorr_inst(sensorIndex)%listChans(jch), &
+                       Rcorr_inst(sensorIndex)%Rmat(ich, jch)
+        end do
+      end do
+
+      err= fclos(iu)
+    end do SENSOR
+
+  end subroutine rmat_writeRCorrFile
 
 end module rMatrix_mod

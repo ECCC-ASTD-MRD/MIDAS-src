@@ -847,8 +847,8 @@ module sqliteRead_mod
     integer                     :: headerIndex, bodyIndex
     character(len =   3)        :: item
     integer                     :: updateList(20), fnom, fclos, nulnam, ierr
-    character(len =  10)        :: columnName
-    character(len = 128)        :: query
+    character(len =  20)        :: columnName
+    character(len = 526)        :: query
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
@@ -941,6 +941,19 @@ module sqliteRead_mod
       case('ALT')
         updateList(itemIndex) = OBS_PPP
         columnName = 'vcoord'
+      case('TOB')
+        updateList(itemIndex) = OBS_TRUO
+        columnName = 'truth'
+      case('OEI')
+        updateList(itemIndex) = OBS_OERI
+        columnName = 'obs_error_initial'
+      case('SSE')
+        updateList(itemIndex) = OBS_SSEM
+        columnName = 'sim_surf_emiss'
+      case('SER')
+        updateList(itemIndex) = OBS_EMER
+        columnName = 'surf_emiss_error'
+
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
       end select

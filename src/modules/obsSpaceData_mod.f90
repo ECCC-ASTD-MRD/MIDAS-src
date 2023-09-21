@@ -532,10 +532,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam   (radians)
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
-   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam 
+   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam
+   integer, parameter, public :: OBS_ELEV  = OBS_RANE +1 ! Surface Elevation
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_RANE 
+   integer, parameter :: NHDR_REAL_END = OBS_ELEV 
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -562,7 +563,7 @@ module ObsColumnNames_mod
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
         'CLW1','CLW2','MWS ','SIO ','SIB ','IWV ', &
-        'RZAM','RELE','RANS','RANE'/)
+        'RZAM','RELE','RANS','RANE','ELEV'/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -631,10 +632,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space 
    integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
    integer, parameter, public :: OBS_SSEM= OBS_EMER+1 ! simulate surface emissivity
-
+   integer, parameter, public :: OBS_OERI= OBS_SSEM+1 ! Initial sigma(obs)
+   integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
    
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_SSEM
+   integer, parameter :: NBDY_REAL_END = OBS_TRAN
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -643,7 +645,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM' /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM', 'OERI', 'TRAN' /)
 end module ObsColumnNames_mod
 
 
@@ -1039,7 +1041,7 @@ contains
          hdr_real_column_list= &
             (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
               OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
-              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
+              OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV,(0,ii=19,100)/)
 
          bdy_int_column_list(:)    = 0
          bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
@@ -1084,7 +1086,7 @@ contains
          hdr_real_column_list= &
             (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
               OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
-              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
+              OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV, (0,ii=19,100)/)
 
          bdy_int_column_list= &
             (/OBS_VNM , OBS_FLG , OBS_ASS , OBS_HIND, OBS_VCO , OBS_LYR , OBS_XTR , &
@@ -1094,7 +1096,7 @@ contains
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER , &
               OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
               OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, OBS_TRUO, &
-              OBS_EMER, OBS_SSEM, (0,ii=24,100) /)
+              OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN, (0,ii=26,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1640,7 +1642,7 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
-   public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE
+   public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA
@@ -1650,7 +1652,7 @@ module ObsSpaceData_mod
    public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
    public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
-   public :: OBS_EMER, OBS_SSEM
+   public :: OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

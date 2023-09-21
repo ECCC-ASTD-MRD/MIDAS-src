@@ -82,6 +82,10 @@
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.
+   rmat_estLatMax=60.0,
+   rmat_estLatMin=-50.0,
+   rmat_estLandSeaExcl=1,
+   rmat_estElevMax=1,
 /
  &NAMSTATE
    addHeightSfcOffset = .false.
@@ -129,6 +133,12 @@
   itemUpdateList(2)='OMP',
   itemUpdateList(3)='OER',
   itemUpdateList(4)='VAR',
+  itemUpdateList(5)='TOB',
+  itemUpdateList(6)='OEI',
+  itemUpdateList(7)='SSE',
+  itemUpdateList(8)='SER',
+  itemUpdateList(9)='EMI',
+
 
 &NAMSQLINSERT
   itemInsertList(1)=12163

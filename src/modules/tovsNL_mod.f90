@@ -2890,7 +2890,7 @@ contains
     ! Initialize random number generation for simulating surface emissivity
     ! used in tvs_simulateEmissivity
     if ( SimSfcEmiss ) then
-      call rng_setup(abs(tvs_simEmissSeed))
+      call rng_setup(abs(tvs_simEmissSeed + mmpi_myid))
     end if
 
     !   1.1   Read surface information
@@ -3334,10 +3334,21 @@ contains
           
       end do
 
-      ! Append Surface Emissivity into ObsSpaceData
+      ! Append Surface Emissivity, SFC-Satellite Transmissivity and
+      ! Surface Elevation into ObsSpaceData
       do btIndex = 1, btCount
         bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-        if (bodyIndex > 0) call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+        profileIndex = chanprof(btIndex)%prof
+        tovsIndex = sensorTovsIndexes(profileIndex)
+        headerIndex = tvs_headerIndex(tovsIndex)
+        if (bodyIndex > 0) then 
+          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
+        end if
+
+        if (headerIndex > 0) then
+          call obs_headSet_r(obsSpaceData, OBS_ELEV, headerIndex,  tvs_profiles_nl(tovsIndex)%elevation)
+        end if
       end do
 
       !    Deallocate memory
