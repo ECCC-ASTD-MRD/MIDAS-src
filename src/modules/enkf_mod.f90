@@ -106,7 +106,7 @@ contains
     real(8) :: distance, tolerance, localization
     real(4) :: modulationFactor_r4
 
-    integer, allocatable :: localBodyIndices(:)
+    integer, allocatable :: localBodyIndices(:), levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: myLatIndexesSend(:), myLonIndexesSend(:)
     integer, allocatable :: myNumProcIndexesSend(:)
@@ -137,8 +137,9 @@ contains
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
     real(4)              :: pert_r4
 
-    character(len=4)     :: varLevel
-    character(len=2)     :: varKind
+    character(len=4)     :: varName
+    character(len=2), allocatable :: varKindFromK(:)
+    character(len=4), allocatable :: varLevelFromK(:)
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
@@ -376,6 +377,16 @@ contains
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
+    allocate(varLevelFromK(numVarLev))
+    allocate(levFromK(numVarLev))
+    allocate(varKindFromK(numVarLev))
+    do varLevIndex = 1, numVarLev
+      varName = gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)
+      varLevelFromK(varLevIndex) = vnl_varLevelFromVarname(varName)
+      levFromK(varLevIndex) = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+      varKindFromK(varLevIndex) = vnl_varKindFromVarname(varName)
+    end do
+
     call utl_tmg_start(141,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
     call utl_tmg_stop(141)
@@ -484,10 +495,10 @@ contains
         end do ! localObsIndex
 
         call utl_tmg_start(136,'------CalcYbTinvRYb')
+
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(137,'--------YbArraysCopy')
-        YbGainCopy_r4(:,:) = 0.0
-        YbTinvRCopy_pert(:,:) = 0.0d0
+        !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex2)
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsGain
@@ -495,14 +506,16 @@ contains
             YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
           end do
         end do      
+        !$OMP END PARALLEL DO
         if (eob_simObsAssim) then
-          YbTinvRCopy_mean(:,:) = 0.0d0
+          !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex2)
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
             do memberIndex2 = 1, nEnsGain
               YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
             end do
           end do
+          !$OMP END PARALLEL DO
         end if
         call utl_tmg_stop(137)
 
@@ -511,24 +524,38 @@ contains
         YbTinvRYb_pert(:,:) = 0.0D0
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
-          do memberIndex1 = 1, nEnsGain
+          do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
             YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
                 YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
                 sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))             
           end do
         end do
-        !$OMP END PARALLEL DO       
+        !$OMP END PARALLEL DO
+        ! copy upper triangle to lower triangle (symmetric matrix)
+        do memberIndex2 = 1, nEnsGain
+          do memberIndex1 = memberIndex2+1, nEnsGain
+            YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+                YbTinvRYb_pert(memberIndex2,memberIndex1)
+          end do
+        end do
         if (eob_simObsAssim) then     
           YbTinvRYb_mean(:,:) = 0.0D0
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsGain
-            do memberIndex1 = 1, nEnsGain
+            do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
               YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
                   YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
                   sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
             end do
           end do
           !$OMP END PARALLEL DO
+          ! copy upper triangle to lower triangle (symmetric matrix)
+          do memberIndex2 = 1, nEnsGain
+            do memberIndex1 = memberIndex2+1, nEnsGain
+              YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_mean(memberIndex2,memberIndex1)
+            end do
+          end do
         end if
         call utl_tmg_stop(138)
 
@@ -559,6 +586,7 @@ contains
           !$OMP END PARALLEL DO
           call utl_tmg_stop(139)
         end if !CVLETKF-ME or LETKF-GAIN-ME
+
         call utl_tmg_stop(136)
 
         ! Rest of the computation of local weights for this grid point
@@ -1282,7 +1310,7 @@ contains
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
-      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
+      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
       !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
       !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
       do latIndex = myLatBeg, myLatEnd
@@ -1294,22 +1322,20 @@ contains
           ! Compute the ensemble mean increment and analysis
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
-            varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
-                varLevel == 'SFTH' .or. varLevel == 'SS') then
-              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-              if (varKind == 'OC') then
+            if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
+                varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
+              if (varKindFromK(varLevIndex) == 'OC') then
                 levIndex2 = 1
               else
                 levIndex2 = max(nLev_M,nLev_depth)
               end if
-            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
-              levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-            else if (varLevel == 'OT') then
+            else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
+              levIndex2 = levFromK(varLevIndex)
+            else if (varLevelFromK(varLevIndex) == 'OT') then
               ! Most (all?) variables using the 'other' coordinate are surface
               levIndex2 = max(nLev_M,nLev_depth)
             else
-              write(*,*) 'varLevel = ', varLevel
+              write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
@@ -1356,32 +1382,31 @@ contains
           ! Compute the ensemble member analyses
           do varLevIndex = 1, numVarLev
             ! Only treat varLevIndex values that correspond with current levIndex
-            varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-            if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
-                varLevel == 'SFTH' .or. varLevel == 'SS') then
-              varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
-              if (varKind == 'OC') then
+            if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
+                varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
+              if (varKindFromK(varLevIndex) == 'OC') then
                 levIndex2 = 1
               else
                 levIndex2 = max(nLev_M,nLev_depth)
               end if
-            else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
-              levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-            else if (varLevel == 'OT') then
+            else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
+              levIndex2 = levFromK(varLevIndex)
+            else if (varLevelFromK(varLevIndex) == 'OT') then
               ! Most (all?) variables using the 'other' coordinate are surface
               levIndex2 = max(nLev_M,nLev_depth)
             else
-              write(*,*) 'varLevel = ', varLevel
+              write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
             if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
-              ! Compute analysis member perturbation
-              memberAnlPert(:) = 0.0d0
 
               call utl_tmg_start(144,'------ApplyWeightsMember')
+
+              ! Compute analysis member perturbation
+              memberAnlPert(:) = 0.0d0
 
               if ( useModulatedEns ) then
                 do memberIndex2 = 1, nEns
@@ -1424,11 +1449,12 @@ contains
                 end do ! memberIndex2
               end if
 
-              call utl_tmg_stop(144)
-
               ! Add analysis member perturbation to mean analysis
               memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
                    meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
+
+              call utl_tmg_stop(144)
+
             end do ! stepIndex
           end do ! varLevIndex
 
