@@ -300,7 +300,7 @@ module var1DIdealize_mod
     ! Locals:
     logical              :: bgckMode, beSilent
     integer              :: tovsIndex
-    integer              :: headerIndex, bodyIndex, obsIndex
+    integer              :: headerIndex, bodyIndex, obsIndex, sensorIdIndex
     integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex, tmpObs_OER
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
@@ -365,7 +365,7 @@ module var1DIdealize_mod
      ! loop over all header indices of the 'TO' family
     call obs_set_current_header_list(obsSpaceData,'TO')
 
-    call rng_setup(abs(seed))
+    call rng_setup(abs(seed + mmpi_myid))
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
@@ -435,13 +435,13 @@ module var1DIdealize_mod
       end if
     end do HEADER2
     write(*,*) 'Finish var1DIdealize_simulateObservation'
-
-    !call oer_estimateObsErrorTOVS(obsSpaceData, obsErrStdev)
+    allocate(estR(tvs_nsensors))
     call rmat_estimateR(obsSpaceData, estR)
-    write(*,*)'ZQ_ideaizedestR', estR(1)%Rmat(1,:)
 
-
-    call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
+    call rmat_updateRmat(estR, obsSpaceData)
+    call rmat_writeRCorrFile
+    deallocate(estR)
+    !call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
   end subroutine var1DIdealize_simulateObservation
 
 end module var1DIdealize_mod
