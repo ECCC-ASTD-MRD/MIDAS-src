@@ -3622,5 +3622,4 @@ contains
     deallocate(dataCountPerChan)
     deallocate(meanObsErr)
   end subroutine oer_estimateObsErrorTOVS
-
 end module obsErrors_mod
