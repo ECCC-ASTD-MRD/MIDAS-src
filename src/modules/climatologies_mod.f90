@@ -902,50 +902,5 @@ module climatologies_mod
     end if   
 
   end function clm_getUnitsScaling
-
-  !--------------------------------------------------------------------------
-  ! clm_setDryAirDensity
-  !--------------------------------------------------------------------------
-  subroutine clm_setDryAirDensity(press,temp,specHumid,nlevels,density)
-    
-    !:Purpose: Provide dry air density. 
-    !    
-    !:Comments:
-    !
-    !   Routine included in the event of later need.
-    !
-    !   MPC_RGAS_DRY_AIR_R8      Dry air constant. 287.1 J/kg/K  (J=kg m^2/s^2)
-    !
-    !   Replace above by the following to ouput instead in mole/m^3
-    !
-    !   MPC_RGAS_IDEAL_R8        Ideal gas constant. 8.341 J/mole/K  (J=kg m^2/s^2)
-    !   
-    implicit none
-
-    ! Arguments:
-    integer,  intent(in) :: nlevels            ! Number of pressure levels
-    real(8),  intent(in) :: press(nlevels)     ! Pressure levels (Pa = J/m^3)
-    real(8),  intent(in) :: specHumid(nlevels) ! Specific humidity (g/kg)
-    real(8),  intent(in) :: temp(nlevels)      ! Temperatures (Kelvin)
-    real(8), intent(out) :: density(nlevels) ! Dry air density (kg/m^3)
-
-    ! Locals:
-    real(8) :: dryPress(nlevels)
-    integer :: index
-  
-    ! Get dry air pressure
-    do index=1,nlevels        
-      dryPress(index) = press(index) - phf_FOEFQ8(specHumid(index),press(index))
-      
-      ! dryPress(index) = press(index) - phf_FOEW8(temp(index))* &
-      !                  phf_FOHRA8(specHumid(index),temp(index),press(index)) 
-    end do
-        
-    ! Get dry air density 
-    density(1:nlevels) = dryPress(1:nlevels) &
-                               /(temp(1:nlevels)*MPC_RGAS_DRY_AIR_R8) ! for kg/m^3
-    !                           /(temp(1:nlevels)*MPC_RGAS_IDEAL_R8)  ! for mol/m^3
-
-  end subroutine clm_setDryAirDensity
     
 end module climatologies_mod
