@@ -1525,7 +1525,7 @@ contains
     real(4) :: lvl_r4
     logical :: Exists
     character(len=1) :: string
-    integer :: iun=0
+    integer :: iun
     integer :: i,ier, kindi
     integer, parameter :: maxkeys=1000
     integer :: keys(maxkeys),ini,inj,nk
@@ -1542,6 +1542,7 @@ contains
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
     
     ! Open file
+    iun = 0
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
       write(*,*) 'File missing=',fname

@@ -63,12 +63,10 @@ module climatologies_mod
   type(struct_clm_field), allocatable :: climatFields(:,:) ! First dimension will be 0:maxNumConstituents
   integer :: maxNumTypes  ! Max of climatFields second dimension
   integer :: maxNumFields ! Number of variables with climatologies
-  integer, parameter :: maxNumConstituents=BUFR_NECH_maxValue
+  integer, parameter :: maxNumConstituents = BUFR_NECH_maxValue
   logical :: nearestNeighbourInterp(0:maxNumConstituents)
-
-  !**************************************************************************
     
-  contains
+contains
 
   !--------------------------------------------------------------------------
   ! clm_readFields
@@ -90,14 +88,14 @@ module climatologies_mod
     character(len=*), intent(in), optional :: modelName_opt ! Model name 
 
     ! Locals:
-    character(len=256) :: fname,modelName
-    character(len=4) :: varName,varNameClim
+    character(len=256) :: fname, modelName
+    character(len=4) :: varName, varNameClim
     character(len=12) :: etiket
-    character(len=12), parameter :: climFields   = 'climatFields'
+    character(len=12), parameter :: climFields = 'climatFields'
     character(len=11), parameter :: ozoneBaseline = 'ozoneclim98'
-    integer :: varIndex,constituentId,SourceIndex
-    integer :: ijour,imonth,iday,itime,iyear
-    real(8) :: day,scaleFactor
+    integer :: varIndex, constituentId, SourceIndex
+    integer :: ijour, imonth, iday, itime, iyear
+    real(8) :: day, scaleFactor
     integer :: datestamp
     integer, external :: newdate
     logical :: initialized = .false.       
@@ -107,51 +105,51 @@ module climatologies_mod
     integer :: ierr, nulnam
     logical :: fileExists
     integer :: ni, nj, nkeys, kind, loopIndex
-    real(8), allocatable :: array1(:,:,:),array2(:,:,:),lvls(:),xlat(:),xlong(:) 
+    real(8), allocatable :: array1(:,:,:), array2(:,:,:), lvls(:), xlat(:), xlong(:) 
     integer, parameter :: baselineLevelNum = 28
     real(8) :: climatLevelsDefault(baselineLevelNum)  !  Fortuin-Kelder 1998 pressure levels 
     data climatLevelsDefault / &
-               0.010d0, 0.015d0, 0.022d0, 0.032d0, 0.046d0, 0.068d0, 0.100d0,   &
-               0.150d0, 0.200d0, 0.300d0, 0.500d0, 1.000d0, 2.000d0, 3.000d0,   &
-               5.000d0, 7.000d0, 10.00d0, 20.00d0, 30.00d0, 50.00d0, 70.00d0,   &
-               100.0d0, 150.0d0, 200.0d0, 300.0d0, 500.0d0, 700.0d0, 1000.d0 / 
+        0.010d0, 0.015d0, 0.022d0, 0.032d0, 0.046d0, 0.068d0, 0.100d0,  &
+        0.150d0, 0.200d0, 0.300d0, 0.500d0, 1.000d0, 2.000d0, 3.000d0,  &
+        5.000d0, 7.000d0, 10.00d0, 20.00d0, 30.00d0, 50.00d0, 70.00d0,  &
+        100.0d0, 150.0d0, 200.0d0, 300.0d0, 500.0d0, 700.0d0, 1000.d0 / 
 
     ! Namelist variables (local):
-    character(len=4) :: requiredConstituents(maxNumConstituents+1) 
-    character(len=256) :: climatSourceFileDefault
-    character(len=256) :: climatSourceFiles(maxNumConstituents+1)
-    integer :: fieldDimension(maxNumConstituents+1)
-    integer :: numFields(maxNumConstituents+1)
-    logical :: timeInterpolation
-    logical :: nearNeighbourInterp(maxNumConstituents+1)
-    real(8) :: climatLevels(maxNumConstituents+1,100)
+    character(len=4) :: requiredConstituents(maxNumConstituents+1) ! List of constituent NOMVARs for which climatology fields are required
+    character(len=256) :: climatSourceFileDefault                  ! Default climatology source file
+    character(len=256) :: climatSourceFiles(maxNumConstituents+1)  ! Climatology source file names
+    integer :: fieldDimension(maxNumConstituents+1)                ! Dimension of input field
+    integer :: numFields(maxNumConstituents+1)                     ! Number of climatology fields per constituent
+    logical :: timeInterpolation                                   ! Indicating if interpolation between mid-months
+    logical :: nearNeighbourInterp(maxNumConstituents+1)           ! Nearest neighbour or linear interpolation
+    real(8) :: climatLevels(maxNumConstituents+1,100)              ! Pressure levels (hPa) needed if fieldDimension=1 or 2.
 
     ! NAMCLIMATOLOGY namelist parameters
-    namelist /NAMCLIMATOLOGY/ climatSourceFileDefault ! Default climatology source file
-    namelist /NAMCLIMATOLOGY/ climatSourceFiles     ! Climatology source file names
-    namelist /NAMCLIMATOLOGY/ requiredConstituents  ! List of constituent NOMVARs for which climatology fields are required
-    namelist /NAMCLIMATOLOGY/ nearNeighbourInterp   ! Nearest neighbour or linear interpolation
-    namelist /NAMCLIMATOLOGY/ numFields         ! Number of climatology fields per constituent
-    namelist /NAMCLIMATOLOGY/ timeInterpolation ! Indicating if interpolation between mid-months
-    namelist /NAMCLIMATOLOGY/ fieldDimension    ! Dimension of input field
-    namelist /NAMCLIMATOLOGY/ climatLevels      ! Pressure levels (hPa) needed if fieldDimension=1 or 2.
+    namelist /NAMCLIMATOLOGY/ climatSourceFileDefault
+    namelist /NAMCLIMATOLOGY/ climatSourceFiles     
+    namelist /NAMCLIMATOLOGY/ requiredConstituents  
+    namelist /NAMCLIMATOLOGY/ nearNeighbourInterp  
+    namelist /NAMCLIMATOLOGY/ numFields        
+    namelist /NAMCLIMATOLOGY/ timeInterpolation 
+    namelist /NAMCLIMATOLOGY/ fieldDimension   
+    namelist /NAMCLIMATOLOGY/ climatLevels      
 
     if (initialized) return
 
     ! Set defaults
-    requiredConstituents(:)=''
-    requiredConstituents(1)='O3L' 
-    climatSourceFileDefault=climFields
-    climatSourceFiles(:)=''
-    climatSourceFiles(1)=ozoneBaseline
-    numFields(:)=0
-    numFields(1)=1
-    fieldDimension(:)=3
-    fieldDimension(1)=2
-    nearNeighbourInterp(:)=.false.
-    nearNeighbourInterp(1)=.true.
-    timeInterpolation=.false.
-    climatLevels(:,:)=-1.0
+    requiredConstituents(:) = ''
+    requiredConstituents(1) = 'O3L' 
+    climatSourceFileDefault = climFields
+    climatSourceFiles(:) = ''
+    climatSourceFiles(1) = ozoneBaseline
+    numFields(:) = 0
+    numFields(1) = 1
+    fieldDimension(:) = 3
+    fieldDimension(1) = 2
+    nearNeighbourInterp(:) = .false.
+    nearNeighbourInterp(1) = .true.
+    timeInterpolation = .false.
+    climatLevels(:,:) = -1.0
     
     ! Check for presence or read NAMCLIMATOLOGY
     if ( .not. utl_isNamelistPresent('NAMCLIMATOLOGY','./flnml') ) then
@@ -163,160 +161,160 @@ module climatologies_mod
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=namclimatology, iostat=ierr)
       if (ierr /= 0) call utl_abort('clm_readFields: Error reading namelist NAMCLIMATOLOGY')
-
-      if (mmpi_myid == 0) write(*,nml=namclimatology)
       ierr = fclos(nulnam)      	
     end if
+    if (mmpi_myid == 0) write(*,nml=namclimatology)
 
     ! Set dimensions
-    maxNumFields=1
-    maxNumTypes=1
+    maxNumFields = 1
+    maxNumTypes = 1
     do while (trim(requiredConstituents(maxNumFields)) /= '')     
       if (vnl_varListIndex3d(trim(requiredConstituents(maxNumFields)))) then
-	 if (numFields(maxNumFields) < 1) then
-	   numFields(maxNumFields)=1
-	 else if (numFields(maxNumFields) > maxNumTypes) then
-	   maxNumTypes=numFields(maxNumFields)
-	 end if
-         maxNumFields=maxNumFields+1
+        if (numFields(maxNumFields) < 1) then
+          numFields(maxNumFields) = 1
+        else if (numFields(maxNumFields) > maxNumTypes) then
+          maxNumTypes = numFields(maxNumFields)
+        end if
+        maxNumFields = maxNumFields + 1
       else
         call utl_abort('clm_readFields: NOMVAR not recognized. ' // &
-	               trim(requiredConstituents(maxNumFields)))
+            trim(requiredConstituents(maxNumFields)))
       end if
     end do
-    maxNumFields=maxNumFields-1
+    maxNumFields = maxNumFields - 1
 
-    if ( maxNumTypes > 2 ) &       
+    if ( maxNumTypes > 2 ) then       
       call utl_abort('clm_readFields: Allowed max number of fields per constituent is 2')
-        
+    end if
+   
     allocate(climatFields(0:maxNumConstituents,maxNumTypes)) 
 
     ! Initialize dimensions
     
-    climatFields(:,:)%nlon=0
-    climatFields(:,:)%nlat=0
-    climatFields(:,:)%nlev=0        
+    climatFields(:,:)%nlon = 0
+    climatFields(:,:)%nlat = 0
+    climatFields(:,:)%nlev = 0        
 
     ! Initialization of work parameters
 
-    datestamp=tim_getDateStamp()
+    datestamp = tim_getDateStamp()
     ierr = newdate(datestamp,ijour,itime,-3)
     if ( ierr < 0 ) then
-      call utl_abort('clm_readFields: Invalid datestamp ' // &
-                     trim(utl_str(datestamp)) )
+      call utl_abort('clm_readFields: Invalid datestamp ' // trim(utl_str(datestamp)))
     end if
     iyear = ijour/10000
     imonth = MOD(ijour/100,100)
     iday = MOD(ijour,100)
-    day=iday+itime*1.0D-8
+    day = iday + itime*1.0D-8
     if (day > 15.) then
-      day=day-15.0
+      day = day - 15.0
     else
-      day=day+15.0
+      day = day + 15.0
     end if
-
+    
     if (present(modelName_opt)) then
-       modelName=modelName_opt
+      modelName = modelName_opt
     else
-       modelName='GEM'
+      modelName = 'GEM'
     end if
         
     ! Get needed fields for each varIndex
 
-    do varIndex=1,maxNumFields
-
+    do varIndex = 1, maxNumFields
       ! Identify input file
       if (trim(climatSourceFiles(varIndex)) /= '') then
         inquire(file=trim(climatSourceFiles(varIndex)),exist=fileExists)
         if (fileExists) then	   
-	  fname=trim(climatSourceFiles(varIndex))
+          fname = trim(climatSourceFiles(varIndex))
         else
-	  write(*,*)
-	  write(*,*) 'clm_readFields: Climatologies file does not exist. Filename ', &
-	             trim(climatSourceFiles(varIndex))
- 	  write(*,*) 'Specifying file ',trim(climatSourceFileDefault)
-	  write(*,*)	     
-	  fname=trim(climatSourceFileDefault)
+          write(*,*)
+          write(*,*) 'clm_readFields: Climatologies file does not exist. Filename ', &
+              trim(climatSourceFiles(varIndex))
+          write(*,*) 'Specifying file ',trim(climatSourceFileDefault)
+          write(*,*)	     
+          fname = trim(climatSourceFileDefault)
           inquire(file=trim(fname),exist=fileExists)
-          if (.not.fileExists) call utl_abort('clm_readFields: Climatologies file ' &
-	                                      // trim(fname) // ' is missing.')
-        end if 
+          if (.not.fileExists) then
+            call utl_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
+          end if
+        end if
       else
         write(*,*)
-	write(*,*) 'clm_readFields: Climatologies file name not set.'
-	write(*,*) 'Specifying file ',trim(climatSourceFileDefault)
-	write(*,*)	           
-        fname=trim(climatSourceFileDefault)
+        write(*,*) 'clm_readFields: Climatologies file name not set.'
+        write(*,*) 'Specifying file ', trim(climatSourceFileDefault)
+        write(*,*)	           
+        fname = trim(climatSourceFileDefault)
         inquire(file=trim(fname),exist=fileExists)
-        if (.not.fileExists) call utl_abort('clm_readFields: Climatologies file ' &
-	                                    // trim(fname) // ' is missing.')
+        if (.not.fileExists) then
+          call utl_abort('clm_readFields: Climatologies file ' // trim(fname) // ' is missing.')
+        end if
       end if
 
       if ( trim(fname) == climFields ) then
-        fieldDimension(varIndex)=3
+        fieldDimension(varIndex) = 3
       else if ( trim(fname) == ozoneBaseline ) then
-        fieldDimension(varIndex)=2
+        fieldDimension(varIndex) = 2
       end if
 
-      varName=trim(requiredConstituents(varIndex))
-      constituentId=vnl_varnumFromVarName(varName,'CH')
-      if (constituentId /=0 .and. numFields(varIndex) > 1) &
+      varName = trim(requiredConstituents(varIndex))
+      constituentId = vnl_varnumFromVarName(varName,'CH')
+      if (constituentId /=0 .and. numFields(varIndex) > 1) then
         call utl_abort('clm_readFields: numFields > 1 only allowed for ozone currently')
-      
+      end if
       ! Set interpolation approach
-      nearestNeighbourInterp(constituentId)=nearNeighbourInterp(varIndex)
+      nearestNeighbourInterp(constituentId) = nearNeighbourInterp(varIndex)
 
-      if ( fieldDimension(varIndex) <=1 .and. numFields(varIndex) > 1 ) then
+      if ( fieldDimension(varIndex) <= 1 .and. numFields(varIndex) > 1 ) then
         call utl_abort('clm_readFields: Separate strato and tropo input ' &
-	            // 'climatologies only for 2D and 3D fields')
+            // 'climatologies only for 2D and 3D fields')
       end if
 
-      timeInterp=timeInterpolation
+      timeInterp = timeInterpolation
       if ( fieldDimension(varIndex) <= 2 ) then
         if (timeInterp) then
-	  timeInterp=.false.
-	  write(*,*) 'WARNING from clm_readFields: Time interpolation reset to false'
-	end if
+          timeInterp = .false.
+          write(*,*) 'WARNING from clm_readFields: Time interpolation reset to false'
+        end if
       end if
       
-      do sourceIndex=1,numFields(varIndex)
+      do sourceIndex = 1, numFields(varIndex)
        
         ! Read climatology for specified field
 
         if ( sourceIndex == 2 ) then
-	  ! Not currently applied. Standin for eventual use.
+          ! Not currently applied. Standin for eventual use.
           etiket = '            '	           
           call utl_abort('clm_readFields: numFields=2 case tbc')
         else 
           etiket = '            '	           
-	end if 
+        end if
 	
-	if ( fieldDimension(varIndex) == 0 ) then
+        if ( fieldDimension(varIndex) == 0 ) then
 
           ! Mixing ratio set later by the constant in climatScaling
-	  ! Currently assumed to be relavant only for GHGs
+          ! Currently assumed to be relavant only for GHGs
 
           if ( .not.clm_isGHG(trim(varName)) ) call utl_abort('clm_readFields: Needs to be a GHG')
-
-          varNameClim=varName
+          
+          varNameClim = varName
           allocate(array1(1,1,1),lvls(1),xlat(1),xlong(1))
-          kind=2	      
-          ni=1
-          nj=1
-          nkeys=1
-          xlat(1)=0.0
-          xlong(1)=0.0
-          lvls(1)=0.0d0
-          array1(1:ni,1:nj,1:nkeys)=1.0
-		  
+          kind = 2	      
+          ni = 1
+          nj = 1
+          nkeys = 1
+          xlat(1) = 0.0
+          xlong(1) = 0.0
+          lvls(1) = 0.0d0
+          array1(1:ni,1:nj,1:nkeys) = 1.0
+          
         else if ( fieldDimension(varIndex) <= 2) then
 
           if (trim(fname) /= ozoneBaseline) then
-            varNameClim=trim(varName)
+            varNameClim = trim(varName)
           else if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
-            varNameClim='O3'
-            etiket=' '
+            varNameClim = 'O3'
+            etiket = ' '
           end if
           call utl_readFstField(trim(fname),varNameClim,-1,-1,imonth,etiket, &
               ni,nj,nkeys,array2)
@@ -327,34 +325,34 @@ module climatologies_mod
             array1(1,1:nj,1:nkeys) =  array2(1,1:nj,1:nkeys)
           else if (nkeys == 1) then
             if (nj == 1) then
-              nkeys=ni
-              ni=1
+              nkeys = ni
+              ni = 1
               allocate(array1(ni,nj,nkeys))
-              array1(1,1,1:nkeys) =  array2(1:nkeys,1,1)
+              array1(1,1,1:nkeys) = array2(1:nkeys,1,1)
             else
-              nkeys=nj
-              nj=ni
-              ni=1
+              nkeys = nj
+              nj = ni
+              ni = 1
               allocate(array1(ni,nj,nkeys))
               if (trim(fname) == ozoneBaseline) then
                 ! Convert from ppmv to micrograms/kg
-                array1(1,1:nj,1:nkeys) =  array2(1:nj,1:nkeys,1) * &
-                    1.0d3*MPC_MOLAR_MASS_O3_R8/MPC_MOLAR_MASS_DRY_AIR_R8 ! Same as above
+                array1(1,1:nj,1:nkeys) = array2(1:nj,1:nkeys,1) * &
+                    1.0d3 * MPC_MOLAR_MASS_O3_R8 / MPC_MOLAR_MASS_DRY_AIR_R8 ! Same as above
               else
-                array1(1,1:nj,1:nkeys) =  array2(1:nj,1:nkeys,1)
+                array1(1,1:nj,1:nkeys) = array2(1:nj,1:nkeys,1)
               end if
             end if
           end if
           deallocate(array2)
           
           allocate(xlong(ni),xlat(nj),lvls(nkeys))
-          xlong(1)=0.0d0
+          xlong(1) = 0.0d0
           if (nj > 1) then 
             do loopIndex = 1, nj
               xlat(loopIndex) = (loopIndex-1)*180.0d0/real(nj-1,8) - 90.0d0
             end do
           else
-            xlat(1)=0.0d0
+            xlat(1) = 0.0d0
           end if
 	  
           ! Set pressures (hPa)
@@ -366,7 +364,7 @@ module climatologies_mod
           else
             if (all(climatLevels(varIndex,1:nkeys) > 0.0)) then
               lvls(1:nkeys) = climatLevels(varIndex,1:nkeys)
-              kind=2
+              kind = 2
             else  
               call utl_abort('clm_readFields: Missing set up for levels')
             end if
@@ -374,16 +372,16 @@ module climatologies_mod
 	    
         else
           if (trim(fname) /= climFields) then
-            varNameClim=trim(varName)
+            varNameClim = trim(varName)
           else if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
-            varNameClim='O3CE'
+            varNameClim = 'O3CE'
           else if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=02,modelName_opt=modelName)) then
-            varNameClim='CH4C'
+            varNameClim = 'CH4C'
           else if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName)) then
-            varNameClim='N2OC'
+            varNameClim = 'N2OC'
           else if (trim(varName) /= 'TCO2') then
             call utl_abort('clm_readFields: 3D climatology not found for ' &
                 // trim(varName) ) 	    
@@ -404,13 +402,13 @@ module climatologies_mod
         allocate(climatFields(constituentId,sourceIndex)%lon(ni))
         allocate(climatFields(constituentId,sourceIndex)%lat(nj))
               
-        climatFields(constituentId,sourceIndex)%lat(1:nj)=xlat(1:nj)
-        climatFields(constituentId,sourceIndex)%lon(1:ni)=xlong(1:ni) 
+        climatFields(constituentId,sourceIndex)%lat(1:nj) = xlat(1:nj)
+        climatFields(constituentId,sourceIndex)%lon(1:ni) = xlong(1:ni) 
         where (climatFields(constituentId,sourceIndex)%lon(1:ni) < 0.0) 
-          climatFields(constituentId,sourceIndex)%lon(1:ni)=2.0*MPC_PI_R8 &
+          climatFields(constituentId,sourceIndex)%lon(1:ni) = 2.0*MPC_PI_R8 &
               + climatFields(constituentId,sourceIndex)%lon(1:ni)
         end where
-        climatFields(constituentId,sourceIndex)%vlev(1:nkeys)=lvls(1:nkeys)              
+        climatFields(constituentId,sourceIndex)%vlev(1:nkeys) = lvls(1:nkeys)              
 
         if (.not.timeInterp) then
           climatFields(constituentId,sourceIndex)%field(:,:,:) = array1(:,:,:)
@@ -418,7 +416,7 @@ module climatologies_mod
 
           ! Following for interpolation as a function of days from mid-months.
           ! Assumes same grid and levels
-             
+          
           if (iday > 15) then
             if (imonth == 12) then
               call utl_readFstField(trim(fname),trim(varNameClim),-1,1,-1,etiket, &
@@ -432,7 +430,7 @@ module climatologies_mod
             ! (approximation - assumes 30 day months)
 
             climatFields(constituentId,sourceIndex)%field(:,:,:) = &
-                (array1(:,:,:)*(30.0-day)+array2(:,:,:)*day)/30.0
+                (array1(:,:,:)*(30.0-day) + array2(:,:,:)*day)/30.0
              
           else if (iday <= 15) then
             if (imonth == 1) then
@@ -442,10 +440,10 @@ module climatologies_mod
               call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth-1,-1, &
                   etiket,ni,nj,nkeys,array2)
             end if
-
+            
             ! Linearly interpolate in time 
             ! (approximation - applies 30 day months)
-
+            
             climatFields(constituentId,sourceIndex)%field(:,:,:) = &
                 (array2(:,:,:)*(30.0-day)+array1(:,:,:)*day)/30.0             
           end if
@@ -459,8 +457,8 @@ module climatologies_mod
               climatFields(constituentId,sourceIndex)%field(:,:,:) &
               *scaleFactor*vnl_varMassFromVarName(trim(varName)) &
               /MPC_MOLAR_MASS_DRY_AIR_R8
-	else if (trim(varNameClim) == 'O3CE') then  
-	  ! Convert kg/kg to ug/kg for ozone
+        else if (trim(varNameClim) == 'O3CE') then  
+          ! Convert kg/kg to ug/kg for ozone
           climatFields(constituentId,sourceIndex)%field(:,:,:)= 1.0D9 &
               *climatFields(constituentId,sourceIndex)%field(:,:,:)           
         end if
@@ -470,8 +468,8 @@ module climatologies_mod
         
       end do
     end do
-
-    initialized=.true.
+    
+    initialized = .true.
 
   end subroutine clm_readFields
 
@@ -509,26 +507,27 @@ module climatologies_mod
     real(8),                  optional, intent(out)   :: climatProfile_opt(numModelLevs)  ! Output profile 
     
     ! Locals;
-    integer :: level,start
-    real(8) :: tropo_press, refprof(numModelLevs),refprof2(numModelLevs),dt
+    integer :: level, start
+    real(8) :: tropo_press, refprof(numModelLevs), refprof2(numModelLevs), dt
     real(8), allocatable :: pressrefin(:)
     logical, allocatable :: success(:)
 
-    if (.not.present(climatProfileSet_opt) .and. .not.present(climatProfile_opt)) &
+    if (.not.present(climatProfileSet_opt) .and. .not.present(climatProfile_opt)) then
       call utl_abort('clm_setColumn: Missing output array argument.')
+    end if
 	
-    if (.not.allocated(climatFields)) &
+    if (.not.allocated(climatFields)) then
       call utl_abort('clm_setColumn: Climatologies not set.')
-      
+    end if
     if (climatFields(constituentId,1)%nlat == 0 .or. &
         climatFields(constituentId,1)%nlon == 0 .or. &
         climatFields(constituentId,1)%nlev == 0 ) return
-
+    
     if (climatFields(constituentId,1)%nlat == 1 .and. &
         climatFields(constituentId,1)%nlon == 1 .and. &
         climatFields(constituentId,1)%nlev == 1) then
     
-      refprof(:)=climatFields(constituentId,1)%field(1,1,1)
+      refprof(:) = climatFields(constituentId,1)%field(1,1,1)
       
       ! The following scaling accounts for mixing ratios being values in dry air.
       ! This would be needed when integrating vertically in pressure. 
@@ -562,30 +561,30 @@ module climatologies_mod
       if (allocated(pressrefin)) deallocate(pressrefin)
       allocate(pressrefin(climatFields(constituentId,1)%nlev))
       pressrefin(:) = climatFields(constituentId,1)%vlev(1:climatFields(constituentId,1)%nlev)
-
+      
       if (allocated(success)) deallocate(success)
       allocate(success(climatFields(constituentId,1)%nlev))
-      success(:)=.true.
-    
+      success(:) = .true.
+      
       if (climatFields(constituentId,1)%ivkind == 2) then
-        pressrefin(:)=pressrefin(:)*MPC_PA_PER_MBAR_R8
+        pressrefin(:) = pressrefin(:) * MPC_PA_PER_MBAR_R8
       else if (climatFields(constituentId,1)%ivkind == 0) then
         where (pressrefin < modelHeightLevs(numModelLevs))
-          pressrefin=modelHeightLevs(numModelLevs)
+          pressrefin = modelHeightLevs(numModelLevs)
         end where
         pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
-                        climatFields(constituentId,1)%nlev,numModelLevs, &
-			obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
+            climatFields(constituentId,1)%nlev,numModelLevs, &
+            obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
       else if (climatFields(constituentId,1)%ivkind == 4) then
-        pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
+        pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
         pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
-                        climatFields(constituentId,1)%nlev,numModelLevs, &
-			obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
+            climatFields(constituentId,1)%nlev,numModelLevs, &
+            obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
       else if (climatFields(constituentId,1)%ivkind == 1) then
-        pressrefin(:)=pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
+        pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
       else
-         call utl_abort('clm_setColumn: Cannot handle vertical coordinate of kind ' &
-                         // trim(utl_str(climatFields(constituentId,1)%ivkind)))
+        call utl_abort('clm_setColumn: Cannot handle vertical coordinate of kind ' &
+            // trim(utl_str(climatFields(constituentId,1)%ivkind)))
       end if
           
       ! Interpolate to obs lat/long (or lat) location and model level
@@ -594,11 +593,11 @@ module climatologies_mod
       ! when the ozone Fortuin-Kelder climatology is used.
       
       call ppo_getColumn(climatFields(constituentId,1)%field, &
-             climatFields(constituentId,1)%nlon,climatFields(constituentId,1)%nlat, &
-	     climatFields(constituentId,1)%nlev,climatFields(constituentId,1)%lon*MPC_RADIANS_PER_DEGREE_R8, &
-	     climatFields(constituentId,1)%lat,pressrefin, &
-             obsLong*MPC_RADIANS_PER_DEGREE_R8,obsLat,numModelLevs,modelPressLevs, &
-             nearestNeighbourInterp(constituentId),refprof)
+          climatFields(constituentId,1)%nlon,climatFields(constituentId,1)%nlat, &
+          climatFields(constituentId,1)%nlev,climatFields(constituentId,1)%lon*MPC_RADIANS_PER_DEGREE_R8, &
+          climatFields(constituentId,1)%lat,pressrefin, &
+          obsLong*MPC_RADIANS_PER_DEGREE_R8,obsLat,numModelLevs,modelPressLevs, &
+          nearestNeighbourInterp(constituentId),refprof)
       
       if (maxNumTypes == 1) then
       
@@ -609,68 +608,68 @@ module climatologies_mod
           climatFields(constituentId,2)%nlev > 0) then
           
         ! Get second climatology field 
-	! Assumes to be for replacing/filling the troposphere and 
-	! requires at least tt_opt
-	! (i.e. for combining distinct lower and middle atmosphere sources)
+        ! Assumes to be for replacing/filling the troposphere and 
+        ! requires at least tt_opt
+        ! (i.e. for combining distinct lower and middle atmosphere sources)
 
         if ( .not. present(tt_opt) ) then
           call utl_abort('clm_setColumn: Missing TT for determining ' // &
-	                 'tropopause pressure')
+              'tropopause pressure')
         end if
         if ( any(tt_opt <= 0.0d0) ) then
           call utl_abort('clm_setColumn: Invalid TT for determining ' // &
-	                 'tropopause pressure')
+              'tropopause pressure')
         end if
         
-        tropo_press=-1.0
+        tropo_press = -1.0
                 
-        if ( present(hu_opt).and.present(tt_opt) ) then
+        if ( present(hu_opt) .and. present(tt_opt) ) then
           if (all(hu_opt >= 0.0D0)) then
-            tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs, &
-	                tt_opt,modelHeightLevs,hu_opt=hu_opt)
+            tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs, &
+                tt_opt,modelHeightLevs,hu_opt=hu_opt)
           else
-            tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs, &
-	                tt_opt,modelHeightLevs)
+            tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs, &
+                tt_opt,modelHeightLevs)
           end if
         else
-          tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
+          tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
         end if
 	
-        if (tropo_press <= 0) &
-	  call utl_abort('clm_setColumn: Invalid tropopause level')
-          
+        if (tropo_press <= 0) then
+          call utl_abort('clm_setColumn: Invalid tropopause level')
+        end if
         ! Set vertical levels of reference.
         ! Convert to pressure coordinate if needed
 
         if (allocated(pressrefin)) deallocate(pressrefin)
         allocate(pressrefin(climatFields(constituentId,2)%nlev))    
-        pressrefin(:)= climatFields(constituentId,2)%vlev(1:climatFields(constituentId,2)%nlev)
+        pressrefin(:) = climatFields(constituentId,2)%vlev(1:climatFields(constituentId,2)%nlev)
 
         if (allocated(success)) deallocate(success)
         allocate(success(climatFields(constituentId,2)%nlev))
-        success(:)=.true.
+        success(:) = .true.
 
         if (climatFields(constituentId,2)%ivkind == 2) then
-          pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
+          pressrefin(:) = pressrefin(:)*100. ! Conversion from hPa to Pa.
         else if (climatFields(constituentId,2)%ivkind == 0) then
           where (pressrefin < modelHeightLevs(numModelLevs))
-            pressrefin=modelHeightLevs(numModelLevs)
-	  end where 
+            pressrefin = modelHeightLevs(numModelLevs)
+          end where
           pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
-	                  modelHeightLevs,modelPressLevs, &
-                          climatFields(constituentId,2)%nlev,numModelLevs, &
-	                  obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
+              modelHeightLevs,modelPressLevs, &
+              climatFields(constituentId,2)%nlev,numModelLevs, &
+              obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
         else if (climatFields(constituentId,2)%ivkind == 4) then
-          pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
+          pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
           pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
-	                   modelHeightLevs,modelPressLevs, &
-                           climatFields(constituentId,2)%nlev,numModelLevs, &
-			   obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
+              modelHeightLevs,modelPressLevs, &
+              climatFields(constituentId,2)%nlev,numModelLevs, &
+              obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
         else if (climatFields(constituentId,2)%ivkind == 1) then
-          pressrefin(:)=pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
+          pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
         else
           call utl_abort('clm_setColumn: Cannot handle vertical ' // &
-	      'coordinate of kind ' // trim(utl_str(climatFields(constituentId,2)%ivkind)))
+              'coordinate of kind ' // trim(utl_str(climatFields(constituentId,2)%ivkind)))
         end if
           
         ! Interpolate to obs lat/long (or lat) and model levels
@@ -679,32 +678,32 @@ module climatologies_mod
         ! when the ozone Fortuin-Kelder climatology is used.
 
         call ppo_getColumn(climatFields(constituentId,2)%field, &
-               climatFields(constituentId,2)%nlon,climatFields(constituentId,2)%nlat, &
-	       climatFields(constituentId,2)%nlev,climatFields(constituentId,2)%lon*MPC_RADIANS_PER_DEGREE_R8, &
-               climatFields(constituentId,2)%lat,pressrefin, &
-	       obsLong*MPC_RADIANS_PER_DEGREE_R8,obsLat,numModelLevs,modelPressLevs, &
-	       nearestNeighbourInterp(constituentId),refprof2)
+            climatFields(constituentId,2)%nlon,climatFields(constituentId,2)%nlat, &
+            climatFields(constituentId,2)%nlev,climatFields(constituentId,2)%lon*MPC_RADIANS_PER_DEGREE_R8, &
+            climatFields(constituentId,2)%lat,pressrefin, &
+            obsLong*MPC_RADIANS_PER_DEGREE_R8,obsLat,numModelLevs,modelPressLevs, &
+            nearestNeighbourInterp(constituentId),refprof2)
 		
         ! Combine with upper level profile
-       
-        do level=numModelLevs,3,-1
+        
+        do level = numModelLevs, 3, -1
           if (modelPressLevs(level) < tropo_press) exit
-          refprof(level)=refprof2(level)            
+          refprof(level) = refprof2(level)            
         end do
-        start=level
+        start = level
             
         ! Apply linear combination of four levels just above the tropopause
         
-        do level=start,max(2,start-3),-1
-          dt=(start+1.0-level)/5.0
-          refprof(level)=dt*refprof2(level) + (1.0-dt)*refprof(level)
+        do level = start, max(2,start-3), -1
+          dt = (start+1.0-level)/5.0
+          refprof(level) = dt*refprof2(level) + (1.0-dt)*refprof(level)
         end do
                     
       end if
 
       if (allocated(pressrefin)) deallocate(pressrefin)
       if (allocated(success)) deallocate(success) 
-    
+      
     end if
     
     ! Profile for output
@@ -724,7 +723,7 @@ module climatologies_mod
 
     if (climatProfileSet_opt%nrep > maxsize) then
       call utl_abort('clm_setColumn: Reach max size of array ' // &
-	             trim(utl_str(maxsize)) )
+          trim(utl_str(maxsize)) )
     end if
     
     ! obsIndex serves as the unique locator code 
@@ -751,7 +750,7 @@ module climatologies_mod
     character(len=*),         intent(in)    :: code              ! unique obs identifying code    
     ! Result:
     real(8) :: profile(climatProfileSet%dim1) ! retrieved array from obsdata%data1d of dimension obsdata%dim1
-
+    
     ! Locals:
     integer :: status ! search success (0 = found; 1 = no data; 2 = not found)
 
@@ -825,11 +824,11 @@ module climatologies_mod
       call utl_abort('clm_getUnitsScaling: Did not find file climatScaling' )
     end if
     
-    nulunScaling=0
-    ierr=0
-    ierr=fnom(nulunScaling,trim(climScaling),'SEQ',0)
+    nulunScaling = 0
+    ierr = 0
+    ierr = fnom(nulunScaling,trim(climScaling),'SEQ',0)
     open(unit=nulunScaling, file=trim(climScaling), status='OLD')
-    iosScaling=0
+    iosScaling = 0
     read(nulunScaling,'(A)',iostat=iosScaling,err=20,end=20) ligne
     do while (trim(adjustl(ligne(1:7))) /= '#     c') 
       read(nulunScaling,'(A)',iostat=iosScaling,err=20,end=20) ligne
@@ -837,69 +836,69 @@ module climatologies_mod
     read(ligne,*) lineOffset,speciesNames(1:numSpecies)
     read(nulunScaling,'(A)',iostat=iosScaling,err=20,end=20) ligne
     read(ligne,*) lineOffset,speciesUnits(1:numSpecies) 
-	 
+    
     ! Use last year if there is no matching year
     read(nulunScaling,*) MRYear,speciesMR(1:numSpecies)
     do while (MRYear /= iyear) 
       read(nulunScaling,*) MRYear,speciesMR(1:numSpecies)
-    end do	 
-	          
+    end do
+    
     close(unit=nulunScaling)
     ierr = fclos(nulunScaling)
-         
+    
     ! Get unit scaling factors to get micrograms/kg
-
-    countSpecies=0
-    scaleFactor=1.0d0
-
-    varNum=vnl_varnumFromVarName(varName)
+    
+    countSpecies = 0
+    scaleFactor = 1.0d0
+    
+    varNum = vnl_varnumFromVarName(varName)
     select case (varNum)
     case (BUFR_NECH_CH4) 
-      do countSpecies=1,numSpecies
+      do countSpecies = 1, numSpecies
         if (trim(speciesNames(countSpecies)) == 'ch4') then
-	  scaleFactor=speciesMR(countSpecies)
-	  exit
-	end if
+          scaleFactor=speciesMR(countSpecies)
+          exit
+        end if
       end do
     case (BUFR_NECH_CO2) 
-      do countSpecies=1,numSpecies
+      do countSpecies = 1, numSpecies
         if (trim(speciesNames(countSpecies)) == 'co2') then
-	  scaleFactor=speciesMR(countSpecies)
-	  exit
-	end if
+          scaleFactor=speciesMR(countSpecies)
+          exit
+        end if
       end do
     case (BUFR_NECH_CO) 
-      do countSpecies=1,numSpecies
+      do countSpecies = 1, numSpecies
         if (trim(speciesNames(countSpecies)) == 'co') then
-	  scaleFactor=speciesMR(countSpecies)
-	  exit
-	end if
+          scaleFactor=speciesMR(countSpecies)
+          exit
+        end if
       end do
     case (BUFR_NECH_N2O) 
-      do countSpecies=1,numSpecies
+      do countSpecies = 1, numSpecies
         if (trim(speciesNames(countSpecies)) == 'n2o') then
-	  scaleFactor=speciesMR(countSpecies)
-	  exit
-	end if
+          scaleFactor = speciesMR(countSpecies)
+          exit
+        end if
       end do
     case default
       call utl_abort('clm_getUnitsScaling: GHG scaling factor not found for ' &
-                     // trim(varName) ) 
+          // trim(varName) ) 
     end select
 	 
     if (countSpecies > 0 .and. countSpecies <= numSpecies) then
       ! conversion factor to go to micrograms/kg
       if (trim(speciesUnits(countSpecies)) == 'ppm') then
-        scaleFactor=scaleFactor*1.0d03
+        scaleFactor=scaleFactor * 1.0d03
       else if (trim(speciesUnits(countSpecies)) == 'ppb') then 
-	scaleFactor=scaleFactor*1.0d06
+        scaleFactor=scaleFactor * 1.0d06
       end if
-    end if	     
+    end if
 
- 20 if (iosScaling > 0) then
+20  if (iosScaling > 0) then
       call utl_abort('clm_getUnitsScaling: READING PROBLEM.' // &
-                     ' File read error message number: ' // trim(utl_str(iosScaling))) 
-    end if   
+          ' File read error message number: ' // trim(utl_str(iosScaling))) 
+    end if
 
   end function clm_getUnitsScaling
     
