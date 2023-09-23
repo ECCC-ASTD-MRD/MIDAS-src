@@ -1038,7 +1038,9 @@ module sqliteRead_mod
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
-              if (updateList(itemIndex) == OBS_SEM) scaleFactor=100.0
+              if (updateList(itemIndex) == OBS_SEM .or. updateList(itemIndex) == OBS_SSEM) then
+                scaleFactor=100.0
+              end if
               call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor)
             end if
           else
