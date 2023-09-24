@@ -777,7 +777,7 @@ contains
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     integer :: simEmissSeed ! Seed to Random sampling for perturbing surface emissivity
-    integer :: maxSfcSenChan ! Max AMSU-A channel to be consider surface sensitive
+    integer :: maxSfcSenChan ! Max AMSU-A channel to be considered surface sensitive
     integer :: maxmWAtlasChan  ! Max AMSU-A channel in the emissivity atlas
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
