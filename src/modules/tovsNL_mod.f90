@@ -5854,7 +5854,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_Fsqrt
   !--------------------------------------------------------------------------
-  subroutine tvs_Fsqrt(nsubset,obsIn,obsOut,list_sub,list_oer,indexTovs)
+  subroutine tvs_Fsqrt(nsubset, obsIn, obsOut, list_sub, list_oer, indexTovs)
     !
     ! :Purpose: Apply the operator F**1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -5877,8 +5877,8 @@ contains
   
     index = -1
     do i=1,nsubset
-      bj: do j = 1,  Fcorr_inst(1)%nchans
-        if (list_sub(i) ==  Fcorr_inst(1)%listChans(j)) then
+      bj: do j = 1, Fcorr_inst(1)%nchans
+        if (list_sub(i) == Fcorr_inst(1)%listChans(j)) then
           index(i) = j
           exit bj 
         end if
@@ -5898,12 +5898,12 @@ contains
     do j=1,nsubset
       do i=1,nsubset
         product = list_oer(i) * list_oer(j)
-        Fsub(i,j) = product *  Fcorr_inst(1)%Fmat(index(i),index(j))
+        Fsub(i,j) = product * Fcorr_inst(1)%Fmat(index(i),index(j))
       end do
     end do
 
     ! Calculation of F**1/2
-    call utl_matSqrt(Fsub,nsubset,1.d0,.false.)
+    call utl_matSqrt(Fsub, nsubset, 1.d0, .false.)
 
     allocate(FSqrt(indexTovs)%Fmat(nsubset,nsubset))
     do j=1,nsubset
@@ -5917,7 +5917,7 @@ contains
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, FSqrt(indexTovs)%Fmat, nsubset,obsIn, 1, beta, obsOut, 1)
+    call dsymv("L", nsubset, alpha, FSqrt(indexTovs)%Fmat, nsubset, obsIn, 1, beta, obsOut, 1)
 
   end subroutine tvs_Fsqrt
 

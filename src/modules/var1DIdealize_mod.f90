@@ -330,7 +330,7 @@ module var1DIdealize_mod
       if (headerIndex < 0) exit HEADER
 
       ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
@@ -343,7 +343,7 @@ module var1DIdealize_mod
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
 
       do bodyIndex = idata, idatend
-        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
           call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
@@ -372,7 +372,7 @@ module var1DIdealize_mod
       if (headerIndex < 0) exit HEADER2
 
       ! process only radiance data to be assimilated?
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
@@ -396,7 +396,7 @@ module var1DIdealize_mod
         ! Read the Sigma O from ObsSpaceData
         count = 0
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
             count = count + 1

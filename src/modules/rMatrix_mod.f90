@@ -471,7 +471,7 @@ module rMatrix_mod
     ! Allocate estimate R-Matrix
     do sensorIndex = 1, tvs_nsensors
       estR(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
-      allocate(estR(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)))
+      allocate(estR(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
       allocate(estR(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
       estR(sensorIndex)%Rmat(:, :) = 0
     end do
@@ -488,7 +488,7 @@ module rMatrix_mod
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
 
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'rmat_estimateR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER1
@@ -543,7 +543,7 @@ module rMatrix_mod
 
             ! Append channel list into estR object
             if (headerCount(sensorIndex) == 1) then
-              call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+              call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
 
               estR(sensorIndex)%listChans(assimChan) = channelNumber
@@ -563,9 +563,9 @@ module rMatrix_mod
     call rpn_comm_barrier('GRID', ierr)
 
     ! Gather all count of profiles, and 'sum of observations errors' from all mpi tasks
-    call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors,'MPI_INTEGER', 'GRID', ierr)
+    call rpn_comm_allgather(headerCount, tvs_nsensors, 'MPI_INTEGER', headerCountAllTasks, tvs_nsensors, 'MPI_INTEGER', 'GRID', ierr)
     call rpn_comm_allgather(obsErrSum, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', &
-                              obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal),'mpi_real8', 'GRID', ierr)
+                              obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', 'GRID', ierr)
 
     ! Compute the mean of observation error and total profile count to all MPI tasks
     if (mmpi_myid == 0) then
@@ -582,7 +582,7 @@ module rMatrix_mod
     deallocate(obsErrSumAllTasks)
 
     ! Broadcast total profile count to all MPI tasks
-    call rpn_comm_bcast(meanObsErrMpiGlobal(:,:), tvs_nsensors *maxval(tvs_nchanMpiGlobal), 'mpi_real8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(meanObsErrMpiGlobal(:,:), tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', 0, 'GRID', ierr)
     call rpn_comm_bcast(headerCountMpiGlobal(:), tvs_nsensors, 'MPI_INTEGER', 0, 'GRID', ierr)
 
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -590,7 +590,7 @@ module rMatrix_mod
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
 
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'oer_estimateObsErrorTOVS: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
@@ -685,7 +685,7 @@ module rMatrix_mod
         estR(sensorIndex)%Rmat(:,:) = estR(sensorIndex)%Rmat(:,:) / (headerCountMpiGlobal(sensorIndex) -1)
       end if
 
-      call rpn_comm_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex)* tvs_nchanMpiGlobal(sensorIndex), &
+      call rpn_comm_bcast(estR(sensorIndex)%Rmat, tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
                           'mpi_real8', 0, 'GRID', ierr)
 
     end do
@@ -733,7 +733,7 @@ module rMatrix_mod
     allocate(RCorr(tvs_nsensors))
     do sensorIndex = 1, tvs_nsensors
       RCorr(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
-      allocate(RCorr(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)))
+      allocate(RCorr(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
       allocate(RCorr(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
     end do
     
@@ -749,7 +749,7 @@ module rMatrix_mod
       ! Exteact observation error correlation matrix
       do ichan = 1, numchan
         do jchan = 1, numchan
-          RCorr(sensorIndex)%Rmat(ichan, jchan)= estR(sensorIndex)%Rmat(ichan, jchan) /&
+          RCorr(sensorIndex)%Rmat(ichan, jchan) = estR(sensorIndex)%Rmat(ichan, jchan) /&
                        (obsErrStdev(sensorIndex, ichan) * obsErrStdev(sensorIndex, jchan))
         end do
       end do
@@ -761,7 +761,7 @@ module rMatrix_mod
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
     
-      idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
@@ -776,7 +776,7 @@ module rMatrix_mod
 
       do bodyIndex = idata, idatend
 
-        call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
 
         ! Copy observation error from OBS_OER to OBS_OERI
