@@ -182,7 +182,7 @@ program midas_var1D
   logical :: simBgAndObs  ! Simulate Background and Observation
   integer :: simBgSeed    ! Random seed used to generate background perturbation sampling
   integer :: simObsSeed   ! Random seed used to generate observation perturbation sampling
-  logical :: useSimObsErr ! Simulate Observation Error Covariance
+  logical :: useSimObsErr ! Simulate Observation Error Covariance Matrix via nl Rttov
   
 
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr

@@ -285,7 +285,7 @@ module var1DIdealize_mod
   subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr, varMode)
     !
     !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
-    ! Additional changes are needed to generalize for all observations (not just TOVS obs)
+    !          Additional changes are needed to generalize for all observations (not just TOVS obs)
     !
     implicit none
 
@@ -343,8 +343,8 @@ module var1DIdealize_mod
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
 
       do bodyIndex = idata, idatend
-        if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
-          call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
           call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
         end if 
@@ -354,7 +354,7 @@ module var1DIdealize_mod
     ! Generate Simulated Observations
     write(*,*) 'var1DIdealize_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
     
-    if( useSimObsErr ) then
+    if(useSimObsErr) then
       ! Prepare atmospheric profiles for all tovs observation points for use in rttov
       call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
 
@@ -366,6 +366,7 @@ module var1DIdealize_mod
     call obs_set_current_header_list(obsSpaceData,'TO')
 
     call rng_setup(abs(seed + mmpi_myid))
+
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
@@ -395,7 +396,7 @@ module var1DIdealize_mod
         ! Read the Sigma O from ObsSpaceData
         count = 0
         do bodyIndex = idata, idatend
-          if (obs_bodyElem_i( obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex ) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
             count = count + 1
@@ -407,7 +408,7 @@ module var1DIdealize_mod
           end if
         end do
 
-        if (.not. (count > 0 .and. tvs_tovsIndex(headerIndex) > 0)) then 
+        if (.not. count > 0) then 
           if (allocated(pert)) deallocate(pert)
           if (allocated(obsPert)) deallocate(obsPert)
           if (allocated(list_OER)) deallocate(list_OER)
@@ -418,7 +419,7 @@ module var1DIdealize_mod
         end if
         
         ! Compute Observation Perturbation
-        call rmat_Rsqrt( tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
+        call rmat_Rsqrt(tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
                          list_OER(1:count), tvs_tovsIndex(headerIndex))
 
         ! Update the obs value in ObsSpacedata
@@ -426,22 +427,25 @@ module var1DIdealize_mod
           call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(tovsIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
         end do
 
-        if ( allocated(pert)) deallocate(pert)
-        if ( allocated(obsPert)) deallocate(obsPert)
-        if ( allocated(list_OER)) deallocate(list_OER)
-        if ( allocated(list_chanNumber)) deallocate(list_chanNumber)
-        if ( allocated(list_chanIndex)) deallocate(list_chanIndex)
-        if ( allocated(list_bodyIndex)) deallocate(list_bodyIndex)
+        if (allocated(pert)) deallocate(pert)
+        if (allocated(obsPert)) deallocate(obsPert)
+        if (allocated(list_OER)) deallocate(list_OER)
+        if (allocated(list_chanNumber)) deallocate(list_chanNumber)
+        if (allocated(list_chanIndex)) deallocate(list_chanIndex)
+        if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
       end if
     end do HEADER2
-    write(*,*) 'Finish var1DIdealize_simulateObservation'
+    
+    ! Estimate and update R-Matrix.
     allocate(estR(tvs_nsensors))
-    call rmat_estimateR(obsSpaceData, estR)
 
+    call rmat_estimateR(obsSpaceData, estR)
     call rmat_updateRmat(estR, obsSpaceData)
     call rmat_writeRCorrFile
+
     deallocate(estR)
-    !call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
+
+    write(*,*) 'Finish var1DIdealize_simulateObservation'
   end subroutine var1DIdealize_simulateObservation
 
 end module var1DIdealize_mod

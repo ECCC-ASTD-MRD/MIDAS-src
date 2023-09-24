@@ -178,7 +178,7 @@ module tovsNL_mod
     integer              :: nchans=0
   end type tvs_Fmatrix
   type(tvs_Fmatrix),target,allocatable  :: Fcorr_inst(:) ! non diagonal Correlation matrices for each instrument
-  type(tvs_Fmatrix),target,allocatable  :: FSqrt(:) ! Sqaure root of emissivity error covariance matrix F
+  type(tvs_Fmatrix),target,allocatable  :: FSqrt(:)      ! Sqaure root of emissivity error covariance matrix (F)
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -822,9 +822,9 @@ contains
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     mpiTask0ReadCoeffs = .true.
-    simEmissSeed = 0
-    maxSfcSenChan = 0
-    maxmWAtlasChan = 0
+    simEmissSeed = MPC_missingValue_INT
+    maxSfcSenChan = MPC_missingValue_INT
+    maxmWAtlasChan = MPC_missingValue_INT
 
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
@@ -2832,7 +2832,7 @@ contains
     type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
     logical,           intent(in)    :: beSilent        ! flag to control verbosity
-    logical, optional, intent(in)    :: SimSfcEmiss_opt ! Option to simulate surface emissivity
+    logical, optional, intent(in)    :: SimSfcEmiss_opt ! Option to simulate surface emissivity based on mWAtlas
 
     ! Locals:
     integer :: nlv_T
@@ -2877,7 +2877,7 @@ contains
     max_nthreads = omp_get_num_threads()
     !$omp end parallel
 
-    if ( present(SimSfcEmiss_opt) ) then
+    if (present(SimSfcEmiss_opt)) then
       SimSfcEmiss = SimSfcEmiss_opt
     else
       SimSfcEmiss = .false.
@@ -2889,7 +2889,7 @@ contains
     
     ! Initialize random number generation for simulating surface emissivity
     ! used in tvs_simulateEmissivity
-    if ( SimSfcEmiss ) then
+    if (SimSfcEmiss) then
       call rng_setup(abs(tvs_simEmissSeed + mmpi_myid))
     end if
 
@@ -3089,7 +3089,7 @@ contains
       else if (sensorType == sensor_id_mw) then
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
              sensorTovsIndexes(1:profileCount))
-        if ( SimSfcEmiss ) then
+        if (SimSfcEmiss) then
           call tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local)
         end if
       else
@@ -3334,15 +3334,20 @@ contains
           
       end do
 
-      ! Append Surface Emissivity, SFC-Satellite Transmissivity and
+      ! Append Surface Emissivity, Surface-Satellite Transmissivity and
       ! Surface Elevation into ObsSpaceData
       do btIndex = 1, btCount
         bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
         profileIndex = chanprof(btIndex)%prof
         tovsIndex = sensorTovsIndexes(profileIndex)
         headerIndex = tvs_headerIndex(tovsIndex)
-        if (bodyIndex > 0) then 
-          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+
+        if (bodyIndex > 0) then
+          if (SimSfcEmiss) then 
+            call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          else
+            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          end if
           call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
         end if
 
@@ -5577,9 +5582,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),        intent(inout)  :: obsSpaceData         ! ObsSpaceData object
-    integer,                 intent(in)     :: sensorTovsIndexes(:) ! Sensor TOVS Indexes
-    type (rttov_emissivity), intent(inout)  :: sfcEmissivity(:)     ! Simulated Surf. Emissivity
+    type(struct_obs),        intent(inout) :: obsSpaceData         ! ObsSpaceData object
+    integer,                 intent(in)    :: sensorTovsIndexes(:) ! Sensor TOVS Indexes
+    type (rttov_emissivity), intent(inout) :: sfcEmissivity(:)     ! Simulated Surf. Emissivity
 
     ! Locals:
     integer, allocatable :: emissChanList(:)
@@ -5602,6 +5607,7 @@ contains
     allocate(Fcorr_inst(1))
     allocate(FSqrt(tvs_nobtov))
     filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
+
     ! Read Surface Emissivity Error Correlation Matrix
     call tvs_readCEmissMatrixByFileName(filenameCorrEmiss, Fcorr_inst(1))
 
@@ -5648,7 +5654,7 @@ contains
         end if
       end do
 
-      if ( .not. (count > 0 .and. tovsIndex >0) ) then 
+      if ( .not. (count > 0 .and. tovsIndex > 0)) then 
         if (allocated(pert)) deallocate(pert)
         if (allocated(emissPert)) deallocate(emissPert)
         if (allocated(list_EMER)) deallocate(list_EMER)
@@ -5660,19 +5666,16 @@ contains
       end if
 
       ! Generate the emissivity errors
-      call tvs_Fsqrt(count, pert( 1:count ), emissPert( 1:count ) , list_chanNumber(1:count), list_EMER(1:count), tovsIndex)
+      call tvs_Fsqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), tovsIndex)
 
       do obsIndex = 1, count
-      
         ! Generate the simulated emissivity
         sfcEmissivity(list_btIndex(obsIndex))%emis_in = sfcEmissivity(list_btIndex(obsIndex))%emis_in + emissPert(obsIndex)
 
-        !Store simulated emissivity and its error STDev. into ObsSpaceData
-        call obs_bodySet_r(obsSpaceData, OBS_SSEM, list_bodyIndex(obsIndex), sfcEmissivity(list_btIndex(obsIndex))%emis_in)
+        !Store simulated emissivity error STDev. into ObsSpaceData
         call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
       
         ! QC check: Simulated surface emissivity can only be between 0 and 1
-        ! However, the QC value will not be reflected in ObsSpaceData
         if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1) then
           sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1
         else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0) then
@@ -5700,7 +5703,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_readEmissError( chanList, emissStdErr, numChan)
     !
-    ! :Purpose: Reading emissivity error std for AMSU-A
+    !:Purpose: Reading emissivity error std for AMSU-A
     !
     implicit none
 
@@ -5744,7 +5747,7 @@ contains
     write(*,'(A)') tmpStr
 
     ierr = fclos(iluemis)
-    if (ierr /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+    if (ierr /= 0) call utl_abort ('tvs_readEmissError')
 
 
     if ( tvs_maxSfcSenChan > maxval(chanList) ) then
