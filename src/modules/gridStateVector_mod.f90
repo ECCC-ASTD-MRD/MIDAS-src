@@ -1443,8 +1443,8 @@ module gridStateVector_mod
 
     if (statevector%dataKind == 8) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
       do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
         do stepIndex = 1, statevector%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
@@ -1452,12 +1452,12 @@ module gridStateVector_mod
             end do
           end do
         end do
+       !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
 
       if (statevector%extraUVallocated) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1UV, k2UV
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
           do stepIndex = 1, statevector%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
@@ -1465,14 +1465,14 @@ module gridStateVector_mod
               end do
             end do
           end do
+          !$OMP END PARALLEL DO
         end do
-        !$OMP END PARALLEL DO
       end if
 
     else if (statevector%dataKind == 4) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)
       do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
         do stepIndex = 1, statevector%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
@@ -1480,12 +1480,12 @@ module gridStateVector_mod
             end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
 
       if (statevector%extraUVallocated) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1UV, k2UV
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
           do stepIndex = 1, statevector%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
@@ -1493,8 +1493,8 @@ module gridStateVector_mod
               end do
             end do
           end do
+          !$OMP END PARALLEL DO
         end do
-        !$OMP END PARALLEL DO
       end if
 
     else
@@ -3227,7 +3227,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
     integer :: sendrecvKind, inKind, outKind, stepIndex
-    integer, allocatable :: displs(:), nsizes(:)
+    integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
@@ -3420,8 +3420,6 @@ module gridStateVector_mod
       end if
 
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
-      allocate(displs(mmpi_nprocs))
-      allocate(nsizes(mmpi_nprocs))
       do yourid = 0, (mmpi_nprocs-1)
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
@@ -3435,8 +3433,6 @@ module gridStateVector_mod
         gd_recv_height(1:statevector_out%lonPerPE,  &
                        1:statevector_out%latPerPE)
 
-      deallocate(displs)
-      deallocate(nsizes)
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if
@@ -3808,7 +3804,7 @@ module gridStateVector_mod
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
     integer :: mpiStatuses(mpi_status_size,stateVector_in%nk)
-    integer, allocatable :: displs(:), nsizes(:)
+    integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
@@ -4118,8 +4114,6 @@ module gridStateVector_mod
       end if
 
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
-      allocate(displs(mmpi_nprocs))
-      allocate(nsizes(mmpi_nprocs))
       do yourid = 0, (mmpi_nprocs-1)
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
@@ -4133,8 +4127,6 @@ module gridStateVector_mod
         gd_recv_height(1:statevector_out%lonPerPE,  &
                    1:statevector_out%latPerPE)
 
-      deallocate(displs)
-      deallocate(nsizes)
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if

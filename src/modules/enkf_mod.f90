@@ -45,6 +45,10 @@ module enkf_mod
     integer              :: myLonEndHalo
     integer              :: myLatBegHalo
     integer              :: myLatEndHalo
+    integer              :: myLonBeg
+    integer              :: myLonEnd
+    integer              :: myLatBeg
+    integer              :: myLatEnd
   end type struct_enkfInterpInfo
 
   integer, external :: get_max_rss
@@ -1940,6 +1944,10 @@ contains
     wInterpInfo%myLonEndHalo = myLonEndHalo
     wInterpInfo%myLatBegHalo = myLatBegHalo
     wInterpInfo%myLatEndHalo = myLatEndHalo
+    wInterpInfo%myLonBeg = myLonBeg
+    wInterpInfo%myLonEnd = myLonEnd
+    wInterpInfo%myLatBeg = myLatBeg
+    wInterpInfo%myLatEnd = myLatEnd
 
     allocate(wInterpInfo%numIndexes(myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     if (weightLatLonStep > 1) then
@@ -2122,29 +2130,29 @@ contains
     totalCount(:) = 0
 
     !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
-    do latIndex = myLatBegHalo, myLatEndHalo
-      do lonIndex = myLonBegHalo, myLonEndHalo
-        if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) then
+    do latIndex = wInterpInfo%myLatBeg, wInterpInfo%myLatEnd
+      do lonIndex = wInterpInfo%myLonBeg, wInterpInfo%myLonEnd
+        if (wInterpInfo%numIndexes(lonIndex,latIndex) <= 0) cycle
+        weights(:,:,lonIndex,latIndex) = 0.0D0
+        if (wInterpInfo%lonIndexes(1,lonIndex,latIndex) == 0) cycle
 
-          ! Interpolation for ensemble member perturbation weight fields
-          weights(:,:,lonIndex,latIndex) = 0.0D0
-          if (wInterpInfo%lonIndexes(1,lonIndex,latIndex) == 0) cycle ! temporary until all interpolation setup completed
-          do interpIndex = 1, wInterpInfo%numIndexes(lonIndex,latIndex)
-            interpLonIndex = wInterpInfo%lonIndexes(interpIndex,lonIndex,latIndex)
-            interpLatIndex = wInterpInfo%latIndexes(interpIndex,lonIndex,latIndex)
+        totalCount(omp_get_thread_num()+1) = totalCount(omp_get_thread_num()+1) + wInterpInfo%numIndexes(lonIndex,latIndex)
 
-            totalCount(omp_get_thread_num()+1) = totalCount(omp_get_thread_num()+1) + 1
-            do memberIndex2 = 1, numMembers2
-              do memberIndex1 = 1, numMembers1
-                weights(memberIndex1,memberIndex2,lonIndex,latIndex) =  &
-                     weights(memberIndex1,memberIndex2,lonIndex,latIndex) + &
-                     wInterpInfo%interpWeights(interpIndex,lonIndex,latIndex) *  &
-                     weights(memberIndex1,memberIndex2,interpLonIndex,interpLatIndex)
-              end do
+        do interpIndex = 1, wInterpInfo%numIndexes(lonIndex,latIndex)
+          interpLonIndex = wInterpInfo%lonIndexes(interpIndex,lonIndex,latIndex)
+          interpLatIndex = wInterpInfo%latIndexes(interpIndex,lonIndex,latIndex)
+
+          do memberIndex2 = 1, numMembers2
+            do memberIndex1 = 1, numMembers1
+              weights(memberIndex1,memberIndex2,lonIndex,latIndex) =  &
+                   weights(memberIndex1,memberIndex2,lonIndex,latIndex) + &
+                   wInterpInfo%interpWeights(interpIndex,lonIndex,latIndex) *  &
+                   weights(memberIndex1,memberIndex2,interpLonIndex,interpLatIndex)
             end do
+          end do
 
-          end do ! interpIndex
-        end if ! numIndexes > 0
+        end do ! interpIndex
+
       end do ! lonIndex
     end do ! latIndex
     !$OMP END PARALLEL DO
