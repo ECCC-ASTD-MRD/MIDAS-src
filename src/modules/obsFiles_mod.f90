@@ -375,7 +375,7 @@ contains
       if ( obsFileType == 'BURP' ) then
         call brpr_burpClean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'OBSDB' ) then
-        call obdf_clean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
+        call odbf_clean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
         call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       end if

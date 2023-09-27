@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Ensure to clean ObsDb tables after thinning in ObsSelction (#846 and !755)
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
