@@ -901,7 +901,9 @@ contains
             !        E^T * YbTinvRYb ]
             ! Loop over sub-ensembles
 
-            !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, memberIndex, memberIndex1, memberIndex2, weightsTemp, YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
+            !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+            !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+            !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
@@ -1029,6 +1031,9 @@ contains
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
             !        E^T * YbTinvRYb_mod ]
             ! Loop over sub-ensembles
+            !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+            !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+            !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
@@ -1091,6 +1096,7 @@ contains
 
               end do ! memberIndexCV
             end do ! subEnsIndex
+            !$OMP END PARALLEL DO
 
             ! Remove the weights mean computed over the columns
             do memberIndex = 1, nEnsGain
@@ -1149,6 +1155,10 @@ contains
             ! Wa   = wa_i - mean_over_i(wa_i) 
             !
             ! Loop over sub-ensembles
+            !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+            !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+            !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank, &
+            !$OMP                     weightsTemp2, localObsIndex, bodyIndex)
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
@@ -1221,6 +1231,7 @@ contains
 
               end do ! memberIndexCV
             end do ! subEnsIndex
+            !$OMP END PARALLEL DO
 
             ! Remove the weights mean computed over the columns
             do memberIndex = 1, nEns
