@@ -305,7 +305,6 @@ module var1DIdealize_mod
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
     real(8), allocatable :: obsErrStdev(:,:)
-    type(rmat_matrix), allocatable, target :: estR(:) 
     
     beSilent = .false.
     bgckMode = .false.
@@ -354,7 +353,7 @@ module var1DIdealize_mod
     ! Generate Simulated Observations
     write(*,*) 'var1DIdealize_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
     
-    if(useSimObsErr) then
+    if (useSimObsErr) then
       ! Prepare atmospheric profiles for all tovs observation points for use in rttov
       call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
 
@@ -436,14 +435,11 @@ module var1DIdealize_mod
       end if
     end do HEADER2
     
-    ! Estimate and update R-Matrix.
-    allocate(estR(tvs_nsensors))
-
-    call rmat_estimateR(obsSpaceData, estR)
-    call rmat_updateRmat(estR, obsSpaceData)
-    call rmat_writeRCorrFile
-
-    deallocate(estR)
+    if (useSimObsErr) then
+      ! Estimate and update R-Matrix.
+      call rmat_updateRmat(obsSpaceData)
+      call rmat_writeRCorrFile
+    end if
 
     write(*,*) 'Finish var1DIdealize_simulateObservation'
   end subroutine var1DIdealize_simulateObservation
