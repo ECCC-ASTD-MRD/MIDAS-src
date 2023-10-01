@@ -282,7 +282,7 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   ! var1DIdealize_simulateObservation
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr, varMode)
+  subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr)
     !
     !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
     !          Additional changes are needed to generalize for all observations (not just TOVS obs)
@@ -295,16 +295,14 @@ module var1DIdealize_mod
     integer,                 intent(in)    :: datestamp              ! Date stamp
     integer,                 intent(in)    :: seed                   ! Seed to random number generator 
     logical,                 intent(in)    :: useSimObsErr           ! Simulate Observation Error Covariance
-    character(len=*),        intent(in)    :: varMode                ! Variational Mode
 
     ! Locals:
     logical              :: bgckMode, beSilent
     integer              :: tovsIndex
-    integer              :: headerIndex, bodyIndex, obsIndex, sensorIdIndex
-    integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex, tmpObs_OER
+    integer              :: headerIndex, bodyIndex, obsIndex
+    integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
-    real(8), allocatable :: obsErrStdev(:,:)
     
     beSilent = .false.
     bgckMode = .false.
@@ -330,7 +328,7 @@ module var1DIdealize_mod
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
@@ -338,7 +336,7 @@ module var1DIdealize_mod
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER
 
-      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
 
       do bodyIndex = idata, idatend
@@ -380,7 +378,7 @@ module var1DIdealize_mod
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER2
 
-      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idata  = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
 
       if (tvs_isIdBurpTovs(idatyp)) then
@@ -407,31 +405,23 @@ module var1DIdealize_mod
           end if
         end do
 
-        if (.not. count > 0) then 
-          if (allocated(pert)) deallocate(pert)
-          if (allocated(obsPert)) deallocate(obsPert)
-          if (allocated(list_OER)) deallocate(list_OER)
-          if (allocated(list_chanNumber)) deallocate(list_chanNumber)
-          if (allocated(list_chanIndex)) deallocate(list_chanIndex)
-          if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
-          cycle HEADER2
+        if (count > 0) then 
+          ! Compute Observation Perturbation
+          call rmat_Rsqrt(tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
+                          list_OER(1:count))
+
+          ! Update the obs value in ObsSpacedata
+          do obsIndex = 1, count
+            call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(tovsIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
+          end do
         end if
         
-        ! Compute Observation Perturbation
-        call rmat_Rsqrt(tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
-                         list_OER(1:count), tvs_tovsIndex(headerIndex))
-
-        ! Update the obs value in ObsSpacedata
-        do obsIndex = 1, count
-          call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(tovsIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
-        end do
-
-        if (allocated(pert)) deallocate(pert)
-        if (allocated(obsPert)) deallocate(obsPert)
-        if (allocated(list_OER)) deallocate(list_OER)
-        if (allocated(list_chanNumber)) deallocate(list_chanNumber)
-        if (allocated(list_chanIndex)) deallocate(list_chanIndex)
-        if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
+        deallocate(pert)
+        deallocate(obsPert)
+        deallocate(list_OER)
+        deallocate(list_chanNumber)
+        deallocate(list_chanIndex)
+        deallocate(list_bodyIndex)
       end if
     end do HEADER2
     

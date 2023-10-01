@@ -340,7 +340,7 @@ program midas_var1D
                                                 obsSpaceData, vco_anl, simBgSeed)
 
     call var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
-                                           simObsSeed, useSimObsErr, varMode)                                            
+                                           simObsSeed, useSimObsErr)                                            
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H

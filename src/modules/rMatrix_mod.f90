@@ -361,7 +361,7 @@ module rMatrix_mod
   !--------------------------------------------------------------------------
   ! rmat_Rsqrt
   !--------------------------------------------------------------------------
-  subroutine rmat_Rsqrt(sensor_id,nsubset,obsIn,obsOut,list_sub,list_oer,indexTovs)
+  subroutine rmat_Rsqrt(sensor_id,nsubset,obsIn,obsOut,list_sub,list_oer)
     !
     ! :Purpose: Apply the operator R**1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -376,7 +376,6 @@ module rMatrix_mod
     real(8), intent(out) :: obsOut(nsubset)    ! Error Perturbation
     integer, intent(in)  :: list_sub(nsubset)  ! List of subset channels in R-matrix
     real(8), intent(in)  :: list_oer(nsubset)  ! List of Obs Error  
-    integer, intent(in)  :: indexTovs          ! TOVS Index
     
     ! Locals:
     real(8)                         :: alpha, beta, product
@@ -661,7 +660,7 @@ module rMatrix_mod
      
       do ichan = 1, numchan
         if (estR(sensorIndex)%Rmat(ichan, ichan) < 0) then
-          utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
+          call utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
         end if
         obsErrStdev(sensorIndex, ichan) = SQRT(estR(sensorIndex)%Rmat(ichan, ichan))
       end do
