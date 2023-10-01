@@ -173,12 +173,11 @@ module tovsNL_mod
 
   ! Emissivity Error Covariance Matrix Data
   type tvs_Fmatrix
-    real(8) ,pointer     :: Fmat(:,:)=>null()
-    integer ,pointer     :: listChans(:)=>null()
+    real(8), pointer     :: Fmat(:,:)=>null()
+    integer, pointer     :: listChans(:)=>null()
     integer              :: nchans=0
   end type tvs_Fmatrix
-  type(tvs_Fmatrix),target,allocatable  :: Fcorr_inst(:) ! non diagonal Correlation matrices for each instrument
-  type(tvs_Fmatrix),target,allocatable  :: FSqrt(:)      ! Sqaure root of emissivity error covariance matrix (F)
+  type(tvs_Fmatrix),target, allocatable  :: Fcorr_inst(:) ! non diagonal Correlation matrices for each instrument
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -5606,7 +5605,6 @@ contains
     call tvs_readEmissError(emissChanList, emissStdErr, emissNumChan)
 
     allocate(Fcorr_inst(1))
-    allocate(FSqrt(tvs_nobtov))
     filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
 
     ! Read Surface Emissivity Error Correlation Matrix
@@ -5623,7 +5621,7 @@ contains
       headerIndex = tvs_headerIndex(tovsIndex)
       if (headerIndex < 0) exit PROFILE
 
-      idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
       
       allocate(pert(emissNumChan))
@@ -5638,7 +5636,7 @@ contains
       do bodyIndex = idata, idatend
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
 
-          btIndex = btIndex +1
+          btIndex = btIndex + 1
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
           
@@ -5647,6 +5645,9 @@ contains
 
             ! Match tvs_channelnumber with the channel index in emissivity error std file
             matchChanIndex = FINDLOC(emissChanList, channelNumber + chanOffSetAmsua, dim=1)
+            if (matchChanIndex == 0) then
+              call utl_abort('tvs_simulateEmissivity: Unable to find emissivity error for a channel')
+            end if
             emissErrStdPerChan = emissStdErr(matchChanIndex)
             list_EMER(count) = emissErrStdPerChan
             list_bodyIndex(count) = bodyIndex
@@ -5658,46 +5659,40 @@ contains
         end if
       end do
 
-      if ( .not. (count > 0 .and. tovsIndex > 0)) then 
-        if (allocated(pert)) deallocate(pert)
-        if (allocated(emissPert)) deallocate(emissPert)
-        if (allocated(list_EMER)) deallocate(list_EMER)
-        if (allocated(list_chanNumber)) deallocate(list_chanNumber)
-        if (allocated(list_chanIndex)) deallocate(list_chanIndex)
-        if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
-        if (allocated(list_btIndex)) deallocate(list_btIndex)
-        cycle Profile
+      if (count > 0 .and. tovsIndex > 0) then 
+        ! Generate the emissivity errors
+        call tvs_Fsqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count))
+
+        do obsIndex = 1, count
+          ! Generate the simulated emissivity
+          sfcEmissivity(list_btIndex(obsIndex))%emis_in = sfcEmissivity(list_btIndex(obsIndex))%emis_in + emissPert(obsIndex)
+
+          !Store simulated emissivity error STDev. into ObsSpaceData
+          call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
+        
+          ! QC check: Simulated surface emissivity can only be between 0 and 1
+          if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1) then
+            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1
+          else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0) then
+            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 0
+          end if
+
+        end do
       end if
 
-      ! Generate the emissivity errors
-      call tvs_Fsqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), tovsIndex)
-
-      do obsIndex = 1, count
-        ! Generate the simulated emissivity
-        sfcEmissivity(list_btIndex(obsIndex))%emis_in = sfcEmissivity(list_btIndex(obsIndex))%emis_in + emissPert(obsIndex)
-
-        !Store simulated emissivity error STDev. into ObsSpaceData
-        call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
-      
-        ! QC check: Simulated surface emissivity can only be between 0 and 1
-        if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1) then
-          sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1
-        else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0) then
-          sfcEmissivity(list_btIndex(obsIndex))%emis_in = 0
-        end if
-      end do
-
-      if (allocated(pert)) deallocate(pert)
-      if (allocated(emissPert)) deallocate(emissPert)
-      if (allocated(list_EMER)) deallocate(list_EMER)
-      if (allocated(list_chanNumber)) deallocate(list_chanNumber)
-      if (allocated(list_chanIndex)) deallocate(list_chanIndex)
-      if (allocated(list_bodyIndex)) deallocate(list_bodyIndex)
-      if (allocated(list_btIndex)) deallocate(list_btIndex)
+      deallocate(pert)
+      deallocate(emissPert)
+      deallocate(list_EMER)
+      deallocate(list_chanNumber)
+      deallocate(list_chanIndex)
+      deallocate(list_bodyIndex)
+      deallocate(list_btIndex)
 
     end do PROFILE
-    if (allocated(Fcorr_inst)) deallocate(Fcorr_inst)
-    if (allocated(FSqrt)) deallocate(FSqrt)
+
+    deallocate(Fcorr_inst)
+    deallocate(emissChanList)
+    deallocate(emissStdErr)
 
     write(*,*) 'tvs_simulateEmissivity: FINISHED'
   end subroutine tvs_simulateEmissivity
@@ -5705,7 +5700,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_readEmissError
   !--------------------------------------------------------------------------
-  subroutine tvs_readEmissError( chanList, emissStdErr, numChan)
+  subroutine tvs_readEmissError(chanList, emissStdErr, numChan)
     !
     !:Purpose: Reading emissivity error std for AMSU-A
     !
@@ -5714,47 +5709,45 @@ contains
     ! Arguemnts:
     integer, allocatable, intent(out) :: chanList(:)    ! Channel List
     real, allocatable,    intent(out) :: emissStdErr(:) ! Surf. Emissivity Error Stdev.
+    integer,              intent(out) :: numChan        ! Number of Channels
 
     ! Locals:
     integer, external      :: fnom, fclos
-    integer                :: iluemis, ierr
+    integer                :: iunit, ierr
     character(len=20)      :: fileName
     character(len = 512)   :: tmpStr
-    integer                :: numChan, ich
+    integer                :: chanIndex
 
     fileName = 'EmissErrStd.dat'
-    iluemis = 0
-    ierr =  fnom(iluemis, fileName,'SEQ+FMT',0)
-    if ( ierr /= 0 ) call utl_abort('tvs_readEmissError: Error reading &
-                                     surface emissivity error stdev. file') 
+    iunit = 0
+    ierr = fnom(iunit, fileName, 'SEQ+FMT', 0)
+    if (ierr /= 0) call utl_abort('tvs_readEmissError: Error reading &
+                                   surface emissivity error stdev. file') 
 
     ! Read temporary strings 
-    read(iluemis,*) tmpStr
-    read(iluemis,'(A)') tmpStr
-    read(iluemis,'(A)') tmpStr
-    read(iluemis,'(A)') tmpStr
+    read(iunit, *) tmpStr
+    read(iunit, '(A)') tmpStr
+    read(iunit, '(A)') tmpStr
+    read(iunit, '(A)') tmpStr
 
     ! Read number of channels
-    read(iluemis, *) numChan
+    read(iunit, *) numChan
 
-    read(iluemis,'(A)') tmpStr
+    read(iunit, '(A)') tmpStr
 
     allocate(chanList(numChan))
     allocate(emissStdErr(numChan))
 
     ! Read Emissivity Error Stdev.
-    do ich = 1, numChan
-      read(iluemis,*) chanList(ich), emissStdErr(ich)
-      write(*,*) chanList(ich), emissStdErr(ich), ich
+    do chanIndex = 1, numChan
+      read(iunit,*) chanList(chanIndex), emissStdErr(chanIndex)
     end do
-    read(iluemis,'(A)') tmpStr
-    write(*,'(A)') tmpStr
-
-    ierr = fclos(iluemis)
+    read(iunit, '(A)') tmpStr
+  
+    ierr = fclos(iunit)
     if (ierr /= 0) call utl_abort ('tvs_readEmissError')
 
-
-    if ( tvs_maxSfcSenChan > maxval(chanList) ) then
+    if (tvs_maxSfcSenChan > maxval(chanList)) then
       write(*,*) 'The selected highest peaking channel is not in the emissivity error std file'
       call utl_abort('tvs_readEmissError')
     end if
@@ -5764,7 +5757,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_readCEmissMatrixByFileName
   !--------------------------------------------------------------------------
-  subroutine tvs_readCEmissMatrixByFileName(infile,C,chanList_opt)
+  subroutine tvs_readCEmissMatrixByFileName(infile, corrMat)
     !
     !:Purpose:  Read surface emissivity error correlation file
     !
@@ -5772,85 +5765,59 @@ contains
 
     ! Arguments:
     character (len=*), intent(in)    :: infile          ! Name of input file
-    type(tvs_Fmatrix), intent(inout) :: C               ! Correlation matrix structure
-    integer, optional, intent(in)    :: chanList_opt(:) ! List of requested channels (if missing will read all file content)
-
+    type(tvs_Fmatrix), intent(inout) :: corrMat         ! Correlation matrix structure
+    
     ! Locals:
-    integer              :: i, j, iu, ierr, count, ich, nchn, nch
+    integer              :: chanIndex1, chanIndex2
+    integer              :: iunit, ierr, count, readChanIndex, numChan
     integer, external    :: fnom,fclos
-    real(8)              :: x
+    real(8)              :: tmpCor
     integer, allocatable :: index(:)
  
-    nchn = -1
-    if (present(chanList_opt)) then
-      nchn=size(chanList_opt)
-    end if
-
-    iu = 0
-    ierr = fnom(iu,trim(infile),'FTN+SEQ+R/O',0)
+    iunit = 0
+    ierr = fnom(iunit, trim(infile), 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) then
-      write(*,*) "Cannot open "//trim(infile)
+      write(*,*) "Cannot open " // trim(infile)
       call utl_abort("tvs_readCEmissMatrixByFileName")
     end if
 
-    write(*,*) "tvs_readCEmissMatrixByFileName: Reading "//trim(infile)
+    write(*,*) "tvs_readCEmissMatrixByFileName: Reading " // trim(infile)
     
-    read(iu,*) nch
-    if (nchn == -1) then
-      nchn = nch
-    else
-      if(nchn > nch) then
-        write(*,*) "Not enough channels in "//trim(infile)
-        write(*,*) nchn,nch
-        call utl_abort("tvs_readCEmissMatrixByFileName")
-      end if
-    end if
-    allocate(index(nch))
+    read(iunit,*) numChan
+  
+    allocate(index(numChan))
     
-    C%nchans = nchn
-    allocate(C%Fmat(nchn,nchn))
-    allocate(C%listChans(nchn))
-    C%Fmat = 0.d0
-    do i = 1,nchn
-      C%Fmat(i,i) = 1.d0
+    corrMat%nchans = numChan
+    allocate(corrMat%Fmat(numChan, numChan))
+    allocate(corrMat%listChans(numChan))
+    corrMat%Fmat = 0.d0
+
+    do chanIndex1 = 1, numChan
+      corrMat%Fmat(chanIndex1, chanIndex1) = 1.d0
     end do
+    
     count = 0
     index = -1
-    do i=1,nch
-      read(iu,*) ich
-      if (present(chanList_opt)) then
-        bj:do j=1,nchn
-          if (ich == chanList_opt(j)) then
-            count = count + 1
-            index(i) = j
-            C%listChans(count) = ich
-            exit bj
-          end if
-        end do bj
-      else
-        index(i) = i
-        C%listChans(i) = ich
-        count = count + 1
-      end if
+    do chanIndex1 = 1, numChan
+      read(iunit,*) readChanIndex
+      index(chanIndex1) = chanIndex1
+      corrMat%listChans(chanIndex1) = readChanIndex
+      count = count + 1
     end do
-    if (count /= nchn) then
-      write(*,*) "Warning: Missing information in "//trim(infile)
-      do j=1,nchn
-        write(*,*) j, chanList_opt(j) 
-      end do
-      write(*,*) "Not important if there is no observation of this family"
+    if (count /= numChan) then
+      write(*,*) "Warning: Missing information in " // trim(infile)
     end if
 
     do
-      read(iu,*,iostat=ierr) i,j,x
+      read(iunit, *, iostat=ierr) chanIndex1, chanIndex2, tmpCor
       if (ierr /= 0) exit
-      if (index(i) /= -1 .and. index(j) /= -1) then
-        C%Fmat(index(i),index(j)) = x
-        C%Fmat(index(j),index(i)) = x
+      if (index(chanIndex1) /= -1 .and. index(chanIndex2) /= -1) then
+        corrMat%Fmat(index(chanIndex1), index(chanIndex2)) = tmpCor
+        corrMat%Fmat(index(chanIndex2), index(chanIndex1)) = tmpCor
       end if
     end do
 
-    ierr= fclos(iu)
+    ierr= fclos(iunit)
     deallocate(index)
 
   end subroutine tvs_readCEmissMatrixByFileName
@@ -5858,7 +5825,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_Fsqrt
   !--------------------------------------------------------------------------
-  subroutine tvs_Fsqrt(nsubset, obsIn, obsOut, list_sub, list_oer, indexTovs)
+  subroutine tvs_Fsqrt(nsubset, obsIn, obsOut, list_sub, list_oer)
     !
     ! :Purpose: Apply the operator F**1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -5867,26 +5834,28 @@ contains
     implicit none
 
     ! Arguments:
-    integer , intent(in)  :: nsubset
-    integer , intent(in)  :: list_sub(nsubset)
-    real(8) , intent(in)  :: list_oer(nsubset)
-    real(8) , intent(in)  :: obsIn(nsubset)
-    real(8) , intent(out) :: obsOut(nsubset)
-    integer , intent(in)  :: indexTovs
+    integer, intent(in)  :: nsubset           ! Number of subset channels in F-matrix
+    integer, intent(in)  :: list_sub(nsubset) ! List of subset channels in F-matrix
+    real(8), intent(in)  :: list_oer(nsubset) ! List of Emissivity Error Stdev
+    real(8), intent(in)  :: obsIn(nsubset)    ! Sampling Perturbation
+    real(8), intent(out) :: obsOut(nsubset)   ! Error Perturbation
 
     ! Locals:
-    real (8) :: Fsub(nsubset,nsubset), alpha, beta, product 
-    integer  :: index(nsubset)
-    integer  :: i,j
+    real(8)               :: alpha, beta, product
+    real(8), allocatable  :: Fsub(:,:)
+    integer               :: index(nsubset)
+    integer               :: chanIndex1, chanIndex2
   
+    allocate(Fsub(nsubset, nsubset))
+
     index = -1
-    do i=1,nsubset
-      bj: do j = 1, Fcorr_inst(1)%nchans
-        if (list_sub(i) == Fcorr_inst(1)%listChans(j)) then
-          index(i) = j
-          exit bj 
+    do chanIndex1 = 1, nsubset
+      chanLoop: do chanIndex2 = 1, Fcorr_inst(1)%nchans
+        if (list_sub(chanIndex1) == Fcorr_inst(1)%listChans(chanIndex2)) then
+          index(chanIndex1) = chanIndex2
+          exit chanLoop 
         end if
-      end do bj
+      end do chanLoop
     end do
 
     if (any(index == -1)) then
@@ -5896,32 +5865,24 @@ contains
       call utl_abort('tvs_Fsqrt')
     end if
 
-    FSqrt(indexTovs)%nchans = nsubset
-    allocate(FSqrt(indexTovs)%listChans(nsubset))
-    FSqrt(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
-    do j=1,nsubset
-      do i=1,nsubset
-        product = list_oer(i) * list_oer(j)
-        Fsub(i,j) = product * Fcorr_inst(1)%Fmat(index(i),index(j))
+    do chanIndex2 = 1, nsubset
+      do chanIndex1 = 1, nsubset
+        product = list_oer(chanIndex1) * list_oer(chanIndex2)
+        Fsub(chanIndex1,chanIndex2) = product * Fcorr_inst(1)%Fmat(index(chanIndex1), index(chanIndex2))
       end do
     end do
 
     ! Calculation of F**1/2
     call utl_matSqrt(Fsub, nsubset, 1.d0, .false.)
 
-    allocate(FSqrt(indexTovs)%Fmat(nsubset,nsubset))
-    do j=1,nsubset
-      do i=1,nsubset
-        FSqrt(indexTovs)%Fmat(i,j) = Fsub(i,j)
-      end do
-    end do
-
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, FSqrt(indexTovs)%Fmat, nsubset, obsIn, 1, beta, obsOut, 1)
+    call dsymv("L", nsubset, alpha, Fsub, nsubset, obsIn, 1, beta, obsOut, 1)
+
+    deallocate(Fsub)
 
   end subroutine tvs_Fsqrt
 
