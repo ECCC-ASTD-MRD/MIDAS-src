@@ -3090,7 +3090,7 @@ contains
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
              sensorTovsIndexes(1:profileCount))
         if (SimSfcEmiss) then
-          call tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local)
+          call tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId)
         end if
       else
         emissivity_local(:)%emis_in = surfem1(:)
@@ -5575,7 +5575,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_simulateEmissivity
   !--------------------------------------------------------------------------
-  subroutine tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity)
+  subroutine tvs_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity, sensorId)
     !
     !:Purpose: Simulate surface emissivity (Only work for AMSU-A channel 1-5)
     !
@@ -5585,6 +5585,7 @@ contains
     type(struct_obs),        intent(inout) :: obsSpaceData         ! ObsSpaceData object
     integer,                 intent(in)    :: sensorTovsIndexes(:) ! Sensor TOVS Indexes
     type (rttov_emissivity), intent(inout) :: sfcEmissivity(:)     ! Simulated Surf. Emissivity
+    integer,                 intent(in)    :: sensorId             ! Sensor ID
 
     ! Locals:
     integer, allocatable :: emissChanList(:)
@@ -5610,6 +5611,9 @@ contains
 
     ! Read Surface Emissivity Error Correlation Matrix
     call tvs_readCEmissMatrixByFileName(filenameCorrEmiss, Fcorr_inst(1))
+
+    ! Initialize random number generation for simulating surface emissivity
+    call rng_setup(abs(tvs_simEmissSeed + (mmpi_myid * tvs_nsensors) + sensorId))
 
     ! The count of btIndex follows the same logic in tvs_countRadiances
     btIndex = 0
