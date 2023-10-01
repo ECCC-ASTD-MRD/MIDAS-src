@@ -31,7 +31,6 @@ module rMatrix_mod
 
   type(rmat_matrix),target,allocatable  :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
   type(rmat_matrix),target,allocatable  :: R_tovs(:)     ! non diagonal R matrices used for the assimilation of all radiances
-  type(rmat_matrix),target,allocatable  :: RSqrt_tovs(:) ! non diagonal square root of R matrices
 
   ! namelist variable
   logical :: rmat_lnondiagr      ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
@@ -72,7 +71,6 @@ module rMatrix_mod
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(nobtovs))
-      allocate(RSqrt_tovs(nobtovs))
     end if
 
   end subroutine rmat_init
@@ -381,10 +379,12 @@ module rMatrix_mod
     integer, intent(in)  :: indexTovs          ! TOVS Index
     
     ! Locals:
-    real (8)                        :: Rsub(nsubset,nsubset), alpha, beta, product 
+    real(8)                         :: alpha, beta, product
+    real(8), allocatable            :: Rsub(:,:)
     integer                         :: index(nsubset)
-    integer                         :: i,j
-
+    integer                         :: chanIndex1, chanIndex2
+   
+    allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
       write(*,*) "invalid sensor_id", sensor_id,size(Rcorr_inst)
       call utl_abort('rmat_Rsqrt')
@@ -392,14 +392,15 @@ module rMatrix_mod
 
     ! Check error correlation for all channels are available
     index = -1
-    do i = 1, nsubset
-      bj: do j = 1, Rcorr_inst(sensor_id)%nchans
-        if (list_sub(i) == Rcorr_inst(sensor_id)%listChans(j)) then
-          index(i) = j
-          exit bj 
+    do chanIndex1 = 1, nsubset
+      chanLoop: do chanIndex2 = 1, Rcorr_inst(sensor_id)%nchans
+        if (list_sub(chanIndex1) == Rcorr_inst(sensor_id)%listChans(chanIndex2)) then
+          index(chanIndex1) = chanIndex2
+          exit chanLoop 
         end if
-      end do bj
+      end do chanLoop
     end do
+
     if (any(index == -1)) then
       write(*,*) "Missing information for some channel !"
       write(*,*) list_sub(:)
@@ -407,32 +408,24 @@ module rMatrix_mod
       call utl_abort('rmat_Rsqrt')
     end if
 
-    ! Construct the R-Matrix
-    RSqrt_tovs(indexTovs)%nchans = nsubset
-    allocate(RSqrt_tovs(indexTovs)%listChans(nsubset))
-    RSqrt_tovs(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
-    do j = 1, nsubset
-      do i = 1, nsubset
-        product = list_oer(i) * list_oer(j)
-        Rsub(i,j) = product * Rcorr_inst(sensor_id)%Rmat(index(i),index(j))
+    do chanIndex2 = 1, nsubset
+      do chanIndex1 = 1, nsubset
+        product = list_oer(chanIndex1) * list_oer(chanIndex2)
+        Rsub(chanIndex1, chanIndex2) = product * Rcorr_inst(sensor_id)%Rmat(index(chanIndex1),index(chanIndex2))
       end do
     end do
 
     ! Calculation of R**1/2
-    call utl_matSqrt(Rsub,nsubset,1.d0,.false.)
-    allocate(RSqrt_tovs(indexTovs)%Rmat(nsubset,nsubset))
-    do j = 1, nsubset
-      do i = 1, nsubset
-        RSqrt_tovs(indexTovs)%Rmat(i,j) = Rsub(i,j)
-      end do
-    end do
+    call utl_matSqrt(Rsub, nsubset,1.d0, .false.)
 
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, RSqrt_tovs(indexTovs)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
+    call dsymv("L", nsubset, alpha, Rsub, nsubset, obsIn, 1, beta, obsOut, 1)
+
+    deallocate(Rsub)
 
   end subroutine rmat_Rsqrt
 
