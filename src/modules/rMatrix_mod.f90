@@ -411,7 +411,7 @@ module rMatrix_mod
     do chanIndex2 = 1, nsubset
       do chanIndex1 = 1, nsubset
         product = list_oer(chanIndex1) * list_oer(chanIndex2)
-        Rsub(chanIndex1, chanIndex2) = product * Rcorr_inst(sensor_id)%Rmat(index(chanIndex1),index(chanIndex2))
+        Rsub(chanIndex1, chanIndex2) = product * Rcorr_inst(sensor_id)%Rmat(index(chanIndex1), index(chanIndex2))
       end do
     end do
 
@@ -660,13 +660,20 @@ module rMatrix_mod
       numchan = estR(sensorIndex)%nchans
      
       do ichan = 1, numchan
+        if (estR(sensorIndex)%Rmat(ichan, ichan) < 0) then
+          utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
+        end if
         obsErrStdev(sensorIndex, ichan) = SQRT(estR(sensorIndex)%Rmat(ichan, ichan))
       end do
 
       do ichan = 1, numchan
         do jchan = 1, numchan
-          RCorr(sensorIndex)%Rmat(ichan, jchan) = estR(sensorIndex)%Rmat(ichan, jchan) / &
+          if (obsErrStdev(sensorIndex, ichan) == 0 .or. obsErrStdev(sensorIndex, jchan) == 0) then
+            RCorr(sensorIndex)%Rmat(ichan, jchan) = 0
+          else
+            RCorr(sensorIndex)%Rmat(ichan, jchan) = estR(sensorIndex)%Rmat(ichan, jchan) / &
                        (obsErrStdev(sensorIndex, ichan) * obsErrStdev(sensorIndex, jchan))
+          end if
         end do
       end do
     end do
