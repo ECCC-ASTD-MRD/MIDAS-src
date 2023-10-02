@@ -182,8 +182,8 @@
   itemInsertList(4)=11004
 /
  &NAMSQLUpdate
-  itemUpdateList(1)='OMP'
-  itemUpdateList(2)='OMA'
+  itemUpdateBodyList(1)='OMP'
+  itemUpdateBodyList(2)='OMA'
 /
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
