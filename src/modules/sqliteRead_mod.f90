@@ -1088,11 +1088,11 @@ module sqliteRead_mod
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
-    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
+    HEADER1: do headerIndex = 1, obs_numHeader(obsdat)
  
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
  
-      if (obsIdf /= fileNumber) cycle HEADER
+      if (obsIdf /= fileNumber) cycle HEADER1
       headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
@@ -1104,7 +1104,7 @@ module sqliteRead_mod
 
         call fSQL_bind_param(stmt, param_index = 1, int_var = obsFlag)
         
-				ITEMS: do itemIndex = 1, numberUpdateBodyItems
+				do itemIndex = 1, numberUpdateBodyItems
           
 	  		  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if (obsValue /= obs_missingValue_R) then  
@@ -1122,14 +1122,14 @@ module sqliteRead_mod
             call fSQL_bind_param(stmt, param_index = itemIndex + 1)  ! sql null values
           end if
 
-        end do ITEMS
+        end do
 
         call fSQL_bind_param(stmt, param_index = numberUpdateBodyItems + 2, int8_var = bodyPrimaryKey)
         call fSQL_exec_stmt (stmt)
 
       end do BODY
 
-    end do HEADER
+    end do HEADER1
 
     call fSQL_finalize(stmt)
 
@@ -1139,10 +1139,10 @@ module sqliteRead_mod
       itemCharHeader = columnNameCharHeader
       
       if (trim(familyType) == 'TO') then
-        query = ' update header set status  = ?, land_sea= ?, ' // trim(itemCharHeader)
+        query = ' update header set status  = ?, land_sea= ? ' // trim(itemCharHeader)
         lastMandatoryIndex = 2
       else 
-        query = ' update header set status  = ?, ' // trim(itemCharHeader)
+        query = ' update header set status  = ? ' // trim(itemCharHeader)
         lastMandatoryIndex = 1
       end if
 
@@ -1153,11 +1153,11 @@ module sqliteRead_mod
       if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
       call fSQL_begin(db)
 
-      HEADER3: do headerIndex = 1, obs_numHeader(obsdat)
+      HEADER2: do headerIndex = 1, obs_numHeader(obsdat)
   
-        if (obsIdf /= fileNumber) cycle HEADER3
-
         obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
+        if (obsIdf /= fileNumber) cycle HEADER2
+
         obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
         landsea = obs_headElem_i(obsdat, OBS_STYP, headerIndex)
         headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
@@ -1165,23 +1165,23 @@ module sqliteRead_mod
         call fSQL_bind_param(stmt, param_index = 1, int_var = obsStatus)
         
         if (trim(familyType) == 'TO') then
-          call fSQL_bind_param(stmt, param_index = 2, int_var = obsFlag)
+          call fSQL_bind_param(stmt, param_index = 2, int_var = landsea)
         end if
         
-        ITEMS3: do itemIndex = 1, numberUpdateHeaderItems
+        do itemIndex = 1, numberUpdateHeaderItems
           romp = obs_headElem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
           if (romp == obs_missingValue_R) then
             call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex) ! sql null values
           else
             call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex, real_var = romp)
           end if
-        end do ITEMS3
+        end do
         
         call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + numberUpdateHeaderItems + 1, &
                              int8_var  = headPrimaryKey)
         call fSQL_exec_stmt (stmt)
 
-      end do HEADER3
+      end do HEADER2
 
       call fSQL_finalize(stmt)
     end if
