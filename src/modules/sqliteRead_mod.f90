@@ -841,34 +841,41 @@ module sqliteRead_mod
     type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
     type(fSQL_status)           :: stat ! type error status
     integer                     :: obsRln, obsNlv, obsIdf, obsFlag
-    integer                     :: obsStatus, last_question, landSea, terrainType
+    integer                     :: obsStatus, last_question, landSea
     integer(8)                  :: headPrimaryKey, bodyPrimaryKey
-    integer                     :: itemIndex, headPrimaryKeyIndex, landSeaIndex
+    integer                     :: itemIndex
     integer                     :: headerIndex, bodyIndex
     character(len =   3)        :: item
-    integer                     :: updateList(20), fnom, fclos, nulnam, ierr
+    integer                     :: updateBodyList(20), updateHeaderList(20), fnom, fclos, nulnam, ierr
     character(len =  20)        :: columnName
-    character(len = 526)        :: query
-    character(len = 356)        :: itemChar, columnNameChar
-    logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
+    character(len = 512)        :: query
+    character(len = 356)        :: itemCharBody, columnNameCharBody, itemCharHeader, columnNameCharHeader
+    logical                     :: back, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
+    logical                     :: nonEmptyHeaderColumn, nonEmptyHeaderColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
-    integer, parameter :: maxNumberUpdate = 15
+    integer, parameter          :: maxNumberUpdate = 15
+    integer                     :: lastMandatoryIndex
 
     ! Namelist variables:
-    integer          :: numberUpdateItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
-    integer          :: numberUpdateItemsRadar               ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=3) :: itemUpdateList(maxNumberUpdate)      ! List of columns to be updated (e.g.'OMA','OMP')
-    character(len=3) :: itemUpdateListRadar(maxNumberUpdate) ! List of columns to be updated for Radar data
+    integer          :: numberUpdateBodyItems                  ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer          :: numberUpdateHeaderItems                ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer          :: numberUpdateItemsRadar                 ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=3) :: itemUpdateBodyList(maxNumberUpdate)    ! List of columns to be updated (e.g.'OMA','OMP')
+    character(len=3) :: itemUpdateHeaderList(maxNumberUpdate)  ! List of columns to be updated (e.g.'ElEVATION')
+    character(len=3) :: itemUpdateListRadar(maxNumberUpdate)   ! List of columns to be updated for Radar data
 
-    namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
+    namelist/namSQLUpdate/ numberUpdateBodyItems, itemUpdateBodyList,     &
+                           numberUpdateHeaderItems, itemUpdateHeaderList, &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
     write(*,*) 'sqlr_updateSqlite: Starting ===================  '
 
     ! set default values of namelist variables
-    itemUpdateList(:) = ''
+    itemUpdateBodyList(:) = ''
+    itemUpdateHeaderList(:) = ''
     itemUpdateListRadar(:) = ''
-    numberUpdateItems = MPC_missingValue_INT
+    numberUpdateBodyItems = MPC_missingValue_INT
+    numberUpdateHeaderItems = MPC_missingValue_INT
     numberUpdateItemsRadar = MPC_missingValue_INT
 
     ! Read the namelist for directives
@@ -878,17 +885,29 @@ module sqliteRead_mod
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
     ierr = fclos(nulnam)
-    if (numberUpdateItems /= MPC_missingValue_INT) then
-      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItems should be removed')
+
+    if (numberUpdateBodyItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateBodyItems should be removed')
+    end if
+    if (numberUpdateHeaderItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateHeaderItems should be removed')
     end if
     if (numberUpdateItemsRadar /= MPC_missingValue_INT) then
       call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
     end if
-    numberUpdateItems = 0
+
+    numberUpdateBodyItems = 0
     do itemIndex = 1, maxNumberUpdate
-      if (trim(itemUpdateList(itemIndex)) == '') exit
-      numberUpdateItems = numberUpdateItems + 1
+      if (trim(itemUpdateBodyList(itemIndex)) == '') exit
+      numberUpdateBodyItems = numberUpdateBodyItems + 1
     end do
+
+    numberUpdateHeaderItems = 0
+    do itemIndex = 1, maxNumberUpdate
+      if (trim(itemUpdateHeaderList(itemIndex)) == '') exit
+      numberUpdateHeaderItems = numberUpdateHeaderItems + 1
+    end do
+
     numberUpdateItemsRadar = 0
     do itemIndex = 1, maxNumberUpdate
       if (trim(itemUpdateListRadar(itemIndex)) == '') exit
@@ -898,48 +917,52 @@ module sqliteRead_mod
     ! Append extra sqlite columns to update to itemUpdateList
     if (trim(familyType) == 'RA') then
       do itemIndex = 1, numberUpdateItemsRadar
-        numberUpdateItems = numberUpdateItems + 1
-        itemUpdateList(numberUpdateItems) = itemUpdateListRadar(itemIndex)
+        numberUpdateBodyItems = numberUpdateBodyItems + 1
+        itemUpdateBodyList(numberUpdateBodyItems) = itemUpdateListRadar(itemIndex)
       end do
     end if
 
     write(*,*) 'sqlr_updateSqlite: family type   = ', trim(familyType)
-    write(*,*) 'sqlr_updateSqlite: number of items to update: ', numberUpdateItems
+    write(*,*) 'sqlr_updateSqlite: number of Body items to update: ', numberUpdateBodyItems
+    write(*,*) 'sqlr_updateSqlite: number of Header items to update: ', numberUpdateHeaderItems
     write(*,*) 'sqlr_updateSqlite: file name     = ', trim(fileName)
-    write(*,*) 'sqlr_updateSqlite: missing value = ', MPC_missingValue_R8    
+    write(*,*) 'sqlr_updateSqlite: missing value = ', MPC_missingValue_R8
 
-    ! create query
-    itemChar='  '
-
-    do itemIndex = 1, numberUpdateItems
+    ! Generate List of Body Column to Update
+    itemCharBody='  '
+    
+        ! Generate List of Body Column to Update
+    itemCharBody='  '
+    columnName = '  '
+    do itemIndex = 1, numberUpdateBodyItems
       
-      item = itemUpdateList(itemIndex)
+      item = itemUpdateBodyList(itemIndex)
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
 
       select case(item)
       case('OMA')
-        updateList(itemIndex) = OBS_OMA
+        updateBodyList(itemIndex) = OBS_OMA
         columnName = 'oma'
       case('OMP')
-        updateList(itemIndex) = OBS_OMP
+        updateBodyList(itemIndex) = OBS_OMP
         columnName = 'omp'
       case('VAR')
-        updateList(itemIndex) = OBS_VAR
+        updateBodyList(itemIndex) = OBS_VAR
         columnName = 'obsvalue'
       case('OER')
-        updateList(itemIndex) = OBS_OER
+        updateBodyList(itemIndex) = OBS_OER
         columnName = 'obs_error'
       case('FGE')
-        updateList(itemIndex) = OBS_HPHT
+        updateBodyList(itemIndex) = OBS_HPHT
         columnName = 'fg_error'
       case('EMI')
-        updateList(itemIndex) = OBS_SEM
+        updateBodyList(itemIndex) = OBS_SEM
         columnName = 'surf_emiss'
       case('COR')
-        updateList(itemIndex) = OBS_BCOR
+        updateBodyList(itemIndex) = OBS_BCOR
         columnName = 'bias_corr'
       case('ALT')
-        updateList(itemIndex) = OBS_PPP
+        updateBodyList(itemIndex) = OBS_PPP
         columnName = 'vcoord'
       case('TOB')
         updateList(itemIndex) = OBS_TRUO
@@ -955,58 +978,110 @@ module sqliteRead_mod
         columnName = 'surf_emiss_error'
 
       case DEFAULT
-        call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
+        call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select
 
       ! Check if column exist. If not, add column when corresponding
       ! obsspacedata variable have non-missing values
       if (sqlu_sqlColumnExists(fileName, 'data', columnName)) then
-        itemChar = trim(itemChar)//','// trim(columnName) // ' = ? '
+        itemCharBody = trim(itemCharBody) // ',' // trim(columnName) // ' = ? '
       else
-        write(*,*) 'sqlr_updateSqlite: WARNING: column '//columnName// &
-                   ' does not exist in the file '//trim(fileName)
+        write(*,*) 'sqlr_updateSqlite: WARNING: column '// columnName // &
+                   ' does not exist in the file '// trim(fileName)
 
-        nonEmptyColumn = .false.
+        nonEmptyBodyColumn = .false.
         ! Check if the ObsSpaceData variable contains non-missing values
         HEADERCHCK: do headerIndex = 1, obs_numHeader(obsdat)
 
-          obsIdf = obs_headElem_i(obsdat,OBS_IDF, headerIndex)
+          obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
           if (obsIdf /= fileNumber) cycle HEADERCHCK
           
           obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
           obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
     
           BODYCHCK: do bodyIndex = obsRln, obsNlv + obsRln - 1
-            columnValue = obs_bodyElem_r(obsdat, updateList(itemIndex), bodyIndex)
+            columnValue = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
 
             if (columnValue /= obs_missingValue_R) then
-              nonEmptyColumn = .true.         
+              nonEmptyBodyColumn = .true.         
               exit HEADERCHCK
             end if
           
           end do BODYCHCK
         end do HEADERCHCK
 
-        call rpn_comm_allreduce(nonEmptyColumn,nonEmptyColumn_mpiglobal,1, &
-                              "MPI_LOGICAL","MPI_LOR","grid",ierr)
+        call rpn_comm_allreduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, 1, &
+                              "MPI_LOGICAL","MPI_LOR", "grid", ierr)
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
-        if (nonEmptyColumn_mpiglobal) then
+        if (nonEmptyBodyColumn_mpiglobal) then
           write(*,*) 'sqlr_updateSqlite: ' // trim(columnName) // ' column is not empty and will be added'
-          call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
-          itemChar = trim(itemChar)//','// trim(columnName) // ' = ? '
+          call sqlr_addColumn(updateBodyList(itemIndex), columnName, 'data', fileName)
+          itemCharBody = trim(itemCharBody) // ',' // trim(columnName) // trim(' = ? ')
         end if
 
       end if
     end do
 
+    ! Generate List of Header Column to Update
+    itemCharHeader='  '
+    columnName = '  '
+    do itemIndex = 1, numberUpdateHeaderItems
+      
+      item = itemUpdateHeaderList(itemIndex)
+      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
+
+      select case(item)
+      case('ELE')
+        updateHeaderList(itemIndex) = OBS_LAT ! ZQ: Only use for test- Must change to OBS_ELEV before merge request
+        columnName = 'sfc_elev'
+      case DEFAULT
+        call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
+      end select
+
+      ! Check if column exist. If not, add column when corresponding
+      ! obsspacedata variable have non-missing values
+      if (sqlu_sqlColumnExists(fileName, 'header', columnName)) then
+        itemCharHeader = trim(itemCharHeader) // trim(columnName) // ' = ? , '
+      else
+        write(*,*) 'sqlr_updateSqlite: WARNING: column '// columnName // &
+                   ' does not exist in the file ' // trim(fileName)
+
+        nonEmptyHeaderColumn = .false.
+        ! Check if the ObsSpaceData variable contains non-missing values
+        HEADERCHCK2: do headerIndex = 1, obs_numHeader(obsdat)
+
+          obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
+          if (obsIdf /= fileNumber) cycle HEADERCHCK2
+          
+          columnValue = obs_headelem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
+          
+          if (columnValue /= obs_missingValue_R) then
+            nonEmptyHeaderColumn = .true.         
+            exit HEADERCHCK2
+          end if
+        end do HEADERCHCK2
+
+        call rpn_comm_allreduce(nonEmptyHeaderColumn,nonEmptyHeaderColumn_mpiglobal,1, &
+                              "MPI_LOGICAL","MPI_LOR","grid",ierr)
+
+        ! Add column into SQLite file if ObsSpaceData value containes non-missing values
+        if (nonEmptyHeaderColumn_mpiglobal) then
+          write(*,*) 'sqlr_updateSqlite: ' // trim(columnName) // ' column is not empty and will be added'
+          call sqlr_addColumn(updateHeaderList(itemIndex), columnName, 'header', fileName)
+          itemCharHeader = trim(itemCharHeader) // trim(columnName) // trim(' = ? , ')
+        end if
+
+      end if	
+    end do
+
     back=.true.
-    last_question  = scan(itemChar, '?', back)
-    columnNameChar = itemChar(1:last_question)
-    itemChar    = columnNameChar
+    last_question = scan(itemCharBody, '?', back)
+    columnNameCharBody = itemCharBody(1:last_question)
+    itemCharBody = columnNameCharBody
     
-    query = ' update data set flag = ? '//trim(itemChar)
-    query = trim(query)//' where id_data = ?  ;'
+    query = ' update data set flag = ? ' // trim(itemCharBody)
+    query = trim(query) // ' where id_data = ?  ;'
     write(*,*) 'sqlr_updateSqlite: update query --->  ', query
     call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
     call fSQL_prepare(db, query , stmt, stat)
@@ -1015,7 +1090,7 @@ module sqliteRead_mod
 
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
  
-      obsIdf = obs_headElem_i(obsdat,OBS_IDF, headerIndex)
+      obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
  
       if (obsIdf /= fileNumber) cycle HEADER
       headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
@@ -1025,20 +1100,20 @@ module sqliteRead_mod
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-        bodyPrimaryKey  = obs_bodyPrimaryKey(obsdat, bodyIndex)
+        bodyPrimaryKey = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
         call fSQL_bind_param(stmt, param_index = 1, int_var = obsFlag)
         
-        ITEMS: do itemIndex = 1, numberUpdateItems
-
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+				ITEMS: do itemIndex = 1, numberUpdateBodyItems
+          
+	  		  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if (obsValue /= obs_missingValue_R) then  
-            romp = obs_bodyElem_r(obsdat, updateList(itemIndex), bodyIndex)
+            romp = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
             if (romp == obs_missingValue_R) then
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
-              if (updateList(itemIndex) == OBS_SEM .or. updateList(itemIndex) == OBS_SSEM) then
+              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_SEMI) then 
                 scaleFactor=100.0
               end if
               call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor)
@@ -1049,7 +1124,7 @@ module sqliteRead_mod
 
         end do ITEMS
 
-        call fSQL_bind_param(stmt, param_index = numberUpdateItems + 2, int8_var  = bodyPrimaryKey)
+        call fSQL_bind_param(stmt, param_index = numberUpdateBodyItems + 2, int8_var = bodyPrimaryKey)
         call fSQL_exec_stmt (stmt)
 
       end do BODY
@@ -1058,44 +1133,57 @@ module sqliteRead_mod
 
     call fSQL_finalize(stmt)
 
-    if (trim(familyType) /= 'GL'.and. trim(familyType) /= 'RA') then
-
-      ! UPDATES FOR THE STATUS FLAGS and land_sea (for satellites) IN THE HEADER TABLE
-      ! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined here and used below.
-      ! Any change in this logic must be coherent with the code below!
+    if (trim(familyType) /= 'GL' .and. trim(familyType) /= 'RA') then
+      last_question  = scan(itemCharHeader, '?', back)
+      columnNameCharHeader = itemCharHeader(1:last_question)
+      itemCharHeader = columnNameCharHeader
+      
       if (trim(familyType) == 'TO') then
-        query = ' update header set status  = ?, land_sea= ? where id_obs = ? '
-        landSeaIndex = 2
-        headPrimaryKeyIndex = 3
-      else
-        query = ' update header set status  = ?  where id_obs = ? '
-        headPrimaryKeyIndex = 2
+        query = ' update header set status  = ?, land_sea= ?, ' // trim(itemCharHeader)
+        lastMandatoryIndex = 2
+      else 
+        query = ' update header set status  = ?, ' // trim(itemCharHeader)
+        lastMandatoryIndex = 1
       end if
+
+      query = trim(query) // ' where id_obs = ?  ;'
+      write(*,*) 'sqlr_updateSqlite: update query --->  ', query
+      call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
       call fSQL_prepare(db, query , stmt, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat,'fSQL_prepare : ')
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
+      call fSQL_begin(db)
 
-      HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
-         
-        terrainType=MPC_missingValue_INT
+      HEADER3: do headerIndex = 1, obs_numHeader(obsdat)
+  
+        if (obsIdf /= fileNumber) cycle HEADER3
+
         obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
-        if (obsIdf /= fileNumber) cycle HEADER2
-        headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
         obsStatus = obs_headElem_i(obsdat, OBS_ST1, headerIndex)
-        landsea   = obs_headElem_i(obsdat, OBS_STYP,headerIndex)
-        call fSQL_bind_param(stmt, param_index = 1, int_var  = obsStatus)
-        ! The variables 'headPrimaryKeyIndex' and 'landSeaIndex' are defined above and
-        ! they must be coherent with the query designed above
-        call fSQL_bind_param(stmt, param_index = headPrimaryKeyIndex, int8_var = headPrimaryKey)
-        if (trim(familyType) == 'TO') then
-          call fSQL_bind_param(stmt, param_index = landSeaIndex, int_var  = landSea)
-        end if
+        landsea = obs_headElem_i(obsdat, OBS_STYP, headerIndex)
+        headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
 
+        call fSQL_bind_param(stmt, param_index = 1, int_var = obsStatus)
+        
+        if (trim(familyType) == 'TO') then
+          call fSQL_bind_param(stmt, param_index = 2, int_var = obsFlag)
+        end if
+        
+        ITEMS3: do itemIndex = 1, numberUpdateHeaderItems
+          romp = obs_headElem_r(obsdat, updateHeaderList(itemIndex), headerIndex)
+          if (romp == obs_missingValue_R) then
+            call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex) ! sql null values
+          else
+            call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + itemIndex, real_var = romp)
+          end if
+        end do ITEMS3
+        
+        call fSQL_bind_param(stmt, param_index = lastMandatoryIndex + numberUpdateHeaderItems + 1, &
+                             int8_var  = headPrimaryKey)
         call fSQL_exec_stmt (stmt)
 
-      end do HEADER2
-    
-      call fSQL_finalize(stmt)
+      end do HEADER3
 
+      call fSQL_finalize(stmt)
     end if
 
     call fSQL_commit(db, stat)
