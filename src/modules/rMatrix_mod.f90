@@ -449,6 +449,7 @@ module rMatrix_mod
     integer              :: ierr, assimChan
     integer              :: tag, status
     integer, allocatable :: headerCount(:), headerCountMpiGlobal(:), headerCountAllTasks(:,:)
+    integer, allocatable :: localChanList(:)
     real(8), allocatable :: obsErrSum(:,:), obsErrSumAllTasks(:,:,:), meanObsErrMpiGlobal(:,:)
     real(8), allocatable :: obsErrSqrdSum(:,:)
     real(8), allocatable :: vector(:,:), localRmat(:,:)
@@ -477,6 +478,7 @@ module rMatrix_mod
       allocate(estR(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
       allocate(estR(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
       estR(sensorIndex)%Rmat(:, :) = 0
+      estR(sensorIndex)%listChans(:) = mpc_missingvalue_int
 
       ObsErrSqrdMat(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
       allocate(ObsErrSqrdMat(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
@@ -556,6 +558,7 @@ module rMatrix_mod
                                                 channelNumber, channelIndex)
 
               estR(sensorIndex)%listChans(assimChan) = channelNumber
+              write(*,*) 'ZQ_channelNumber', sensorIndex, assimChan, estR(sensorIndex)%listChans(assimChan)
             end if
 
             ! Compute the observation error based on difference between observation and truth
@@ -583,6 +586,13 @@ module rMatrix_mod
                             obsErrSumAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'mpi_real8', 'GRID', ierr)
     deallocate(headerCount)
 
+    ! Broadcast estR(sensorIndex)%listChans from the first MPI task that has non-empty values
+    !do sensorIndex = 1, tvs_nsensors
+    !  if (headerCountAllTasks(sensorIndex, mmpi_myid+1) > 0) then
+    !    call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', 0, 'GRID', ierr)
+    !  end if
+    !end do
+
     ! Compute the mean of observation error and total profile count to all MPI tasks
     do sensorIndex = 1, tvs_nsensors
       headerCountMpiGlobal(sensorIndex) = sum(headerCountAllTasks(sensorIndex,:))
@@ -602,12 +612,11 @@ module rMatrix_mod
       if (mmpi_myid > 0) then 
         tag = mmpi_myId
         call rpn_comm_send(ObsErrSqrdMat(sensorIndex)%Rmat(:,:), tvs_nchanMpiGlobal(sensorIndex) * tvs_nchanMpiGlobal(sensorIndex), &
-                          'mpi_real8', 0, tag, 'GRID', ierr )
+                          'mpi_real8', 0, tag, 'GRID', ierr)
       end if
 
+      ! Collect ObsErrSqrdMat from all MPI tasks
       if (mmpi_myid == 0) then 
-        
-        ! Collect ObsErrSqrdMat from all MPI tasks
         do taskIndex = 1, mmpi_nprocs - 1
           allocate(localRmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
           tag = taskIndex
@@ -631,15 +640,43 @@ module rMatrix_mod
     deallocate(ObsErrSqrdMat)
     deallocate(meanObsErrMpiGlobal)
 
-    ! Broadcast estR(sensorIndex)%listChans from the first MPI task that has non-empty values
-    Sensor: do sensorIndex = 1, tvs_nsensors
-      do taskIndex = 1, mmpi_nprocs
-        if (headerCountAllTasks(sensorIndex, taskIndex) > 0) then
-          call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', 0, 'GRID', ierr)
-          cycle Sensor
-        end if
-      end do
-    end do Sensor
+    do sensorIndex = 1, tvs_nsensors
+      write(*,*) 'ZQ_estR(sensorIndex)%listChans_before', estR(sensorIndex)%listChans
+    end do
+
+    ! Consolidate estR(sensorIndex)%listChans from all MPI task and share the full set of channel list
+    do sensorIndex = 1, tvs_nsensors
+      ! Send listChans from all MPI tasks to MPI task 0.
+
+      tag = mmpi_myId + mmpi_nprocs
+      call rpn_comm_send(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), &
+                          'mpi_integer', 0, tag, 'GRID', ierr)
+
+      ! Collect listChans from all MPI tasks
+      if (mmpi_myid == 0) then
+        allocate(localChanList(tvs_nchanMpiGlobal(sensorIndex)))
+        do taskIndex = 0, mmpi_nprocs - 1
+          tag = taskIndex + mmpi_nprocs
+          call rpn_comm_recv(localChanList, tvs_nchanMpiGlobal(sensorIndex), &
+                             'mpi_integer', taskIndex, tag, 'GRID', status, ierr)
+          if (all(localChanList /= mpc_missingvalue_int)) then
+            write(*,*) 'ZQ_localChanList', sensorIndex, localChanList
+            estR(sensorIndex)%listChans = localChanList
+          end if
+        end do
+        deallocate(localChanList)
+      end if
+
+      call rpn_comm_bcast(estR(sensorIndex)%listChans, tvs_nchanMpiGlobal(sensorIndex), &
+                          'mpi_integer', 0, 'GRID', ierr)
+    end do
+
+    
+
+    do sensorIndex = 1, tvs_nsensors
+      write(*,*) 'ZQ_estR(sensorIndex)%listChans', estR(sensorIndex)%listChans
+      write(*,*) 'ZQ_estR(sensorIndex)%Rmat', estR(sensorIndex)%Rmat(1,:)
+    end do
 
     deallocate(headerCountAllTasks)
     deallocate(headerCountMpiGlobal)
