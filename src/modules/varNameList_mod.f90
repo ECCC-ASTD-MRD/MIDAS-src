@@ -828,20 +828,20 @@ module varNameList_mod
       character(len=2)   :: typvar
       logical :: openFile
 
-      if ( present(fileUnit_opt) ) then
+      if (present(fileUnit_opt)) then
         unit = fileUnit_opt
         openFile = .false.
       else
         unit = 0
         openFile = .true.
-        if ( present(fileName_opt) ) then
+        if (present(fileName_opt)) then
           fileName = fileName_opt
         else
           call utl_abort('vnl_varNamePresentInFile: please provide and file name or unit')
         end if
       end if
 
-      if ( present(typvar_opt) ) then
+      if (present(typvar_opt)) then
         typvar = trim(typvar_opt)
       else
         typvar = ' '
@@ -850,11 +850,11 @@ module varNameList_mod
       if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
 
         if (openFile) then
-          ierr = nf90_open(fileName, NF90_NOWRITE, unit)
+          ierr = nf90_open(fileName, nf90_nowrite, unit)
         end if
 
         ierr = nf90_inq_varid(unit, trim(vnl_varNameNetCDF(varName)), varID)
-        if (ierr == nf90_NoErr) then
+        if (ierr == nf90_noerr) then
           found = .true.
         else
           found = .false.
@@ -867,13 +867,13 @@ module varNameList_mod
       else ! assume standard file
 
         if (openFile) then
-          ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
-          ierr = fstouv(unit,'RND+OLD')
+          ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
+          ierr = fstouv(unit, 'RND+OLD')
         end if
 
         key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
     
-        if ( key > 0 )  then
+        if (key > 0)  then
           found = .true.
         else
           found = .false.

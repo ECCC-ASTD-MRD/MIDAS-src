@@ -325,18 +325,18 @@ program midas_letkf
   !- 1.2 Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namletkf, iostat=ierr)
+  read(nulnam, nml = namletkf, iostat = ierr)
   if ( ierr /= 0) call utl_abort('midas-letkf: Error reading namelist')
-  if ( mmpi_myid == 0 ) write(*,nml=namletkf)
+  if ( mmpi_myid == 0 ) write(*, nml = namletkf)
   ierr = fclos(nulnam)
 
   !- 1.3 Some minor modifications of namelist values
   if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
     ! if only 1 value given for hLocalize, use it for entire column
     hLocalize(2:4) = hLocalize(1)
-    if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
-                                    'hLocalize(2:4)=', hLocalize(1)
-  else if ( hLocalize(1) < 0.0D0 ) then
+    if (mmpi_myid == 0) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
+                                   'hLocalize(2:4)=', hLocalize(1)
+  else if (hLocalize(1) < 0.0D0) then
     call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
   end if
   hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
@@ -346,32 +346,32 @@ program midas_letkf
     minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
   end if
 
-  if ( trim(algorithm) /= 'LETKF'           .and. &
-       trim(algorithm) /= 'CVLETKF'         .and. &
-       trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
-       trim(algorithm) /= 'LETKF-Gain'      .and. &
-       trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
-       trim(algorithm) /= 'CVLETKF-ME' ) then
+  if (trim(algorithm) /= 'LETKF'           .and. &
+      trim(algorithm) /= 'CVLETKF'         .and. &
+      trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
+      trim(algorithm) /= 'LETKF-Gain'      .and. &
+      trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
+      trim(algorithm) /= 'CVLETKF-ME') then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
-  if ( numRetainedEigen < 0 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+  if (numRetainedEigen < 0) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
     'equal or greater than zero')
 
   useModulatedEns = (numRetainedEigen > 0)
 
-  if ( trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
-    if ( .not. useModulatedEns ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+  if (trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME') then
+    if (.not. useModulatedEns) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
     'equal or greater than one for LETKF algorithm: ' // &
     trim(algorithm))
   else
-    if ( useModulatedEns ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+    if (useModulatedEns) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
     'equal to zero for LETKF algorithm: ' // &
     trim(algorithm))
   end if
   
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns ) then
+  if (.not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
   end if
@@ -412,10 +412,10 @@ program midas_letkf
   !- 2.4 Initialize the Ensemble grid
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
-  call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1, &
-                        copyToRamDisk_opt=.false. )
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile( vco_ens, ensFileName )
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = 1, &
+                       copyToRamDisk_opt = .false. )
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
   end if
@@ -430,8 +430,8 @@ program midas_letkf
   !- 2.5 Read in the observations and other obs-related set up
 
   ! Read the observations
-  call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode,  &
-                     obsClean_opt = .false. )
+  call inn_setupObs(obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode, &
+                    obsClean_opt = .false.)
 
   ! Initialize obs error covariances and set flag using 'util' column of stats_tovs
   call oer_setObsErrors(obsSpaceData, midasMode, useTovsUtil_opt=.true.) ! IN
@@ -441,9 +441,9 @@ program midas_letkf
 
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
-  if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
+  if (outputEnsObs) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
-  if ( useModulatedEns ) then
+  if (useModulatedEns) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
     call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
@@ -454,7 +454,7 @@ program midas_letkf
 
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs(ensObs)
-  if ( useModulatedEns ) call eob_setLatLonObs(ensObsGain)
+  if (useModulatedEns) call eob_setLatLonObs(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -465,80 +465,84 @@ program midas_letkf
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.7 Read the sfc height from ensemble member 1 - only if we are doing NWP
-  if ( nwpFields ) then
-    call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
-    call gio_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                           containsFullField_opt=.true., readHeightSfc_opt=.true. )
+  if (nwpFields) then
+    call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, &
+                      dateStamp_opt = tim_getDateStamp(),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                      varNames_opt=(/'P0', 'TT'/))
+    call gio_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
   end if
 
   !- 2.8 Allocate statevector related to ensemble mean
-  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_allocate(stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt = tim_getDateStamp(),  &
+                    mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                    dataKind_opt = 4, allocHeightSfc_opt=.true., &
+                    allocHeight_opt = .false., allocPressure_opt=.false.)
   call gsv_zero(stateVectorMeanTrl4D)
-  call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_allocate(stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                    dateStamp_opt = tim_getDateStamp(),  &
+                    mpi_local_opt = .true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                    allocHeight_opt = .false., allocPressure_opt = .false.)
   call gsv_zero(stateVectorMeanAnl)
-  call gsv_allocate( stateVector4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
+  call gsv_allocate(stateVector4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt = tim_getDateStamp(),  &
+                    mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                    dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                    allocHeight_opt = .false., allocPressure_opt = .false.)
   call gsv_zero(stateVector4D)
-  if ( useModulatedEns ) then
+  if (useModulatedEns) then
     ! same as stateVector4D
-    call gsv_allocate( stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_allocate(stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
+                      dateStamp_opt = tim_getDateStamp(),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVector4Dmod)
   end if
 
   !- 2.9 Allocate statevector related to an analysis ensemble member  
-  call gsv_allocate( stateVectorMemberAnl, tim_nstepobsinc, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. )
+  call gsv_allocate(stateVectorMemberAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                    dateStamp_opt = tim_getDateStamp(),  &
+                    mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                    dataKind_opt = 4, allocHeightSfc_opt = .true.)
   call gsv_zero(stateVectorMemberAnl)
   
   !- 2.10 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
-  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. )
+  call gsv_allocate(stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt = tim_getDateStamp(),  &
+                    mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                    dataKind_opt = 4, allocHeightSfc_opt = .true. )
   call gsv_zero(stateVectorWithZandP4D)
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
-                        ignoreDate_opt=ignoreEnsDate)
+  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic = .false., &
+                        ignoreDate_opt = ignoreEnsDate)
   call utl_tmg_stop(2)
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
-    call gsv_allocate( stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.false., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_allocate(stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
+                      dateStamp_opt = tim_getDateStamp(),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      dataKind_opt = 4, allocHeightSfc_opt = .false., &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorRecenter)
-    call fln_ensTrlFileName( recenterFileName, './', tim_getDateStamp() )
+    
+    call fln_ensTrlFileName(recenterFileName, './', tim_getDateStamp())
+
     do stepIndex = 1, tim_nstepobs
-      call gio_readFromFile( stateVectorRecenter, recenterFileName, ' ', ' ',  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                             readHeightSfc_opt=.false. )
+      call gio_readFromFile(stateVectorRecenter, recenterFileName, ' ', ' ',  &
+                            stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                            readHeightSfc_opt = .false.)
     end do
-    call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt=1.0d0 )
-    call gsv_deallocate( stateVectorRecenter )
+    call ens_recenter(ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt = 1.0d0)
+    call gsv_deallocate(stateVectorRecenter)
   end if
   
   !- 2.13 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
@@ -555,11 +559,11 @@ program midas_letkf
   !
 
   !- 3.1 Loop over all members and compute HX for each
-  if ( readEnsObsFromFile ) then
+  if (readEnsObsFromFile) then
     call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
-    if ( useModulatedEns ) then
-      call enkf_setupModulationFactor(stateVectorMeanTrl4D%vco, numRetainedEigen, nEns, vLocalize, &
-                                      beSilent=.true.)
+    if (useModulatedEns) then
+      call enkf_setupModulationFactor(stateVectorMeanTrl4D%vco, numRetainedEigen, &
+                                      nEns, vLocalize, beSilent=.true.)
 
       ! refresh assimilation flag before reading the files
       call eob_setAssFlag(ensObsGain)
@@ -574,7 +578,7 @@ program midas_letkf
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
-      call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+      call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt = .true., &
                     beSilent_opt=.true.)
 
       ! copy the surface height field
@@ -583,9 +587,9 @@ program midas_letkf
       end if
 
       ! Compute and set Yb in ensObs
-      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                  timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                  beSilent_opt=.true. )
+      call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                  timeInterpType=obsTimeInterpType, dealloc_opt = .false., &
+                  beSilent_opt=.true.)
 
       ! Compute Y-H(X) in OBS_OMP
       call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
@@ -595,34 +599,34 @@ program midas_letkf
 
       ! Compute and set Yb in ensObsGain
       do eigenVectorIndex = 1, numRetainedEigen
-        if ( mmpi_myid == 0 .and. debug ) then
+        if (mmpi_myid == 0 .and. debug) then
           write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
-                    eigenVectorIndex, '/', numRetainedEigen
+                     eigenVectorIndex, '/', numRetainedEigen
         end if
 
         ! modulate the member with eigenvectors of vertical localization matrix
-        call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
+        call enkf_getModulatedState(stateVector4D, stateVectorMeanTrl4D, &
                                     vLocalize, numRetainedEigen, nEns, &
                                     eigenVectorIndex, stateVector4Dmod, &
                                     beSilent=.true. )
-        if ( debug ) then
-          call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
+        if (debug) then
+          call gsv_getField(stateVector4Dmod,field_Psfc, 'P0')
           write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
                     ', min(Psfc)=', minval(field_Psfc)
         end if
 
-        call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+        call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt = .true., &
                       beSilent_opt=.true.)
         if (nwpFields) then
           call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
         end if
-        call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+        call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                     timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                    beSilent_opt=.true. )
+                    beSilent_opt=.true.)
 
         ! Compute Y-H(X) in OBS_OMP
-        call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
-                                    beSilent_opt=.true. )
+        call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt = .false., &
+                                   beSilent_opt=.true. )
 
         ! Copy to ensObsGain: Y-HX for this member
         memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
@@ -631,15 +635,15 @@ program midas_letkf
 
     end do ! memberIndex
   end if
-  if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
+  if (gsv_isAllocated(stateVector4Dmod)) call gsv_deallocate(stateVector4Dmod)
 
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
     call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
-      call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
-                            numGroupsToDivideMembers_opt=numRetainedEigen, &
-                            maxNumMembersPerGroup_opt=nEns)
+      call eob_writeToFiles(ensObsGain, outputFilenamePrefix = 'eobGain_HX', writeObsInfo=.false., &
+                            numGroupsToDivideMembers_opt = numRetainedEigen, &
+                            maxNumMembersPerGroup_opt = nEns)
     end if
   end if
 
@@ -648,11 +652,11 @@ program midas_letkf
 
   ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
-  if ( useModulatedEns ) call eob_calcAndRemoveMeanYb(ensObsGain)
+  if (useModulatedEns) call eob_calcAndRemoveMeanYb(ensObsGain)
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
-  if ( useModulatedEns ) call eob_setHPHT(ensObsGain)
+  if (useModulatedEns) call eob_setHPHT(ensObsGain)
 
   ! Compute random observation perturbations
   if (trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -668,14 +672,14 @@ program midas_letkf
   if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
-  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-               timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+  call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+              timeInterpType=obsTimeInterpType, dealloc_opt=.false.)
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setVertLocation
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
-  if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
+  if (useModulatedEns) call eob_setMeanOMP(ensObsGain)
 
   ! Set y for family of interest to mean(H(x)) if doing simulated observations
   call eob_setSimObsVal(ensObs)
@@ -684,13 +688,13 @@ program midas_letkf
   if (vLocalize > 0.0d0) then
     if (nwpFields) then
       call eob_setTypeVertCoord(ensObs,'logPressure')
-      if ( useModulatedEns ) call eob_setTypeVertCoord(ensObsGain,'logPressure')
+      if (useModulatedEns) call eob_setTypeVertCoord(ensObsGain,'logPressure')
     else if (oceanFields) then
       call eob_setTypeVertCoord(ensObs,'depth')
-      if ( useModulatedEns ) call eob_setTypeVertCoord(ensObsGain,'depth')
+      if (useModulatedEns) call eob_setTypeVertCoord(ensObsGain,'depth')
     end if
     call eob_setVertLocation(ensObs, column)
-    if ( useModulatedEns ) call eob_setVertLocation(ensObsGain, column)
+    if (useModulatedEns) call eob_setVertLocation(ensObsGain, column)
   end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
@@ -719,7 +723,7 @@ program midas_letkf
 
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
-  if ( useModulatedEns ) call eob_setObsErrInv(ensObsGain)
+  if (useModulatedEns) call eob_setObsErrInv(ensObsGain)
 
   call utl_tmg_start(141,'----Barr')
   call rpn_comm_barrier('GRID',ierr)
@@ -727,7 +731,7 @@ program midas_letkf
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
-  if ( useModulatedEns ) then
+  if (useModulatedEns) then
     allocate(ensObsGain_mpiglobal)
     call eob_allGather(ensObsGain,ensObsGain_mpiglobal)
   else
@@ -736,7 +740,7 @@ program midas_letkf
 
   ! Print number of assimilated obs per family to the listing
   write(*,*) 'oti_timeBinning: After extra filtering done in midas-letkf'
-  call oti_timeBinning(obsSpaceData,tim_nstepobs)
+  call oti_timeBinning(obsSpaceData, tim_nstepobs)
 
   !
   !- 4. Final preparations for computing analyses
@@ -746,7 +750,7 @@ program midas_letkf
   if (tim_nstepobsinc < tim_nstepobs) then
     allocate(ensembleTrl)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
-    call ens_copy4Dto3D(ensembleTrl4D,ensembleTrl)
+    call ens_copy4Dto3D(ensembleTrl4D, ensembleTrl)
     call ens_deallocate(ensembleTrl4D)
   else
     ! number of timesteps is the same, so just point to it
@@ -776,7 +780,7 @@ program midas_letkf
                           mpiDistribution, numRetainedEigen)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
-  if ( outputEnsObs ) then
+  if (outputEnsObs) then
   
     do memberIndex = 1, nEns
 
@@ -790,7 +794,8 @@ program midas_letkf
       if (tim_nstepobsinc < tim_nstepobs) then
         ! ensembleAnl is only 3D, so need to make 4D for s2c_nl
         middleStepIndex = (tim_nstepobs + 1) / 2
-        call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
+        call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, &
+                      allowVarMismatch_opt = .true., stepIndexOut_opt = middleStepIndex)
         call gsv_3dto4d(stateVectorWithZandP4D)
       else
         call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
@@ -801,8 +806,8 @@ program midas_letkf
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
       end if  
       
-      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                   timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+      call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                  timeInterpType = obsTimeInterpType, dealloc_opt=.false.)
 
       ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
       call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMAM, beSilent_opt=.true., &
@@ -824,49 +829,50 @@ program midas_letkf
   if (tim_nstepobsinc < tim_nstepobs) then
     ! meanAnl is only 3D, so need to make 4D for s2c_nl
     middleStepIndex = (tim_nstepobs + 1) / 2
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, &
+                  allowVarMismatch_opt = .true., stepIndexOut_opt = middleStepIndex)
     call gsv_3dto4d(stateVectorWithZandP4D)
   else
-    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
+    call gsv_copy(stateVectorMeanAnl, stateVectorWithZandP4D, allowVarMismatch_opt = .true.)
   end if
   if (nwpFields) then
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
-  call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-               timeInterpType=obsTimeInterpType )
-  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
+  call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+              timeInterpType = obsTimeInterpType )
+  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, beSilent_opt = .false.)
   
   ! Write (update) observation files. 
   if (outputEnsObs) then
-    call obsf_writeFiles( obsSpaceData, ensObs_opt=ensObs)
+    call obsf_writeFiles(obsSpaceData, ensObs_opt=ensObs)
   else
-    call obsf_writeFiles( obsSpaceData)
+    call obsf_writeFiles(obsSpaceData)
   end if
   
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)
-    call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_allocate(stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                      dateStamp_opt = tim_getDateStamp(),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
     if (recenterInputEns) then
       !- Use the deterministic trial, if we are recentering the input ensemble
       ctrlFileName = trim(recenterFileName)
     else
       !- Otherwise, use member 0000
-      call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt=0, &
-                           copyToRamDisk_opt=.false.)
+      call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt = 0, &
+                           copyToRamDisk_opt = .false.)
     end if
     do stepIndex = 1, tim_nstepobsinc
-      call gio_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                             readHeightSfc_opt=.false. )
+      call gio_readFromFile(stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+                            stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                            readHeightSfc_opt = .false.)
     end do
 
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
-                         writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
+                         writeTrlEnsemble = .false., outputOnlyEnsMean_opt = outputOnlyEnsMean)
   else
     !- Just write the raw analysis ensemble to files
     if (mmpi_myid == 0) then
@@ -875,8 +881,8 @@ program midas_letkf
     call utl_tmg_start(3,'--WriteEnsemble')
     if (.not. outputOnlyEnsMean) then
       call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
-                             numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                             containsFullField_opt=.true.)
+                             numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                             containsFullField_opt = .true.)
     end if
     call utl_tmg_stop(3)
 
@@ -893,8 +899,8 @@ program midas_letkf
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
-  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if (mmpi_myid == 0) write(*,*) ' --------------------------------'
+  if (mmpi_myid == 0) write(*,*) ' MIDAS-LETKF ENDS'
+  if (mmpi_myid == 0) write(*,*) ' --------------------------------'
 
 end program midas_letkf
