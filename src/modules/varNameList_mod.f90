@@ -598,7 +598,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
    ! vnl_varNamesFromExistList
    !--------------------------------------------------------------------------
-    subroutine vnl_varNamesFromExistList(varNames,varExistList)
+    subroutine vnl_varNamesFromExistList(varNames, varExistList)
       !
       ! :Purpose: To get variable names from the variable existList 
       !
@@ -606,8 +606,8 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      logical,                   intent(in)  :: varExistList(:)
-      character(len=4), pointer, intent(out) :: varNames(:)
+      logical,                   intent(in)  :: varExistList(:) ! a logical switch for the current variable 
+      character(len=4), pointer, intent(out) :: varNames(:)     ! variable names
 
       ! Local:
       integer :: varIndex, numFound
@@ -618,13 +618,13 @@ module varNameList_mod
 
       numFound = 0
       do varIndex = 1, vnl_numvarmax
-        if ( varExistList(varIndex) ) numFound = numFound + 1
+        if (varExistList(varIndex)) numFound = numFound + 1
       end do
       allocate(varNames(numFound))
 
       numFound = 0
       do varIndex = 1, vnl_numvarmax
-        if ( varExistList(varIndex) ) then
+        if (varExistList(varIndex)) then
           numFound = numFound + 1
           varNames(numFound) = vnl_varNameList(varIndex)
         end if
@@ -780,15 +780,16 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     ! vnl_addToVarNames
     !--------------------------------------------------------------------------
-    function vnl_addToVarNames(varNamesIn,varNameToAdd) result(varNamesOut)
+    function vnl_addToVarNames(varNamesIn, varNameToAdd) result(varNamesOut)
       !
       ! :Purpose: Add an additional varName to an existing list of varNames
       !
       implicit none
 
       ! Arguments:
-      character(len=*),  intent(in) :: varNamesIn(:)
-      character(len=*),  intent(in) :: varNameToAdd
+      character(len=*),  intent(in) :: varNamesIn(:) ! input variable names
+      character(len=*),  intent(in) :: varNameToAdd  ! variable name to add to the list of existing variables
+
       ! Result:
       character(len=4), pointer     :: varNamesOut(:)
 
@@ -813,20 +814,22 @@ module varNameList_mod
       !
       implicit none
 
-      ! arguments:
-      character(len=*), intent(in) :: varName
-      character(len=*), optional, intent(in) :: fileName_opt
-      integer, optional, intent(in) :: fileUnit_opt
-      character(len=*), optional, intent(in) :: typvar_opt
-      logical :: found
+      ! Arguments:
+      character(len=*), intent(in)           :: varName      ! variable name
+      character(len=*), intent(in), optional :: fileName_opt ! file name
+      integer         , intent(in), optional :: fileUnit_opt ! file unit
+      character(len=*), intent(in), optional :: typvar_opt   ! typvar used for RPN standard files
 
-      ! locals:
+      ! Result:
+      logical                                :: found        ! true if variable name is found, false, the converse
+
+      ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
       integer :: unit, varID
       character(len=128) :: fileName
       character(len=2)   :: typvar
-      logical :: openFile
+      logical            :: openFile
 
       if (present(fileUnit_opt)) then
         unit = fileUnit_opt
@@ -893,13 +896,15 @@ module varNameList_mod
     !----------------------------------------------------------------------
     function vnl_varNameNetCDF(varName) result(varNameNetCDF)
       !
-      ! :Purpose: Return the equivalent variable name used for NetCDF files.
-      !
+      ! :Purpose: Return the equivalent variable name used for netCDF files
+      !           in use by the NEMO ocean model.
       implicit none
   
       ! Arguments:
-      character(len=*), intent(in) :: varName
-      character(len=20)            :: varNameNetCDF
+      character(len=*), intent(in) :: varName       ! input MIDAS variable name
+      
+      ! Result:
+      character(len=20)            :: varNameNetCDF ! variable name used for NEMO netCDF files
 
       select case(trim(varName))
       case('SSH')

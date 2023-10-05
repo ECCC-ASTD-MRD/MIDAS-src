@@ -5,10 +5,6 @@ adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 
 #--------------------------------------
 
-advector.Abs: LIBAPPL = $(HDF5_LIBS) $(VGRID_LIBNAME) irc $(MPILIB) random
-
-#--------------------------------------
-
 analysisErrorOI.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random

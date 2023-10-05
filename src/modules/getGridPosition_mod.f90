@@ -246,7 +246,7 @@ contains
     real(4), intent(in)  :: lat_deg_r4
     real(4), intent(in)  :: lon_deg_r4
     real(4), intent(out) :: xpos_r4    ! the x-position in the grid units, in[1,ni]
-    real(4), intent(out) :: ypos_r4    ! the x-position in the grid units, in[1,nj]
+    real(4), intent(out) :: ypos_r4    ! the y-position in the grid units, in[1,nj]
     ! Result:
     integer :: ierr  ! returned value of function
 
@@ -528,7 +528,6 @@ contains
           xpos_r4 = -999.0
           ypos_r4 = -999.0
           return
-          !call utl_abort('gpos_xyfll_unstructGrid: 3. the reference point is outside the grid.')
         end if
       end if
 
@@ -564,7 +563,6 @@ contains
         xpos_r4 = -999.0
         ypos_r4 = -999.0
         return
-        !call utl_abort('gpos_xyfll_unstructGrid: 4. the reference point is outside the grid.')
       end if
 
     end if
@@ -634,7 +632,6 @@ contains
                  grid_lat_rad(xIndexMax, yIndexMax + 1) * MPC_DEGREES_PER_RADIAN_R8
       write(*,*) xIndexMax + 1, yIndexMax + 1, grid_lon_rad(xIndexMax + 1, yIndexMax + 1) * MPC_DEGREES_PER_RADIAN_R8, &
                  grid_lat_rad(xIndexMax + 1, yIndexMax + 1) * MPC_DEGREES_PER_RADIAN_R8
-      !call utl_abort('gpos_xyfll_unstructGrid: Check code!')
     end if
 
   end function gpos_xyfll_unstructGrid

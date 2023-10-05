@@ -521,23 +521,22 @@ module gridStateVectorFileIO_mod
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv),  intent(inout) :: statevector
-    character(len=*),  intent(in)    :: fileName
-    character(len=*),  intent(in)    :: etiket_in
-    character(len=*),  intent(in)    :: typvar_in
-    logical,           intent(in)    :: containsFullField
-    logical, optional, intent(in)    :: readHeightSfc_opt
-    integer, optional, intent(in)    :: stepIndex_opt
-    logical, optional, intent(in)    :: ignoreDate_opt
+    ! Arguments:
+    type(struct_gsv),  intent(inout) :: statevector       ! state vector structure
+    character(len=*),  intent(in)    :: fileName          ! file name
+    character(len=*),  intent(in)    :: etiket_in         ! RPN standard file etiket
+    character(len=*),  intent(in)    :: typvar_in         ! RPN standard file type of variable
+    logical,           intent(in)    :: containsFullField ! RPN standard file switch
+    logical, optional, intent(in)    :: readHeightSfc_opt ! RPN standard file switch
+    integer, optional, intent(in)    :: stepIndex_opt     ! step index defining in the time dimension of the input fields
+    logical, optional, intent(in)    :: ignoreDate_opt    ! RPN standard file option
 
     if (trim(utl_fileType(trim(fileName))) == 'FST') then
       call gio_readFileFst(statevector, filename, etiket_in, typvar_in, &
                            containsFullField, readHeightSfc_opt, stepIndex_opt, &
                            ignoreDate_opt)
     else
-      call gio_readFileNetCDF(statevector, filename, stepIndex_opt, &
-                              ignoreDate_opt)
+      call gio_readFileNetCDF(statevector, filename, stepIndex_opt)
     end if
     
   end subroutine gio_readFile
@@ -545,22 +544,20 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_readFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_readFileNetCDF(statevector, filename, stepIndex_opt, &
-                                ignoreDate_opt)
+  subroutine gio_readFileNetCDF(statevector, filename, stepIndex_opt)
     !
     ! :Purpose: Read a NetCDF file and put the contents into a stateVector
-    !           object.  Low level subroutine that does the actual file reading.
+    !           object. Low level subroutine that does the actual file reading.
     !           Only ocean fields on depth levels are supported.
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv),  intent(inout) :: statevector
-    character(len=*),  intent(in)    :: fileName
-    integer, optional, intent(in)    :: stepIndex_opt
-    logical, optional, intent(in)    :: ignoreDate_opt
+    ! Arguments:
+    type(struct_gsv),  intent(inout) :: statevector   ! state vector structure
+    character(len=*),  intent(in)    :: fileName      ! input netCDF file name
+    integer, optional, intent(in)    :: stepIndex_opt ! step index defining in the time dimension of the input fields
 
-    ! locals
+    ! Locals:
     integer :: nulfile, ierr, numLevVar
     integer :: kIndex, stepIndex, stepIndexBeg, stepIndexEnd, ni, nj
     integer :: levIndex, varID
@@ -570,13 +567,13 @@ module gridStateVectorFileIO_mod
 
     write(*,*) 'gio_readFileNetCDF: Start'
 
-    if ( statevector%mpi_distribution /= 'VarsLevs' .and. &
-         statevector%mpi_local ) then
+    if (statevector%mpi_distribution /= 'VarsLevs' .and. &
+        statevector%mpi_local ) then
       call utl_abort('gio_readFileFst: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
 
-    if ( present(stepIndex_opt) ) then
+    if (present(stepIndex_opt)) then
       stepIndexBeg = stepIndex_opt
       stepIndexEnd = stepIndex_opt
     else
@@ -593,15 +590,15 @@ module gridStateVectorFileIO_mod
     allocate(fileField2D(ni, nj, 1, 1))
 
     ! Open the file
-    ierr = nf90_open(trim(filename), NF90_NOWRITE, nulfile)
+    ierr = nf90_open(trim(filename), nf90_nowrite, nulfile)
 
     ! Read all fields needed for this MPI task
-    call gsv_getField(statevector,field_r4_ptr)
+    call gsv_getField(statevector, field_r4_ptr)
     do stepIndex = stepIndexBeg, stepIndexEnd
       k_loop: do kIndex = statevector%mykBeg, statevector%mykEnd
-        varName = gsv_getVarNameFromK(statevector,kIndex)
-        levIndex = gsv_getLevFromK(statevector,kIndex)
-        if (.not.gsv_varExist(statevector,varName)) cycle k_loop
+        varName = gsv_getVarNameFromK(statevector, kIndex)
+        levIndex = gsv_getLevFromK(statevector, kIndex)
+        if (.not.gsv_varExist(statevector, varName)) cycle k_loop
 
         numLevVar = gsv_getNumLevFromVarName(statevector,varName)
         write(*,*) 'gio_readFileNetCDF: reading varName, levIndex, numLev = ', &
@@ -624,7 +621,7 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFileNetCDF: could not read field from NetCDF file')
         end if
         write(*,*) 'min/maxval = ', minval(fileField2D), maxval(fileField2D)
-        field_r4_ptr(:,:,kIndex,stepIndex) = fileField2D(:,:,1,1)
+        field_r4_ptr(:,:, kIndex, stepIndex) = fileField2D(:,:,1,1)
       end do k_loop
     end do
 

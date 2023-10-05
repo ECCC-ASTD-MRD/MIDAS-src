@@ -6,7 +6,6 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
-  use netcdf
   
   implicit none
   save
@@ -1482,90 +1481,6 @@ contains
     end if
 
   end subroutine utl_checkAllocationStatus
-
-
-  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
-    !
-    !:Purpose: Determine if a given variable name is present within a file.
-    !          This function supports both "standard" files and NetCDF files.
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*),           intent(in) :: varName
-    character(len=*), optional, intent(in) :: fileName_opt
-    integer,          optional, intent(in) :: fileUnit_opt
-    character(len=*), optional, intent(in) :: typvar_opt
-    ! Result:
-    logical :: found
-
-    ! Locals:
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf
-    integer :: ni, nj, nk, key, ierr
-    integer :: unit, varID
-    character(len=128) :: fileName
-    character(len=2)   :: typvar
-    logical :: openFile
-
-    if ( present(fileUnit_opt) ) then
-      unit = fileUnit_opt
-      openFile = .false.
-    else
-      unit = 0
-      openFile = .true.
-      if ( present(fileName_opt) ) then
-        fileName = fileName_opt
-      else
-        call utl_abort('utl_varNamePresentInFile: please provide and file name or unit')
-      end if
-    end if
-
-    if ( present(typvar_opt) ) then
-      typvar = trim(typvar_opt)
-    else
-      typvar = ' '
-    end if
-
-    if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
-
-      if (openFile) then
-        ierr = nf90_open(fileName, NF90_NOWRITE, unit)
-      end if
-
-      ierr = nf90_inq_varid(unit, trim(varName), varID)
-      if (ierr == nf90_NoErr) then
-        found = .true.
-      else
-        found = .false.
-      end if
-
-      if (openFile) then
-        ierr = nf90_close(unit)
-      end if
-
-    else ! assume standard file
-
-      if (openFile) then
-        ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
-        ierr = fstouv(unit,'RND+OLD')
-      end if
-
-      key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
-    
-      if ( key > 0 )  then
-        found = .true.
-      else
-        found = .false.
-      end if
-
-      if (openFile) then
-        ierr =  fstfrm(unit)
-        ierr =  fclos (unit)
-      end if
-
-    end if
-
-  end function utl_varNamePresentInFile
 
 
   function utl_fileType(fileName_opt) result(fileType)
