@@ -263,7 +263,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_varExist
   !--------------------------------------------------------------------------
-  recursive function gsv_varExist(statevector_opt,varName) result(varExist)
+  recursive function gsv_varExist(statevector_opt, varName) result(varExist)
     !
     ! :Purpose: Boolean fonction returning .true. if the queried variable
     !           exists in the statevector if provided or in the global variable

@@ -305,13 +305,13 @@ contains
         write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable = ', varNameForDate
       
       ! If P0 not present, look for another suitable variable in the file
-      else if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) then
+      else if (.not. vnl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) then
       
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varNameForDate = vnl_varNameList(varIndex)
           ! check if variable is in the file
-          if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) cycle
+          if (.not. vnl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) cycle
           foundVarNameInFile = .true.
           exit      
         end do

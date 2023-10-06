@@ -11,6 +11,7 @@ module oceanMask_mod
   use kdTree2_mod
   use horizontalCoord_mod
   use verticalCoord_mod
+  use varNameList_mod
   use utilities_mod
   implicit none
   save
@@ -61,7 +62,7 @@ module oceanMask_mod
     integer :: maxkeys
 
     ! Check if any mask is present in file, return if not
-    if ( .not. utl_varNamePresentInFile(' ',fileName_opt=trim(fileName),typvar_opt='@@') ) then
+    if ( .not. vnl_varNamePresentInFile(' ',fileName_opt=trim(fileName),typvar_opt='@@') ) then
       return
     end if
 

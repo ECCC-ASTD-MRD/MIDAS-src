@@ -10,6 +10,7 @@ module varNameList_mod
   use midasMpi_mod
   use utilities_mod
   use MathPhysConstants_mod
+  use netcdf
 
   implicit none
   save
@@ -28,6 +29,7 @@ module varNameList_mod
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
   public :: vnl_isPhysicsVar, vnl_isCloudVar
   public :: vnl_addToVarNames
+  public :: vnl_varNamePresentInFile, vnl_varNameNetCDF
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
@@ -596,7 +598,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
    ! vnl_varNamesFromExistList
    !--------------------------------------------------------------------------
-    subroutine vnl_varNamesFromExistList(varNames,varExistList)
+    subroutine vnl_varNamesFromExistList(varNames, varExistList)
       !
       ! :Purpose: To get variable names from the variable existList 
       !
@@ -604,8 +606,8 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      logical,                   intent(in)  :: varExistList(:)
-      character(len=4), pointer, intent(out) :: varNames(:)
+      logical,                   intent(in)  :: varExistList(:) ! a logical switch for the current variable 
+      character(len=4), pointer, intent(out) :: varNames(:)     ! variable names
 
       ! Local:
       integer :: varIndex, numFound
@@ -616,13 +618,13 @@ module varNameList_mod
 
       numFound = 0
       do varIndex = 1, vnl_numvarmax
-        if ( varExistList(varIndex) ) numFound = numFound + 1
+        if (varExistList(varIndex)) numFound = numFound + 1
       end do
       allocate(varNames(numFound))
 
       numFound = 0
       do varIndex = 1, vnl_numvarmax
-        if ( varExistList(varIndex) ) then
+        if (varExistList(varIndex)) then
           numFound = numFound + 1
           varNames(numFound) = vnl_varNameList(varIndex)
         end if
@@ -778,15 +780,16 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     ! vnl_addToVarNames
     !--------------------------------------------------------------------------
-    function vnl_addToVarNames(varNamesIn,varNameToAdd) result(varNamesOut)
+    function vnl_addToVarNames(varNamesIn, varNameToAdd) result(varNamesOut)
       !
       ! :Purpose: Add an additional varName to an existing list of varNames
       !
       implicit none
 
       ! Arguments:
-      character(len=*),  intent(in) :: varNamesIn(:)
-      character(len=*),  intent(in) :: varNameToAdd
+      character(len=*),  intent(in) :: varNamesIn(:) ! input variable names
+      character(len=*),  intent(in) :: varNameToAdd  ! variable name to add to the list of existing variables
+
       ! Result:
       character(len=4), pointer     :: varNamesOut(:)
 
@@ -800,5 +803,125 @@ module varNameList_mod
       varNamesOut(lenVarNames+1) = varNameToAdd
 
     end function vnl_addToVarNames
+
+    !-----------------------------------------------------------------------
+    ! vnl_varNamePresentInFile
+    !----------------------------------------------------------------------
+    function vnl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+      !
+      !:Purpose: Determine if a given variable name is present within a file.
+      !          This function supports both "standard" files and NetCDF files.
+      !
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in)           :: varName      ! variable name
+      character(len=*), intent(in), optional :: fileName_opt ! file name
+      integer         , intent(in), optional :: fileUnit_opt ! file unit
+      character(len=*), intent(in), optional :: typvar_opt   ! typvar used for RPN standard files
+
+      ! Result:
+      logical                                :: found        ! true if variable name is found, false, the converse
+
+      ! Locals:
+      integer :: fnom, fstouv, fstfrm, fclos, fstinf
+      integer :: ni, nj, nk, key, ierr
+      integer :: unit, varID
+      character(len=128) :: fileName
+      character(len=2)   :: typvar
+      logical            :: openFile
+
+      if (present(fileUnit_opt)) then
+        unit = fileUnit_opt
+        openFile = .false.
+      else
+        unit = 0
+        openFile = .true.
+        if (present(fileName_opt)) then
+          fileName = fileName_opt
+        else
+          call utl_abort('vnl_varNamePresentInFile: please provide and file name or unit')
+        end if
+      end if
+
+      if (present(typvar_opt)) then
+        typvar = trim(typvar_opt)
+      else
+        typvar = ' '
+      end if
+
+      if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
+
+        if (openFile) then
+          ierr = nf90_open(fileName, nf90_nowrite, unit)
+        end if
+
+        ierr = nf90_inq_varid(unit, trim(vnl_varNameNetCDF(varName)), varID)
+        if (ierr == nf90_noerr) then
+          found = .true.
+        else
+          found = .false.
+        end if
+
+        if (openFile) then
+          ierr = nf90_close(unit)
+        end if
+
+      else ! assume standard file
+
+        if (openFile) then
+          ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
+          ierr = fstouv(unit, 'RND+OLD')
+        end if
+
+        key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+    
+        if (key > 0)  then
+          found = .true.
+        else
+          found = .false.
+        end if
+
+        if (openFile) then
+          ierr =  fstfrm(unit)
+          ierr =  fclos (unit)
+        end if
+
+      end if
+
+    end function vnl_varNamePresentInFile
+
+    !-----------------------------------------------------------------------
+    ! vnl_varNameNetCDF
+    !----------------------------------------------------------------------
+    function vnl_varNameNetCDF(varName) result(varNameNetCDF)
+      !
+      ! :Purpose: Return the equivalent variable name used for netCDF files
+      !           in use by the NEMO ocean model.
+      implicit none
+  
+      ! Arguments:
+      character(len=*), intent(in) :: varName       ! input MIDAS variable name
+      
+      ! Result:
+      character(len=20)            :: varNameNetCDF ! variable name used for NEMO netCDF files
+
+      select case(trim(varName))
+      case('SSH')
+        varNameNetCDF = 'zos'
+      case('TM')
+        varNameNetCDF = 'toce'
+      case('SALW')
+        varNameNetCDF = 'soce'
+      case('UUW')
+        varNameNetCDF = 'uo'
+      case('VVW')
+        varNameNetCDF = 'vo'
+      case default
+        varNameNetCDF = trim(varName)
+        write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
+      end select
+  
+    end function vnl_varNameNetCDF
 
 end module varNameList_mod

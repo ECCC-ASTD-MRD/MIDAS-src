@@ -6,7 +6,7 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
-
+  
   implicit none
   save
   private
@@ -20,7 +20,6 @@ module utilities_mod
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
-  public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
@@ -28,6 +27,7 @@ module utilities_mod
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
+  public :: utl_fileType
 
   ! module interfaces
   ! -----------------
@@ -1483,63 +1483,48 @@ contains
   end subroutine utl_checkAllocationStatus
 
 
-  function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+  function utl_fileType(fileName_opt) result(fileType)
+    !
+    !:Purpose: Return a string that identifies the file type, relying mostly
+    !          on the `rmnlib` function `wkoffit`.
+    !
     implicit none
 
-    ! Arguments:
-    character(len=*),           intent(in) :: varName
+    ! arguments
     character(len=*), optional, intent(in) :: fileName_opt
-    integer,          optional, intent(in) :: fileUnit_opt
-    character(len=*), optional, intent(in) :: typvar_opt
-    ! Result:
-    logical :: found
+    ! output
+    character(len=20) :: fileType
 
-    ! Locals:
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf
-    integer :: ni, nj, nk, key, ierr
-    integer :: unit
-    character(len=128) :: fileName
-    character(len=2)   :: typvar
-    logical :: openFile
+    ! locals
+    integer :: wkoffit, typeCode
 
-    if ( present(fileUnit_opt) ) then
-      unit = fileUnit_opt
-      openFile = .false.
-    else
-      unit = 0
-      openFile = .true.
-      if ( present(fileName_opt) ) then
-        fileName = fileName_opt
+    ! Temporary fix for testing purposes
+    if (.not. present(fileName_opt)) then
+      fileType = 'FST'
+      return
+    end if
+
+    typeCode = wkoffit(trim(fileName_opt))
+    select case(typeCode)
+    case (1,2,3,33,34)
+      fileType = 'FST'
+    case (6)
+      fileType = 'BURP'
+    case (38)
+      fileType = 'NetCDF'
+    case default
+      ! check if filename contain '.nc' in case it is a new netCDF version
+      if (index(trim(fileName_opt),'.nc') /= 0) then
+        write(*,*) 'utl_fileType: assume NetCDF based on file name extension'
+        fileType = 'NetCDF'
       else
-        call utl_abort('utl_varNamePresentInFile: please provide and file name or unit')
+        write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
+        write(*,*) 'utl_fileType: wkoffit code = ', typeCode
+        call utl_abort('utl_fileType: unknown file type')
       end if
-    end if
+    end select
 
-    if ( present(typvar_opt) ) then
-      typvar = trim(typvar_opt)
-    else
-      typvar = ' '
-    end if
-
-    if (openFile) then
-      ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
-      ierr = fstouv(unit,'RND+OLD')
-    end if
-
-    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
-    
-    if ( key > 0 )  then
-      found = .true.
-    else
-      found = .false.
-    end if
-
-    if (openFile) then
-      ierr =  fstfrm(unit)
-      ierr =  fclos (unit)
-    end if
-
-  end function utl_varNamePresentInFile
+  end function utl_fileType
 
 
   subroutine utl_reAllocate_char_1d(array,dim1)
