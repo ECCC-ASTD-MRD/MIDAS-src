@@ -3478,6 +3478,13 @@ module gridStateVector_mod
       call msg_memUsage('gsv_transposeTilesToVarsLevs')
     end if
 
+    if (statevector_in%mpi_distribution == 'None' .and. &
+        statevector_out%mpi_distribution == 'None') then
+      write(*,*) 'gsv_transposeTilesToVarsLevs: Just copy non-MPI statevector'
+      call gsv_copy(statevector_in,statevector_out)
+      return
+    end if
+
     if (statevector_in%mpi_distribution /= 'Tiles') then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
     end if

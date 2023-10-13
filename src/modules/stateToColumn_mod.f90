@@ -1241,11 +1241,19 @@ contains
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
-    call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
-                       statevector%hco, statevector%vco,          &
-                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       dataKind_opt=gsv_getDataKind(statevector), &
-                       varNames_opt=varNames )
+    if (statevector%mpi_distribution == 'None') then
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.false., mpi_distribution_opt='None', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    else
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    end if
     deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
@@ -3702,7 +3710,7 @@ contains
   ! s2c_getWeightsAndGridPointIndexes
   ! -------------------------------------------------------------
   subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
-       interpWeight, latIndex, lonIndex, gridptCount)
+                                               interpWeight, latIndex, lonIndex, gridptCount)
     ! :Purpose: Returns the weights and grid point indexes for a single observation.
     !           
     !
