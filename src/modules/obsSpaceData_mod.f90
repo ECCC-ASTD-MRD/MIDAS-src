@@ -533,7 +533,7 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
    integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam
-   integer, parameter, public :: OBS_ELEV  = OBS_RANE +1 ! Surface Elevation
+   integer, parameter, public :: OBS_ELEV  = OBS_RANE +1 ! Model Surface Elevation
 
    ! the last column index for real header variables defined just above
    integer, parameter :: NHDR_REAL_END = OBS_ELEV 

@@ -3349,10 +3349,6 @@ contains
           end if
           call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
         end if
-
-        if (headerIndex > 0) then
-          call obs_headSet_r(obsSpaceData, OBS_ELEV, headerIndex,  tvs_profiles_nl(tovsIndex)%elevation)
-        end if
       end do
 
       !    Deallocate memory

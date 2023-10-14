@@ -325,7 +325,10 @@ program midas_var1D
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                 stateVectorTrialHighRes )
-                            
+  
+  ! Update model surface elevation into ObsSpaceData
+  call var1D_UpdateObsElevation(columnTrlOnTrlLev, obsSpaceData)
+
   ! Simulate the Background and Observation in idealized experiements
   if (simBgAndObs) then
     call col_setVco(columnTrlOnTrlLevTruth, col_getVco(columnTrlOnTrlLev))

@@ -20,7 +20,7 @@ module var1D_mod
 
   ! public procedures
   public :: var1D_Setup, var1D_Finalize
-  public :: var1D_transferColumnToYGrid
+  public :: var1D_transferColumnToYGrid, var1D_UpdateObsElevation
   ! public variables
   public :: var1D_validHeaderIndex, var1D_validHeaderCount
 
@@ -232,5 +232,43 @@ contains
     deallocate( var1D_validHeaderCountAllTasks )
 
   end subroutine var1D_transferColumnToYGrid
+
+  !--------------------------------------------------------------------------
+  ! var1D_UpdateObsElevation
+  !--------------------------------------------------------------------------
+  subroutine var1D_UpdateObsElevation(column, obsSpaceData)
+    !
+    !:Purpose: Update model surface eleveation into ObsSpaceData
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: column        ! Column state
+    type(struct_obs),        intent(inout) :: obsSpaceData  ! ObsSpacedata object
+
+    ! Locals:
+    integer :: columnIndex, headerIndex
+    real(8) :: elevation
+    integer :: ilowlvl_T, nlv_T
+
+    if (.not. obs_columnActive_RH(obsSpaceData, OBS_ELEV)) return
+
+    nlv_T = col_getNumLev(column,'TH')
+
+    if (  col_getPressure(column, 1, 1, 'TH') < col_getPressure(column, nlv_T, 1, 'TH') ) then
+      ilowlvl_T = nlv_T
+    else
+      ilowlvl_T = 1
+    end if
+
+    do columnIndex = 1, var1D_validHeaderCount
+      headerIndex = var1D_validHeaderIndex(columnIndex)
+      
+      elevation = 0.001d0 * col_getHeight(column, ilowlvl_T, headerIndex, 'TH') ! unit km
+      call obs_headSet_r(obsSpaceData, OBS_ELEV, headerIndex, elevation)
+      
+    end do
+
+  end subroutine var1D_UpdateObsElevation
 
 end module var1D_mod

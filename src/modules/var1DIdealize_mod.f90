@@ -433,7 +433,6 @@ module var1DIdealize_mod
 
     write(*,*) 'Finish var1DIdealize_simulateObservation'
   end subroutine var1DIdealize_simulateObservation
-
 end module var1DIdealize_mod
 
   
