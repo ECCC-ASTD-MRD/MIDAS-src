@@ -243,7 +243,6 @@ module rMatrix_mod
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
         write(*,*) index(:)
-        write(*,*) 'ZQ_Rcorr_inst', sensor_id, Rcorr_inst(sensor_id)%nchans, nsubset, Rcorr_inst(sensor_id)%listChans(:)
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
       R_tovs(indexTovs)%nchans = nsubset
@@ -561,7 +560,6 @@ module rMatrix_mod
               call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
 
-              !estR(sensorIndex)%listChans(assimChan) = channelNumber
               chanList(sensorIndex, assimChan) = channelNumber
             end if
 
@@ -591,24 +589,18 @@ module rMatrix_mod
     call rpn_comm_allgather(chanList, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', &
                             chanListAllTasks, tvs_nsensors * maxval(tvs_nchanMpiGlobal), 'MPI_INTEGER', 'GRID', ierr)
     deallocate(headerCount)
-    deallocate(chanList)
-
+    
     Sensor: do sensorIndex = 1, tvs_nsensors
       do taskIndex = 1, mmpi_nprocs
         if (headerCountAllTasks(sensorIndex, taskIndex) > 0) then
-          write(*,*) 'ZQ_chanListAllTask', sensorIndex, chanListAllTasks(sensorIndex, 1:tvs_nchanMpiGlobal(sensorIndex), taskIndex)
           estR(sensorIndex)%listChans(:) = chanListAllTasks(sensorIndex, 1:tvs_nchanMpiGlobal(sensorIndex), taskIndex)
-          write(*,*) 'ZQ estRChanList_beforeBcast', estR(sensorIndex)%listChans(:)
-          !call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', 0, 'GRID', ierr)
-          !write(*,*) 'ZQ estRChanList_beforeBcast', estR(sensorIndex)%listChans(:)
           cycle Sensor
         end if
       end do
     end do Sensor
+    deallocate(chanListAllTasks)
+    deallocate(chanList)
 
-    do sensorIndex = 1, tvs_nsensors
-      write(*,*) 'ZQ estRChanList_afterllop', estR(sensorIndex)%listChans(:)
-    end do
     ! Compute the mean of observation error and total profile count to all MPI tasks
     do sensorIndex = 1, tvs_nsensors
       headerCountMpiGlobal(sensorIndex) = sum(headerCountAllTasks(sensorIndex,:))
@@ -656,22 +648,6 @@ module rMatrix_mod
     end do
     deallocate(ObsErrSqrdMat)
     deallocate(meanObsErrMpiGlobal)
-
-    ! Broadcast estR(sensorIndex)%listChans from the first MPI task that has non-empty values
-    !Sensor: do sensorIndex = 1, tvs_nsensors
-    !  do taskIndex = 1, mmpi_nprocs
-    !    if (headerCountAllTasks(sensorIndex, taskIndex) > 0) then
-    !      call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', 0, 'GRID', ierr)
-    !      cycle Sensor
-    !    end if
-    !  end do
-    !end do Sensor
-    !do sensorIndex = 1, tvs_nsensors
-    !  if (headerCountAllTasks(sensorIndex, mmpi_myid +1) > 0) then
-    !    call rpn_comm_bcast(estR(sensorIndex)%listChans(:) , tvs_nchanMpiGlobal(sensorIndex), 'mpi_integer', mmpi_myid, 'GRID', ierr)
-    !  end if
-    !end do
-
     deallocate(headerCountAllTasks)
     deallocate(headerCountMpiGlobal)
 
@@ -747,10 +723,6 @@ module rMatrix_mod
       Rcorr_inst(sensorIndex)%Rmat = RCorr(sensorIndex)%Rmat
       Rcorr_inst(sensorIndex)%listChans = estR(sensorIndex)%listChans
       Rcorr_inst(sensorIndex)%nchans = estR(sensorIndex)%nchans
-      write(*,*) '------------------'
-      write(*,*) 'ZQ_tvs_ichanMpiGloba', tvs_ichanMpiGlobal(1:20,sensorIndex)
-      write(*,*) 'ZQ_estR(sensorIndex)%listChans(:)', sensorIndex, estR(sensorIndex)%listChans(:)
-      write(*,*) 'ZQ_Rcorr_inst', Rcorr_inst(sensorIndex)%listChans
     end do
 
     deallocate(obsErrStdev)
