@@ -170,14 +170,6 @@ module tovsNL_mod
   logical tvs_simEmissSeed                         ! Seed used to simulate surface emissivity
   integer tvs_maxSfcSenChan                        ! Highest peaking AMSUA channels to be considered to simulate surface meissivity (Idealized)
 
-  ! Emissivity Error Covariance Matrix Data
-  type tvs_Fmatrix
-    real(8), pointer     :: Fmat(:,:)=>null()
-    integer, pointer     :: listChans(:)=>null()
-    integer              :: nchans=0
-  end type tvs_Fmatrix
-  type(tvs_Fmatrix),target, allocatable  :: Fcorr_inst(:) ! non diagonal Correlation matrices for each instrument
-
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
@@ -5581,18 +5573,19 @@ contains
     real(8)              :: emissErrStdPerChan
     character (len=64)   :: filenameCorrEmiss
     integer              :: btIndex, profileIndex, sensorIndex
-    
+    real(8), allocatable :: emissErrCMat(:,:)
+    integer, allocatable :: chanListCMat(:)
+    integer              :: nchanCMat
     write(*,*) 'tvs_simulateEmissivity: STARTING'
 
     ! Read Surface Emissivity Error Stdev
     call tvs_readEmissError(emissChanList, emissStdErr, emissNumChan)
 
-    allocate(Fcorr_inst(1))
     filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
 
     ! Read Surface Emissivity Error Correlation Matrix
-    call tvs_readCEmissMatrixByFileName(filenameCorrEmiss, Fcorr_inst(1))
-
+    call tvs_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
+    
     ! Initialize random number generation for simulating surface emissivity
     call rng_setup(abs(tvs_simEmissSeed + (mmpi_myid * tvs_nsensors) + sensorId))
 
@@ -5645,7 +5638,8 @@ contains
 
       if (count > 0 .and. tovsIndex > 0) then 
         ! Generate the emissivity errors
-        call tvs_Fsqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count))
+        call tvs_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
+                       emissErrCMat, chanListCMat, nchanCMat)
 
         do obsIndex = 1, count
           ! Generate the simulated emissivity
@@ -5674,7 +5668,8 @@ contains
 
     end do PROFILE
 
-    deallocate(Fcorr_inst)
+    deallocate(emissErrCMat)
+    deallocate(chanListCMat)
     deallocate(emissChanList)
     deallocate(emissStdErr)
 
@@ -5741,19 +5736,21 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_readCEmissMatrixByFileName
   !--------------------------------------------------------------------------
-  subroutine tvs_readCEmissMatrixByFileName(infile, corrMat)
+  subroutine tvs_readCEmissMatrixByFileName(infile, corrMat, chanList, nchan)
     !
     !:Purpose:  Read surface emissivity error correlation file
     !
     implicit none
 
     ! Arguments:
-    character (len=*), intent(in)    :: infile          ! Name of input file
-    type(tvs_Fmatrix), intent(inout) :: corrMat         ! Correlation matrix structure
-    
+    character (len=*),    intent(in)  :: infile       ! Name of input file
+    real(8), allocatable, intent(out) :: corrMat(:,:) ! Emissivity Error Correlation matrix
+    integer, allocatable, intent(out) :: chanList(:)  ! Channel list
+    integer,              intent(out) :: nchan        ! Number of channels
+
     ! Locals:
     integer              :: chanIndex1, chanIndex2
-    integer              :: iunit, ierr, count, readChanIndex, numChan
+    integer              :: iunit, ierr, count, readChanIndex
     integer, external    :: fnom,fclos
     real(8)              :: tmpCor
     integer, allocatable :: index(:)
@@ -5767,28 +5764,26 @@ contains
 
     write(*,*) "tvs_readCEmissMatrixByFileName: Reading " // trim(infile)
     
-    read(iunit,*) numChan
+    read(iunit,*) nchan
   
-    allocate(index(numChan))
-    
-    corrMat%nchans = numChan
-    allocate(corrMat%Fmat(numChan, numChan))
-    allocate(corrMat%listChans(numChan))
-    corrMat%Fmat = 0.d0
+    allocate(index(nchan))
+    allocate(corrMat(nchan, nchan))
+    allocate(chanList(nchan))
+    corrMat= 0.d0
 
-    do chanIndex1 = 1, numChan
-      corrMat%Fmat(chanIndex1, chanIndex1) = 1.d0
+    do chanIndex1 = 1, nchan
+      corrMat(chanIndex1, chanIndex1) = 1.d0
     end do
     
     count = 0
     index = -1
-    do chanIndex1 = 1, numChan
+    do chanIndex1 = 1, nchan
       read(iunit,*) readChanIndex
       index(chanIndex1) = chanIndex1
-      corrMat%listChans(chanIndex1) = readChanIndex
+      chanList(chanIndex1) = readChanIndex
       count = count + 1
     end do
-    if (count /= numChan) then
+    if (count /= nchan) then
       write(*,*) "Warning: Missing information in " // trim(infile)
     end if
 
@@ -5796,8 +5791,8 @@ contains
       read(iunit, *, iostat=ierr) chanIndex1, chanIndex2, tmpCor
       if (ierr /= 0) exit
       if (index(chanIndex1) /= -1 .and. index(chanIndex2) /= -1) then
-        corrMat%Fmat(index(chanIndex1), index(chanIndex2)) = tmpCor
-        corrMat%Fmat(index(chanIndex2), index(chanIndex1)) = tmpCor
+        corrMat(index(chanIndex1), index(chanIndex2)) = tmpCor
+        corrMat(index(chanIndex2), index(chanIndex1)) = tmpCor
       end if
     end do
 
@@ -5807,9 +5802,9 @@ contains
   end subroutine tvs_readCEmissMatrixByFileName
 
   !--------------------------------------------------------------------------
-  ! tvs_Fsqrt
+  ! tvs_emissErrMatSqrt
   !--------------------------------------------------------------------------
-  subroutine tvs_Fsqrt(nsubset, obsIn, obsOut, list_sub, list_oer)
+  subroutine tvs_emissErrMatSqrt(nsubset, obsIn, obsOut, list_sub, list_oer, Cmat, chanList, nchan)
     !
     ! :Purpose: Apply the operator F**1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -5822,20 +5817,24 @@ contains
     integer, intent(in)  :: list_sub(nsubset) ! List of subset channels in F-matrix
     real(8), intent(in)  :: list_oer(nsubset) ! List of Emissivity Error Stdev
     real(8), intent(in)  :: obsIn(nsubset)    ! Sampling Perturbation
+    integer, intent(in)  :: nchan             ! Number of channels in correlation matrix
+    integer, intent(in)  :: chanList(nchan)   ! Channel list in correlation matrix
+    real(8), intent(in)  :: Cmat(nchan,nchan) ! Emissivity error correlation matrix
     real(8), intent(out) :: obsOut(nsubset)   ! Error Perturbation
+    
 
     ! Locals:
     real(8)               :: alpha, beta, variance
-    real(8), allocatable  :: Fsub(:,:)
+    real(8), allocatable  :: emissErrMat(:,:)
     integer               :: index(nsubset)
     integer               :: chanIndex1, chanIndex2
   
-    allocate(Fsub(nsubset, nsubset))
+    allocate(emissErrMat(nsubset, nsubset))
 
     index = -1
     do chanIndex1 = 1, nsubset
-      chanLoop: do chanIndex2 = 1, Fcorr_inst(1)%nchans
-        if (list_sub(chanIndex1) == Fcorr_inst(1)%listChans(chanIndex2)) then
+      chanLoop: do chanIndex2 = 1, nchan
+        if (list_sub(chanIndex1) == chanList(chanIndex2)) then
           index(chanIndex1) = chanIndex2
           exit chanLoop 
         end if
@@ -5846,28 +5845,28 @@ contains
       write(*,*) "Missing information for some channel !"
       write(*,*) list_sub(:)
       write(*,*) index(:)
-      call utl_abort('tvs_Fsqrt')
+      call utl_abort('tvs_emissErrMatSqrt')
     end if
 
     do chanIndex2 = 1, nsubset
       do chanIndex1 = 1, nsubset
         variance = list_oer(chanIndex1) * list_oer(chanIndex2)
-        Fsub(chanIndex1,chanIndex2) = variance * Fcorr_inst(1)%Fmat(index(chanIndex1), index(chanIndex2))
+        emissErrMat(chanIndex1,chanIndex2) = variance * Cmat(index(chanIndex1), index(chanIndex2))
       end do
     end do
 
     ! Calculation of F**1/2
-    call utl_matSqrt(Fsub, nsubset, 1.d0, .false.)
+    call utl_matSqrt(emissErrMat, nsubset, 1.d0, .false.)
 
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, Fsub, nsubset, obsIn, 1, beta, obsOut, 1)
+    call dsymv("L", nsubset, alpha, emissErrMat, nsubset, obsIn, 1, beta, obsOut, 1)
 
-    deallocate(Fsub)
+    deallocate(emissErrMat)
 
-  end subroutine tvs_Fsqrt
+  end subroutine tvs_emissErrMatSqrt
 
 end module tovsNL_mod
