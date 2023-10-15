@@ -169,7 +169,6 @@ module tovsNL_mod
   logical tvs_userDefinedIsAzimuthValid
   logical tvs_simEmissSeed                         ! Seed used to simulate surface emissivity
   integer tvs_maxSfcSenChan                        ! Highest peaking AMSUA channels to be considered to simulate surface meissivity (Idealized)
-  integer tvs_maxmWAtlasChan                       ! Highest peaking AMSUA channels in the mWAtlas
 
   ! Emissivity Error Covariance Matrix Data
   type tvs_Fmatrix
@@ -777,7 +776,6 @@ contains
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     integer :: simEmissSeed ! Seed to Random sampling for perturbing surface emissivity
     integer :: maxSfcSenChan ! Max AMSU-A channel to be considered surface sensitive
-    integer :: maxmWAtlasChan  ! Max AMSU-A channel in the emissivity atlas
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -788,7 +786,7 @@ contains
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
     namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs
-    namelist /NAMTOV/ simEmissSeed, maxSfcSenChan, maxmWAtlasChan
+    namelist /NAMTOV/ simEmissSeed, maxSfcSenChan
 
     ! return if the NAMTOV does not exist
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
@@ -823,8 +821,6 @@ contains
     mpiTask0ReadCoeffs = .true.
     simEmissSeed = MPC_missingValue_INT
     maxSfcSenChan = MPC_missingValue_INT
-    maxmWAtlasChan = MPC_missingValue_INT
-
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -868,8 +864,6 @@ contains
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
     tvs_simEmissSeed = simEmissSeed
     tvs_maxSfcSenChan = maxSfcSenChan
-    tvs_maxmWAtlasChan = maxmWAtlasChan
-
 
     !  1.4 Validate namelist values
     
@@ -2886,12 +2880,6 @@ contains
     allocate(sensorTovsIndexes(tvs_nobtov),stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
     
-    ! Initialize random number generation for simulating surface emissivity
-    ! used in tvs_simulateEmissivity
-    if (SimSfcEmiss) then
-      call rng_setup(abs(tvs_simEmissSeed + mmpi_myid))
-    end if
-
     !   1.1   Read surface information
     if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
 
@@ -5591,9 +5579,8 @@ contains
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:), list_btIndex(:)
     integer              :: headerIndex, bodyIndex, obsIndex, count, channelNumber, channelIndex, tovsIndex, matchChanIndex
     real(8)              :: emissErrStdPerChan
-    integer, parameter   :: chanOffSetAmsua = 27
     character (len=64)   :: filenameCorrEmiss
-    integer              :: btIndex, profileIndex
+    integer              :: btIndex, profileIndex, sensorIndex
     
     write(*,*) 'tvs_simulateEmissivity: STARTING'
 
@@ -5614,6 +5601,7 @@ contains
 
     PROFILE: do profileIndex = 1, size(sensorTovsIndexes)
       tovsIndex = sensorTovsIndexes(profileIndex)
+      sensorIndex = tvs_lsensor(tovsIndex)
       headerIndex = tvs_headerIndex(tovsIndex)
       if (headerIndex < 0) exit PROFILE
 
@@ -5636,11 +5624,11 @@ contains
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
           
-          if (channelNumber + chanOffSetAmsua <= tvs_maxSfcSenChan) then
+          if (channelNumber + tvs_channelOffset(sensorIndex) <= tvs_maxSfcSenChan) then
             count = count + 1
 
             ! Match tvs_channelnumber with the channel index in emissivity error std file
-            matchChanIndex = FINDLOC(emissChanList, channelNumber + chanOffSetAmsua, dim=1)
+            matchChanIndex = FINDLOC(emissChanList, channelNumber + tvs_channelOffset(sensorIndex), dim=1)
             if (matchChanIndex == 0) then
               call utl_abort('tvs_simulateEmissivity: Unable to find emissivity error for a channel')
             end if
@@ -5667,10 +5655,10 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
         
           ! QC check: Simulated surface emissivity can only be between 0 and 1
-          if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1) then
-            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1
-          else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0) then
-            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 0
+          if (sfcEmissivity(list_btIndex(obsIndex))%emis_in > 1.0d0) then
+            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 1.0d0
+          else if (sfcEmissivity(list_btIndex(obsIndex))%emis_in < 0.0d0) then
+            sfcEmissivity(list_btIndex(obsIndex))%emis_in = 0.0d0
           end if
 
         end do
@@ -5837,7 +5825,7 @@ contains
     real(8), intent(out) :: obsOut(nsubset)   ! Error Perturbation
 
     ! Locals:
-    real(8)               :: alpha, beta, product
+    real(8)               :: alpha, beta, variance
     real(8), allocatable  :: Fsub(:,:)
     integer               :: index(nsubset)
     integer               :: chanIndex1, chanIndex2
@@ -5863,8 +5851,8 @@ contains
 
     do chanIndex2 = 1, nsubset
       do chanIndex1 = 1, nsubset
-        product = list_oer(chanIndex1) * list_oer(chanIndex2)
-        Fsub(chanIndex1,chanIndex2) = product * Fcorr_inst(1)%Fmat(index(chanIndex1), index(chanIndex2))
+        variance = list_oer(chanIndex1) * list_oer(chanIndex2)
+        Fsub(chanIndex1,chanIndex2) = variance * Fcorr_inst(1)%Fmat(index(chanIndex1), index(chanIndex2))
       end do
     end do
 

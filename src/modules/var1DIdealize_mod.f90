@@ -272,7 +272,8 @@ module var1DIdealize_mod
 
         fileName = './'//trim(prefixFileName)//'_' // trim(coffset) // 'm'
         call gio_writeToFile( statevectorSim, fileName, trim(etiket), scaleFactor_opt = 1.0d0, &
-                              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=containsFullField )
+                              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=containsFullField, &
+                              numBits_opt=16 )
       end if
     end do
 

@@ -117,7 +117,6 @@
    mWAtlasId = 2,
    simEmissSeed = 1,
    maxSfcSenChan = 32,
-   maxmWAtlasChan = 32,
 /
  &NAMCODTYP
 /
