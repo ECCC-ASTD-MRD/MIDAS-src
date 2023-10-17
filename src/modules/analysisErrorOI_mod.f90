@@ -35,6 +35,7 @@ module analysisErrorOI_mod
    integer          :: numObs
    integer, pointer :: headerIndex(:)
    integer, pointer :: bodyIndex(:)
+   integer, pointer :: procIndex(:)
   end type struct_neighborhood
 
   integer, external :: get_max_rss
@@ -257,6 +258,7 @@ contains
         influentObs(lonIndex, latIndex)%numObs = numObs(lonIndex,latIndex)
         allocate(influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)))
         allocate(influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)))
+        allocate(influentObs(lonIndex, latIndex)%procIndex(numObs(lonIndex, latIndex)))
       end do
     end do
 
@@ -331,7 +333,7 @@ contains
     integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     integer :: procIndex, kIndex, stepIndex
     integer :: gridptCount, gridpt, numLocalGridptsFoundSearch
-    integer :: lonIndex, latIndex, resultsIndex, gridIndex
+    integer :: lonIndex, latIndex, resultsIndex, gridIndex, numStep
     type(kdtree2_result) :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)         :: refPosition(3), maxRadiusSquared
     real(4) :: footprintRadius_r4 ! (metres) used for seaice observations only
@@ -342,145 +344,215 @@ contains
     real(8),      allocatable :: latInRad(:,:), lonInRad(:,:)
     real(8) :: interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr
+    integer, allocatable :: obsAss(:), allObsAss(:,:)
+    integer, allocatable :: obsRln(:), allObsRln(:,:)
+    integer, allocatable :: obsNlv(:), allObsNlv(:,:)
+    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
+    real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:)
+    real(8), allocatable :: obsLon(:), allObsLon(:,:), obsLat(:), allObsLat(:,:)
+
+    numStep = stateVectorTrlErrorStd%numStep
+    if (numStep > 1) call utl_abort('aer findObs: Code is not adapted for numStep > 1')
+
+    ! Communicate some quantities to all MPI tasks
+
+    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
+                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
+    numHeaderMax = maxval(allNumHeader)
+    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
+                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    numBodyMax = maxval(allNumBody)
+
+    allocate(obsAss(numBodyMax))
+    obsAss(:) = 0
+    allocate(allObsAss(numBodyMax, mmpi_nprocs))
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
+      obsAss(bodyIndex) = obs_notassimilated
+      if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) == obs_assimilated) then
+        obsAss(bodyIndex) = obs_assimilated
+      end if
+    end do
+    call rpn_comm_gather(obsAss,    numBodyMax, 'mpi_integer',  &
+                         allObsAss, numBodyMax, 'mpi_integer', 0, 'grid', ierr)
+    
+    allocate(obsRln(numHeaderMax))
+    obsRln(:) = 0
+    allocate(obsNlv(numHeaderMax))
+    obsNlv(:) = 0
+    allocate(obsLon(numHeaderMax))
+    obsLon(:) = 0.0d0
+    allocate(obsLat(numHeaderMax))
+    obsLat(:) = 0.0d0
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      obsRln(headerIndex) = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
+      obsNlv(headerIndex) = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex)
+      obsLon(headerIndex) = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
+      obsLat(headerIndex) = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
+    end do
+    allocate(allObsRln(numHeaderMax,mmpi_nprocs))
+    allocate(allObsNlv(numHeaderMax,mmpi_nprocs))
+    allocate(allObsLon(numHeaderMax,mmpi_nprocs))
+    allocate(allObsLat(numHeaderMax,mmpi_nprocs))
+    call rpn_comm_gather(obsRln,    numHeaderMax, 'mpi_integer',  &
+                         allObsRln, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+    call rpn_comm_gather(obsNlv,    numHeaderMax, 'mpi_integer',  &
+                         allObsNlv, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+    call rpn_comm_gather(obsLon,    numHeaderMax, 'mpi_real8',  &
+                         allObsLon, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
+    call rpn_comm_gather(obsLat,    numHeaderMax, 'mpi_real8',  &
+                         allObsLat, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
+
+    allocate(footprintRadiusVec_r4(numHeaderMax))
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      footprintRadiusVec_r4(headerIndex) = s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex)
+    end do
+    allocate(allFootprintRadius_r4(numHeaderMax,mmpi_nprocs))
+    call rpn_comm_gather(footprintRadiusVec_r4,      numHeaderMax, 'MPI_REAL4', &
+                         allFootprintRadius_r4(:,:), numHeaderMax, 'MPI_REAL4', &
+                         0, 'GRID', ierr)
+
+    ! create kdtree
+    write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+
+    allocate(positionArray(3, stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj))
+    allocate(lonInRad(stateVectorTrlErrorStd%hco%ni, stateVectorTrlErrorStd%hco%nj))
+    allocate(latInRad(stateVectorTrlErrorStd%hco%ni, stateVectorTrlErrorStd%hco%nj))
+
+    gridIndex = 0
+    do latIndex = 1, stateVectorTrlErrorStd%hco%nj
+      do lonIndex = 1, stateVectorTrlErrorStd%hco%ni
+        gridIndex = gridIndex + 1
+        latInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lat2d_4(lonIndex, latIndex), 8)
+        lonInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lon2d_4(lonIndex, latIndex), 8)
+        positionArray(:, gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex, latIndex), &
+                                                         latInRad(lonIndex, latIndex))
+      end do
+    end do
+
+    write(*,*) 'findObs: latInRad min/max: ', minval(latInRad(:,:)), maxval(latInRad(:,:))
+    write(*,*) 'findObs: lonInRad min/max: ', minval(lonInRad(:,:)), maxval(lonInRad(:,:))
+
+    nullify(tree)
+    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
+
+    deallocate(positionArray)
+    deallocate(lonInRad)
+    deallocate(latInRad)
+
+    maxLcorr = maxval(Lcorr(:,:))
+    numObs(:,:) = 0
 
     if (mmpi_myid == 0) then
+      PROC_LOOP: do procIndex = 1, mmpi_nprocs
+        HEADER_LOOP: do headerIndex = 1, allNumHeader(procIndex)
 
-      ! create kdtree
-      write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'
-      write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+          bodyIndexBeg = allObsRln(headerIndex,procIndex)
+          bodyIndexEnd = allObsNlv(headerIndex,procIndex) + bodyIndexBeg - 1
 
-      allocate(positionArray(3, stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj))
-      allocate(lonInRad(stateVectorTrlErrorStd%hco%ni, stateVectorTrlErrorStd%hco%nj))
-      allocate(latInRad(stateVectorTrlErrorStd%hco%ni, stateVectorTrlErrorStd%hco%nj))
+          BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
 
-      gridIndex = 0
-      do latIndex = 1, stateVectorTrlErrorStd%hco%nj
-        do lonIndex = 1, stateVectorTrlErrorStd%hco%ni
-          gridIndex = gridIndex + 1
-          latInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lat2d_4(lonIndex, latIndex), 8)
-          lonInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lon2d_4(lonIndex, latIndex), 8)
-          positionArray(:, gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex, latIndex), &
-                                                           latInRad(lonIndex, latIndex))
-        end do
-      end do
-
-      write(*,*) 'findObs: latInRad min/max: ', minval(latInRad(:,:)), maxval(latInRad(:,:))
-      write(*,*) 'findObs: lonInRad min/max: ', minval(lonInRad(:,:)), maxval(lonInRad(:,:))
-
-      nullify(tree)
-      tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
-
-      deallocate(positionArray)
-      deallocate(lonInRad)
-      deallocate(latInRad)
-
-      maxLcorr = maxval(Lcorr(:,:))
-      numObs(:,:) = 0
-
-      HEADER_LOOP: do headerIndex = 1, obs_numHeader(obsSpaceData)
-
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
-
-        BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-
-          if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) cycle BODY_LOOP
-
-          if (trim(variableName) == 'GL') then
-            footprintRadius_r4 = s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex)
-            influenceRadius_r4 = max(0.0, footprintRadius_r4) + maxLcorr
-          else if (trim(variableName) == 'TM') then 
-            influenceRadius_r4 = maxLcorr
-          else
-            call utl_abort('findObs: The current code does not work with '&
-                           //trim(variableName)//' analysis variable.')
-          end if
-
-          if (maxLcorr == 0.0d0) then
-
-            do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
-              do stepIndex = 1, stateVectorTrlErrorStd%numStep
-                procIndex = 1 ! Can only use observations on mpi task 0
-
-                call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
-                                                       procIndex, interpWeight, obsLatIndex, &
-                                                       obsLonIndex, gridptCount)
-
-                GRIDPT_LOOP: do gridpt = 1, gridptCount
-
-                  if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
-
-                  lonIndex = obsLonIndex(gridpt)
-                  latIndex = obsLatIndex(gridpt)
-
-                  numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
-                  if(associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
-                    if(numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
-                      call utl_abort('findObs: Array too small')
-                    end if
-                    influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
-                    influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
-                  end if
-
-                end do GRIDPT_LOOP
-
-              end do
-            end do
-
-          else
-
-            ! Determine the grid point nearest the observation.
-
-            obsLonInRad = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
-            obsLatInRad = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
-
-            ! do the search
-            maxRadiusSquared = real(influenceRadius_r4, 8) ** 2
-            refPosition(:) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
-            call kdtree2_r_nearest(tp = tree, qv = refPosition, r2 = maxRadiusSquared, &
-                                   nfound = numLocalGridptsFoundSearch, &
-                                   nalloc = maxNumLocalGridptsSearch, &
-                                   results = searchResults)
-
-            if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
-              call utl_abort('findObs: parameter maxNumLocalGridptsSearch must be increased')
+            if (allObsAss(bodyIndex,procIndex) /= obs_assimilated) then
+              cycle BODY_LOOP
             end if
 
-            do resultsIndex = 1, numLocalGridptsFoundSearch
+            if (trim(variableName) == 'GL') then
+              footprintRadius_r4 = allFootPrintRadius_r4(headerIndex, procIndex)
+              influenceRadius_r4 = max(0.0, footprintRadius_r4) + maxLcorr
+            else if (trim(variableName) == 'TM') then 
+              influenceRadius_r4 = maxLcorr
+            else
+              call utl_abort('findObs: The current code does not work with '&
+                             //trim(variableName)//' analysis variable.')
+            end if
 
-              gridIndex = searchResults(resultsIndex)%idx
-              if (gridIndex < 1 .or. &
-                  gridIndex > stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj) then
-                write(*,*) 'analysisErrorStdDev: gridIndex = ', gridIndex
-                call utl_abort('findObs: gridIndex out of bound.')
+            if (maxLcorr == 0.0d0) then
+
+              do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+                do stepIndex = 1, stateVectorTrlErrorStd%numStep
+
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
+                                                         procIndex, interpWeight, obsLatIndex, &
+                                                         obsLonIndex, gridptCount)
+
+                  GRIDPT_LOOP: do gridpt = 1, gridptCount
+
+                    if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
+
+                    lonIndex = obsLonIndex(gridpt)
+                    latIndex = obsLatIndex(gridpt)
+
+                    numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
+                    if(associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
+                      if(numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
+                        call utl_abort('findObs: Array too small')
+                      end if
+                      influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
+                      influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
+                      influentObs(lonIndex, latIndex)%procIndex(numObs(lonIndex, latIndex)) = procIndex
+                    end if
+
+                  end do GRIDPT_LOOP
+
+                end do
+              end do
+
+            else
+
+              ! Determine the grid point nearest the observation.
+
+              obsLonInRad = allObsLon(headerIndex, procIndex)
+              obsLatInRad = allObsLat(headerIndex, procIndex)
+
+              ! do the search
+              maxRadiusSquared = real(influenceRadius_r4, 8) ** 2
+              refPosition(:) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
+              call kdtree2_r_nearest(tp = tree, qv = refPosition, r2 = maxRadiusSquared, &
+                                     nfound = numLocalGridptsFoundSearch, &
+                                     nalloc = maxNumLocalGridptsSearch, &
+                                     results = searchResults)
+
+              if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
+                call utl_abort('findObs: parameter maxNumLocalGridptsSearch must be increased')
               end if
 
-              latIndex = (gridIndex - 1) / stateVectorTrlErrorStd%hco%ni + 1
-              lonIndex = gridIndex - (latIndex - 1) * stateVectorTrlErrorStd%hco%ni
-              if (lonIndex < 1 .or. lonIndex > stateVectorTrlErrorStd%hco%ni .or. &
-                  latIndex < 1 .or. latIndex > stateVectorTrlErrorStd%hco%nj) then
-                write(*,*) 'analysisErrorStdDev: lonIndex = ', lonIndex, &
-                                              ', latIndex = ', latIndex
-                call utl_abort('findObs: lonIndex/latIndex out of bound.')
-              end if
+              do resultsIndex = 1, numLocalGridptsFoundSearch
 
-              numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
-              if (associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
-                if (numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
-                  call utl_abort('findObs: Array too small in subroutine findObs')
+                gridIndex = searchResults(resultsIndex)%idx
+                if (gridIndex < 1 .or. &
+                     gridIndex > stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj) then
+                  write(*,*) 'analysisErrorStdDev: gridIndex = ', gridIndex
+                  call utl_abort('findObs: gridIndex out of bound.')
                 end if
-                influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
-                influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
-              end if
 
-            end do
+                latIndex = (gridIndex - 1) / stateVectorTrlErrorStd%hco%ni + 1
+                lonIndex = gridIndex - (latIndex - 1) * stateVectorTrlErrorStd%hco%ni
+                if (lonIndex < 1 .or. lonIndex > stateVectorTrlErrorStd%hco%ni .or. &
+                     latIndex < 1 .or. latIndex > stateVectorTrlErrorStd%hco%nj) then
+                  write(*,*) 'analysisErrorStdDev: lonIndex = ', lonIndex, &
+                                                ', latIndex = ', latIndex
+                  call utl_abort('findObs: lonIndex/latIndex out of bound.')
+                end if
 
-          end if
+                numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
+                if (associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
+                  if (numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
+                    call utl_abort('findObs: Array too small in subroutine findObs')
+                  end if
+                  influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
+                  influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
+                  influentObs(lonIndex, latIndex)%procIndex(numObs(lonIndex, latIndex)) = procIndex
+                end if
 
-        end do BODY_LOOP
+              end do
 
-      end do HEADER_LOOP
+            end if
+
+          end do BODY_LOOP
+
+        end do HEADER_LOOP
+
+      end do PROC_LOOP
     end if
 
     ! Communicate values from proc 0 to others
@@ -494,10 +566,25 @@ contains
                                 influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
             call rpn_comm_bcast(influentObs(lonIndex, latIndex)%bodyIndex,    &
                                 influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
+            call rpn_comm_bcast(influentObs(lonIndex, latIndex)%procIndex,    &
+                                influentObs(lonIndex, latIndex)%numObs, 'MPI_INTEGER', 0, 'GRID', ierr)
           end do
         end do
       end if
     end if
+
+    deallocate(obsAss)
+    deallocate(allObsAss)
+    deallocate(obsRln)
+    deallocate(obsNlv)
+    deallocate(obsLon)
+    deallocate(obsLat)
+    deallocate(allObsRln)
+    deallocate(allObsNlv)
+    deallocate(allObsLon)
+    deallocate(allObsLat)
+    deallocate(footprintRadiusVec_r4)
+    deallocate(allFootprintRadius_r4)
 
   end subroutine findObs
 
@@ -532,6 +619,8 @@ contains
     type(struct_columnData) :: column, columng
     real(8) :: leadTimeInHours, interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
+    integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs)
+    integer, allocatable :: obsAss(:), obsAssMpiGlobal(:,:)
 
     write(*,*) '**********************************************************'
     write(*,*) '** aer_daysSinceLastObs: Update the days since last obs **'
@@ -545,6 +634,9 @@ contains
     call gsv_allocate(stateVectorAnlDSLO,  1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .false., mpi_distribution_opt = 'None', &
                       varNames_opt = (/'DSLO'/), dataKind_opt = 8)
+
+    call rpn_comm_allgather(obs_numHeader(obsSpaceData), 1, 'mpi_integer',       &
+                            allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
 
     if (propagateDSLO) then
       call aer_propagateDSLO(stateVectorTrlDSLO, inputFileName, outputFileName, &
@@ -583,22 +675,33 @@ contains
       end do
     end do
 
+    numHeaderMax = maxval(allNumHeader)
+    allocate(obsAss(numHeaderMax))
+    allocate(obsAssMpiGlobal(numHeaderMax, mmpi_nprocs))
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      obsAss(headerIndex) = obs_notassimilated
+      bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
+
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) == obs_assimilated) then
+          obsAss(headerIndex) = obs_assimilated
+        end if
+      end do
+    end do
+    call rpn_comm_gather(obsAss,          numHeaderMax, 'mpi_integer',  &
+                         obsAssMpiGlobal, numHeaderMax, 'mpi_integer', 0, 'grid', ierr)
+
     if (mmpi_myid == 0) then
-      HEADER_LOOP: do headerIndex = 1, obs_numHeader(obsSpaceData)
+      do procIndex = 1, mmpi_nprocs
+        HEADER_LOOP: do headerIndex = 1, allNumHeader(procIndex)
 
-        bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
-
-        BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-
-          if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) then
-            cycle BODY_LOOP
+          if (obsAssMpiGlobal(headerIndex,procIndex) /= obs_assimilated) then
+            cycle HEADER_LOOP
           end if
 
           do kIndex = stateVectorTrlDSLO%mykBeg, stateVectorTrlDSLO%mykEnd
             do stepIndex = 1, stateVectorTrlDSLO%numStep
-              procIndex = 1 ! Can only deal with obs on MPI task 0
-
               call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
                                                      procIndex, interpWeight, obsLatIndex, &
                                                      obsLonIndex, gridptCount)
@@ -615,18 +718,18 @@ contains
                 end do
 
               end do GRIDPT_LOOP
-
             end do
           end do
 
-        end do BODY_LOOP
-
-      end do HEADER_LOOP
-
+        end do HEADER_LOOP
+      end do
+      
       call gio_writeToFile(stateVectorAnlDSLO, outputFileName, '', typvar_opt = 'A@', &
                            containsFullField_opt = .false. )
     end if
 
+    deallocate(obsAss)
+    deallocate(obsAssMpiGlobal)
     call col_deallocate(columng)
     call col_deallocate(column)
     call gsv_deallocate(stateVectorTrlDSLO)
@@ -826,8 +929,9 @@ contains
     logical :: found
     real(8) :: interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
-    integer :: ierr, numBodyProc0
-    real(8), allocatable :: obsOerProc0(:), iceScalingProc0(:), anlErrorStdDevMpiGlobal(:,:,:,:)
+    integer :: ierr
+    integer :: numBodyMax, allNumBody(mmpi_nprocs)
+    real(8), allocatable :: allObsOer(:,:), obsOer(:), iceScaling(:), allIceScaling(:,:), anlErrorStdDevMpiGlobal(:,:,:,:)
 
     call msg('aer_computeAnlErrorStd:', ' computing analysis error std field initialization...')
 
@@ -853,35 +957,29 @@ contains
     anlErrorStdDev_ptr(:,:,:,:) = 0.0d0
 
     ! Communicate some values from proc 0 to all others
-    if (mmpi_myid == 0) then
-      numBodyProc0 = obs_numBody(obsSpaceData)
-    end if
-    if (mmpi_nprocs > 1) then
-      call rpn_comm_bcast(numBodyProc0, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    end if
+    call rpn_comm_allgather(obs_numBody(obsSpaceData), 1, 'mpi_integer',       &
+                            allNumBody, 1, 'mpi_integer', 'GRID', ierr)
+    numBodyMax = maxval(allNumBody)
+    write(*,*) 'aer_computeAnlErrorStd: numBodyMax = ', numBodyMax
 
     if (analysisVariable == 'GL') then
-      allocate(iceScalingProc0(numBodyProc0))
-      if (mmpi_myid == 0) then
-        do bodyIndex = 1, numBodyProc0
-          iceScalingProc0(bodyIndex) = oop_iceScaling(obsSpaceData, bodyIndex)
-        end do
-      end if
-    end if
-    if (mmpi_nprocs > 1) then
-      call rpn_comm_bcast(iceScalingProc0, numBodyProc0, 'MPI_REAL8', 0, 'GRID', ierr)
+      allocate(iceScaling(numBodyMax))
+      allocate(allIceScaling(numBodyMax,mmpi_nprocs))
+      do bodyIndex = 1, obs_numBody(obsSpaceData)
+        iceScaling(bodyIndex) = oop_iceScaling(obsSpaceData, bodyIndex)
+      end do
+      call rpn_comm_allGather(iceScaling,    numBodyMax, 'MPI_REAL8', &
+                              allIceScaling, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
     end if
 
-    allocate(obsOerProc0(numBodyProc0))
-    if (mmpi_myid == 0) then
-      do bodyIndex = 1, numBodyProc0
-        obsOerProc0(bodyIndex) = obs_bodyElem_r(obsSpaceData, OBS_OER, &
-                                                bodyIndex)
-      end do
-    end if
-    if (mmpi_nprocs > 1) then
-      call rpn_comm_bcast(obsOerProc0, numBodyProc0, 'MPI_REAL8', 0, 'GRID', ierr)
-    end if
+    allocate(obsOer(numBodyMax))
+    allocate(allObsOer(numBodyMax,mmpi_nprocs))
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
+      obsOer(bodyIndex) = obs_bodyElem_r(obsSpaceData, OBS_OER, &
+                                         bodyIndex)
+    end do
+    call rpn_comm_allGather(obsOer,    numBodyMax, 'MPI_REAL8', &
+                            allObsOer, numBodyMax, 'MPI_REAL8', 'GRID', ierr)
 
     numStep = stateVectorTrlErrorStd%numStep
     numLev = gsv_getNumLev(stateVectorTrlErrorStd, vnl_varLevelFromVarname(analysisVariable))
@@ -918,7 +1016,8 @@ contains
 
             do influentObsIndex = 1, numInfluentObs
               bodyIndex = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
-              obsErrorVariance(influentObsIndex) = obsOerProc0(bodyIndex)**2
+              procIndex = influentObs(lonIndex, latIndex)%procIndex(influentObsIndex)
+              obsErrorVariance(influentObsIndex) = allObsOer(bodyIndex,procIndex)**2
             end do
 
             ! find all model variables involved here
@@ -927,21 +1026,20 @@ contains
             statei(:) = 0
             statej(:) = 0
 
-            call utl_tmg_start(125,'----AnalErrOI_computeAnlErrStd-1')
             INFLUENTOBSCYCLE: do influentObsIndex = 1, numInfluentObs
 
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
+              procIndex   = influentObs(lonIndex, latIndex)%procIndex(influentObsIndex)
 
               if (analysisVariable == 'GL') then
-                scaling = iceScalingProc0(bodyIndex)
+                scaling = allIceScaling(bodyIndex,procIndex)
               else if (analysisVariable == 'TM') then
                 scaling = 1.0d0
               end if	
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
               KINDEXCYCLE: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
-                procIndex = 1 ! Can only deal with obs on MPI task 0
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &
@@ -1015,9 +1113,10 @@ contains
 
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
+              procIndex   = influentObs(lonIndex, latIndex)%procIndex(influentObsIndex)
 
               if (analysisVariable == 'GL') then
-                scaling = iceScalingProc0(bodyIndex)
+                scaling = allIceScaling(bodyIndex,procIndex)
               else if (analysisVariable == 'TM') then
                 scaling = 1.0d0
               end if
@@ -1025,7 +1124,6 @@ contains
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
 
               KINDEXCYCLE2: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
-                procIndex = 1 ! Can only deal with obs on MPI task 0
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &
@@ -1071,7 +1169,6 @@ contains
                 end do GRIDPTCYCLE2
               end do KINDEXCYCLE2
             end do INFLUENTOBSCYCLE2
-            call utl_tmg_stop(125)
 
             ! form the background-error covariance matrix
 
@@ -1079,7 +1176,6 @@ contains
 
             Bmatrix(:,:) = 0.0d0
 
-            call utl_tmg_start(126,'----AnalErrOI_computeAnlErrStd-2')
             do varIndex2 = 1, numVariables
 
               xIndex2 = statei(varIndex2)
@@ -1106,13 +1202,10 @@ contains
               end do
 
             end do
-            call utl_tmg_stop(126)
 
             ! form the observation background error covariance matrix (PHT)
 
             allocate(PH(numInfluentObs, numVariables))
-
-            call utl_tmg_start(127,'----AnalErrOI_computeAnlErrStd-3')
 
             ! PH = matmul (Bmatrix, transpose(obsOperator))
             do varIndex1 = 1, numVariables
@@ -1121,14 +1214,12 @@ contains
                                                  obsOperator(:, influentObsIndex))
               end do
             end do
-            call utl_tmg_stop(127)
 
             !  covariance matrix of the innovation (HPHT + R)
 
             allocate(innovCovariance(numInfluentObs, numInfluentObs), &
                      innovCovarianceInverse(numInfluentObs, numInfluentObs))
 
-            call utl_tmg_start(128,'----AnalErrOI_computeAnlErrStd-4')
             do influentObsIndex = 1, numInfluentObs
 
               do influentObsIndex2 = 1, numInfluentObs
@@ -1146,8 +1237,6 @@ contains
 
             end do
 
-            call utl_tmg_stop(128)
-
             ! Inverse of the covariance matrix of the innovation
 
             innovCovarianceInverse(:,:) = innovCovariance(:,:)
@@ -1155,8 +1244,6 @@ contains
                                 printInformation_opt = .false.)
 
             ! Kalman gain; this is the row corresponding to the analysis variable
-
-            call utl_tmg_start(129,'----AnalErrOI_computeAnlErrStd-5')
 
             allocate(PHiA(numInfluentObs))
 
@@ -1205,8 +1292,6 @@ contains
                    maxAnalysisErrorStdDev)
             end if
 
-            call utl_tmg_stop(129)
-
             deallocate(Bmatrix)
             deallocate(obsErrorVariance)
             deallocate(innovCovariance)
@@ -1218,6 +1303,7 @@ contains
             deallocate(IKH)
             deallocate(influentObs(lonIndex, latIndex)%headerIndex)
             deallocate(influentObs(lonIndex, latIndex)%bodyIndex)
+            deallocate(influentObs(lonIndex, latIndex)%procIndex)
 
           end do XINDEX
         end do YINDEX

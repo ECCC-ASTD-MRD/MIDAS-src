@@ -1003,8 +1003,8 @@ contains
             lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                       lat_deg_r4, lon_deg_r4, subGridIndex )
 
             if ( subGridIndex == 3 ) then
               ! both subGrids involved in interpolation, so first treat subGrid 1

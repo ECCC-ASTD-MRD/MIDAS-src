@@ -76,7 +76,7 @@ contains
 
       else
 
-        ! Not a Yin-Yang grid, call the standard ezscint routine
+        ! Not an unstructured grid, nor a Yin-Yang grid, call the standard ezscint routine
         ierr = gdxyfll(gdid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
       end if
