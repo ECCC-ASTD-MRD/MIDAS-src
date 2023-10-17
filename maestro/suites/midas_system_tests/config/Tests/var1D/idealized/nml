@@ -115,8 +115,10 @@
    regLimitExtrap=.false.
    useMWEmissivityAtlas = .TRUE.,
    mWAtlasId = 2,
-   simEmissSeed = 1,
-   maxSfcSenChan = 32,
+/
+ &NAMSIMEMISS
+  simEmissSeed = 1,
+  maxSfcSenChan = 32,
 /
  &NAMCODTYP
 /
