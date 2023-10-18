@@ -30,7 +30,6 @@ module var1DIdealize_mod
     use tovsNL_mod
     use tovsLin_mod
   
-  
     implicit none
     save
     private
@@ -314,7 +313,7 @@ module var1DIdealize_mod
     write(*,*) 'var1DIdealize_simulateObservation: Computing the truth in Obs Space'
 
     ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-    call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
+    call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
 
     ! Compute radiance
     call tvs_rttov(obsSpaceData, bgckMode, beSilent)
@@ -354,7 +353,7 @@ module var1DIdealize_mod
     
     if (useSimObsErr) then
       ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
+      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
 
       ! Compute radiance
       call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)

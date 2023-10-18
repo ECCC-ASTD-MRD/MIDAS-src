@@ -72,7 +72,7 @@ module tovsNL_mod
   use codePrecision_mod
   use humidityLimits_mod
   use interpolation_mod
-  use sfcEmiss_mod
+  use simulateEmissivity_mod
 
   implicit none
   save
@@ -2870,7 +2870,7 @@ contains
 
     ! Loop over all sensors specified by user
     sensor_loop:do sensorId = 1, tvs_nsensors
-   
+
       sensorType = tvs_coefs(sensorId) % coef % id_sensor
       instrum = tvs_coefs(sensorId) % coef % id_inst
 
@@ -3060,9 +3060,9 @@ contains
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
              sensorTovsIndexes(1:profileCount))
         if (SimSfcEmiss) then
-          call emi_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId, &
+          call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId, &
                                       tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
-                                      tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber)
+                                      tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
         end if
       else
         emissivity_local(:)%emis_in = surfem1(:)

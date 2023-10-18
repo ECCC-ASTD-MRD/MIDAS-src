@@ -1129,56 +1129,6 @@ contains
             call odc_activateColumn(odc_flavour_RB, column_index)
          end do
 
-      else if (trim(obsColumnMode) == 'VAR1D') then COLUMN_MODE
-         hdr_int_column_list= &
-         (/OBS_RLN , OBS_ONM , OBS_INS , OBS_ITY , OBS_SAT , OBS_TEC , OBS_SEN , &
-           OBS_DAT , OBS_ETM , OBS_NLV , OBS_PAS , OBS_REG , OBS_IP  , OBS_IPF , &
-           OBS_IPC , OBS_IPT , OBS_ST1 , OBS_IDF , OBS_STYP, OBS_ROQF, OBS_SWQ1, &
-           OBS_SWQ2, OBS_SWMT, OBS_SWLS, OBS_SWGA, OBS_SWHA, OBS_CHM , OBS_FOV , &
-           OBS_PRFL, OBS_PHAS, OBS_ORI , OBS_LCH , OBS_RTP , OBS_HDD , OBS_HDT , &
-           OBS_TFLG, OBS_LFLG, OBS_ORBI, OBS_AQF1, OBS_AQF2, OBS_AQF3, OBS_TTYP, &
-           OBS_INFG, OBS_RAIN, OBS_CHID, (0,ii=46,100) /)
-
-      hdr_real_column_list= &
-         (/OBS_LAT , OBS_LON , OBS_ALT , OBS_TRAD, OBS_GEOI, OBS_CLF , OBS_SUN , &
-           OBS_SZA , OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS , OBS_SIO , &
-           OBS_SIB , OBS_IWV , OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV, &
-           (0,ii=22,100)/)
-
-      bdy_int_column_list= &
-         (/OBS_VNM , OBS_FLG , OBS_ASS , OBS_HIND, OBS_VCO , OBS_LYR , OBS_XTR , &
-           OBS_QCF2, OBS_CLA , (0,ii=10,100) /)
-
-      bdy_real_column_list= &
-         (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OER , OBS_HPHT, &
-           OBS_ZHA , OBS_POB , OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , &
-           OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, OBS_LOCI, &
-           OBS_TRUO, OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN, (0,ii=27,100) /)
-      
-      do list_index=1,COLUMN_LIST_SIZE
-         column_index = hdr_int_column_list(list_index)
-         if(column_index == 0) exit
-         call odc_activateColumn(odc_flavour_IH, column_index)
-      end do
-
-      do list_index=1,COLUMN_LIST_SIZE
-         column_index = hdr_real_column_list(list_index)
-         if(column_index == 0) exit
-         call odc_activateColumn(odc_flavour_RH, column_index)
-      end do
-
-      do list_index=1,COLUMN_LIST_SIZE
-         column_index = bdy_int_column_list(list_index)
-         if(column_index == 0) exit
-         call odc_activateColumn(odc_flavour_IB, column_index)
-      end do
-
-      do list_index=1,COLUMN_LIST_SIZE
-         column_index = bdy_real_column_list(list_index)
-         if(column_index == 0) exit
-         call odc_activateColumn(odc_flavour_RB, column_index)
-      end do
-
       endif COLUMN_MODE
 
    end subroutine odc_class_initialize

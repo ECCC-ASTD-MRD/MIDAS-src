@@ -1,5 +1,5 @@
-module sfcEmiss_mod
-  ! MODULE sfcEmiss_mod (prefix='emi' category='7. Low-level data objects')
+module simulateEmissivity_mod 
+  ! MODULE simulatedSfcEmiss_mod  (prefix='sse ' category='7. Low-level data objects')
   !
   !:Purpose: Manipulate surface emissivity for idealized assimilation of 
   !          surface sensitive AMSU-A channels.
@@ -16,16 +16,16 @@ module sfcEmiss_mod
   private
 
   ! public procedures  
-  public :: emi_simulateEmissivity
+  public :: sse_simulateEmissivity
 
 contains
 
   !--------------------------------------------------------------------------
-  ! emi_simulateEmissivity
+  ! sse_simulateEmissivity
   !--------------------------------------------------------------------------
-  subroutine emi_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity, sensorId, &
+  subroutine sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity, sensorId, &
                                     nSensor, sensorList, tovsHeaderIndexList, tovsIndexList, &
-                                    tovsChannelOffset, tovsIChan, tovsMaxChanneNum)
+                                    tovsChannelOffset, tovsIChan, tovsMaxChanneNum, instrumentName)
     !
     !:Purpose: Simulate surface emissivity (Only works for AMSU-A channel 1-5)
     !
@@ -43,6 +43,7 @@ contains
     integer,                 intent(in)    :: tovsChannelOffset(:)   ! RTTOV channel mapping offset (tvs_channelOffset)
     integer,                 intent(in)    :: tovsIChan(:,:)         ! List of channels per instrument (tvs_ichan)
     integer,                 intent(in)    :: tovsMaxChanneNum       ! Max. value for channel number (tvs_maxChannelNumber)
+    character(len=15),       intent(in)    :: instrumentName(:)      ! Satellite name (tvs_instrumentName)
 
     ! Locals:
     integer, allocatable :: emissChanList(:)
@@ -70,27 +71,34 @@ contains
     simEmissSeed = MPC_missingValue_INT
     maxSfcSenChan = MPC_missingValue_INT
 
-    write(*,*) 'emi_simulateEmissivity: STARTING'
+    write(*,*) 'sse_simulateEmissivity: STARTING'
+
+    do sensorIndex = 1, nSensor
+      if (trim(instrumentName(sensorIndex)) /= 'AMSUA') then
+        write(*,*) 'Satellite Name: ', trim(instrumentName(sensorIndex))
+        call utl_abort('sse_simulateEmissivity: simulating surface emissivity can only be used for AMSUA instrument')
+      end if
+    end do
 
     ! Read the namelist for directives
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namSimEmiss, iostat = ierr)
-    if (ierr /= 0) call utl_abort('emi_simulateEmissivity: Error reading namelist')
+    if (ierr /= 0) call utl_abort('sse_simulateEmissivity: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSimEmiss)
     ierr = fclos(nulnam)
 
     if (simEmissSeed == MPC_missingValue_INT .or. maxSfcSenChan == MPC_missingValue_INT) then 
-        call utl_abort('emi_simulateEmissivity: namelist variable not set')
+      call utl_abort('sse_simulateEmissivity: namelist variable not set')
     end if
 
     ! Read Surface Emissivity Error Stdev
-    call emi_readEmissError(emissChanList, emissStdErr, emissNumChan, maxSfcSenChan)
+    call sse_readEmissError(emissChanList, emissStdErr, emissNumChan, maxSfcSenChan)
 
     filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
 
     ! Read Surface Emissivity Error Correlation Matrix
-    call emi_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
+    call sse_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
     
     ! Initialize random number generation for simulating surface emissivity
     call rng_setup(abs(simEmissSeed + (mmpi_myid * nSensor) + sensorId))
@@ -121,7 +129,7 @@ contains
 
           btIndex = btIndex + 1
 
-          call emi_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+          call sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                             channelNumber, channelIndex, tovsIndexList, &
                                             sensorList, tovsMaxChanneNum, tovsChannelOffset, &
                                             tovsIChan)
@@ -132,7 +140,7 @@ contains
             ! Match tvs_channelnumber with the channel index in emissivity error std file
             matchChanIndex = FINDLOC(emissChanList, channelNumber + tovsChannelOffset(sensorIndex), dim=1)
             if (matchChanIndex == 0) then
-              call utl_abort('emi_simulateEmissivity: Unable to find emissivity error for a channel')
+              call utl_abort('sse_simulateEmissivity: Unable to find emissivity error for a channel')
             end if
             emissErrStdPerChan = emissStdErr(matchChanIndex)
             list_EMER(count) = emissErrStdPerChan
@@ -147,7 +155,7 @@ contains
 
       if (count > 0 .and. tovsIndex > 0) then 
         ! Generate the emissivity errors
-        call emi_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
+        call sse_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
                        emissErrCMat, chanListCMat, nchanCMat)
 
         do obsIndex = 1, count
@@ -182,13 +190,13 @@ contains
     deallocate(emissChanList)
     deallocate(emissStdErr)
 
-    write(*,*) 'emi_simulateEmissivity: FINISHED'
-  end subroutine emi_simulateEmissivity
+    write(*,*) 'sse_simulateEmissivity: FINISHED'
+  end subroutine sse_simulateEmissivity
 
   !--------------------------------------------------------------------------
-  ! emi_readEmissError
+  ! sse_readEmissError
   !--------------------------------------------------------------------------
-  subroutine emi_readEmissError(chanList, emissStdErr, numChan, maxSfcSenChan)
+  subroutine sse_readEmissError(chanList, emissStdErr, numChan, maxSfcSenChan)
     !
     !:Purpose: Reading emissivity error std for AMSU-A
     !
@@ -210,7 +218,7 @@ contains
     fileName = 'EmissErrStd.dat'
     iunit = 0
     ierr = fnom(iunit, fileName, 'SEQ+FMT', 0)
-    if (ierr /= 0) call utl_abort('emi_readEmissError: Error reading &
+    if (ierr /= 0) call utl_abort('sse_readEmissError: Error reading &
                                    surface emissivity error stdev. file') 
 
     ! Read temporary strings 
@@ -234,19 +242,19 @@ contains
     read(iunit, '(A)') tmpStr
   
     ierr = fclos(iunit)
-    if (ierr /= 0) call utl_abort ('emi_readEmissError')
+    if (ierr /= 0) call utl_abort ('sse_readEmissError')
 
     if (maxSfcSenChan > maxval(chanList)) then
       write(*,*) 'The selected highest peaking channel is not in the emissivity error std file'
-      call utl_abort('emi_readEmissError')
+      call utl_abort('sse_readEmissError')
     end if
 
-  end subroutine emi_readEmissError
+  end subroutine sse_readEmissError
 
   !--------------------------------------------------------------------------
-  ! emi_readCEmissMatrixByFileName
+  ! sse_readCEmissMatrixByFileName
   !--------------------------------------------------------------------------
-  subroutine emi_readCEmissMatrixByFileName(infile, corrMat, chanList, nchan)
+  subroutine sse_readCEmissMatrixByFileName(infile, corrMat, chanList, nchan)
     !
     !:Purpose:  Read surface emissivity error correlation file
     !
@@ -263,20 +271,20 @@ contains
     integer              :: iunit, ierr, count, readChanIndex
     integer, external    :: fnom,fclos
     real(8)              :: tmpCor
-    integer, allocatable :: index(:)
+    integer, allocatable :: foundChanIndex(:)
  
     iunit = 0
     ierr = fnom(iunit, trim(infile), 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) then
-      write(*,*) "Cannot open " // trim(infile)
-      call utl_abort("emi_readCEmissMatrixByFileName")
+      write(*,*) 'Cannot open ' // trim(infile)
+      call utl_abort('sse_readCEmissMatrixByFileName')
     end if
 
-    write(*,*) "emi_readCEmissMatrixByFileName: Reading " // trim(infile)
+    write(*,*) 'sse_readCEmissMatrixByFileName: Reading ' // trim(infile)
     
     read(iunit,*) nchan
   
-    allocate(index(nchan))
+    allocate(foundChanIndex(nchan))
     allocate(corrMat(nchan, nchan))
     allocate(chanList(nchan))
     corrMat = 0.d0
@@ -286,35 +294,35 @@ contains
     end do
     
     count = 0
-    index = -1
+    foundChanIndex(:) = -1
     do chanIndex1 = 1, nchan
       read(iunit,*) readChanIndex
-      index(chanIndex1) = chanIndex1
+      foundChanIndex(chanIndex1) = chanIndex1
       chanList(chanIndex1) = readChanIndex
       count = count + 1
     end do
     if (count /= nchan) then
-      write(*,*) "Warning: Missing information in " // trim(infile)
+      write(*,*) 'Warning: Missing information in ' // trim(infile)
     end if
 
     do
       read(iunit, *, iostat=ierr) chanIndex1, chanIndex2, tmpCor
       if (ierr /= 0) exit
-      if (index(chanIndex1) /= -1 .and. index(chanIndex2) /= -1) then
-        corrMat(index(chanIndex1), index(chanIndex2)) = tmpCor
-        corrMat(index(chanIndex2), index(chanIndex1)) = tmpCor
+      if (foundChanIndex(chanIndex1) /= -1 .and. foundChanIndex(chanIndex2) /= -1) then
+        corrMat(foundChanIndex(chanIndex1), foundChanIndex(chanIndex2)) = tmpCor
+        corrMat(foundChanIndex(chanIndex2), foundChanIndex(chanIndex1)) = tmpCor
       end if
     end do
 
     ierr= fclos(iunit)
-    deallocate(index)
+    deallocate(foundChanIndex)
 
-  end subroutine emi_readCEmissMatrixByFileName
+  end subroutine sse_readCEmissMatrixByFileName
 
   !--------------------------------------------------------------------------
-  ! emi_emissErrMatSqrt
+  ! sse_emissErrMatSqrt
   !--------------------------------------------------------------------------
-  subroutine emi_emissErrMatSqrt(nsubset, obsIn, obsOut, list_sub, list_oer, Cmat, chanList, nchan)
+  subroutine sse_emissErrMatSqrt(nsubset, obsIn, obsOut, list_sub, list_oer, Cmat, chanList, nchan)
     !
     ! :Purpose: Apply the operator EmissivityErrorCovarianceMatrix**1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -340,7 +348,7 @@ contains
   
     allocate(emissErrMat(nsubset, nsubset))
 
-    foundChanIndex = -1
+    foundChanIndex(:) = -1
     do chanIndex1 = 1, nsubset
       chanLoop: do chanIndex2 = 1, nchan
         if (list_sub(chanIndex1) == chanList(chanIndex2)) then
@@ -351,10 +359,10 @@ contains
     end do
 
     if (any(foundChanIndex == -1)) then
-      write(*,*) "Missing information for some channel !"
+      write(*,*) 'Missing information for some channel !'
       write(*,*) list_sub(:)
       write(*,*) foundChanIndex(:)
-      call utl_abort('emi_emissErrMatSqrt')
+      call utl_abort('sse_emissErrMatSqrt')
     end if
 
     do chanIndex2 = 1, nsubset
@@ -372,16 +380,16 @@ contains
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, emissErrMat, nsubset, obsIn, 1, beta, obsOut, 1)
+    call dsymv('L', nsubset, alpha, emissErrMat, nsubset, obsIn, 1, beta, obsOut, 1)
 
     deallocate(emissErrMat)
 
-  end subroutine emi_emissErrMatSqrt
+  end subroutine sse_emissErrMatSqrt
 
   !--------------------------------------------------------------------------
-  !  emi_getChannelNumIndexFromPPP
+  !  sse_getChannelNumIndexFromPPP
   !--------------------------------------------------------------------------
-  subroutine emi_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+  subroutine sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                            channelNumber, channelIndex, tovsIndexList, &
                                            sensorList, tovsMaxChanneNum, tovsChannelOffset, &
                                            tovsIChan)
@@ -414,6 +422,6 @@ contains
     channelNumber = channelNumber - tovsChannelOffset(sensorIndex)
     channelIndex = utl_findloc(tovsIChan(:, sensorIndex), channelNumber)
 
-  end subroutine emi_getChannelNumIndexFromPPP
+  end subroutine sse_getChannelNumIndexFromPPP
 
-end module sfcEmiss_mod
+end module simulateEmissivity_mod 

@@ -124,7 +124,7 @@ module rMatrix_mod
     integer :: i,j,iu,ierr,count,ich,nchn,nch
     integer, external :: fnom,fclos
     real(8) :: x
-    integer, allocatable :: index(:)
+    integer, allocatable :: foundChanIndex(:)
 
     nchn = -1
     if (present(chanList_opt)) then
@@ -150,7 +150,7 @@ module rMatrix_mod
         call utl_abort("rmat_readCMatrixByFileName")
       end if
     end if
-    allocate(index(nch))
+    allocate(foundChanIndex(nch))
     
     C%nchans = nchn
     allocate(C%Rmat(nchn,nchn))
@@ -160,20 +160,20 @@ module rMatrix_mod
       C%Rmat(i,i) = 1.d0
     end do
     count = 0
-    index = -1
+    foundChanIndex(:) = -1
     do i=1,nch
       read(iu,*) ich
       if (present(chanList_opt)) then
         bj:do j=1,nchn
           if (ich == chanList_opt(j)) then
             count = count + 1
-            index(i) = j
+            foundChanIndex(i) = j
             C%listChans(count) = ich
             exit bj
           end if
         end do bj
       else
-        index(i) = i
+        foundChanIndex(i) = i
         C%listChans(i) = ich
         count = count + 1
       end if
@@ -189,14 +189,14 @@ module rMatrix_mod
     do
       read(iu,*,iostat=ierr) i,j,x
       if (ierr /= 0) exit
-      if (index(i) /= -1 .and. index(j) /= -1) then
-        C%Rmat(index(i),index(j)) = x
-        C%Rmat(index(j),index(i)) = x
+      if (foundChanIndex(i) /= -1 .and. foundChanIndex(j) /= -1) then
+        C%Rmat(foundChanIndex(i),foundChanIndex(j)) = x
+        C%Rmat(foundChanIndex(j),foundChanIndex(i)) = x
       end if
     end do
 
     ierr= fclos(iu)
-    deallocate(index)
+    deallocate(foundChanIndex)
 
   end subroutine rmat_readCMatrixByFileName
 
@@ -219,8 +219,8 @@ module rMatrix_mod
     integer, intent(in)  :: indexTovs
 
     ! Locals:
-    real (8) :: Rsub(nsubset,nsubset), alpha, beta, product 
-    integer :: index(nsubset)
+    real (8) :: Rsub(nsubset,nsubset), alpha, beta, variance 
+    integer :: foundChanIndex(nsubset)
     integer :: i,j
 
     if (R_tovs(indexTovs)%nchans == 0) then
@@ -230,19 +230,19 @@ module rMatrix_mod
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
 
-      index = -1
+      foundChanIndex(:) = -1
       do i=1,nsubset
         bj: do j = 1, Rcorr_inst(sensor_id)%nchans
           if (list_sub(i) == Rcorr_inst(sensor_id)%listChans(j)) then
-            index(i) = j
+            foundChanIndex(i) = j
             exit bj 
           end if
         end do bj
       end do
-      if (any(index == -1)) then
+      if (any(foundChanIndex == -1)) then
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
-        write(*,*) index(:)
+        write(*,*) foundChanIndex(:)
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
       R_tovs(indexTovs)%nchans = nsubset
@@ -250,8 +250,8 @@ module rMatrix_mod
       R_tovs(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
       do j=1,nsubset
         do i=1,nsubset
-          product = list_oer(i) * list_oer(j)
-          Rsub(i,j) = product * Rcorr_inst(sensor_id)%Rmat(index(i),index(j))
+          variance = list_oer(i) * list_oer(j)
+          Rsub(i,j) = variance * Rcorr_inst(sensor_id)%Rmat(foundChanIndex(i),foundChanIndex(j))
         end do
       end do
       ! Calculation of R**-1/2
@@ -378,51 +378,51 @@ module rMatrix_mod
     real(8), intent(in)  :: list_oer(nsubset)  ! List of Obs Error  
     
     ! Locals:
-    real(8)                         :: alpha, beta, product
+    real(8)                         :: alpha, beta, variance
     real(8), allocatable            :: Rsub(:,:)
-    integer                         :: index(nsubset)
+    integer                         :: foundChanIndex(nsubset)
     integer                         :: chanIndex1, chanIndex2
    
     allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
-      write(*,*) "invalid sensor_id", sensor_id,size(Rcorr_inst)
+      write(*,*) 'invalid sensor_id', sensor_id,size(Rcorr_inst)
       call utl_abort('rmat_Rsqrt')
     end if
 
     ! Check error correlation for all channels are available
-    index = -1
+    foundChanIndex(:) = -1
     do chanIndex1 = 1, nsubset
       chanLoop: do chanIndex2 = 1, Rcorr_inst(sensor_id)%nchans
         if (list_sub(chanIndex1) == Rcorr_inst(sensor_id)%listChans(chanIndex2)) then
-          index(chanIndex1) = chanIndex2
+          foundChanIndex(chanIndex1) = chanIndex2
           exit chanLoop 
         end if
       end do chanLoop
     end do
 
-    if (any(index == -1)) then
-      write(*,*) "Missing information for some channel !"
+    if (any(foundChanIndex == -1)) then
+      write(*,*) 'Missing information for some channel !'
       write(*,*) list_sub(:)
-      write(*,*) index(:)
+      write(*,*) foundChanIndex(:)
       call utl_abort('rmat_Rsqrt')
     end if
 
     do chanIndex2 = 1, nsubset
       do chanIndex1 = 1, nsubset
-        product = list_oer(chanIndex1) * list_oer(chanIndex2)
-        Rsub(chanIndex1, chanIndex2) = product * Rcorr_inst(sensor_id)%Rmat(index(chanIndex1), index(chanIndex2))
+        variance = list_oer(chanIndex1) * list_oer(chanIndex2)
+        Rsub(chanIndex1, chanIndex2) = variance * Rcorr_inst(sensor_id)%Rmat(foundChanIndex(chanIndex1), foundChanIndex(chanIndex2))
       end do
     end do
 
     ! Calculation of R**1/2
-    call utl_matSqrt(Rsub, nsubset,1.d0, .false.)
+    call utl_matSqrt(Rsub, nsubset, 1.d0, .false.)
 
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
 
     ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, Rsub, nsubset, obsIn, 1, beta, obsOut, 1)
+    call dsymv('L', nsubset, alpha, Rsub, nsubset, obsIn, 1, beta, obsOut, 1)
 
     deallocate(Rsub)
 
@@ -439,7 +439,7 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs),          intent(inout)               :: obsSpaceData  ! ObsSpaceData object
+    type(struct_obs), intent(inout) :: obsSpaceData  ! ObsSpaceData object
      
 
     ! Locals: 
@@ -479,19 +479,19 @@ module rMatrix_mod
       estR(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
       allocate(estR(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
       allocate(estR(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
-      estR(sensorIndex)%Rmat(:, :) = 0
+      estR(sensorIndex)%Rmat(:, :) = 0.0d0
 
       ObsErrSqrdMat(sensorIndex)%nchans = tvs_nchanMpiGlobal(sensorIndex)
       allocate(ObsErrSqrdMat(sensorIndex)%Rmat(tvs_nchanMpiGlobal(sensorIndex), tvs_nchanMpiGlobal(sensorIndex)))
       allocate(ObsErrSqrdMat(sensorIndex)%listChans(tvs_nchanMpiGlobal(sensorIndex)))
-      ObsErrSqrdMat(sensorIndex)%Rmat(:, :) = 0
+      ObsErrSqrdMat(sensorIndex)%Rmat(:, :) = 0.0d0
     end do
 
     ! Initialize values
-    meanObsErrMpiGlobal(:,:) = 0
+    meanObsErrMpiGlobal(:,:) = 0.0d0
     headerCount(:) = 0
     headerCountMpiGlobal(:) = 0
-    obsErrSum(:,:) = 0
+    obsErrSum(:,:) = 0.0d0
     chanList(:,:) = MPC_missingValue_INT
     chanListAllTasks(:,:,:) = MPC_missingValue_INT
 
@@ -666,7 +666,7 @@ module rMatrix_mod
       numchan = estR(sensorIndex)%nchans
      
       do ichan = 1, numchan
-        if (estR(sensorIndex)%Rmat(ichan, ichan) < 0) then
+        if (estR(sensorIndex)%Rmat(ichan, ichan) < 0.0d0) then
           call utl_abort('rmat_updateRmat: Unable to take SQRT of negative values of estR%Rmat')
         end if
         obsErrStdev(sensorIndex, ichan) = SQRT(estR(sensorIndex)%Rmat(ichan, ichan))
@@ -674,8 +674,8 @@ module rMatrix_mod
 
       do ichan = 1, numchan
         do jchan = 1, numchan
-          if (obsErrStdev(sensorIndex, ichan) == 0 .or. obsErrStdev(sensorIndex, jchan) == 0) then
-            RCorr(sensorIndex)%Rmat(ichan, jchan) = 0
+          if (obsErrStdev(sensorIndex, ichan) == 0.0d0 .or. obsErrStdev(sensorIndex, jchan) == 0.0d0) then
+            RCorr(sensorIndex)%Rmat(ichan, jchan) = 0.0d0
           else
             RCorr(sensorIndex)%Rmat(ichan, jchan) = estR(sensorIndex)%Rmat(ichan, jchan) / &
                        (obsErrStdev(sensorIndex, ichan) * obsErrStdev(sensorIndex, jchan))
@@ -750,10 +750,10 @@ module rMatrix_mod
       if (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSOR
 
       ! Construct correlation file name
-      call rttov_coeffname (err, tvs_listSensors(:,sensorIndex), coeffname=filename, filetype="Cmat")
+      call rttov_coeffname (err, tvs_listSensors(:,sensorIndex), coeffname=filename, filetype='Cmat')
       if (err /= errorstatus_success) then
-        write(*,*) "Unknown instrument ", tvs_listSensors(:,sensorIndex)
-        call utl_abort("rmat_writeRCorrFile")
+        write(*,*) 'Unknown instrument ', tvs_listSensors(:,sensorIndex)
+        call utl_abort('rmat_writeRCorrFile')
       end if
 
       numChan = Rcorr_inst(sensorIndex)%nchans

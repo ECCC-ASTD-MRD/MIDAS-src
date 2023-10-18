@@ -184,14 +184,13 @@ program midas_var1D
   logical :: simBgAndObs  ! Simulate Background and Observation
   integer :: simBgSeed    ! Random seed used to generate background perturbation sampling
   integer :: simObsSeed   ! Random seed used to generate observation perturbation sampling
-  logical :: useSimObsErr ! Simulate observation based on observation error that explicitly 
-                          ! considers the surface emissivity error
+  logical :: useSimObsErr ! Simulate observation based on observation error that explicitly considers the surface emissivity error
   
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
-  obsColumnMode = 'VAR1D'
+  obsColumnMode = 'ALL'
 
   call ver_printNameAndVersion('var1D', '1D Variational Assimilation')
 
