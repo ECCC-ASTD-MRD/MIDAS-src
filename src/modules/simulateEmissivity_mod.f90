@@ -1,5 +1,5 @@
 module simulateEmissivity_mod 
-  ! MODULE simulatedSfcEmiss_mod  (prefix='sse ' category='7. Low-level data objects')
+  ! MODULE simulateEmissivity_mod  (prefix='sse ' category='7. Low-level data objects')
   !
   !:Purpose: Manipulate surface emissivity for idealized assimilation of 
   !          surface sensitive AMSU-A channels.
