@@ -174,9 +174,11 @@ program midas_var1D
   type(struct_hco),       pointer :: hco_trl => null()
   type(struct_vco),       pointer :: vco_trl => null()
 
-  integer :: outerLoopIndex, numIterMaxInnerLoop
-  logical :: allocHeightSfc
-  integer :: nulnam, fclos, fnom
+  integer            :: outerLoopIndex, numIterMaxInnerLoop
+  logical            :: allocHeightSfc
+  integer            :: nulnam, fclos, fnom
+  character(len=9)   :: obsColumnMode
+
 
   ! Namelist variables:
   logical :: simBgAndObs  ! Simulate Background and Observation
@@ -185,10 +187,11 @@ program midas_var1D
   logical :: useSimObsErr ! Simulate observation based on observation error that explicitly 
                           ! considers the surface emissivity error
   
-
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
+
+  obsColumnMode = 'VAR1D'
 
   call ver_printNameAndVersion('var1D', '1D Variational Assimilation')
 
@@ -272,7 +275,7 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Setup and read observations
-  call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
+  call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Basic setup of columnData module

@@ -3306,8 +3306,7 @@ contains
           
       end do
 
-      ! Append Surface Emissivity, Surface-Satellite Transmissivity and
-      ! Surface Elevation into ObsSpaceData
+      ! Append Surface Emissivity, Surface-Satellite Transmissivity into ObsSpaceData
       do btIndex = 1, btCount
         bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
         profileIndex = chanprof(btIndex)%prof
@@ -3315,12 +3314,17 @@ contains
         headerIndex = tvs_headerIndex(tovsIndex)
 
         if (bodyIndex > 0) then
-          if (SimSfcEmiss) then 
-            call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
-          else
+          if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
             call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
           end if
-          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
+
+          if (obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
+            call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
+          end if
+
+          if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
+            call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          end if
         end if
       end do
 
