@@ -1,5 +1,5 @@
 module sfcEmiss_mod
-  ! MODULE sfcEmiss_mod (prefix='semi' category='7. Low-level data objects')
+  ! MODULE sfcEmiss_mod (prefix='emi' category='7. Low-level data objects')
   !
   !:Purpose: Manipulate surface emissivity for idealized assimilation of 
   !          surface sensitive AMSU-A channels.
@@ -335,32 +335,32 @@ contains
     ! Locals:
     real(8)               :: alpha, beta, variance
     real(8), allocatable  :: emissErrMat(:,:)
-    integer               :: index(nsubset)
+    integer               :: foundChanIndex(nsubset)
     integer               :: chanIndex1, chanIndex2
   
     allocate(emissErrMat(nsubset, nsubset))
 
-    index = -1
+    foundChanIndex = -1
     do chanIndex1 = 1, nsubset
       chanLoop: do chanIndex2 = 1, nchan
         if (list_sub(chanIndex1) == chanList(chanIndex2)) then
-          index(chanIndex1) = chanIndex2
+          foundChanIndex(chanIndex1) = chanIndex2
           exit chanLoop 
         end if
       end do chanLoop
     end do
 
-    if (any(index == -1)) then
+    if (any(foundChanIndex == -1)) then
       write(*,*) "Missing information for some channel !"
       write(*,*) list_sub(:)
-      write(*,*) index(:)
+      write(*,*) foundChanIndex(:)
       call utl_abort('emi_emissErrMatSqrt')
     end if
 
     do chanIndex2 = 1, nsubset
       do chanIndex1 = 1, nsubset
         variance = list_oer(chanIndex1) * list_oer(chanIndex2)
-        emissErrMat(chanIndex1,chanIndex2) = variance * Cmat(index(chanIndex1), index(chanIndex2))
+        emissErrMat(chanIndex1,chanIndex2) = variance * Cmat(foundChanIndex(chanIndex1), foundChanIndex(chanIndex2))
       end do
     end do
 
@@ -381,10 +381,10 @@ contains
   !--------------------------------------------------------------------------
   !  emi_getChannelNumIndexFromPPP
   !--------------------------------------------------------------------------
-  subroutine emi_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                                            channelNumber, channelIndex, tovsIndexList, &
-                                            sensorList, tovsMaxChanneNum, tovsChannelOffset, &
-                                            tovsIChan)
+  subroutine emi_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                           channelNumber, channelIndex, tovsIndexList, &
+                                           sensorList, tovsMaxChanneNum, tovsChannelOffset, &
+                                           tovsIChan)
     !
     !:Purpose: Get channel number/index from obs_ppp for TO observations. 
     !          Based on tvs_getChannelNumIndexFromPPP subroutine in tovsNL_mod module. 
@@ -414,6 +414,6 @@ contains
     channelNumber = channelNumber - tovsChannelOffset(sensorIndex)
     channelIndex = utl_findloc(tovsIChan(:, sensorIndex), channelNumber)
 
-end subroutine emi_getChannelNumIndexFromPPP
+  end subroutine emi_getChannelNumIndexFromPPP
 
 end module sfcEmiss_mod

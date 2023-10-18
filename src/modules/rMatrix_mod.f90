@@ -18,7 +18,7 @@ module rMatrix_mod
   save
 
   ! public variables
-  public :: rmat_lnondiagr, rmat_matrix
+  public :: rmat_lnondiagr
   ! public subroutines
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
   public :: rmat_updateRmat, rmat_writeRCorrFile
