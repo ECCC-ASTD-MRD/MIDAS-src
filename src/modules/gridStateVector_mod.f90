@@ -986,48 +986,66 @@ module gridStateVector_mod
       statevector%extraUVallocated = statevector%UVComponentPresent
     end if
 
+    allocate(statevector%allLonBeg(mmpi_npex))
+    allocate(statevector%allLonEnd(mmpi_npex))
+    allocate(statevector%allLonPerPE(mmpi_npex))
+    allocate(statevector%allLatBeg(mmpi_npey))
+    allocate(statevector%allLatEnd(mmpi_npey))
+    allocate(statevector%allLatPerPE(mmpi_npey))
+    allocate(statevector%allkCount(mmpi_nprocs))
+    allocate(statevector%allkBeg(mmpi_nprocs))
+    allocate(statevector%allkEnd(mmpi_nprocs))
+    allocate(statevector%allUVkCount(mmpi_nprocs))
+    allocate(statevector%allUVkBeg(mmpi_nprocs))
+    allocate(statevector%allUVkEnd(mmpi_nprocs))
+
     if (statevector%mpi_local) then
-      allocate(statevector%allLonBeg(mmpi_npex))
       CALL rpn_comm_allgather(statevector%myLonBeg,1,'mpi_integer',       &
                               statevector%allLonBeg,1,'mpi_integer','EW',ierr)
-      allocate(statevector%allLonEnd(mmpi_npex))
       CALL rpn_comm_allgather(statevector%myLonEnd,1,'mpi_integer',       &
                               statevector%allLonEnd,1,'mpi_integer','EW',ierr)
-      allocate(statevector%allLonPerPE(mmpi_npex))
       CALL rpn_comm_allgather(statevector%lonPerPE,1,'mpi_integer',       &
                               statevector%allLonPerPE,1,'mpi_integer','EW',ierr)
   
-      allocate(statevector%allLatBeg(mmpi_npey))
       CALL rpn_comm_allgather(statevector%myLatBeg,1,'mpi_integer',       &
                               statevector%allLatBeg,1,'mpi_integer','NS',ierr)
-      allocate(statevector%allLatEnd(mmpi_npey))
       CALL rpn_comm_allgather(statevector%myLatEnd,1,'mpi_integer',       &
                               statevector%allLatEnd,1,'mpi_integer','NS',ierr)
-      allocate(statevector%allLatPerPE(mmpi_npey))
       CALL rpn_comm_allgather(statevector%LatPerPE,1,'mpi_integer',       &
                               statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
 
       call gsv_checkMpiDistribution(stateVector)
 
-      allocate(statevector%allkCount(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykCount,1,'mpi_integer',       &
                               statevector%allkCount,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allkBeg(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykBeg,1,'mpi_integer',       &
                               statevector%allkBeg,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allkEnd(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykEnd,1,'mpi_integer',       &
                               statevector%allkEnd,1,'mpi_integer','grid',ierr)
 
-      allocate(statevector%allUVkCount(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkCount,1,'mpi_integer',       &
                               statevector%allUVkCount,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkBeg(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkBeg,1,'mpi_integer',       &
                               statevector%allUVkBeg,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkEnd(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkEnd,1,'mpi_integer',       &
                               statevector%allUVkEnd,1,'mpi_integer','grid',ierr)
+    else
+
+      statevector%allLonBeg(:) = statevector%myLonBeg
+      statevector%allLonEnd(:) = statevector%myLonEnd
+      statevector%allLonPerPE(:) = statevector%lonPerPE
+      statevector%allLatBeg(:) = statevector%myLatBeg
+      statevector%allLatEnd(:) = statevector%myLatEnd
+      statevector%allLatPerPE(:) = statevector%LatPerPE
+
+      statevector%allkCount(:) = statevector%mykCount
+      statevector%allkBeg(:) = statevector%mykBeg
+      statevector%allkEnd(:) = statevector%mykEnd
+
+      statevector%allUVkCount(:) = statevector%myUVkCount
+      statevector%allUVkBeg(:) = statevector%myUVkBeg
+      statevector%allUVkEnd(:) = statevector%myUVkEnd
+
     end if
 
     select case (ANLTIME_BIN)
@@ -2742,20 +2760,18 @@ module gridStateVector_mod
 
     statevector%allocated=.false.
 
-    if (statevector%mpi_local) then
-      deallocate(statevector%allLonBeg)
-      deallocate(statevector%allLonEnd)
-      deallocate(statevector%allLonPerPE)
-      deallocate(statevector%allLatBeg)
-      deallocate(statevector%allLatEnd)
-      deallocate(statevector%allLatPerPE)
-      deallocate(statevector%allkBeg)
-      deallocate(statevector%allkEnd)
-      deallocate(statevector%allkCount)
-      deallocate(statevector%allUVkBeg)
-      deallocate(statevector%allUVkEnd)
-      deallocate(statevector%allUVkCount)
-    end if
+    deallocate(statevector%allLonBeg)
+    deallocate(statevector%allLonEnd)
+    deallocate(statevector%allLonPerPE)
+    deallocate(statevector%allLatBeg)
+    deallocate(statevector%allLatEnd)
+    deallocate(statevector%allLatPerPE)
+    deallocate(statevector%allkBeg)
+    deallocate(statevector%allkEnd)
+    deallocate(statevector%allkCount)
+    deallocate(statevector%allUVkBeg)
+    deallocate(statevector%allUVkEnd)
+    deallocate(statevector%allUVkCount)
 
     if (statevector%dataKind == 8) then
       deallocate(statevector%gd_r8,stat=ierr)
