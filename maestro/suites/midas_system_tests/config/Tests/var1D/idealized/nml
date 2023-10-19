@@ -1,0 +1,146 @@
+&NAMSQLTOVS
+  listElem='12163' ,
+  sqlExtraHeader='' ,
+  sqlNull='' ,
+/
+ &NAMBMAT1D
+  scalefactorEns=3*0.00D0,0.1D0,0.2D0,0.3D0,0.4D0,0.5D0,0.6D0,0.7D0,0.8D0,0.9D0,100*1.0D0
+  scaleFactorEnsHumidity=200*1.0,
+  scaleFactorEnsTGCorrelation = 1.0d0, 
+  nEns = 256,
+  vLocalize = 12.d0,
+  includeAnlVar(1)= 'UU',
+  includeAnlVar(2)= 'VV',
+  includeAnlVar(3)= 'TT',
+  includeAnlVar(4)= 'HU',
+  includeAnlVar(5)= 'P0',
+  includeAnlVar(6)= 'TG',
+  dumpBmatrixToFile=.true.,
+  lonMin=148.,
+  lonMax=162.,
+  latMin=10.0,
+  latMax=20.0,
+  doAveraging=.true.
+/
+&NAM1DVAR
+  simBgAndObs = .TRUE.,
+  simBgSeed = 1,
+  simObsSeed = 1,
+  useSimObsErr =.True.
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 250,
+   NSIMMAX  = 300,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .TRUE.,
+   LWRTHESS = .FALSE.,
+   LVARQC=.FALSE.,
+   NWOQCV=5
+/
+ &NAMINC
+   etiket_rebm ='XXXXXX'
+/
+ &NAMDIMO
+  NMXOBS=200000,
+  NDATAMX=2000000,
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBS = 1.00d0,
+  DWINDOWSIZE = 6.0d0
+/
+ &NAMFILT
+  NLIST(1)=10004,
+  NLIST(2)=10051,
+  NLIST(3)=12004,
+  NLIST(4)=11215,
+  NLIST(5)=11216,
+  NLIST(6)=12203,
+  NLIST(7)=12001,
+  NLIST(8)=12192,
+  NLIST(9)=11003,
+  NLIST(10)=11004,
+  NLIST(11)=10194,
+  NLIST(12)=12062,
+  NLIST(13)=12063,
+  NLIST(14)=12163,
+  NLIST(15)=15036,
+  NLIST(16)=15031,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=-5,
+  NLISTFLG(5)=-8,
+  list_topoFilt(1) = 'SF'
+  list_topoFilt(2) = 'UA'	
+  list_topoFilt(3) = 'AI'
+  list_topoFilt(4) = 'SW'
+  list_topoFilt(5) = 'PR'
+  list_topoFilt(6) = 'TO'
+  RLIMLVHU=70.D0,
+/
+ &NAMRMAT
+   rmat_lnonDiagR=.true.
+   rmat_estLatMax=60.0,
+   rmat_estLatMin=-50.0,
+   rmat_estLandSeaExcl=1,
+   rmat_estElevMax=1,
+/
+ &NAMSTATE
+   addHeightSfcOffset = .false.
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+   abortonMpiImbalance=.false.
+/
+ &NAMTOV   
+   CSATID(1)        = 'NOAA15',
+   CINSTRUMENTID(1) = 'AMSUA',
+   CSATID(2)        = 'NOAA18',
+   CINSTRUMENTID(2) = 'AMSUA',
+   CSATID(3)        = 'METOP-2',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'NOAA19',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'METOP-1',
+   CINSTRUMENTID(5) = 'AMSUA',
+   LDBGTOV    = .FALSE.,
+   CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .FALSE.,
+   regLimitExtrap=.false.
+   useMWEmissivityAtlas = .TRUE.,
+   mWAtlasId = 2,
+/
+ &NAMSIMEMISS
+  simEmissSeed = 1,
+  maxSfcSenChan = 32,
+/
+ &NAMCODTYP
+/
+ &NAMGPSRO
+  LEVELGPSRO=2,
+  SURFMIN  = 1000.D0,
+  HSFMIN   = 1000.D0,
+  HTPMAX   = 40000.D0,
+  BGCKBAND = 0.05D0,
+/
+&namSQLUpdate
+  itemUpdateList(1)='OMA',
+  itemUpdateList(2)='OMP',
+  itemUpdateList(3)='OER',
+  itemUpdateList(4)='VAR',
+  itemUpdateList(5)='TOB',
+  itemUpdateList(6)='OEI',
+  itemUpdateList(7)='SSE',
+  itemUpdateList(8)='SER',
+  itemUpdateList(9)='EMI',
+
+
+&NAMSQLINSERT
+  itemInsertList(1)=12163
+/

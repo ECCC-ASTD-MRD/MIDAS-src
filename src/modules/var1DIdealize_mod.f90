@@ -27,13 +27,15 @@ module var1DIdealize_mod
     use humidityLimits_mod
     use obsoperators_mod
     use obsErrors_mod
+    use tovsNL_mod
+    use tovsLin_mod
   
     implicit none
     save
     private
   
     ! public procedures
-    public :: var1DIdealize_simulateBackgroundState
+    public :: var1DIdealize_simulateBackgroundState, var1DIdealize_simulateObservation
 
   contains
 
@@ -85,7 +87,7 @@ module var1DIdealize_mod
     
     ! Interpolate (B^1/2)*Pert from analysis to trial level
     call var1DIdealize_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
-    
+
     call col_setVco(columnSimTrlOnTrlLev, col_getVco(columnTruthOnTrlLev))
     call col_allocate(columnSimTrlOnTrlLev, col_getNumCol(columnTruthOnTrlLev), &
                       setToZero_opt=.true.)
@@ -269,12 +271,168 @@ module var1DIdealize_mod
 
         fileName = './'//trim(prefixFileName)//'_' // trim(coffset) // 'm'
         call gio_writeToFile( statevectorSim, fileName, trim(etiket), scaleFactor_opt = 1.0d0, &
-                              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=containsFullField )
+                              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=containsFullField, &
+                              numBits_opt=16 )
       end if
     end do
 
     if(mmpi_myid == 0) write(*,*) 'var1DIdealize_writeSimTrial: Finished'
   end subroutine var1DIdealize_writeSimTrial
+
+  !--------------------------------------------------------------------------
+  ! var1DIdealize_simulateObservation
+  !--------------------------------------------------------------------------
+  subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr)
+    !
+    !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
+    !          Additional changes are needed to generalize for all observations (not just TOVS obs)
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLevTruth ! True column state
+    type(struct_obs),        intent(inout) :: obsSpaceData           ! ObsSpacedata object
+    integer,                 intent(in)    :: datestamp              ! Date stamp
+    integer,                 intent(in)    :: seed                   ! Seed to random number generator 
+    logical,                 intent(in)    :: useSimObsErr           ! Simulate Observation Error Covariance
+
+    ! Locals:
+    logical              :: bgckMode, beSilent
+    integer              :: tovsIndex
+    integer              :: headerIndex, bodyIndex, obsIndex
+    integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex
+    real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
+    integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
+    
+    beSilent = .false.
+    bgckMode = .false.
+
+    write(*,*) 'var1DIdealize_simulateObservation: Starting'
+    
+    ! Compute the Truth the observation space
+    write(*,*) 'var1DIdealize_simulateObservation: Computing the truth in Obs Space'
+
+    ! Prepare atmospheric profiles for all tovs observation points for use in rttov
+    call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
+
+    ! Compute radiance
+    call tvs_rttov(obsSpaceData, bgckMode, beSilent)
+
+     ! loop over all header indices of the 'TO' family
+    call obs_set_current_header_list(obsSpaceData,'TO')
+
+    ! Store the true state (Observation Space) into ObsSpaceData
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! process only radiance data to be assimilated?
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      if (tovsIndex == -1) cycle HEADER
+
+      idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+      do bodyIndex = idata, idatend
+        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+          call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+        end if 
+      end do
+    end do HEADER
+
+    ! Generate Simulated Observations
+    write(*,*) 'var1DIdealize_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
+    
+    if (useSimObsErr) then
+      ! Prepare atmospheric profiles for all tovs observation points for use in rttov
+      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
+
+      ! Compute radiance
+      call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)
+    end if
+
+     ! loop over all header indices of the 'TO' family
+    call obs_set_current_header_list(obsSpaceData,'TO')
+
+    call rng_setup(abs(seed + mmpi_myid))
+
+    HEADER2: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER2
+
+      ! process only radiance data to be assimilated?
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER2
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      if (tovsIndex == -1) cycle HEADER2
+
+      idata  = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+      if (tvs_isIdBurpTovs(idatyp)) then
+
+        allocate(pert(tvs_maxChannelNumber))
+        allocate(obsPert(tvs_maxChannelNumber))
+        allocate(list_OER(tvs_maxChannelNumber))
+        allocate(list_chanNumber(tvs_maxChannelNumber))
+        allocate(list_chanIndex(tvs_maxChannelNumber))
+        allocate(list_bodyIndex(tvs_maxChannelNumber))
+
+        ! Read the Sigma O from ObsSpaceData
+        count = 0
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+            count = count + 1
+            list_bodyIndex(count) = bodyIndex
+            list_chanNumber(count) = channelNumber
+            list_chanIndex(count) = channelIndex
+            list_OER(count) = obs_bodyElem_r(obsspacedata, OBS_OER, bodyIndex)
+            pert(count) = rng_gaussian()
+          end if
+        end do
+
+        if (count > 0) then 
+          ! Compute Observation Perturbation
+          call rmat_Rsqrt(tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
+                          list_OER(1:count))
+
+          ! Update the obs value in ObsSpacedata
+          do obsIndex = 1, count
+            call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(tovsIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
+          end do
+        end if
+        
+        deallocate(pert)
+        deallocate(obsPert)
+        deallocate(list_OER)
+        deallocate(list_chanNumber)
+        deallocate(list_chanIndex)
+        deallocate(list_bodyIndex)
+      end if
+    end do HEADER2
+    
+    if (useSimObsErr) then
+      ! Estimate and update R-Matrix.
+      call rmat_updateRmat(obsSpaceData)
+      call rmat_writeRCorrFile
+    end if
+
+    write(*,*) 'Finish var1DIdealize_simulateObservation'
+  end subroutine var1DIdealize_simulateObservation
 end module var1DIdealize_mod
 
   

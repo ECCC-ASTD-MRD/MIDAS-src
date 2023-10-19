@@ -20,7 +20,7 @@ module var1D_mod
 
   ! public procedures
   public :: var1D_Setup, var1D_Finalize
-  public :: var1D_transferColumnToYGrid
+  public :: var1D_transferColumnToYGrid, var1D_UpdateObsElevation
   ! public variables
   public :: var1D_validHeaderIndex, var1D_validHeaderCount
 
@@ -107,6 +107,7 @@ contains
     integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)
     real(8), pointer :: myColumn(:), myField(:,:,:)
+    real(8), allocatable :: localColumn(:)
     real(8), allocatable, target :: dummy(:)
     integer :: var1D_validHeaderCountMpiGlobal, var1D_validHeaderCountMax, ierr, status
     real(8) :: lat, lon
@@ -189,7 +190,9 @@ contains
       end if
       call rpn_comm_bcast(varDim, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       allocate(dummy(varDim))
+      allocate(localColumn(varDim))
       dummy(:) = MPC_missingValue_R8
+      localColumn(:) = MPC_missingValue_R8
       do obsIndex = 1, var1D_validHeaderCountMax
         if (obsIndex <= var1D_validHeaderCount ) then
           headerIndex = var1D_validHeaderIndex(obsIndex) 
@@ -209,10 +212,10 @@ contains
         if (mmpi_myId == 0) then
           do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
-            call rpn_comm_recv(myColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
-            if (all( myColumn /=  MPC_missingValue_R8)) then
+            call rpn_comm_recv(localColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
+            if (all( localColumn /=  MPC_missingValue_R8)) then
               globalObsIndex = obsIndex + obsOffset(taskIndex)
-              myField(1, globalObsIndex, :) = myColumn(:)
+              myField(1, globalObsIndex, :) = localColumn(:)
             end if
           end do
         end if
@@ -220,6 +223,7 @@ contains
 
       write(*,*) 'var1D_transferColumnToYGrid: end of dissemination for ', varList(varIndex)
       deallocate(dummy)
+      deallocate(localColumn)
 
     end do
 
@@ -228,5 +232,43 @@ contains
     deallocate( var1D_validHeaderCountAllTasks )
 
   end subroutine var1D_transferColumnToYGrid
+
+  !--------------------------------------------------------------------------
+  ! var1D_UpdateObsElevation
+  !--------------------------------------------------------------------------
+  subroutine var1D_UpdateObsElevation(column, obsSpaceData)
+    !
+    !:Purpose: Update model surface eleveation into ObsSpaceData
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)    :: column        ! Column state
+    type(struct_obs),        intent(inout) :: obsSpaceData  ! ObsSpacedata object
+
+    ! Locals:
+    integer :: columnIndex, headerIndex
+    real(8) :: elevation
+    integer :: ilowlvl_T, nlv_T
+
+    if (.not. obs_columnActive_RH(obsSpaceData, OBS_ELEV)) return
+
+    nlv_T = col_getNumLev(column,'TH')
+
+    if (  col_getPressure(column, 1, 1, 'TH') < col_getPressure(column, nlv_T, 1, 'TH') ) then
+      ilowlvl_T = nlv_T
+    else
+      ilowlvl_T = 1
+    end if
+
+    do columnIndex = 1, var1D_validHeaderCount
+      headerIndex = var1D_validHeaderIndex(columnIndex)
+      
+      elevation = 0.001d0 * col_getHeight(column, ilowlvl_T, headerIndex, 'TH') ! unit km
+      call obs_headSet_r(obsSpaceData, OBS_ELEV, headerIndex, elevation)
+      
+    end do
+
+  end subroutine var1D_UpdateObsElevation
 
 end module var1D_mod

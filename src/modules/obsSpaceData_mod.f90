@@ -532,10 +532,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam   (radians)
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
-   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam 
+   integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam
+   integer, parameter, public :: OBS_ELEV  = OBS_RANE +1 ! Model Surface Elevation
 
    ! the last column index for real header variables defined just above
-   integer, parameter :: NHDR_REAL_END = OBS_RANE 
+   integer, parameter :: NHDR_REAL_END = OBS_ELEV 
    integer, parameter :: NHDR_REAL_SIZE = NHDR_REAL_END - NHDR_REAL_BEG + 1
 
    !
@@ -562,7 +563,7 @@ module ObsColumnNames_mod
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
         'CLW1','CLW2','MWS ','SIO ','SIB ','IWV ', &
-        'RZAM','RELE','RANS','RANE'/)
+        'RZAM','RELE','RANS','RANE','ELEV'/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -628,9 +629,14 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! obs LONgitude in Data table (radians)
    integer, parameter, public :: OBS_BTCL= OBS_LOND+1 ! clear-sky simulated observation
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
+   integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space 
+   integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
+   integer, parameter, public :: OBS_SSEM= OBS_EMER+1 ! simulate surface emissivity
+   integer, parameter, public :: OBS_OERI= OBS_SSEM+1 ! Initial sigma(obs)
+   integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
    
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_LOCI
+   integer, parameter :: NBDY_REAL_END = OBS_TRAN
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -639,7 +645,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI' /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM', 'OERI', 'TRAN' /)
 end module ObsColumnNames_mod
 
 
@@ -1025,50 +1031,6 @@ contains
             call odc_activateColumn(odc_flavour_RB, column_index)
          enddo
 
-      elseif(trim(obsColumnMode) == 'ENKF') then COLUMN_MODE
-
-         hdr_int_column_list= &
-            (/OBS_RLN , OBS_ONM , OBS_INS , OBS_ITY , OBS_SAT , OBS_TEC , OBS_DAT , &
-              OBS_ETM , OBS_NLV , OBS_STYP, OBS_PAS , OBS_REG , OBS_IP  , OBS_ST1 , &
-              OBS_IDF , OBS_SEN , OBS_GQF , OBS_GQL , OBS_ROQF,(0,ii=20,100) /)
-
-         hdr_real_column_list= &
-            (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
-              OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
-              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
-
-         bdy_int_column_list(:)    = 0
-         bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
-            odc_ENKF_bdy_int_column_list(:)
-
-         bdy_real_column_list(:)   = 0
-         bdy_real_column_list(1:size(odc_ENKF_bdy_real_column_list)) = &
-            odc_ENKF_bdy_real_column_list(:)
-
-         do list_index=1,COLUMN_LIST_SIZE
-            column_index = hdr_int_column_list(list_index)
-            if(column_index == 0) exit
-            call odc_activateColumn(odc_flavour_IH, column_index)
-         end do
-
-         do list_index=1,COLUMN_LIST_SIZE
-            column_index = hdr_real_column_list(list_index)
-            if(column_index == 0) exit
-            call odc_activateColumn(odc_flavour_RH, column_index)
-         end do
-
-         do list_index=1,COLUMN_LIST_SIZE
-            column_index = bdy_int_column_list(list_index)
-            if(column_index == 0) exit
-            call odc_activateColumn(odc_flavour_IB, column_index)
-         end do
-
-         do list_index=1,COLUMN_LIST_SIZE
-            column_index = bdy_real_column_list(list_index)
-            if(column_index == 0) exit
-            call odc_activateColumn(odc_flavour_RB, column_index)
-         end do
-
       elseif(trim(obsColumnMode) == 'ENKFMIDAS') then COLUMN_MODE
 
          hdr_int_column_list= &
@@ -1089,7 +1051,8 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER , &
               OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
-              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, (0,ii=21,100) /)
+              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, &
+              (0,ii=21,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1117,33 +1080,57 @@ contains
 
       elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
-         do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if( column_index < OBS_GQF .or. column_index > OBS_NCO2  &
-              ) call odc_activateColumn(odc_flavour_IH, column_index)
-         enddo
-         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(     column_index /= OBS_BX &
-               .and.column_index /= OBS_BY &
-               .and.column_index /= OBS_BZ &
-               .and. (column_index < OBS_M1C1 .or. &
-                      column_index > OBS_ZPS) &
-              ) call odc_activateColumn(odc_flavour_RH, column_index)
-         enddo
+         hdr_int_column_list= &
+            (/OBS_RLN , OBS_ONM , OBS_INS , OBS_ITY , OBS_SAT , OBS_TEC , OBS_SEN , &
+              OBS_DAT , OBS_ETM , OBS_NLV , OBS_PAS , OBS_REG , OBS_IP  , OBS_IPF , &
+              OBS_IPC , OBS_IPT , OBS_ST1 , OBS_IDF , OBS_STYP, OBS_ROQF, OBS_SWQ1, &
+              OBS_SWQ2, OBS_SWMT, OBS_SWLS, OBS_SWGA, OBS_SWHA, OBS_CHM , OBS_FOV , &
+              OBS_PRFL, OBS_PHAS, OBS_ORI , OBS_LCH , OBS_RTP , OBS_HDD , OBS_HDT , &
+              OBS_TFLG, OBS_LFLG, OBS_ORBI, OBS_AQF1, OBS_AQF2, OBS_AQF3, OBS_TTYP, &
+              OBS_INFG, OBS_RAIN, OBS_CHID, (0,ii=46,100) /)
 
-         do column_index=NBDY_INT_BEG,NBDY_INT_END
-            if( column_index /= OBS_KFA ) call odc_activateColumn(odc_flavour_IB, column_index)
-         enddo
-         do column_index = NBDY_REAL_BEG, NBDY_REAL_END
-           if(       column_index /= OBS_OMAM &
-               .and. column_index /= OBS_OMP6 & 
-               .and. column_index /= OBS_OMA0 &
-               .and. column_index /= OBS_HAHT &
-               .and. column_index /= OBS_SIGI &
-               .and. column_index /= OBS_SIGO &
-              )call odc_activateColumn(odc_flavour_RB, column_index)
-         enddo
+         hdr_real_column_list= &
+            (/OBS_LAT , OBS_LON , OBS_ALT , OBS_TRAD, OBS_GEOI, OBS_CLF , OBS_SUN , &
+              OBS_SZA , OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS , OBS_SIO , &
+              OBS_SIB , OBS_IWV , OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, &
+              (0,ii=21,100)/)
+
+         bdy_int_column_list= &
+            (/OBS_VNM , OBS_FLG , OBS_ASS , OBS_HIND, OBS_VCO , OBS_LYR , OBS_XTR , &
+              OBS_QCF2, OBS_CLA , (0,ii=10,100) /)
+
+         bdy_real_column_list= &
+            (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OER , OBS_HPHT, &
+              OBS_ZHA , OBS_POB , OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , &
+              OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, OBS_LOCI, &
+              (0,ii=22,100) /)
+         
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = hdr_int_column_list(list_index)
+            if(column_index == 0) exit
+            call odc_activateColumn(odc_flavour_IH, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = hdr_real_column_list(list_index)
+            if(column_index == 0) exit
+            call odc_activateColumn(odc_flavour_RH, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = bdy_int_column_list(list_index)
+            if(column_index == 0) exit
+            call odc_activateColumn(odc_flavour_IB, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = bdy_real_column_list(list_index)
+            if(column_index == 0) exit
+            call odc_activateColumn(odc_flavour_RB, column_index)
+         end do
 
       endif COLUMN_MODE
+
    end subroutine odc_class_initialize
 
 
@@ -1635,7 +1622,7 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
-   public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE
+   public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, OBS_ELEV
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA
@@ -1644,7 +1631,8 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OMAM, OBS_OER
    public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
-   public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI
+   public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
+   public :: OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
