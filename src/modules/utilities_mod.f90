@@ -353,6 +353,8 @@ contains
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
 
+    call utl_tmg_start(180,'low-level--utl_matInverse')
+
     if (present(printInformation_opt)) then
       printInformation = printInformation_opt
     else
@@ -447,6 +449,8 @@ contains
       write(*,*) 'utl_matInverse: done'
       write(*,*) ' '
     end if
+
+    call utl_tmg_stop(180)
 
   end subroutine utl_matInverse
 

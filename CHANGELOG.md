@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Changed `analysisErrorOI` to be compatible with more than 1 MPI task (#862 and !777)
 
 ### Fixed
 

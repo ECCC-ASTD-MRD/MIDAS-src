@@ -163,7 +163,7 @@ module bgckOcean_mod
     call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     if (checkWinds) then
-      call utl_tmg_start(123, '--checkWindsForSST') 
+      call utl_tmg_start(122, '--checkWindsForSST') 
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
       call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
       call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
@@ -202,7 +202,7 @@ module bgckOcean_mod
         end do
       end do      
       call gsv_deallocate(stateVectorAmplFactor)
-      call utl_tmg_stop(123)
+      call utl_tmg_stop(122)
     end if
 
     ! Convert FGE stateVector to column object

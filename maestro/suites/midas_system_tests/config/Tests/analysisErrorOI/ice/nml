@@ -6,8 +6,8 @@
   ANLVAR(1) = 'GL'
 /
  &NAMDIMO
-   NMXOBS  = 600000
-   NDATAMX = 600000
+   NMXOBS  = 6000000
+   NDATAMX = 6000000
 /
  &NAMFILT
   NLIST(1) = 20222
@@ -26,10 +26,15 @@
   NLISTFLG(10) = 13
 /
  &namPlatformIce
-  listPlatformIce(1) = 'CIS_DAILY'
-  listPlatformIce(2) = 'RS1_IMG'
-  listPlatformIce(3) = 'CIS_REGIONAL'
-  listPlatformIce(4) = 'iceclake'
+  listPlatformIce(1) = 'DMSP'
+  listPlatformIce(2) = 'GCOM-W1'
+  listPlatformIce(3) = 'METOP-1'
+  listPlatformIce(4) = 'METOP-2'
+  listPlatformIce(5) = 'CIS_DAILY'
+  listPlatformIce(6) = 'RS1_IMG'
+  listPlatformIce(7) = 'CIS_REGIONAL'
+  listPlatformIce(8) = 'iceclake'
+  listPlatformIce(9) = 'RCM'
 /
  &NAMSQLgl
   listElem="20222,20237,21169,21199"

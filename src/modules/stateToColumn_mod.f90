@@ -1003,8 +1003,8 @@ contains
             lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                       lat_deg_r4, lon_deg_r4, subGridIndex )
 
             if ( subGridIndex == 3 ) then
               ! both subGrids involved in interpolation, so first treat subGrid 1
@@ -1241,11 +1241,19 @@ contains
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
-    call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
-                       statevector%hco, statevector%vco,          &
-                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       dataKind_opt=gsv_getDataKind(statevector), &
-                       varNames_opt=varNames )
+    if (statevector%mpi_distribution == 'None') then
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.false., mpi_distribution_opt='None', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    else
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    end if
     deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
@@ -3702,7 +3710,7 @@ contains
   ! s2c_getWeightsAndGridPointIndexes
   ! -------------------------------------------------------------
   subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
-       interpWeight, latIndex, lonIndex, gridptCount)
+                                               interpWeight, latIndex, lonIndex, gridptCount)
     ! :Purpose: Returns the weights and grid point indexes for a single observation.
     !           
     !

@@ -416,7 +416,7 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
- 
+
   
   subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
