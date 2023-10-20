@@ -134,7 +134,6 @@
  itemUpdateBodyList(3)='OER',
  itemUpdateBodyList(4)='FGE',
  itemUpdateBodyList(5)='EMI',
- itemUpdateHeaderList(1)='ELE',
 /
  &NAMSQLINSERT
  itemInsertList(1)=12163
