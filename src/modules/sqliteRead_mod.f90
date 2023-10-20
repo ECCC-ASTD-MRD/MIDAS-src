@@ -880,7 +880,7 @@ module sqliteRead_mod
 
     ! Read the namelist for directives
     nulnam = 0
-    ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam,nml = namSQLUpdate, iostat = ierr)
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
@@ -930,9 +930,6 @@ module sqliteRead_mod
 
     ! Generate List of Body Column to Update
     itemCharBody='  '
-    
-        ! Generate List of Body Column to Update
-    itemCharBody='  '
     columnName = '  '
     do itemIndex = 1, numberUpdateBodyItems
       
@@ -965,16 +962,16 @@ module sqliteRead_mod
         updateBodyList(itemIndex) = OBS_PPP
         columnName = 'vcoord'
       case('TOB')
-        updateList(itemIndex) = OBS_TRUO
+        updateBodyList(itemIndex) = OBS_TRUO
         columnName = 'truth'
       case('OEI')
-        updateList(itemIndex) = OBS_OERI
+        updateBodyList(itemIndex) = OBS_OERI
         columnName = 'obs_error_initial'
       case('SSE')
-        updateList(itemIndex) = OBS_SSEM
+        updateBodyList(itemIndex) = OBS_SSEM
         columnName = 'sim_surf_emiss'
       case('SER')
-        updateList(itemIndex) = OBS_EMER
+        updateBodyList(itemIndex) = OBS_EMER
         columnName = 'surf_emiss_error'
 
       case DEFAULT
@@ -1033,7 +1030,7 @@ module sqliteRead_mod
 
       select case(item)
       case('ELE')
-        updateHeaderList(itemIndex) = OBS_LAT ! ZQ: Only use for test- Must change to OBS_ELEV before merge request
+        updateHeaderList(itemIndex) = OBS_ELEV
         columnName = 'sfc_elev'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
@@ -1113,13 +1110,13 @@ module sqliteRead_mod
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
-              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_SEMI) then 
+              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_SSEM) then 
                 scaleFactor=100.0
               end if
               call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor)
             end if
           else
-            call fSQL_bind_param(stmt, param_index = itemIndex + 1)  ! sql null values
+            call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
           end if
 
         end do
@@ -1137,12 +1134,14 @@ module sqliteRead_mod
       last_question  = scan(itemCharHeader, '?', back)
       columnNameCharHeader = itemCharHeader(1:last_question)
       itemCharHeader = columnNameCharHeader
+
+      if (numberUpdateHeaderItems > 0) itemCharHeader = ',' // trim(itemCharHeader)
       
       if (trim(familyType) == 'TO') then
-        query = ' update header set status  = ?, land_sea= ? ' // trim(itemCharHeader)
+        query = ' update header set status  = ?, land_sea= ?' // trim(itemCharHeader)
         lastMandatoryIndex = 2
       else 
-        query = ' update header set status  = ? ' // trim(itemCharHeader)
+        query = ' update header set status  = ?' // trim(itemCharHeader)
         lastMandatoryIndex = 1
       end if
 
