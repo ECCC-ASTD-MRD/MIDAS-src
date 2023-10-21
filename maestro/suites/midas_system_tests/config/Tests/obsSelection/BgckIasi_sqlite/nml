@@ -197,9 +197,9 @@
 /
   &NAMSQLUPDATE
   itemUpdateBodyList(4)='OMP'
-  itemUpdateBodyList(2)='COR'
+  itemUpdateBodyList(2)='BCOR'
   itemUpdateBodyList(1)='VAR'
-  itemUpdateBodyList(3)='EMI'
+  itemUpdateBodyList(3)='SEM'
 /
   &NAMSQLInsert
 /

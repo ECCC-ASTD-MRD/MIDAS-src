@@ -132,8 +132,8 @@
  itemUpdateBodyList(1)='OMA',
  itemUpdateBodyList(2)='OMP',
  itemUpdateBodyList(3)='OER',
- itemUpdateBodyList(4)='FGE',
- itemUpdateBodyList(5)='EMI',
+ itemUpdateBodyList(4)='HPHT',
+ itemUpdateBodyList(5)='SEM',
 /
  &NAMSQLINSERT
  itemInsertList(1)=12163

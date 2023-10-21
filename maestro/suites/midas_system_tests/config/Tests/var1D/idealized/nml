@@ -134,12 +134,13 @@
   itemUpdateBodyList(2)='OMP',
   itemUpdateBodyList(3)='OER',
   itemUpdateBodyList(4)='VAR',
-  itemUpdateBodyList(5)='TOB',
-  itemUpdateBodyList(6)='OEI',
-  itemUpdateBodyList(7)='SSE',
-  itemUpdateBodyList(8)='SER',
-  itemUpdateBodyList(9)='EMI',
-  itemUpdateHeaderList(1)='ELE',
+  itemUpdateBodyList(5)='TRUO',
+  itemUpdateBodyList(6)='OERI',
+  itemUpdateBodyList(7)='SSEM',
+  itemUpdateBodyList(8)='EMER',
+  itemUpdateBodyList(9)='SEM',
+  itemUpdateHeaderList(1)='ELEV',
+/
 &NAMSQLINSERT
   itemInsertList(1)=12163
 /

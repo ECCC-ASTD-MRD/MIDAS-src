@@ -49,7 +49,7 @@
   itemUpdateBodyList(1)='OMP'
   itemUpdateBodyList(2)='OMA'
   itemUpdateBodyList(3)='OER'
-  itemUpdateBodyList(4)='FGE'
+  itemUpdateBodyList(4)='HPHT'
 /
  &namSQLInsert
 /

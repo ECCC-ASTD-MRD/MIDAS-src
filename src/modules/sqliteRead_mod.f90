@@ -845,9 +845,9 @@ module sqliteRead_mod
     integer(8)                  :: headPrimaryKey, bodyPrimaryKey
     integer                     :: itemIndex
     integer                     :: headerIndex, bodyIndex
-    character(len =   3)        :: item
+    character(len = 4)          :: item
     integer                     :: updateBodyList(20), updateHeaderList(20), fnom, fclos, nulnam, ierr
-    character(len =  20)        :: columnName
+    character(len = 20)         :: columnName
     character(len = 512)        :: query
     character(len = 356)        :: itemCharBody, columnNameCharBody, itemCharHeader, columnNameCharHeader
     logical                     :: back, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
@@ -857,12 +857,12 @@ module sqliteRead_mod
     integer                     :: lastMandatoryIndex
 
     ! Namelist variables:
-    integer          :: numberUpdateBodyItems                  ! MUST NOT BE INCLUDED IN NAMELIST!
-    integer          :: numberUpdateHeaderItems                ! MUST NOT BE INCLUDED IN NAMELIST!
-    integer          :: numberUpdateItemsRadar                 ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=3) :: itemUpdateBodyList(maxNumberUpdate)    ! List of columns to be updated (e.g.'OMA','OMP')
-    character(len=3) :: itemUpdateHeaderList(maxNumberUpdate)  ! List of columns to be updated (e.g.'ElEVATION')
-    character(len=3) :: itemUpdateListRadar(maxNumberUpdate)   ! List of columns to be updated for Radar data
+    integer            :: numberUpdateBodyItems                  ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer            :: numberUpdateHeaderItems                ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer            :: numberUpdateItemsRadar                 ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len = 4) :: itemUpdateBodyList(maxNumberUpdate)    ! List of columns to be updated (e.g.'OMA','OMP')
+    character(len = 4) :: itemUpdateHeaderList(maxNumberUpdate)  ! List of columns to be updated (e.g.'ElEVATION')
+    character(len = 4) :: itemUpdateListRadar(maxNumberUpdate)   ! List of columns to be updated for Radar data
 
     namelist/namSQLUpdate/ numberUpdateBodyItems, itemUpdateBodyList,     &
                            numberUpdateHeaderItems, itemUpdateHeaderList, &
@@ -933,47 +933,39 @@ module sqliteRead_mod
     columnName = '  '
     do itemIndex = 1, numberUpdateBodyItems
       
-      item = itemUpdateBodyList(itemIndex)
-      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
+      item = trim(itemUpdateBodyList(itemIndex))
+      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
+      if (.not. obs_isColumnNameValid(trim(item))) then
+        call utl_abort('sqlr_updateSqlite: updating column is invalid')
+      end if
+
+      updateBodyList(itemIndex) = obs_columnIndexFromName(item)
       select case(item)
       case('OMA')
-        updateBodyList(itemIndex) = OBS_OMA
         columnName = 'oma'
       case('OMP')
-        updateBodyList(itemIndex) = OBS_OMP
         columnName = 'omp'
       case('VAR')
-        updateBodyList(itemIndex) = OBS_VAR
         columnName = 'obsvalue'
       case('OER')
-        updateBodyList(itemIndex) = OBS_OER
         columnName = 'obs_error'
-      case('FGE')
-        updateBodyList(itemIndex) = OBS_HPHT
+      case('HPHT')
         columnName = 'fg_error'
-      case('EMI')
-        updateBodyList(itemIndex) = OBS_SEM
+      case('SEM')
         columnName = 'surf_emiss'
-      case('COR')
-        updateBodyList(itemIndex) = OBS_BCOR
+      case('BCOR')
         columnName = 'bias_corr'
-      case('ALT')
-        updateBodyList(itemIndex) = OBS_PPP
+      case('PPP')
         columnName = 'vcoord'
-      case('TOB')
-        updateBodyList(itemIndex) = OBS_TRUO
+      case('TRUO')
         columnName = 'truth'
-      case('OEI')
-        updateBodyList(itemIndex) = OBS_OERI
+      case('OERI')
         columnName = 'obs_error_initial'
-      case('SSE')
-        updateBodyList(itemIndex) = OBS_SSEM
+      case('SSEM')
         columnName = 'sim_surf_emiss'
-      case('SER')
-        updateBodyList(itemIndex) = OBS_EMER
+      case('EMER')
         columnName = 'surf_emiss_error'
-
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select
@@ -1025,12 +1017,16 @@ module sqliteRead_mod
     columnName = '  '
     do itemIndex = 1, numberUpdateHeaderItems
       
-      item = itemUpdateHeaderList(itemIndex)
-      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
+      item = trim(itemUpdateHeaderList(itemIndex))
+      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, item
 
+      if (.not. obs_isColumnNameValid(item)) then
+        call utl_abort('sqlr_updateSqlite: updating column is invalid')
+      end if
+
+      updateHeaderList(itemIndex) = obs_columnIndexFromName(item)
       select case(item)
-      case('ELE')
-        updateHeaderList(itemIndex) = OBS_ELEV
+      case('ELEV')
         columnName = 'sfc_elev'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
