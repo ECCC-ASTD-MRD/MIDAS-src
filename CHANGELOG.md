@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+  * Add the ability to update header-level SQLite columns (#871 and !779)
+    * WARNING: ¿NAMSQLUPDATE¿ namelist variable itemUpdateList rename as itemUpdateBodyList. 
+    * The option to update SQLite body-level columns first guess error ¿FGE¿, surface emissivity ¿EMI¿ , bias correlation ¿COR¿, vertical coordinate ¿ALT¿ were rename as ¿HPHT¿, ¿SEM¿, ¿BCOR¿ and ¿PPP¿, respectively. 
+    * Additional namelist variable itemUpdateHeaderList was added for the update of header-level SQLite columns.
  * Added option to simulate observation and surface emissivity in var1D program (#865 and !775)
  * Added ability to read netCDF files (#770 and !776)
  * Added option to simulate background in var1D program (#856 and !768)
