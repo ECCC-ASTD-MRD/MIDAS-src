@@ -66,9 +66,9 @@
    smoothLenghtScale=50000.
 /
  &namSQLUpdate
-  itemUpdateList(1)='OMP'
-  itemUpdateList(2)='OER'
-  itemUpdateList(3)='FGE'
+  itemUpdateBodyList(1)='OMP'
+  itemUpdateBodyList(2)='OER'
+  itemUpdateBodyList(3)='HPHT'
 /
  &namSQLInsert
 /

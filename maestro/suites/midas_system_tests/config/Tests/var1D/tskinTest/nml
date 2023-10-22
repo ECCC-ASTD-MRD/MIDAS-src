@@ -108,9 +108,9 @@
  &NAMGPSGB
 /
  &NAMSQLUPDATE
- itemUpdateList(1)='OMA',
- itemUpdateList(2)='OMP',
- itemUpdateList(3)='OER',
+ itemUpdateBodyList(1)='OMA',
+ itemUpdateBodyList(2)='OMP',
+ itemUpdateBodyList(3)='OER',
 /
  &NAMSQLINSERT
 /

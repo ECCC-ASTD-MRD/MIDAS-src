@@ -26,8 +26,8 @@
 
 /
  &namSQLUpdate
- itemUpdateList(1)='OMP'
- itemUpdateList(2)='OMA'
+ itemUpdateBodyList(1)='OMP'
+ itemUpdateBodyList(2)='OMA'
 /
  &namSSTObsErrors
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError

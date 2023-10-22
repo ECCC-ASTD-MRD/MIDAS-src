@@ -197,6 +197,6 @@
   itemInsertList(4)=11004
 /
  &namSQLUpdate
- itemUpdateList(1)='OMP'
- itemUpdateList(2)='OMA'
+ itemUpdateBodyList(1)='OMP'
+ itemUpdateBodyList(2)='OMA'
 /

@@ -119,9 +119,9 @@
 
 /
  &namSQLUpdate
- itemUpdateList(1)='OMP'
- itemUpdateList(2)='OMA'
- itemUpdateListRadar(1)='ALT'
+ itemUpdateBodyList(1)='OMP'
+ itemUpdateBodyList(2)='OMA'
+ itemUpdateListRadar(1)='PPP'
 /
  &NAMSQLamsua
 /

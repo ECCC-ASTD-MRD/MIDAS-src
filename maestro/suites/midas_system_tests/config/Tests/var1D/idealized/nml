@@ -130,17 +130,17 @@
   BGCKBAND = 0.05D0,
 /
 &namSQLUpdate
-  itemUpdateList(1)='OMA',
-  itemUpdateList(2)='OMP',
-  itemUpdateList(3)='OER',
-  itemUpdateList(4)='VAR',
-  itemUpdateList(5)='TOB',
-  itemUpdateList(6)='OEI',
-  itemUpdateList(7)='SSE',
-  itemUpdateList(8)='SER',
-  itemUpdateList(9)='EMI',
-
-
+  itemUpdateBodyList(1)='OMA',
+  itemUpdateBodyList(2)='OMP',
+  itemUpdateBodyList(3)='OER',
+  itemUpdateBodyList(4)='VAR',
+  itemUpdateBodyList(5)='TRUO',
+  itemUpdateBodyList(6)='OERI',
+  itemUpdateBodyList(7)='SSEM',
+  itemUpdateBodyList(8)='EMER',
+  itemUpdateBodyList(9)='SEM',
+  itemUpdateHeaderList(1)='ELEV',
+/
 &NAMSQLINSERT
   itemInsertList(1)=12163
 /

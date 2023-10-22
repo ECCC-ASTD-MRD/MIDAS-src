@@ -194,10 +194,10 @@
   sqlExtraHeader="  "
 /
   &NAMSQLUPDATE
-  itemUpdateList(1)='OMP'
-  itemUpdateList(2)='COR'
-  itemUpdateList(3)='VAR'
-  itemUpdateList(4)='EMI'
+  itemUpdateBodyList(1)='OMP'
+  itemUpdateBodyList(2)='BCOR'
+  itemUpdateBodyList(3)='VAR'
+  itemUpdateBodyList(4)='SEM'
 /
   &NAMSQLInsert
 /
