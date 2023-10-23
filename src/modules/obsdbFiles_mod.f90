@@ -581,6 +581,7 @@ contains
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
       call obs_headSet_i(obsdat, OBS_INS, headIndex, nint(MPC_missingValue_R8))
+      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_bodySet_r(obsdat, OBS_ELEV, headIndex, MPC_missingValue_R8)
     end do
 
     !- 1.3 Copy values from local tables into obsSpaceData
@@ -1302,6 +1303,12 @@ contains
         if (obs_columnActive_RB(obsdat, OBS_ZHA )) call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, obs_missingValue_R)
         if (obs_columnActive_RB(obsdat, OBS_SEM )) call obs_bodySet_r(obsdat, OBS_SEM , bodyIndex, obs_missingValue_R)
         if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, obs_missingValue_R)
+        if (obs_columnActive_RB(obsdat, OBS_ESTB)) call obs_bodySet_r(obsdat, OBS_ESTB, bodyIndex, obs_missingValue_R)
 
         ! set the varNo for this obsValue
         call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(obsValueIndex))
