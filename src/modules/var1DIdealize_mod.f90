@@ -36,6 +36,7 @@ module var1DIdealize_mod
   
     ! public procedures
     public :: var1DIdealize_simulateBackgroundState, var1DIdealize_simulateObservation
+    public :: var1DIdealize_estSigmaBObsSpace
 
   contains
 
@@ -56,7 +57,7 @@ module var1DIdealize_mod
     type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
     integer,                         intent(in)    :: seed                  ! Seed to random number generator 
     
-    ! locals:
+    ! Locals:
     type(struct_columnData), target :: columnPertOnAnLev
     type(struct_columnData), target :: columnTruthOnAnlLev
     type(struct_columnData), target :: columnPertOnTrlLev
@@ -282,7 +283,7 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   ! var1DIdealize_simulateObservation
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, seed, useSimObsErr)
+  subroutine var1DIdealize_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
     !
     !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
     !          Additional changes are needed to generalize for all observations (not just TOVS obs)
@@ -290,7 +291,7 @@ module var1DIdealize_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: columnTrlOnTrlLevTruth ! True column state
+    type(struct_columnData), intent(in)    :: columnTruthOnTrlLev ! True column state
     type(struct_obs),        intent(inout) :: obsSpaceData           ! ObsSpacedata object
     integer,                 intent(in)    :: datestamp              ! Date stamp
     integer,                 intent(in)    :: seed                   ! Seed to random number generator 
@@ -313,7 +314,7 @@ module var1DIdealize_mod
     write(*,*) 'var1DIdealize_simulateObservation: Computing the truth in Obs Space'
 
     ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-    call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
+    call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
 
     ! Compute radiance
     call tvs_rttov(obsSpaceData, bgckMode, beSilent)
@@ -353,7 +354,7 @@ module var1DIdealize_mod
     
     if (useSimObsErr) then
       ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, 'nl', beSilent)
+      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
 
       ! Compute radiance
       call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)
@@ -433,6 +434,141 @@ module var1DIdealize_mod
 
     write(*,*) 'Finish var1DIdealize_simulateObservation'
   end subroutine var1DIdealize_simulateObservation
+
+  !--------------------------------------------------------------------------
+  ! var1DIdealize_estSigmaBObsSpace
+  !--------------------------------------------------------------------------
+  subroutine var1DIdealize_estSigmaBObsSpace(columnTruthOnTrlLev, estHBHTNumSeed, obsSpaceData, vco_anl, datestamp)
+    !
+    ! :Purpose: Estimating background error STD in observations space
+    !
+
+    implicit none
+
+    ! Arguments
+    type(struct_columnData), target, intent(in)    :: columnTruthOnTrlLev
+    integer,                         intent(in)    :: estHBHTNumSeed
+    type(struct_obs),                intent(inout) :: obsSpaceData
+    type(struct_vco), pointer,       intent(in)    :: vco_anl
+    integer,                         intent(in)    :: datestamp
+
+    ! Locals:
+    type(struct_columnData), target :: columnPertOnAnLev
+    type(struct_columnData), target :: columnPertOnTrlLev
+    type(struct_columnData), target :: columnSimTrlOnTrlLev
+    integer                         :: seed, cvIndex, obsCount
+    real(8), allocatable            :: controlVector(:), stddevErrHx(:)
+    real(8), allocatable            :: errHx(:,:)
+    integer, allocatable            :: errHxBodyList(:)
+    integer                         :: tovsIndex, headerIndex, bodyIndex
+    integer                         :: channelNumber, channelIndex
+    integer                         :: idata, idatend, idatyp, iobs
+    real                            :: meanErrHx
+    logical                         :: bgckMode, beSilent
+
+    if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
+      call utl_abort('var1DIdealize_estSigmaBObsSpace: The truth in observation space must computed stored &
+                                             OBS_TRUO obsSpaceData column')
+    end if
+
+    allocate(errHx(estHBHTNumSeed, obs_numbody_max(obsSpaceData)))
+    allocate(errHxBodyList(obs_numbody_max(obsSpaceData)))
+   
+    do seed = 1, estHBHTNumSeed
+      
+      allocate(controlVector(cvm_nvadim))
+      call rng_setup(abs(seed))
+
+    ! Generate perturbation sampling
+      do cvIndex = 1, cvm_nvadim
+        controlVector(cvIndex) = rng_gaussian()
+      end do
+
+      ! Compute (B^1/2)*Pert (column)
+      call col_setVco(columnPertOnAnLev, vco_anl)
+      call col_allocate(columnPertOnAnLev, obs_numheader(obsSpaceData), setToZero_opt=.true.)
+      call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData)
+
+      call col_setVco(columnPertOnTrlLev, col_getVco(columnTruthOnTrlLev))
+      call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
+    
+      ! Interpolate (B^1/2)*Pert from analysis to trial level
+      call var1DIdealize_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
+    
+      call col_setVco(columnSimTrlOnTrlLev, col_getVco(columnTruthOnTrlLev))
+      call col_allocate(columnSimTrlOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
+      call col_copy(columnTruthOnTrlLev, columnSimTrlOnTrlLev)
+    
+      ! Add the truth and (B^1/2)*Pert columns
+      call col_add(columnPertOnTrlLev, columnSimTrlOnTrlLev)
+
+      ! Compute the pressure levels
+      call cvt_transform(columnSimTrlOnTrlLev, 'ZandP_nl')
+
+      ! Restrict the simulated humidity background within physically reasonable values.
+      call qlim_rttovLimit(columnSimTrlOnTrlLev)
+
+      beSilent = .false.
+      bgckMode = .false.
+
+      ! Prepare atmospheric profiles for all tovs observation points for use in rttov
+      call tvs_fillProfiles(columnSimTrlOnTrlLev, obsSpaceData, datestamp, "nl", beSilent)
+
+      ! Compute radiance
+      call tvs_rttov(obsSpaceData, bgckMode, beSilent)
+      
+      obsCount = 0
+      
+      ! loop over all header indices of the 'TO' family
+      call obs_set_current_header_list(obsSpaceData,'TO')
+      
+      HEADER: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER
+
+        ! process only radiance data to be assimilated
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'var1DIdealize_estSigmaBObsSpace: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER
+        end if
+
+        tovsIndex = tvs_tovsIndex(headerIndex)
+        if (tovsIndex == -1) cycle HEADER
+
+        idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+        idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+
+        do bodyIndex = idata, idatend
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                channelNumber, channelIndex)
+            obsCount = obsCount + 1
+
+            errHx(seed, obsCount) = tvs_radiance(tovsIndex)%bt(channelIndex) - &
+                                    obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
+            
+            errHxBodyList(obsCount) = bodyIndex
+          end if
+        end do
+      end do HEADER
+
+      deallocate(controlVector)
+      call col_deallocate(columnPertOnAnLev)
+      call col_deallocate(columnPertOnTrlLev)
+      call col_deallocate(columnSimTrlOnTrlLev)
+    end do
+
+    ! Compute the background error Stdev in observation space
+    allocate(stddevErrHx(obsCount))
+    do iobs = 1, obsCount
+      meanErrHx= sum(errHx(1:estHBHTNumSeed, iobs))/estHBHTNumSeed
+      stddevErrHx(iobs) = sqrt(sum((errHx(1:estHBHTNumSeed, iobs) - meanErrHx)**2)/estHBHTNumSeed)
+
+      call obs_bodySet_r(obsSpaceData, OBS_ESTB, errHxBodyList(iobs), stddevErrHx(iobs))
+    end do
+  end subroutine var1DIdealize_estSigmaBObsSpace
+
 end module var1DIdealize_mod
 
   

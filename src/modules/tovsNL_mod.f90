@@ -3310,16 +3310,18 @@ contains
         headerIndex = tvs_headerIndex(tovsIndex)
 
         if (bodyIndex > 0) then
-          if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          if (SimSfcEmiss) then
+            if (obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
+              call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+            end if
+          else 
+            if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
+              call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+            end if
           end if
 
           if (obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
             call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
-          end if
-
-          if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
-            call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
           end if
         end if
       end do

@@ -634,9 +634,10 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_SSEM= OBS_EMER+1 ! simulate surface emissivity
    integer, parameter, public :: OBS_OERI= OBS_SSEM+1 ! Initial sigma(obs)
    integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
+   integer, parameter, public :: OBS_ESTB= OBS_TRAN+1 ! Estimated Simga(B) in observation space
    
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_TRAN
+   integer, parameter :: NBDY_REAL_END = OBS_ESTB
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -645,7 +646,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM', 'OERI', 'TRAN' /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM','OERI','TRAN','ESTB'  /)
 end module ObsColumnNames_mod
 
 
@@ -1632,7 +1633,7 @@ module ObsSpaceData_mod
    public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
    public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
-   public :: OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN
+   public :: OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN, OBS_ESTB
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

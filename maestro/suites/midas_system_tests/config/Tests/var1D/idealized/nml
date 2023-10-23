@@ -27,6 +27,7 @@
   simBgSeed = 1,
   simObsSeed = 1,
   useSimObsErr =.True.
+  numRealizeEstSigmaHBHT = 100,
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -139,6 +140,7 @@
   itemUpdateBodyList(7)='SSEM',
   itemUpdateBodyList(8)='EMER',
   itemUpdateBodyList(9)='SEM',
+  itemUpdateBodyList(10)='ESTB',
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT
