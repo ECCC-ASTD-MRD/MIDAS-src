@@ -5093,8 +5093,8 @@ contains
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                                si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
-                                headerIndex, sensorIndex, obsSpaceData)
+                                scatIndexOverWaterObsEcmwf, scatIndexOverWaterObs, scatIndexOverWaterFG, &
+                                iNumSeaIce, iRej, SeaIce, headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 5 ATMS channels:
     !            - sea ice,
@@ -5124,8 +5124,9 @@ contains
     integer,          intent(out)   :: iRej           ! counter for number locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej       ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs       ! .true. if open water point (away from coasts and sea-ice)
-    real(8),          intent(out)   :: si_ecmwf       ! ECMWF scattering index from tb89 & tb165
-    real(8),          intent(out)   :: si_bg          ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165
+    real(8),          intent(out)   :: scatIndexOverWaterObs      ! Bennartz-Grody scattering index from tb89 & tb165 from obs
+    real(8),          intent(out)   :: scatIndexOverWaterFG       ! Bennartz-Grody scattering index from tb89 & tb165 from background
     real(8),          intent(out)   :: SeaIce         ! computed sea-ice fraction from tb23 & tb50
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,          intent(in)    :: headerIndex    ! current header Index 
@@ -5133,13 +5134,13 @@ contains
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
-    integer :: ier, actualNumChannel
+    integer :: ier, actualNumChannel, codtyp
     real(8) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
-    real(8) :: bcor23, bcor31, bcor50, bcor89, bcor165
-    real(8) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(8) :: tb89FG, tb89FgClear, tb165FG, tb165FgClear
+    real(8) :: bcor23, bcor31, bcor50, bcor89, bcor165, aa
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: obsLat, obsLon, satZenithAngle
-    real(8), allocatable :: obsTb(:), ompTb(:), obsTbBiasCorr(:)
+    real(8), allocatable :: obsTb(:), ompTb(:), btClear(:), obsTbBiasCorr(:)
 
     iNumSeaIce = 0
     iRej = 0
@@ -5148,6 +5149,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
     actualNumChannel = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     if (tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel) then
       write(*,*) 'mwbg_nrlFilterAtms: tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel'
     end if
@@ -5164,9 +5166,11 @@ contains
     if (.not. grossrej) then
       allocate(ompTb(actualNumChannel))
       allocate(obsTb(actualNumChannel))
+      allocate(btClear(actualNumChannel))
       allocate(obsTbBiasCorr(actualNumChannel))
       ompTb(:) = mwbg_realMissing
       obsTb(:) = mwbg_realMissing
+      btClear(:) = mwbg_realMissing
       obsTbBiasCorr(:) = mwbg_realMissing
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
@@ -5175,15 +5179,19 @@ contains
         ompTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
         obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
         obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          btClear(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BTCL, bodyIndex)
+        end if
       end do
     end if
 
     ! 1) Initialise parameters:
     ice = mwbg_realMissing
-    cloudLiquidWaterPathObs = mwbg_realMissing
-    cloudLiquidWaterPathFG  = mwbg_realMissing
-    si_ecmwf = mwbg_realMissing
-    si_bg = mwbg_realMissing
+    cloudLiquidWaterPathObs    = mwbg_realMissing
+    cloudLiquidWaterPathFG     = mwbg_realMissing
+    scatIndexOverWaterObs      = mwbg_realMissing
+    scatIndexOverWaterFG       = mwbg_realMissing
+    scatIndexOverWaterObsEcmwf = mwbg_realMissing
     SeaIce = 0.0d0
 
     tb23    = mwbg_realMissing
@@ -5195,9 +5203,13 @@ contains
     tb50    = mwbg_realMissing
     bcor50  = mwbg_realMissing
     tb89    = mwbg_realMissing
+    tb89FG  = mwbg_realMissing
     bcor89  = mwbg_realMissing
     tb165   = mwbg_realMissing
-    bcor165 = mwbg_realMissing   
+    tb165FG = mwbg_realMissing
+    bcor165 = mwbg_realMissing
+    tb89FgClear  = mwbg_realMissing
+    tb165FgClear = mwbg_realMissing
 
     ! 2) Validate input parameters:
     if (satZenithAngle < 0.0d0 .or. satZenithAngle > 70.0d0 .or. &
@@ -5218,7 +5230,7 @@ contains
       !  50 Ghz = AMSU-A 3 = ATMS channel 3
       !  53 Ghz = AMSU-A 5 = ATMS channel 6
       !  89 Ghz = AMSU-A15 = ATMS channel 16
-      ! 150 Ghz = AMSU-B 2 = ATMS channel 17
+      ! 165 Ghz = AMSU-B 2 = ATMS channel 17
       tb23    = obsTb(1)
       tb23FG  = obsTb(1) - ompTb(1)
       bcor23  = obsTbBiasCorr(1)
@@ -5228,44 +5240,22 @@ contains
       tb50    = obsTb(3)
       bcor50  = obsTbBiasCorr(3)
       tb89    = obsTb(16)
+      tb89FG  = obsTb(16) - ompTb(16)
       bcor89  = obsTbBiasCorr(16)
+      if (btClear(16) /= mwbg_realMissing) tb89FgClear = btClear(16)
       tb165   = obsTb(17)
+      tb165FG = obsTb(17) - ompTb(17)
       bcor165 = obsTbBiasCorr(17)
+      if (btClear(17) /= mwbg_realMissing) tb165FgClear = btClear(17)
     end if
 
     ! 3) Compute parameters:
     if ( ier == 0 ) then
-      cosz   = cosd(satZenithAngle)
-
-      if (bcor23 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t23 = tb23
-      else
-        t23 = tb23 - bcor23
-      end if
-      if (bcor31 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t31 = tb31
-      else
-        t31 = tb31 - bcor31
-      end if
-      if (bcor50 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t50 = tb50
-      else
-        t50 = tb50 - bcor50
-      end if
-      if (bcor89 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t89 = tb89
-      else
-        t89 = tb89 - bcor89
-      end if
-      if (bcor165 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t165 = tb165
-      else
-        t165 = tb165 - bcor165
-      end if
-
-      deltb = t89 - t165
-      t23FG = tb23FG
-      t31FG = tb31FG
+      if (bcor23  /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb23  = tb23  - bcor23
+      if (bcor31  /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb31  = tb31  - bcor31
+      if (bcor50  /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb50  = tb50  - bcor50
+      if (bcor89  /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb89  = tb89  - bcor89
+      if (bcor165 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb165 = tb165 - bcor165
 
       ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
       if ( calcLandQualifierIndice == 1 ) then  ! water point
@@ -5273,7 +5263,7 @@ contains
         if ( abs(obsLat) < 50.0d0 ) then
           ice = 0.0d0
         else
-          ice = 2.85d0 + 0.020d0 * t23 - 0.028d0 * t50
+          ice = 2.85d0 + 0.020d0 * tb23 - 0.028d0 * tb50
         end if
 
         SeaIce = ice
@@ -5288,18 +5278,27 @@ contains
 
       ! Compute cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, and Scattering Indices (over open water only)
       if ( waterobs ) then
-        if ( t23 < 284.0d0 .and. t31 < 284.0d0 ) then
-          aa = 8.24d0 - (2.622d0 - 1.846d0 * cosz) * cosz
-          cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - t23) - 2.265d0 * dlog(285.0d0 - t31)
-          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosz
+        if ( tb23 < 284.0d0 .and. tb31 < 284.0d0 ) then
+          aa = 8.24d0 - (2.622d0 - 1.846d0 * cosd(satZenithAngle)) * cosd(satZenithAngle)
+          cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - tb23) - 2.265d0 * dlog(285.0d0 - tb31)
+          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosd(satZenithAngle)
           if ( cloudLiquidWaterPathObs < 0.0d0 ) cloudLiquidWaterPathObs = 0.0d0
 
-          cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - t23FG) - 2.265d0 * dlog(285.0d0 - t31FG)
-          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosz
+          cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - tb23FG) - 2.265d0 * dlog(285.0d0 - tb31FG)
+          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosd(satZenithAngle)
           if ( cloudLiquidWaterPathFG < 0.0d0 ) cloudLiquidWaterPathFG = 0.0d0
         end if
-        si_ecmwf = deltb - (-46.94d0 + 0.248d0 * satZenithAngle)
-        si_bg    = deltb - (-39.201d0 + 0.1104d0 * satZenithAngle)
+
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          if (tb89FgClear /= mwbg_realMissing .and. tb165FgClear /= mwbg_realMissing) then
+            scatIndexOverWaterObs = (tb89 - tb165) - (tb89FgClear - tb165FgClear)
+            scatIndexOverWaterFG = (tb89FG - tb165FG) - (tb89FgClear - tb165FgClear)
+          end if
+        else
+          scatIndexOverWaterObs = (tb89 - tb165) - (-39.2010d0 + 0.1104d0 * satZenithAngle)
+        end if
+
+        scatIndexOverWaterObsEcmwf = (tb89 - tb165) - (-46.94d0 + 0.248d0 * satZenithAngle)
       end if
 
     else  ! ier == 1 case
@@ -5309,13 +5308,26 @@ contains
 
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
     call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
+    if (scatIndexOverWaterObs /= mwbg_realMissing) then
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatIndexOverWaterObs)
+    else
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R8)
+    end if
+
+    if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+      if (scatIndexOverWaterFG /= mwbg_realMissing) then
+        call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, scatIndexOverWaterFG)
+      else
+        call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, MPC_missingValue_R8)
+      end if
+    end if
 
     if ( mwbg_debug ) then
       write(*,*) ' '
       write(*,*) ' tb23,tb23FG,tb31,tb31FG,tb50,tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice = ', &
                  tb23,tb23FG,tb31,tb31FG,tb50,tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice
-      write(*,*) ' ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,si_ecmwf,si_bg,calcTerrainTypeIndice,waterobs =', &
-                 ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,si_ecmwf,si_bg,calcTerrainTypeIndice,waterobs
+      write(*,*) ' ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObs,calcTerrainTypeIndice,waterobs =', &
+                 ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObs,calcTerrainTypeIndice,waterobs
     end if
 
   end subroutine mwbg_nrlFilterAtms
