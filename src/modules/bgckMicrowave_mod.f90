@@ -3484,7 +3484,7 @@ contains
     integer :: ITEST(mwbg_maxNumTest), chanIgnoreInAllskyGenCoeff(6), ICHTOPO(5)
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
-    real(8) :: zdi, scatec, scatbg, SeaIce, riwv, ZCRIT(5)
+    real(8) :: zdi, scatIndexOverWaterObsEcmwf, scatbg, SeaIce, riwv, ZCRIT(5)
     real(8), allocatable :: ROGUEFAC(:)
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: LLFIRST = .true.
@@ -3576,13 +3576,14 @@ contains
     if ( COUNT(qcRejectLogic(:)) == actualNumChannel ) grossrej = .true.
 
     !###############################################################################
-    ! STEP 4 ) mwbg_nrlFilterAtms returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
-    !          detection missing value for cloudLiquidWaterPathObs, scatec, scatbg is mwbg_realMissing (e.g. over
-    !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
+    ! STEP 4 ) mwbg_nrlFilterAtms returns scatIndexOverWaterObsEcmwf and sets cloudLiquidWaterPathObs, 
+    !          cloudLiquidWaterPathFG, scatIndexOverWater[Obs/FG] in obsSpaceData over open water 
+    !          (values are set to missing over land or sea-ice). 
+    !          It also sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
     call mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                            scatec, scatbg, iNumSeaIce, iRej, SeaIce, &
+                            scatIndexOverWaterObsEcmwf, iNumSeaIce, iRej, SeaIce, &
                             headerIndex, sensorIndex, obsSpaceData)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -3593,7 +3594,7 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritAtms(scatec, scatbg, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
+    call mwbg_flagDataUsingNrlCritAtms(scatIndexOverWaterObsEcmwf, SeaIce, grossrej, waterobs, &
                                        iwvreject, cloudobs, precipobs, cldcnt , riwv, zdi, &
                                        headerIndex, sensorIndex, obsSpaceData)
 
@@ -3609,7 +3610,7 @@ contains
     !            for ch.20-22 over land)
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, &
-                                             precipobs, scatec, scatbg, &
+                                             precipobs, scatIndexOverWaterObsEcmwf, scatbg, &
                                              iwvreject, riwv, &
                                              zdi, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -3705,11 +3706,11 @@ contains
       write(*,*) '       1     Mean 183 Ghz [ch. 18-22] is missing'
       write(*,*) '       2     NRL CLW is missing (over water)'
       write(*,*) '       3     NRL > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)'
-      write(*,*) '       4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)'
+      write(*,*) '       4     scatIndexOverWaterObsEcmwf/scatIndexOverWaterObs > Lower Troposphere limit 9/10 (precipobs)'
       write(*,*) '       5     Mean 183 Ghz [ch. 18-22] Tb < 240K'
       write(*,*) '       6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)'
       write(*,*) '       7     Dryness Index rejection (for ch. 22)'
-      write(*,*) '       8     scatec/scatbg > Upper Troposphere limit 18/15'
+      write(*,*) '       8     scatIndexOverWaterObsEcmwf/scatIndexOverWaterObs > Upper Troposphere limit 18/15'
       write(*,*) '       9     Dryness Index rejection (for ch. 21)'
       write(*,*) '      10     Sea ice > 0.55 detected'
       write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
@@ -5093,8 +5094,8 @@ contains
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                                scatIndexOverWaterObsEcmwf, scatIndexOverWaterObs, scatIndexOverWaterFG, &
-                                iNumSeaIce, iRej, SeaIce, headerIndex, sensorIndex, obsSpaceData)
+                                scatIndexOverWaterObsEcmwf, iNumSeaIce, iRej, SeaIce, &
+                                headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 5 ATMS channels:
     !            - sea ice,
@@ -5124,9 +5125,7 @@ contains
     integer,          intent(out)   :: iRej           ! counter for number locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej       ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs       ! .true. if open water point (away from coasts and sea-ice)
-    real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165
-    real(8),          intent(out)   :: scatIndexOverWaterObs      ! Bennartz-Grody scattering index from tb89 & tb165 from obs
-    real(8),          intent(out)   :: scatIndexOverWaterFG       ! Bennartz-Grody scattering index from tb89 & tb165 from background
+    real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165 from obs over water
     real(8),          intent(out)   :: SeaIce         ! computed sea-ice fraction from tb23 & tb50
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,          intent(in)    :: headerIndex    ! current header Index 
@@ -5139,6 +5138,7 @@ contains
     real(8) :: tb89FG, tb89FgClear, tb165FG, tb165FgClear
     real(8) :: bcor23, bcor31, bcor50, bcor89, bcor165, aa
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
+    real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     real(8) :: obsLat, obsLon, satZenithAngle
     real(8), allocatable :: obsTb(:), ompTb(:), btClear(:), obsTbBiasCorr(:)
 
@@ -5562,7 +5562,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritAtms(scatec, scatbg, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
+  subroutine mwbg_flagDataUsingNrlCritAtms(scatIndexOverWaterObsEcmwf, SeaIce, grossrej, waterobs, &
                                            iwvreject, cloudobs, precipobs,  cldcnt, riwv, zdi, &
                                            headerIndex, sensorIndex, obsSpaceData)
     ! 
@@ -5572,11 +5572,11 @@ contains
     !            -  1     Mean 183 Ghz [ch. 18-22] is missing
     !            -  2     CLW is missing (over water)
     !            -  3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
-    !            -  4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
+    !            -  4     scatIndexOverWaterObsEcmwf/scatIndexOverWaterObs > Lower Troposphere limit 9/10 (precipobs)
     !            -  5     Mean 183 Ghz [ch. 18-22] Tb < 240K
     !            -  6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
     !            -  7     Dryness Index rejection (for ch. 22)
-    !            -  8     scatec/scatbg > Upper Troposphere limit 18/15
+    !            -  8     scatIndexOverWaterObsEcmwf/scatIndexOverWaterObs > Upper Troposphere limit 18/15
     !            -  9     Dryness Index rejection (for ch. 21)
     !            - 10     Sea ice > 0.55 detected
     !            - 11     Gross error in Tb (any chan.) (all channels rejected)
@@ -5584,10 +5584,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(in)    :: scatec       ! ECMWF scattering index from tb89 & tb165
-    real(8),          intent(in)    :: scatbg       ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(in)    :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165
     real(8),          intent(in)    :: SeaIce       ! computed sea-ice fraction from tb23 & tb50
-    logical,          intent(in)    :: useUnbiasedObsForClw  ! use unbiased Tb for CLW calculation
     logical,          intent(in)    :: grossrej     ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(in)    :: waterobs     ! if obs over open-water
     integer,          intent(inout) :: cldcnt       ! Number of water point covered by cloud
@@ -5604,7 +5602,7 @@ contains
     integer :: indx, n_cld, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
-    real(8) :: cloudLiquidWaterPathObs
+    real(8) :: cloudLiquidWaterPathObs, scatIndexOverWaterObs
     real(8), allocatable :: obsTb(:), obsTbBiasCorr(:)
 
     ! To begin, assume that all obs are good.
@@ -5622,6 +5620,7 @@ contains
     end if
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    scatIndexOverWaterObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
 
     if (.not. grossrej) then
       allocate(obsTb(actualNumChannel))
@@ -5650,7 +5649,7 @@ contains
     riwv = mwbg_realMissing
     if (.not. grossrej) then
       do indx = 1, 5
-        if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. useUnbiasedObsForClw) then
+        if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
           ztb183(indx) = obsTb(indx+17)
         else
           ztb183(indx) = obsTb(indx+17) - obsTbBiasCorr(indx+17)
@@ -5667,7 +5666,7 @@ contains
     !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
 
     if ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
-    if ( scatec > scatec_atms_nrl_LTrej .or. scatbg > scatbg_atms_nrl_LTrej ) precipobs = .true.
+    if ( scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej .or. scatIndexOverWaterObs > scatbg_atms_nrl_LTrej ) precipobs = .true.
     if (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) n_cld = 1
     cldcnt  = cldcnt  + n_cld
     if ( (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
@@ -5676,7 +5675,7 @@ contains
     if ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
     if ( cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
     if ( cloudLiquidWaterPathObs > clw_atms_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
-    if ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) newInformationFlag = IBSET(newInformationFlag,8)
+    if ( scatIndexOverWaterObsEcmwf > scatec_atms_nrl_UTrej .or. scatIndexOverWaterObs > scatbg_atms_nrl_UTrej ) newInformationFlag = IBSET(newInformationFlag,8)
     if ( SeaIce >= 0.55d0 ) newInformationFlag = IBSET(newInformationFlag,10)
 
     if (waterobs .and. cloudLiquidWaterPathObs == mwbg_realMissing) then
@@ -5685,7 +5684,7 @@ contains
     if (riwv == mwbg_realMissing) newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
-    if ( useUnbiasedObsForClw ) then
+    if ( mwbg_useUnbiasedObsForClw ) then
       if (.not. grossrej) then
         zdi = ztb_amsub3 - ztb_amsub5
       else
