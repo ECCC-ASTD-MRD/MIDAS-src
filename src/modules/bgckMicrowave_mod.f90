@@ -5997,11 +5997,18 @@ contains
         if (scatIndexOverWaterObs > scatbg_atms_nrl_LTrej) lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
         if (scatIndexOverWaterObs > scatbg_atms_nrl_UTrej) lflagchn(7:9) = .true.
         if (iwvreject) lflagchn(16:22) = .true.
+        
         if (cloudLiquidWaterPathObs == mwbg_realMissing) then
           newInformationFlag = IBSET(newInformationFlag,2)
           lflagchn(1:9)   = .true.
           lflagchn(16:22) = .true.
         end if
+
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+            scatIndexOverWaterObs == MPC_missingValue_R8) then
+          lflagchn(17:22) = .true.
+        end if
+
         if (riwv == mwbg_realMissing) then     ! riwv = mean_Tb_183Ghz
           newInformationFlag = IBSET(newInformationFlag,1)
           lflagchn(16:22) = .true.
@@ -6018,9 +6025,10 @@ contains
     if (any(lflagchn(:))) flgcnt = flgcnt + 1
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyTtGenCoeff(:)
-    ! as cloud-affected radiances over sea when there is mismatch between 
-    ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
+    ! In all-sky TT mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyTtGenCoeff(:)
+    !   as cloud-affected radiances over sea when there is too much cloud (to exclude in gen_bias_corr)
+    ! In all-sky HU mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyHuGenCoeff(:)
+    !   as cloud-affected radiances over sea when there is too much cloud (to exclude in gen_bias_corr)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
     clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
