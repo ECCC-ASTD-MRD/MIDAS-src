@@ -21,6 +21,7 @@ module bgckMicrowave_mod
   public :: mwbg_bgCheckMW
   public :: mwbg_computeMwhs2SurfaceType
 
+  ! Module variable
   real(8) :: mwbg_clwQcThreshold
   real(8) :: mwbg_cloudyClwThresholdBcorr
   real(8) :: mwbg_minSiOverWaterThreshold ! for AMSUB/MHS
@@ -33,8 +34,6 @@ module bgckMicrowave_mod
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
   integer, parameter :: mwbg_intMissing = -1
-
-  ! Module variable
 
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
   character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file
@@ -59,6 +58,8 @@ module bgckMicrowave_mod
 
   integer, allocatable :: rejectionCodArray(:,:,:)    ! number of rejection per sat. per channl per test
   integer, allocatable :: rejectionCodArray2(:,:,:)   ! number of rejection per channl per test for ATMS 2nd category of tests
+  integer, allocatable :: mwbg_chanIgnoreInAllskyTtGenCoeff(:) ! channels to exclude from genCoeff in all-sky TT
+  integer, allocatable :: mwbg_chanIgnoreInAllskyHuGenCoeff(:) ! channels to exclude from genCoeff in all-sky HU
 
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
@@ -73,7 +74,6 @@ module bgckMicrowave_mod
   logical            :: modLSQ                        !
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
-
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
@@ -910,7 +910,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck(sensorIndex, ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
+  subroutine amsuaTest12GrodyClwCheck(sensorIndex, amsuaChanRejectWithClw, qcIndicator, &
+                                      headerIndex, obsSpaceData)
     !
     !:Purpose: test 12: Grody cloud liquid water check (partial).
     !
@@ -920,7 +921,7 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in)    :: ICLWREJ(:)      ! rejection channel list
+    integer,          intent(in)    :: amsuaChanRejectWithClw(:) ! rejection channel list
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
@@ -961,7 +962,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
+          INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
@@ -978,7 +979,7 @@ contains
         end if
       end if
 
-      ! In all-sky mode, turn on bit=23 for channels in ICLWREJ(:) as 
+      ! In all-sky mode, turn on bit=23 for channels in amsuaChanRejectWithClw(:) as 
       ! cloud-affected radiances over sea when there is mismatch between 
       ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
       clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
@@ -987,7 +988,7 @@ contains
           obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
-          INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
+          INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
 
           if ( INDXCAN /= 0 ) then
             obsFlags = OR(obsFlags,2**23)
@@ -1010,7 +1011,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         
-        INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) ) then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -1204,8 +1205,8 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, modelInterpSeaIce, &
-                                                     qcIndicator, chanIgnoreInAllskyGenCoeff, &
-                                                     headerIndex, obsSpaceData, skipTestArr_opt)
+                                                     qcIndicator, headerIndex, obsSpaceData, &
+                                                     skipTestArr_opt)
     !
     !:Purpose: test 13: Bennartz scattering index check (full).
     !          For Scattering Index: 
@@ -1220,7 +1221,6 @@ contains
     real(8),           intent(in)    :: scatIndexOverLandObs          ! scattering index over land
     real(8),           intent(in)    :: modelInterpSeaIce             ! glace de mer
     integer,           intent(inout) :: qcIndicator(:)                ! indicateur du QC par canal
-    integer,           intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! channels to exclude from genCoeff
     type(struct_obs),  intent(inout) :: obsSpaceData                  ! obspaceData Object
     integer,           intent(in)    :: headerIndex                   ! current header Index
     logical, optional, intent(in)    :: skipTestArr_opt(:)            ! array to set to skip the test
@@ -1317,7 +1317,7 @@ contains
     if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
       scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
 
-      ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
+      ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyHuGenCoeff(:)
       ! as cloud-affected radiances over sea when there is mismatch between 
       ! scatIndexOverWaterObs and scatIndexOverWaterFG (to be used in gen_bias_corr)
       if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. cldPredMissing) then
@@ -1326,7 +1326,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          chanIndex = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
+          chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
           if (chanIndex == 0) cycle BODY2
           obsFlags = OR(obsFlags,2**23)
 
@@ -1865,7 +1865,7 @@ contains
     real(8), parameter :: cloudyClwThreshold = 0.3d0
     real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
-    integer :: ICLWREJ(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
+    integer :: amsuaChanRejectWithClw(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
@@ -1885,7 +1885,7 @@ contains
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
                     3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 2.0d0/)
-    ICLWREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
+    amsuaChanRejectWithClw(:) = (/ 28, 29, 30, 31, 32, 42 /)
     ISFCREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
     ISCATREJ(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
     ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
@@ -1997,7 +1997,8 @@ contains
 
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (sensorIndex, ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
+    call amsuaTest12GrodyClwCheck (sensorIndex, amsuaChanRejectWithClw, qcIndicator, &
+                                   headerIndex, obsSpaceData)
 
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
@@ -2092,7 +2093,7 @@ contains
     real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
     integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
-    integer :: ISFCREJ(2), ICH2OMPREJ(4), ISFCREJ2(1), chanIgnoreInAllskyGenCoeff(5), channelForTopoFilter(3)
+    integer :: ISFCREJ(2), ICH2OMPREJ(4), ISFCREJ2(1), channelForTopoFilter(3)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
     real(8) :: tb89, tb150, tb1831, tb1832, tb1833
@@ -2135,7 +2136,8 @@ contains
     altitudeForTopoFilter(:) = (/ 2500.0d0, 2000.0d0, 1000.0d0 /)
 
     ! Channels excluded from genCoeff in all-sky mode
-    chanIgnoreInAllskyGenCoeff(:) = (/43, 44, 45, 46, 47/)
+    allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(5))
+    mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/43, 44, 45, 46, 47/)
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -2238,8 +2240,8 @@ contains
 
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, modelInterpSeaIce, &
-                                                 qcIndicator, chanIgnoreInAllskyGenCoeff, &
-                                                 headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
+                                                 qcIndicator, headerIndex, obsSpaceData, &
+                                                 skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
@@ -3481,7 +3483,7 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     integer :: ISFCREJ(8), ICH2OMPREJ(6)
     integer, allocatable :: B7CHCK(:)
-    integer :: ITEST(mwbg_maxNumTest), chanIgnoreInAllskyGenCoeff(6), ICHTOPO(5)
+    integer :: ITEST(mwbg_maxNumTest), ICHTOPO(5)
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
     real(8) :: zdi, scatIndexOverWaterObsEcmwf, scatbg, SeaIce, riwv, ZCRIT(5)
@@ -3531,7 +3533,10 @@ contains
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
-    chanIgnoreInAllskyGenCoeff(:) = (/ 1, 2, 3, 4, 5, 6/)
+    allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
+    mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/1, 2, 3, 4, 5, 6/)
+    allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(6))
+    mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 19, 20, 21, 22/)
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3614,7 +3619,6 @@ contains
                                              iwvreject, riwv, &
                                              zdi, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                             chanIgnoreInAllskyGenCoeff, &
                                              headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
@@ -3754,7 +3758,7 @@ contains
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
-    integer :: ICH2OMPREJ(6), chanIgnoreInAllskyGenCoeff(6), ICHTOPO(3)
+    integer :: ICH2OMPREJ(6), ICHTOPO(3)
     integer :: ITEST(mwbg_maxNumTest)
     integer, allocatable :: B7CHCK(:)
     logical :: waterobs, grossrej, reportHasMissingTb 
@@ -3802,7 +3806,8 @@ contains
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
-    chanIgnoreInAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
+    allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
+    mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3885,7 +3890,6 @@ contains
                                               iwvreject, riwv, &
                                               zdi, allcnt, drycnt, landcnt, &
                                               rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                              chanIgnoreInAllskyGenCoeff, &
                                               headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
@@ -5859,7 +5863,6 @@ contains
                                                  iwvreject, riwv, &
                                                  zdi, drycnt, landcnt, &
                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                                 chanIgnoreInAllskyGenCoeff, &
                                                  headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Review all the checks previously made to determine which obs are to be accepted
@@ -5887,13 +5890,12 @@ contains
     integer,          intent(inout) :: iwvcnt    ! Number of pts with Mean 183 Ghz Tb < 240K
     integer,          intent(inout) :: pcpcnt    ! Number of scatter/precip obs
     integer,          intent(inout) :: flgcnt    ! Total number of filtered obs
-    integer,          intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
     integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
 
     ! Locals:
-    integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
+    integer :: chanIndex, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
@@ -6016,12 +6018,13 @@ contains
     if (any(lflagchn(:))) flgcnt = flgcnt + 1
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
+    ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyTtGenCoeff(:)
     ! as cloud-affected radiances over sea when there is mismatch between 
     ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
     clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
+    scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -6029,11 +6032,20 @@ contains
 
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
-      INDXCAN = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
-      if (tvs_mwAllskyAssim .and. waterobs .and. INDXCAN /= 0 .and. &
+      chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
+      if (tvs_mwAllskyAssim .and. waterobs .and. chanIndex /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
+        obsFlags = IBSET(obsFlags,23)
+      end if
+
+      chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
+      if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+          waterobs .and. chanIndex /= 0 .and. &
+          (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
+           scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
+           scatIndexOverWaterFG == MPC_missingValue_R8)) then
         obsFlags = IBSET(obsFlags,23)
       end if
 
@@ -6059,7 +6071,6 @@ contains
                                                   iwvreject, riwv, &
                                                   zdi, allcnt, drycnt, landcnt, &
                                                   rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                                  chanIgnoreInAllskyGenCoeff, &
                                                   headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Review all the checks previously made to determine which obs are to be accepted
@@ -6090,7 +6101,6 @@ contains
     integer,          intent(inout) :: pcpcnt           ! Number of scatter/precip obs
     integer,          intent(inout) :: flgcnt           ! Total number of filtered obs
     integer,          intent(inout) :: calcTerrainTypeIndice         ! terrain type (0=ice, -1 otherwise)
-    integer,          intent(in)    :: chanIgnoreInAllskyGenCoeff(:) ! Channels excluded from gen_bias_corr in all-sky mode
     type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
     integer,          intent(in)    :: headerIndex      ! current header Index 
     integer,          intent(in)    :: sensorIndex      ! numero de satellite (i.e. indice) 
@@ -6224,7 +6234,7 @@ contains
     scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
+    ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyTtGenCoeff(:)
     ! as cloud-affected radiances over sea when there is mismatch between 
     ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -6237,7 +6247,7 @@ contains
 
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
-      INDXCAN = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
+      INDXCAN = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
       if (tvs_mwAllskyAssim .and. waterobs .and. INDXCAN /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
