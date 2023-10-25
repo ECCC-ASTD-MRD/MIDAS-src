@@ -37,7 +37,7 @@ contains
   ! epp_postProcess
   !----------------------------------------------------------------------
   subroutine epp_postProcess(ensembleTrl, ensembleAnl, &
-                             stateVectorHeightSfc, stateVectorCtrlTrl, &
+                             stateVectorHeightSfc, stateVectorCtrlTrl4D, &
                              writeTrlEnsemble, outputOnlyEnsMean_opt)
     !
     !:Purpose:  Perform numerous post-processing steps to the ensemble
@@ -49,7 +49,7 @@ contains
     type(struct_ens),  intent(inout) :: ensembleTrl
     type(struct_ens),  intent(inout) :: ensembleAnl
     type(struct_gsv),  intent(in)    :: stateVectorHeightSfc
-    type(struct_gsv),  intent(inout) :: stateVectorCtrlTrl
+    type(struct_gsv),  intent(inout) :: stateVectorCtrlTrl4D
     logical,           intent(in)    :: writeTrlEnsemble
     logical, optional, intent(in)    :: outputOnlyEnsMean_opt
 
@@ -59,13 +59,14 @@ contains
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
-    type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanAnlRaw, stateVectorMeanTrl
-    type(struct_gsv)          :: stateVectorMeanInc
+    type(struct_gsv)          :: stateVectorMeanAnl, stateVectorMeanAnl4D, stateVectorMeanAnlRaw4D, stateVectorMeanTrl
+    type(struct_gsv)          :: stateVectorMeanInc4D
     type(struct_gsv)          :: stateVectorAnalIncMask
     type(struct_gsv)          :: stateVectorStdDevAnl, stateVectorStdDevAnlRaw, stateVectorStdDevAnlPert, stateVectorStdDevTrl
-    type(struct_gsv)          :: stateVectorMeanIncSubSample
-    type(struct_gsv)          :: stateVectorMeanAnlSubSample
+    type(struct_gsv)          :: stateVectorMeanIncSubSample4D
+    type(struct_gsv)          :: stateVectorMeanAnlSubSample, stateVectorMeanAnlSubSample4D
     type(struct_gsv)          :: stateVectorMeanAnlSfcPres
+    type(struct_gsv)          :: stateVectorMeanAnlSfcPres4D
     type(struct_gsv)          :: stateVectorMeanAnlSfcPresMpiGlb
     type(struct_ens)          :: ensembleTrlSubSample
     type(struct_ens)          :: ensembleAnlSubSample
@@ -233,6 +234,12 @@ contains
 
     if (ens_isAllocated(ensembleAnl)) then
       !- Allocate and compute ensemble mean Anl
+      call gsv_allocate( stateVectorMeanAnl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         dataKind_opt=4, allocHeightSfc_opt=.true., &
+                         hInterpolateDegree_opt = hInterpolationDegree, &
+                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_zero(stateVectorMeanAnl4D)
       call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                          dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -241,6 +248,7 @@ contains
       call gsv_zero(stateVectorMeanAnl)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+      call gsv_3Dto4D(stateVectorMeanAnl4D, stateVectorMeanAnl)
 
       !- Allocate and compute ensemble spread stddev Anl
       call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -253,7 +261,7 @@ contains
 
       !- Keep the mean and standard deviation of the raw analysis for outputs, if requested
       if (writeRawAnalStats) then
-        call gsv_allocate( stateVectorMeanAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+        call gsv_allocate( stateVectorMeanAnlRaw4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            dataKind_opt=4, allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt = hInterpolationDegree, &
@@ -262,7 +270,7 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlRaw)
+        call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanAnlRaw4D)
         call gsv_copy(stateVectorStdDevAnl, stateVectorStdDevAnlRaw)
       end if
 
@@ -298,6 +306,7 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+          call gsv_3Dto4D(stateVectorMeanAnl4D, stateVectorMeanAnl)
         end if
       end if
 
@@ -309,6 +318,7 @@ contains
         ! And recompute analysis mean
         call ens_computeMean(ensembleAnl)
         call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+        call gsv_3Dto4D(stateVectorMeanAnl4D, stateVectorMeanAnl)
         ! And recompute the analysis spread stddev
         call ens_computeStdDev(ensembleAnl)
         call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
@@ -326,6 +336,7 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
+          call gsv_3Dto4D(stateVectorMeanAnl4D, stateVectorMeanAnl)
         end if
       end if
 
@@ -339,6 +350,13 @@ contains
         ierr = clib_mkdir_r('subspace')
 
         ! Allocate stateVectors to store and output sub-sampled ensemble mean analysis
+        call gsv_allocate( stateVectorMeanAnlSubSample4D, tim_nstepobs,  &
+                           hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., &
+                           hInterpolateDegree_opt = hInterpolationDegree, &
+                           allocHeight_opt=.false., allocPressure_opt=.false. )
+        call gsv_zero(stateVectorMeanAnlSubSample4D)
         call gsv_allocate( stateVectorMeanAnlSubSample, tim_nstepobsinc,  &
                            hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -438,6 +456,7 @@ contains
         ! Re-compute analysis mean of sub-sampled ensemble
         call ens_computeMean(ensembleAnlSubSample)
         call ens_copyEnsMean(ensembleAnlSubSample, stateVectorMeanAnlSubSample)
+        call gsv_3Dto4D(stateVectorMeanAnlSubSample4D, stateVectorMeanAnlSubSample)
         
       end if ! writeSubsample
 
@@ -460,10 +479,12 @@ contains
     !
     if (ens_isAllocated(ensembleAnl)) then
       call gvt_transform(ensembleAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-      call gvt_transform(stateVectorMeanAnl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorMeanAnl4D,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorMeanAnl  ,'AllTransformedToModel',allowOverWrite_opt=.true.)
       if (writeSubSample) then
         call gvt_transform(ensembleAnlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
-        call gvt_transform(stateVectorMeanAnlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
+        call gvt_transform(stateVectorMeanAnlSubSample4D,'AllTransformedToModel',allowOverWrite_opt=.true.)
+        call gvt_transform(stateVectorMeanAnlSubSample  ,'AllTransformedToModel',allowOverWrite_opt=.true.)
       end if
       if (writeSubSampleUnPert) then
         call gvt_transform(ensembleAnlSubSampleUnPert,'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -473,7 +494,7 @@ contains
     ! When we read ensemble trials we always need to transform them either for incremnets or for writing
     if (ens_isAllocated(ensembleTrl)) then
       call gvt_transform(ensembleTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
-      call gvt_transform(stateVectorCtrlTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
+      call gvt_transform(stateVectorCtrlTrl4D,'AllTransformedToModel',allowOverWrite_opt=.true.)
       call gvt_transform(stateVectorMeanTrl,'AllTransformedToModel',allowOverWrite_opt=.true.)
       if (writeSubSample) then
         call gvt_transform(ensembleTrlSubSample,'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -512,22 +533,22 @@ contains
 
       ! Compute mean increment for converted model variables (e.g. VIS and PR)
       nullify(varNames)
-      call gsv_varNamesList(varNames, stateVectorMeanAnl)
-      call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+      call gsv_varNamesList(varNames, stateVectorMeanAnl4D)
+      call gsv_allocate( stateVectorMeanInc4D, tim_nstepobs, hco_ens, vco_ens, &
                          dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
                          hInterpolateDegree_opt = hInterpolationDegree, &
                          dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-      call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
+      call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanInc4D)
       deallocate(varNames)
 
-      call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+      call gsv_add(stateVectorCtrlTrl4D, stateVectorMeanInc4D, scaleFactor_opt=-1.0D0)
 
       !- Mask the mean increment for LAM grid and recompute the mean analysis
       if (.not. hco_ens%global .and. useAnalIncMask) then
-        call gsv_applyMaskLAM(stateVectorMeanInc, stateVectorAnalIncMask)
-        call gsv_copy(stateVectorMeanInc,stateVectorMeanAnl)
-        call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnl)
+        call gsv_applyMaskLAM(stateVectorMeanInc4D, stateVectorAnalIncMask)
+        call gsv_copy(stateVectorMeanInc4D,stateVectorMeanAnl4D)
+        call gsv_add(stateVectorCtrlTrl4D,stateVectorMeanAnl4D)
       end if
 
       ! If subsample reqested compute the subsample increments
@@ -551,24 +572,23 @@ contains
 
         ! Compute mean increment with respect to mean of full trial ensemble
         nullify(varNames)
-        call gsv_varNamesList(varNames, stateVectorMeanAnlSubSample)
-        call gsv_allocate( stateVectorMeanIncSubSample, tim_nstepobsinc,  &
+        call gsv_varNamesList(varNames, stateVectorMeanAnlSubSample4D)
+        call gsv_allocate( stateVectorMeanIncSubSample4D, tim_nstepobs,  &
                            hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                            dataKind_opt=4, allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt = hInterpolationDegree, &
-!                           allocHeight_opt=.false., allocPressure_opt=.false., &
                            varNames_opt=varNames )
-        call gsv_copy(stateVectorMeanAnlSubSample, stateVectorMeanIncSubSample)
+        call gsv_copy(stateVectorMeanAnlSubSample4D, stateVectorMeanIncSubSample4D)
         deallocate(varNames)
 
-        call gsv_add(stateVectorCtrlTrl, stateVectorMeanIncSubSample, scaleFactor_opt=-1.0D0)
+        call gsv_add(stateVectorCtrlTrl4D, stateVectorMeanIncSubSample4D, scaleFactor_opt=-1.0D0)
 
         !- Mask the mean increment for LAM grid and recompute the mean analysis
         if (.not. hco_ens%global .and. useAnalIncMask) then
-          call gsv_applyMaskLAM(stateVectorMeanIncSubSample, stateVectorAnalIncMask)
-          call gsv_copy(stateVectorMeanIncSubSample,stateVectorMeanAnlSubSample)
-          call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnlSubSample)
+          call gsv_applyMaskLAM(stateVectorMeanIncSubSample4D, stateVectorAnalIncMask)
+          call gsv_copy(stateVectorMeanIncSubSample4D,stateVectorMeanAnlSubSample4D)
+          call gsv_add(stateVectorCtrlTrl4D,stateVectorMeanAnlSubSample4D)
         end if
       end if
 
@@ -627,6 +647,12 @@ contains
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
         call gsv_zero(stateVectorMeanAnlSfcPres)
+        call gsv_allocate( stateVectorMeanAnlSfcPres4D, tim_nstepobs, hco_ens, vco_ens,   &
+                           dateStamp_opt=tim_getDateStamp(),  &
+                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                           hInterpolateDegree_opt = hInterpolationDegree, &
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+        call gsv_zero(stateVectorMeanAnlSfcPres4D)
         if (mmpi_myid <= (nEns-1)) then
           call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
                              dateStamp_opt=tim_getDateStamp(),  &
@@ -635,8 +661,9 @@ contains
                              dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
           call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
         end if
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
-        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
+        call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanAnlSfcPres4D, allowVarMismatch_opt=.true.)
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres4D)
+        call gsv_copy4Dto3D(stateVectorMeanAnlSfcPres4D, stateVectorMeanAnlSfcPres)
         call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       end if
       
@@ -644,9 +671,9 @@ contains
       call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
-      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
-      do stepIndex = 1, tim_nstepobsinc
-        call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
+      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl4D)
+      do stepIndex = 1, tim_nstepobs
+        call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -663,9 +690,9 @@ contains
       if (writeRawAnalStats) then
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analmean_raw'
-        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnlRaw)
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnlRaw4D)
+        do stepIndex = 1, tim_nstepobs
+          call gio_writeToFile(stateVectorMeanAnlRaw4D, outFileName, etiket_anlmean_raw,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -683,9 +710,9 @@ contains
         ! output analpertmean, analpertrms
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertmean'
-        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl4D)
+        do stepIndex = 1, tim_nstepobs
+          call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket_anlmeanpert,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -705,15 +732,15 @@ contains
         call utl_tmg_start(5,'--WriteEnsMeanRms')
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
-        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
+        do stepIndex = 1, tim_nstepobs
+          call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPres4D)) then
+            call gio_writeToFile(stateVectorMeanAnlSfcPres4D, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
@@ -727,7 +754,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.false., resetTimeParams_opt=.true.)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
-            ! Also write the reference (analysis) surface pressure to increment files
+            ! Also write the reference (analysis) surface pressure to ensemble increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
                                        etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
                                        ensPath='.')
@@ -740,11 +767,11 @@ contains
       ! output ensemble mean analysis state
       call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
-      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
+      call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl4D)
       ! here we assume 4 digits for the ensemble member!!!!
       etiket = trim(etiket_anl) // '0000'
-      do stepIndex = 1, tim_nstepobsinc
-        call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
+      do stepIndex = 1, tim_nstepobs
+        call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -767,12 +794,12 @@ contains
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
+        do stepIndex = 1, tim_nstepobs
+          call gio_writeToFile(stateVectorMeanIncSubSample4D, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPres4D)) then
+            call gio_writeToFile(stateVectorMeanAnlSfcPres4D, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
@@ -782,8 +809,8 @@ contains
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0 )
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_anl) // '0000'
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket,  &
+        do stepIndex = 1, tim_nstepobs
+          call gio_writeToFile(stateVectorMeanAnlSubSample4D, outFileName, etiket,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -1413,7 +1440,7 @@ contains
       weightArrayLand(memberIndex) = weightRecenterLand
     end do
     
-    ! allocate and read in recentering analysis state
+     ! allocate and read in recentering analysis state
     call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.false., &
