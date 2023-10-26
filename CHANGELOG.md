@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changes to rename body column names from lon/lat to lond/latd in `obsDiagFiles_mod` (#876 and !782)
  * Changed `analysisErrorOI` to be compatible with more than 1 MPI task (#862 and !777)
 
 ### Fixed
