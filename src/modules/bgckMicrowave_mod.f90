@@ -3490,7 +3490,7 @@ contains
     integer :: ITEST(mwbg_maxNumTest), ICHTOPO(5)
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
-    real(8) :: zdi, scatIndexOverWaterObsEcmwf, scatbg, SeaIce, riwv, ZCRIT(5)
+    real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv, ZCRIT(5)
     real(8), allocatable :: ROGUEFAC(:)
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: LLFIRST = .true.
@@ -3620,7 +3620,7 @@ contains
     !            for ch.20-22 over land)
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, &
-                                             precipobs, scatIndexOverWaterObsEcmwf, scatbg, &
+                                             precipobs, scatIndexOverWaterObsEcmwf, &
                                              iwvreject, riwv, &
                                              zdi, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -6123,7 +6123,7 @@ contains
     ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
-    integer :: obsFlags, codtyp
+    integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatbg_rej, scatIndexOverWaterObs, scatIndexOverWaterFG
     logical, allocatable :: lflagchn(:)
