@@ -3125,7 +3125,7 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged 
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
@@ -3135,6 +3135,7 @@ contains
     testIndex = 4
     if ( itest(testIndex) /= 1 ) return
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
@@ -3151,7 +3152,8 @@ contains
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
-      if ( tvs_mwAllskyAssim .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs ) then
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs ) then
         clwThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
         clwThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
         errThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
@@ -3293,7 +3295,7 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
@@ -3303,6 +3305,7 @@ contains
     testIndex = 4
     if ( itest(testIndex) /= 1 ) return
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
@@ -3318,7 +3321,8 @@ contains
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
-      if ( tvs_mwAllskyAssim .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs ) then
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs) then
         clwThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
         clwThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
         sigmaThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
@@ -3480,7 +3484,7 @@ contains
                                          !  ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     integer :: ISFCREJ(8), ICH2OMPREJ(6)
     integer, allocatable :: B7CHCK(:)
     integer :: ITEST(mwbg_maxNumTest), ICHTOPO(5)
@@ -3502,6 +3506,7 @@ contains
     integer, save :: clwMissingPointNum     ! Number of points where cloudLiquidWaterPath/SI missing
                                             !   over water due bad data
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
@@ -3510,7 +3515,7 @@ contains
     ROGUEFAC(:) = (/2.0d0, 2.0d0, 2.0d0, 3.0d0, 3.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, &
                     2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
-    if ( tvs_mwAllskyAssim ) ROGUEFAC(1:3) = 3.0
+    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 3.0
 
     ! Channel sets for rejection in test 9 
     ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
@@ -3757,7 +3762,7 @@ contains
                                         !   ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     integer :: ICH2OMPREJ(6), ICHTOPO(3)
     integer :: ITEST(mwbg_maxNumTest)
     integer, allocatable :: B7CHCK(:)
@@ -3780,6 +3785,7 @@ contains
     integer, save :: clwMissingPointNum     ! Number of points where cloudLiquidWaterPath/SI missing
                                             !  over water due bad data
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
@@ -3787,7 +3793,7 @@ contains
     allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
     ROGUEFAC(:) = (/2.0d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, &
                     9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
-    if ( tvs_mwAllskyAssim ) ROGUEFAC(1:3) = 9.9d0
+    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 9.9d0
 
     ! Channel sets for rejection in test 9
     !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
@@ -6041,7 +6047,8 @@ contains
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
       chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
-      if (tvs_mwAllskyAssim .and. waterobs .and. chanIndex /= 0 .and. &
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+          waterobs .and. chanIndex /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
@@ -6116,11 +6123,12 @@ contains
     ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
-    integer :: obsFlags
+    integer :: obsFlags, codtyp
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatbg_rej, scatIndexOverWaterObs, scatIndexOverWaterFG
     logical, allocatable :: lflagchn(:)
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
     cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
     newInformationFlag = obs_headElem_i(obsSpaceData, OBS_INFG, headerIndex)
@@ -6193,7 +6201,7 @@ contains
       !    -- reject all channels if scatbg exceeds CMC SEA threshold for AMSU-B
 
         if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej )  then
-          if ( tvs_mwAllskyAssim ) then ! NEVER TRUE SINCE NOT IMPLEMENTED YET
+          if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then ! NEVER TRUE SINCE NOT IMPLEMENTED YET
             clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
             if ( clwObsFGaveraged > mwbg_clwQcThreshold ) lflagchn(1) = .true.
           else
@@ -6256,7 +6264,8 @@ contains
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
       INDXCAN = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
-      if (tvs_mwAllskyAssim .and. waterobs .and. INDXCAN /= 0 .and. &
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+          waterobs .and. INDXCAN /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
