@@ -61,6 +61,7 @@ module fsoi_mod
   logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
   character(len=256)  :: forecastPath  ! relative path where forecast files are stored
   character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO' or 'EFSO'
+  logical             :: StratoNorm    ! choose for forecast error norm from 100hPa to 1hPa,default from surface to 100hPa 
 
   contains
 
@@ -85,6 +86,7 @@ module fsoi_mod
     NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
     NAMELIST /NAMFSO/latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
     NAMELIST /NAMFSO/includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm
+    NAMELIST /NAMFSO/StratoNorm
 
     ! set default values for namelist variables
     leadtime = 12.0d0
@@ -104,6 +106,7 @@ module fsoi_mod
     includeTGnorm=.false.
     forecastPath = './forecasts'
     fsoMode  = 'HFSO'
+    StratoNorm = .false.
 
     ! read in the namelist NAMFSO
     nulnam = 0
@@ -161,7 +164,7 @@ module fsoi_mod
 
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
-    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
@@ -322,18 +325,18 @@ module fsoi_mod
     call multEnergyNorm(statevector_tempfa, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
-                            includeHUnorm, includeTGnorm) ! use analysis as reference state
+                            includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
     call multEnergyNorm(statevector_tempfb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
-                            includeHUnorm, includeTGnorm) ! use analysis as reference state
+                            includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
 
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
     call multEnergyNorm(statevector_fb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
-                            includeHUnorm, includeTGnorm) ! use analysis as reference state
+                            includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
     call gsv_copy(statevector_fb,statevector_out)
     call gsv_copy(statevector_a,statevector_verifAnalysis)
 
@@ -752,7 +755,7 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   subroutine multEnergyNorm(statevector_inout, statevector_ref,  &
                                 latMin, latMax, lonMin, lonMax,      &
-                                uvNorm,ttNorm,p0Norm,huNorm,tgNorm)
+                                uvNorm,ttNorm,p0Norm,huNorm,tgNorm, straNorm)
     !
     ! :Purpose: Computes energy norms
     !           For some positive definite symmetric matrix defining the energy,
@@ -774,6 +777,7 @@ module fsoi_mod
     logical,          intent(in)    :: p0Norm
     logical,          intent(in)    :: huNorm
     logical,          intent(in)    :: tgNorm
+    logical,          intent(in)    :: straNorm
 
     ! Locals:
     integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T
@@ -818,6 +822,7 @@ module fsoi_mod
     ! for wind components if to include in Norm calculation
     call gsv_getField(statevector_inout,field_UU,'UU')
     call gsv_getField(statevector_inout,field_VV,'VV')
+
     sumeu = 0.0D0
     sumev = 0.0D0
     sumScale = 0.0D0
@@ -841,12 +846,23 @@ module fsoi_mod
                 scaleFactorLon = 0.0D0
               end if
               ! do all thermo levels for which there is a momentum level above and below
-              if ( levIndex == nLev_M) then
-                scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
-              else if ( Press_T(lonIndex2, latIndex2, levIndex) < 10000.0D0) then
-                scaleFactorLev = 0.0D0
-              else
-                scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) -  Press_T(lonIndex2, latIndex2, levIndex)
+              if (straNorm) then !for strato Norm 
+                if (levIndex == nLev_M .or. levIndex == 1 .or. & 
+                        Press_T(lonIndex2, latIndex2, levIndex) < 100.0D0 .or. &
+                        Press_T(lonIndex2, latIndex2, levIndex) > 10000.0D0) then
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+                end if
+
+              else 
+                if ( levIndex == nLev_M) then
+                  scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+                else if ( Press_T(lonIndex2, latIndex2, levIndex) < 10000.0D0) then
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+                end if
               end if
 
               scaleFactor = scaleFactorConst * scaleFactorLat* scaleFactorLon * scaleFactorLev
@@ -868,7 +884,6 @@ module fsoi_mod
       call mmpi_allreduce_sumreal8scalar(sumeu,'grid')
       call mmpi_allreduce_sumreal8scalar(sumev,'grid')
       call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
-
       sumeu = sumeu/sumScale
       sumev = sumev/sumScale
 
@@ -906,15 +921,27 @@ module fsoi_mod
                 scaleFactorLon = 0.0D0
               end if
               ! do all thermo levels for which there is a momentum level above and below
-              if (levIndex == nLev_T) then  !surface
-                scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1)
-              else if (levIndex == 1)  then  ! top
-                scaleFactorLev = 0.0D0
-              else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
-                scaleFactorLev = 0.0D0
+              if (straNorm) then !for strato norm
+                if (levIndex == nLev_T .or. levIndex == 1 .or. &
+                    Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
+                    Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                end if
+
               else
-                scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                if (levIndex == nLev_T) then  !surface
+                  scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+                else if (levIndex == 1)  then  ! top
+                  scaleFactorLev = 0.0D0
+                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                end if
               end if
+
               scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
               sumet = sumet + &
                    0.5 * tfac * field_T(lonIndex,latIndex,levIndex,stepIndex) * field_T(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
@@ -928,7 +955,6 @@ module fsoi_mod
       call mmpi_allreduce_sumreal8scalar(sumet,'grid')
       call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
       sumet = sumet/sumScale
-
       field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
     else
       field_T(:,:,:,:) = field_T(:,:,:,:)*0.0D0
@@ -960,14 +986,25 @@ module fsoi_mod
                 scaleFactorLon = 0.0D0
               end if
               ! do all thermo levels for which there is a momentum level above and below
-              if ( levIndex == nLev_T) then !surface
-                scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T) - Press_T(lonIndex2, latIndex2, nLev_T-1)
-              else if (levIndex == 1)  then  ! top
-                scaleFactorLev = 0.0D0
-              else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
-                scaleFactorLev = 0.0D0
+              if (straNorm) then !for strato norm
+                if (levIndex == nLev_T .or. levIndex == 1 .or. &
+                    Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
+                    Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then    
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                end if
+
               else
-                scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                if ( levIndex == nLev_T) then !surface
+                  scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T) - Press_T(lonIndex2, latIndex2, nLev_T-1)
+                else if (levIndex == 1)  then  ! top
+                  scaleFactorLev = 0.0D0
+                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
+                  scaleFactorLev = 0.0D0
+                else
+                  scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+                end if
               end if
 
               scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
@@ -997,7 +1034,7 @@ module fsoi_mod
     call gsv_getField(statevector_inout,field_Psfc,'P0')
     sumScale = 0.0D0
     sumep = 0.0
-    if (p0Norm) then
+    if (p0Norm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
@@ -1036,7 +1073,7 @@ module fsoi_mod
     ! skin temperature (set to zero for now)
     call gsv_getField(statevector_inout,field_TG,'TG')
     sumScale = 0.0D0
-    if (tgNorm) then
+    if (tgNorm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
