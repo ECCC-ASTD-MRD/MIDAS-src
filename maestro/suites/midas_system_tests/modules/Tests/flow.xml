@@ -485,6 +485,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="HFSO_wetStratoNorm"/>
+    <FAMILY  name="HFSO_wetStratoNorm">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="EFSO"/>
     <FAMILY  name="EFSO">
       <SUBMITS sub_name="UnitTest"/>
