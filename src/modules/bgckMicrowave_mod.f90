@@ -2135,17 +2135,18 @@ contains
     channelForTopoFilter(:) = (/ 45, 46, 47 /)
     altitudeForTopoFilter(:) = (/ 2500.0d0, 2000.0d0, 1000.0d0 /)
 
-    ! Channels excluded from genCoeff in all-sky mode
-    allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(5))
-    mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/43, 44, 45, 46, 47/)
-
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
     qcIndicator(:) = 0
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      ! Channels excluded from genCoeff in all-sky mode
+      allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(5))
+      mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/43, 44, 45, 46, 47/)
+
       rejectionCodArray(:,:,:) = 0
+
       firstCall = .FALSE.
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
@@ -3561,14 +3562,14 @@ contains
     ITEST(:) = 0
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
-    ! Channels excluded from gen_bias_corr in all-sky mode
-    allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
-    mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/1, 2, 3, 4, 5, 6/)
-    allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(6))
-    mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 19, 20, 21, 22/)
-
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      ! Channels excluded from gen_bias_corr in all-sky mode
+      allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
+      mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/1, 2, 3, 4, 5, 6/)
+      allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(6))
+      mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 19, 20, 21, 22/)
+
       numReportWithMissingTb = 0
       flgcnt = 0
       landcnt = 0
@@ -3835,12 +3836,12 @@ contains
     ITEST(:) = 0
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
-    ! Channels excluded from gen_bias_corr in all-sky mode
-    allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
-    mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
-
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      ! Channels excluded from gen_bias_corr in all-sky mode
+      allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
+      mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
+
       numReportWithMissingTb = 0
       allcnt = 0
       flgcnt = 0
