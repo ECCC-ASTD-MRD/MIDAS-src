@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ 
+ * Added an extra norm, named stratoNorm, from 100hPa to 1hPa for FSOI(#836 and !785)
  * Added RCM data for sea ice concentration analysis (#848 and !761)
 
 ### Changed
