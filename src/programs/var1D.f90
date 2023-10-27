@@ -345,9 +345,9 @@ program midas_var1D
     ! Simulate Background state columnTrlOnTrlLev
     call var1DIdealize_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
                                                 obsSpaceData, vco_anl, simBgSeed)
-
+                                          
     call var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
-                                           simObsSeed, useSimObsErr)                                            
+                                           simObsSeed, useSimObsErr)
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H

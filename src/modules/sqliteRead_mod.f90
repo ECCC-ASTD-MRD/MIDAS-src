@@ -649,7 +649,7 @@ module sqliteRead_mod
         call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, obs_missingValue_R)
       end if
       if (obs_columnActive_RB(obsdat,OBS_SEM)) then
-        call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, 0.0)
+        call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, obs_missingValue_R)
       end if
 
       ! Copy body row into obsspacedata by looping over all columns that were read

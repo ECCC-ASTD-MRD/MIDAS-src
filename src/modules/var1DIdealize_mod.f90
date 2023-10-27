@@ -442,7 +442,6 @@ module var1DIdealize_mod
     !
     ! :Purpose: Estimating background error STD in observations space
     !
-
     implicit none
 
     ! Arguments

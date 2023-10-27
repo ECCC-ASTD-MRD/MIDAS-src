@@ -1669,6 +1669,8 @@ contains
        destObs = OBS_OMP
     end if
 
+    if (.not. allocated(tvs_emissivity)) allocate(tvs_emissivity(tvs_maxChannelNumber, tvs_nobtov))
+
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
     call tvs_fillProfiles(columnTrl,obsSpaceData,datestamp,"nl",beSilent)
@@ -1731,6 +1733,14 @@ contains
         end if
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
+        if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
+          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
+        end if
+
+        if (obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
+          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, tvs_transmission(tovsIndex) % tau_total(channelIndex))
+        end if
+        
         ! inflate OBS_OER for all-sky assimilation
         call oer_inflateErrAllsky(obsSpaceData, bodyIndex, destObs, beSilent_opt=.true.)
 

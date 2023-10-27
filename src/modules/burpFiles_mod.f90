@@ -190,7 +190,7 @@ contains
 
     ! Initialize obsSpaceData header columns to 'missing'
     do headerIndex = headerIndexBegin, headerIndexEnd
-      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_bodySet_r(obsdat, OBS_ELEV, headerIndex, missingValue)
+      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_HeadSet_r(obsdat, OBS_ELEV, headerIndex, missingValue)
     end do
 
     ! Initialize obsSpaceData body columns to 'missing'

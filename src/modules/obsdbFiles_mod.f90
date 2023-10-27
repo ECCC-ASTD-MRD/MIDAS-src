@@ -581,7 +581,7 @@ contains
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
       call obs_headSet_i(obsdat, OBS_INS, headIndex, nint(MPC_missingValue_R8))
-      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_bodySet_r(obsdat, OBS_ELEV, headIndex, MPC_missingValue_R8)
+      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_HeadSet_r(obsdat, OBS_ELEV, headIndex, MPC_missingValue_R8)
     end do
 
     !- 1.3 Copy values from local tables into obsSpaceData
@@ -1464,7 +1464,9 @@ contains
         if (obs_columnActive_RB(obsdat, OBS_SEM)) then
           do bodyIndex = bodyIndexStart, bodyIndexEnd
             surfEmiss = obs_bodyElem_r(obsdat, OBS_SEM, bodyIndex)
-            surfEmiss = surfEmiss * 0.01D0
+            if (surfEmiss /= MPC_missingValue_R8) then 
+              surfEmiss = surfEmiss * 0.01D0
+            end if
             call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, surfEmiss)
           end do
         end if
