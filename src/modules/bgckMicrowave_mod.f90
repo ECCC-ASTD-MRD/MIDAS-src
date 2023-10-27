@@ -3126,10 +3126,11 @@ contains
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
-    real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
-    real(8) :: sigmaObsErrUsed, clwObsFGaveraged 
+    real(8) :: XCHECKVAL, cldPredThresh1, cldPredThresh2, errThresh1, errThresh2
+    real(8) :: sigmaObsErrUsed, clwObsFGaveraged, scatwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT 
+    real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
+    logical :: SFCREJCT, CH2OMPREJCT, IBIT, channelIsAllskyHu
     character(len=9) :: stnId
 
     testIndex = 4
@@ -3141,6 +3142,8 @@ contains
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
     cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
+    scatIndexOverWaterObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
+    scatIndexOverWaterFG = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
     newInformationFlag = obs_headElem_i(obsSpaceData, OBS_INFG, headerIndex)
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex)
 
@@ -3152,25 +3155,41 @@ contains
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
-      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs ) then
-        clwThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
-        clwThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
+      if (tvs_mwAllskyAssim .and. &
+          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs) then
+        cldPredThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
+        cldPredThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
         errThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
         errThresh2 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,2)
-        clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
-        if (cloudLiquidWaterPathObs == mwbg_realMissing .or. &
-            cloudLiquidWaterPathFG == mwbg_realMissing) then
-          sigmaObsErrUsed = MPC_missingValue_R8
-        else
-          sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,errThresh1, &
-                                                  errThresh2,clwObsFGaveraged)
+
+        ! all-sky TT
+        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
+          if (cloudLiquidWaterPathObs == mwbg_realMissing .or. &
+              cloudLiquidWaterPathFG == mwbg_realMissing) then
+            sigmaObsErrUsed = MPC_missingValue_R8
+          else
+            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1,cldPredThresh2,errThresh1, &
+                                                 errThresh2,clwObsFGaveraged)
+          end if
+        end if
+
+        ! all-sky HU
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          scatwObsFGaveraged = 0.5 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
+          if (scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
+              scatIndexOverWaterFG == MPC_missingValue_R8) then
+            sigmaObsErrUsed = MPC_missingValue_R8
+          else
+            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1,cldPredThresh2,errThresh1, &
+                                                 errThresh2,scatwObsFGaveraged)
+          end if
         end if
       else
         sigmaObsErrUsed = oer_toverrst(obsChanNumWithOffset,sensorIndex)
       end if
       ! For sigmaObsErrUsed=MPC_missingValue_R8 (cloudLiquidWaterPathObs[FG]=mwbg_realMissing
-      ! in all-sky mode), the observation is flagged for rejection in 
+      ! or scatIndexOverWaterObs[FG] in all-sky mode), the observation is flagged for rejection in 
       ! mwbg_reviewAllCritforFinalFlagsAtms.
       XCHECKVAL = ROGUEFAC(obsChanNumWithOffset) * sigmaObsErrUsed
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
@@ -3204,9 +3223,14 @@ contains
         end if
       end if ! if (ompTb /= mwbg_realMissing
 
-      if (obsChanNumWithOffset == 17 .and. ompTb /= mwbg_realMissing .and. &
-          ABS(ompTb) > 5.0d0) then
-        CH2OMPREJCT = .TRUE.
+      channelIsAllskyHu = (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+                           oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex))
+      if (obsChanNumWithOffset == 17 .and. ompTb /= mwbg_realMissing) then
+        if (channelIsAllskyHu) then
+          CH2OMPREJCT = .TRUE.
+        else
+          if (ABS(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
+        end if
       end if
     end do BODY
 
