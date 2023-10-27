@@ -1871,7 +1871,7 @@ contains
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
     real(8) :: tb23FG, tb31FG, tb50FG, tb53FG, tb89FG 
     real(8) :: ice, tpw, scatIndexOverLandObs, altitudeForTopoFilter(2)
-    logical, save :: LLFIRST = .true.
+    logical, save :: firstCall = .true.
 
     EPSILON = 0.01
 
@@ -1913,9 +1913,9 @@ contains
     qcIndicator(:) = 0
 
     ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) then
+    if (firstCall) then
        rejectionCodArray(:,:,:) = 0
-       LLFIRST = .FALSE.
+       firstCall = .FALSE.
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
@@ -2099,7 +2099,7 @@ contains
     real(8) :: tb89, tb150, tb1831, tb1832, tb1833
     real(8) :: tb89FG, tb150FG, tb89FgClear, tb150FgClear, scatIndexOverLandObs
     real(8) :: altitudeForTopoFilter(3)
-    logical, save :: LLFIRST = .true.
+    logical, save :: firstCall = .true.
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -2144,9 +2144,9 @@ contains
     qcIndicator(:) = 0
 
     ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) then
+    if (firstCall) then
       rejectionCodArray(:,:,:) = 0
-      LLFIRST = .FALSE.
+      firstCall = .FALSE.
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
@@ -2310,17 +2310,17 @@ contains
     integer, allocatable, save :: INTOTRJP(:) ! INTOTRJP(tvs_nsensors)
     integer, allocatable :: obsChannels(:)
     logical :: FULLREJCT, FULLACCPT
-    logical, save :: LLFIRST = .true.
+    logical, save :: firstCall = .true.
 
     ! Initialize
-    if ( LLFIRST ) then
+    if (firstCall) then
       allocate(INTOT(tvs_nsensors))
       allocate(INTOTRJF(tvs_nsensors))
       allocate(INTOTRJP(tvs_nsensors))
       INTOTRJF(:) = 0
       INTOTRJP(:) = 0
       INTOT(:)  = 0
-      LLFIRST = .false.
+      firstCall = .false.
     end if
     
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
@@ -3517,7 +3517,7 @@ contains
     real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv, ZCRIT(5)
     real(8), allocatable :: ROGUEFAC(:)
     logical, allocatable :: qcRejectLogic(:)
-    logical, save :: LLFIRST = .true.
+    logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
     integer, save :: drycnt                 ! Number of pts flagged for AMSU-B Dryness Index
     integer, save :: landcnt                ! Number of obs pts found over land/ice
@@ -3568,7 +3568,7 @@ contains
     mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 19, 20, 21, 22/)
 
     ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) then
+    if (firstCall) then
       numReportWithMissingTb = 0
       flgcnt = 0
       landcnt = 0
@@ -3581,7 +3581,7 @@ contains
       clwMissingPointNum = 0
       rejectionCodArray(:,:,:)  = 0
       rejectionCodArray2(:,:,:) = 0
-      LLFIRST = .FALSE.
+      firstCall = .FALSE.
     end if
 
     ! PART 1 TESTS:
@@ -3795,7 +3795,7 @@ contains
     logical, allocatable :: qcRejectLogic(:)
     real(8) :: zdi, scatec, scatbg, SeaIce, riwv, ZCRIT(3)
     real(8), allocatable :: ROGUEFAC(:)
-    logical, save :: LLFIRST = .true.
+    logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
     integer, save :: allcnt                 ! Number of Tovs obs
     integer, save :: drycnt                 ! Number of pts flagged for AMSU-B Dryness Index
@@ -3840,7 +3840,7 @@ contains
     mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
 
     ! Initialisation, la premiere fois seulement!
-    if (LLFIRST) then
+    if (firstCall) then
       numReportWithMissingTb = 0
       allcnt = 0
       flgcnt = 0
@@ -3854,7 +3854,7 @@ contains
       clwMissingPointNum = 0
       rejectionCodArray(:,:,:)  = 0
       rejectionCodArray2(:,:,:) = 0
-      LLFIRST = .FALSE.
+      firstCall = .FALSE.
     end if
 
     ! PART 1 TESTS:
@@ -4062,7 +4062,7 @@ contains
     integer, save  ::  gdmg                ! mask terre-mer interpolation param
     integer, save  ::  gdgl                ! glace interpolation param
     real(4), save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
-    logical, save  :: ifFirstCall = .True. ! If .True. we read GL, MT and MG
+    logical, save  :: firstCall = .True.   ! If .True. we read GL, MT and MG
     integer :: gdllsval, IUNGEO 
     integer :: ier, irec, ezqkdef, ezsetopt, FSTINF,FSTPRM,FCLOS, FSTLIR,FSTFRM, FNOM, FSTOUV
     integer :: NI, NJ, NK, IG1, IG2, IG3, IG4, IDUM1, IDUM2, IDUM3, IDUM4, IDUM5, IDUM6, IDUM7, IDUM8
@@ -4089,7 +4089,7 @@ contains
     ! STEP 1: READ MT, GL and MG from the FST FILE
     readGlaceMask = .True.
     if (instName == 'ATMS') readGlaceMask = .False.
-    if (ifFirstCall) then
+    if (firstCall) then
       IUNGEO = 0
       IER = FNOM(IUNGEO,fileMgLg,'STD+RND+R/O',0)
 
@@ -4166,8 +4166,8 @@ contains
       end if
       IER = FSTFRM(IUNGEO)
       IER = FCLOS(IUNGEO)
-      ifFirstCall = .False.
-    end if ! if (ifFirstCall)
+      firstCall = .False.
+    end if ! if (firstCall)
 
     ! STEP 3:  Interpolation de la glace et le champ terre/mer du modele aux pts TOVS.
     ! N.B.: on examine ces champs sur une boite centree sur chaque obs.
