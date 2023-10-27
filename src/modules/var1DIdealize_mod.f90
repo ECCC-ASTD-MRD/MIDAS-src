@@ -456,13 +456,13 @@ module var1DIdealize_mod
     type(struct_columnData), target :: columnPertOnTrlLev
     type(struct_columnData), target :: columnSimTrlOnTrlLev
     integer                         :: seed, cvIndex, obsCount
-    real(8), allocatable            :: controlVector(:), stddevErrHx(:)
+    real(8), allocatable            :: controlVector(:)
     real(8), allocatable            :: errHx(:,:)
     integer, allocatable            :: errHxBodyList(:)
     integer                         :: tovsIndex, headerIndex, bodyIndex
     integer                         :: channelNumber, channelIndex
     integer                         :: idata, idatend, idatyp, iobs
-    real                            :: meanErrHx
+    real(8)                         :: meanErrHx, stddevErrHx
     logical                         :: bgckMode, beSilent
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
@@ -559,13 +559,13 @@ module var1DIdealize_mod
     end do
 
     ! Compute the background error Stdev in observation space
-    allocate(stddevErrHx(obsCount))
     do iobs = 1, obsCount
-      meanErrHx= sum(errHx(1:estHBHTNumSeed, iobs))/estHBHTNumSeed
-      stddevErrHx(iobs) = sqrt(sum((errHx(1:estHBHTNumSeed, iobs) - meanErrHx)**2)/estHBHTNumSeed)
+      meanErrHx = sum(errHx(1:estHBHTNumSeed, iobs)) / estHBHTNumSeed
+      stddevErrHx = sqrt(sum((errHx(1:estHBHTNumSeed, iobs) - meanErrHx)**2) / estHBHTNumSeed)
 
-      call obs_bodySet_r(obsSpaceData, OBS_ESTB, errHxBodyList(iobs), stddevErrHx(iobs))
+      call obs_bodySet_r(obsSpaceData, OBS_ESTB, errHxBodyList(iobs), stddevErrHx)
     end do
+
   end subroutine var1DIdealize_estSigmaBObsSpace
 
 end module var1DIdealize_mod
