@@ -2627,14 +2627,12 @@ module gridStateVector_mod
         !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1, k2
           do stepIndex = 1, statevector_inout%numStep
-            if (stepIndex.ne.statevector_inout%anltime) then
-              do latIndex = lat1, lat2
-                do lonIndex = lon1, lon2
-                  statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
-                       statevector_in_opt%gd3d_r8(lonIndex,latIndex,kIndex)
-                end do
+            do latIndex = lat1, lat2
+              do lonIndex = lon1, lon2
+                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_in_opt%gd3d_r8(lonIndex,latIndex,kIndex)
               end do
-            end if
+            end do
           end do
         end do
         !$OMP END PARALLEL DO
@@ -2644,14 +2642,12 @@ module gridStateVector_mod
         !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1, k2
           do stepIndex = 1, statevector_inout%numStep
-            if (stepIndex.ne.statevector_inout%anltime) then
-              do latIndex = lat1, lat2
-                do lonIndex = lon1, lon2
-                  statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
-                       statevector_in_opt%gd3d_r4(lonIndex,latIndex,kIndex)
-                end do
+            do latIndex = lat1, lat2
+              do lonIndex = lon1, lon2
+                statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_in_opt%gd3d_r4(lonIndex,latIndex,kIndex)
               end do
-            end if
+            end do
           end do
         end do
         !$OMP END PARALLEL DO

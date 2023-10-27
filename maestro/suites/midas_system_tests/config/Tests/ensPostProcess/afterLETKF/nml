@@ -11,6 +11,7 @@
    imposeSaturationLimit    = .true.
    imposeRttovHuLimits      = .true.
    useOptionTableRecenter   = .true.
+   use4Drecentering3Densemble = .true.
 /
  &NAMBHI
    NTRUNC  =          42,
