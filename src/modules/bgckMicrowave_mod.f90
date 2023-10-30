@@ -3126,18 +3126,17 @@ contains
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
-    integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
+    integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: XCHECKVAL, cldPredThresh1, cldPredThresh2, errThresh1, errThresh2
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged, scatwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT, channelIsAllskyHu
+    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
     character(len=9) :: stnId
 
     testIndex = 4
     if ( itest(testIndex) /= 1 ) return
 
-    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
@@ -3150,21 +3149,23 @@ contains
 
     SFCREJCT = .FALSE.
     CH2OMPREJCT = .FALSE.
+    ch2OmpRejectInAllsky = .false.
+
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
+      call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
-      if (tvs_mwAllskyAssim .and. &
-          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs) then
+      if ((chanIsAllskyTt .or. chanIsAllskyHu) .and. waterobs) then
         cldPredThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
         cldPredThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
         errThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
         errThresh2 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,2)
 
         ! all-sky TT
-        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        if (chanIsAllskyTt) then
           clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
           if (cloudLiquidWaterPathObs == mwbg_realMissing .or. &
               cloudLiquidWaterPathFG == mwbg_realMissing) then
@@ -3173,10 +3174,9 @@ contains
             sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1,cldPredThresh2,errThresh1, &
                                                  errThresh2,clwObsFGaveraged)
           end if
-        end if
 
         ! all-sky HU
-        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        else if (chanIsAllskyHu) then
           scatwObsFGaveraged = 0.5 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
           if (scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
               scatIndexOverWaterFG == MPC_missingValue_R8) then
@@ -3210,6 +3210,8 @@ contains
 
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
 
+        ch2OmpRejectInAllSky = (chanIsAllskyHu .and. obsChanNumWithOffset == 17)
+
         if ( mwbg_debug ) then
           write(*,*) stnId(2:9),'ROGUE CHECK REJECT.NO.', &
                      ' CHANNEL= ',obsChanNumWithOffset, &
@@ -3224,13 +3226,11 @@ contains
         end if
       end if ! if (ompTb /= mwbg_realMissing
 
-      channelIsAllskyHu = (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-                           oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex))
       if (obsChanNumWithOffset == 17 .and. ompTb /= mwbg_realMissing) then
-        if (channelIsAllskyHu) then
-          CH2OMPREJCT = .TRUE.
+        if (chanIsAllskyHu) then
+          if (ch2OmpRejectInAllSky) CH2OMPREJCT = .TRUE.
         else
-          if (ABS(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
+          if (abs(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
         end if
       end if
     end do BODY
@@ -6397,7 +6397,55 @@ contains
       end if
     end do
 
-  end function ifTovsExist 
+  end function ifTovsExist
+
+  !--------------------------------------------------------------------------
+  ! chanIsAllsky
+  !--------------------------------------------------------------------------
+  subroutine chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    !
+    !:Purpose: Determine if the tovs instrument/channel combination is all-sky.
+    !
+    implicit none
+    
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: bodyIndex
+    logical,          intent(out) :: chanIsAllskyTt ! .true. if channel is all-sky temperature
+    logical,          intent(out) :: chanIsAllskyHu ! .true. if channel is all-sky humidity
+
+    ! Locals:
+    integer :: headerIndex
+    integer :: channelNumber_withOffset
+    integer :: channelNumber, channelIndex
+    integer :: tovsIndex, sensorIndex, instrumId
+
+    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
+
+    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                       channelNumber, channelIndex)
+    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+    chanIsAllskyTt = .false.
+    chanIsAllskyHu = .false.
+    if (.not. tvs_mwAllskyAssim .or. &
+        .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
+    
+    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. &
+        oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
+      chanIsAllskyTt = .true.
+    end if
+    if (tvs_isInstrumAllskyHuAssim(instrumId) .and. &
+        oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
+      chanIsAllskyHu = .true.
+    end if
+    
+    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('chanIsAllsky: channel can not be both all-sky TT and HU')
+
+  end subroutine chanIsAllsky
 
   !--------------------------------------------------------------------------
   ! mwbg_mwbg_bgCheckMW
