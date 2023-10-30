@@ -1152,8 +1152,8 @@ contains
                       errThresh1 = errThreshAllsky(channelNumber,sensorIndex,1)
                       errThresh2 = errThreshAllsky(channelNumber,sensorIndex,2)
 
-                      ! Compute cloudPredictor to use
-                      cldPredUsed = computeCloudPredictor(sensorIndex, headerIndex)
+                      ! Compute cloudPredictor to use based on channel
+                      cldPredUsed = computeCloudPredictor(obsSpaceData, bodyIndex)
 
                       ! Use cloud predictor to compute state-dependent obs error
                       sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
@@ -1648,31 +1648,40 @@ contains
     !--------------------------------------------------------------------------
     ! computeCloudPredictor
     !--------------------------------------------------------------------------
-    function computeCloudPredictor(sensorIndex, headerIndex) result(cldPredUsed)
+    function computeCloudPredictor(obsSpaceData, bodyIndex) result(cldPredUsed)
       !
       ! :Purpose: Compute cloud predictor to use for state-dependent observation error.
       !
       implicit none
 
       ! Arguments:
-      integer, intent(in) :: sensorIndex ! index of sensor in tvs_nsensors
-      integer, intent(in) :: headerIndex
+      type(struct_obs), intent(in)  :: obsSpaceData
+      integer,          intent(in)  :: bodyIndex
       ! Result:
-      real(8) :: cldPredUsed             ! cloud predictor. CLW/SI for all-sky temperature/humidity
-
+      real(8) :: cldPredUsed ! cloud predictor. CLW/SI for all-sky temperature/humidity
+      
       ! Locals:
-      integer :: platformId
-      integer :: satelliteId
-      integer :: instrumId
+      integer :: platformId, satelliteId, instrumId
+      integer :: sensorIndex, headerIndex, tovsIndex
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
       real(4) :: cldPredUsed_r4
+      logical :: chanIsAllskyTt, chanIsAllskyHu
 
+      headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIndex = tvs_lsensor(tovsIndex)
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
+      
+      call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
-      if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+      if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
+        call utl_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
+      end if
+
+      if (chanIsAllskyTt) then
         clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
         clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
         cldPredUsed = 0.5D0 * (clwObs + clwFG)
@@ -1690,7 +1699,7 @@ contains
           call utl_abort('computeCloudPredictor: not usable to define obs error with CLW')
         end if
 
-      else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      else if (chanIsAllskyHu) then
         siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
         siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
         cldPredUsed = 0.5D0 * (siObs + siFG)
@@ -1707,9 +1716,6 @@ contains
                     ', siFG=', siFG
           call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
         end if        
-
-      else
-        call utl_abort('computeCloudPredictor: instrum is not TT or HU allSky assimilation.')
       end if
 
     end function computeCloudPredictor
@@ -1854,10 +1860,8 @@ contains
                              (deltaE1 + deltaE2) ** 2)
 
     if (.not. beSilent) then
-      write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, &
-                        ', deltaE2=', deltaE2
-      write(*,*) 'oer_inflateErrAllsky: sigmaObs=', &
-          sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
+      write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, ', deltaE2=', deltaE2, &
+                 ', sigmaObs=', sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
     end if                             
 
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
@@ -1899,15 +1903,16 @@ contains
     if (.not. tvs_mwAllskyAssim .or. &
         .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
     
-    if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. &
+        useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
       chanIsAllskyTt = .true.
     end if
-    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+    if (tvs_isInstrumAllskyHuAssim(instrumId) .and. &
+        useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
       chanIsAllskyHu = .true.
     end if
-    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
-      call utl_abort('chanIsAllsky: all-sky TtHu is not yet implemented')
-    end if
+    
+    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('chanIsAllsky: channel can not be both all-sky TT and HU')
 
   end subroutine chanIsAllsky
 
