@@ -6417,10 +6417,12 @@ contains
     ! Locals:
     integer :: headerIndex
     integer :: channelNumber_withOffset
-    integer :: channelNumber, channelIndex
+    integer :: channelNumber, channelIndex, codtyp
     integer :: tovsIndex, sensorIndex, instrumId
+    character(len=*) :: instrumName
 
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
     instrumId = tvs_instruments(sensorIndex)
@@ -6434,13 +6436,22 @@ contains
     if (.not. tvs_mwAllskyAssim .or. &
         .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
     
-    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. &
-        oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
-      chanIsAllskyTt = .true.
+    instrumName = codtyp_get_name(codtyp)
+
+    if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyTt = (channelNumber_withOffset =< 16)
+      else
+        chanIsAllskyTt = .true.
+      end if
     end if
-    if (tvs_isInstrumAllskyHuAssim(instrumId) .and. &
-        oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
-      chanIsAllskyHu = .true.
+
+    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyHu = (channelNumber_withOffset >= 17)
+      else
+        chanIsAllskyHu = .true.
+      end if
     end if
     
     if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('chanIsAllsky: channel can not be both all-sky TT and HU')
