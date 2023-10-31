@@ -263,6 +263,14 @@ else
         rm -r ${bfile}
     done
 
+    # Move radiance Jacobian into a sub directory
+    if find . -type f -name "tvs_jacobian_*" 2>/dev/null; then
+        if [ ! -d tvs_jacobian ]; then
+            mkdir tvs_jacobian
+        fi
+        mv tvs_jacobian_* tvs_jacobian
+    fi
+
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
     rm -f load_env.sh launch_program.sh launch_cmd listing

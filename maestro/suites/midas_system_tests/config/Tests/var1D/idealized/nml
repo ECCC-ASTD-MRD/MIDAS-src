@@ -116,6 +116,7 @@
    regLimitExtrap=.false.
    useMWEmissivityAtlas = .TRUE.,
    mWAtlasId = 2,
+   computeJacobian = .TRUE.,
 /
  &NAMSIMEMISS
   simEmissSeed = 1,

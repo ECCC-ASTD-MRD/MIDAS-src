@@ -367,6 +367,12 @@ module var1DIdealize_mod
 
       ! Compute radiance
       call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)
+
+      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
+
+      ! Compute the Jacobian
+      call tvslin_rttov_k(columnTrlOnTrlLevTruth, obsSpaceData)
+
     end if
 
      ! loop over all header indices of the 'TO' family

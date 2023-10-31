@@ -30,7 +30,7 @@ module tovsLin_mod
   save
   private
 
-  public :: tvslin_rttov_tl, tvslin_rttov_ad
+  public :: tvslin_rttov_tl, tvslin_rttov_ad, tvslin_rttov_k
 
 
 contains
@@ -970,6 +970,203 @@ contains
     write(*,*) 'tvslin_rttov_ad: Finished'
 
   end subroutine tvslin_rttov_ad
+
+  !--------------------------------------------------------------------------
+  !  tvslin_rttov_K
+  !--------------------------------------------------------------------------
+  subroutine tvslin_rttov_k(columnTrlOnAnlIncLev, obsSpaceData)
+    !
+    ! :Purpose: Jacobian of the computation of radiance with rttov_k
+    !
+    implicit none
+  
+    ! Arguments:
+    type(struct_obs)        :: obsSpaceData         ! obsSpaceData structure
+    type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
+
+    type(rttov_emissivity), pointer :: emissivity_local(:)
+    type(rttov_emissivity), pointer :: emissivity_k(:)
+    type(rttov_chanprof), pointer   :: chanprof(:)
+    type (rttov_profile), pointer   :: profiles(:)
+    type (rttov_profile), pointer   :: profiles_k(:)
+    type(rttov_transmission)        :: transmission
+    type(rttov_transmission)        :: transmission_k
+    type(rttov_radiance)            :: radiancedata_d 
+    type(rttov_radiance)            :: radiancedata_k 
+    integer, allocatable            :: sensorTovsIndexes(:) 
+    integer                         :: allocStatus(4)
+    integer                         :: nobmax, profileCount, btCount
+    integer                         :: sensorIndex, tovsIndex
+    integer                         :: nlv_T
+    integer                         :: instrum, asw
+    integer, external               :: omp_get_num_threads
+    integer                         :: nthreads, max_nthreads
+    integer                         :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
+    real(8), allocatable            :: surfem1(:)
+    integer, allocatable            :: sensorBodyIndexes(:)
+    integer                         :: errorstatus
+    logical, pointer                :: calcemis(:)
+
+    if (.not. tvs_computeJacobian ) return
+
+    if (tvs_nobtov == 0) return ! exit if there are not tovs data
+  
+    call tvs_getProfile(profiles, 'nl')
+  
+    ! Set index for model's lowest level and model top
+  
+    nlv_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+  
+    !$omp parallel 
+    max_nthreads = omp_get_num_threads()
+    !$omp end parallel
+  
+    allocStatus(:) = 0
+    allocate (sensorTovsIndexes(tvs_nobtov), stat = allocStatus(1))
+    call utl_checkAllocationStatus(allocStatus(1:1), " tvslin_rttov_tl sensorTovsIndexes")
+        
+    ! Loop over all sensors specified by user
+  
+    sensor_loop: do sensorIndex = 1, tvs_nsensors
+  
+      sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
+      instrum = tvs_coefs(sensorIndex) % coef % id_inst
+
+      ! Loop over all obs.
+      profileCount = 0
+      do tovsIndex = 1, tvs_nobtov
+        if (tvs_lsensor(tovsIndex) == sensorIndex) then
+          profileCount = profileCount + 1
+          sensorTovsIndexes(profileCount) = tovsIndex
+        end if
+      end do
+      
+      if (profileCount == 0) cycle sensor_loop
+      nobmax = sensorTovsIndexes(profileCount)
+
+      ! Compute the number of calculated radiances for one call
+      btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData, &
+                                   assim_flag_val_opt=obs_assimilated)
+      if (btCount == 0) cycle sensor_loop
+
+      call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_k")
+      
+      asw = 1 ! 1 to allocate
+      call rttov_alloc_k(                      &
+              allocStatus(1),                  &
+              asw,                             &
+              nprofiles=profileCount,          &
+              nchanprof=btCount,               &
+              nlevels=nlv_T,                   &
+              chanprof=chanprof,               &
+              opts=tvs_opts(sensorIndex),      &
+              profiles_k=profiles_k,           &
+              coefs=tvs_coefs(sensorIndex),    &
+              transmission=transmission,       &
+              transmission_k=transmission_k,   &
+              radiance=radiancedata_d,         &
+              radiance_k=radiancedata_k,       &
+              calcemis=calcemis,               &
+              emissivity=emissivity_local,     &
+              emissivity_k=emissivity_k,       &
+              init=.true.)
+  
+      call utl_checkAllocationStatus(allocStatus(1:1), " tovs_rtttov_k rttov_alloc_k 1")
+          
+      ! Set nthreads to actual number of threads which will be used.
+  
+      nthreads = min(max_nthreads, profileCount)  
+  
+      ! Prepare all input variables required by rttov.
+        
+      allocate ( surfem1(btCount)           ,stat=allocStatus(1))
+      allocate ( sensorBodyIndexes(btCount) ,stat=allocStatus(2))
+      call utl_checkAllocationStatus(allocStatus(1:2), " tovs_rtttov_k")
+        
+      write(*,*) 'tvslin_rttov_k: Get surface emissiviy'
+
+      !    get Hyperspecral IR emissivities
+      if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), &
+                                                                           obsSpaceData, surfem1)
+  
+      call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+                          iptobs_cma_opt = sensorBodyIndexes)
+  
+      call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+  
+      if (sensorType == sensor_id_mw) then
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
+      else
+        emissivity_local(:)%emis_in = surfem1(:)
+      end if
+   
+      ! Intialize variables'
+      emissivity_k%emis_in=0.0
+      emissivity_k%emis_out=0.0
+  
+      call rttov_init_prof(profiles_k)
+      call rttov_init_transmission(transmission_k)
+      call rttov_init_rad(radiancedata_k)
+
+      radiancedata_k%bt = 1.0
+      radiancedata_k%total(:) = 1.0
+
+      call rttov_parallel_k(                                     &
+          errorstatus,                                           & ! out
+          chanprof,                                              & ! in
+          tvs_opts(sensorIndex),                                 & ! in
+          profiles(sensorTovsIndexes(1:profileCount)),           & ! in
+          profiles_k,                                            & ! inout
+          tvs_coefs(sensorIndex),                                & ! in
+          transmission,                                          & ! inout
+          transmission_k,                                        & ! inout
+          radiancedata_d,                                        & ! inout
+          radiancedata_k,                                        & ! inout
+          calcemis = calcemis,                                   & ! in
+          emissivity = emissivity_local,                         & ! in
+          emissivity_k = emissivity_k,                           & ! inout
+          nthreads = nthreads )                                    ! in
+                   
+      if (errorstatus /= errorStatus_success) then
+        write(*,*) "Error in rttov_parallel_k", errorstatus
+        write(*,*) 'temperature profile=', profiles(sensorTovsIndexes(1))%t(:)
+        write(*,*) 'temperature Jacobian profile=',profiles_k(1) % t(:)
+        call utl_abort('tovs_rttov_k')
+      end if
+  
+      call tvs_writeJacobianAscii(profiles_k, emissivity_k, profiles, chanprof, obsSpaceData, tvs_satelliteName(sensorIndex), tvs_instrumentName(sensorIndex), &
+                                  sensorBodyIndexes, sensorTovsIndexes, btCount)
+  
+      ! deallocate profiledata structures
+      asw = 0 ! 1 to allocate
+      call rttov_alloc_k(                      &
+              allocStatus(1),                  &
+              asw,                             &
+              nprofiles=profileCount,          &
+              nchanprof=btCount,               &
+              nlevels=nlv_T,                   &
+              chanprof=chanprof,               &
+              opts=tvs_opts(sensorIndex),      &
+              profiles_k=profiles_k,           &
+              coefs=tvs_coefs(sensorIndex),    &
+              transmission=transmission,       &
+              transmission_k=transmission_k,   &
+              radiance=radiancedata_d,         &
+              radiance_k=radiancedata_k,       &
+              calcemis=calcemis,               &
+              emissivity=emissivity_local,     &
+              emissivity_k=emissivity_k)
+  
+      deallocate (surfem1,          stat=allocStatus(2))
+      deallocate (sensorBodyIndexes,stat=allocStatus(3))
+      call utl_checkAllocationStatus(allocStatus(1:3), "tvslin_rtttov_k", .false.)
+    end do sensor_loop
+  
+    deallocate (sensorTovsIndexes)
+    nullify(profiles)
+
+    write(*,*) 'tvslin_rttov_k: finished'
+  end subroutine tvslin_rttov_k  
 
 end module tovsLin_mod
 

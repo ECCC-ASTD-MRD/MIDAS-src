@@ -101,7 +101,7 @@ module tovsNL_mod
   public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
   public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
-  public :: tvs_mwAllskyAssim
+  public :: tvs_mwAllskyAssim, tvs_computeJacobian
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
@@ -116,7 +116,7 @@ module tovsNL_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
-  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -194,6 +194,7 @@ module tovsNL_mod
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
+  logical tvs_computeJacobian                      ! Compute Jacobian for brightness temperature
 
   integer, external :: get_max_rss
  
@@ -762,6 +763,7 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
+    logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -771,7 +773,7 @@ contains
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
-    namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs
+    namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs, computeJacobian
 
     ! return if the NAMTOV does not exist
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
@@ -804,7 +806,7 @@ contains
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     mpiTask0ReadCoeffs = .true.
-
+    computeJacobian = .false. 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
     nulnam = 0
@@ -845,7 +847,7 @@ contains
     tvs_cloudScaleFactor = cloudScaleFactor 
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
-
+    tvs_computeJacobian = computeJacobian
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -5536,5 +5538,74 @@ contains
     channelIndex = utl_findloc(tvs_ichan(:,sensorIndex),channelNumber)
 
   end subroutine tvs_getChannelNumIndexFromPPP
+
+  !--------------------------------------------------------------------------
+  !  tvs_writeJacobianAscii
+  !--------------------------------------------------------------------------
+  subroutine tvs_writeJacobianAscii(jacobian, jacobian_emiss, profiles, chanprof, obsSpaceData, satelliteName, instrumentName, &
+                                    bodyIndexFromBtIndex, sensorTovsIndexes, btCount)
+    !
+    ! :Purpose: Write the Computed Jacobian into ASCII files
+    !
+    implicit none
+
+    ! Arguments:
+    type(rttov_profile), pointer,    intent(in)    :: jacobian(:)              ! Jacobian
+    type(rttov_emissivity), pointer, intent(in)    :: jacobian_emiss(:)        ! Surface Emissivity Jacobian
+    integer,                         intent(in)    :: bodyIndexFromBtIndex(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
+    integer,                         intent(in)    :: btCount                  ! Total number of simulated radiances
+    type(struct_obs),                intent(inout) :: obsSpaceData             ! ObsSpaceData Object
+    character(len=15),               intent(in)    :: satelliteName            ! Satellite Name
+    character(len=15),               intent(in)    :: instrumentName           ! Instrument Name
+    type (rttov_profile), pointer,   intent(in)    :: profiles(:)              ! Input profiles from background state
+    type (rttov_chanprof),           intent(in)    :: chanprof(:)              ! Chanprof structure    
+    integer,                         intent(in)    :: sensorTovsIndexes(:)     ! Sensor Tovs indexes
+   
+    ! Locals:
+    character(len=4)    :: cmyidx, cmyidy
+    character(len=9)    :: cmyid
+    character(len=1024) :: filename
+    integer             :: btIndex, bodyIndex
+    integer(8)          :: obsIdd, obsIdo
+    logical             :: fileExists
+    integer             :: profileIndex, tovsIndex, headerIndex
+    logical             :: SimSfcEmiss
+    integer             :: err, iunit
+    integer, external   :: fnom,fclos
+
+    write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+    write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
+    cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
+    filename = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'//cmyid
+
+    inquire(file=trim(filename), exist=fileExists)
+    write(*,*) 'tvs_writeJacobianAscii: fileExists', fileExists
+
+    iunit = 0
+    err = fnom(iunit, trim(filename), 'FTN+SEQ+R/W', 0)
+    if (err /= 0) then 
+      call utl_abort('tvs_writeJacobianAscii: Error writing Jacobian files')
+    end if 
+
+    do btIndex = 1, btCount
+      profileIndex = chanprof(btIndex)%prof
+      tovsIndex = sensorTovsIndexes(profileIndex)
+      headerIndex = tvs_headerIndex(tovsIndex)
+      obsIdo = obs_headPrimaryKey(obsSpaceData, headerIndex)
+      bodyIndex = bodyIndexFromBtIndex(btIndex)
+
+      if (bodyIndex > 0) then
+        obsIdd = obs_bodyPrimaryKey(obsSpaceData, bodyIndex)
+
+        WRITE(iunit,'(I20, I20, F16.2, F16.2, 85E16.5E2, E16.5E2, E16.5E2, E16.5E2, E16.5E2, 85E16.5E2,  85E16.5E2, 85E16.5E2)') &
+              obsIdo, obsIdd, profiles(tovsIndex)%latitude, profiles(tovsIndex)%longitude, profiles(tovsIndex)%p, &
+              jacobian_emiss(btIndex)%emis_out, &
+              jacobian(btIndex)%skin%t, jacobian(btIndex)%s2m%t, jacobian(btIndex)%s2m%p, &
+              jacobian(btIndex)%t(:), jacobian(btIndex)%q(:), jacobian(btIndex)%p(:)
+        end if
+    end do
+
+    err = fclos(iunit)
+  end subroutine tvs_writeJacobianAscii
 
 end module tovsNL_mod
