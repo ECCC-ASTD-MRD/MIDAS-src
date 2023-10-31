@@ -83,7 +83,9 @@ module biasCorrectionSat_mod
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
-  
+
+  real(8)               :: bottomPressureT1 = 1000.d0
+  real(8)               :: topPressureT1 = 300.d0
   real(8), allocatable  :: trialHeight300m850(:)
   real(8), allocatable  :: trialHeight300m900(:)
   real(8), allocatable  :: trialHeight300m1000(:)
@@ -1454,8 +1456,8 @@ contains
       end if
       iobs = iobs + 1
 
-      height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 1000.d0)
-      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 300.d0)
+      height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
       
       trialHeight300m1000(iobs) = height2 - height1
 
@@ -3431,7 +3433,7 @@ contains
     integer                      :: xcan, xnpred, chknp
     character(len=1)             :: xbcmode, xbctype
     character(len=2)             :: xpred(numpredictors)
-
+    real(8)                      :: par1, par2
     ! Reads channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     ! Channel 0 values are global or default values (optionally applied to all channels).
     ! Returns BC information for all channels to calling routine.
@@ -3471,10 +3473,26 @@ contains
     iun = 0
     ier = fnom(iun, bcifFile, 'FMT', 0)
     if (ier /= 0) then
-      call utl_abort('read_bcif: ERROR - Problem opening the bcif file!' // trim(bcifFile)) 
+      call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFile)) 
     end if
     
-    read(iun,*) instrum, ncan
+    read(iun,'(A64)') line
+    do while(line(1:3)== 'DEF')
+      read(line(8:), *, iostat=ier) par1, par2
+      if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFile))
+      xpred(0) = line(5:6)
+      select case(xpred(0))
+      case('T1')
+        bottomPressureT1 = par1
+        topPressureT1 = par2
+      case default
+        call utl_abort('read_bcif: predictor redefinition not supported for ' // xpred(0))
+      end select
+      write(*,*) 'read_bcif: Warning redefining predictor ' // xpred(0)
+      write(*,*) 'read_bcif: new bottom and top pressure :', par1, par2
+      read(iun,'(A64)') line
+    end do
+    read(line,*) instrum, ncan
     read(iun,'(A64)') line
 
     ! For GLOBAL option, read global values from first line (channel 0) and clone to all channels
