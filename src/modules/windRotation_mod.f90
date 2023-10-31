@@ -44,6 +44,9 @@ module windRotation_mod
     type(struct_uvr), pointer, intent(inout) :: uvr    ! Wind rotation object
     type(struct_hco),          intent(in)    :: hco_in ! Horizontal grid object
 
+    ! Locals:
+    logical, save :: firstCall = .true.
+
     if ( associated(uvr) ) then
       if ( uvr%initialized ) then
         if ( mmpi_myid == 0 ) write(*,*) 'uvr_setup: already initialized, returning'
@@ -63,7 +66,7 @@ module windRotation_mod
 
     allocate(uvr)
 
-    if ( mmpi_myid == 0 ) then
+    if ( mmpi_myid == 0 .and. firstCall ) then
       write(*,*) hco_in % xlon1
       write(*,*) hco_in % xlat1
       write(*,*) hco_in % xlon2
@@ -74,7 +77,7 @@ module windRotation_mod
 
     if ( hco_in%grtyp == 'U' ) then
 
-      if ( mmpi_myid == 0 ) then
+      if ( mmpi_myid == 0 .and. firstCall ) then
         write(*,*) 'uvr_setup: doing setup for YAN grid'
         write(*,*) hco_in % xlon1_yan
         write(*,*) hco_in % xlat1_yan
@@ -92,6 +95,8 @@ module windRotation_mod
       write(*,*)
       write(*,*) 'uvr_setup: Done!'
     end if
+
+    firstCall = .false.
 
   end subroutine uvr_setup
 
@@ -115,6 +120,7 @@ module windRotation_mod
     real(8) :: zxlon1_8,zxlat1_8,zxlon2_8,zxlat2_8
     real(8) :: a_8, b_8, c_8, d_8, xyz1_8(msize), xyz2_8(msize)
     real(8) :: zunit(msize,msize)
+    logical, save :: firstCall = .true.
 
     zxlon1_8 = grd_xlon1
     zxlat1_8 = grd_xlat1
@@ -176,7 +182,7 @@ module windRotation_mod
 
     do j1 = 1, msize
       do j2 = 1, msize
-        if ( mmpi_myid == 0 ) then
+        if ( mmpi_myid == 0 .and. firstCall ) then
           write(*,*) 'sugrdpar: grd_rot_8(j1,j2) =',j1,j2,uvr%grd_rot_8(j1,j2,subGridIndex)
         end if
       end do
@@ -195,11 +201,13 @@ module windRotation_mod
     call mxma8x(zunit,uvr%grd_rotinv_8(:,:,subGridIndex),uvr%grd_rot_8(:,:,subGridIndex),msize,msize,msize)
     do j1 = 1, msize
       do j2 = 1, msize
-        if ( mmpi_myid == 0 ) then
+        if ( mmpi_myid == 0 .and. firstCall ) then
           write(*,*) 'sugrdpar: unit = ', j1, j2, zunit(j1,j2)
         end if
       end do
     end do
+
+    firstCall = .false.
 
   end subroutine sugrdpar
 

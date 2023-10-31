@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changes to improve efficiency of `letkf` (#706 and !781)
+   * Very small impact on results for some executions, usually only a single variable/level/member
  * Changes to rename body column names from lon/lat to lond/latd in `obsDiagFiles_mod` (#876 and !782)
  * Changed `analysisErrorOI` to be compatible with more than 1 MPI task (#862 and !777)
 

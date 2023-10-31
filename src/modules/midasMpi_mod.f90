@@ -736,6 +736,9 @@ module midasMpi_mod
     end do
     mykEnd = mykBeg + mykCount - 1
 
+    write(*,'(a,3i8)') 'mmpi_setup_varslevels: mykBeg, mykEnd, mykCount = ',  &
+         mykBeg, mykEnd, mykCount
+
   end subroutine mmpi_setup_varslevels
 
 end module midasMpi_mod
