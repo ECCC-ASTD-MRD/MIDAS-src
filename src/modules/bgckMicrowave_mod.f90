@@ -63,6 +63,7 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_qcIndicator(:) ! QC indicator per channel 
   integer, allocatable :: mwbg_chanRejectForChan2Omp(:) ! channels to reject because of channel2 OMP
   integer, allocatable :: mwbg_chanRejectForSfc(:) ! channels to reject because of surface
+  integer, allocatable :: mwbg_chanRejectForTovUtil(:) ! channels to reject because of oer_tovutil
   integer, allocatable :: mwbg_chanRejectForScat(:) ! channels to reject because of scattering
   integer, allocatable :: mwbg_chanRejectForClw(:) ! channels to reject because of CLW
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:) ! channels to reject because of topography
@@ -1636,7 +1637,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest15ChannelSelectionWithTovutil
   !--------------------------------------------------------------------------
-  subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, modelInterpSeaIce, ISFCREJ2, qcIndicator, &
+  subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, modelInterpSeaIce, qcIndicator, &
                                                      headerIndex, obsSpaceData)
     !
     !:Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat):
@@ -1655,7 +1656,6 @@ contains
     ! Arguments:
     integer,          intent(in)    :: sensorIndex       ! numero de satellite (i.e. indice) 
     real(8),          intent(in)    :: modelInterpSeaIce ! gl
-    integer,          intent(in)    :: ISFCREJ2(:)       ! rejection channel list
     integer,          intent(inout) :: qcIndicator(:)    ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,          intent(in)    :: headerIndex    ! current header Index 
@@ -1689,7 +1689,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-      INDXCAN = utl_findloc(ISFCREJ2(:),obsChanNumWithOffset)
+      INDXCAN = utl_findloc(mwbg_chanRejectForTovUtil(:),obsChanNumWithOffset)
       if ( INDXCAN /= 0 )  then
         if (landQualifierIndice  == 0 .or. ITRN == 0)  then
           obsFlags = OR(obsFlags,2**9)
@@ -1863,7 +1863,6 @@ contains
     real(8), parameter :: cloudyClwThreshold = 0.3d0
     real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
-    integer :: ISFCREJ2(4)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
     real(8) :: tb23FG, tb31FG, tb50FG, tb53FG, tb89FG 
@@ -1876,13 +1875,6 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-
-    
-    ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
-
-
-
-  
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -1927,6 +1919,9 @@ contains
 
       allocate(mwbg_chanRejectForTopoFilter(2))
       mwbg_chanRejectForTopoFilter(:) = (/ 33, 34 /)
+
+      allocate(mwbg_chanRejectForTovUtil(4))
+      mwbg_chanRejectForTovUtil(:) = (/ 28, 29, 30, 42 /)
 
       rejectionCodArray(:,:,:) = 0
 
@@ -2032,7 +2027,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, ISFCREJ2, qcIndicator, &
+    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, qcIndicator, &
                                                   headerIndex, obsSpaceData)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
@@ -2105,7 +2100,6 @@ contains
     real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
     integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
-    integer :: ISFCREJ2(1)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8) :: tb89, tb150, tb1831, tb1832, tb1833
     real(8) :: tb89FG, tb150FG, tb89FgClear, tb150FgClear, scatIndexOverLandObs
@@ -2116,7 +2110,6 @@ contains
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
 
-    ISFCREJ2(:) = (/ 43 /)
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -2157,6 +2150,9 @@ contains
 
       allocate(mwbg_chanRejectForTopoFilter(3))
       mwbg_chanRejectForTopoFilter(:) = (/ 45, 46, 47 /)
+
+      allocate(mwbg_chanRejectForTovUtil(1))  
+      mwbg_chanRejectForTovUtil(:) = (/ 43 /)
 
       ! Channels excluded from genCoeff in all-sky mode
       allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(5))
@@ -2276,7 +2272,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, ISFCREJ2, qcIndicator, &
+    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, qcIndicator, &
                                                   headerIndex, obsSpaceData)
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -3595,9 +3591,6 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-
-
-
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
