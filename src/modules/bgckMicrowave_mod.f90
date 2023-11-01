@@ -69,6 +69,8 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_altitudeThreshForTopoFilter(:) ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:) ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:) ! gross value max threshold
+  real(8), allocatable :: mwbg_rogueFactor(:) ! rogue factor
+
 
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
@@ -1377,11 +1379,11 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData)
+  subroutine amsuaTest14RogueCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !          (single/full). Les observations, dont le residu (O-P) 
-    !          depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !          depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     !
     !          N.B.: a reject by any of the 3 surface channels produces the 
     !          rejection of AMSUA-A channels 1-5 and 15.
@@ -1390,7 +1392,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor 
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
@@ -1441,7 +1442,7 @@ contains
         end if
         ! For sigmaObsErrUsed=MPC_missingValue_R8 (cloudLiquidWaterPathObs[FG]=mwbg_realMissing
         ! in all-sky mode), the observation is already rejected in test 12.
-        XCHECKVAL = ROGUEFAC(obsChanNumWithOffset) * sigmaObsErrUsed
+        XCHECKVAL = mwbg_rogueFactor(obsChanNumWithOffset) * sigmaObsErrUsed
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         ompTb = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
 
@@ -1494,7 +1495,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData, &
+  subroutine amsubTest14RogueCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData, &
                                    skipTestArr_opt)
     !
     !:Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range. (single)
@@ -1504,7 +1505,6 @@ contains
 
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,           intent(in)    :: headerIndex        ! current header Index
@@ -1578,7 +1578,7 @@ contains
         end if
         ! For sigmaObsErrUsed=MPC_missingValue_R8 (scatIndexOverWaterObs[FG]=mwbg_realMissing
         ! in all-sky mode), the observation is already rejected in test 13.
-        XCHECKVAL = ROGUEFAC(obsChanNumWithOffset) * sigmaObsErrUsed
+        XCHECKVAL = mwbg_rogueFactor(obsChanNumWithOffset) * sigmaObsErrUsed
         if (ompTb /= mwbg_realMissing .and. &
             abs(ompTb) >= XCHECKVAL .and. &
             sigmaObsErrUsed /= MPC_missingValue_R8) then
@@ -1865,7 +1865,6 @@ contains
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
     integer :: ISFCREJ2(4)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
-    real(8), allocatable :: ROGUEFAC(:)
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
     real(8) :: tb23FG, tb31FG, tb50FG, tb53FG, tb89FG 
     real(8) :: ice, tpw, scatIndexOverLandObs
@@ -1877,12 +1876,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    ROGUEFAC(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
-                    3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 2.0d0/)
+
     
     ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
 
@@ -1896,6 +1890,13 @@ contains
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_rogueFactor(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
+                              3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 2.0d0/)
+
       allocate(mwbg_grossValMinThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
       mwbg_grossValMinThresh(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
                                      170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
@@ -2016,9 +2017,9 @@ contains
     call amsuaTest13GrodyScatteringIndexCheck (sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
-    ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    ! Les observations, dont le residu (O-P) depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsuaTest14RogueCheck (sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData)
+    call amsuaTest14RogueCheck (sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -2106,7 +2107,6 @@ contains
     integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
     integer :: ISFCREJ2(1)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
-    real(8), allocatable :: ROGUEFAC(:)
     real(8) :: tb89, tb150, tb1831, tb1832, tb1833
     real(8) :: tb89FG, tb150FG, tb89FgClear, tb150FgClear, scatIndexOverLandObs
     logical, save :: firstCall = .true.
@@ -2115,17 +2115,8 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    ROGUEFAC(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
-                    3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 2.0d0, 2.0d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0 /)
 
     ISFCREJ2(:) = (/ 43 /)
-
-
-
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -2133,6 +2124,13 @@ contains
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_rogueFactor(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
+                              3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 2.0d0, 2.0d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0 /)
+
       allocate(mwbg_grossValMinThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
       mwbg_grossValMinThresh(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
                                      170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
@@ -2262,9 +2260,9 @@ contains
                                                  skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
-    ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    ! Les observations, dont le residu (O-P) depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsubTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData, &
+    call amsubTest14RogueCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData, &
                                skipTestArr_opt=skipTestArr(:))
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
@@ -3138,13 +3136,13 @@ contains
   !--------------------------------------------------------------------------
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+  subroutine atmsTest4RogueCheck(sensorIndex, waterobs, B7CHCK, qcIndicator, &
                                  headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
     !          Les observations, dont le residu (O-P) 
-    !          depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !          depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     !
     !          N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
     !          rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
@@ -3155,7 +3153,6 @@ contains
 
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
     logical,           intent(in)    :: waterobs           ! open water obs
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
@@ -3240,7 +3237,7 @@ contains
       ! For sigmaObsErrUsed=MPC_missingValue_R8 (cloudLiquidWaterPathObs[FG]=mwbg_realMissing
       ! or scatIndexOverWaterObs[FG] in all-sky mode), the observation is flagged for rejection in 
       ! mwbg_reviewAllCritforFinalFlagsAtms.
-      XCHECKVAL = ROGUEFAC(obsChanNumWithOffset) * sigmaObsErrUsed
+      XCHECKVAL = mwbg_rogueFactor(obsChanNumWithOffset) * sigmaObsErrUsed
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
       ompTb = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
 
@@ -3343,13 +3340,13 @@ contains
   !--------------------------------------------------------------------------
   ! Mwhs2Test4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+  subroutine Mwhs2Test4RogueCheck(sensorIndex, waterobs, B7CHCK, qcIndicator, &
                                   headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
     !          Les observations, dont le residu (O-P)
-    !          depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !          depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     !
     !          OVER OPEN WATER ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
     !
@@ -3357,7 +3354,6 @@ contains
 
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
-    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor
     logical,           intent(in)    :: waterobs           ! open water obs
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
@@ -3422,7 +3418,7 @@ contains
       ! For sigmaObsErrUsed=MPC_missingValue_R8 (cloudLiquidWaterPathObs=mwbg_realMissing
       ! in all-sky mode), the observation is flagged for rejection in
       ! mwbg_reviewAllCritforFinalFlagsMwhs2.
-      XCHECKVAL = ROGUEFAC(obsChanNumWithOffset) * sigmaObsErrUsed
+      XCHECKVAL = mwbg_rogueFactor(obsChanNumWithOffset) * sigmaObsErrUsed
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
       ompTb = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
       
@@ -3580,7 +3576,6 @@ contains
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
     real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv
-    real(8), allocatable :: ROGUEFAC(:)
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
@@ -3600,18 +3595,18 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    ROGUEFAC(:) = (/2.0d0, 2.0d0, 2.0d0, 3.0d0, 3.0d0, 4.0d0, 4.0d0, 4.0d0, &
-                    4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, &
-                    2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
-    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 3.0
-
 
 
 
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_rogueFactor(:) = (/2.0d0, 2.0d0, 2.0d0, 3.0d0, 3.0d0, 4.0d0, 4.0d0, 4.0d0, &
+                              4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, &
+                              2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 3.0
+    
       !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
       allocate(mwbg_chanRejectForChan2Omp(6))
       mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
@@ -3755,13 +3750,13 @@ contains
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
-    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
+    !  Les observations, dont le residu (O-P) depasse par un facteur (mwbg_rogueFactor)
     !   l'erreur totale des TOVS.
     !  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
-    call atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+    call atmsTest4RogueCheck(sensorIndex, waterobs, B7CHCK, qcIndicator, &
                              headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
@@ -3861,7 +3856,6 @@ contains
     logical :: cloudobs, iwvreject, precipobs
     logical, allocatable :: qcRejectLogic(:)
     real(8) :: zdi, scatec, scatbg, SeaIce, riwv
-    real(8), allocatable :: ROGUEFAC(:)
     logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
     integer, save :: allcnt                 ! Number of Tovs obs
@@ -3881,17 +3875,14 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    ROGUEFAC(:) = (/2.0d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, &
-                    9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
-    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 9.9d0
-
-
-
-
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_rogueFactor(:) = (/2.0d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, &
+                              9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 9.9d0
+    
       ! Channel sets for rejection in test 9
       !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
       allocate(mwbg_chanRejectForChan2Omp(6))
@@ -4028,11 +4019,11 @@ contains
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
-    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
+    !  Les observations, dont le residu (O-P) depasse par un facteur (mwbg_rogueFactor)
     !   l'erreur totale des TOVS.
     !  OVER OPEN WATER
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
-    call Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+    call Mwhs2Test4RogueCheck(sensorIndex, waterobs, B7CHCK, qcIndicator, &
                               headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
