@@ -3567,8 +3567,8 @@ contains
       ! Channels excluded from gen_bias_corr in all-sky mode
       allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
       mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/1, 2, 3, 4, 5, 6/)
-      allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(4))
-      mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 20, 22/)
+      allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(6))
+      mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/17, 18, 19, 20, 21, 22/)
 
       numReportWithMissingTb = 0
       flgcnt = 0
