@@ -3154,7 +3154,7 @@ contains
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
-      call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+      call tvs_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
@@ -6398,65 +6398,6 @@ contains
     end do
 
   end function ifTovsExist
-
-  !--------------------------------------------------------------------------
-  ! chanIsAllsky
-  !--------------------------------------------------------------------------
-  subroutine chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
-    !
-    !:Purpose: Determine if the tovs instrument/channel combination is all-sky.
-    !
-    implicit none
-    
-    ! Arguments:
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer,          intent(in)  :: bodyIndex
-    logical,          intent(out) :: chanIsAllskyTt ! .true. if channel is all-sky temperature
-    logical,          intent(out) :: chanIsAllskyHu ! .true. if channel is all-sky humidity
-
-    ! Locals:
-    integer :: headerIndex
-    integer :: channelNumber_withOffset
-    integer :: channelNumber, channelIndex, codtyp
-    integer :: tovsIndex, sensorIndex, instrumId
-    character(len=*) :: instrumName
-
-    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
-    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
-    instrumId = tvs_instruments(sensorIndex)
-
-    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                       channelNumber, channelIndex)
-    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
-
-    chanIsAllskyTt = .false.
-    chanIsAllskyHu = .false.
-    if (.not. tvs_mwAllskyAssim .or. &
-        .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
-    
-    instrumName = codtyp_get_name(codtyp)
-
-    if (tvs_isInstrumAllskyTtAssim(instrumId)) then
-      if (trim(instrumName) == 'atms') then
-        chanIsAllskyTt = (channelNumber_withOffset =< 16)
-      else
-        chanIsAllskyTt = .true.
-      end if
-    end if
-
-    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
-      if (trim(instrumName) == 'atms') then
-        chanIsAllskyHu = (channelNumber_withOffset >= 17)
-      else
-        chanIsAllskyHu = .true.
-      end if
-    end if
-    
-    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('chanIsAllsky: channel can not be both all-sky TT and HU')
-
-  end subroutine chanIsAllsky
 
   !--------------------------------------------------------------------------
   ! mwbg_mwbg_bgCheckMW

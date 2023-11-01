@@ -1675,7 +1675,7 @@ contains
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
       
-      call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+      call tvs_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
         call utl_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
@@ -1772,7 +1772,7 @@ contains
 
     surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
 
-    call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    call tvs_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
     if (chanIsAllskyTt) then
       if (.not. surfTypeIsWater .or. &
@@ -1867,54 +1867,6 @@ contains
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
   end subroutine oer_inflateErrAllsky
-
-  !--------------------------------------------------------------------------
-  ! chanIsAllsky
-  !--------------------------------------------------------------------------
-  subroutine chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
-    !
-    !:Purpose: Determine if the tovs instrument/channel combination is all-sky.
-    !
-    implicit none
-    
-    ! Arguments:
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer,          intent(in)  :: bodyIndex
-    logical,          intent(out) :: chanIsAllskyTt ! .true. if channel is all-sky temperature
-    logical,          intent(out) :: chanIsAllskyHu ! .true. if channel is all-sky humidity
-
-    ! Locals:
-    integer :: headerIndex
-    integer :: channelNumber_withOffset
-    integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex, instrumId
-
-    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
-    instrumId = tvs_instruments(sensorIndex)
-
-    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                       channelNumber, channelIndex)
-    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
-
-    chanIsAllskyTt = .false.
-    chanIsAllskyHu = .false.
-    if (.not. tvs_mwAllskyAssim .or. &
-        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
-    
-    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. &
-        useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
-      chanIsAllskyTt = .true.
-    end if
-    if (tvs_isInstrumAllskyHuAssim(instrumId) .and. &
-        useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
-      chanIsAllskyHu = .true.
-    end if
-    
-    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('chanIsAllsky: channel can not be both all-sky TT and HU')
-
-  end subroutine chanIsAllsky
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
