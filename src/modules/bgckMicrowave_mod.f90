@@ -5646,11 +5646,12 @@ contains
     integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
-    integer :: indx, n_cld, newInformationFlag, actualNumChannel
+    integer :: indx, n_cld, newInformationFlag, actualNumChannel, codtyp
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
     real(8) :: cloudLiquidWaterPathObs, scatIndexOverWaterObs
     real(8), allocatable :: obsTb(:), obsTbBiasCorr(:)
+    logical :: instrumentIsAllskyHu
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
@@ -5661,6 +5662,7 @@ contains
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     actualNumChannel = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)
     if (tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel) then
       write(*,*) 'mwbg_flagDataUsingNrlCritAtms: tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel'
@@ -5668,6 +5670,8 @@ contains
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
     scatIndexOverWaterObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
+
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
 
     if (.not. grossrej) then
       allocate(obsTb(actualNumChannel))
@@ -5703,7 +5707,13 @@ contains
         end if
       end do
       riwv  = sum(ztb183) / 5.0d0
-      if ( riwv < mean_Tb_183Ghz_min ) iwvreject = .true.
+      if (riwv < mean_Tb_183Ghz_min) then
+        if (instrumentIsAllskyHu) then
+          if (.not. waterobs) iwvreject = .true.
+        else
+          iwvreject = .true.
+        end if
+      end if
     else
       iwvreject = .true.
     end if
@@ -5930,6 +5940,7 @@ contains
     integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, scatwObsFGaveraged
+    logical :: instrumentIsAllskyTt, instrumentIsAllskyHu
     logical, allocatable :: lflagchn(:)
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
@@ -5939,6 +5950,9 @@ contains
     newInformationFlag = obs_headElem_i(obsSpaceData, OBS_INFG, headerIndex)
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
+
+    instrumentIsAllskyTt = tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
 
     ! Allocation
     allocate(lflagchn(actualNumChannel))
@@ -5998,22 +6012,22 @@ contains
         !                               0.5*(scatIndexOverWaterObs + scatIndexOverWaterFGor) > mwbg_maxSiOverWaterThreshold
 
         if (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej)  then
-          if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          if (instrumentIsAllskyTt) then
             lflagchn(1:4) = .true.
             clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
             if (clwObsFGaveraged > mwbg_clwQcThreshold) lflagchn(5:6) = .true.
           else
             lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           end if
-          lflagchn(16:20) = .true.
+          if (.not. instrumentIsAllskyHu) lflagchn(16:20) = .true.
         end if
         if (cloudLiquidWaterPathObs > clw_atms_nrl_UTrej)  then
           lflagchn(7:9)   = .true.
-          lflagchn(21:22) = .true.
+          if (.not. instrumentIsAllskyHu) lflagchn(21:22) = .true.
         end if
         if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej) then
           lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
-          if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+          if (instrumentIsAllskyHu) then
             scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
             if (scatwObsFGaveraged > mwbg_maxSiOverWaterThreshold .or. &
                 scatwObsFGaveraged < mwbg_minSiOverWaterThreshold) then
@@ -6034,8 +6048,7 @@ contains
           lflagchn(16:22) = .true.
         end if
 
-        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-            scatIndexOverWaterObs == MPC_missingValue_R8) then
+        if (instrumentIsAllskyHu .and. scatIndexOverWaterObs == MPC_missingValue_R8) then
           lflagchn(17:22) = .true.
         end if
 
@@ -6071,8 +6084,7 @@ contains
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
-      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-          waterobs .and. channelIndex /= 0 .and. &
+      if (instrumentIsAllskyTt .and. waterobs .and. channelIndex /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
@@ -6080,8 +6092,7 @@ contains
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
-      if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-          waterobs .and. channelIndex /= 0 .and. &
+      if (instrumentIsAllskyHu .and. waterobs .and. channelIndex /= 0 .and. &
           (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
            scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
            scatIndexOverWaterFG == MPC_missingValue_R8)) then
