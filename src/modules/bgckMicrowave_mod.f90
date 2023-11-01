@@ -60,6 +60,15 @@ module bgckMicrowave_mod
   integer, allocatable :: rejectionCodArray2(:,:,:)   ! number of rejection per channl per test for ATMS 2nd category of tests
   integer, allocatable :: mwbg_chanIgnoreInAllskyTtGenCoeff(:) ! channels to exclude from genCoeff in all-sky TT
   integer, allocatable :: mwbg_chanIgnoreInAllskyHuGenCoeff(:) ! channels to exclude from genCoeff in all-sky HU
+  integer, allocatable :: mwbg_qcIndicator(:) ! QC indicator per channel 
+  integer, allocatable :: mwbg_chanRejectForChan2Omp(:) ! channels to reject because of channel2 OMP
+  integer, allocatable :: mwbg_chanRejectForSfc(:) ! channels to reject because of surface
+  integer, allocatable :: mwbg_chanRejectForScat(:) ! channels to reject because of scattering
+  integer, allocatable :: mwbg_chanRejectForClw(:) ! channels to reject because of CLW
+  integer, allocatable :: mwbg_chanRejectForTopoFilter(:) ! channels to reject because of topography
+  integer, allocatable :: mwbg_altitudeThreshForTopoFilter(:) ! altitude thresholds for topo filtering
+  real(8), allocatable :: mwbg_grossValMinThresh(:) ! gross value min threshold
+  real(8), allocatable :: mwbg_grossValMaxThresh(:) ! gross value max threshold
 
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
@@ -379,8 +388,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest1TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest1TopographyCheck(sensorIndex, modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, &
-                                        qcIndicator, headerIndex, obsSpaceData)
+  subroutine amsuABTest1TopographyCheck(sensorIndex, modelInterpTerrain, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 1: Topography check (partial)
     !          Channel 6 is rejected for topography >  250m.
@@ -390,8 +398,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex             ! numero de satellite (i.e. indice) 
-    integer,          intent(in)    :: channelForTopoFilter(:) ! channel list for filter
-    real(8),          intent(in)    :: altitudeForTopoFilter(:)! altitude threshold
     real(8),          intent(in)    :: modelInterpTerrain      ! topo aux point d'obs
     integer,          intent(inout) :: qcIndicator(:)          ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
@@ -405,12 +411,12 @@ contains
 
     testIndex = 1
 
-    !check consistency between channelForTopoFilter and altitudeForTopoFilter
-    if ( size(altitudeForTopoFilter) /= size(channelForTopoFilter) ) then 
+    !check consistency between mwbg_chanRejectForTopoFilter and mwbg_altitudeThreshForTopoFilter
+    if ( size(mwbg_altitudeThreshForTopoFilter) /= size(mwbg_chanRejectForTopoFilter) ) then 
       call utl_abort('ABORT: amsuABTest1TopographyCheck, no consistency between channel List and altitude list ')
     end if 
    
-    numFilteringTest =  size(altitudeForTopoFilter) 
+    numFilteringTest =  size(mwbg_altitudeThreshForTopoFilter) 
     indexFilteringTest = 1
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
@@ -424,8 +430,8 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        if (obsChanNumWithOffset == channelForTopoFilter(indexFilteringTest)) then
-          if (modelInterpTerrain >= altitudeForTopoFilter(indexFilteringTest)) then
+        if (obsChanNumWithOffset == mwbg_chanRejectForTopoFilter(indexFilteringTest)) then
+          if (modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(indexFilteringTest)) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
             obsFlags = OR(obsFlags,2**18)
@@ -845,8 +851,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest11RadianceGrossValueCheck(sensorIndex, GROSSMIN, GROSSMAX, qcIndicator, &
-                                                 headerIndex, obsSpaceData)
+  subroutine amsuABTest11RadianceGrossValueCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 11: Radiance observation "Gross" check (single). 
     !          Change this test from full to single. jh nov 2000.
@@ -855,8 +860,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: GROSSMIN(:)     ! Gross val min 
-    real(8),          intent(in)    :: GROSSMAX(:)     ! Gross val max 
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
     integer,          intent(in)    :: headerIndex     ! current header Index 
@@ -886,8 +889,8 @@ contains
           obsChanNumWithOffset <= actualNumChannel) then  
 
         if (obsTb /= mwbg_realMissing .and. &
-            (obsTb < GROSSMIN(obsChanNumWithOffset) .or. &
-             obsTb > GROSSMAX(obsChanNumWithOffset))) then
+            (obsTb < mwbg_grossValMinThresh(obsChanNumWithOffset) .or. &
+             obsTb > mwbg_grossValMaxThresh(obsChanNumWithOffset))) then
           GROSSERROR = .TRUE.
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -910,8 +913,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest12GrodyClwCheck(sensorIndex, amsuaChanRejectWithClw, qcIndicator, &
-                                      headerIndex, obsSpaceData)
+  subroutine amsuaTest12GrodyClwCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 12: Grody cloud liquid water check (partial).
     !
@@ -921,7 +923,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in)    :: amsuaChanRejectWithClw(:) ! rejection channel list
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
@@ -962,7 +963,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
+          INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
@@ -979,7 +980,7 @@ contains
         end if
       end if
 
-      ! In all-sky mode, turn on bit=23 for channels in amsuaChanRejectWithClw(:) as 
+      ! In all-sky mode, turn on bit=23 for channels in mwbg_chanRejectForClw(:) as 
       ! cloud-affected radiances over sea when there is mismatch between 
       ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
       clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
@@ -988,7 +989,7 @@ contains
           obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
-          INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
+          INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
 
           if ( INDXCAN /= 0 ) then
             obsFlags = OR(obsFlags,2**23)
@@ -1011,7 +1012,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         
-        INDXCAN = utl_findloc(amsuaChanRejectWithClw(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) ) then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -1137,7 +1138,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest13GrodyScatteringIndexCheck(sensorIndex, ISCATREJ, qcIndicator, headerIndex, obsSpaceData)
+  subroutine amsuaTest13GrodyScatteringIndexCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 13: Grody scattering index check (partial).
     !
@@ -1147,7 +1148,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in)    :: ISCATREJ(:)     ! rejection channel list
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
@@ -1180,7 +1180,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          INDXCAN = utl_findloc(ISCATREJ(:),obsChanNumWithOffset)
+          INDXCAN = utl_findloc(mwbg_chanRejectForScat(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
@@ -1377,7 +1377,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsuaTest14RogueCheck(sensorIndex, ROGUEFAC, ISFCREJ, qcIndicator, headerIndex, obsSpaceData)
+  subroutine amsuaTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData)
     !
     !:Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !          (single/full). Les observations, dont le residu (O-P) 
@@ -1391,7 +1391,6 @@ contains
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
     real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor 
-    integer,          intent(in)    :: ISFCREJ(:)      ! rejection channel list
     integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
@@ -1475,7 +1474,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = utl_findloc(ISFCREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForSfc(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -1495,8 +1494,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest14RogueCheck(sensorIndex, ROGUEFAC, ICH2OMPREJ, qcIndicator, &
-                                   headerIndex, obsSpaceData, skipTestArr_opt)
+  subroutine amsubTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData, &
+                                   skipTestArr_opt)
     !
     !:Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range. (single)
     !          Also, remove CH2,3,4,5 if CH2 |O-P|>5K (partial)
@@ -1506,7 +1505,6 @@ contains
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
     real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
-    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,           intent(in)    :: headerIndex        ! current header Index
@@ -1618,7 +1616,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForChan2Omp(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -1865,12 +1863,12 @@ contains
     real(8), parameter :: cloudyClwThreshold = 0.3d0
     real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
-    integer :: amsuaChanRejectWithClw(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
+    integer :: ISFCREJ2(4)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
-    real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
+    real(8), allocatable :: ROGUEFAC(:)
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
     real(8) :: tb23FG, tb31FG, tb50FG, tb53FG, tb89FG 
-    real(8) :: ice, tpw, scatIndexOverLandObs, altitudeForTopoFilter(2)
+    real(8) :: ice, tpw, scatIndexOverLandObs
     logical, save :: firstCall = .true.
 
     EPSILON = 0.01
@@ -1885,28 +1883,12 @@ contains
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
                     3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 2.0d0/)
-    amsuaChanRejectWithClw(:) = (/ 28, 29, 30, 31, 32, 42 /)
-    ISFCREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
-    ISCATREJ(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
+    
     ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
 
-    allocate(GROSSMIN(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    GROSSMIN(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
-                     170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
-                     180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
-                     190.0d0, 180.0d0, 180.0d0, 180.0d0, 190.0d0, 200.0d0, 120.0d0, &
-                     120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
-                     180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0 /)
 
-    allocate(GROSSMAX(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    GROSSMAX(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
-                     320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
-                     290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
-                     300.0d0, 250.0d0, 250.0d0, 270.0d0, 280.0d0, 290.0d0, 310.0d0, &
-                     310.0d0, 310.0d0, 300.0d0, 300.0d0, 260.0d0, 250.0d0, 250.0d0, &
-                     250.0d0, 260.0d0, 260.0d0, 270.0d0, 280.0d0, 290.0d0, 330.0d0 /)  
-    channelForTopoFilter(:) = (/ 33, 34 /)
-    altitudeForTopoFilter(:) = (/ 250.0d0, 2000.0d0/)
+
+  
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -1914,8 +1896,40 @@ contains
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
-       rejectionCodArray(:,:,:) = 0
-       firstCall = .FALSE.
+      allocate(mwbg_grossValMinThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_grossValMinThresh(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
+                                     170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
+                                     180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
+                                     190.0d0, 180.0d0, 180.0d0, 180.0d0, 190.0d0, 200.0d0, 120.0d0, &
+                                     120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
+                                     180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0 /)
+
+      allocate(mwbg_grossValMaxThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_grossValMaxThresh(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
+                                     320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
+                                     290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
+                                     300.0d0, 250.0d0, 250.0d0, 270.0d0, 280.0d0, 290.0d0, 310.0d0, &
+                                     310.0d0, 310.0d0, 300.0d0, 300.0d0, 260.0d0, 250.0d0, 250.0d0, &
+                                     250.0d0, 260.0d0, 260.0d0, 270.0d0, 280.0d0, 290.0d0, 330.0d0 /)
+
+      allocate(mwbg_altitudeThreshForTopoFilter(2))
+      mwbg_altitudeThreshForTopoFilter(:) = (/ 250.0d0, 2000.0d0/)
+
+      allocate(mwbg_chanRejectForSfc(6))
+      mwbg_chanRejectForSfc(:) = (/ 28, 29, 30, 31, 32, 42 /)
+
+      allocate(mwbg_chanRejectForScat(7))
+      mwbg_chanRejectForScat(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
+
+      allocate(mwbg_chanRejectForClw(6))
+      mwbg_chanRejectForClw(:) = (/ 28, 29, 30, 31, 32, 42 /)
+
+      allocate(mwbg_chanRejectForTopoFilter(2))
+      mwbg_chanRejectForTopoFilter(:) = (/ 33, 34 /)
+
+      rejectionCodArray(:,:,:) = 0
+
+      firstCall = .false.
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
@@ -1944,8 +1958,7 @@ contains
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
     ! Channel 7 is rejected for topography > 2000m.
-    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, &
-                                     qcIndicator, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, qcIndicator, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0 land, 1 sea, 2 coast.
@@ -1992,22 +2005,20 @@ contains
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (sensorIndex, GROSSMIN, GROSSMAX, qcIndicator, &
-                                              headerIndex, obsSpaceData)
+    call amsuABTest11RadianceGrossValueCheck (sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
-    call amsuaTest12GrodyClwCheck (sensorIndex, amsuaChanRejectWithClw, qcIndicator, &
-                                   headerIndex, obsSpaceData)
+    call amsuaTest12GrodyClwCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
-    call amsuaTest13GrodyScatteringIndexCheck (sensorIndex, ISCATREJ, qcIndicator, headerIndex, obsSpaceData)
+    call amsuaTest13GrodyScatteringIndexCheck (sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsuaTest14RogueCheck (sensorIndex, ROGUEFAC, ISFCREJ, qcIndicator, headerIndex, obsSpaceData)
+    call amsuaTest14RogueCheck (sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData)
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -2093,12 +2104,11 @@ contains
     real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
     integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
-    integer :: ISFCREJ(2), ICH2OMPREJ(4), ISFCREJ2(1), channelForTopoFilter(3)
+    integer :: ISFCREJ2(1)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
-    real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
+    real(8), allocatable :: ROGUEFAC(:)
     real(8) :: tb89, tb150, tb1831, tb1832, tb1833
     real(8) :: tb89FG, tb150FG, tb89FgClear, tb150FgClear, scatIndexOverLandObs
-    real(8) :: altitudeForTopoFilter(3)
     logical, save :: firstCall = .true.
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -2112,28 +2122,10 @@ contains
                     3.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 2.0d0, 2.0d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0 /)
 
-    ISFCREJ(:) = (/ 43, 44 /)
     ISFCREJ2(:) = (/ 43 /)
-    ICH2OMPREJ(:) = (/ 44, 45, 46, 47 /)
-    allocate(GROSSMIN(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    GROSSMIN(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
-                     170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
-                     180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
-                     190.0d0, 180.0d0, 180.0d0, 180.0d0, 190.0d0, 200.0d0, 120.0d0, &
-                     120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
-                     180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0, &
-                     130.0d0, 130.0d0, 130.0d0, 130.0d0, 130.0d0 /)
-    allocate(GROSSMAX(actualNumChannel+tvs_channelOffset(sensorIndex)))
-    GROSSMAX(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
-                     320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
-                     290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
-                     300.0d0, 250.0d0, 250.0d0, 270.0d0, 280.0d0, 290.0d0, 310.0d0, &
-                     310.0d0, 310.0d0, 300.0d0, 300.0d0, 260.0d0, 250.0d0, 250.0d0, &
-                     250.0d0, 260.0d0, 260.0d0, 270.0d0, 280.0d0, 290.0d0, 330.0d0, &
-                     330.0d0, 330.0d0, 330.0d0, 330.0d0, 330.0d0 /)  
 
-    channelForTopoFilter(:) = (/ 45, 46, 47 /)
-    altitudeForTopoFilter(:) = (/ 2500.0d0, 2000.0d0, 1000.0d0 /)
+
+
 
     ! Allocation
     allocate(qcIndicator(actualNumChannel))
@@ -2141,13 +2133,40 @@ contains
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      allocate(mwbg_grossValMinThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_grossValMinThresh(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
+                                     170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
+                                     180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
+                                     190.0d0, 180.0d0, 180.0d0, 180.0d0, 190.0d0, 200.0d0, 120.0d0, &
+                                     120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
+                                     180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0, &
+                                     130.0d0, 130.0d0, 130.0d0, 130.0d0, 130.0d0 /)
+
+      allocate(mwbg_grossValMaxThresh(actualNumChannel+tvs_channelOffset(sensorIndex)))
+      mwbg_grossValMaxThresh(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
+                                     320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
+                                     290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
+                                     300.0d0, 250.0d0, 250.0d0, 270.0d0, 280.0d0, 290.0d0, 310.0d0, &
+                                     310.0d0, 310.0d0, 300.0d0, 300.0d0, 260.0d0, 250.0d0, 250.0d0, &
+                                     250.0d0, 260.0d0, 260.0d0, 270.0d0, 280.0d0, 290.0d0, 330.0d0, &
+                                     330.0d0, 330.0d0, 330.0d0, 330.0d0, 330.0d0 /)                                       
+
+      allocate(mwbg_chanRejectForChan2Omp(4))
+      mwbg_chanRejectForChan2Omp(:) = (/ 44, 45, 46, 47 /)
+
+      allocate(mwbg_altitudeThreshForTopoFilter(3))
+      mwbg_altitudeThreshForTopoFilter(:) = (/ 2500.0d0, 2000.0d0, 1000.0d0 /)
+
+      allocate(mwbg_chanRejectForTopoFilter(3))
+      mwbg_chanRejectForTopoFilter(:) = (/ 45, 46, 47 /)
+
       ! Channels excluded from genCoeff in all-sky mode
       allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(5))
       mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/43, 44, 45, 46, 47/)
 
       rejectionCodArray(:,:,:) = 0
 
-      firstCall = .FALSE.
+      firstCall = .false.
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
@@ -2176,8 +2195,7 @@ contains
     ! Channel 3- 45 is rejected for topography >  2500m.
     ! Channel 4 - 46 is rejected for topography > 2000m.
     ! Channel 5 - 47 is rejected for topography > 1000m.
-    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, &
-                                     qcIndicator, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, qcIndicator, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
@@ -2227,8 +2245,7 @@ contains
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (sensorIndex, GROSSMIN, GROSSMAX, qcIndicator, &
-                                              headerIndex, obsSpaceData)
+    call amsuABTest11RadianceGrossValueCheck (sensorIndex, qcIndicator, headerIndex, obsSpaceData)
 
     ! 12) test 12:  Dryness index check 
     !The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -2247,8 +2264,8 @@ contains
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsubTest14RogueCheck(sensorIndex, ROGUEFAC, ICH2OMPREJ, qcIndicator, &
-                               headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
+    call amsubTest14RogueCheck(sensorIndex, ROGUEFAC, qcIndicator, headerIndex, obsSpaceData, &
+                               skipTestArr_opt=skipTestArr(:))
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -2976,9 +2993,8 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test2TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
-                                           B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                                           skipTestArr_opt)
+  subroutine atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, qcIndicator, &
+                                           headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 2: Topography check (partial)
     !
@@ -2987,8 +3003,6 @@ contains
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
     real(8),           intent(in)    :: modelInterpTerrain ! topo aux point d'obs
-    integer,           intent(in)    :: ICHTOPO(:)         ! rejection channel list
-    real(8),           intent(in)    :: ZCRIT(:)           ! criteria for topo check
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
@@ -3022,9 +3036,9 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
           
-      INDXTOPO = utl_findloc(ICHTOPO(:),obsChanNumWithOffset)
+      INDXTOPO = utl_findloc(mwbg_chanRejectForTopoFilter(:),obsChanNumWithOffset)
       if ( INDXTOPO > 0 ) then
-        if (modelInterpTerrain >= ZCRIT(INDXTOPO)) then
+        if (modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(INDXTOPO)) then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
           obsFlags = OR(obsFlags,2**18)
@@ -3124,9 +3138,8 @@ contains
   !--------------------------------------------------------------------------
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
-                                 B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                                 skipTestArr_opt)
+  subroutine atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+                                 headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
@@ -3144,8 +3157,6 @@ contains
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
     real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
     logical,           intent(in)    :: waterobs           ! open water obs
-    integer,           intent(in)    :: ISFCREJ(:)         ! rejection surface channel list
-    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
@@ -3278,7 +3289,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = utl_findloc(ISFCREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForSfc(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 ) then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3307,7 +3318,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForChan2Omp(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3332,9 +3343,8 @@ contains
   !--------------------------------------------------------------------------
   ! Mwhs2Test4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
-                                  B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                                  skipTestArr_opt)
+  subroutine Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+                                  headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
@@ -3349,7 +3359,6 @@ contains
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
     real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor
     logical,           intent(in)    :: waterobs           ! open water obs
-    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
     integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
@@ -3456,7 +3465,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
+        INDXCAN = utl_findloc(mwbg_chanRejectForChan2Omp(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3567,11 +3576,10 @@ contains
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
-    integer :: ISFCREJ(8), ICH2OMPREJ(6), ICHTOPO(5)
     integer, allocatable :: B7CHCK(:)
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
-    real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv, ZCRIT(5)
+    real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv
     real(8), allocatable :: ROGUEFAC(:)
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: firstCall = .true.
@@ -3598,23 +3606,32 @@ contains
                     2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
     if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 3.0
 
-    ! Channel sets for rejection in test 9 
-    ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
-    ISFCREJ(:) = (/1, 2, 3, 4, 5, 6, 16, 17/)
-    !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
-    ICH2OMPREJ(:) = (/17, 18, 19, 20, 21, 22/)
 
-    !  Data for TOPOGRAPHY CHECK
-    !   Channel AMSUA-6 (atms ch 7) is rejected for topography  >  250m.
-    !   Channel AMSUA-7 (atms ch 8) is rejected for topography  > 2000m.
-    !   Channel AMSUB-3 (atms ch 22) is rejected for topography > 2500m.
-    !                    atms ch 21  is rejected for topography > 2250m.
-    !   Channel AMSUB-4 (atms ch 20) is rejected for topography > 2000m.
-    ICHTOPO(:) = (/7, 8, 20, 21, 22/)
-    ZCRIT(:) = (/250.0d0, 2000.0d0, 2000.0d0, 2250.0d0, 2500.0d0/)
+
+
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
+      !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
+      allocate(mwbg_chanRejectForChan2Omp(6))
+      mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
+      
+      ! Channel sets for rejection in test 9 
+      ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
+      allocate(mwbg_chanRejectForSfc(8))
+      mwbg_chanRejectForSfc(:) = (/1, 2, 3, 4, 5, 6, 16, 17/)
+
+      ! Data for TOPOGRAPHY CHECK
+      !  Channel AMSUA-6 (atms ch 7) is rejected for topography  >  250m.
+      !  Channel AMSUA-7 (atms ch 8) is rejected for topography  > 2000m.
+      !  Channel AMSUB-3 (atms ch 22) is rejected for topography > 2500m.
+      !                   atms ch 21  is rejected for topography > 2250m.
+      !  Channel AMSUB-4 (atms ch 20) is rejected for topography > 2000m.
+      mwbg_chanRejectForTopoFilter(:) = (/7, 8, 20, 21, 22/)
+
+      allocate(mwbg_altitudeThreshForTopoFilter(5))
+      mwbg_altitudeThreshForTopoFilter(:) = (/250.0d0, 2000.0d0, 2000.0d0, 2250.0d0, 2500.0d0/)
+
       ! Channels excluded from gen_bias_corr in all-sky mode
       allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
       mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/1, 2, 3, 4, 5, 6/)
@@ -3657,9 +3674,9 @@ contains
     call mwbg_firstQcCheckAtms(qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
                                reportHasMissingTb, headerIndex, sensorIndex, obsSpaceData)
 
-    if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
+    if (reportHasMissingTb) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
-    if ( COUNT(qcRejectLogic(:)) == actualNumChannel ) grossrej = .true.
+    if (count(qcRejectLogic(:)) == actualNumChannel) grossrej = .true.
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterAtms returns scatIndexOverWaterObsEcmwf and sets cloudLiquidWaterPath[Obs/FG], 
@@ -3713,7 +3730,7 @@ contains
     qcIndicator(:) = 0
     B7CHCK(:) = 0
 
-    if ( RESETQC ) then
+    if (RESETQC) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -3727,9 +3744,8 @@ contains
                                      obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
-                                       B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                                       skipTestArr_opt=skipTestArr(:))
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, qcIndicator, &
+                                       headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -3745,9 +3761,8 @@ contains
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
-    call atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
-                             B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                             skipTestArr_opt=skipTestArr(:))
+    call atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+                             headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -3841,12 +3856,11 @@ contains
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
-    integer :: ICH2OMPREJ(6), ICHTOPO(3)
     integer, allocatable :: B7CHCK(:)
     logical :: waterobs, grossrej, reportHasMissingTb 
     logical :: cloudobs, iwvreject, precipobs
     logical, allocatable :: qcRejectLogic(:)
-    real(8) :: zdi, scatec, scatbg, SeaIce, riwv, ZCRIT(3)
+    real(8) :: zdi, scatec, scatbg, SeaIce, riwv
     real(8), allocatable :: ROGUEFAC(:)
     logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
@@ -3872,19 +3886,27 @@ contains
                     9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
     if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) ROGUEFAC(1:3) = 9.9d0
 
-    ! Channel sets for rejection in test 9
-    !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
-    ICH2OMPREJ(:) = (/10, 11, 12, 13, 14, 15/)
+
+
+
+
+    ! Initialisation, la premiere fois seulement!
+    if (firstCall) then
+      ! Channel sets for rejection in test 9
+      !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
+      allocate(mwbg_chanRejectForChan2Omp(6))
+      mwbg_chanRejectForChan2Omp(:) = (/10, 11, 12, 13, 14, 15/)
 
     !  Data for TOPOGRAPHY CHECK
     !   Channel AMSUB-3 (mwhs2 ch 11) is rejected for topography > 2500m.
     !                   (mwhs2 ch 12) is rejected for topography > 2250m.
     !   Channel AMSUB-4 (mwhs2 ch 13) is rejected for topography > 2000m.
-    ICHTOPO(:) = (/11, 12, 13/)
-    ZCRIT(:) = (/2500.0d0, 2250.0d0, 2000.0d0/)
+      allocate(mwbg_chanRejectForTopoFilter(3))
+      mwbg_chanRejectForTopoFilter(:) = (/11, 12, 13/)
 
-    ! Initialisation, la premiere fois seulement!
-    if (firstCall) then
+      allocate(mwbg_altitudeThreshForTopoFilter(3))
+      mwbg_altitudeThreshForTopoFilter(:) = (/2500.0d0, 2250.0d0, 2000.0d0/)
+
       ! Channels excluded from gen_bias_corr in all-sky mode
       allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
       mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
@@ -3926,9 +3948,9 @@ contains
     call mwbg_firstQcCheckMwhs2(qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
                                 reportHasMissingTb, modLSQ, headerIndex, sensorIndex, obsSpaceData)
 
-    if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
+    if (reportHasMissingTb) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
-    if ( COUNT(qcRejectLogic(:)) == actualNumChannel ) grossrej = .true.
+    if (count(qcRejectLogic(:)) == actualNumChannel ) grossrej = .true.
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterMwhs2 returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
@@ -3981,7 +4003,7 @@ contains
     qcIndicator(:) = 0
     B7CHCK(:) = 0
 
-    if ( RESETQC ) then
+    if (RESETQC) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -3995,9 +4017,8 @@ contains
                                      obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
-                                       B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                                       skipTestArr_opt=skipTestArr(:))
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, qcIndicator, &
+                                       headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -4011,9 +4032,8 @@ contains
     !   l'erreur totale des TOVS.
     !  OVER OPEN WATER
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
-    call Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
-                              B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
-                              skipTestArr_opt=skipTestArr(:))
+    call Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, B7CHCK, qcIndicator, &
+                              headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -4029,7 +4049,7 @@ contains
       KCHKPRF = MAX(KCHKPRF,qcIndicator(JI))
     end do
 
-    if ( mwbg_debug ) write(*,*)'KCHKPRF = ', KCHKPRF
+    if (mwbg_debug) write(*,*)'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
