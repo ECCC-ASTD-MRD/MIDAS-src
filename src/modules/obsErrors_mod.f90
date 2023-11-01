@@ -31,7 +31,7 @@ module obsErrors_mod
 
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_inflateErrAllsky
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   
   ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
@@ -1675,7 +1675,7 @@ contains
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
       
-      call tvs_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+      call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
       if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
         call utl_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
@@ -1772,7 +1772,7 @@ contains
 
     surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
 
-    call tvs_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
     if (chanIsAllskyTt) then
       if (.not. surfTypeIsWater .or. &
@@ -1867,6 +1867,66 @@ contains
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
   end subroutine oer_inflateErrAllsky
+
+  !--------------------------------------------------------------------------
+  ! oer_chanIsAllsky
+  !--------------------------------------------------------------------------
+  subroutine oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    !
+    !:Purpose: Determine if the tovs instrument/channel combination is all-sky 
+    !          temperature/humidity.
+    !
+    implicit none
+    
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: bodyIndex
+    logical,          intent(out) :: chanIsAllskyTt ! .true. if channel is all-sky temperature
+    logical,          intent(out) :: chanIsAllskyHu ! .true. if channel is all-sky humidity
+
+    ! Locals:
+    integer :: headerIndex
+    integer :: channelNumber_withOffset
+    integer :: channelNumber, channelIndex, codtyp
+    integer :: tovsIndex, sensorIndex, instrumId
+    character(len=9) :: instrumName
+
+    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
+
+    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                       channelNumber, channelIndex)
+    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+    chanIsAllskyTt = .false.
+    chanIsAllskyHu = .false.
+    if (.not. tvs_mwAllskyAssim .or. &
+        .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
+    
+    instrumName = codtyp_get_name(codtyp)
+
+    if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyTt = (channelNumber_withOffset <= 16)
+      else
+        chanIsAllskyTt = .true.
+      end if
+    end if
+
+    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyHu = (channelNumber_withOffset >= 17)
+      else
+        chanIsAllskyHu = .true.
+      end if
+    end if
+    
+    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
+
+  end subroutine oer_chanIsAllsky
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
