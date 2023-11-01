@@ -2909,8 +2909,8 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test1Flagbit7Check
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test1Flagbit7Check (itest, sensorIndex, qcIndicator, &
-                                          B7CHCK, headerIndex, obsSpaceData)
+  subroutine atmsMwhs2Test1Flagbit7Check(sensorIndex, qcIndicator, B7CHCK, headerIndex, &
+                                         obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 1: Check flag bit 7 on from the first bgckAtms/bgckMwhs2 program
     !          Includes observations flagged for cloud liquid water, scattering index,
@@ -2919,21 +2919,30 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)        ! test number
-    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
-    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index 
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
 
     testIndex = 1
-    if ( itest(testIndex) /= 1 ) return
-
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'atmsMwhs2Test1Flagbit7Check: skipping this test'
+        end if
+        return
+      end if
+    end if
+    
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -2967,38 +2976,46 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test2TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test2TopographyCheck(itest, sensorIndex, &
-                                           modelInterpTerrain, ICHTOPO, ZCRIT, B7CHCK, qcIndicator, &
-                                           headerIndex, obsSpaceData)
+  subroutine atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
+                                           B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                                           skipTestArr_opt)
     !
     !:Purpose: test 2: Topography check (partial)
     !
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)           ! test number
-    integer,          intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: modelInterpTerrain ! topo aux point d'obs
-    integer,          intent(in)    :: ICHTOPO(:)         ! rejection channel list
-    real(8),          intent(in)    :: ZCRIT(:)           ! criteria for topo check
-    integer,          intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
-    integer,          intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
-    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
-    integer,          intent(in)    :: headerIndex     ! current header Index 
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    real(8),           intent(in)    :: modelInterpTerrain ! topo aux point d'obs
+    integer,           intent(in)    :: ICHTOPO(:)         ! rejection channel list
+    real(8),           intent(in)    :: ZCRIT(:)           ! criteria for topo check
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index 
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, INDXTOPO, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
 
     testIndex = 2
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'atmsMwhs2Test2TopographyCheck: skipping this test'
+        end if
+        return
+      end if
+    end if
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
-
-    if ( itest(testIndex) /= 1 ) return
 
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
@@ -3034,8 +3051,9 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test3UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test3UncorrectedTbCheck(itest, sensorIndex, RESETQC, B7CHCK, qcIndicator, &
-                                              headerIndex, obsSpaceData)
+  subroutine atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, qcIndicator, &
+                                              headerIndex, obsSpaceData, &
+                                              skipTestArr_opt)
     !
     !:Purpose: Test 3: Uncorrected Tb check (single)
     !          Uncorrected datum (flag bit #6 off). 
@@ -3044,22 +3062,31 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)        ! test number
-    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    logical,          intent(in)    :: RESETQC         ! resetqc logical
-    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    logical,           intent(in)    :: RESETQC            ! resetqc logical
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index 
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
      
     if (RESETQC) return
     testIndex = 3
-    if ( itest(testIndex) /= 1 ) return
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'atmsMwhs2Test3UncorrectedTbCheck: skipping this test'
+        end if
+        return
+      end if
+    end if
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
 
@@ -3097,8 +3124,9 @@ contains
   !--------------------------------------------------------------------------
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest4RogueCheck(itest, sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
-                                 B7CHCK, qcIndicator, headerIndex, obsSpaceData)
+  subroutine atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
+                                 B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                                 skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
@@ -3113,16 +3141,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)        ! test number
-    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor 
-    logical,          intent(in)    :: waterobs        ! open water obs
-    integer,          intent(in)    :: ISFCREJ(:)      ! rejection surface channel list
-    integer,          intent(in)    :: ICH2OMPREJ(:)   ! rejection channel list
-    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,          intent(in)    :: headerIndex  ! current header Index
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor 
+    logical,           intent(in)    :: waterobs           ! open water obs
+    integer,           intent(in)    :: ISFCREJ(:)         ! rejection surface channel list
+    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3133,9 +3161,18 @@ contains
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
 
     testIndex = 4
-    if ( itest(testIndex) /= 1 ) return
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'atmsTest4RogueCheck: skipping this test'
+        end if
+        return
+      end if
+    end if
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -3295,8 +3332,9 @@ contains
   !--------------------------------------------------------------------------
   ! Mwhs2Test4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine Mwhs2Test4RogueCheck(itest, sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
-                                  B7CHCK, qcIndicator, headerIndex, obsSpaceData)
+  subroutine Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
+                                  B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                                  skipTestArr_opt)
     !
     !:Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
     !          Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
@@ -3308,15 +3346,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)        ! test number
-    integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice)
-    real(8),          intent(in)    :: ROGUEFAC(:)     ! rogue factor
-    logical,          intent(in)    :: waterobs        ! open water obs
-    integer,          intent(in)    :: ICH2OMPREJ(:)   ! rejection channel list
-    integer,          intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
-    integer,          intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
+    real(8),           intent(in)    :: ROGUEFAC(:)        ! rogue factor
+    logical,           intent(in)    :: waterobs           ! open water obs
+    integer,           intent(in)    :: ICH2OMPREJ(:)      ! rejection channel list
+    integer,           intent(inout) :: qcIndicator(:)     ! indicateur du QC par canal
+    integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index 
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
+
 
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -3326,9 +3365,18 @@ contains
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     logical :: CH2OMPREJCT, IBIT
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
 
     testIndex = 4
-    if ( itest(testIndex) /= 1 ) return
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'Mwhs2Test4RogueCheck: skipping this test'
+        end if
+        return
+      end if
+    end if
 
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -3432,8 +3480,8 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test5ChannelSelectionUsingTovutil
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
-                                                        headerIndex, obsSpaceData)
+  subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(sensorIndex, headerIndex, obsSpaceData, &
+                                                        skipTestArr_opt)
     !
     !:Purpose: test 5: Channel selection using array oer_tovutil(chan,sat):
     !            - = 0 blacklisted, 
@@ -3442,18 +3490,27 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: itest(:)     ! test number
-    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
-    integer,          intent(in)    :: headerIndex  ! current header Index 
+    integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
+    type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,           intent(in)    :: headerIndex        ! current header Index 
+    logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical, save :: firstCall = .true.
 
     testIndex = 5
-    if ( itest(testIndex) /= 1 ) return
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'atmsMwhs2Test5ChannelSelectionUsingTovutil: skipping this test'
+        end if
+        return
+      end if
+    end if
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -3510,9 +3567,8 @@ contains
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
-    integer :: ISFCREJ(8), ICH2OMPREJ(6)
+    integer :: ISFCREJ(8), ICH2OMPREJ(6), ICHTOPO(5)
     integer, allocatable :: B7CHCK(:)
-    integer :: ITEST(mwbg_maxNumTest), ICHTOPO(5)
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
     real(8) :: zdi, scatIndexOverWaterObsEcmwf, SeaIce, riwv, ZCRIT(5)
@@ -3556,11 +3612,6 @@ contains
     !   Channel AMSUB-4 (atms ch 20) is rejected for topography > 2000m.
     ICHTOPO(:) = (/7, 8, 20, 21, 22/)
     ZCRIT(:) = (/250.0d0, 2000.0d0, 2000.0d0, 2250.0d0, 2500.0d0/)
-
-    !  Test selection (0=skip test, 1=do test)
-    !              1  2  3  4  5
-    ITEST(:) = 0
-    ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
@@ -3672,18 +3723,19 @@ contains
     ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
-    call atmsMwhs2Test1Flagbit7Check (itest, sensorIndex, qcIndicator, &
-                                      B7CHCK, headerIndex, obsSpaceData)
+    call atmsMwhs2Test1Flagbit7Check(sensorIndex, qcIndicator, B7CHCK, headerIndex, &
+                                     obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck (itest, sensorIndex, &
-                                        modelInterpTerrain, ICHTOPO, ZCRIT, B7CHCK, qcIndicator, &
-                                        headerIndex, obsSpaceData)
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
+                                       B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                                       skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsMwhs2Test3UncorrectedTbCheck (itest, sensorIndex, RESETQC, B7CHCK, qcIndicator, &
-                                           headerIndex, obsSpaceData)
+    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, qcIndicator, &
+                                          headerIndex, obsSpaceData, &
+                                          skipTestArr_opt=skipTestArr(:))
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
@@ -3693,14 +3745,15 @@ contains
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
-    call atmsTest4RogueCheck (itest, sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
-                              B7CHCK, qcIndicator, headerIndex, obsSpaceData)
+    call atmsTest4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
+                             B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                             skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
-                                                    headerIndex, obsSpaceData)
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(sensorIndex, headerIndex, obsSpaceData, &
+                                                    skipTestArr_opt=skipTestArr(:))
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -3789,7 +3842,6 @@ contains
     integer :: iRej, iNumSeaIce, JI, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     integer :: ICH2OMPREJ(6), ICHTOPO(3)
-    integer :: ITEST(mwbg_maxNumTest)
     integer, allocatable :: B7CHCK(:)
     logical :: waterobs, grossrej, reportHasMissingTb 
     logical :: cloudobs, iwvreject, precipobs
@@ -3830,11 +3882,6 @@ contains
     !   Channel AMSUB-4 (mwhs2 ch 13) is rejected for topography > 2000m.
     ICHTOPO(:) = (/11, 12, 13/)
     ZCRIT(:) = (/2500.0d0, 2250.0d0, 2000.0d0/)
-
-    !  Test selection (0=skip test, 1=do test)
-    !              1  2  3  4  5
-    ITEST(:) = 0
-    ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
@@ -3944,18 +3991,19 @@ contains
     ! 1) test 1: Check flag bit 7 on from the first bgckMwhs2 program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
-    call atmsMwhs2Test1Flagbit7Check (itest, sensorIndex, qcIndicator, &
-                                      B7CHCK, headerIndex, obsSpaceData)
+    call atmsMwhs2Test1Flagbit7Check(sensorIndex, qcIndicator, B7CHCK, headerIndex, &
+                                     obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck (itest, sensorIndex, &
-                                        modelInterpTerrain, ICHTOPO, ZCRIT, B7CHCK, qcIndicator, &
-                                        headerIndex, obsSpaceData)
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, ICHTOPO, ZCRIT, &
+                                       B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                                       skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsMwhs2Test3UncorrectedTbCheck (itest, sensorIndex, RESETQC, B7CHCK, qcIndicator, &
-                                           headerIndex, obsSpaceData)
+    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, qcIndicator, &
+                                          headerIndex, obsSpaceData, &
+                                          skipTestArr_opt=skipTestArr(:))
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
@@ -3963,14 +4011,15 @@ contains
     !   l'erreur totale des TOVS.
     !  OVER OPEN WATER
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
-    call Mwhs2Test4RogueCheck (itest, sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
-                               B7CHCK, qcIndicator, headerIndex, obsSpaceData)
+    call Mwhs2Test4RogueCheck(sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
+                              B7CHCK, qcIndicator, headerIndex, obsSpaceData, &
+                              skipTestArr_opt=skipTestArr(:))
 
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
-                                                    headerIndex, obsSpaceData)
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(sensorIndex, headerIndex, obsSpaceData, &
+                                                    skipTestArr_opt=skipTestArr(:))
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
