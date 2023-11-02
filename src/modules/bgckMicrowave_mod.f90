@@ -671,8 +671,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest6ZenAngleAndFovConsistencyCheck 
   !--------------------------------------------------------------------------
-  subroutine amsuABTest6ZenAngleAndFovConsistencyCheck(sensorIndex, ZANGL, maxScanAngleAMSU, &
-                                                       headerIndex, obsSpaceData)
+  subroutine amsuABTest6ZenAngleAndFovConsistencyCheck(sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData)
     !
     !:Purpose: test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     !          Acceptable difference between "Satellite zenith angle"  and
@@ -682,7 +681,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex      ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: ZANGL            ! satellite constant param
     integer,          intent(in)    :: maxScanAngleAMSU ! max scan angle 
     type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
     integer,          intent(in)    :: headerIndex      ! current header Index 
@@ -691,6 +689,7 @@ contains
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: APPROXIM, ANGDif, satZenithAngle 
+    real(8) :: ZANGL
     character(len=9) :: stnId
 
     testIndex = 6
@@ -703,6 +702,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     if (satZenithAngle /= mwbg_realMissing .and. satScanPosition /=  mwbg_intMissing) then
+      ZANGL = 117.6d0 / maxScanAngleAMSU
       APPROXIM = ABS((satScanPosition - maxScanAngleAMSU / 2.0d0 - 0.5d0) * ZANGL)
       ANGDif = ABS(satZenithAngle - APPROXIM)
       if ( ANGDif > 1.8d0 ) then 
@@ -1831,7 +1831,6 @@ contains
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 30 
     real(8), parameter :: cloudyClwThreshold = 0.3d0
-    real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8) :: EPSILON, tb23, tb31, tb50, tb53, tb89
@@ -1947,8 +1946,7 @@ contains
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
-    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, ZANGL, maxScanAngleAMSU, &
-                                                    headerIndex, obsSpaceData) 
+    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
@@ -2060,7 +2058,6 @@ contains
 
     ! Locals:
     integer, parameter  :: maxScanAngleAMSU = 90 
-    real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
     integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
@@ -2176,8 +2173,7 @@ contains
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
-    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, ZANGL, maxScanAngleAMSU, &
-                                                    headerIndex, obsSpaceData) 
+    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
