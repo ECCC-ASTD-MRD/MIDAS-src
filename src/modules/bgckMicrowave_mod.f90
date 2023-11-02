@@ -30,6 +30,7 @@ module bgckMicrowave_mod
   logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
+  logical :: mwbg_resetQc                 ! reset Qc flags
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -72,7 +73,6 @@ module bgckMicrowave_mod
   real(8), allocatable :: mwbg_grossValMaxThresh(:) ! gross value max threshold
   real(8), allocatable :: mwbg_rogueFactor(:) ! rogue factor
 
-
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
   real(4)            :: clwQcThreshold                ! 
@@ -82,13 +82,13 @@ module bgckMicrowave_mod
   real(4)            :: cloudySiThresholdBcorr        !
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
-  logical            :: RESETQC                       ! reset Qc flags option
+  logical            :: resetQc                       ! reset Qc flags option
   logical            :: modLSQ                        !
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
   namelist /nambgck/instName, clwQcThreshold, &
-                    useUnbiasedObsForClw, debug, RESETQC,  &
+                    useUnbiasedObsForClw, debug, resetQc,  &
                     cloudyClwThresholdBcorr, modLSQ, &
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
@@ -116,7 +116,7 @@ contains
     maxSiOverWaterThreshold = 30.0
     cloudySiThresholdBcorr  = 5.0
     rejectWhenSiMissing     = .false.
-    RESETQC                 = .false.
+    resetQc                 = .false.
     modLSQ                  = .false.
     skipTestArr(:)          = .false.
 
@@ -135,6 +135,7 @@ contains
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
+    mwbg_resetQc = resetQc
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -335,7 +336,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest10RttovRejectCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest10RttovRejectCheck(sensorIndex, RESETQC, headerIndex, obsSpaceData)
+  subroutine amsuABTest10RttovRejectCheck(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: test 10: RTTOV reject check (single).
     !          Rejected datum flag has bit #9 on.
@@ -344,7 +345,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex    ! numero de satellite (i.e. indice) 
-    logical,          intent(in)    :: RESETQC        ! yes or not reset QC flag
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,          intent(in)    :: headerIndex    ! current header Index 
 
@@ -353,7 +353,7 @@ contains
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
 
-    if (RESETQC) return
+    if (mwbg_resetQc) return
     testIndex = 10
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
@@ -790,7 +790,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest9UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest9UncorrectedTbCheck(sensorIndex, RESETQC, headerIndex, obsSpaceData)
+  subroutine amsuABTest9UncorrectedTbCheck(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: test 9: Uncorrected Tb check (single).
     !          Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -799,7 +799,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex     ! numero de satellite (i.e. indice) 
-    logical,          intent(in)    :: RESETQC         ! yes or not reset QC flag
     type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
     integer,          intent(in)    :: headerIndex     ! current header Index 
 
@@ -808,7 +807,7 @@ contains
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
 
-    if (RESETQC) return
+    if (mwbg_resetQc) return
     testIndex = 9
 
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex) 
@@ -1805,7 +1804,7 @@ contains
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
+                                modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -1836,7 +1835,6 @@ contains
     real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
     real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
-    logical,              intent(in)    :: RESETQC             ! reset du controle de qualite?
 
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 30 
@@ -1910,7 +1908,7 @@ contains
 
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
-    if ( RESETQC ) then
+    if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -1930,7 +1928,7 @@ contains
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (sensorIndex, RESETQC, headerIndex, obsSpaceData)
+    call amsuABTest10RttovRejectCheck (sensorIndex, headerIndex, obsSpaceData)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
@@ -1978,7 +1976,7 @@ contains
     
     ! 9) test 9: Uncorrected Tb check (single)
     ! Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call amsuABTest9UncorrectedTbCheck (sensorIndex, RESETQC, headerIndex, obsSpaceData) 
+    call amsuABTest9UncorrectedTbCheck (sensorIndex, headerIndex, obsSpaceData) 
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
@@ -2027,7 +2025,7 @@ contains
     if ( mwbg_debug ) write(*,*) 'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
-    call resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
+    call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
 
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
 
@@ -2042,7 +2040,7 @@ contains
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
+                                modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -2073,7 +2071,6 @@ contains
     real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
     real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
-    logical,              intent(in)    :: RESETQC             ! reset du controle de qualite?
 
     ! Locals:
     integer, parameter  :: maxScanAngleAMSU = 90 
@@ -2144,7 +2141,7 @@ contains
 
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
-    if ( RESETQC ) then
+    if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -2163,7 +2160,7 @@ contains
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (sensorIndex, RESETQC, headerIndex, obsSpaceData)
+    call amsuABTest10RttovRejectCheck (sensorIndex, headerIndex, obsSpaceData)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 3- 45 is rejected for topography >  2500m.
@@ -2214,7 +2211,7 @@ contains
     
     ! 9) test 9: Uncorrected Tb check (single) SKIP FOR NOW
     ! Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    ! call amsuABTest9UncorrectedTbCheck (sensorIndex, RESETQC, &
+    ! call amsuABTest9UncorrectedTbCheck (sensorIndex, mwbg_resetQc, &
     !                                     headerIndex, obsSpaceData) 
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
@@ -2268,7 +2265,7 @@ contains
     if ( mwbg_debug ) write(*,*)'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
-    call resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
+    call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
 
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
 
@@ -2458,18 +2455,17 @@ contains
   !--------------------------------------------------------------------------
   ! resetQcC
   !--------------------------------------------------------------------------
-  subroutine resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
+  subroutine resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
     !
     !:Purpose: allumer la bit (6) indiquant que l'observation a un element
     !          rejete par le controle de qualite de l'AO.
     !
-    !          N.B.: si on est en mode resetqc, on remet le marqueur global a
+    !          N.B.: si on est en mode mwbg_resetQc, on remet le marqueur global a
     !          sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
     !
     implicit none
 
     ! Arguments:
-    logical,          intent(in)    :: RESETQC      ! reset the quality control flags before adding the new ones ?
     integer,          intent(in)    :: KCHKPRF      ! indicateur global controle de qualite tovs. Code:
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header index
@@ -2479,7 +2475,7 @@ contains
 
     obsGlobalMarker = obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex)
 
-    if (RESETQC) obsGlobalMarker = 1024  
+    if (mwbg_resetQc) obsGlobalMarker = 1024  
     if (KCHKPRF /= 0) obsGlobalMarker = OR (obsGlobalMarker,2**6)
     if (mwbg_debug) write(*,*) ' KCHKPRF   = ', KCHKPRF, ', NEW FLAGS = ', obsGlobalMarker
 
@@ -3036,8 +3032,7 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test3UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, &
-                                              headerIndex, obsSpaceData, &
+  subroutine atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, &
                                               skipTestArr_opt)
     !
     !:Purpose: Test 3: Uncorrected Tb check (single)
@@ -3048,7 +3043,6 @@ contains
 
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
-    logical,           intent(in)    :: RESETQC            ! resetqc logical
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,           intent(in)    :: headerIndex        ! current header Index 
@@ -3060,7 +3054,7 @@ contains
     character(len=9) :: stnId
     logical, save :: firstCall = .true.
      
-    if (RESETQC) return
+    if (mwbg_resetQc) return
     testIndex = 3
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
@@ -3516,8 +3510,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(sensorIndex, modelInterpTerrain, &
-                               RESETQC, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAtms(sensorIndex, modelInterpTerrain, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -3528,7 +3521,6 @@ contains
     integer,              intent(in)    :: headerIndex        ! current header Index 
     integer,              intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
     real(8),              intent(in)    :: modelInterpTerrain ! topographie du modele
-    logical,              intent(in)    :: RESETQC            ! reset du controle de qualite?
 
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 96
@@ -3694,7 +3686,7 @@ contains
     !  Initialisations
     B7CHCK(:) = 0
 
-    if (RESETQC) then
+    if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -3713,8 +3705,7 @@ contains
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, &
-                                          headerIndex, obsSpaceData, &
+    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, &
                                           skipTestArr_opt=skipTestArr(:))
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -3745,7 +3736,7 @@ contains
     if ( mwbg_debug ) write(*,*)'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
-    call resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
+    call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
 
     if(mwbg_debug) then
       write(*,*) ' --------------------------------------------------------------- '
@@ -3793,7 +3784,7 @@ contains
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckMwhs2(sensorIndex, modelInterpTerrain, &
-                                RESETQC, modLSQ, lastHeader, headerIndex, obsSpaceData)
+                                modLSQ, lastHeader, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -3804,7 +3795,6 @@ contains
     integer,               intent(in)    :: headerIndex        ! current header Index 
     integer,               intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
     real(8),               intent(in)    :: modelInterpTerrain ! topographie du modele as being over land/ice, cloudy, bad IWV
-    logical,               intent(in)    :: RESETQC            ! reset du controle de qualite?
     logical,               intent(in)    :: modLSQ             ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
     logical,               intent(in)    :: lastHeader         ! active if last header
 
@@ -3887,7 +3877,7 @@ contains
       rejectionCodArray2(:,:,:) = 0
       firstCall = .false.
     end if
-    
+
     mwbg_qcIndicator(:) = 0
 
     ! PART 1 TESTS:
@@ -3964,7 +3954,7 @@ contains
     !  Initialisations
     B7CHCK(:) = 0
 
-    if (RESETQC) then
+    if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -3983,8 +3973,7 @@ contains
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, RESETQC, B7CHCK, &
-                                          headerIndex, obsSpaceData, &
+    call atmsMwhs2Test3UncorrectedTbCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, &
                                           skipTestArr_opt=skipTestArr(:))
 
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -4013,7 +4002,7 @@ contains
     if (mwbg_debug) write(*,*)'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
-    call resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
+    call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
 
     if (lastHeader) then
       write(*,*) ' --------------------------------------------------------------- '
@@ -6523,19 +6512,19 @@ contains
       ! STEP 2: Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
+                                modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
+                                modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(sensorIndex, modelInterpTerrain, &
-                               RESETQC, headerIndex, obsSpaceData)
+                               headerIndex, obsSpaceData)
 
       else if (instName == 'MWHS2') then
         call mwbg_tovCheckMwhs2(sensorIndex, modelInterpTerrain, &
-                                RESETQC, modLSQ, lastHeader, headerIndex, obsSpaceData)
+                                modLSQ, lastHeader, headerIndex, obsSpaceData)
 
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
