@@ -1859,7 +1859,6 @@ contains
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
       allocate(mwbg_qcIndicator(actualNumChannel))
-      mwbg_qcIndicator(:) = 0
 
       allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
       mwbg_rogueFactor(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
@@ -1906,6 +1905,9 @@ contains
 
       firstCall = .false.
     end if
+
+    mwbg_qcIndicator(:) = 0
+
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
     if ( RESETQC ) then
@@ -2091,7 +2093,6 @@ contains
     ! Initialisation, la premiere fois seulement!
     if (firstCall) then
       allocate(mwbg_qcIndicator(actualNumChannel))
-      mwbg_qcIndicator(:) = 0
 
       allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
       mwbg_rogueFactor(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
@@ -2138,6 +2139,9 @@ contains
 
       firstCall = .false.
     end if
+
+    mwbg_qcIndicator(:) = 0
+
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
     if ( RESETQC ) then
@@ -3570,7 +3574,6 @@ contains
       if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 3.0
 
       allocate(mwbg_qcIndicator(actualNumChannel))
-      mwbg_qcIndicator(:) = 0
     
       !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
       allocate(mwbg_chanRejectForChan2Omp(6))
@@ -3613,6 +3616,8 @@ contains
       rejectionCodArray2(:,:,:) = 0
       firstCall = .false.
     end if
+
+    mwbg_qcIndicator(:) = 0
 
     ! PART 1 TESTS:
 
@@ -3847,7 +3852,6 @@ contains
       if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 9.9d0
 
       allocate(mwbg_qcIndicator(actualNumChannel))
-      mwbg_qcIndicator(:) = 0
     
       ! Channel sets for rejection in test 9
       !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
@@ -3883,6 +3887,8 @@ contains
       rejectionCodArray2(:,:,:) = 0
       firstCall = .false.
     end if
+    
+    mwbg_qcIndicator(:) = 0
 
     ! PART 1 TESTS:
 
