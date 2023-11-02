@@ -29,6 +29,7 @@ module bgckMicrowave_mod
   real(8) :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
   real(8) :: mwbg_modelInterpTerrain      ! topo in standard file interpolated to obs point
   real(8) :: mwbg_modelInterpLandFrac     ! model interpolated land fraction
+  real(8) :: mwbg_modelInterpSeaIce       ! model interpolated sea ice
   logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
@@ -1020,8 +1021,8 @@ contains
   !-------------------------------------------------------------------------
   ! amsubTest12DrynessIndexCheck
   !-------------------------------------------------------------------------
-  subroutine amsubTest12DrynessIndexCheck(sensorIndex, tb1831, tb1833, modelInterpSeaIce, &
-                                          headerIndex, obsSpaceData, skipTestArr_opt)
+  subroutine amsubTest12DrynessIndexCheck(sensorIndex, tb1831, tb1833, headerIndex, obsSpaceData, &
+                                          skipTestArr_opt)
     !
     !:Purpose: test 12: Dryness index check.
     !          The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -1035,7 +1036,6 @@ contains
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
     real(8),           intent(in)    :: tb1831             ! tb for channel  
     real(8),           intent(in)    :: tb1833             ! tb for channel  
-    real(8),           intent(in)    :: modelInterpSeaIce  ! topo interpolated to obs point
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,           intent(in)    :: headerIndex        ! current header Index
     logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
@@ -1071,7 +1071,7 @@ contains
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
       if ( .not. ((landQualifierIndice == 1) .and. &
-                  (modelInterpSeaIce < 0.01d0)) ) then
+                  (mwbg_modelInterpSeaIce < 0.01d0)) ) then
         if (obsChanNumWithOffset == 45 .and. drynessIndex > 0.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -1191,8 +1191,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, modelInterpSeaIce, &
-                                                     headerIndex, obsSpaceData, &
+  subroutine amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, headerIndex, obsSpaceData, &
                                                      skipTestArr_opt)
     !
     !:Purpose: test 13: Bennartz scattering index check (full).
@@ -1206,7 +1205,6 @@ contains
     ! Arguments:
     integer,           intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
     real(8),           intent(in)    :: scatIndexOverLandObs          ! scattering index over land
-    real(8),           intent(in)    :: modelInterpSeaIce             ! glace de mer
     type(struct_obs),  intent(inout) :: obsSpaceData                  ! obspaceData Object
     integer,           intent(in)    :: headerIndex                   ! current header Index
     logical, optional, intent(in)    :: skipTestArr_opt(:)            ! array to set to skip the test
@@ -1247,7 +1245,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     if (landQualifierIndice == 1) then
-      if ( modelInterpSeaIce > 0.01d0 ) then ! sea ice 
+      if (mwbg_modelInterpSeaIce > 0.01d0) then ! sea ice 
         if (scatIndexOverWaterObs /= MPC_missingValue_R8 .and. scatIndexOverWaterObs > ZSEUILSCATICE) then
           FULLREJCT = .TRUE.
         end if
@@ -1618,8 +1616,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest15ChannelSelectionWithTovutil
   !--------------------------------------------------------------------------
-  subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, modelInterpSeaIce, &
-                                                     headerIndex, obsSpaceData)
+  subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat):
     !            - = 0 blacklisted, 
@@ -1635,10 +1632,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)    :: sensorIndex       ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: modelInterpSeaIce ! gl
-    type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
-    integer,          intent(in)    :: headerIndex    ! current header Index 
+    integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice) 
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer :: testIndex, ITRN, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
@@ -1661,7 +1657,7 @@ contains
 
     ITRN = terrainTypeIndice
     if (landQualifierIndice  == 1 .and. terrainTypeIndice == mwbg_intMissing .and. &
-        modelInterpSeaIce >= 0.01d0) then
+        mwbg_modelInterpSeaIce >= 0.01d0) then
       ITRN = 0
     end if        
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
@@ -1802,7 +1798,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsua(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -1827,10 +1823,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
-    integer,              intent(in)    :: headerIndex         ! current header Index 
-    integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
+    type(struct_obs),     intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,              intent(in)    :: headerIndex  ! current header Index 
+    integer,              intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 30 
@@ -2001,8 +1996,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, &
-                                                  headerIndex, obsSpaceData)
+    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, headerIndex, obsSpaceData)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
     call amsuaTest16ExcludeExtremeScattering(sensorIndex, headerIndex, obsSpaceData) 
@@ -2027,14 +2021,14 @@ contains
     !###############################################################################
     ! FINAL STEP: set terrain type to sea ice given certain conditions
     !###############################################################################
-    call setTerrainTypeToSeaIce(modelInterpSeaIce, headerIndex, obsSpaceData)
+    call setTerrainTypeToSeaIce(headerIndex, obsSpaceData)
 
   end subroutine mwbg_tovCheckAmsua
 
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsub(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -2059,10 +2053,9 @@ contains
     implicit none 
 
     ! Arguments:
-    type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
-    integer,              intent(in)    :: headerIndex         ! current header Index 
-    integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
+    type(struct_obs),     intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,              intent(in)    :: headerIndex  ! current header Index 
+    integer,              intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals:
     integer, parameter  :: maxScanAngleAMSU = 90 
@@ -2215,12 +2208,11 @@ contains
     ! are sensitive to the surface.
     ! Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5
     !  over land and ice
-    call amsubTest12DrynessIndexCheck (sensorIndex, tb1831, tb1833, modelInterpSeaIce, &
-                                       headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
+    call amsubTest12DrynessIndexCheck (sensorIndex, tb1831, tb1833, headerIndex, obsSpaceData, &
+                                       skipTestArr_opt=skipTestArr(:))
 
     ! 13) test 13: Bennartz scattering index check (full)
-    call amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, modelInterpSeaIce, &
-                                                 headerIndex, obsSpaceData, &
+    call amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, headerIndex, obsSpaceData, &
                                                  skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -2240,8 +2232,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, modelInterpSeaIce, &
-                                                  headerIndex, obsSpaceData)
+    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, headerIndex, obsSpaceData)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -2263,7 +2254,7 @@ contains
     !###############################################################################
     ! FINAL STEP: set terrain type to sea ice given certain conditions
     !###############################################################################
-    call setTerrainTypeToSeaIce(modelInterpSeaIce, headerIndex, obsSpaceData)
+    call setTerrainTypeToSeaIce(headerIndex, obsSpaceData)
 
   end subroutine mwbg_tovCheckAmsub
 
@@ -2477,7 +2468,7 @@ contains
   !--------------------------------------------------------------------------
   ! setTerrainTypeToSeaIce
   !--------------------------------------------------------------------------
-  subroutine setTerrainTypeToSeaIce(modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine setTerrainTypeToSeaIce(headerIndex, obsSpaceData)
     !
     !:Purpose: Dans les conditions suivantes:
     !            1) l'indicateur terre/mer indique l'ocean (landQualifierIndice=1),
@@ -2488,9 +2479,8 @@ contains
     implicit none 
     
     ! Arguments:
-    real(8),          intent(in)    :: modelInterpSeaIce ! sea ice
-    type(struct_obs), intent(inout) :: obsSpaceData      ! obspaceData Object
-    integer,          intent(in)    :: headerIndex       ! current header Index 
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals: 
     integer :: landQualifierIndice, terrainTypeIndice
@@ -2504,11 +2494,11 @@ contains
     if ( mwbg_debug ) then
       write(*,*) ' OLD TERRAIN type = ', terrainTypeIndice, &
                  ', landQualifierIndice = ', landQualifierIndice, &
-                 ', modelInterpSeaIce = ', modelInterpSeaIce
+                 ', mwbg_modelInterpSeaIce = ', mwbg_modelInterpSeaIce
     end if
 
     if (landQualifierIndice == 1 .and. terrainTypeIndice == mwbg_intMissing .and. &
-        modelInterpSeaIce >= 0.01d0) then
+        mwbg_modelInterpSeaIce >= 0.01d0) then
       terrainTypeIndice = 0
       call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainTypeIndice)
     end if
@@ -4034,7 +4024,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, headerIndex, obsSpaceData)
     !
     !:Purpose: Reads Modele Geophysical variables and save for the first time
     !          TOPOGRAPHIE (MF ou MX):
@@ -4047,10 +4037,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)    :: instName            ! Instrument Name
-    real(8),          intent(out)   :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
-    integer,          intent(in)    :: headerIndex   ! current header Index 
+    character(len=*), intent(in)    :: instName     ! Instrument Name
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,          intent(in)    :: headerIndex  ! current header Index 
 
     ! Locals:
     integer, parameter :: MXLON = 5, MXLAT = 5, MXELM = 40
@@ -4231,19 +4220,19 @@ contains
     end if
     mwbg_modelInterpLandFrac = 0.0d0
     mwbg_modelInterpTerrain = 0.0d0
-    modelInterpSeaIce = 0.0d0
+    mwbg_modelInterpSeaIce = 0.0d0
     do boxPointIndex = 1, MXLAT*MXLON
       mwbg_modelInterpTerrain = MAX(mwbg_modelInterpTerrain, &
                                 real(MTINTBOX(boxPointIndex)/TOPOFACT,8))
       if (readGlaceMask) then
         mwbg_modelInterpLandFrac = MAX(mwbg_modelInterpLandFrac,real(MGINTBOX(boxPointIndex),8))
-        modelInterpSeaIce = MAX(modelInterpSeaIce,real(GLINTBOX(boxPointIndex),8))
+        mwbg_modelInterpSeaIce = MAX(mwbg_modelInterpSeaIce,real(GLINTBOX(boxPointIndex),8))
       end if
     end do
     if (mwbg_debug) then
       print *, ' mwbg_modelInterpLandFrac = ', mwbg_modelInterpLandFrac
       print *, ' mwbg_modelInterpTerrain = ', mwbg_modelInterpTerrain
-      print *, ' modelInterpSeaIce = ', modelInterpSeaIce
+      print *, ' mwbg_modelInterpSeaIce = ', mwbg_modelInterpSeaIce
     end if
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
 
@@ -6424,7 +6413,6 @@ contains
     integer               :: headerIndex              ! header Index
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype
-    real(8)               :: modelInterpSeaIce        ! Glace de mer " "
     integer, external     :: exdb, exfin, fnom, fclos
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
@@ -6483,14 +6471,14 @@ contains
       if ( .not. sensorIndexFound ) call utl_abort('midas-bgckMW: sensor Index not found') 
 
       ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpSeaIce, headerIndex, obsSpaceData)
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, headerIndex, obsSpaceData)
 
       ! STEP 2: Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsua(sensorIndex, headerIndex, obsSpaceData)
 
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsub(sensorIndex, headerIndex, obsSpaceData)
 
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(sensorIndex, headerIndex, obsSpaceData)
