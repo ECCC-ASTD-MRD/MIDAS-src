@@ -28,6 +28,7 @@ module bgckMicrowave_mod
   real(8) :: mwbg_maxSiOverWaterThreshold ! for AMSUB/MHS
   real(8) :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
   real(8) :: mwbg_modelInterpTerrain      ! topo in standard file interpolated to obs point
+  real(8) :: mwbg_modelInterpLandFrac     ! model interpolated land fraction
   logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
@@ -731,8 +732,7 @@ contains
   !--------------------------------------------------------------------------
   !  amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, modelInterpLandFrac, &
-                                                                        headerIndex, obsSpaceData)
+  subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full). 
     !          Acceptable conditions are:
@@ -744,7 +744,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: modelInterpLandFrac ! model interpolated land fraction
     type(struct_obs), intent(inout) :: obsSpaceData        ! obspaceData Object
     integer,          intent(in)    :: headerIndex         ! current header Index 
 
@@ -762,8 +761,8 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     if (landQualifierIndice /= mwbg_intMissing .and. &
-        .not. (landQualifierIndice == 1 .and. modelInterpLandFrac < 0.20d0) .and. &
-        .not. (landQualifierIndice == 0 .and. modelInterpLandFrac > 0.50d0)) then
+        .not. (landQualifierIndice == 1 .and. mwbg_modelInterpLandFrac < 0.20d0) .and. &
+        .not. (landQualifierIndice == 0 .and. mwbg_modelInterpLandFrac > 0.50d0)) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -781,7 +780,7 @@ contains
       if ( mwbg_debug ) then
         write(*,*) stnId(2:9),' LAND/SEA QUALifIER', &
                    ' INCONSISTENCY REJECT. landQualifierIndice= ', &
-                   landQualifierIndice, ' MODEL MASK= ', modelInterpLandFrac
+                   landQualifierIndice, ' MODEL MASK= ', mwbg_modelInterpLandFrac
       end if
     end if
 
@@ -1803,7 +1802,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -1831,7 +1830,6 @@ contains
     type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
     integer,              intent(in)    :: headerIndex         ! current header Index 
     integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
 
     ! Locals:
@@ -1961,8 +1959,7 @@ contains
     !       a) both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
-    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, modelInterpLandFrac, &
-                                                                     headerIndex, obsSpaceData)
+    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, headerIndex, obsSpaceData)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -2037,7 +2034,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -2065,7 +2062,6 @@ contains
     type(struct_obs),     intent(inout) :: obsSpaceData        ! obspaceData Object
     integer,              intent(in)    :: headerIndex         ! current header Index 
     integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
-    real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
 
     ! Locals:
@@ -2194,8 +2190,7 @@ contains
     !       a) both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
-    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, modelInterpLandFrac, &
-                                                                     headerIndex, obsSpaceData)
+    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, headerIndex, obsSpaceData)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -4039,8 +4034,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpLandFrac, modelInterpSeaIce, &
-                                                    headerIndex, obsSpaceData)
+  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Reads Modele Geophysical variables and save for the first time
     !          TOPOGRAPHIE (MF ou MX):
@@ -4054,7 +4048,6 @@ contains
 
     ! Arguments:
     character(len=*), intent(in)    :: instName            ! Instrument Name
-    real(8),          intent(out)   :: modelInterpLandFrac ! model interpolated land fraction.
     real(8),          intent(out)   :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
     integer,          intent(in)    :: headerIndex   ! current header Index 
@@ -4236,19 +4229,19 @@ contains
       print *, ' GLINTBOX = '
       print *,  (GLINTBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
     end if
-    modelInterpLandFrac = 0.0d0
+    mwbg_modelInterpLandFrac = 0.0d0
     mwbg_modelInterpTerrain = 0.0d0
     modelInterpSeaIce = 0.0d0
     do boxPointIndex = 1, MXLAT*MXLON
       mwbg_modelInterpTerrain = MAX(mwbg_modelInterpTerrain, &
                                 real(MTINTBOX(boxPointIndex)/TOPOFACT,8))
       if (readGlaceMask) then
-        modelInterpLandFrac = MAX(modelInterpLandFrac,real(MGINTBOX(boxPointIndex),8))
+        mwbg_modelInterpLandFrac = MAX(mwbg_modelInterpLandFrac,real(MGINTBOX(boxPointIndex),8))
         modelInterpSeaIce = MAX(modelInterpSeaIce,real(GLINTBOX(boxPointIndex),8))
       end if
     end do
     if (mwbg_debug) then
-      print *, ' modelInterpLandFrac = ', modelInterpLandFrac
+      print *, ' mwbg_modelInterpLandFrac = ', mwbg_modelInterpLandFrac
       print *, ' mwbg_modelInterpTerrain = ', mwbg_modelInterpTerrain
       print *, ' modelInterpSeaIce = ', modelInterpSeaIce
     end if
@@ -6432,7 +6425,6 @@ contains
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype
     real(8)               :: modelInterpSeaIce        ! Glace de mer " "
-    real(8)               :: modelInterpLandFrac      ! model interpolated land fraction
     integer, external     :: exdb, exfin, fnom, fclos
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
@@ -6491,15 +6483,14 @@ contains
       if ( .not. sensorIndexFound ) call utl_abort('midas-bgckMW: sensor Index not found') 
 
       ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpLandFrac, modelInterpSeaIce, &
-                                                  headerIndex, obsSpaceData)
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpSeaIce, headerIndex, obsSpaceData)
 
       ! STEP 2: Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsua(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsub(sensorIndex, modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(sensorIndex, headerIndex, obsSpaceData)
