@@ -5562,15 +5562,14 @@ contains
     integer,                         intent(in)    :: sensorTovsIndexes(:)     ! Sensor Tovs indexes
    
     ! Locals:
-    character(len=4)    :: cmyidx, cmyidy
+    character(len=4)    :: cmyidx, cmyidy, strNumLev
     character(len=9)    :: cmyid
     character(len=1024) :: filename
     integer             :: btIndex, bodyIndex
     integer(8)          :: obsIdd, obsIdo
     logical             :: fileExists
     integer             :: profileIndex, tovsIndex, headerIndex
-    logical             :: SimSfcEmiss
-    integer             :: err, iunit
+    integer             :: err, iunit, numLev
     integer, external   :: fnom,fclos
 
     write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
@@ -5597,12 +5596,27 @@ contains
       if (bodyIndex > 0) then
         obsIdd = obs_bodyPrimaryKey(obsSpaceData, bodyIndex)
 
-        WRITE(iunit,'(I20, I20, F16.2, F16.2, 85E16.5E2, E16.5E2, E16.5E2, E16.5E2, E16.5E2, 85E16.5E2,  85E16.5E2, 85E16.5E2)') &
-              obsIdo, obsIdd, profiles(tovsIndex)%latitude, profiles(tovsIndex)%longitude, profiles(tovsIndex)%p, &
-              jacobian_emiss(btIndex)%emis_out, &
-              jacobian(btIndex)%skin%t, jacobian(btIndex)%s2m%t, jacobian(btIndex)%s2m%p, &
-              jacobian(btIndex)%t(:), jacobian(btIndex)%q(:), jacobian(btIndex)%p(:)
+        if (size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%t(:)) .or. &
+            size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%q(:)) .or. &
+            size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%p(:))) then
+          call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match &
+                                                  the number of model levels in Jacobian')
         end if
+
+        numLev = size(profiles(tovsIndex)%p(:))
+        write (strNumLev,'(I4)') numLev
+
+        WRITE(iunit,'(I20, I20, F16.2, F16.2, I4, '&
+                      // trim(strNumLev) // 'E16.5E2, &
+                      E16.5E2, E16.5E2, E16.5E2, E16.5E2, '&
+                      // trim(strNumLev) // 'E16.5E2,' &
+                      // trim(strNumLev) // 'E16.5E2,' &
+                      // trim(strNumLev) // 'E16.5E2)') &
+              obsIdo, obsIdd, profiles(tovsIndex)%latitude, profiles(tovsIndex)%longitude, numLev, &
+              profiles(tovsIndex)%p(:), &
+              jacobian_emiss(btIndex)%emis_out, jacobian(btIndex)%skin%t, jacobian(btIndex)%s2m%t, jacobian(btIndex)%s2m%p, &
+              jacobian(btIndex)%t(:), jacobian(btIndex)%q(:), jacobian(btIndex)%p(:)
+      end if
     end do
 
     err = fclos(iunit)
