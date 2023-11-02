@@ -24,16 +24,17 @@ module bgckMicrowave_mod
   ! Module variable
   real(8) :: mwbg_clwQcThreshold
   real(8) :: mwbg_cloudyClwThresholdBcorr
-  real(8) :: mwbg_minSiOverWaterThreshold ! for AMSUB/MHS
-  real(8) :: mwbg_maxSiOverWaterThreshold ! for AMSUB/MHS
-  real(8) :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
-  real(8) :: mwbg_modelInterpTerrain      ! topo in standard file interpolated to obs point
-  real(8) :: mwbg_modelInterpLandFrac     ! model interpolated land fraction
-  real(8) :: mwbg_modelInterpSeaIce       ! model interpolated sea ice
-  logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
+  real(8) :: mwbg_minSiOverWaterThreshold      ! for AMSUB/MHS
+  real(8) :: mwbg_maxSiOverWaterThreshold      ! for AMSUB/MHS
+  real(8) :: mwbg_cloudySiThresholdBcorr       ! for AMSUB/MHS
+  real(8) :: mwbg_modelInterpTerrain           ! topo in standard file interpolated to obs point
+  real(8) :: mwbg_modelInterpLandFrac          ! model interpolated land fraction
+  real(8) :: mwbg_modelInterpSeaIce            ! model interpolated sea ice
+  logical :: mwbg_rejectWhenSiMissing          ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
-  logical :: mwbg_resetQc                 ! reset Qc flags
+  logical :: mwbg_resetQc                      ! reset Qc flags
+  logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -87,7 +88,7 @@ module bgckMicrowave_mod
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
   logical            :: resetQc                       ! reset Qc flags option
-  logical            :: modLSQ                        !
+  logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -140,6 +141,7 @@ contains
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
+    mwbg_calcLandQualifierTerrainType = modLSQ
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -3748,7 +3750,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckMwhs2(sensorIndex, modLSQ, lastHeader, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckMwhs2(sensorIndex, lastHeader, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -3758,7 +3760,6 @@ contains
     type(struct_obs),      intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,               intent(in)    :: headerIndex        ! current header Index 
     integer,               intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
-    logical,               intent(in)    :: modLSQ             ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
     logical,               intent(in)    :: lastHeader         ! active if last header
 
     ! Locals:
@@ -3864,7 +3865,7 @@ contains
     !          for data that fail QC
     !###############################################################################
     call mwbg_firstQcCheckMwhs2(qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                                reportHasMissingTb, modLSQ, headerIndex, sensorIndex, obsSpaceData)
+                                reportHasMissingTb, headerIndex, sensorIndex, obsSpaceData)
 
     if (reportHasMissingTb) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
@@ -4523,19 +4524,19 @@ contains
       end if
     end do HEADER0
 
-    if ( .not. mwhs2DataPresent ) then
+    if (.not. mwhs2DataPresent) then
       write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since no MWHS2 DATA is found'
       return
     end if
 
     call mwbg_init()
 
-    if ( .not. modLSQ ) then
-      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since MODLSQ is not activated'
+    if (.not. mwbg_calcLandQualifierTerrainType) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since mwbg_calcLandQualifierTerrainType is not activated'
       return
     end if
 
-    write(*,*) 'MWHS2 data found and modLSQ option activated!'
+    write(*,*) 'MWHS2 data found and mwbg_calcLandQualifierTerrainType option activated!'
     write(*,*) '-->  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
 
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -4879,7 +4880,7 @@ contains
   ! mwbg_firstQcCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckMwhs2(qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                                    reportHasMissingTb, modLSQ, headerIndex, sensorIndex, obsSpaceData)
+                                    reportHasMissingTb, headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: This routine performs basic quality control checks on the data. It sets array
     !          qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks. Check 1
@@ -4912,7 +4913,6 @@ contains
     integer,              intent(in)    :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
     integer,              intent(in)    :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
     logical,              intent(out)   :: reportHasMissingTb     ! true if Tb(obsTb) are set to missing_value
-    logical,              intent(in)    :: modLSQ                 ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
     logical, allocatable, intent(inout) :: qcRejectLogic(:)       ! qcRejectLogic = .false. on input
     type(struct_obs),     intent(inout) :: obsSpaceData           ! obspaceData Object
     integer,              intent(in)    :: headerIndex            ! current header Index 
@@ -4976,7 +4976,7 @@ contains
         obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) /= actualNumChannel) then
       fail = .true.
     end if
-    if ( fail ) then
+    if (fail) then
       write(*,*) 'WARNING: Bad channel number(s) detected!'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
       write(*,*) '  obsChannels(actualNumChannel) array = ', obsChannels(:)
@@ -4992,54 +4992,54 @@ contains
 
     ! Checks on landQualifierIndice,terrainTypeIndice are not done if values are to be replaced in output file.
 
-    if ( .not. modLSQ ) then
+    if (.not. mwbg_calcLandQualifierTerrainType) then
       fail = .false.
-      if ( landQualifierIndice < 0 .or. landQualifierIndice > 2 ) fail = .true.
-      if ( terrainTypeIndice < -1 .or. terrainTypeIndice > 1 ) fail = .true.
-      if ( fail ) then
+      if (landQualifierIndice < 0 .or. landQualifierIndice > 2) fail = .true.
+      if (terrainTypeIndice < -1 .or. terrainTypeIndice > 1) fail = .true.
+      if (fail) then
         write(*,*) 'WARNING: Invalid land/sea qualifier or terrain type!'
         write(*,*) '  landQualifierIndice, terrainTypeIndice, (lat, lon) = ', &
                     landQualifierIndice, terrainTypeIndice, '(',obsLat, obsLon,')'
       end if
 
-      if ( landQualifierIndice == 0 .and. terrainTypeIndice == 0 ) then
+      if (landQualifierIndice == 0 .and. terrainTypeIndice == 0) then
         fail = .true.
         write(*,*) 'WARNING: Sea ice point (terrainTypeIndice=0) at land point (landQualifierIndice=0)!'
         write(*,*) ' lat, lon =  ', obsLat, obsLon
       end if
-      if ( fail ) qcRejectLogic(:) = .true.
+      if (fail) qcRejectLogic(:) = .true.
     end if
 
     fail = .false.
-    if ( calcLandQualifierIndice < 0 .or. calcLandQualifierIndice > 2 ) fail = .true.
-    if ( calcTerrainTypeIndice < -1 .or. calcTerrainTypeIndice > 1 ) fail = .true.
-    if ( fail ) then
+    if (calcLandQualifierIndice < 0 .or. calcLandQualifierIndice > 2) fail = .true.
+    if (calcTerrainTypeIndice < -1 .or. calcTerrainTypeIndice > 1) fail = .true.
+    if (fail) then
       write(*,*) 'WARNING: Invalid model-based (MG/LG) land/sea qualifier or terrain type!'
       write(*,*) '  calcLandQualifierIndice, calcTerrainTypeIndice, (lat, lon) = ', &
                   calcLandQualifierIndice, calcTerrainTypeIndice, '(',obsLat, obsLon,')'
     end if
-    if ( fail ) qcRejectLogic(:) = .true.
+    if (fail) qcRejectLogic(:) = .true.
 
     ! 2) invalid field of view number
     fail = .false.
-    if ( satScanPosition < 1 .or. satScanPosition > mwbg_maxScanAngle ) then
+    if (satScanPosition < 1 .or. satScanPosition > mwbg_maxScanAngle) then
       fail = .true.
       write(*,*) 'WARNING: Invalid field of view! satScanPosition, lat, lon = ', &
                   satScanPosition, obsLat, obsLon
     end if
-    if ( fail ) qcRejectLogic(:) = .true.
+    if (fail) qcRejectLogic(:) = .true.
 
     ! 3) satellite zenith angle missing or out of range (> 75 deg)
     !  If bad zenith, then set Tb (and zenith) = missing value
     fail = .false.
-    if ( satZenithAngle > 75.0d0 .or. satZenithAngle < 0.0d0 ) then
+    if (satZenithAngle > 75.0d0 .or. satZenithAngle < 0.0d0) then
       fail = .true.
       write(*,*) 'WARNING: Bad or missing zenith angle! zenith, lat, lon = ', &
                   satZenithAngle, obsLat, obsLon
       satZenithAngle = mwbg_realMissing
       reportHasMissingTb = .true.
     end if
-    if ( fail ) then
+    if (fail) then
       qcRejectLogic(:) = .true.
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsTb = mwbg_realMissing
@@ -5053,44 +5053,44 @@ contains
 
     icount = 0
     fail = .false.
-    if ( obsLat == -90.0d0 .and. obsLon == -180.0d0 ) then
+    if (obsLat == -90.0d0 .and. obsLon == -180.0d0) then
       fail = .true.
       icount =  icount + 1
       reportHasMissingTb = .true.
     end if
-    if ( fail ) then
+    if (fail) then
       qcRejectLogic(:) = .true.
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsTb = mwbg_realMissing
         call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb)
       end do
     end if
-    if ( icount > 0 ) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
+    if (icount > 0) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
 
     icount = 0
     fail = .false.
-    if ( abs(obsLat) > 90.0d0 .or. abs(obsLon) > 180.0d0 ) then
+    if (abs(obsLat) > 90.0d0 .or. abs(obsLon) > 180.0d0) then
       fail = .true.
       icount =  icount + 1
       reportHasMissingTb = .true.
     end if
-    if ( fail ) then
+    if (fail) then
       qcRejectLogic(:) = .true.
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsTb = mwbg_realMissing
         call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb)
       end do
     end if
-    if ( icount > 0 ) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
+    if (icount > 0) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
 
     !  5) Change in land/sea qualifier or terrain-type based on MG,LG fields
-    if ( .not. modLSQ ) then
+    if (.not. mwbg_calcLandQualifierTerrainType) then
       icount = 0
       fail = .false.
       if (landQualifierIndice /= calcLandQualifierIndice .or. terrainTypeIndice /= calcTerrainTypeIndice) then
         fail = .true.
       end if
-      if ( fail ) then
+      if (fail) then
         icount =  icount + 1
       end if
     end if
@@ -6470,7 +6470,7 @@ contains
         call mwbg_tovCheckAtms(sensorIndex, headerIndex, obsSpaceData)
 
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(sensorIndex, modLSQ, lastHeader, headerIndex, obsSpaceData)
+        call mwbg_tovCheckMwhs2(sensorIndex, lastHeader, headerIndex, obsSpaceData)
 
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
