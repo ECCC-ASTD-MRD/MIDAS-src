@@ -27,6 +27,7 @@ module bgckMicrowave_mod
   real(8) :: mwbg_minSiOverWaterThreshold ! for AMSUB/MHS
   real(8) :: mwbg_maxSiOverWaterThreshold ! for AMSUB/MHS
   real(8) :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
+  real(8) :: mwbg_modelInterpTerrain      ! topo in standard file interpolated to obs point
   logical :: mwbg_rejectWhenSiMissing     ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
@@ -390,7 +391,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest1TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest1TopographyCheck(sensorIndex, modelInterpTerrain, headerIndex, obsSpaceData)
+  subroutine amsuABTest1TopographyCheck(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: test 1: Topography check (partial)
     !          Channel 6 is rejected for topography >  250m.
@@ -400,7 +401,6 @@ contains
 
     ! Arguments:
     integer,          intent(in)    :: sensorIndex             ! numero de satellite (i.e. indice) 
-    real(8),          intent(in)    :: modelInterpTerrain      ! topo aux point d'obs
     type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
     integer,          intent(in)    :: headerIndex          ! current header Index 
 
@@ -432,7 +432,7 @@ contains
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
         if (obsChanNumWithOffset == mwbg_chanRejectForTopoFilter(indexFilteringTest)) then
-          if (modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(indexFilteringTest)) then
+          if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(indexFilteringTest)) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
             obsFlags = OR(obsFlags,2**18)
@@ -441,7 +441,7 @@ contains
             if ( mwbg_DEBUG ) then
               write(*,*) stnId(2:9),' TOPOGRAPHY REJECT.', &
                          'CHANNEL=', obsChanNumWithOffset, &
-                         ' TOPO= ',modelInterpTerrain
+                         ' TOPO= ', mwbg_modelInterpTerrain
             end if
 
             call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -1803,8 +1803,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -1833,7 +1832,6 @@ contains
     integer,              intent(in)    :: headerIndex         ! current header Index 
     integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
     real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
-    real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
 
     ! Locals:
@@ -1933,7 +1931,7 @@ contains
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
     ! Channel 7 is rejected for topography > 2000m.
-    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck (sensorIndex, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0 land, 1 sea, 2 coast.
@@ -2039,8 +2037,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -2069,7 +2066,6 @@ contains
     integer,              intent(in)    :: headerIndex         ! current header Index 
     integer,              intent(in)    :: sensorIndex         ! numero de satellite (i.e. indice)
     real(8),              intent(in)    :: modelInterpLandFrac ! masque terre/mer du modele
-    real(8),              intent(in)    :: modelInterpTerrain  ! topographie du modele
     real(8),              intent(in)    :: modelInterpSeaIce   ! etendue de glace du modele
 
     ! Locals:
@@ -2166,7 +2162,7 @@ contains
     ! Channel 3- 45 is rejected for topography >  2500m.
     ! Channel 4 - 46 is rejected for topography > 2000m.
     ! Channel 5 - 47 is rejected for topography > 1000m.
-    call amsuABTest1TopographyCheck (sensorIndex, modelInterpTerrain, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck (sensorIndex, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
@@ -2961,8 +2957,7 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test2TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, &
-                                           headerIndex, obsSpaceData, skipTestArr_opt)
+  subroutine atmsMwhs2Test2TopographyCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, skipTestArr_opt)
     !
     !:Purpose: test 2: Topography check (partial)
     !
@@ -2970,7 +2965,6 @@ contains
 
     ! Arguments:
     integer,           intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice) 
-    real(8),           intent(in)    :: modelInterpTerrain ! topo aux point d'obs
     integer,           intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs),  intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,           intent(in)    :: headerIndex        ! current header Index 
@@ -3005,7 +2999,7 @@ contains
           
       INDXTOPO = utl_findloc(mwbg_chanRejectForTopoFilter(:),obsChanNumWithOffset)
       if ( INDXTOPO > 0 ) then
-        if (modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(INDXTOPO)) then
+        if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(INDXTOPO)) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
           obsFlags = OR(obsFlags,2**18)
@@ -3021,7 +3015,7 @@ contains
           if ( mwbg_debug ) then
             write(*,*) stnId(2:9),' TOPOGRAPHY REJECT.', &
                        'CHANNEL=', obsChanNumWithOffset, &
-                       ' TOPO= ',modelInterpTerrain
+                       ' TOPO= ', mwbg_modelInterpTerrain
           end if
         end if
       end if
@@ -3510,7 +3504,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(sensorIndex, modelInterpTerrain, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckAtms(sensorIndex, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -3520,7 +3514,6 @@ contains
     type(struct_obs),     intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,              intent(in)    :: headerIndex        ! current header Index 
     integer,              intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
-    real(8),              intent(in)    :: modelInterpTerrain ! topographie du modele
 
     ! Locals:
     integer, parameter :: maxScanAngleAMSU = 96
@@ -3700,8 +3693,7 @@ contains
                                      obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, &
-                                       headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -3783,8 +3775,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckMwhs2(sensorIndex, modelInterpTerrain, &
-                                modLSQ, lastHeader, headerIndex, obsSpaceData)
+  subroutine mwbg_tovCheckMwhs2(sensorIndex, modLSQ, lastHeader, headerIndex, obsSpaceData)
     !
     !:Purpose: Effectuer le controle de qualite des radiances tovs.
     !
@@ -3794,7 +3785,6 @@ contains
     type(struct_obs),      intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,               intent(in)    :: headerIndex        ! current header Index 
     integer,               intent(in)    :: sensorIndex        ! numero de satellite (i.e. indice)
-    real(8),               intent(in)    :: modelInterpTerrain ! topographie du modele as being over land/ice, cloudy, bad IWV
     logical,               intent(in)    :: modLSQ             ! If active, recalculate land/sea qualifier and terrain type based on LG/MG
     logical,               intent(in)    :: lastHeader         ! active if last header
 
@@ -3968,8 +3958,7 @@ contains
                                      obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 2) test 2: Topography check (partial)
-    call atmsMwhs2Test2TopographyCheck(sensorIndex, modelInterpTerrain, B7CHCK, &
-                                       headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
+    call atmsMwhs2Test2TopographyCheck(sensorIndex, B7CHCK, headerIndex, obsSpaceData, skipTestArr_opt=skipTestArr(:))
 
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
@@ -4050,8 +4039,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
-  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpTerrain, &
-                                                    modelInterpLandFrac, modelInterpSeaIce, &
+  subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpLandFrac, modelInterpSeaIce, &
                                                     headerIndex, obsSpaceData)
     !
     !:Purpose: Reads Modele Geophysical variables and save for the first time
@@ -4067,7 +4055,6 @@ contains
     ! Arguments:
     character(len=*), intent(in)    :: instName            ! Instrument Name
     real(8),          intent(out)   :: modelInterpLandFrac ! model interpolated land fraction.
-    real(8),          intent(out)   :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
     real(8),          intent(out)   :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
     integer,          intent(in)    :: headerIndex   ! current header Index 
@@ -4250,11 +4237,11 @@ contains
       print *,  (GLINTBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
     end if
     modelInterpLandFrac = 0.0d0
-    modelInterpTerrain = 0.0d0
+    mwbg_modelInterpTerrain = 0.0d0
     modelInterpSeaIce = 0.0d0
     do boxPointIndex = 1, MXLAT*MXLON
-      modelInterpTerrain = MAX(modelInterpTerrain, &
-                               real(MTINTBOX(boxPointIndex)/TOPOFACT,8))
+      mwbg_modelInterpTerrain = MAX(mwbg_modelInterpTerrain, &
+                                real(MTINTBOX(boxPointIndex)/TOPOFACT,8))
       if (readGlaceMask) then
         modelInterpLandFrac = MAX(modelInterpLandFrac,real(MGINTBOX(boxPointIndex),8))
         modelInterpSeaIce = MAX(modelInterpSeaIce,real(GLINTBOX(boxPointIndex),8))
@@ -4262,7 +4249,7 @@ contains
     end do
     if (mwbg_debug) then
       print *, ' modelInterpLandFrac = ', modelInterpLandFrac
-      print *, ' modelInterpTerrain = ', modelInterpTerrain
+      print *, ' mwbg_modelInterpTerrain = ', mwbg_modelInterpTerrain
       print *, ' modelInterpSeaIce = ', modelInterpSeaIce
     end if
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
@@ -6444,7 +6431,6 @@ contains
     integer               :: headerIndex              ! header Index
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype
-    real(8)               :: modelInterpTerrain       ! topo in standard file interpolated to obs point
     real(8)               :: modelInterpSeaIce        ! Glace de mer " "
     real(8)               :: modelInterpLandFrac      ! model interpolated land fraction
     integer, external     :: exdb, exfin, fnom, fclos
@@ -6505,26 +6491,21 @@ contains
       if ( .not. sensorIndexFound ) call utl_abort('midas-bgckMW: sensor Index not found') 
 
       ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpTerrain, &
-                                                  modelInterpLandFrac, modelInterpSeaIce, &
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpLandFrac, modelInterpSeaIce, &
                                                   headerIndex, obsSpaceData)
 
       ! STEP 2: Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsua(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
-                                modelInterpSeaIce, headerIndex, obsSpaceData)
+        call mwbg_tovCheckAmsub(sensorIndex, modelInterpLandFrac, modelInterpSeaIce, headerIndex, obsSpaceData)
 
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(sensorIndex, modelInterpTerrain, &
-                               headerIndex, obsSpaceData)
+        call mwbg_tovCheckAtms(sensorIndex, headerIndex, obsSpaceData)
 
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(sensorIndex, modelInterpTerrain, &
-                                modLSQ, lastHeader, headerIndex, obsSpaceData)
+        call mwbg_tovCheckMwhs2(sensorIndex, modLSQ, lastHeader, headerIndex, obsSpaceData)
 
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
@@ -6532,13 +6513,11 @@ contains
       end if
 
       ! STEP 3: Accumuler Les statistiques sur les rejets
-      call mwbg_qcStats(instName, sensorIndex, &
-                        tvs_satelliteName(1:tvs_nsensors), .FALSE.)
+      call mwbg_qcStats(instName, sensorIndex, tvs_satelliteName(1:tvs_nsensors), .FALSE.)
     end do HEADER
 
     ! STEP 4: Print the statistics in listing file 
-    call mwbg_qcStats(instName, sensorIndex, &
-                      tvs_satelliteName(1:tvs_nsensors), .TRUE.)
+    call mwbg_qcStats(instName, sensorIndex, tvs_satelliteName(1:tvs_nsensors), .TRUE.)
 
     call utl_tmg_stop(118)
 
