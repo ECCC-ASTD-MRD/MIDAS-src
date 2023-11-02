@@ -1416,8 +1416,8 @@ contains
           if (cloudLiquidWaterPathObs == mwbg_realMissing .or. cloudLiquidWaterPathFG == mwbg_realMissing) then
             sigmaObsErrUsed = MPC_missingValue_R8
           else
-            sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,errThresh1, &
-                                                      errThresh2,clwObsFGaveraged)
+            sigmaObsErrUsed = calcStateDepObsErr(clwThresh1, clwThresh2, errThresh1, errThresh2, &
+                                                 clwObsFGaveraged)
           end if
         else
           sigmaObsErrUsed = oer_toverrst(obsChanNumWithOffset,sensorIndex)
@@ -1551,8 +1551,8 @@ contains
               scatIndexOverWaterFG == MPC_missingValue_R8) then
             sigmaObsErrUsed = MPC_missingValue_R8
           else
-            sigmaObsErrUsed = calcStateDepObsErr(siThresh1,siThresh2,errThresh1, &
-                                                    errThresh2,scatwObsFGaveraged)
+            sigmaObsErrUsed = calcStateDepObsErr(siThresh1, siThresh2, errThresh1, errThresh2, &
+                                                 scatwObsFGaveraged)
           end if
         else
           sigmaObsErrUsed = oer_toverrst(obsChanNumWithOffset,sensorIndex)
@@ -1897,8 +1897,6 @@ contains
 
     mwbg_qcIndicator(:) = 0
 
-    ! fill newInformationFlag with zeros ONLY for consistency with ATMS
-    newInformationFlag = 0
     if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
@@ -1907,53 +1905,52 @@ contains
     end if
 
     ! Grody parameters are   extract required channels:
-    call extractParamForGrodyRun (tb23,   tb31,   tb50,   tb53,   tb89, &
-                                  tb23FG, tb31FG, tb50FG, tb53FG, tb89FG, &
-                                  headerIndex, sensorIndex, obsSpaceData)
+    call extractParamForGrodyRun(tb23,   tb31,   tb50,   tb53,   tb89, &
+                                 tb23FG, tb31FG, tb50FG, tb53FG, tb89FG, &
+                                 headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Grody AMSU-A algorithms.
-    call grody (tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
-                ice, tpw, &
-                rain, snow, scatIndexOverLandObs, &
-                headerIndex, obsSpaceData)   
+    call grody(tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+               ice, tpw, &
+               rain, snow, scatIndexOverLandObs, &
+               headerIndex, obsSpaceData)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest10RttovRejectCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
     ! Channel 7 is rejected for topography > 2000m.
-    call amsuABTest1TopographyCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck(sensorIndex, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0 land, 1 sea, 2 coast.
-    call amsuABTest2LandSeaQualifierCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest2LandSeaQualifierCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 3) test 3: "Terrain type" code check (full)
     ! allowed values are: -1 missing, 0 sea-ice, 1 snow on land.
-    call amsuABTest3TerrainTypeCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest3TerrainTypeCheck(sensorIndex, headerIndex, obsSpaceData)
  
     ! 4) test 4: Field of view number check (full)
     ! Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
-    call amsuABTest4FieldOfViewCheck (sensorIndex, maxScanAngleAMSU, &
-                                      headerIndex, obsSpaceData)
+    call amsuABTest4FieldOfViewCheck(sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData)
 
     ! 5) test 5: Satellite zenith angle check (full)
     ! Satellite zenith angle acceptable range is [0.,60.].
-    call amsuABTest5ZenithAngleCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest5ZenithAngleCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
-    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
+    call amsuABTest6ZenAngleAndFovConsistencyCheck(sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
     !       a) both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
-    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -1965,11 +1962,11 @@ contains
     
     ! 9) test 9: Uncorrected Tb check (single)
     ! Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call amsuABTest9UncorrectedTbCheck (sensorIndex, headerIndex, obsSpaceData) 
+    call amsuABTest9UncorrectedTbCheck(sensorIndex, headerIndex, obsSpaceData) 
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest11RadianceGrossValueCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
@@ -1977,12 +1974,12 @@ contains
 
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
-    call amsuaTest13GrodyScatteringIndexCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuaTest13GrodyScatteringIndexCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (mwbg_rogueFactor) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
-    call amsuaTest14RogueCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuaTest14RogueCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -1995,7 +1992,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest15ChannelSelectionWithTovutil(sensorIndex, headerIndex, obsSpaceData)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
     call amsuaTest16ExcludeExtremeScattering(sensorIndex, headerIndex, obsSpaceData) 
@@ -2015,6 +2012,8 @@ contains
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
 
+    ! fill newInformationFlag with zeros ONLY for consistency with ATMS
+    newInformationFlag = 0
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
 
     !###############################################################################
@@ -2122,8 +2121,6 @@ contains
 
     mwbg_qcIndicator(:) = 0
 
-    ! fill newInformationFlag with zeros ONLY for consistency with ATMS
-    newInformationFlag = 0
     if (mwbg_resetQc) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
@@ -2132,55 +2129,54 @@ contains
     end if
 
     ! Bennartz parameters are   extract required channels:
-    call extractParamForBennartzRun (tb89, tb150, tb1831, tb1832, tb1833, &
-                                     tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                                     headerIndex, sensorIndex, obsSpaceData)
+    call extractParamForBennartzRun(tb89, tb150, tb1831, tb1832, tb1833, &
+                                    tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                                    headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Bennartz AMSU-B algorithms.
-    call bennartz (tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                   scatIndexOverLandObs, &
-                   headerIndex, obsSpaceData)
+    call bennartz(tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                  scatIndexOverLandObs, headerIndex, obsSpaceData)
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest10RttovRejectCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 3- 45 is rejected for topography >  2500m.
     ! Channel 4 - 46 is rejected for topography > 2000m.
     ! Channel 5 - 47 is rejected for topography > 1000m.
-    call amsuABTest1TopographyCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest1TopographyCheck(sensorIndex, headerIndex, obsSpaceData)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
     !                     1, sea,
     !                     2, coast.
-    call amsuABTest2LandSeaQualifierCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest2LandSeaQualifierCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 3) test 3: "Terrain type" code check (full)
     ! allowed values are: -1 missing, 0 sea-ice, 1 snow on land.
-    call amsuABTest3TerrainTypeCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest3TerrainTypeCheck(sensorIndex, headerIndex, obsSpaceData)
  
     ! 4) test 4: Field of view number check (full)
     ! Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
-    call amsuABTest4FieldOfViewCheck (sensorIndex, maxScanAngleAMSU, &
-                                      headerIndex, obsSpaceData)
+    call amsuABTest4FieldOfViewCheck(sensorIndex, maxScanAngleAMSU, &
+                                     headerIndex, obsSpaceData)
 
     ! 5) test 5: Satellite zenith angle check (full)
     ! Satellite zenith angle acceptable range is [0.,60.].
-    call amsuABTest5ZenithAngleCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest5ZenithAngleCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
     ! Acceptable difference between "Satellite zenith angle"  and
     ! "approximate angle computed from field of view number" is 1.8 degrees.
-    call amsuABTest6ZenAngleAndFovConsistencyCheck (sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
+    call amsuABTest6ZenAngleAndFovConsistencyCheck(sensorIndex, maxScanAngleAMSU, headerIndex, obsSpaceData) 
 
     ! 7) test 7: "Land/sea qual."/"model land/sea" consistency check.    (full)
     ! Acceptable conditions are:
     !       a) both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
-    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
     ! Unacceptable conditions are:
@@ -2197,7 +2193,7 @@ contains
 
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
-    call amsuABTest11RadianceGrossValueCheck (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest11RadianceGrossValueCheck(sensorIndex, headerIndex, obsSpaceData)
 
     ! 12) test 12:  Dryness index check 
     !The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -2205,8 +2201,8 @@ contains
     ! are sensitive to the surface.
     ! Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5
     !  over land and ice
-    call amsubTest12DrynessIndexCheck (sensorIndex, tb1831, tb1833, headerIndex, obsSpaceData, &
-                                       skipTestArr_opt=skipTestArr(:))
+    call amsubTest12DrynessIndexCheck(sensorIndex, tb1831, tb1833, headerIndex, obsSpaceData, &
+                                      skipTestArr_opt=skipTestArr(:))
 
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, headerIndex, obsSpaceData, &
@@ -2229,7 +2225,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithTovutil (sensorIndex, headerIndex, obsSpaceData)
+    call amsuABTest15ChannelSelectionWithTovutil(sensorIndex, headerIndex, obsSpaceData)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -2245,7 +2241,9 @@ contains
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
-
+    
+    ! fill newInformationFlag with zeros ONLY for consistency with ATMS
+    newInformationFlag = 0
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
 
     !###############################################################################
@@ -2312,10 +2310,10 @@ contains
             end if
           end if
         end do
-        if ( FULLREJCT ) then
+        if (FULLREJCT) then
           INTOTRJF(sensorIndex) = INTOTRJF(sensorIndex) + 1
         end if
-        if ( .not. FULLREJCT .and. .not.FULLACCPT ) then
+        if (.not. FULLREJCT .and. .not.FULLACCPT) then
           INTOTRJP(sensorIndex) = INTOTRJP(sensorIndex) + 1
         end if
       else if  (instName == "ATMS") then 
@@ -2326,7 +2324,7 @@ contains
             FULLREJCT = .false.
           end if
         end do
-        if ( FULLREJCT ) then
+        if (FULLREJCT) then
           INTOTRJF(sensorIndex) = INTOTRJF(sensorIndex) + 1
         end if
         if ( .not. FULLREJCT .and. .not.FULLACCPT ) then
@@ -2505,12 +2503,12 @@ contains
   end subroutine setTerrainTypeToSeaIce
 
   !--------------------------------------------------------------------------
-  ! GRODY
+  ! grody
   !--------------------------------------------------------------------------
-  subroutine GRODY (tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
-                    ice, tpw, &
-                    rain, snow, scatIndexOverLandObs, &
-                    headerIndex, obsSpaceData)
+  subroutine grody(tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+                   ice, tpw, &
+                   rain, snow, scatIndexOverLandObs, &
+                   headerIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 5 AMSU-A channels:
     !            - sea ice, 
@@ -2772,9 +2770,8 @@ contains
   !------------------------------------------------------------------------------------
   ! bennartz
   !------------------------------------------------------------------------------------
-  subroutine bennartz (tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                       scatIndexOverLandObs, &
-                       headerIndex, obsSpaceData)
+  subroutine bennartz(tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                      scatIndexOverLandObs, headerIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !            - scattering index (over land and ocean).
@@ -3154,8 +3151,8 @@ contains
               cloudLiquidWaterPathFG == mwbg_realMissing) then
             sigmaObsErrUsed = MPC_missingValue_R8
           else
-            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1,cldPredThresh2,errThresh1, &
-                                                 errThresh2,clwObsFGaveraged)
+            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, errThresh1, errThresh2, &
+                                                 clwObsFGaveraged)
           end if
 
         ! all-sky HU
@@ -3165,8 +3162,8 @@ contains
               scatIndexOverWaterFG == MPC_missingValue_R8) then
             sigmaObsErrUsed = MPC_missingValue_R8
           else
-            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1,cldPredThresh2,errThresh1, &
-                                                 errThresh2,scatwObsFGaveraged)
+            sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, errThresh1, errThresh2, &
+                                                 scatwObsFGaveraged)
           end if
         end if
       else
@@ -3218,7 +3215,7 @@ contains
       end if
     end do BODY
 
-    if ( SFCREJCT ) then
+    if (SFCREJCT) then
       BODY2: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -3345,8 +3342,8 @@ contains
         if ( cloudLiquidWaterPathObs == mwbg_realMissing ) then
           sigmaObsErrUsed = MPC_missingValue_R8
         else
-          sigmaObsErrUsed = calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1, &
-                                                  sigmaThresh2,clwObsFGaveraged)
+          sigmaObsErrUsed = calcStateDepObsErr(clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2, &
+                                               clwObsFGaveraged)
         end if
       else
         sigmaObsErrUsed = oer_toverrst(obsChanNumWithOffset,sensorIndex)
@@ -3701,7 +3698,7 @@ contains
       KCHKPRF = MAX(KCHKPRF,mwbg_qcIndicator(JI))
     end do
 
-    if ( mwbg_debug ) write(*,*)'KCHKPRF = ', KCHKPRF
+    if (mwbg_debug) write(*,*) 'KCHKPRF = ', KCHKPRF
 
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(KCHKPRF, headerIndex, obsSpaceData)
@@ -6318,8 +6315,8 @@ contains
   !--------------------------------------------------------------------------
   ! calcStateDepObsErr
   !--------------------------------------------------------------------------
-  function calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
-                                 errThresh1, errThresh2, cldPredUsed) result(sigmaObsErrUsed)
+  function calcStateDepObsErr(cldPredThresh1, cldPredThresh2, errThresh1, errThresh2, &
+                              cldPredUsed) result(sigmaObsErrUsed)
     !
     !:Purpose: Calculate single-precision state-dependent observation error.
     !                                 
@@ -6368,19 +6365,19 @@ contains
     integer :: iplatform, instrum, isat, iplatf, instr
 
     ! find tvs_sensor index corresponding to current obs
-    iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
-    instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
+    iplatf = obs_headElem_i(obsSpaceData, OBS_SAT, headerIndex)
+    instr  = obs_headElem_i(obsSpaceData, OBS_INS, headerIndex)
 
     call tvs_mapSat( iplatf, iplatform, isat )
     call tvs_mapInstrum( instr, instrum )
     
     sensorIndexFound = .false.
     do sensorIndex =1, tvs_nsensors
-      if ( iplatform ==  tvs_platforms(sensorIndex)  .and. &
-           isat      ==  tvs_satellites(sensorIndex) .and. &
-           instrum   == tvs_instruments(sensorIndex)       ) then
-          sensorIndexFound = .true. 
-         exit
+      if (iplatform ==  tvs_platforms(sensorIndex)  .and. &
+          isat      ==  tvs_satellites(sensorIndex) .and. &
+          instrum   == tvs_instruments(sensorIndex)) then
+        sensorIndexFound = .true. 
+        exit
       end if
     end do
 
@@ -6389,7 +6386,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_mwbg_bgCheckMW
   !--------------------------------------------------------------------------
-  subroutine mwbg_bgCheckMW( obsSpaceData )
+  subroutine mwbg_bgCheckMW(obsSpaceData)
     !
     !:Purpose: Do the quality control for ATMS, AMSUA, AMSUB and MWHS2
     !
@@ -6413,11 +6410,11 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
     if (headerIndex < 0) exit HEADER0
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-      if ( tvs_isIdBurpInst(codtyp,'atms' ) .or. &
-           tvs_isIdBurpInst(codtyp,'amsua') .or. &
-           tvs_isIdBurpInst(codtyp,'amsub') .or. & 
-           tvs_isIdBurpInst(codtyp,'mwhs2') .or. &
-           tvs_isIdBurpInst(codtyp,'mhs'  ) ) then
+      if (tvs_isIdBurpInst(codtyp,'atms' ) .or. &
+          tvs_isIdBurpInst(codtyp,'amsua') .or. &
+          tvs_isIdBurpInst(codtyp,'amsub') .or. & 
+          tvs_isIdBurpInst(codtyp,'mwhs2') .or. &
+          tvs_isIdBurpInst(codtyp,'mhs'  )) then
         mwDataPresent = .true.
       end if
     end do HEADER0
@@ -6443,21 +6440,21 @@ contains
       if (headerIndex == obs_numHeader(obsSpaceData)) lastHeader = .true.
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (instName== 'AMSUB') then
-        if ( .not. tvs_isIdBurpInst(codtyp,'amsub') .and. &
-             .not. tvs_isIdBurpInst(codtyp,'mhs'  )  .and. &
-             .not. tvs_isIdBurpInst(codtyp,'mwhs2') ) then
+        if (.not. tvs_isIdBurpInst(codtyp,'amsub') .and. &
+            .not. tvs_isIdBurpInst(codtyp,'mhs'  ) .and. &
+            .not. tvs_isIdBurpInst(codtyp,'mwhs2')) then
           write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ', instName
           cycle HEADER
         end if 
       else
-        if ( .not. (tvs_isIdBurpInst(codtyp,instName)) ) then
+        if (.not. (tvs_isIdBurpInst(codtyp,instName))) then
           write(*,*) 'WARNING: Observation with codtyp = ', codtyp, ' is not ', instName
           cycle HEADER
         end if
       end if
  
       sensorIndexFound = ifTovsExist(headerIndex, sensorIndex, obsSpaceData)
-      if ( .not. sensorIndexFound ) call utl_abort('midas-bgckMW: sensor Index not found') 
+      if (.not. sensorIndexFound) call utl_abort('midas-bgckMW: sensor Index not found') 
 
       ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       call mwbg_readGeophysicFieldsAndInterpolate(instName, headerIndex, obsSpaceData)
