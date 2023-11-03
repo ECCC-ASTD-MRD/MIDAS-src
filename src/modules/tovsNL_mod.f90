@@ -932,8 +932,10 @@ contains
 
       if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
-        write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
-        call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
+        if (instrumentIdsUsingHydrometeors(instrumentIndex) /= tvs_getInstrumentId('atms')) then
+          write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
+          call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
+        end if
       end if
     end do
 
