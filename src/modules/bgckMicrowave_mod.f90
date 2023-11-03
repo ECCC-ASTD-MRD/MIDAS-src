@@ -72,7 +72,7 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForScat(:)            ! channels to reject because of scattering
   integer, allocatable :: mwbg_chanRejectForClw(:)             ! channels to reject because of CLW
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
-  integer, allocatable :: mwbg_bit7Check(:)                    ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
+  integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -2917,7 +2917,7 @@ contains
       IBIT = AND(obsFlags, 2**7)
       if (IBIT /= 0) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        mwbg_bit7Check(obsChanNum) = 1
+        mwbg_bit7(obsChanNum) = 1
         obsFlags = OR(obsFlags,2**9)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
@@ -2985,7 +2985,7 @@ contains
           obsFlags = OR(obsFlags,2**18)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-          if (mwbg_bit7Check(obsChanNum) == 0) then
+          if (mwbg_bit7(obsChanNum) == 0) then
             rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1                 
           end if
@@ -3055,7 +3055,7 @@ contains
         obsFlags = OR(obsFlags,2**11)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-        if (mwbg_bit7Check(obsChanNum) == 0) then
+        if (mwbg_bit7(obsChanNum) == 0) then
           rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1                 
         end if
@@ -3185,7 +3185,7 @@ contains
         obsFlags = OR(obsFlags,2**16)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-        if (mwbg_bit7Check(obsChanNum) == 0) then
+        if (mwbg_bit7(obsChanNum) == 0) then
           rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1                 
         end if
@@ -3231,7 +3231,7 @@ contains
             obsFlags = OR(obsFlags,2**16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-            if (mwbg_bit7Check(obsChanNum) == 0) then
+            if (mwbg_bit7(obsChanNum) == 0) then
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1                 
             end if
@@ -3261,7 +3261,7 @@ contains
 
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-            if (mwbg_bit7Check(obsChanNum) == 0) then
+            if (mwbg_bit7(obsChanNum) == 0) then
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1                 
             end if
@@ -3365,7 +3365,7 @@ contains
 
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-        if (mwbg_bit7Check(obsChanNum) == 0) then
+        if (mwbg_bit7(obsChanNum) == 0) then
           rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1
         end if
@@ -3404,7 +3404,7 @@ contains
             obsFlags = OR(obsFlags,2**16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
-            if (mwbg_bit7Check(obsChanNum) == 0) then
+            if (mwbg_bit7(obsChanNum) == 0) then
               rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray2(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             end if
@@ -3536,7 +3536,7 @@ contains
 
       allocate(mwbg_qcIndicator(actualNumChannel))
 
-      allocate(mwbg_bit7Check(actualNumChannel))
+      allocate(mwbg_bit7(actualNumChannel))
     
       !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
       allocate(mwbg_chanRejectForChan2Omp(6))
@@ -3581,7 +3581,7 @@ contains
     end if
 
     mwbg_qcIndicator(:) = 0
-    mwbg_bit7Check(:) = 0
+    mwbg_bit7(:) = 0
 
     ! PART 1 TESTS:
 
@@ -3806,7 +3806,7 @@ contains
 
       allocate(mwbg_qcIndicator(actualNumChannel))
 
-      allocate(mwbg_bit7Check(actualNumChannel))
+      allocate(mwbg_bit7(actualNumChannel))
     
       ! Channel sets for rejection in test 9
       !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
@@ -3844,7 +3844,7 @@ contains
     end if
 
     mwbg_qcIndicator(:) = 0
-    mwbg_bit7Check(:) = 0
+    mwbg_bit7(:) = 0
 
     ! PART 1 TESTS:
 
