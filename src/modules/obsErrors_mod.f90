@@ -52,7 +52,8 @@ module obsErrors_mod
   real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: inflateErrAllskyCoeff(tvs_maxNumberOfSensors)
+  real(8) :: inflateErrAllskyTtCoeff(tvs_maxNumberOfSensors)
+  real(8) :: inflateErrAllskyHuCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
@@ -345,7 +346,8 @@ contains
     real(8) :: errThreshAllskyInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: clearCldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(8) :: inflateErrAllskyCoeffInput(tvs_maxNumberOfSensors)
+    real(8) :: inflateErrAllskyTtCoeffInput(tvs_maxNumberOfSensors)
+    real(8) :: inflateErrAllskyHuCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: amsuaChannelOffset, amsuaChannelNum  
     character (len=132) :: CLDUM,CPLATF,CINSTR
@@ -368,8 +370,10 @@ contains
     useStateDepSigmaObsInput(:,:) = 0
     clearCldPredThresh(:,:) = 0.0d0
     clearCldPredThreshInput(:,:) = 0.0d0
-    inflateErrAllskyCoeff(:) = 0.0d0
-    inflateErrAllskyCoeffInput(:) = 0.0d0
+    inflateErrAllskyTtCoeff(:) = 0.0d0
+    inflateErrAllskyTtCoeffInput(:) = 0.0d0
+    inflateErrAllskyHuCoeff(:) = 0.0d0
+    inflateErrAllskyHuCoeffInput(:) = 0.0d0
 
     IPLATFORM(:) = 0
     NUMCHN(:) = 0
@@ -470,13 +474,15 @@ contains
         ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
         if (readOldSymmetricObsErrFile) then
           read(ILUTOV2,*) ISATID2, NUMCHNIN2
-          if (CINSTR == "AMSUA") inflateErrAllskyCoeffInput(JL) = amsuaInflateErrAllskyCoeff
+          if (CINSTR == "AMSUA") inflateErrAllskyTtCoeffInput(JL) = amsuaInflateErrAllskyCoeff
         else
-          read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyCoeffInput(JL)
+          read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
         end if
 
-        if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) &
+        if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) then
+          write(*,*) 'ISATID2=', ISATID2, ', NUMCHNIN2=', NUMCHNIN2
           call utl_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
+        end if
 
         do JI = 1, 3
           read(ILUTOV2,*)
@@ -551,7 +557,10 @@ contains
                 clearCldPredThresh(JI,JL) = clearCldPredThreshInput(JI,JM)
                 useStateDepSigmaObs(JI,JL) = (useStateDepSigmaObsInput(JI,JM) == 1)
 
-                if (JI == 1) inflateErrAllskyCoeff(JL) = inflateErrAllskyCoeffInput(JM)
+                if (JI == 1) then
+                  inflateErrAllskyTtCoeff(JL) = inflateErrAllskyTtCoeffInput(JM)
+                  inflateErrAllskyHuCoeff(JL) = inflateErrAllskyHuCoeffInput(JM)
+                end if
 
                 ! inflate the errThreshAllsky in analysis mode
                 if (obsErrorColumnIndex == analysisColumnIndex) then
@@ -611,8 +620,8 @@ contains
               clearCldPredThresh(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
           end do
-          write(*,'(A,(2X,F8.4))') 'inflateErrAllskyCoeff=', &
-                inflateErrAllskyCoeff(JL) 
+          write(*,'(A,(2X,F8.4),A,(2X,F8.4))') 'inflateErrAllskyTtCoeff=', inflateErrAllskyTtCoeff(JL), &
+                                               'inflateErrAllskyHuCoeff=', inflateErrAllskyHuCoeff(JL)
         else
           write(*,'(A,2X,A8)') 'Channel','sigmaO'
           do JI = 1, NUMCHN(JL)
@@ -1808,7 +1817,7 @@ contains
       ! error inflation due to cloud liquid water difference
       deltaE2 = 0.0D0
       if (mwAllskyTtInflateByClwDiff) then
-        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(clwObs - clwFG) * &
+        deltaE2 = inflateErrAllskyTtCoeff(sensorIndex) * abs(clwObs - clwFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
@@ -1847,7 +1856,7 @@ contains
       ! error inflation due to scattering-index difference
       deltaE2 = 0.0D0
       if (mwAllskyHuInflateBySiDiff) then
-        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(siObs - siFG) * &
+        deltaE2 = inflateErrAllskyHuCoeff(sensorIndex) * abs(siObs - siFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)      
