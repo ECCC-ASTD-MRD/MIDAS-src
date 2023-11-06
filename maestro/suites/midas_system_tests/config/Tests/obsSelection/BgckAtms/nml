@@ -5,6 +5,9 @@
   clwQcThreshold = 0.6
   useUnbiasedObsForClw =.true.
   cloudyClwThresholdBcorr = 0.05,
+  minSiOverWaterThreshold = -5.0
+  maxSiOverWaterThreshold = 20.0
+  cloudySiThresholdBcorr = 5.0
 /
  &namObsSelection
   doThinning = .false.
@@ -54,6 +57,8 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
    ANLVAR(7)   ='LWCR'
+   ANLVAR(8)   ='IWCR'
+   ANLVAR(9)   ='CLDR'
 /
  &NAMTOV
    CSATID(1)        = 'NPP',
@@ -64,6 +69,7 @@
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .true.,
    instrumentNamesUsingCLW(1) = 'atms'
+   instrumentNamesUsingHydrometeors(1) = 'atms'
    mwInstrumUsingCLW_tl = .true.
    cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
@@ -75,7 +81,10 @@
  &NAMGPSGB
 /
  &NAMADDTOBURP
-  clwFgElementId=13109,
+  clwFgElementId = 13231,
+  addBtClearToBurp=.false.,
+  btClearElementId=12164,
+  siFgElementId=13091,
 /
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SF=10004,12004,10051,12203,11011,11012,13220
