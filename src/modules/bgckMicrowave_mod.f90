@@ -268,15 +268,18 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,          intent(in)    :: headerIndex  ! current header Index 
     integer,          intent(in)    :: sensorIndex  ! numero de satellite (i.e. indice)
-
+    
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, codtyp
     real(8) :: obsTb, btClear, ompTb, obsTbBiasCorr
+    logical :: instrumentIsAllskyHu
 
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
+    
     tb89   = mwbg_realMissing
     tb150  = mwbg_realMissing
     tb1831 = mwbg_realMissing
@@ -293,7 +296,7 @@ contains
       ompTb = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
       obsTb = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
       obsTbBiasCorr = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-      if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+      if (instrumentIsAllskyHu) then
         btClear = obs_bodyElem_r(obsSpaceData, OBS_BTCL, bodyIndex)
       else
         btClear = mwbg_realMissing
@@ -5150,6 +5153,7 @@ contains
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     real(8) :: obsLat, obsLon, satZenithAngle
     real(8), allocatable :: obsTb(:), ompTb(:), btClear(:), obsTbBiasCorr(:)
+    logical :: instrumentIsAllskyHu
 
     iNumSeaIce = 0
     iRej = 0
@@ -5172,6 +5176,8 @@ contains
     if (obsLon > 180.0d0) obsLon = obsLon - 360.0d0
     obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
 
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
+
     if (.not. grossrej) then
       allocate(ompTb(actualNumChannel))
       allocate(obsTb(actualNumChannel))
@@ -5188,7 +5194,7 @@ contains
         ompTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
         obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
         obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        if (instrumentIsAllskyHu) then
           btClear(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BTCL, bodyIndex)
         end if
       end do
@@ -5281,6 +5287,10 @@ contains
           iNumSeaIce = iNumSeaIce + 1
           waterobs = .false.
           calcTerrainTypeIndice = 0
+
+          if (instrumentIsAllskyHu) then
+            call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice)
+          end if
         end if
       end if
 
@@ -5297,7 +5307,7 @@ contains
           if (cloudLiquidWaterPathFG < 0.0d0) cloudLiquidWaterPathFG = 0.0d0
         end if
 
-        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        if (instrumentIsAllskyHu) then
           if (tb89FgClear /= mwbg_realMissing .and. tb165FgClear /= mwbg_realMissing) then
             scatIndexOverWaterObs = (tb89 - tb165) - (tb89FgClear - tb165FgClear)
             scatIndexOverWaterFG = (tb89FG - tb165FG) - (tb89FgClear - tb165FgClear)
@@ -5321,7 +5331,7 @@ contains
     end if
 
     ! check for consistency scatIndexOverWater[Obs/FG] in all-sky HU
-    if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
+    if (instrumentIsAllskyHu .and. &
         ((scatIndexOverWaterObs == mwbg_realMissing .and. scatIndexOverWaterFG /= mwbg_realMissing) .or. &
          (scatIndexOverWaterObs /= mwbg_realMissing .and. scatIndexOverWaterFG == mwbg_realMissing))) then
       call utl_abort('mwbg_nrlFilterAtms: scatIndexOverWater[Obs/FG] not consistent for all-sky HU')
@@ -5335,7 +5345,7 @@ contains
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R8)
     end if
 
-    if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+    if (instrumentIsAllskyHu) then
       if (scatIndexOverWaterFG /= mwbg_realMissing) then
         call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, scatIndexOverWaterFG)
       else
