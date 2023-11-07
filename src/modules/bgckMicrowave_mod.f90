@@ -4665,10 +4665,10 @@ contains
     ! Locals:
     integer :: indx1, icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, channelIndex
-    integer :: obsQcFlag1(3), obsQcFlag2
+    integer :: obsQcFlag1(3), obsQcFlag2, codtyp
     integer, allocatable :: obsChannels(:)
     real(8) :: obsLat, obsLon, satZenithAngle, obsTb
-    logical :: fail, fail1, fail2
+    logical :: fail, fail1, fail2, instrumentIsAllskyHu
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -4681,6 +4681,7 @@ contains
     landQualifierIndice = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) 
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
     satScanPosition = obs_headElem_i(obsSpaceData, OBS_FOV , headerIndex)
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
     ! lat/lon
     obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) 
@@ -4696,6 +4697,8 @@ contains
     
     ! If terrain type is missing, set it to -1 for the QC programs
     if (terrainTypeIndice == 99) terrainTypeIndice = mwbg_intMissing
+
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
 
     obsQcFlag1(:) = 0
     if (instName == 'ATMS') then  
@@ -4834,7 +4837,10 @@ contains
          (terrainTypeIndice /= calcTerrainTypeIndice) ) then
       fail = .true.
     end if
-    if ( fail ) icount =  icount + 1
+    if ( fail ) then
+      icount =  icount + 1
+      if (instrumentIsAllskyHu) qcRejectLogic(16:22) = .true.
+    end if
 
     ! 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 
