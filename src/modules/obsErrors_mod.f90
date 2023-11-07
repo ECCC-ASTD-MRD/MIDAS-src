@@ -1672,6 +1672,7 @@ contains
       ! Locals:
       integer :: platformId, satelliteId, instrumId
       integer :: sensorIndex, headerIndex, tovsIndex
+      integer :: channelNumber_withOffset, channelNumber, channelIndex
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
       real(4) :: cldPredUsed_r4
@@ -1699,12 +1700,17 @@ contains
         ! check to ensure CLW is retrieved and properly set
         if (cldPredUsed_r4 < minRetrievableClwValue_r4 .or. &
             cldPredUsed_r4 > maxRetrievableClwValue_r4) then
+
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                             channelNumber, channelIndex)
+          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky temperature in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
-                    ', clwFG=', clwFG
+                    ', clwFG=', clwFG, ', channelNumber=', channelNumber_withOffset
           call utl_abort('computeCloudPredictor: not usable to define obs error with CLW')
         end if
 
@@ -1717,12 +1723,17 @@ contains
         ! check to ensure SI is retrieved and properly set
         if (cldPredUsed_r4 < minRetrievableSiValue_r4 .or. &
             cldPredUsed_r4 > maxRetrievableSiValue_r4) then
+
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                             channelNumber, channelIndex)
+          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)              
+          
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky humidity in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: siObs=', siObs, &
-                    ', siFG=', siFG
+                    ', siFG=', siFG, ', channelNumber=', channelNumber_withOffset
           call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
         end if        
       end if
