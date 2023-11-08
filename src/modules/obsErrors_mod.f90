@@ -163,6 +163,10 @@ module obsErrors_mod
   logical :: mwAllskyHuInflateBySiDiff  ! choose to inflate all sky HU radiance errors by an amount related to cloud O-P
   real(8) :: amsuaClearCldPredThresh(5) ! cloud threshold for considering obs as clear sky
   real(8) :: amsuaInflateErrAllskyCoeff ! state dependent obs error inflation factor
+  real(8) :: minRetrievableClwValue     ! min threshould for 0.5 * (CLW_obs + CLW_FG) in all sky TT
+  real(8) :: maxRetrievableClwValue     ! max threshould for 0.5 * (CLW_obs + CLW_FG) in all sky TT
+  real(8) :: minRetrievableSiValue      ! min threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
+  real(8) :: maxRetrievableSiValue      ! max threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
   logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
 
 contains
@@ -209,8 +213,9 @@ contains
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
     namelist /namoer/ mwAllskyHuInflateByOmp, mwAllskyHuInflateBySiDiff
-    namelist /namoer/ amsuaClearCldPredThresh
-    namelist /namoer/ amsuaInflateErrAllskyCoeff
+    namelist /namoer/ amsuaClearCldPredThresh, amsuaInflateErrAllskyCoeff
+    namelist /namoer/ minRetrievableClwValue, maxRetrievableClwValue
+    namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ readOldSymmetricObsErrFile
     integer :: fnom, fclos, nulnam, ierr
 
@@ -238,6 +243,10 @@ contains
     amsuaClearCldPredThresh(1) = 0.05D0
     amsuaClearCldPredThresh(4) = 0.02D0
     amsuaInflateErrAllskyCoeff = 13.0D0
+    minRetrievableClwValue = 0.0d0
+    maxRetrievableClwValue = 3.0d0
+    minRetrievableSiValue = -10.0d0
+    maxRetrievableSiValue = 30.0d0
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
@@ -1087,10 +1096,6 @@ contains
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
     real(8) :: errThresh1, errThresh2, sigmaObsErrUsed
-    real(4), parameter :: minRetrievableClwValue_r4 = 0.0
-    real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
-    real(4), parameter :: minRetrievableSiValue_r4 = -10.0
-    real(4), parameter :: maxRetrievableSiValue_r4 = 30.0
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
     character(len=2)  :: cfam
     character(len=12) :: cstnid
@@ -1698,8 +1703,8 @@ contains
         cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure CLW is retrieved and properly set
-        if (cldPredUsed_r4 < minRetrievableClwValue_r4 .or. &
-            cldPredUsed_r4 > maxRetrievableClwValue_r4) then
+        if (cldPredUsed_r4 < real(minRetrievableClwValue) .or. &
+            cldPredUsed_r4 > real(maxRetrievableClwValue)) then
 
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                              channelNumber, channelIndex)
@@ -1721,8 +1726,8 @@ contains
         cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure SI is retrieved and properly set
-        if (cldPredUsed_r4 < minRetrievableSiValue_r4 .or. &
-            cldPredUsed_r4 > maxRetrievableSiValue_r4) then
+        if (cldPredUsed_r4 < real(minRetrievableSiValue) .or. &
+            cldPredUsed_r4 > real(maxRetrievableSiValue)) then
 
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                              channelNumber, channelIndex)
