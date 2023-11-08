@@ -6015,17 +6015,20 @@ contains
           lflagchn(7:9)   = .true.
           if (.not. instrumentIsAllskyHu) lflagchn(21:22) = .true.
         end if
-        if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej) then
-          lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
-          if (instrumentIsAllskyHu) then
-            scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
-            if (scatwObsFGaveraged > mwbg_maxSiOverWaterThreshold .or. &
-                scatwObsFGaveraged < mwbg_minSiOverWaterThreshold) then
-              lflagchn(16:22) = .true.
-            end if
-          else
+        if (instrumentIsAllskyHu) then
+          scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
+          if (scatwObsFGaveraged > mwbg_maxSiOverWaterThreshold .or. &
+              scatwObsFGaveraged < mwbg_minSiOverWaterThreshold) then
             lflagchn(16:22) = .true.
           end if
+          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej) then
+            lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
+          end if
+        else
+          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej) then
+            lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
+            lflagchn(16:22) = .true.
+          end if 
         end if
         if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_UTrej) lflagchn(7:9) = .true.
         if (scatIndexOverWaterObs > scatbg_atms_nrl_LTrej) lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
