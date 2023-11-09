@@ -334,6 +334,9 @@ contains
         case('P0')
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+        case('EMMW')
+          varLevIndexBmat = varLevIndexBmat + 1
+          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case default
           call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select

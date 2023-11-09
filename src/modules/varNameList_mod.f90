@@ -35,7 +35,7 @@ module varNameList_mod
   ! and an infinite loop
   integer, parameter          :: VNLnumvarmax3D    = 52
   integer, parameter          :: VNLnumvarmax2D    = 37
-  integer, parameter          :: VNLnumvarmaxOther =  6
+  integer, parameter          :: VNLnumvarmaxOther =  7
   integer, parameter          :: VNLnumvarmaxCloud =  5
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
@@ -95,13 +95,13 @@ module varNameList_mod
                                  'MT'/)
 
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
-                                 'I0  ','I1  ','I7  ','I9  ','SD  ','AL  '/)
+                                 'I0  ','I1  ','I7  ','I9  ','SD  ','AL  ','EMMW'/)
 
   character(len=4), parameter :: varLevelListOther(vnl_numvarmaxOther) = (/    &
-                                 'OT',  'OT',  'OT',  'OT',  'OT',  'OT'  /)
+                                 'OT',  'OT',  'OT',  'OT',  'OT',  'OT',  'OT'  /)
 
   character(len=2), parameter :: varKindListOther(vnl_numvarmaxOther) = (/     &
-                                 'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
+                                 'LD',  'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
 
   character(len=4), parameter :: vnl_varNameListCloud(vnl_numvarmaxCloud) = (/ &
                                  'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)                                 
