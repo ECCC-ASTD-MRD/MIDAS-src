@@ -131,8 +131,12 @@ module tovsNL_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
+<<<<<<< HEAD
   public :: tvs_getHydrometeorsIndex
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii
+=======
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl
+>>>>>>> 401212956 (Issue #878: Enable the tangent linear and adjoint RTTOV model for surface emissivity.)
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -189,9 +193,10 @@ module tovsNL_mod
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
-  character(len=8) radiativeTransferCode           ! RadiativeTransferCode : TOVS radiation model used
-  real(8), allocatable :: tvs_emissivity(:,:)      ! Surface emissivities organized by profiles and channels
-  integer, parameter :: kslon=2160, kslat=1080     ! CERES file dimension in grid points
+  character(len=8) radiativeTransferCode             ! RadiativeTransferCode : TOVS radiation model used
+  real(8), allocatable :: tvs_emissivity(:,:)        ! Surface emissivities organized by profiles and channels
+  real(8), allocatable :: tvs_emissivityFromTrl(:,:) ! Surface emissivities extracted from trial
+  integer, parameter :: kslon=2160, kslat=1080       ! CERES file dimension in grid points
 
   ! High resolution surface fields
   integer :: surfaceType(kslon,kslat)  
@@ -2714,6 +2719,7 @@ contains
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
+        
         call validateRttovVariable(profiles(tovsIndex) % p(nlv_T), "pressure profile near surface", obsSpaceData, headerIndex, maximum_opt=2000.d0)
         call validateRttovVariable(profiles(tovsIndex) % p(1), "pressure profile near top", obsSpaceData, headerIndex, 0.d0) 
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
@@ -2769,6 +2775,10 @@ contains
           end do ! levelIndex
         end if  ! runObsOperatorWithClw
       end do ! profileIndex
+
+      ! Extract emissivity from background column object to be used in the computation
+      ! of non-linear RTTOV
+      call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, tvs_nobtov)
 
       deallocate(pressure)
       deallocate(ozone)
@@ -3087,18 +3097,24 @@ contains
             end do
           end do
 
-        else if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), &
-              sensorTovsIndexes(1:profileCount))
-          if (SimSfcEmiss) then
-            call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorIndex, &
-                tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
-                tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
+      else if (sensorType == sensor_id_mw) then
+          if (allocated(tvs_emissivityFromTrl)) then
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), &
+                                       sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                       tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
+                                       emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
+          else
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), &
+                sensorTovsIndexes(1:profileCount))
+            if (SimSfcEmiss) then
+              call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorIndex, &
+                                          tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
+                                          tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
+            end if
           end if
-        else
-          emissivity_local(:) % emis_in = surfem1(:)
-        end if
-        !   2.3  Compute radiance with rttov_direct
+      else
+        emissivity_local(:)%emis_in = surfem1(:)
+      end if
 
         rttov_err_stat = 0 
 

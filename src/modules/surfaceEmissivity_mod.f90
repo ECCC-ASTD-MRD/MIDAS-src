@@ -1,22 +1,24 @@
-module simulateEmissivity_mod 
-  ! MODULE simulateEmissivity_mod  (prefix='sse ' category='7. Low-level data objects')
+module surfaceEmissivity_mod 
+  ! MODULE surfaceEmissivity_mod  (prefix='sse ' category='7. Low-level data objects')
   !
   !:Purpose: Manipulate surface emissivity for idealized assimilation of 
   !          surface sensitive AMSU-A channels.
   ! 
   use obsSpaceData_mod
-  use rttov_types, only : rttov_emissivity
+  use rttov_types, only : rttov_emissivity, rttov_chanprof
+  use rttov_const, only : surftype_land
   use MathPhysConstants_mod
   use midasMpi_mod
   use randomNumber_mod
   use utilities_mod
+  use columnData_mod
 
   implicit none
   save
   private
 
   ! public procedures  
-  public :: sse_simulateEmissivity
+  public :: sse_simulateEmissivity, sse_setupEmissivityfromState, sse_extractEmissivityCol
 
 contains
 
@@ -386,6 +388,162 @@ contains
   end subroutine sse_emissErrMatSqrt
 
   !--------------------------------------------------------------------------
+  !  sse_setupEmissivityfromState
+  !--------------------------------------------------------------------------
+  subroutine sse_setupEmissivityfromState(emissivity_inout, obsSpaceData, bodyIndexFromBtIndex, & 
+                                   chanprof, sensorTovsIndexes, tovsheaderIndex, tovsIndexList, &
+                                   nSensor, sensorList, instrumentName, tovsMaxChanneNum, &
+                                   tovsChannelOffset, tovsIChan, surftype, &
+                                   columnIn_opt, columnInout_opt, emissivityTovsIndex_opt, originalEmissivity_opt)
+    !
+    !:Purpose: Setup the emissivity_inout for tangent linear and adjoint of computation of 
+    !          radiance with rttov_tl and rttov_ad
+    !
+    implicit none
+  
+
+    ! Arguments:
+    type(rttov_emissivity), pointer, intent(inout) :: emissivity_inout(:)
+    type(struct_obs),                intent(in)    :: obsSpaceData           ! ObsSpaceData object
+    integer,                         intent(in)    :: bodyIndexFromBtIndex(:)
+    type(rttov_chanprof),            intent(in)    :: chanprof(:)
+    integer,                         intent(in)    :: sensorTovsIndexes(:)
+    integer,                         intent(in)    :: tovsheaderIndex(:)
+    integer,                         intent(in)    :: tovsIndexList(:)        ! Tovs Index List (tvs_tovsIndex)
+    integer,                         intent(in)    :: nSensor
+    integer,                         intent(in)    :: sensorList(:)           ! Sensor number for each profile (tvs_lsensor)
+    character(len=15),               intent(in)    :: instrumentName(:)      ! Satellite name (tvs_instrumentName)
+    integer,                         intent(in)    :: tovsMaxChanneNum       ! Max. value for channel number (tvs_maxChannelNumber)
+    integer,                         intent(in)    :: tovsChannelOffset(:)    ! RTTOV channel mapping offset (tvs_channelOffset)
+    integer,                         intent(in)    :: tovsIChan(:,:)          ! List of channels per instrument (tvs_ichan)
+    integer,                         intent(in)    :: surftype(:)
+    type(struct_columnData), target, optional,        intent(inout)    :: columnInout_opt
+    type(struct_columnData), target, optional,        intent(in)    :: columnIn_opt
+    real(8), optional, target,                      intent(in)    :: emissivityTovsIndex_opt(:,:)
+    real(8), optional, target,                     intent(in) :: originalEmissivity_opt(:)
+
+
+    ! Locals:
+    integer :: profileIndex, btIndex, sensorIndex, tovsIndex
+    integer :: bodyIndex, headerIndex
+    integer :: channelNumber, channelIndex
+    integer :: btCount, numSourceFile
+    real(8), pointer :: emissivityCol(:), emissivityTovsIndex(:,:), originalEmissivity(:)
+    type(struct_columnData), pointer :: column
+    character(len=2)  :: profType
+
+    write(*,*) 'sse_setupEmissivityfromState: STARTING'
+
+    do sensorIndex = 1, nSensor
+      if (trim(instrumentName(sensorIndex)) /= 'AMSUA') then
+        write(*,*) 'Satellite Name: ', trim(instrumentName(sensorIndex))
+        call utl_abort('sse_setupEmissivityfromState: !! can only be used for AMSUA instrument')
+      end if
+    end do
+
+    numSourceFile = 0
+
+    ! Setup for the tangent linear computation for surface emissivity
+    if (present(columnIn_opt)) then 
+      column => columnIn_opt
+      profType = 'tl'
+      numSourceFile = numSourceFile + 1
+    end if
+
+    ! Setup for the adjoint computation for surface emissivity
+    if (present(columnInout_opt)) then 
+      column => columnInout_opt
+      profType = 'ad'
+      numSourceFile = numSourceFile + 1
+    end if
+
+    ! Extracting surface emissivity from background trial
+    if (present(emissivityTovsIndex_opt)) then 
+      emissivityTovsIndex => emissivityTovsIndex_opt
+      profType = 'dt'
+      numSourceFile = numSourceFile + 1
+
+      if (present(originalEmissivity_opt)) then 
+        originalEmissivity => originalEmissivity_opt
+      else 
+        call utl_abort('sse_setupEmissivityfromState: originalEmissivity_opt must be supplied when &
+                       extracting surface emissivity from background trial')
+      end if
+    end if
+
+    if (numSourceFile /= 1) then
+      call utl_abort('sse_setupEmissivityfromState: Only one source of emissivity variable must be supplied')
+    end if
+
+    btCount = size(emissivity_inout)
+    do btIndex = 1, btCount
+      bodyIndex = bodyIndexFromBtIndex(btIndex)
+      profileIndex = chanprof(btIndex)%prof
+      tovsIndex  = sensorTovsIndexes(profileIndex)
+      headerIndex = tovsheaderIndex(tovsIndex)
+
+      call sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                              channelNumber, channelIndex, tovsIndexList, &
+                                              sensorList, tovsMaxChanneNum, tovsChannelOffset, &
+                                              tovsIChan)
+
+      if (profType == 'tl') then
+        emissivityCol => col_getColumn(column, headerIndex,'EMMW')
+        if(btIndex < 10) write(*,*) 'emissivityCol', emissivityCol
+        emissivity_inout(btIndex)%emis_in = emissivityCol(channelNumber)
+      else if (profType == 'ad') then
+        emissivityCol => col_getColumn(column, headerIndex,'EMMW')
+        emissivityCol(channelNumber) = emissivity_inout(btIndex)%emis_out
+      else if (profType == 'dt') then
+        if (surftype(tovsIndex) == surftype_land .and. &
+           emissivityTovsIndex(tovsIndex, channelNumber) > 0.d0 .and. &
+           emissivityTovsIndex(tovsIndex, channelNumber) <= 0.d0) then
+
+          emissivity_inout(btIndex)%emis_in = emissivityTovsIndex(tovsIndex, channelNumber)
+        else
+          emissivity_inout(btIndex)%emis_in = originalEmissivity(btIndex)
+        end if
+      end if
+    end do
+  
+  end subroutine sse_setupEmissivityfromState
+
+  !--------------------------------------------------------------------------
+  !  sse_extractEmissivityCol
+  !--------------------------------------------------------------------------
+  subroutine sse_extractEmissivityCol(column, emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, nobtov)
+    !
+    !:Purpose: Extract emissivity from column objects
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData),         intent(in)      :: column             ! column structure
+    real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)
+    integer,                         intent(in)      :: profileCount
+    integer,                         intent(in)      :: sensorTovsIndexes(:)
+    integer,                         intent(in)      :: sensorHeaderIndexes(:)
+    integer,                         intent(in)      :: nobtov
+    
+    ! Locals:
+    integer :: emissTrlNumChan
+    integer :: profileIndex, tovsIndex, headerIndex
+ 
+    if (.not. col_varExist(column, 'EMMW')) return
+
+    emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
+    
+    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(nobtov, emissTrlNumChan))
+
+    do  profileIndex = 1 , profileCount 
+      tovsIndex = sensorTovsIndexes(profileIndex)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+
+      emissivityFromTrl(tovsIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
+    end do
+  end subroutine sse_extractEmissivityCol
+
+  !--------------------------------------------------------------------------
   !  sse_getChannelNumIndexFromPPP
   !--------------------------------------------------------------------------
   subroutine sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
@@ -423,4 +581,4 @@ contains
 
   end subroutine sse_getChannelNumIndexFromPPP
 
-end module simulateEmissivity_mod
+end module surfaceEmissivity_mod 

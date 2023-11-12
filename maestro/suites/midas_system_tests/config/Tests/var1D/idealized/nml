@@ -4,27 +4,19 @@
   sqlNull='' ,
 /
  &NAMBMAT1D
-  scalefactorEns=3*0.00D0,0.1D0,0.2D0,0.3D0,0.4D0,0.5D0,0.6D0,0.7D0,0.8D0,0.9D0,100*1.0D0
-  scaleFactorEnsHumidity=200*1.0,
-  scaleFactorEnsTGCorrelation = 1.0d0, 
-  nEns = 256,
-  vLocalize = 12.d0,
-  includeAnlVar(1)= 'UU',
-  includeAnlVar(2)= 'VV',
-  includeAnlVar(3)= 'TT',
-  includeAnlVar(4)= 'HU',
-  includeAnlVar(5)= 'P0',
-  includeAnlVar(6)= 'TG',
-  dumpBmatrixToFile=.true.,
-  lonMin=148.,
-  lonMax=162.,
-  latMin=10.0,
-  latMax=20.0,
-  doAveraging=.true.
+ scalefactorHI=200*0.3
+ scaleFactorHITG=1.0d0,
+ includeAnlVar(1)= 'UU',
+ includeAnlVar(2)= 'VV',
+ includeAnlVar(3)= 'TT',
+ includeAnlVar(4)= 'HU',
+ includeAnlVar(5)= 'P0',
+ includeAnlVar(6)= 'TG',
+ includeAnlVar(7)= 'EMMW',
 /
 &NAM1DVAR
   simBgAndObs = .True.,
-  useSimObsErr =.True.
+  useSimObsErr =.False.
   numSamplesHBHT = 100,
 /
  &NAMMIN
@@ -95,6 +87,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='EMMW'
    abortonMpiImbalance=.false.
 /
  &NAMTOV   
@@ -137,12 +130,16 @@
   itemUpdateBodyList(3)='OER',
   itemUpdateBodyList(4)='VAR',
   itemUpdateBodyList(5)='TRUO',
+<<<<<<< HEAD
   itemUpdateBodyList(6)='OERI',
   itemUpdateBodyList(7)='SSEM',
   itemUpdateBodyList(8)='EMER',
   itemUpdateBodyList(9)='SEM',
   itemUpdateBodyList(10)='HPHT',
   itemUpdateBodyList(11)='TRAN',
+=======
+  itemUpdateBodyList(6)='SEM',
+>>>>>>> a0060b1c8 (Issue #878: Enable the tangent linear and adjoint RTTOV model for surface emissivity.)
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT

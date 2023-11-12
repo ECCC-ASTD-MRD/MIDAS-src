@@ -30,6 +30,8 @@ module tovsLin_mod
   use obsSpaceData_mod
   use columnData_mod
   use midasMpi_mod
+  use varNameList_mod
+  use surfaceEmissivity_mod
  
   implicit none
   save
@@ -315,6 +317,7 @@ contains
         profilesdata_tl(profileIndex) % t(1:nlv_T)    = delTT(:)
         delHU => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'HU')
         profilesdata_tl(profileIndex) % q(1:nlv_T)    = delHU(:)
+
         if (runObsOperatorWithHydrometeors_tl) then
           cld_profiles_tl(profileIndex) % ph (1) = 0.d0
           cld_profiles_tl(profileIndex) % cfrac = 0.d0
@@ -365,6 +368,30 @@ contains
         !  set nthreads to actual number of threads which will be used.
 
         nthreads = min(mmpi_numThread, profileCount)  
+
+        if (sensorType == sensor_id_mw) then
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
+                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                        emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
+          else
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
+          end if
+        else
+          emissivity_local(:)%emis_in = surfem1(:)
+        end if
+  
+        !  2.3  Compute tl radiance with rttov_tl
+        
+        errorStatus = errorStatus_success
+        if (col_varExist(columnAnlInc, 'EMMW')) then
+          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
+                                  tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, columnIn_opt = columnAnlInc)
+        else
+          emissivity_tl(:)%emis_in = 0.0d0
+        end if
+        
         call rttov_parallel_tl(                             &
             errorStatus,                                    & ! out
             tvs_chanProf(sensorIndex,1:btCount),            & ! in
@@ -769,6 +796,43 @@ contains
       
         !  get Hyperspectral IR emissivities
         if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), obsSpaceData, surfem1)
+
+        ! Build the list of channels/profiles indices
+        allocate( lchannel_subset(profileCount,tvs_nchan(sensorIndex)) )
+        call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+          iptobs_cma_opt = sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
+        if (runObsOperatorWithHydrometeors_ad) then
+          call rttov_scatt_setupindex (       &
+                errorStatus,                  &
+                profileCount,                 &  ! number of profiles
+                tvs_nchan(sensorIndex),       &  ! number of channels 
+                tvs_coefs(sensorIndex),       &  ! coef structure read in from rttov coef file
+                tvs_coef_scatt(sensorIndex),  &  ! coef structure read in from rttov coef file
+                btcount,                      &  ! number of calculated channels
+                chanprof,                     &  ! channels and profile numbers
+                frequencies,                  &  ! array, frequency number for each channel
+                lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
+          if (errorStatus /= errorStatus_success) then
+            write(*,*) 'tvslin_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
+            call utl_abort('tvslin_rttov_ad')
+          end if
+        end if
+        deallocate( lchannel_subset )
+        !     get non Hyperspectral IR emissivities
+        call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+
+        if (sensorType == sensor_id_mw) then
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
+                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                        emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
+          else
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
+          end if
+        else
+          emissivity_local(:)%emis_in = surfem1(:)
+        end if
         
         !     get non Hyperspectral IR emissivities
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
@@ -1007,6 +1071,11 @@ contains
             flux_conversion=[1,2,0,0,0])
         if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory deallocation error in rttov_alloc_scatt_prof')
         deallocate(cld_profiles_ad)
+      end if
+
+      if (col_varExist(columnAnlInc, 'EMMW')) then
+        call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
+                                 tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, columnInout_opt = columnAnlInc)
       end if
 
       !     .  2.1  Store adjoints in columnData object
