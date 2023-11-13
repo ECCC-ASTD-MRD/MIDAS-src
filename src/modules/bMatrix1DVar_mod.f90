@@ -236,6 +236,7 @@ contains
     integer :: varLevIndexBmat
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:), multFactor(:)
+    integer :: varListEmiss, nlevEmiss
 
     if (.not. (gsv_varExist(varName='TT') .and.  &
                gsv_varExist(varName='UU') .and.  &
@@ -335,8 +336,13 @@ contains
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case('EMMW')
-          varLevIndexBmat = varLevIndexBmat + 1
-          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+          ! ZQ Temporary solution - better way to get nlevEmiss
+          varListEmiss = vnl_varListIndexOther('EMMW')
+          nlevEmiss = vco_in%nlev_Other(varListEmiss)
+          do levelIndex = 1, nlevEmiss
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+          end do
         case default
           call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select
