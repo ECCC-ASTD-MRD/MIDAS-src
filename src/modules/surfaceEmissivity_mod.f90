@@ -489,15 +489,18 @@ contains
 
       if (profType == 'tl') then
         emissivityCol => col_getColumn(column, headerIndex,'EMMW')
-        if(btIndex < 10) write(*,*) 'emissivityCol', emissivityCol
         emissivity_inout(btIndex)%emis_in = emissivityCol(channelNumber)
       else if (profType == 'ad') then
         emissivityCol => col_getColumn(column, headerIndex,'EMMW')
         emissivityCol(channelNumber) = emissivity_inout(btIndex)%emis_out
       else if (profType == 'dt') then
         if (surftype(tovsIndex) == surftype_land .and. &
+            emissivityTovsIndex(tovsIndex, channelNumber) > 1.d0) then
+          write(*,*) 'ZQ_emissivityTovsIndex', emissivityTovsIndex(tovsIndex, channelNumber)
+        end if
+        if (surftype(tovsIndex) == surftype_land .and. &
            emissivityTovsIndex(tovsIndex, channelNumber) > 0.d0 .and. &
-           emissivityTovsIndex(tovsIndex, channelNumber) <= 0.d0) then
+           emissivityTovsIndex(tovsIndex, channelNumber) <= 1.d0) then
 
           emissivity_inout(btIndex)%emis_in = emissivityTovsIndex(tovsIndex, channelNumber)
         else

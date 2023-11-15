@@ -74,6 +74,7 @@ module var1DIdealize_mod
 
     allocate(controlVector(cvm_nvadim))
     ! Generate perturbation sampling following gaussian distribution with zero mean and one std
+<<<<<<< HEAD
 
     if (seed == 0) then
       randomSeed = var1Di_randomSeed()
@@ -83,6 +84,9 @@ module var1DIdealize_mod
 
     call rng_setup(abs(randomSeed))
 
+=======
+    call rng_setup(abs(seed + mmpi_myid))
+>>>>>>> cb8974a85 (Issue #878: Copy 'other' variable when interpolating simulated perturbations; Fixed bugs.)
     do cvIndex = 1, cvm_nvadim
       controlVector(cvIndex) = rng_gaussian()
     end do
@@ -215,6 +219,19 @@ module var1DIdealize_mod
         do columnIndex = 1, col_getNumCol(columnAnlLev)
           columnTrlLev_ptr => col_getColumn(columnTrlLev , columnIndex, vnl_varNameList2D(varIndex))
           columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameList2D(varIndex))
+          columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
+        end do
+      end if
+    end do
+    
+    ! Copy other variables
+    do varIndex = 1, vnl_numvarmaxOther
+      if (.not. varneed(vnl_varNameListOther(varIndex))) cycle
+      if (.not. col_varExist(columnAnlLev, vnl_varNameListOther(varIndex))) cycle
+      if (col_getNumCol(columnAnlLev) > 0) then       
+        do columnIndex = 1, col_getNumCol(columnAnlLev)
+          columnTrlLev_ptr  => col_getColumn(columnTrlLev , columnIndex, vnl_varNameListOther(varIndex))
+          columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameListOther(varIndex))
           columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
         end do
       end if
