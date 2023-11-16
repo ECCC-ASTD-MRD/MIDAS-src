@@ -142,7 +142,7 @@ contains
     
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
-    logical                :: FSOFound
+    logical                :: FSOFound, convertOnRead
     logical                :: btClearElementFound 
 
     ! ensure kdtrees object is null
@@ -602,7 +602,6 @@ contains
             BLOCK_MAR_MUL_CP=BLOCK_IN
           elseif ( (btyp10 == btyp10inf) .or. (btyp10 - btyp10inf == 1) ) then
             BLOCK_LIST(6) = BTYP
-            BLOCK_GEN     = BLOCK_IN
           else if (trim(familytype) == 'RO' .and. bfam == 0 .and. btyp ==  9217) then
             BLOCK_LIST(7) = BTYP
             BLOCK_OBS_BND = BLOCK_IN
@@ -632,14 +631,24 @@ contains
         BLOCKS1: do bl=1,NBLOC_LIST
 
           if( BLOCK_LIST(bl) < 0 ) cycle
+          if ( bl == 6 ) then
+            convertOnRead = .false.
+          else
+            convertOnRead = .true.
+          end if
           ref_blk = BURP_Find_Block(Rpt_in, &
                                & BLOCK       = Block_in, &
                                & BTYP = BLOCK_LIST(bl), &
+                               & convert = convertOnRead, &
                                & IOSTAT      = error)
           call handle_error(error, "brpr_updateBurp: BURP_Find_Block #2")
 
           if (ref_blk < 0) cycle BLOCKS1
 
+          if (bl == 6) then
+            BLOCK_GEN = BLOCK_IN
+          end if
+          
           call BURP_Get_Property(Block_in, &
                            & NELE   = nbele, &
                            & NVAL   = nvale, &
