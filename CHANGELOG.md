@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Bug fix to prevent shift in negative values when writing to burp (#881 and !)
+ * Bug fix to prevent shift in negative values when writing to burp (#881 and !788)
    * Minor change in results. Real negative values in btyp=3072 block of burp are now consistent with input.  
 
 ### Removed
