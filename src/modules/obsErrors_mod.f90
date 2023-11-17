@@ -358,8 +358,9 @@ contains
     real(8) :: inflateErrAllskyTtCoeffInput(tvs_maxNumberOfSensors)
     real(8) :: inflateErrAllskyHuCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    integer :: amsuaChannelOffset, amsuaChannelNum  
+    integer :: amsuaChannelOffset, amsuaChannelNum, instrumId, wordCount
     character (len=132) :: CLDUM,CPLATF,CINSTR
+    character (len=256) :: lineRead
 
     write(*,*) 'oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing'
 
@@ -485,7 +486,19 @@ contains
           read(ILUTOV2,*) ISATID2, NUMCHNIN2
           if (CINSTR == "AMSUA") inflateErrAllskyTtCoeffInput(JL) = amsuaInflateErrAllskyCoeff
         else
-          read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
+          read(ILUTOV2,'(a)',advance='no') lineRead
+          wordCount = countWordsInLine(lineRead)
+          if (wordCount == 3) then
+            instrumId = IINSTRUMENT(JL)
+            if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
+              call utl_abort ('oer_readObsErrorsTOVS: provide new stats_tovs_symmetricObsErr file for all-sky TT/HU.')
+            end if
+            read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL)
+          else if (wordCount == 4) then
+            read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
+          else
+            call utl_abort ('oer_readObsErrorsTOVS: incorrect number of words in stats_tovs_symmetricObsErr file.')
+          end if
         end if
 
         if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) then
@@ -763,6 +776,37 @@ contains
       str=adjustl(str) ! remove initial spaces
 
     end subroutine split
+
+    !--------------------------------------------------------------------------
+    ! countWordsInLine
+    !--------------------------------------------------------------------------
+    function countWordsInLine(line) result(wordCount)
+      !
+      ! :Purpose: Count number of words in a line
+      !
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: line
+      ! Result:
+      integer :: wordCount
+
+      ! Locals:
+      character(len=256) :: trimmedLine, word
+      integer :: ierr
+
+      wordCount = 0
+      trimmedLine = line
+      do
+        trimmedLine = trim(adjustl(trimmedLine))
+        read(trimmedLine,*,iostat=ierr) word
+
+        if (ierr /= 0) exit
+
+        wordCount = wordCount + 1
+        trimmedLine = trimmedLine(len_trim(adjustl(word))+1:)
+      end do
+    end function countWordsInLine
 
   end subroutine oer_readObsErrorsTOVS
 
