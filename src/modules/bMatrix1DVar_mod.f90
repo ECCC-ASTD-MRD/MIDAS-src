@@ -39,6 +39,9 @@ module bMatrix1DVar_mod
   integer                       :: bmat1D_numIncludeAnlVar
   character(len=4), allocatable :: bmat1D_includeAnlVar(:)
 
+  integer                       :: bmat1D_numExcludeVarScaling
+  character(len=4), allocatable :: bmat1D_excludeVarScaling(:)
+
   type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
   integer             :: nkgdim
@@ -67,14 +70,16 @@ module bMatrix1DVar_mod
   integer          :: nEns                             ! ensemble size
   real(8)          :: vlocalize                        ! vertical localization length scale
   character(len=4) :: includeAnlVar(vnl_numvarmax)     ! list of variable names to include in B matrix
+  character(len=4) :: excludeVarScaling(vnl_numvarmax) ! list of variable to exclude in the scaling of error variance 
   integer :: numIncludeAnlVar                          ! MUST NOT BE INCLUDED IN NAMELIST!
+  integer :: numExcludeVarScaling                      ! MUST NOT BE INCLUDED IN NAMELIST!
   real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
   real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
-  real(8) :: scaleFactorHITG                     ! scaling factors for HI skin temperature variances
+  real(8) :: scaleFactorHITG                           ! scaling factors for HI skin temperature variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
-  real(8) :: scaleFactorEnsTG                    ! scaling factors for Ens skin temperature variances
-  real(8) :: scaleFactorEnsTGCorrelation                  ! scaling factors for corrleation between Ens skin temperature error and other variable error 
+  real(8) :: scaleFactorEnsTG                          ! scaling factors for Ens skin temperature variances
+  real(8) :: scaleFactorEnsTGCorrelation               ! scaling factors for corrleation between Ens skin temperature error and other variable error 
   logical :: dumpBmatrixTofile                         ! flag to control output of B matrices to Bmatrix.bin binary file
   logical :: doAveraging                               ! flag to control output the average instead of the invidual B matrices
   real(8) :: latMin                                    ! minimum latitude of the Bmatrix latitude-longitude output box
@@ -84,7 +89,8 @@ module bMatrix1DVar_mod
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHITG, &
       scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorEnsTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
-      dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging
+      dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging, &
+      excludeVarScaling, numExcludeVarScaling
 
 contains
 
@@ -123,7 +129,9 @@ contains
     nEns = -1
     vLocalize = -1.d0
     includeAnlVar(:)= ''
+    excludeVarScaling(:)=''
     numIncludeAnlVar = MPC_missingValue_INT
+    numExcludeVarScaling = MPC_missingValue_INT
     dumpBmatrixTofile = .false.
     doAveraging = .false.
     latMin = -1000.d0
@@ -147,6 +155,18 @@ contains
     bmat1D_numIncludeAnlVar = numIncludeAnlVar
     allocate( bmat1D_includeAnlVar(bmat1D_numIncludeAnlVar) )
     bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar) = includeAnlVar(1:numIncludeAnlVar)
+
+    if (numExcludeVarScaling /= MPC_missingValue_INT) then
+      call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numExcludeVarScaling should be removed')
+    end if
+    numExcludeVarScaling = 0
+    do varIndex = 1, vnl_numvarmax
+      if (trim(excludeVarScaling(varIndex)) == '') exit
+      numExcludeVarScaling = numExcludeVarScaling + 1
+    end do
+    bmat1D_numExcludeVarScaling = numExcludeVarScaling
+    allocate( bmat1D_excludeVarScaling(bmat1D_numExcludeVarScaling) )
+    bmat1D_excludeVarScaling(1:bmat1D_numExcludeVarScaling) = excludeVarScaling(1:numExcludeVarScaling)
 
     !
     !- 1.  Setup the B matrices
@@ -306,6 +326,7 @@ contains
     end if
 
     allocate (multFactor(nkgdim))
+    multFactor(:) = 1.0d0
     if(vco_1Dvar%Vcode == 5002) then
       shiftLevel = 1
     else
@@ -315,27 +336,33 @@ contains
     do varIndex = 1, bmat1D_numIncludeAnlVar
       select case(bmat1D_includeAnlVar(varIndex))
         case('TT')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           do levelIndex = 1, vco_1Dvar%nLev_T
             varLevIndexBmat = varLevIndexBmat + 1
             multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex)
           end do
         case('HU')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           do levelIndex = 1, vco_1Dvar%nLev_T
             varLevIndexBmat = varLevIndexBmat + 1
             multFactor(varLevIndexBmat)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
           end do
         case('UU','VV')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           do levelIndex = 1, vco_1Dvar%nLev_M
             varLevIndexBmat = varLevIndexBmat + 1
             multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex+shiftLevel)
           end do
         case('TG')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))* scaleFactorHITG
         case('P0')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           varLevIndexBmat = varLevIndexBmat + 1
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case('EMMW')
+          if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           ! ZQ Temporary solution - better way to get nlevEmiss
           varListEmiss = vnl_varListIndexOther('EMMW')
           nlevEmiss = vco_in%nlev_Other(varListEmiss)
@@ -701,8 +728,10 @@ contains
     allocate (varLevColFromVarLevBmat(nkgdim))
     allocate (varNameFromVarLevIndexBmat(nkgdim))
     allocate (multFactor(nkgdim))
+    multFactor(:) = 1.0d0
     varLevIndexBmat = 0
-    do varIndex = 1, bmat1D_numIncludeAnlVar
+    var_loop: do varIndex = 1, bmat1D_numIncludeAnlVar
+      if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle var_loop
       levIndex = 0
       do varLevIndexCol = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
@@ -730,7 +759,7 @@ contains
           if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndexBmat, levIndex
         end if
       end do
-    end do
+    end do var_loop
     
     call ens_deallocate(ensembles)
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
