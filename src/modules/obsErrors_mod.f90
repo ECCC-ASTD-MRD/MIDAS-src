@@ -486,16 +486,16 @@ contains
           read(ILUTOV2,*) ISATID2, NUMCHNIN2
           if (CINSTR == "AMSUA") inflateErrAllskyTtCoeffInput(JL) = amsuaInflateErrAllskyCoeff
         else
-          read(ILUTOV2,'(a)',advance='no') lineRead
+          read(ILUTOV2,'(a)') lineRead
           wordCount = countWordsInLine(lineRead)
           if (wordCount == 3) then
             instrumId = IINSTRUMENT(JL)
             if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
               call utl_abort ('oer_readObsErrorsTOVS: provide new stats_tovs_symmetricObsErr file for all-sky TT/HU.')
             end if
-            read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL)
+            read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL)
           else if (wordCount == 4) then
-            read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
+            read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
           else
             call utl_abort ('oer_readObsErrorsTOVS: incorrect number of words in stats_tovs_symmetricObsErr file.')
           end if
