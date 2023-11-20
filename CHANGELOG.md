@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Bug fix to prevent shift in negative values when writing to burp (#881 and !788)
-   * Minor change in results. Real negative values in btyp=3072 block of burp are now consistent with input.  
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.0-rc8]
+
+### Fixed
+
+ * Bug fix to prevent shift in negative values when writing to burp (#881 and !788)
+   * Minor change in results. Real negative values in btyp=3072 block of burp are now consistent with input.
 
 ## [3.9.0-rc7]
 
@@ -1210,7 +1216,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc7...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc8...HEAD
+[3.9.0-rc8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc7...v_3.9.0-rc8
 [3.9.0-rc7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc6...v_3.9.0-rc7
 [3.9.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...v_3.9.0-rc6
 [3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc4...v_3.9.0-rc5
