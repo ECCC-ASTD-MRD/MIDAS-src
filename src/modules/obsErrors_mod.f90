@@ -31,7 +31,7 @@ module obsErrors_mod
 
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_inflateErrAllsky
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   
   ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
@@ -52,7 +52,8 @@ module obsErrors_mod
   real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: inflateErrAllskyCoeff(tvs_maxNumberOfSensors)
+  real(8) :: inflateErrAllskyTtCoeff(tvs_maxNumberOfSensors)
+  real(8) :: inflateErrAllskyHuCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
@@ -162,6 +163,10 @@ module obsErrors_mod
   logical :: mwAllskyHuInflateBySiDiff  ! choose to inflate all sky HU radiance errors by an amount related to cloud O-P
   real(8) :: amsuaClearCldPredThresh(5) ! cloud threshold for considering obs as clear sky
   real(8) :: amsuaInflateErrAllskyCoeff ! state dependent obs error inflation factor
+  real(8) :: minRetrievableClwValue     ! min threshould for 0.5 * (CLW_obs + CLW_FG) in all sky TT
+  real(8) :: maxRetrievableClwValue     ! max threshould for 0.5 * (CLW_obs + CLW_FG) in all sky TT
+  real(8) :: minRetrievableSiValue      ! min threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
+  real(8) :: maxRetrievableSiValue      ! max threshould for 0.5 * (SI_obs + SI_FG) in all sky HU
   logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
 
 contains
@@ -208,8 +213,9 @@ contains
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
     namelist /namoer/ mwAllskyHuInflateByOmp, mwAllskyHuInflateBySiDiff
-    namelist /namoer/ amsuaClearCldPredThresh
-    namelist /namoer/ amsuaInflateErrAllskyCoeff
+    namelist /namoer/ amsuaClearCldPredThresh, amsuaInflateErrAllskyCoeff
+    namelist /namoer/ minRetrievableClwValue, maxRetrievableClwValue
+    namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ readOldSymmetricObsErrFile
     integer :: fnom, fclos, nulnam, ierr
 
@@ -237,6 +243,10 @@ contains
     amsuaClearCldPredThresh(1) = 0.05D0
     amsuaClearCldPredThresh(4) = 0.02D0
     amsuaInflateErrAllskyCoeff = 13.0D0
+    minRetrievableClwValue = 0.0d0
+    maxRetrievableClwValue = 3.0d0
+    minRetrievableSiValue = -10.0d0
+    maxRetrievableSiValue = 30.0d0
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
@@ -345,10 +355,12 @@ contains
     real(8) :: errThreshAllskyInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: clearCldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(8) :: inflateErrAllskyCoeffInput(tvs_maxNumberOfSensors)
+    real(8) :: inflateErrAllskyTtCoeffInput(tvs_maxNumberOfSensors)
+    real(8) :: inflateErrAllskyHuCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    integer :: amsuaChannelOffset, amsuaChannelNum  
+    integer :: amsuaChannelOffset, amsuaChannelNum, instrumId, wordCount
     character (len=132) :: CLDUM,CPLATF,CINSTR
+    character (len=256) :: lineRead
 
     write(*,*) 'oer_readObsErrorsTOVS: reading observation error statistics required for TOVS processing'
 
@@ -368,8 +380,10 @@ contains
     useStateDepSigmaObsInput(:,:) = 0
     clearCldPredThresh(:,:) = 0.0d0
     clearCldPredThreshInput(:,:) = 0.0d0
-    inflateErrAllskyCoeff(:) = 0.0d0
-    inflateErrAllskyCoeffInput(:) = 0.0d0
+    inflateErrAllskyTtCoeff(:) = 0.0d0
+    inflateErrAllskyTtCoeffInput(:) = 0.0d0
+    inflateErrAllskyHuCoeff(:) = 0.0d0
+    inflateErrAllskyHuCoeffInput(:) = 0.0d0
 
     IPLATFORM(:) = 0
     NUMCHN(:) = 0
@@ -470,13 +484,27 @@ contains
         ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
         if (readOldSymmetricObsErrFile) then
           read(ILUTOV2,*) ISATID2, NUMCHNIN2
-          if (CINSTR == "AMSUA") inflateErrAllskyCoeffInput(JL) = amsuaInflateErrAllskyCoeff
+          if (CINSTR == "AMSUA") inflateErrAllskyTtCoeffInput(JL) = amsuaInflateErrAllskyCoeff
         else
-          read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyCoeffInput(JL)
+          read(ILUTOV2,'(a)') lineRead
+          wordCount = countWordsInLine(lineRead)
+          if (wordCount == 3) then
+            instrumId = IINSTRUMENT(JL)
+            if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
+              call utl_abort ('oer_readObsErrorsTOVS: provide new stats_tovs_symmetricObsErr file for all-sky TT/HU.')
+            end if
+            read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL)
+          else if (wordCount == 4) then
+            read(lineRead,*) ISATID2, NUMCHNIN2, inflateErrAllskyTtCoeffInput(JL), inflateErrAllskyHuCoeffInput(JL)
+          else
+            call utl_abort ('oer_readObsErrorsTOVS: incorrect number of words in stats_tovs_symmetricObsErr file.')
+          end if
         end if
 
-        if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) &
+        if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) then
+          write(*,*) 'ISATID2=', ISATID2, ', NUMCHNIN2=', NUMCHNIN2
           call utl_abort ('oer_readObsErrorsTOVS: problem with ISATID2, NUMCHNIN2 in symmetricObsErr')
+        end if
 
         do JI = 1, 3
           read(ILUTOV2,*)
@@ -551,7 +579,10 @@ contains
                 clearCldPredThresh(JI,JL) = clearCldPredThreshInput(JI,JM)
                 useStateDepSigmaObs(JI,JL) = (useStateDepSigmaObsInput(JI,JM) == 1)
 
-                if (JI == 1) inflateErrAllskyCoeff(JL) = inflateErrAllskyCoeffInput(JM)
+                if (JI == 1) then
+                  inflateErrAllskyTtCoeff(JL) = inflateErrAllskyTtCoeffInput(JM)
+                  inflateErrAllskyHuCoeff(JL) = inflateErrAllskyHuCoeffInput(JM)
+                end if
 
                 ! inflate the errThreshAllsky in analysis mode
                 if (obsErrorColumnIndex == analysisColumnIndex) then
@@ -611,8 +642,8 @@ contains
               clearCldPredThresh(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
           end do
-          write(*,'(A,(2X,F8.4))') 'inflateErrAllskyCoeff=', &
-                inflateErrAllskyCoeff(JL) 
+          write(*,'(A,(2X,F8.4),A,(2X,F8.4))') 'inflateErrAllskyTtCoeff=', inflateErrAllskyTtCoeff(JL), &
+                                               'inflateErrAllskyHuCoeff=', inflateErrAllskyHuCoeff(JL)
         else
           write(*,'(A,2X,A8)') 'Channel','sigmaO'
           do JI = 1, NUMCHN(JL)
@@ -745,6 +776,37 @@ contains
       str=adjustl(str) ! remove initial spaces
 
     end subroutine split
+
+    !--------------------------------------------------------------------------
+    ! countWordsInLine
+    !--------------------------------------------------------------------------
+    function countWordsInLine(line) result(wordCount)
+      !
+      ! :Purpose: Count number of words in a line
+      !
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: line
+      ! Result:
+      integer :: wordCount
+
+      ! Locals:
+      character(len=256) :: trimmedLine, word
+      integer :: ierr
+
+      wordCount = 0
+      trimmedLine = line
+      do
+        trimmedLine = trim(adjustl(trimmedLine))
+        read(trimmedLine,*,iostat=ierr) word
+
+        if (ierr /= 0) exit
+
+        wordCount = wordCount + 1
+        trimmedLine = trimmedLine(len_trim(adjustl(word))+1:)
+      end do
+    end function countWordsInLine
 
   end subroutine oer_readObsErrorsTOVS
 
@@ -1078,10 +1140,6 @@ contains
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
     real(8) :: errThresh1, errThresh2, sigmaObsErrUsed
-    real(4), parameter :: minRetrievableClwValue_r4 = 0.0
-    real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
-    real(4), parameter :: minRetrievableSiValue_r4 = -10.0
-    real(4), parameter :: maxRetrievableSiValue_r4 = 30.0
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
     character(len=2)  :: cfam
     character(len=12) :: cstnid
@@ -1152,8 +1210,8 @@ contains
                       errThresh1 = errThreshAllsky(channelNumber,sensorIndex,1)
                       errThresh2 = errThreshAllsky(channelNumber,sensorIndex,2)
 
-                      ! Compute cloudPredictor to use
-                      cldPredUsed = computeCloudPredictor(sensorIndex, headerIndex)
+                      ! Compute cloudPredictor to use based on channel
+                      cldPredUsed = computeCloudPredictor(obsSpaceData, bodyIndex)
 
                       ! Use cloud predictor to compute state-dependent obs error
                       sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
@@ -1648,68 +1706,85 @@ contains
     !--------------------------------------------------------------------------
     ! computeCloudPredictor
     !--------------------------------------------------------------------------
-    function computeCloudPredictor(sensorIndex, headerIndex) result(cldPredUsed)
+    function computeCloudPredictor(obsSpaceData, bodyIndex) result(cldPredUsed)
       !
       ! :Purpose: Compute cloud predictor to use for state-dependent observation error.
       !
       implicit none
 
       ! Arguments:
-      integer, intent(in) :: sensorIndex ! index of sensor in tvs_nsensors
-      integer, intent(in) :: headerIndex
+      type(struct_obs), intent(in)  :: obsSpaceData
+      integer,          intent(in)  :: bodyIndex
       ! Result:
-      real(8) :: cldPredUsed             ! cloud predictor. CLW/SI for all-sky temperature/humidity
-
+      real(8) :: cldPredUsed ! cloud predictor. CLW/SI for all-sky temperature/humidity
+      
       ! Locals:
-      integer :: platformId
-      integer :: satelliteId
-      integer :: instrumId
+      integer :: platformId, satelliteId, instrumId
+      integer :: sensorIndex, headerIndex, tovsIndex
+      integer :: channelNumber_withOffset, channelNumber, channelIndex
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
       real(4) :: cldPredUsed_r4
+      logical :: chanIsAllskyTt, chanIsAllskyHu
 
+      headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIndex = tvs_lsensor(tovsIndex)
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
+      
+      call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
-      if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+      if (.not. (chanIsAllskyTt .or. chanIsAllskyHu)) then
+        call utl_abort('computeCloudPredictor: channel is not TT nor HU allSky assimilation.')
+      end if
+
+      if (chanIsAllskyTt) then
         clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
         clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
         cldPredUsed = 0.5D0 * (clwObs + clwFG)
         cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure CLW is retrieved and properly set
-        if (cldPredUsed_r4 < minRetrievableClwValue_r4 .or. &
-            cldPredUsed_r4 > maxRetrievableClwValue_r4) then
+        if (cldPredUsed_r4 < real(minRetrievableClwValue) .or. &
+            cldPredUsed_r4 > real(maxRetrievableClwValue)) then
+
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                             channelNumber, channelIndex)
+          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky temperature in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
-                    ', clwFG=', clwFG
+                    ', clwFG=', clwFG, ', channelNumber=', channelNumber_withOffset
           call utl_abort('computeCloudPredictor: not usable to define obs error with CLW')
         end if
 
-      else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      else if (chanIsAllskyHu) then
         siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
         siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
         cldPredUsed = 0.5D0 * (siObs + siFG)
         cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure SI is retrieved and properly set
-        if (cldPredUsed_r4 < minRetrievableSiValue_r4 .or. &
-            cldPredUsed_r4 > maxRetrievableSiValue_r4) then
+        if (cldPredUsed_r4 < real(minRetrievableSiValue) .or. &
+            cldPredUsed_r4 > real(maxRetrievableSiValue)) then
+
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                             channelNumber, channelIndex)
+          channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)              
+          
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky humidity in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: siObs=', siObs, &
-                    ', siFG=', siFG
+                    ', siFG=', siFG, ', channelNumber=', channelNumber_withOffset
           call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
         end if        
-
-      else
-        call utl_abort('computeCloudPredictor: instrum is not TT or HU allSky assimilation.')
       end if
 
     end function computeCloudPredictor
@@ -1766,7 +1841,7 @@ contains
 
     surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
 
-    call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
     if (chanIsAllskyTt) then
       if (.not. surfTypeIsWater .or. &
@@ -1802,7 +1877,7 @@ contains
       ! error inflation due to cloud liquid water difference
       deltaE2 = 0.0D0
       if (mwAllskyTtInflateByClwDiff) then
-        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(clwObs - clwFG) * &
+        deltaE2 = inflateErrAllskyTtCoeff(sensorIndex) * abs(clwObs - clwFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
@@ -1841,7 +1916,7 @@ contains
       ! error inflation due to scattering-index difference
       deltaE2 = 0.0D0
       if (mwAllskyHuInflateBySiDiff) then
-        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(siObs - siFG) * &
+        deltaE2 = inflateErrAllskyHuCoeff(sensorIndex) * abs(siObs - siFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)      
@@ -1854,10 +1929,8 @@ contains
                              (deltaE1 + deltaE2) ** 2)
 
     if (.not. beSilent) then
-      write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, &
-                        ', deltaE2=', deltaE2
-      write(*,*) 'oer_inflateErrAllsky: sigmaObs=', &
-          sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
+      write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, ', deltaE2=', deltaE2, &
+                 ', sigmaObs=', sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
     end if                             
 
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
@@ -1865,11 +1938,12 @@ contains
   end subroutine oer_inflateErrAllsky
 
   !--------------------------------------------------------------------------
-  ! chanIsAllsky
+  ! oer_chanIsAllsky
   !--------------------------------------------------------------------------
-  subroutine chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+  subroutine oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
     !
-    !:Purpose: Determine if the tovs instrument/channel combination is all-sky.
+    !:Purpose: Determine if the tovs instrument/channel combination is all-sky 
+    !          temperature/humidity.
     !
     implicit none
     
@@ -1882,10 +1956,12 @@ contains
     ! Locals:
     integer :: headerIndex
     integer :: channelNumber_withOffset
-    integer :: channelNumber, channelIndex
+    integer :: channelNumber, channelIndex, codtyp
     integer :: tovsIndex, sensorIndex, instrumId
+    character(len=9) :: instrumName
 
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
     instrumId = tvs_instruments(sensorIndex)
@@ -1897,19 +1973,29 @@ contains
     chanIsAllskyTt = .false.
     chanIsAllskyHu = .false.
     if (.not. tvs_mwAllskyAssim .or. &
-        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
+        .not. oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
     
+    instrumName = codtyp_get_name(codtyp)
+
     if (tvs_isInstrumAllskyTtAssim(instrumId)) then
-      chanIsAllskyTt = .true.
-    end if
-    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
-      chanIsAllskyHu = .true.
-    end if
-    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
-      call utl_abort('chanIsAllsky: all-sky TtHu is not yet implemented')
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyTt = (channelNumber_withOffset <= 16)
+      else
+        chanIsAllskyTt = .true.
+      end if
     end if
 
-  end subroutine chanIsAllsky
+    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      if (trim(instrumName) == 'atms') then
+        chanIsAllskyHu = (channelNumber_withOffset >= 17)
+      else
+        chanIsAllskyHu = .true.
+      end if
+    end if
+    
+    if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
+
+  end subroutine oer_chanIsAllsky
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * All-sky assimilation for ATMS humidity channels (#875 and !787)
  * Added the ability to update header-level SQLite columns (#871 and !779)
    * WARNING: NAMSQLUPDATE namelist variable itemUpdateList renamed as itemUpdateBodyList
    * WARNING: values used for itemUpdateBodyList must now match column names in obsSpaceData_mod

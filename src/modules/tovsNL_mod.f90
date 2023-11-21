@@ -729,8 +729,6 @@ contains
 
   end subroutine tvs_allocTransmission
 
-
-
   !--------------------------------------------------------------------------
   ! tvs_setup
   !--------------------------------------------------------------------------
@@ -934,8 +932,10 @@ contains
 
       if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
-        write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
-        call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
+        if (instrumentIdsUsingHydrometeors(instrumentIndex) /= tvs_getInstrumentId('atms')) then
+          write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
+          call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
+        end if
       end if
     end do
 
@@ -2443,9 +2443,7 @@ contains
       runObsOperatorWithHydrometeors = (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
-      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
-        call utl_abort('tvs_fillProfiles: this instrument is mentioned in using CLW and hydrometeors.')
-      end if
+      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) runObsOperatorWithClw = .false.
 
       ! first loop over all obs.
       profileCount = 0
@@ -2879,9 +2877,7 @@ contains
       runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId)))
                                         
-      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
-        call utl_abort('tvs_rttov: this instrument is mentioned in using CLW and hydrometeors.')
-      end if
+      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) runObsOperatorWithClw = .false.
     
       !  loop over all obs.
       profileCount = 0
