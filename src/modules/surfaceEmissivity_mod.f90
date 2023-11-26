@@ -6,12 +6,14 @@ module surfaceEmissivity_mod
   ! 
   use obsSpaceData_mod
   use rttov_types, only : rttov_emissivity, rttov_chanprof
-  use rttov_const, only : surftype_land
+  use rttov_const, only : surftype_land, surftype_seaice
   use MathPhysConstants_mod
   use midasMpi_mod
   use randomNumber_mod
   use utilities_mod
   use columnData_mod
+  use verticalCoord_mod
+  use varNameList_mod
 
   implicit none
   save
@@ -19,6 +21,7 @@ module surfaceEmissivity_mod
 
   ! public procedures  
   public :: sse_simulateEmissivity, sse_setupEmissivityfromState, sse_extractEmissivityCol
+  public :: sse_updateBEnsMatEmissFromBHi
 
 contains
 
@@ -496,7 +499,6 @@ contains
       else if (profType == 'dt') then
         if (surftype(tovsIndex) == surftype_land .and. &
             emissivityTovsIndex(tovsIndex, channelNumber) > 1.d0) then
-          write(*,*) 'ZQ_emissivityTovsIndex', emissivityTovsIndex(tovsIndex, channelNumber)
         end if
         if (surftype(tovsIndex) == surftype_land .and. &
            emissivityTovsIndex(tovsIndex, channelNumber) > 0.d0 .and. &
@@ -584,4 +586,85 @@ contains
 
   end subroutine sse_getChannelNumIndexFromPPP
 
-end module surfaceEmissivity_mod 
+  !--------------------------------------------------------------------------
+  !  sse_extractEmissivityCol
+  !--------------------------------------------------------------------------
+  subroutine sse_updateBEnsMatEmissFromBHi(BmatHiLand, BmatHiSea, BmatEns, latLandHi, latSeaHi, obsSpaceData, & 
+                                           validHeaderIndex, validHeaderCount, bmat1D_includeAnlVar, vco_1DVarBmat, vco_1DVar)
+    !
+    !:Purpose: Extract surface emissivity elements in the static B-Matrix and 
+    !          copy to the ensemble B-Matrix. It assumes that surface emissivity 
+    !          errors have zero correlation with other state variables.
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),                   intent(in)    :: BmatHiLand(:,:,:)       ! Static B-matrix over Land
+    real(8),                   intent(in)    :: BmatHiSea(:,:,:)        ! Static B-matrix over Sea
+    real(8),                   intent(inout) :: bMatEns(:,:,:)          ! Ensemble B-Matrix
+    type(struct_obs),          intent(in)    :: obsSpaceData            ! ObsSpaceData object
+    integer,                   intent(in)    :: validHeaderCount        ! Number of valid header
+    integer,                   intent(in)    :: validHeaderIndex(:)     ! Valid header indexes
+    character(len=4),          intent(in)    :: bmat1D_includeAnlVar(:) ! Analysis variables in B-Matrix
+    type(struct_vco), pointer, intent(in)    :: vco_1DVarBmat           ! Vertical coordinate object of B-Matrix
+    type(struct_vco), pointer, intent(in)    :: vco_1DVar               ! Vertical coordinate object of var1D
+    real(4), allocatable,      intent(in)    :: latLandHi(:)            ! Latitude band for the B-Matrix over land
+    real(4), allocatable,      intent(in)    :: latSeaHi(:)             ! Latitude band for the B-Matrix over sea
+    
+    ! Locals:
+    integer :: columnIndex, headerIndex, varIndex, emissVarIndex
+    real(8) :: latitude
+    integer :: terrainType, landSea, surfaceType
+    integer :: varListEmiss, nlevEmiss, latitudeBandIndex(1)
+    
+    ! Get number of levels in the surface emssivity control vector
+    varListEmiss = vnl_varListIndexOther('EMMW')
+    nlevEmiss = vco_1DVar%nlev_Other(varListEmiss)
+
+    ! Determine the start varIndex for surface emissivity in the B-Matrix.
+    emissVarIndex = 0 
+    do varIndex = 1, size(bmat1D_includeAnlVar)
+      select case(bmat1D_includeAnlVar(varIndex))
+      case('TT')
+        emissVarIndex = emissVarIndex + vco_1DVarBmat%nLev_T
+      case('HU')
+        emissVarIndex = emissVarIndex + vco_1DVarBmat%nLev_T
+      case('UU','VV')
+        emissVarIndex = emissVarIndex + vco_1DVarBmat%nlev_M
+      case('TG')
+        emissVarIndex = emissVarIndex + 1
+      case('P0')
+        emissVarIndex = emissVarIndex + 1
+      case('EMMW')
+        emissVarIndex = emissVarIndex + 1
+      case default
+        call utl_abort('sse_updateBEnsMatEmissFromBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
+      end select
+    end do
+    
+    ! Copy emissivity errors from static to ensemble B-Matrix
+    do columnIndex = 1, validHeaderCount
+      headerIndex = validHeaderIndex(columnIndex)
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
+
+      terrainType = obs_headElem_i(obsSpaceData,OBS_TTYP,headerIndex)
+      landSea = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
+
+      if ( terrainType ==  0 ) then
+        surfaceType  = surftype_seaice
+      else
+        surfaceType  = landSea
+      end if
+      if (surfaceType == 1) then !Sea
+        latitudeBandIndex = minloc(abs(latitude - latSeaHi(:)))
+        bMatEns(columnIndex, emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = &
+            BmatHiSea(latitudeBandIndex(1), emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1)
+      else
+        latitudeBandIndex = minloc(abs(latitude - latLandHi(:)))
+        bMatEns(columnIndex, emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1) = &
+            BmatHiLand(latitudeBandIndex(1), emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1)
+      end if
+     end do
+
+  end subroutine sse_updateBEnsMatEmissFromBHi
+end module surfaceEmissivity_mod
