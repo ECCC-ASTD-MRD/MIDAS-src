@@ -22,96 +22,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * (Nothing yet)
 
-## [3.9.0-rc8]
-
-### Fixed
-
- * Bug fix to prevent shift in negative values when writing to burp (#881 and !788)
-   * Minor change in results. Real negative values in btyp=3072 block of burp are now consistent with input.
-
-## [3.9.0-rc7]
+## [3.9.0]
 
 ### Added
  
  * Added an extra norm, named stratoNorm, from 100hPa to 1hPa for FSOI(#836 and !785)
  * Added RCM data for sea ice concentration analysis (#848 and !761)
-
-### Changed
-
- * Changes to improve efficiency of `letkf` (#706 and !781)
-   * Very small impact on results for some executions, usually only a single variable/level/member
- * Changes to rename body column names from lon/lat to lond/latd in `obsDiagFiles_mod` (#876 and !782)
- * Changed `analysisErrorOI` to be compatible with more than 1 MPI task (#862 and !777)
-
-### Fixed
-
- * Changes for the new orca12 grid (#863 and !769)
-
-## [3.9.0-rc6]
-
-### Added
-
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
-
-### Changed
-
- * Keep camelCase on main sphinx pages and rename `analysisGrid_mod` (#844 and !753)
-
-### Fixed
-
- * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
-
-### Removed
-
- * Removed file `src/modules/obsdbColumnTable.dat` (#843 and !752)
-
-## [3.9.0-rc5]
-
-### Changed
-
- * Improve clarity/consistency of procedure variable declarations (#837 and !749)
- * Enforce camel case naming convention to all filenames in src (#839 and !746)
-   * WARNING: includes changing filename `ObsDBColumnTable.dat` to `obsdbColumTable.dat`
-
-### Fixed
-
- * Initialize BURP parameters in routine `brpr_updateMissingObsFlags` (#842 and !751)
- * Fixed `calcStats/vertModes_glb` unitTest and added some error traps in `calcStatsGlb_mod` (#841 and !750)
- * Fixed incorrect treatment of passive channel bias correction for most of the CSR instruments (#840 and !748)
-
-## [3.9.0-rc4]
-
-### Added
-
  * Added the capability to do vertical-scale decomposition in `calcstats` in global mode (#797 and !744) 
  * Added ability to specify variable names for obs families being passively assimilated or simulated (#825 and !741)
  * Added namelist variable to scale Lcorr and apply max limit to trial error stddev for analysisErrorOI (#832 and !740)
-
-### Changed
-
- * Upgrade all libraries for ones compiled with `rpn/libs/20230531` (#819 and !745)
- * Change optional argument variable names to include `_opt` suffix (#834 and !742)
-
-### Fixed
-
- * Major bug fixes to the var1D code. Major impact on the results in some configurations (#826 and !743)
-
-## [3.9.0-rc3]
-
-### Added
-
  * Introduction of variable `passiveChannelList` in namelist section `NAMBIASSAT` (#824 and !737)
-
-### Fixed
-
- * Fix `ssm/post-install` to set `CMCCONST` if it is not already set (#831 and !739)
- * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
-
-## [3.9.0-rc2]
-
-### Added
-
  * Added AMSU-A to Obsdb module (#527 and !736)
  * Added analysis error estimation for SST in `analysisErrorOI` (#804 and !726)
  * Added functionality in the letkf for passive assimilation of specified observations (#810 and !734)
@@ -120,48 +42,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added documentation (interpreted by sphinx) for each program (#738 and !683)
  * Add new variable `toleranceFactor` to `thin_raobs` namelist (#763 and !724)
  * Addition of new variables `maxSwath`, `maxPerSwath` to the `namIceBGcheck` namelist (#806 and !715)
-
-### Changed
-
- * Option to output obsDB files from scratch (#778 and !727)
-   * Impact on results: can affect order of updated obsDB file columns
- * I/O filenames are changed for `analysisErrorOI` (#804 and !726)
- * Add `:Purpose:` and description for arguments to all subroutines in `bgckmicrowave_mod` (#779 and !735)
- * Remove subroutines that copy from/to `obsSpaceData` in `bgckmicrowave_mod` (#779 and !730)
-   * Minor impact on results. Change in 2nd decimal of CLW/SI values of some obs due to `r4` -> `r8` switch.
- * Updated threshold value of albedo used in quality-control of hyperspectral radiances (#735 and !728)
-   * Minor impact on results
- * Simplify `bgckmicrowave_mod` considering treatment of 1 obs at a time (#779 and !725)
- * Improve code for treating "rdb" format SQLite files (#773 and !718)
-   * may require some changes to the namelist
- * Cleaning up `bgckmicrowave_mod` (#779 and !719)
- * Read the namelist file only on first call in some subroutines to speed up `letkf` (#811 and !721)
- * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)
- * More simplifications to namelists by removing number of items in namelist arrays (#805 and !716)
-   * many namelist files will need modification to remove variables, otherwise programs abort
- * The environment variable `CMCCONST` is set instead of `AFSISIO` when loading the MIDAS SSM domain (#799 and !710)
-
-### Fixed
-
- * Skip reading resume record blocks in `brpf_obsSub_update` (#746 and !732)
- * Dynamic allocation of some arrays in `bgckmicrowave_mod` to prevent abort when more than 13 instrument (#822 and !731)
- * Test `errorStatus` returned by some rttov subroutines (#813 and !722)
- * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
-   * also sped up `ensPostProcess` when computing global ensemble statistics
- * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
- * Make sure all indexes and valid when fetching values from arrays (#800 and !714)
- * Initialize `atmScatteringIndexFG` for background check of all microwave instruments (#803 and !712)
- * Fix `msg` nml variable `arrayVertical` initialization (#801 and !711)
- * Updated and made corrections related to weighted integration operator of routine `oopc_genoper` (#789 and !707)
-
-### Removed
-
- * Remove LICENSE information from each source file (#823 and !733)
-
-## [3.9.0-rc1]
-
-### Added
-
  * Added thinning in obsSelection/BgckMwhs2 system test (#795 and !708)
  * Allow user to exclude some cloud fields needed for humidity all sky assimilation (#788 and !705)
  * Background check and assimilation of microwave humidity channels in all-sky mode (#728 and !692)
@@ -219,6 +99,33 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changes to improve efficiency of `letkf` (#706 and !781)
+   * Very small impact on results for some executions, usually only a single variable/level/member
+ * Changes to rename body column names from lon/lat to lond/latd in `obsDiagFiles_mod` (#876 and !782)
+ * Changed `analysisErrorOI` to be compatible with more than 1 MPI task (#862 and !777)
+ * Keep camelCase on main sphinx pages and rename `analysisGrid_mod` (#844 and !753)
+ * Improve clarity/consistency of procedure variable declarations (#837 and !749)
+ * Enforce camel case naming convention to all filenames in src (#839 and !746)
+   * WARNING: includes changing filename `ObsDBColumnTable.dat` to `obsdbColumTable.dat`
+ * Upgrade all libraries for ones compiled with `rpn/libs/20230531` (#819 and !745)
+ * Change optional argument variable names to include `_opt` suffix (#834 and !742)
+ * Option to output obsDB files from scratch (#778 and !727)
+   * Impact on results: can affect order of updated obsDB file columns
+ * I/O filenames are changed for `analysisErrorOI` (#804 and !726)
+ * Add `:Purpose:` and description for arguments to all subroutines in `bgckmicrowave_mod` (#779 and !735)
+ * Remove subroutines that copy from/to `obsSpaceData` in `bgckmicrowave_mod` (#779 and !730)
+   * Minor impact on results. Change in 2nd decimal of CLW/SI values of some obs due to `r4` -> `r8` switch.
+ * Updated threshold value of albedo used in quality-control of hyperspectral radiances (#735 and !728)
+   * Minor impact on results
+ * Simplify `bgckmicrowave_mod` considering treatment of 1 obs at a time (#779 and !725)
+ * Improve code for treating "rdb" format SQLite files (#773 and !718)
+   * may require some changes to the namelist
+ * Cleaning up `bgckmicrowave_mod` (#779 and !719)
+ * Read the namelist file only on first call in some subroutines to speed up `letkf` (#811 and !721)
+ * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)
+ * More simplifications to namelists by removing number of items in namelist arrays (#805 and !716)
+   * many namelist files will need modification to remove variables, otherwise programs abort
+ * The environment variable `CMCCONST` is set instead of `AFSISIO` when loading the MIDAS SSM domain (#799 and !710)
  * Skip `inn_setupColumnsOnAnlIncLev` when there is no obs (#784 and !701)
  * Now using `rpn/libs/20230228-beta4` and `rpn/utils/20230228-beta4` (#782 and !700)
  * Now using `rpn/libs/20230222-beta3` and `rpn/utils/20230222-beta3` (#725 and !694)
@@ -249,6 +156,26 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Bug fix to prevent shift in negative values when writing to burp (#881 and !788)
+   * Minor change in results. Real negative values in btyp=3072 block of burp are now consistent with input.
+ * Changes for the new orca12 grid (#863 and !769)
+ * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
+ * Initialize BURP parameters in routine `brpr_updateMissingObsFlags` (#842 and !751)
+ * Fixed `calcStats/vertModes_glb` unitTest and added some error traps in `calcStatsGlb_mod` (#841 and !750)
+ * Fixed incorrect treatment of passive channel bias correction for most of the CSR instruments (#840 and !748)
+ * Major bug fixes to the var1D code. Major impact on the results in some configurations (#826 and !743)
+ * Fix `ssm/post-install` to set `CMCCONST` if it is not already set (#831 and !739)
+ * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
+ * Skip reading resume record blocks in `brpf_obsSub_update` (#746 and !732)
+ * Dynamic allocation of some arrays in `bgckmicrowave_mod` to prevent abort when more than 13 instrument (#822 and !731)
+ * Test `errorStatus` returned by some rttov subroutines (#813 and !722)
+ * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
+   * also sped up `ensPostProcess` when computing global ensemble statistics
+ * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
+ * Make sure all indexes and valid when fetching values from arrays (#800 and !714)
+ * Initialize `atmScatteringIndexFG` for background check of all microwave instruments (#803 and !712)
+ * Fix `msg` nml variable `arrayVertical` initialization (#801 and !711)
+ * Updated and made corrections related to weighted integration operator of routine `oopc_genoper` (#789 and !707)
  * Set environment variable in midas.launch to get access to the BUFR table (#787 and !704)
  * Fixed bug in observation simulation functionality, including namelist change in `letkf` (#768 and !697)
  * Fixed `midas.mpirun` so that it works with latest version of rpn/libs (#782 and !700)
@@ -270,6 +197,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Removed file `src/modules/obsdbColumnTable.dat` (#843 and !752)
+ * Remove LICENSE information from each source file (#823 and !733)
  * Removed namelist variable `bbiton` and `bbitoff` (#786 and !709)
  * Removed unneeded "use" statements and some code (#694 and !648)
  * Removed multi-platform compilation support (#663 and !640)
@@ -1216,15 +1145,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc8...HEAD
-[3.9.0-rc8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc7...v_3.9.0-rc8
-[3.9.0-rc7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc6...v_3.9.0-rc7
-[3.9.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...v_3.9.0-rc6
-[3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc4...v_3.9.0-rc5
-[3.9.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc4
-[3.9.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc2...v_3.9.0-rc3
-[3.9.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc1...v_3.9.0-rc2
-[3.9.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0-rc1
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...HEAD
+[3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
 [3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.3...v_3.8.0
 [3.7.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.2...v_3.7.3
