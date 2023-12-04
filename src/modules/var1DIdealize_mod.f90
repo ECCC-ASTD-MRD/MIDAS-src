@@ -476,7 +476,7 @@ module var1DIdealize_mod
     do seed = 1, estHBHTNumSeed
       
       allocate(controlVector(cvm_nvadim))
-      call rng_setup(abs(seed))
+      call rng_setup(abs(seed * mmpi_myid))
 
     ! Generate perturbation sampling
       do cvIndex = 1, cvm_nvadim
