@@ -848,8 +848,8 @@ module fsoi_mod
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then !for strato Norm 
                 if (levIndex == nLev_M .or. levIndex == 1 .or. & 
-                        Press_T(lonIndex2, latIndex2, levIndex) < 100.0D0 .or. &
-                        Press_T(lonIndex2, latIndex2, levIndex) > 10000.0D0) then
+                    Press_T(lonIndex2, latIndex2, levIndex) < 100.0D0 .or. &
+                    Press_T(lonIndex2, latIndex2, levIndex) > 10000.0D0) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
@@ -922,9 +922,10 @@ module fsoi_mod
               end if
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then !for strato norm
-                if (levIndex == nLev_T .or. levIndex == 1 .or. &
-                    Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
-                    Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then
+                if (levIndex == nLev_T .or. levIndex == 1) then
+                  scaleFactorLev = 0.0D0
+                else if (Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
+                         Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
@@ -987,9 +988,10 @@ module fsoi_mod
               end if
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then !for strato norm
-                if (levIndex == nLev_T .or. levIndex == 1 .or. &
-                    Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
-                    Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then    
+                if (levIndex == nLev_T .or. levIndex == 1) then
+                  scaleFactorLev = 0.0D0
+                else if(Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
+                        Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then    
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
