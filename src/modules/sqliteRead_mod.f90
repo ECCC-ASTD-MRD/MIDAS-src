@@ -1011,8 +1011,6 @@ module sqliteRead_mod
         columnName = 'sim_surf_emiss'
       case('EMER')
         columnName = 'surf_emiss_error'
-      case('ESTB')
-        columnName = 'est_sigmaB_obsSpace'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select

@@ -1,5 +1,5 @@
 module var1DIdealize_mod
-    ! MODULE var1DIdealize_mod (prefix='var1D' category='4. Data Object transformations')
+    ! MODULE var1DIdealize_mod (prefix='var1Di' category='4. Data Object transformations')
     !
     ! :Purpose: contains all 1Dvar-related methods.
     !
@@ -35,15 +35,15 @@ module var1DIdealize_mod
     private
   
     ! public procedures
-    public :: var1DIdealize_simulateBackgroundState, var1DIdealize_simulateObservation
-    public :: var1DIdealize_estSigmaBObsSpace
+    public :: var1Di_simulateBackgroundState, var1Di_simulateObservation
+    public :: var1Di_estSigmaBObsSpace
 
   contains
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_simulateBackgroundState
+  ! var1Di_simulateBackgroundState
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_simulateBackgroundState(columnTruthOnTrlLev, columnSimTrlOnTrlLev, &
+  subroutine var1Di_simulateBackgroundState(columnTruthOnTrlLev, columnSimTrlOnTrlLev, &
                                                    obsSpaceData, vco_anl, seed)
     !
     !:Purpose: Simulate the background state by adding a perturbation from the reference state (Truth)
@@ -58,9 +58,9 @@ module var1DIdealize_mod
     integer,                         intent(in)    :: seed                  ! Seed to random number generator 
     
     ! Locals:
-    type(struct_columnData), target :: columnPertOnAnLev
-    type(struct_columnData), target :: columnTruthOnAnlLev
-    type(struct_columnData), target :: columnPertOnTrlLev
+    type(struct_columnData)         :: columnPertOnAnLev
+    type(struct_columnData)         :: columnTruthOnAnlLev
+    type(struct_columnData)         :: columnPertOnTrlLev
     real(8), allocatable            :: controlVector(:)
     integer                         :: cvIndex
     type(struct_gsv)                :: stateVectorPertOnAnLevTruth
@@ -70,10 +70,19 @@ module var1DIdealize_mod
     type(struct_gsv)                :: stateVectorTrlOnAnlLevTruth
     character(len=50)               :: prefixFileName
     logical                         :: containsFullField
+    integer                         :: randomSeed
 
     allocate(controlVector(cvm_nvadim))
     ! Generate perturbation sampling following gaussian distribution with zero mean and one std
-    call rng_setup(abs(seed))
+
+    if (seed == 0) then
+      randomSeed = var1Di_randomSeed()
+    else
+      randomSeed = seed + mmpi_myid
+    end if
+
+    call rng_setup(abs(randomSeed))
+
     do cvIndex = 1, cvm_nvadim
       controlVector(cvIndex) = rng_gaussian()
     end do
@@ -87,7 +96,7 @@ module var1DIdealize_mod
     call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
     
     ! Interpolate (B^1/2)*Pert from analysis to trial level
-    call var1DIdealize_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
+    call var1Di_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
 
     call col_setVco(columnSimTrlOnTrlLev, col_getVco(columnTruthOnTrlLev))
     call col_allocate(columnSimTrlOnTrlLev, col_getNumCol(columnTruthOnTrlLev), &
@@ -112,27 +121,27 @@ module var1DIdealize_mod
     prefixFileName = 'SimTrialOnTrlLev'
     containsFullField = .true.
     call var1d_transferColumnToYGrid(stateVectorTrlOnTrlLevSim, obsSpaceData, columnSimTrlOnTrlLev, bmat1D_includeAnlVar)
-    call var1DIdealize_writeSimTrial(stateVectorTrlOnTrlLevSim, prefixFileName, 'ANALYSIS', containsFullField)
+    call var1Di_writeSimTrial(stateVectorTrlOnTrlLevSim, prefixFileName, 'ANALYSIS', containsFullField)
 
     prefixFileName = 'TruthOnTrlLev'
     containsFullField = .true.
     call var1d_transferColumnToYGrid(stateVectorTrlOnTrlLevTruth, obsSpaceData, columnTruthOnTrlLev, bmat1D_includeAnlVar)
-    call var1DIdealize_writeSimTrial(stateVectorTrlOnTrlLevTruth, prefixFileName, 'ANALYSIS', containsFullField)
+    call var1Di_writeSimTrial(stateVectorTrlOnTrlLevTruth, prefixFileName, 'ANALYSIS', containsFullField)
 
     prefixFileName = 'TruthOnAnlLev'
     containsFullField = .true.
     call var1d_transferColumnToYGrid(stateVectorTrlOnAnlLevTruth, obsSpaceData, columnTruthOnAnlLev, bmat1D_includeAnlVar)
-    call var1DIdealize_writeSimTrial(stateVectorTrlOnAnlLevTruth, prefixFileName, 'ANALYSIS', containsFullField)
+    call var1Di_writeSimTrial(stateVectorTrlOnAnlLevTruth, prefixFileName, 'ANALYSIS', containsFullField)
 
     prefixFileName = 'PertOnTrlLev'
     containsFullField = .false.
     call var1d_transferColumnToYGrid(stateVectorPertOnTrlLevTruth, obsSpaceData, columnPertOnTrlLev, bmat1D_includeAnlVar)
-    call var1DIdealize_writeSimTrial(stateVectorPertOnTrlLevTruth, prefixFileName, 'INCREMENT', containsFullField)
+    call var1Di_writeSimTrial(stateVectorPertOnTrlLevTruth, prefixFileName, 'INCREMENT', containsFullField)
 
     prefixFileName = 'PertOnAnlLev'
     containsFullField = .false.
     call var1d_transferColumnToYGrid(stateVectorPertOnAnLevTruth, obsSpaceData, columnPertOnAnLev, bmat1D_includeAnlVar)
-    call var1DIdealize_writeSimTrial(stateVectorPertOnAnLevTruth, prefixFileName, 'INCREMENT', containsFullField)
+    call var1Di_writeSimTrial(stateVectorPertOnAnLevTruth, prefixFileName, 'INCREMENT', containsFullField)
 
     if (mmpi_myId ==0) then
       call gsv_deallocate(stateVectorPertOnTrlLevTruth)
@@ -145,12 +154,12 @@ module var1DIdealize_mod
     call col_deallocate(columnTruthOnAnlLev)
     deallocate(controlVector)
 
-  end subroutine var1DIdealize_simulateBackgroundState
+  end subroutine var1Di_simulateBackgroundState
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_vInterpPertAnLev2TrlLev
+  ! var1Di_vInterpPertAnLev2TrlLev
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_vInterpPertAnLev2TrlLev(columnAnlLev, columnTrlLev, columnPresRef)
+  subroutine var1Di_vInterpPertAnLev2TrlLev(columnAnlLev, columnTrlLev, columnPresRef)
     !
     ! :Purpose: Vertically Interpolate the generated perturbation from analysis to trial level. 
     !           An reference column on trial level is required to compute the pressure level, which 
@@ -170,19 +179,19 @@ module var1DIdealize_mod
     real(8), allocatable       :: pSfcRef(:,:)
     real(8), pointer           :: columnAnlLev_ptr(:), columnTrlLev_ptr(:)
 
-    write(*,*) 'var1DIdealize_vInterpPertAnLev2TrlLev: Starting'
+    write(*,*) 'var1Di_vInterpPertAnLev2TrlLev: Starting'
 
     ! Check the column size
     if (.not. (col_getNumCol(columnAnlLev) == col_getNumCol(columnTrlLev) .and.    &
         col_getNumCol(columnAnlLev) == col_getNumCol(columnPresRef))) then
       write(*,*) 'Column size columnAnlLev, columnTrlLev and columnPresRef', col_getNumCol(columnAnlLev), &
                   col_getNumCol(columnTrlLev), col_getNumCol(columnPresRef)
-      call utl_abort('var1DIdealize_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef &
+      call utl_abort('var1Di_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef &
                                  do not have equal number of columns')
     end if
 
     numColumns = col_getNumCol(columnAnlLev)
-    write(*,*) 'var1DIdealize_vInterpPertAnLev2TrlLev: Column size', numColumns
+    write(*,*) 'var1Di_vInterpPertAnLev2TrlLev: Column size', numColumns
 
     ! Extract the surface pressure from the columnPresRef
     allocate(pSfcRef(1,numColumns))
@@ -204,7 +213,7 @@ module var1DIdealize_mod
       if (.not. col_varExist(columnAnlLev, vnl_varNameList2D(varIndex))) cycle
       if (col_getNumCol(columnAnlLev) > 0) then       
         do columnIndex = 1, col_getNumCol(columnAnlLev)
-          columnTrlLev_ptr  => col_getColumn(columnTrlLev , columnIndex, vnl_varNameList2D(varIndex))
+          columnTrlLev_ptr => col_getColumn(columnTrlLev , columnIndex, vnl_varNameList2D(varIndex))
           columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameList2D(varIndex))
           columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
         end do
@@ -212,7 +221,7 @@ module var1DIdealize_mod
     end do
 
     deallocate(pSfcRef)
-    write(*,*) 'var1DIdealize_vInterpPertAnLev2TrlLev: Finished'
+    write(*,*) 'var1Di_vInterpPertAnLev2TrlLev: Finished'
     contains
 
     logical function varneed(varName)
@@ -231,12 +240,12 @@ module var1DIdealize_mod
       end do
 
     end function varneed
-  end subroutine var1DIdealize_vInterpPertAnLev2TrlLev
+  end subroutine var1Di_vInterpPertAnLev2TrlLev
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_writeSimTrial
+  ! var1Di_writeSimTrial
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_writeSimTrial(statevectorSim, prefixFileName, etiket, containsFullField)
+  subroutine var1Di_writeSimTrial(statevectorSim, prefixFileName, etiket, containsFullField)
     !
     ! :Purpose: Write the simulate background state from statevector strucure (1Dvar case) 
     !           into output standard file
@@ -254,13 +263,13 @@ module var1DIdealize_mod
     character(len=4)     :: coffset
     character(len=100)   :: fileName
    
-    if(mmpi_myid == 0) write(*,*) 'var1DIdealize_writeSimTrial: STARTING'
+    if(mmpi_myid == 0) write(*,*) 'var1Di_writeSimTrial: STARTING'
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevectorSim)) then
         dateStamp = gsv_getDateStamp(statevectorSim,stepIndex)
-        if (mmpi_myid == 0) write(*,*) 'var1DIdealize_writeSimTrial: writing for time step: ',stepIndex, dateStamp
+        if (mmpi_myid == 0) write(*,*) 'var1Di_writeSimTrial: writing for time step: ',stepIndex, dateStamp
 
         ! write the increment file for this time step
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -277,13 +286,13 @@ module var1DIdealize_mod
       end if
     end do
 
-    if(mmpi_myid == 0) write(*,*) 'var1DIdealize_writeSimTrial: Finished'
-  end subroutine var1DIdealize_writeSimTrial
+    if(mmpi_myid == 0) write(*,*) 'var1Di_writeSimTrial: Finished'
+  end subroutine var1Di_writeSimTrial
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_simulateObservation
+  ! var1Di_simulateObservation
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
+  subroutine var1Di_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
     !
     !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
     !          Additional changes are needed to generalize for all observations (not just TOVS obs)
@@ -299,19 +308,19 @@ module var1DIdealize_mod
 
     ! Locals:
     logical              :: bgckMode, beSilent
-    integer              :: tovsIndex
-    integer              :: headerIndex, bodyIndex, obsIndex
-    integer              :: idata, idatend, idatyp, count, channelNumber, channelIndex
+    integer              :: randomSeed
+    integer              :: headerIndex, bodyIndex, obsIndex, tovsIndex
+    integer              :: bodyIndexBeg, bodyIndexEnd, idatyp, count, channelNumber, channelIndex
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
     
     beSilent = .false.
     bgckMode = .false.
 
-    write(*,*) 'var1DIdealize_simulateObservation: Starting'
+    write(*,*) 'var1Di_simulateObservation: Starting'
     
     ! Compute the Truth the observation space
-    write(*,*) 'var1DIdealize_simulateObservation: Computing the truth in Obs Space'
+    write(*,*) 'var1Di_simulateObservation: Computing the truth in Obs Space'
 
     ! Prepare atmospheric profiles for all tovs observation points for use in rttov
     call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
@@ -330,17 +339,17 @@ module var1DIdealize_mod
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
-        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER
 
-      idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
-      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+      bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-      do bodyIndex = idata, idatend
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd 
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
@@ -350,7 +359,7 @@ module var1DIdealize_mod
     end do HEADER
 
     ! Generate Simulated Observations
-    write(*,*) 'var1DIdealize_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
+    write(*,*) 'var1Di_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
     
     if (useSimObsErr) then
       ! Prepare atmospheric profiles for all tovs observation points for use in rttov
@@ -363,7 +372,13 @@ module var1DIdealize_mod
      ! loop over all header indices of the 'TO' family
     call obs_set_current_header_list(obsSpaceData,'TO')
 
-    call rng_setup(abs(seed + mmpi_myid))
+    if (seed == 0) then
+      randomSeed = var1Di_randomSeed()
+    else
+      randomSeed = seed + mmpi_myid
+    end if
+
+    call rng_setup(abs(randomSeed))
 
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -372,15 +387,15 @@ module var1DIdealize_mod
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
-        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER2
 
-      idata  = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
-      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+      bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
       if (tvs_isIdBurpTovs(idatyp)) then
 
@@ -393,7 +408,7 @@ module var1DIdealize_mod
 
         ! Read the Sigma O from ObsSpaceData
         count = 0
-        do bodyIndex = idata, idatend
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
           if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
@@ -432,53 +447,85 @@ module var1DIdealize_mod
       call rmat_writeRCorrFile
     end if
 
-    write(*,*) 'Finish var1DIdealize_simulateObservation'
-  end subroutine var1DIdealize_simulateObservation
+    write(*,*) 'Finish var1Di_simulateObservation'
+  end subroutine var1Di_simulateObservation
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_estSigmaBObsSpace
+  ! var1Di_estSigmaBObsSpace
   !--------------------------------------------------------------------------
-  subroutine var1DIdealize_estSigmaBObsSpace(columnTruthOnTrlLev, estHBHTNumSeed, obsSpaceData, vco_anl, datestamp)
+  subroutine var1Di_estSigmaBObsSpace(columnTruthOnTrlLev, numSamplesHBHT, obsSpaceData, vco_anl, datestamp)
     !
     ! :Purpose: Estimating background error STD in observations space
     !
     implicit none
 
     ! Arguments
-    type(struct_columnData), target, intent(in)    :: columnTruthOnTrlLev
-    integer,                         intent(in)    :: estHBHTNumSeed
-    type(struct_obs),                intent(inout) :: obsSpaceData
-    type(struct_vco), pointer,       intent(in)    :: vco_anl
-    integer,                         intent(in)    :: datestamp
+    type(struct_columnData), target, intent(in)    :: columnTruthOnTrlLev   ! The true state column
+    integer,                         intent(in)    :: numSamplesHBHT        ! Number of samples to compute HBHT
+    type(struct_obs),                intent(inout) :: obsSpaceData          ! ObsSpaceData object
+    type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
+    integer,                         intent(in)    :: datestamp             ! Date stamp
 
     ! Locals:
-    type(struct_columnData), target :: columnPertOnAnLev
-    type(struct_columnData), target :: columnPertOnTrlLev
-    type(struct_columnData), target :: columnSimTrlOnTrlLev
-    integer                         :: seed, cvIndex, obsCount
+    type(struct_columnData)         :: columnPertOnAnLev
+    type(struct_columnData)         :: columnPertOnTrlLev
+    type(struct_columnData)         :: columnSimTrlOnTrlLev
+    integer                         :: cvIndex, obsCount
     real(8), allocatable            :: controlVector(:)
     real(8), allocatable            :: errHx(:,:)
     integer, allocatable            :: errHxBodyList(:)
     integer                         :: tovsIndex, headerIndex, bodyIndex
     integer                         :: channelNumber, channelIndex
-    integer                         :: idata, idatend, idatyp, iobs
+    integer                         :: bodyIndexBeg, bodyIndexEnd, idatyp, obsIndex
     real(8)                         :: meanErrHx, stddevErrHx
-    logical                         :: bgckMode, beSilent
+    logical                         :: bgckMode, beSilent, nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal
+    integer                         :: ierr, randomSeed, sampleIndex
+    real                            :: columnValue
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
-      call utl_abort('var1DIdealize_estSigmaBObsSpace: The truth in observation space must computed stored &
+      call utl_abort('var1Di_estSigmaBObsSpace: The truth in observation space must computed stored &
                                              OBS_TRUO obsSpaceData column')
     end if
 
-    allocate(errHx(estHBHTNumSeed, obs_numbody_max(obsSpaceData)))
+    ! Check if the ObsSpace column OBS_HPHT is empty
+    nonEmptyBodyColumn = .false.
+    HEADERCHCK: do headerIndex = 1, obs_numHeader(obsSpaceData)
+
+      bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+
+      BODYCHCK: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        columnValue = obs_bodyElem_r(obsSpaceData, OBS_HPHT, bodyIndex)
+
+        if (columnValue /= MPC_missingValue_R8) then
+          nonEmptyBodyColumn = .true.         
+          exit HEADERCHCK
+        end if
+      
+      end do BODYCHCK
+    end do HEADERCHCK
+
+    call rpn_comm_allreduce(nonEmptyBodyColumn, nonEmptyBodyColumn_mpiglobal, 1, &
+                          "MPI_LOGICAL","MPI_LOR", "grid", ierr)
+
+    if (nonEmptyBodyColumn_mpiglobal) then
+      call utl_abort('var1Di_estSigmaBObsSpace: ObsSpace column OBS_HPHT is already being used elsewhere')
+    end if
+
+    ! Compute background Error in observation space
+
+    allocate(errHx(numSamplesHBHT, obs_numbody_max(obsSpaceData)))
     allocate(errHxBodyList(obs_numbody_max(obsSpaceData)))
-   
-    do seed = 1, estHBHTNumSeed
+
+    randomSeed = var1Di_randomSeed()
+
+    call rng_setup(abs(randomSeed))
+
+    do sampleIndex = 1, numSamplesHBHT
       
       allocate(controlVector(cvm_nvadim))
-      call rng_setup(abs(seed * mmpi_myid))
-
-    ! Generate perturbation sampling
+      
+      ! Generate perturbation sampling
       do cvIndex = 1, cvm_nvadim
         controlVector(cvIndex) = rng_gaussian()
       end do
@@ -492,7 +539,7 @@ module var1DIdealize_mod
       call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
     
       ! Interpolate (B^1/2)*Pert from analysis to trial level
-      call var1DIdealize_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
+      call var1Di_vInterpPertAnLev2TrlLev(columnPertOnAnLev, columnPertOnTrlLev, columnTruthOnTrlLev)
     
       call col_setVco(columnSimTrlOnTrlLev, col_getVco(columnTruthOnTrlLev))
       call col_allocate(columnSimTrlOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
@@ -528,23 +575,23 @@ module var1DIdealize_mod
         ! process only radiance data to be assimilated
         idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
         if (.not. tvs_isIdBurpTovs(idatyp)) then
-          write(*,*) 'var1DIdealize_estSigmaBObsSpace: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          write(*,*) 'var1Di_estSigmaBObsSpace: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER
         end if
 
         tovsIndex = tvs_tovsIndex(headerIndex)
         if (tovsIndex == -1) cycle HEADER
 
-        idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
-        idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
+        bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-        do bodyIndex = idata, idatend
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
           if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
             obsCount = obsCount + 1
 
-            errHx(seed, obsCount) = tvs_radiance(tovsIndex)%bt(channelIndex) - &
+            errHx(sampleIndex, obsCount) = tvs_radiance(tovsIndex)%bt(channelIndex) - &
                                     obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
             
             errHxBodyList(obsCount) = bodyIndex
@@ -559,14 +606,39 @@ module var1DIdealize_mod
     end do
 
     ! Compute the background error Stdev in observation space
-    do iobs = 1, obsCount
-      meanErrHx = sum(errHx(1:estHBHTNumSeed, iobs)) / estHBHTNumSeed
-      stddevErrHx = sqrt(sum((errHx(1:estHBHTNumSeed, iobs) - meanErrHx)**2) / estHBHTNumSeed)
-
-      call obs_bodySet_r(obsSpaceData, OBS_ESTB, errHxBodyList(iobs), stddevErrHx)
+    do obsIndex = 1, obsCount
+      meanErrHx = sum(errHx(1:numSamplesHBHT, obsIndex)) / numSamplesHBHT
+      stddevErrHx = sqrt(sum((errHx(1:numSamplesHBHT, obsIndex) - meanErrHx)**2) / numSamplesHBHT)
+      call obs_bodySet_r(obsSpaceData, OBS_HPHT, errHxBodyList(obsIndex), stddevErrHx)
     end do
 
-  end subroutine var1DIdealize_estSigmaBObsSpace
+  end subroutine var1Di_estSigmaBObsSpace
+
+  !--------------------------------------------------------------------------
+  ! var1Di_randomSeed
+  !--------------------------------------------------------------------------
+  function var1Di_randomSeed() result(randomSeed)
+    !
+    ! :Purpose: Generate a random seed based on the date stamp and MPI ID
+    !
+    implicit none
+
+    ! Results: 
+    integer           :: randomSeed  ! Generated random seed
+
+    ! Locals:
+    integer           :: dateStamp, timePrint, datePrint
+    integer           :: ierr, imode
+    integer, external :: newdate
+
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    dateStamp = tim_getDateStamp()
+    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    timePrint = timePrint/1000000
+    datePrint =  datePrint*100 + timePrint
+    randomSeed = (datePrint - 100000000*(datePrint/100000000)) * mmpi_myid
+
+  end function var1Di_randomSeed
 
 end module var1DIdealize_mod
 

@@ -23,11 +23,9 @@
   doAveraging=.true.
 /
 &NAM1DVAR
-  simBgAndObs = .TRUE.,
-  simBgSeed = 1,
-  simObsSeed = 1,
+  simBgAndObs = .True.,
   useSimObsErr =.True.
-  numRealizeEstSigmaHBHT = 100,
+  numSamplesHBHT = 100,
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -140,7 +138,7 @@
   itemUpdateBodyList(7)='SSEM',
   itemUpdateBodyList(8)='EMER',
   itemUpdateBodyList(9)='SEM',
-  itemUpdateBodyList(10)='ESTB',
+  itemUpdateBodyList(10)='HPHT',
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT

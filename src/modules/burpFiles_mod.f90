@@ -212,7 +212,6 @@ contains
       if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_ESTB)) call obs_bodySet_r(obsdat, OBS_ESTB, bodyIndex, missingValue)
 
     end do
 

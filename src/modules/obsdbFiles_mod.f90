@@ -1308,7 +1308,6 @@ contains
         if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, obs_missingValue_R)
         if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, obs_missingValue_R)
         if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, obs_missingValue_R)
-        if (obs_columnActive_RB(obsdat, OBS_ESTB)) call obs_bodySet_r(obsdat, OBS_ESTB, bodyIndex, obs_missingValue_R)
 
         ! set the varNo for this obsValue
         call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, obsVarNoList(obsValueIndex))
