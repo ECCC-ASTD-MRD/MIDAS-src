@@ -239,7 +239,7 @@ if [ -n "${observations}" ]; then
                 -splitobs_fstin   ${splitobs_fstin}                             \
                 -splitobs_nomvar  ${splitobs_nomvar}                            \
                 -cp_cmd ${cp_cmd} -mv_cmd ${mv_cmd} -mkdir_cmd ${mkdir_cmd}     \
-                -sleep_cmd ${sleep_cmd} -echo_cmd ${echo_cmd}                   \
+                -sleep_cmd ${sleep_cmd} -date_cmd ${date_cmd} -echo_cmd ${echo_cmd} \
                 > splitfiles.${bfilename}.${MP_CHILD}.listing 2>&1 || touch splitfiles.${bfilename}.${MP_CHILD}.abort &
             let splitobs_counter=splitobs_counter+1
             if [ -n "${MIDAS_CONCURRENT_SPLITOBS}" ]; then
