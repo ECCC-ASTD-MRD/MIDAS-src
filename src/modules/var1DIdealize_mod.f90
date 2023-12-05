@@ -636,7 +636,7 @@ module var1DIdealize_mod
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
     timePrint = timePrint/1000000
     datePrint =  datePrint*100 + timePrint
-    randomSeed = (datePrint - 100000000*(datePrint/100000000)) * mmpi_myid
+    randomSeed = (datePrint - 100000000*(datePrint/100000000)) + mmpi_myid
 
   end function var1Di_randomSeed
 
