@@ -781,6 +781,9 @@ contains
 
     ! compute virtual temperature on thermo levels (corrected of compressibility)
     do_computeHeight_gsv_nl : do stepIndex = 1, numStep
+      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, height_T, height_M, lat_4, lat_8, sLat, cLat, lev_T, &
+      !$OMP                     hu, tt, Pr, cmp, tv, rMT, P_T, P_M, P0, ratioP, h0, Rgh, dh, delThick, lev_M, P_M1, &
+      !$OMP                     scaleFactorBottom, scaleFactorTop, P_Mm1)
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
 
@@ -994,6 +997,7 @@ contains
 
         end do
       end do
+      !$OMP end parallel do
     end do do_computeHeight_gsv_nl
 
     deallocate(height_M)

@@ -127,7 +127,8 @@ CONTAINS
     real(4) :: xpos_r4, ypos_r4, xposTH_r4, yposTH_r4
     real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4 
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
-    character(len=100) :: filename
+    character(len=1024) :: filename
+
     type(struct_gsv) :: statevector_steeringFlow
     logical :: AdvectFileExists
     integer :: nLev, levTypeIndex, stepIndexSF_start, stepIndexSF_end 

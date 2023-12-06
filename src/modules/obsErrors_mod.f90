@@ -1595,6 +1595,8 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(8))
             else if (cstnid == 'CIS_REGIONAL') then
               call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sic(9))
+            else if (index(cstnid,'RCM') == 1) then
+              ! For RCM, obs-error comes from SQLite file
             else
               call utl_abort('oer_fillObsErrors: UNKNOWN station id: '//cstnid)
             end if
@@ -1640,7 +1642,8 @@ contains
           !              not. 3dvar will abort in this case.
           !***********************************************************************
 
-          if (obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)  <=  0.0D0) then
+          obsOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+          if (obsOER  <=  0.0D0) then
 
             write(*,*)'  PROBLEM OBSERR VARIANCE FAM= ',cfam
 
@@ -1651,13 +1654,16 @@ contains
                  zlon*MPC_DEGREES_PER_RADIAN_R8
 
             obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-            obsOER = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
             write(*,'(1X,"ELEMENT= ",I6," LEVEL= ",F10.2," OBSERR = ",E10.2)')         &
                  ityp, obsPPP, obsOER
 
             call utl_abort('oer_fillObsErrors: PROBLEM OBSERR VARIANCE.')
 
           end if
+
+        else
+
+          call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, MPC_missingValue_R8)
 
         end if ! end of iass == obs_assimilated
 
@@ -2965,11 +2971,26 @@ contains
     real(8) :: conc, obsErrStdDev
     character(len=*), parameter :: myName = 'oer_setErrBackScatAnisIce'
     character(len=8)            :: ccyymmdd
-    logical :: alreadyReadGL
 
     if (.not. beSilent) write(*,*) 'ENTER '//myName
 
-    alreadyReadGL = .false.
+    if (.not.present(columnTrlOnTrlLev_opt)) then
+      ! Need background ice concentration
+      call hco_SetupFromFile( hco_trl, './bgSeaIceConc', '', varName_opt='GL' )
+      call vco_SetupFromFile( vco_trl, './bgSeaIceConc')
+      call gsv_allocate( stateVector, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
+                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                         dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
+                         varNames_opt=(/'GL'/) )
+      call gsv_zero( stateVector )
+      call gio_readFromFile( stateVector, './bgSeaIceConc', '', 'P@', &
+                             unitConversion_opt = .false. )
+      call col_setVco(columnTrlOnTrlLev, vco_trl)
+      call col_allocate(columnTrlOnTrlLev, obs_numHeader(obsSpaceData))
+      call s2c_nl( stateVector, obsSpaceData, columnTrlOnTrlLev, hco_trl, &
+                   timeInterpType='NEAREST' )
+      call gsv_deallocate( stateVector )
+    end if
 
     !
     !     Loop over all header indices of the 'GL' family:
@@ -2991,24 +3012,6 @@ contains
           if (present(columnTrlOnTrlLev_opt)) then
             conc = col_getElem(columnTrlOnTrlLev_opt,1,headerIndex,'GL')
           else
-            if (.not. alreadyReadGL) then
-              ! Need background ice concentration
-              call hco_SetupFromFile( hco_trl, './bgSeaIceConc', '', varName_opt='GL' )
-              call vco_SetupFromFile( vco_trl, './bgSeaIceConc')
-              call gsv_allocate( stateVector, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
-                                 mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                                 dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
-                                 varNames_opt=(/'GL'/) )
-              call gsv_zero( stateVector )
-              call gio_readFromFile( stateVector, './bgSeaIceConc', '', 'P@', &
-                                     unitConversion_opt = .false. )
-              call col_setVco(columnTrlOnTrlLev, vco_trl)
-              call col_allocate(columnTrlOnTrlLev, obs_numHeader(obsSpaceData))
-              call s2c_nl( stateVector, obsSpaceData, columnTrlOnTrlLev, hco_trl, &
-                           timeInterpType='NEAREST' )
-              call gsv_deallocate( stateVector )
-              alreadyReadGL = .true.
-            end if
             conc = col_getElem(columnTrlOnTrlLev,1,headerIndex,'GL')
           end if
           trackCellNum = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -3024,7 +3027,9 @@ contains
       end do BODY
     end do HEADER
 
-    if (alreadyReadGL) call col_deallocate(columnTrlOnTrlLev)
+    if (.not.present(columnTrlOnTrlLev_opt)) then
+      call col_deallocate(columnTrlOnTrlLev)
+    end if
  
     if (.not. beSilent) write(*,*) myName//': done'
 

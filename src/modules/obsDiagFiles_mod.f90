@@ -194,14 +194,14 @@ module obsDiagFiles_mod
                     &codtyp integer, date integer, time integer, elev real); &
                     &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, lat real, lon real, &
+                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, latd real, lond real, &
                     &fso real);'
     else
       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                     &codtyp integer, date integer, time integer, elev real); &
                     &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, lat real, lon real);'
+                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, latd real, lond real);'
     end if
 
     call fSQL_do_many(db, queryCreate, stat)
@@ -217,10 +217,10 @@ module obsDiagFiles_mod
     
     if (addFSOdiag) then
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-                   &obs_error, sigi, sigo, zhad, lat, lon, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+                   &obs_error, sigi, sigo, zhad, latd, lond, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     else
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-                  &obs_error, sigi, sigo, zhad, lat, lon) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+                  &obs_error, sigi, sigo, zhad, latd, lond) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     end if
     
     queryHeader = 'insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev) values(?,?,?,?,?,?,?,?); '
@@ -355,7 +355,7 @@ module obsDiagFiles_mod
             vertCoordType = MPC_missingValue_INT 
         end select
 
-        ! insert order: id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad, fso
+        ! insert order: id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad, latd, lond, fso
         idData = idData + 1
         call fSQL_bind_param(stmtData, param_index = 1, int_var  = idData)
         call fSQL_bind_param(stmtData, param_index = 2, int_var  = idObs)

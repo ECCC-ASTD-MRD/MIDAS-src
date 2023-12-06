@@ -69,15 +69,15 @@ contains
     !
     implicit none
 
-    write(*,*) 
+    write(*,*)
     write(*,*) " <<<<<< Code precision parameters >>>>>>"
     write(*,"(A36, I2)")  "         pre_obsReal= ", pre_obsReal
     write(*,"(A36, A20)") "      pre_obsMpiReal= ", pre_obsMpiReal
     write(*,"(A36, I2)")  "        pre_incrReal= ", pre_incrReal
     write(*,"(A36, I2)")  "   pre_specTransReal= ", pre_specTransReal
-    write(*,"(A36, I2)")  "pre_specTransMpiType= ", pre_specTransMpiType
+    write(*,*)  "             pre_specTransMpiType= ", pre_specTransMpiType
     write(*,"(A36, A20)") "pre_specTransMpiReal= ", pre_specTransMpiReal
-    write(*,*) 
+    write(*,*)
 
   end subroutine pre_printPrecisions
 
