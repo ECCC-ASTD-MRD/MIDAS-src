@@ -62,7 +62,6 @@ contains
     real(8), pointer,          intent(inout) :: pressureProfile_T_in(:)
 
     ! Locals:
-    integer :: ierr
     integer :: nVar, varNameIndex, var2dIndex, var3dIndex
     character(len=4), pointer :: varNamesList(:)
 

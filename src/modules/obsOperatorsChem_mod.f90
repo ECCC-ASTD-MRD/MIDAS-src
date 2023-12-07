@@ -548,7 +548,7 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Locals:
-    integer :: ierr, ios, i
+    integer :: ios, i
 
     ! Namelist variables (local):
     integer :: tropo_mode(0:oopc_constituentsSize) ! Special treatment for troposphere of total column obs
