@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Read namelists from strings instead of files for improved efficiency (#886 and !794)
 
 ### Fixed
 
