@@ -697,8 +697,9 @@ module rMatrix_mod
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
       if (tovsIndex == -1) cycle HEADER2
+
+      sensorIndex = tvs_lsensor(tovsIndex)
 
       idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
