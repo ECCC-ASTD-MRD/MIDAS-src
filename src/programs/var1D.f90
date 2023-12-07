@@ -179,6 +179,9 @@ program midas_var1D
 
   varMode='analysis'
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Setup the ram disk
   call ram_setup
 

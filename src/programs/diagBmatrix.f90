@@ -131,8 +131,8 @@ program midas_diagBmatrix
 
   real(8) :: centralValue, centralValueLocal
 
-  integer :: fclos, fnom, fstopc, newdate, get_max_rss
-  integer :: ierr, nsize, iseed, nulnam, nultxt
+  integer :: fnom, fstopc, newdate, get_max_rss
+  integer :: ierr, nsize, iseed, nultxt
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
@@ -180,6 +180,9 @@ program midas_diagBmatrix
   call utl_tmg_start(0,'Main')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Set default values for namelist NAMDIAG parameters
   numperturbations  = -1
   nrandseed         =  1
@@ -192,12 +195,11 @@ program midas_diagBmatrix
   writePsiChiStddev = .false.
 
   ! Read the parameters from NAMDIAG
-  nulnam=0
-  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namdiag,iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namdiag, iostat=ierr)
   if(ierr.ne.0) call utl_abort('midas-diagBmatrix: Error reading namelist')
   write(*,nml=namdiag)
-  ierr=fclos(nulnam)
+  call utl_tmg_stop(181)
 
   nlevs=0
   do index = 1, size(oneobs_levs)
@@ -720,8 +722,6 @@ program midas_diagBmatrix
             end do
           end if
         end do
-
-        if ( mmpi_myid == 0 ) ierr = fclos(nulnam)
 
       end do
       deallocate(zonalMeanStddev)

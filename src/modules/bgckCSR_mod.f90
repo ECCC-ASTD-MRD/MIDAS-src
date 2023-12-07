@@ -43,15 +43,13 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr
-    integer, external :: fnom, fclos
+    integer :: ierr
 
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namcsr, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namcsr, iostat=ierr)
     if (ierr /= 0) call utl_abort('csrbg_init: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml=namcsr)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
   end subroutine csrbg_init
   

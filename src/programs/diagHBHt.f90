@@ -194,6 +194,9 @@ program midas_diagHBHt
 
   varMode='analysis'
 
+  ! Read the namelists
+  call utl_readNml()
+
   call ram_setup
 
   ! Do initial set up

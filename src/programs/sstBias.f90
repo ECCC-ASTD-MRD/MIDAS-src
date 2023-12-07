@@ -144,6 +144,9 @@ program midas_sstBias
  
   ! 1. Top level setup
 
+  ! Read the namelists
+  call utl_readNml()
+
   call ram_setup()
  
   ! Do initial set up

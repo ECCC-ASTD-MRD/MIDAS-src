@@ -137,6 +137,9 @@ program midas_analysisErrorOI
 
   varMode='analysis'
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Setup the ram disk
   call ram_setup
 

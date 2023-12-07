@@ -84,6 +84,9 @@ program midas_thinning
 
   ! 1. Top level setup
 
+  ! Read the namelists
+  call utl_readNml()
+
   call ram_setup
 
   ! 2. configuration the job

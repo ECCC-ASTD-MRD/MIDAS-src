@@ -38,9 +38,8 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam,ierr,i,ilen
+    integer :: ierr,i,ilen
     character (len=codtyp_name_length) :: ctempo
-    integer, external :: fnom,fclos
 
     ! set default values for namelist variables
     ncodtyp = 0
@@ -49,11 +48,10 @@ contains
 
     ! read namelist to obtain additions to codtype dictionary
     if (utl_isNamelistPresent('namcodtyp','./flnml')) then
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namcodtyp,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml,nml=namcodtyp,iostat=ierr)
       if (ierr /= 0) call utl_abort('codtyp_initialize: Error reading namelist namcodtyp')
-      ierr=fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'codtyp_initialize: namcodtyp is missing in the namelist. The default value will be taken.'

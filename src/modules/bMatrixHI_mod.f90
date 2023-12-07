@@ -111,7 +111,7 @@ CONTAINS
 
     ! Locals:
     character(len=15) :: bhi_mode
-    integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
+    integer :: jlev, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
@@ -151,12 +151,11 @@ CONTAINS
     ReadWrite_sqrt = .false.
     stddevMode = 'SP2D'
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambhi,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=nambhi, iostat=ierr)
     if ( ierr /= 0 ) call utl_abort( 'bhi_setup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambhi )
-    ierr = fclos( nulnam )
+    call utl_tmg_stop(181)
 
     do jlev = 1, vco_maxNumLevels
       if( scaleFactor(jlev) > 0.0d0 ) then 

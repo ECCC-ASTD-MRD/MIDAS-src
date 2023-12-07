@@ -100,7 +100,7 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector1(:)
   real(8), allocatable ::  controlVector2(:)
 
-  integer :: get_max_rss, ierr, cvDim, nulnam, fnom, fclos
+  integer :: get_max_rss, ierr, cvDim
   character(len=20) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   NAMELIST /NAMADT/test
 
@@ -119,10 +119,13 @@ program midas_adjointTest
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
-  !- 1.3 RAM disk usage
+  !- 1.3 read in the namelists
+  call utl_readNml()
+
+  !- 1.4 RAM disk usage
   call ram_setup
 
-  !- 1.4 Temporal grid and set dateStamp from env variable
+  !- 1.5 Temporal grid and set dateStamp from env variable
   call tim_setup()
   if (tim_getDateStamp()==0) then
     call utl_abort('midas-adjointTest: dateStamp was not set')
@@ -166,12 +169,11 @@ program midas_adjointTest
                  //'The default values will be taken.'
     end if
   else
-    nulnam=0
-    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namadt, iostat=ierr)
-    if(ierr.ne.0) call utl_abort('midas-adjointTest: Error reading namelist')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namadt, iostat=ierr)
+    if(ierr /= 0) call utl_abort('midas-adjointTest: Error reading namelist')
     if( mmpi_myid == 0 ) write(*,nml=namadt)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
   end if
 
   !

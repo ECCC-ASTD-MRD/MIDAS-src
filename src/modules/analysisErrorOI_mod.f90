@@ -58,7 +58,7 @@ contains
     type(struct_vco), pointer, intent(in)    :: vco_ptr      ! vertical grid definition
 
     ! Locals:
-    integer :: fnom, fclos, nulnam, ierr
+    integer :: ierr
     type(struct_gsv) :: stateVectorAnlErrorStd      ! state vector for analysis error std deviation
     type(struct_gsv) :: stateVectorTrlErrorStd      ! state vector for background error std deviation
     real(8), pointer :: anlErrorStdDev_ptr(:,:,:,:) ! pointer for analysis error std deviation
@@ -122,11 +122,10 @@ contains
       end if
     else
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml = namaer, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namaer, iostat = ierr)
       if (ierr /= 0) call utl_abort('aer_analysisError:: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     end if
     write(*, nml = namaer)
 

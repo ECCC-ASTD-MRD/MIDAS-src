@@ -656,7 +656,7 @@ contains
     logical, intent(out) :: nmlExists
 
     ! Locals:
-    integer :: nulnam,ierr,fnom,fclos
+    integer :: ierr
     integer :: familyIndex, elementIndex
     
     namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
@@ -689,19 +689,17 @@ contains
     diagn_varno(:,:)=0
     diagn_unilev(:,:)=.false.
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namosd,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namosd, iostat=ierr)
     if(ierr /= 0) then
       write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping some diagnostics'
       nmlExists = .false.
-      ierr = fclos(nulnam)
       return
     else
       nmlExists = .true.
     endif
     if(mmpi_myid == 0) write(*,nml=namosd)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
     if (numFamily /= MPC_missingValue_INT) then
       call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
     end if

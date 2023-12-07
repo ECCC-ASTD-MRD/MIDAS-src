@@ -1970,7 +1970,7 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Locals:
-    integer       :: nulnam, ierr, fnom, fclos
+    integer       :: ierr
     logical, save :: firstCall = .true.
 
     NAMELIST /NAMSTIO/interpToPhysicsGrid
@@ -1987,12 +1987,11 @@ module gridStateVectorFileIO_mod
         end if
       else
         ! Read namelist NAMSTIO
-        nulnam = 0
-        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam,nml=namstio,iostat=ierr)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namstio, iostat=ierr)
         if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
         if (mmpi_myid == 0) write(*,nml=namstio)
-        ierr = fclos(nulnam)
+        call utl_tmg_stop(181)
       end if
 
       firstCall = .false.

@@ -206,8 +206,8 @@ program midas_letkf
   type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
-  integer :: nulnam, dateStampFromObs, ierr
-  integer :: get_max_rss, fclos, fnom, fstopc
+  integer :: dateStampFromObs, ierr
+  integer :: get_max_rss, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
@@ -280,6 +280,8 @@ program midas_letkf
 
   call utl_tmg_start(0,'Main')
 
+  call utl_readNml()
+
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -323,12 +325,11 @@ program midas_letkf
   debug                    = .false.
   
   !- 1.2 Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namletkf, iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namletkf, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-letkf: Error reading namelist')
   if ( mmpi_myid == 0 ) write(*,nml=namletkf)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   !- 1.3 Some minor modifications of namelist values
   if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then

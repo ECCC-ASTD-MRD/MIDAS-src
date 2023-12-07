@@ -1478,6 +1478,7 @@ module ObsSpaceData_mod
    use ObsDataColumn_mod
    use IndexListDepot_mod
    use mathPhysConstants_mod
+   use utilities_mod
    implicit none
    save
    private
@@ -3832,7 +3833,7 @@ contains
 
       ! Locals:
       logical :: silent
-      integer :: nulnam,fnom,fclos,ierr
+      integer :: ierr
       character(len=120) :: message
 
       ! Namelist variables:
@@ -3887,20 +3888,13 @@ contains
          nmxobs=0
          ndatamx=0
 
-         ! Open the file, flnml
-         nulnam=0
-         ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-         if(ierr < 0) then
-            write(message,*)'Failed to open flnml to obtain nmxobs and ndatamx:'&
-                            // '  ierr=', ierr
-            call obs_abort(message); return
-         end if
+         call utl_tmg_start(181,'low-level--readNML')
 
          ! Read the dimensions from a namelist
-         read(nulnam,nml=namdimo,iostat=ierr)
+         read(utl_flnml,nml=namdimo,iostat=ierr)
          if(ierr /= 0) call obs_abort('obs_initialize: Error reading namelist')
          write(*,nml=namdimo)
-         ierr=fclos(nulnam)
+         call utl_tmg_stop(181)
          ! Verify that the namelist contained values
          if(nmxobs <= 0 .or. ndatamx <= 0) then
             write(message,*)'From file, flnml, positive values were not ' &

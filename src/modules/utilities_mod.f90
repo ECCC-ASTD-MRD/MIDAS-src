@@ -12,6 +12,7 @@ module utilities_mod
   private
 
   ! public procedures
+  public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_pseudo_inverse
@@ -78,7 +79,119 @@ module utilities_mod
     module procedure utl_findlocs_char
   end interface utl_findlocs
 
+  ! For namelist reading
+  character(len=:),allocatable :: utl_flnml, utl_flnml_static
+
 contains
+
+  subroutine utl_readNml()
+    !
+    !:Purpose: Read the namelist files into strings for quicker access.
+    !
+    !:Note:    It currently does not work correctly for "NAMBEN" which
+    !          may have multiple instance of the namelist block within the
+    !          same file.
+    !
+    implicit none
+
+    ! Locals:
+    integer :: fileSize, ierr, nulnam, positionBeg, positionEnd
+    integer :: myid, myidx, myidy, rpn_comm_mype
+    logical :: fileExists
+
+    write(*,*)
+    write(*,*) 'utl_readNML: reading namelist files into strings for later use'
+
+    ! Get some MPI information
+    ierr = rpn_comm_mype(myid,myidx,myidy)
+
+    ! First read the file flnml which must exist
+    inquire(file='./flnml', exist=fileExists, size=fileSize)
+    if (fileExists) then
+      allocate( character(len=filesize) :: utl_flnml )
+
+      ! read flnml into a string
+      nulnam = 0
+      open(newunit=nulnam,file='./flnml',status='OLD',&
+           form='UNFORMATTED',access='STREAM',iostat=ierr)
+      read(nulnam, pos=1, iostat=ierr) utl_flnml
+      close(nulnam, iostat=ierr)
+
+      ! print to the listing
+      if (myid == 0) then
+        write(*,*)
+        write(*,*) '============BEGIN CONTENTS OF FLNML================'
+        write(*,*) utl_flnml
+        write(*,*) '============END   CONTENTS OF FLNML================'
+      end if
+    else
+      call utl_abort('utl_readNml: The file "flnml" is not accessible')
+    end if
+
+    ! Check for and remove comments
+    do
+      positionBeg = index(utl_flnml, '!')
+      if (positionBeg < 1) then
+        ! No (more) comments found
+        exit
+      else
+        ! Found a comment, replace it with blank space
+        do positionEnd = positionBeg, positionBeg+1000
+          if (utl_flnml(positionEnd:positionEnd) == new_line('A')) exit
+        end do
+        positionEnd = positionEnd - 1
+        utl_flnml(positionBeg:PositionEnd) = ' '
+      end if
+    end do
+
+    ! Second read the file flnml_static which may exist
+    inquire(file='./flnml_static', exist=fileExists, size=fileSize)
+    if (fileExists) then
+
+      allocate( character(len=filesize) :: utl_flnml_static )
+
+      ! read flnml_static into a string
+      nulnam = 0
+      open(newunit=nulnam,file='./flnml_static',status='OLD',&
+           form='UNFORMATTED',access='STREAM',iostat=ierr)
+      read(nulnam, pos=1, iostat=ierr) utl_flnml_static
+      close(nulnam, iostat=ierr)
+
+      ! print to the listing
+      if (myid == 0) then
+        write(*,*)
+        write(*,*) '============BEGIN CONTENTS OF FLNML_STATIC================'
+        write(*,*) utl_flnml_static
+        write(*,*) '============END   CONTENTS OF FLNML_STATIC================'
+      end if
+
+      ! Check for and remove comments
+      do
+        positionBeg = index(utl_flnml_static, '!')
+        if (positionBeg < 1) then
+          ! No (more) comments found
+          exit
+        else
+          ! Found a comment, replace it with blank space
+          do positionEnd = positionBeg, positionBeg+1000
+            if (utl_flnml_static(positionEnd:positionEnd) == new_line('A')) exit
+          end do
+          positionEnd = positionEnd - 1
+          utl_flnml_static(positionBeg:PositionEnd) = ' '
+        end if
+      end do
+
+    else
+      allocate( character(len=1) :: utl_flnml_static )
+      utl_flnml_static = ' '
+      write(*,*) 'utl_readNml: The file "flnml_static" is not accessible, will use default values'
+    end if
+
+    write(*,*)
+    write(*,*) 'utl_readNML: finished'
+    write(*,*)
+
+  end subroutine utl_readNml
 
   function utl_fstlir(fld8, iun, ni, nj, nk, datev, etiket, &
                       ip1, ip2, ip3, typvar, nomvar) result(vfstlir)

@@ -209,7 +209,7 @@ program midas_obsSelection
    
   implicit none
 
-  integer :: dateStampFromObs, headerIndex, ierr, nulnam
+  integer :: dateStampFromObs, headerIndex, ierr
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
@@ -221,7 +221,7 @@ program midas_obsSelection
   type(struct_hco),      pointer :: hco_core => null()
 
   logical :: allocHeightSfc
-  integer :: get_max_rss, fnom, fclos
+  integer :: get_max_rss
 
   ! Namelist variables
   logical                        :: doThinning  ! Control whether or not thinning is done
@@ -237,17 +237,18 @@ program midas_obsSelection
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
+  ! Read the namelists
+  call utl_readNml()
+
   !- 1.2 Read the namelist for obsSelection program (if it exists)
   ! set default values for namelist variables
   doThinning = .false.
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
-    read(nulnam, nml = namObsSelection, iostat = ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namObsSelection, iostat = ierr)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist namObsSelection')
     if (mmpi_myid == 0) write(*,nml = namObsSelection)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
   else
     write(*,*)
     write(*,*) 'midas-obsSelection: Namelist block namObsSelection is missing in the namelist.'

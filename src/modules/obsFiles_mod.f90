@@ -222,7 +222,7 @@ contains
     type(struct_eob), optional, intent(in)    :: ensObs_opt          
   
     ! Locals:
-    integer           :: fileIndex, fnom, fclos, nulnam, ierr
+    integer           :: fileIndex, ierr
     integer           :: status, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
@@ -244,19 +244,18 @@ contains
  
     call obsf_determineFileType(obsFileType)
 
-    nulnam=0
     lwritediagsql = .false.
     onlyAssimObs = .false.
     addFSOdiag = .false.
     writeObsDb = .false.
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namwritediag,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=namwritediag,iostat=ierr)
     if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
     if (mmpi_myid == 0) write(*,nml = namwritediag)
     if (present(writeDiagFiles_opt)) then
       lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
     end if
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     if ( obsFileType == 'BURP' .or. obsFileType == 'OBSDB' .or. &
          obsFileType == 'SQLITE' ) then

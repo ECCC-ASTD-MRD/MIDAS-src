@@ -124,7 +124,7 @@ program midas_oMinusF
   logical :: addSigmaO  ! choose to add the value of sigma_obs to obsSpaceData so it can be output
   NAMELIST /NAMOMF/addHBHT, addSigmaO, nEns
   
-  integer :: fnom, fclos, nulnam, ierr, headerIndex
+  integer :: ierr, headerIndex
   
   type(struct_columnData),target  :: columnTrlOnAnlIncLev
   type(struct_columnData),target  :: columnTrlOnTrlLev
@@ -155,17 +155,19 @@ program midas_oMinusF
     call utl_writeStatus('VAR3D_BEG')
   endif
 
+  ! Read the namelists
+  call utl_readNml()
+
   !- 1.3 Namelist
   addHBHT   = .false. ! default value
   addSigmaO = .false.
   nEns      = 20
 
-  nulnam = 0
-  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namomf,iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namomf, iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-OminusF: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namomf)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   !- 1.4 Set mode
   inquire(file=trim(trlFileName),exist=trlFileExists)

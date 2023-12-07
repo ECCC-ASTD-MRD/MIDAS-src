@@ -513,7 +513,7 @@ module gridStateVector_mod
     implicit none
 
     ! Locals:
-    integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
+    integer           :: varIndex, ierr, loopIndex
     ! namelist variables:
     character(len=4)  :: anlvar(vnl_numVarMax)           ! list of state variable names
     logical           :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
@@ -540,12 +540,11 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namstate,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=namstate,iostat=ierr)
+    if (ierr /= 0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mmpi_myid.eq.0) write(*,nml=namstate)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms

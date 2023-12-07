@@ -112,8 +112,7 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     ! Locals:
-    integer :: nulnam, ier
-    integer :: fclos, fnom
+    integer :: ier
     integer :: varIndex, levIndex, k
     integer :: numStep
     integer, allocatable :: dateStampList(:)
@@ -178,12 +177,8 @@ contains
     hLocalize_other     = -1.0d0 ! Default value (no hloc)
     scaleFactor(:)      =  1.0d0 ! Default value (no scaling)
     
-    nulnam = 0
-
-    ier=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read (nulnam,nml=namcalcstats_lam)
-    write(*     ,nml=namcalcstats_lam)
-    ier=fclos(nulnam)
+    read (utl_flnml, nml=namcalcstats_lam)
+    write(*, nml=namcalcstats_lam)
 
     write(*,*)
     write(*,*) 'Truncation = ', nTrunc
@@ -575,7 +570,6 @@ contains
     real(8), allocatable :: SpVertCorrel(:,:,:)
     real(8), allocatable :: NormB(:,:,:)
     real(8), allocatable :: PowerSpectrum(:,:)
-    integer :: nulnam, ier, fnom, fclos
     type(struct_gsv) :: statevector_stdDev
     type(struct_gsv) :: statevector_template
     character(len=4), pointer :: varNamesList(:)
@@ -590,11 +584,8 @@ contains
     !
     !- 1.  Tool selection
     !
-    nulnam = 0
-    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMTOOLBOX)
-    write(*,nml=NAMTOOLBOX)
-    ier = fclos(nulnam)
+    read(utl_flnml, nml=NAMTOOLBOX)
+    write(*, nml=NAMTOOLBOX)
 
     select case(trim(tool))
 
@@ -2273,7 +2264,6 @@ contains
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
     character(len=4), pointer :: varNamesList(:)
-    integer :: ier, fclos, fnom, nulnam
 
     NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding
 
@@ -2287,11 +2277,8 @@ contains
     njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
-    nulnam = 0
-    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMHVCORREL_LOCAL)
+    read(utl_flnml,nml=NAMHVCORREL_LOCAL)
     write(*,nml=NAMHVCORREL_LOCAL)
-    ier = fclos(nulnam)
 
     blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
     ! around each reference point

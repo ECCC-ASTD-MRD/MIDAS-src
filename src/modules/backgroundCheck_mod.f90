@@ -47,7 +47,7 @@ module backgroundCheck_mod
 
     ! Locals:
     integer                     :: familyIndex
-    integer                     :: nulNam, ier, fnom, fclos
+    integer                     :: ier
     logical                     :: noObsToProcess
     character(len=*), parameter :: myName = 'bgck_bgcheck_conv'
 
@@ -73,13 +73,11 @@ module backgroundCheck_mod
 
     new_bgck_sw = .false.
 
-    nulNam=0
-    ier = fnom( nulNam, 'flnml', 'r/o', 0 )
-    read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )
+    call utl_tmg_start(181,'low-level--readNML')
+    read( utl_flnml, nml = NAMBGCKCONV, IOSTAT = ier )
     if ( ier /= 0 ) write(*,*) myName//': no valid namelist NAMBGCKCONV found, default values will be taken:'
     write(*,*) myName//': new_bgck_sw = ',new_bgck_sw
-    ier = fclos(nulNam)
-     
+    call utl_tmg_stop(181)
  
     ! Obtain or calc OmP-error std dev when requested and possible.
     ! Otherwise calc HBHT contribution (sigma_B in observation space)  

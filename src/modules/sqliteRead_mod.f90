@@ -147,7 +147,7 @@ module sqliteRead_mod
     real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
     real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
     real(pre_obsReal)        :: beamLat, beamLon, beamHeight, beamDistance, beamRange
-    integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
+    integer                  :: vertCoordType, vertCoordFact, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, obsError
@@ -260,47 +260,46 @@ module sqliteRead_mod
     end select
 
     ! Read appropriate namelist based on obs family
-    nulnam = 0
-    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    call utl_tmg_start(181,'low-level--readNML')
     select case(trim(familyType))
       case('TO')
-        read(nulnam, nml = NAMSQLtovs, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLtovs, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLtovs')
         if (mmpi_myid == 0) write(*, nml = NAMSQLtovs)
       case('UA')
-        read(nulnam, nml = NAMSQLua, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLua, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLua')
         if (mmpi_myid == 0) write(*, nml = NAMSQLua)
       case ('AI')
-        read(nulnam, nml = NAMSQLai, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLai, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLai')
         if (mmpi_myid == 0) write(*, nml = NAMSQLai)
       case ('SW')
-        read(nulnam, nml = NAMSQLsw, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLsw, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsw')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsw)
       case ('PR')
-        read(nulnam, nml = NAMSQLpr, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLpr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
       case ('AL')  
-        read(nulnam, nml = NAMSQLal, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLal, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
       case ('RO')     
-        read(nulnam, nml = NAMSQLro, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLro, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
         if (mmpi_myid == 0) write(*, nml = NAMSQLro)
       case ('SF','GP','HY')
-        read(nulnam, nml = NAMSQLsfc, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLsfc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)        
       case ('SC')
-        read(nulnam, nml = NAMSQLsc, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
       case ('TM')
-        read(nulnam, nml = NAMSQLsst, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLsst, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsst')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsst)
         do rowIndex = 1, size(codtypInFileList,1)
@@ -312,17 +311,17 @@ module sqliteRead_mod
           end if
         end do
       case ('GL')
-        read(nulnam, nml = NAMSQLgl, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('RA')
-        read(nulnam, nml = NAMSQLradar, iostat = ierr)
+        read(utl_flnml, nml = NAMSQLradar, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLradar) 
       case default
         call utl_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
     end select
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
     
     if (numberElem /= MPC_missingValue_R4) then
       call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
@@ -879,7 +878,7 @@ module sqliteRead_mod
     integer                     :: itemIndex, headPrimaryKeyIndex, landSeaIndex
     integer                     :: headerIndex, bodyIndex
     character(len =   3)        :: item
-    integer                     :: updateList(20), fnom, fclos, nulnam, ierr
+    integer                     :: updateList(20), ierr
     character(len =  10)        :: columnName
     character(len = 128)        :: query
     character(len = 356)        :: itemChar, columnNameChar
@@ -905,12 +904,11 @@ module sqliteRead_mod
     numberUpdateItemsRadar = MPC_missingValue_INT
 
     ! Read the namelist for directives
-    nulnam = 0
-    ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam,nml = namSQLUpdate, iostat = ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namSQLUpdate, iostat = ierr)
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
     if (numberUpdateItems /= MPC_missingValue_INT) then
       call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItems should be removed')
     end if
@@ -1223,7 +1221,7 @@ module sqliteRead_mod
     ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
+    integer                :: obsVarno, obsFlag, vertCoordType, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
     integer                :: numberInsert, headerIndex, bodyIndex, numHeader, itemIndex
     integer                :: obsNlv, obsRln, obsIdf, insertItem
@@ -1247,12 +1245,11 @@ module sqliteRead_mod
     numberInsertItems = MPC_missingValue_INT
     itemInsertList(:) = MPC_missingValue_INT
 
-    nulnam = 0
-    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml = namSQLInsert, iostat = ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namSQLInsert, iostat = ierr)
     if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLInsert)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
     if (numberInsertItems /= MPC_missingValue_INT) then
       call utl_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
     end if

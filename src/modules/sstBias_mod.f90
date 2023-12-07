@@ -27,10 +27,7 @@ module sstBias_mod
 
   ! public subroutines
   public :: sstb_computeBias, sstb_applySatelliteSSTBiasCorrection
-  
-  ! external 
-  integer, external  :: fnom, fclos
-  
+
   ! mpi topology
   integer            :: myLatBeg, myLatEnd
   integer            :: myLonBeg, myLonEnd
@@ -627,7 +624,7 @@ module sstBias_mod
     implicit none
 
     ! Locals:
-    integer :: ierr, nulnam, sensorIndex
+    integer :: ierr, sensorIndex
     
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
                                   timeInterpType_nl, numObsBatches, numberSensors, sensorList, &
@@ -648,12 +645,11 @@ module sstBias_mod
     bgTermZeroBias = 1.0
     
     ! Read the namelist
-    nulnam = 0
-    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-    read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namSSTbiasEstimate, iostat = ierr )
     if (ierr /= 0) call utl_abort('readNml (sstb): Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
-    ierr = fclos( nulnam )
+    call utl_tmg_stop(181)
 
     if (numberSensors /= MPC_missingValue_INT) then
       call utl_abort('readNml (sstb): check namSSTbiasEstimate namelist section: numberSensors should be removed')

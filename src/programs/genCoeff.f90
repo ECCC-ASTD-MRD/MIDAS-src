@@ -133,6 +133,8 @@ program midas_genCoeff
 
   call utl_tmg_start(0,'Main')
 
+  ! Read the namelists
+  call utl_readNml()
  
   ! 1. Top level setup
   call ram_setup()

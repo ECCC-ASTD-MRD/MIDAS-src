@@ -47,8 +47,7 @@ contains
     character(len=2), intent(in)    :: obsFamily
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     logical :: doThinning        ! if false, we return immediately
@@ -71,14 +70,12 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_surface', './flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
-      if (ierr /= 0) call utl_abort('thn_thinSurface: Error opening file flnml')
-      read(nulnam,nml = thin_surface, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = thin_surface, iostat = ierr)
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_surface)
-      ierr = fclos(nulnam)
-    else
+      call utl_tmg_stop(181)
+   else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
@@ -106,8 +103,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     logical :: verticalThinningES ! choose to do vertical thinning of humidity obs
@@ -126,14 +122,12 @@ contains
 
     ! Read the namelist for Radiosonde observations (if it exists)
     if (utl_isNamelistPresent('thin_raobs','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinRaobs: Error opening file flnml')
-      read(nulnam,nml=thin_raobs,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_raobs, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_raobs)
-      ierr = fclos(nulnam)
-    else
+      call utl_tmg_stop(181)
+   else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -159,8 +153,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: deltmax ! maximum time difference (in minutes)
@@ -175,13 +168,11 @@ contains
 
     ! Read the namelist for Aircraft observations (if it exists)
     if (utl_isNamelistPresent('thin_aircraft','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
-      read(nulnam,nml=thin_aircraft,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_aircraft, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aircraft)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
@@ -208,8 +199,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: deltemps ! number of time bins between adjacent observations
@@ -226,13 +216,11 @@ contains
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error opening file flnml')
-      read(nulnam,nml=thin_satwind,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_satwind, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatWinds: Namelist block thin_satwind is missing in the namelist.'
@@ -259,8 +247,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     real(8) :: heightMin     ! niveau a partir du quel on accepte les donnees
@@ -281,13 +268,11 @@ contains
 
     ! Read the namelist for GpsRo observations (if it exists)
     if (utl_isNamelistPresent('thin_gpsro','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error opening file flnml')
-      read(nulnam,nml=thin_gpsro,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_gpsro, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gpsro)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinGpsRo: Namelist block thin_gpsro is missing in the namelist.'
@@ -314,8 +299,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: deltemps     ! number of time bins between adjacent observations
@@ -336,14 +320,12 @@ contains
 
     ! Read the namelist for GbGps observations (if it exists)
     if (utl_isNamelistPresent('thin_gbgps','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinGbGps: Error opening file flnml')
-      read(nulnam,nml=thin_gbgps,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_gbgps, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
       if (mmpi_myid == 0) write(*,nml=thin_gbgps)
-      ierr = fclos(nulnam)
-    else
+      call utl_tmg_stop(181)
+   else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
@@ -369,8 +351,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: keepNthVertical ! keep every nth vertical datum
@@ -385,13 +366,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_aladin','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinAladin: Error opening file flnml')
-      read(nulnam,nml=thin_aladin,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_aladin, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading thin_aladin namelist')
       if (mmpi_myid == 0) write(*,nml=thin_aladin)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinAladin: Namelist block thin_aladin is missing in the namelist.'
@@ -420,8 +399,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: deltax     ! thinning (dimension of box sides) (in km)
@@ -438,13 +416,11 @@ contains
 
     ! Read the namelist for CSR observations (if it exists)
     if (utl_isNamelistPresent('thin_csr','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinCSR: Error opening file flnml')
-      read(nulnam,nml=thin_csr,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_csr, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading thin_csr namelist')
       if (mmpi_myid == 0) write(*,nml=thin_csr)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinCSR: Namelist block thin_csr is missing in the namelist.'
@@ -473,8 +449,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: deltax     ! thinning (dimension of box sides) (in km)
@@ -491,13 +466,11 @@ contains
 
     ! Read the namelist for Scat observations (if it exists)
     if (utl_isNamelistPresent('thin_scat','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinScat: Error opening file flnml')
-      read(nulnam,nml=thin_scat,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_scat, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinScat: Error reading thin_scat namelist')
       if (mmpi_myid == 0) write(*,nml=thin_scat)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinScat: Namelist block thin_scat is missing in the namelist.'
@@ -526,8 +499,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     integer :: delta    ! thinning (dimension of box sides) (in km)
@@ -544,13 +516,11 @@ contains
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
-      read(nulnam,nml=thin_tovs,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_tovs, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading thin_tovs namelist')
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
@@ -588,8 +558,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
 
     ! Namelist variables:
     logical :: removeUnCorrected ! indicate if obs without bias correction should be removed
@@ -609,13 +578,11 @@ contains
 
     ! Read the namelist for Aladin observations (if it exists)
     if (utl_isNamelistPresent('thin_hyper','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
-      read(nulnam,nml=thin_hyper,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=thin_hyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading thin_hyper namelist')
       if (mmpi_myid == 0) write(*,nml=thin_hyper)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
@@ -1378,8 +1345,8 @@ contains
     type(struct_hco), pointer :: hco_sfc
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
-    integer :: fnom, fclos, ezgdef, ezsint, ezdefset, ezsetopt
-    integer :: ierr, nulnam, numLevStn, numLevStnMpi, countLevel, numLevStnMax
+    integer :: ezgdef, ezsint, ezdefset, ezsetopt
+    integer :: ierr, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
     integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex
     integer :: levStnIndex, levStnIndexMpi, obsFlag
@@ -1594,10 +1561,8 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
-      read(nulnam,nml=namgem,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namgem, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
       if (numlev /= MPC_missingValue_INT) then
         call utl_abort('thn_radiosonde: check NAMGEM namelist section: numlev should be removed')
@@ -1608,7 +1573,7 @@ contains
         numlev = numlev + 1
       end do
       if (mmpi_myid == 0) write(*,nml=namgem)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
     end if
@@ -4306,7 +4271,7 @@ contains
     type(struct_vco), pointer :: vco_sfc
     type(struct_gsv)          :: stateVectorPsfc
     integer :: numLon, numLat, nsize, headerIndexBeg, headerIndexEnd
-    integer :: nulnam, ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
+    integer :: ierr, lonIndex, latIndex, levIndex, stepIndex, codtyp
     integer :: obsLonIndex, obsLatIndex, obsLevIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
     integer :: aiTypeCount(4), aiTypeCountMpi(4)
@@ -4331,7 +4296,6 @@ contains
     integer, allocatable :: handlesGrid(:,:,:), numObsGrid(:,:,:)
     real(4), allocatable :: minScoreGrid(:,:,:), minDistGrid(:,:,:), maxDistGrid(:,:,:)
     real(4), allocatable :: uuSumGrid(:,:,:), vvSumGrid(:,:,:), ttSumGrid(:,:,:)
-    integer, external :: fnom, fclos
     integer, parameter :: maxLev = 500
 
     ! Namelist variables:
@@ -4409,13 +4373,11 @@ contains
     rcoefinc = 0.0d0
     ! Read the namelist defining the vertical levels
     if (utl_isNamelistPresent('namgem','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
-      read(nulnam,nml=namgem,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namgem, iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
       if (mmpi_myid == 0) write(*,nml=namgem)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (numlev /= MPC_missingValue_INT) then
         call utl_abort('thn_aircraftByBoxes: check NAMGEM namelist section: numlev should be removed')
       end if
@@ -7173,8 +7135,7 @@ contains
     type(struct_obs), intent(inout) :: obsData
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
+    integer :: ierr
     integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets considered in surface thinning 
     integer :: dataSetSSTIndex, numberDataSetSST
 
@@ -7199,13 +7160,11 @@ contains
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_satSST', './flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
-      if (ierr /= 0) call utl_abort('thn_thinSatSST: Error opening file flnml')
-      read(nulnam,nml = thin_satSST, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = thin_satSST, iostat = ierr)
       if (ierr /= 0) call utl_abort('thn_thinSatSST: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = thin_satSST)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'

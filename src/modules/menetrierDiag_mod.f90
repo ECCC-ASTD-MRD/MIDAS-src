@@ -62,7 +62,7 @@ contains
     real(8), pointer,          intent(inout) :: pressureProfile_T_in(:)
 
     ! Locals:
-    integer :: nulnam, ierr, fclos, fnom
+    integer :: ierr
     integer :: nVar, varNameIndex, var2dIndex, var3dIndex
     character(len=4), pointer :: varNamesList(:)
 
@@ -123,11 +123,8 @@ contains
     strideForVLoc = 50  ! Vertical   correlations will be computed every "stride" gridpoint in x and y
     horizPadding  = 0   ! Number of grid point to discard along the horizontal edges (only for LAM)
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMLOCALIZATIONRADII)
+    read(utl_flnml,nml=NAMLOCALIZATIONRADII)
     write(*,nml=NAMLOCALIZATIONRADII)
-    ierr = fclos(nulnam)
 
     !
     !- 3.  Ending

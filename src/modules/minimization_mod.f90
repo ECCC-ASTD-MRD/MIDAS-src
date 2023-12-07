@@ -105,8 +105,7 @@ CONTAINS
     integer,         optional, intent(out) :: nwoqcv_opt
 
     ! Locals:
-    integer :: ierr,nulnam
-    integer,external :: fnom,fclos
+    integer :: ierr
 
     call utl_tmg_start(90,'--Minimization')
 
@@ -139,12 +138,11 @@ CONTAINS
     nwoqcv   = 5
 
     ! read in the namelist NAMMIN
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nammin,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('min_setup: Error reading namelist')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=nammin, iostat=ierr)
+    if(ierr /= 0) call utl_abort('min_setup: Error reading namelist')
     write(*,nml=nammin)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
