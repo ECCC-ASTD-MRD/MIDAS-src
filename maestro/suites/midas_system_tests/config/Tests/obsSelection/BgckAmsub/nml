@@ -58,7 +58,9 @@
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .true.,
    instrumentNamesUsingHydrometeors(1) = 'amsub'
+   channelsUsingHydrometeors(1,1:5)=1,2,3,4,5 
    instrumentNamesUsingHydrometeors(2) = 'mhs'
+   channelsUsingHydrometeors(2,1:5)=1,2,3,4,5 
    regLimitExtrap=.false.
 /
  &NAMCODTYP
