@@ -46,6 +46,7 @@ module obsFiles_mod
 
   integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
+  integer, parameter :: fileTypeLen = 10
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
@@ -69,7 +70,7 @@ contains
     character(len=*), intent(in)            :: obsFileMode_in
 
     ! Locals:
-    character(len=10)                       :: obsFileType
+    character(len=fileTypeLen)              :: obsFileType
 
     obsFileMode = trim(obsFileMode_in)
 
@@ -133,10 +134,10 @@ contains
     ! Locals:
     integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
     integer :: numHeaderBefore, numBodyBefore, numHeaderRead, numBodyRead
-    character(len=10) :: obsFileType
+    character(len=fileTypeLen)       :: obsFileType
     character(len=maxLengthFilename) :: fileName
-    character(len=256) :: fileNamefull
-    character(len=familyTypeLen) :: obsFamilyType
+    character(len=256)               :: fileNamefull
+    character(len=familyTypeLen)     :: obsFamilyType
     logical :: fileExists
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
@@ -353,8 +354,8 @@ contains
     implicit none
 
     ! Locals:
-    integer           :: fileIndex
-    character(len=10) :: obsFileType
+    integer                    :: fileIndex
+    character(len=fileTypeLen) :: obsFileType
 
     if ( .not.initialized ) call utl_abort('obsf_cleanObsFiles: obsFiles_mod not initialized!')
    
@@ -984,8 +985,8 @@ contains
 
     ! Locals:
     character(len=maxLengthFilename) :: filename
-    logical :: fileFound
-    character(len=10) :: obsFileType
+    logical                          :: fileFound
+    character(len=fileTypeLen)       :: obsFileType
 
     filename = obsf_getFileName(obsfam,fileFound)
 
@@ -1060,8 +1061,8 @@ contains
     ! Locals:
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
-    logical :: fileFound
-    character(len=10) :: obsFileType
+    logical                          :: fileFound
+    character(len=fileTypeLen)       :: obsFileType
 
     filename = obsf_getFileName(obsfam,fileFound)
 
@@ -1100,8 +1101,8 @@ contains
     type(struct_obs),  intent(inout)  :: obsSpaceData
 
     ! Locals:
-    integer           :: fileIndex
-    character(len=10) :: obsFileType
+    integer                    :: fileIndex
+    character(len=fileTypeLen) :: obsFileType
 
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
@@ -1139,11 +1140,11 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer           :: fileIndex
-    character(len=10) :: obsFileType
-    logical           :: toDataPresent
-    integer           :: headerIndex
-    integer           :: codtyp 
+    integer                    :: fileIndex
+    character(len=fileTypeLen) :: obsFileType
+    logical                    :: toDataPresent
+    integer                    :: headerIndex
+    integer                    :: codtyp 
 
     toDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
