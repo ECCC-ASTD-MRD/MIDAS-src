@@ -369,6 +369,7 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
 
+call utl_tmg_start(125,'Obs9')
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
@@ -412,6 +413,8 @@ contains
         write(*,*) ' tvs_setupAlloc: Warning Invalid Sensor ', iplatform, isat, instrum, ' skipping ...'
       end if
 
+call utl_tmg_stop(125)
+call utl_tmg_start(128,'Obs12')
       ! Loop over all body indices (still in the 'TO' family)
       ! Set the body list & start at the beginning of the list
       call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -438,8 +441,10 @@ contains
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
         end if
       end do BODY
+call utl_tmg_stop(128)
     end do HEADER
 
+call utl_tmg_start(129,'Obs13')
     if ( .not. tvs_userDefinedDoAzimuthCorrection) then 
       ! tvs_doAzimuthCorrection user defined values will be overwriten by the old default values 
       do sensorIndex = 1, tvs_nsensors
@@ -513,6 +518,7 @@ contains
         write(*,*) 
       end do
     end if
+call utl_tmg_stop(129)
 
     !  3. Initialize TOVS radiance transfer model
 

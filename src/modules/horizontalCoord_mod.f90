@@ -201,11 +201,19 @@ contains
                  grtyp, ig1, ig2, ig3,                           & ! OUT
                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3) ! OUT
 
+    write(*,*) 'fstprm ier = ', ier
+    write(*,*) 'ni, nj, grtyp, ig1, ig2, ig3, ig4 =', ni, nj, grtyp, ig1, ig2, ig3, ig4
+
     if (trim(grtyp) == 'G' .and. ig2 == 1) then
       call utl_abort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     end if
 
     EZscintID  = ezqkdef(ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template)   ! IN
+    if (EZscintID < 0) then
+      write(*,*) '  ni, nj, grtyp, ig1, ig2, ig3, ig4 =', ni, nj, grtyp, ig1, ig2, ig3, ig4
+      call utl_abort('hco_setupFromFile: unable to define EZscintID')
+    end if
+
     numSubGrid = 1
     EZscintIDsubGrids(:) = MPC_missingValue_INT
 
@@ -214,9 +222,9 @@ contains
     
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
-    
+
     ier = gdll(EZscintID,               & ! IN
-               hco%lat2d_4, hco%lon2d_4) ! OUT
+               hco%lat2d_4, hco%lon2d_4)  ! OUT
 
     xlat1_yan_4 = MPC_missingValue_R4
     xlon1_yan_4 = MPC_missingValue_R4

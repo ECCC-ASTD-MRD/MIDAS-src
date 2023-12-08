@@ -75,6 +75,7 @@ contains
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
 
     call utl_tmg_start(10,'--Observations')
+call utl_tmg_start(108,'Obs5')
 
     !
     !- Setup de the mode
@@ -103,12 +104,16 @@ contains
       call obs_initialize(obsSpaceData, mpi_local_opt=obsf_filesSplit())
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+call utl_tmg_stop(108)
 
+call utl_tmg_start(126,'Obs10')
     !
     !- Set up the list of elements to be assimilated and flags for rejection
     !
     call filt_setup(innovationMode) ! IN
+call utl_tmg_stop(126)
 
+call utl_tmg_start(127,'Obs11')
     !
     !- Initialize TOVS processing
     !
@@ -117,21 +122,25 @@ contains
     !
     !- Read the observations from files
     !
+call utl_tmg_stop(127)
     call utl_tmg_start(11,'----ReadObsFiles')
     call obsf_readFiles( obsSpaceData )
     call utl_tmg_stop(11)
 
+call utl_tmg_start(109,'Obs6')
     !
     !- Initialize GPS processing
     !
     if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
     if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
+call utl_tmg_stop(109)
 
     !
     !- Filter out data from the obs data base
     !
     call filt_suprep(obsSpaceData)
 
+call utl_tmg_start(112,'Obs6')
     ! Additional filtering for bias correction if requested 
     call bcs_setup()
     call bcs_filterObs(obsSpaceData)
@@ -167,6 +176,7 @@ contains
       ! complete set of obs on each MPI process, only keep subset according to OBS_IP
       call obs_reduceToMpiLocal(obsSpaceData)
     end if
+call utl_tmg_stop(112)
 
     !
     !- Initialization and memory allocation for TOVS processing
@@ -445,6 +455,7 @@ contains
     logical, save :: lgpdata = .false.
 
     call utl_tmg_start(10,'--Observations')
+call utl_tmg_start(113,'Obs7')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -524,6 +535,7 @@ contains
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
+call utl_tmg_stop(113)
     call utl_tmg_start(17,'----ObsOper_NL')
     
     ! Radiosondes
@@ -617,6 +629,7 @@ contains
 
     call utl_tmg_stop(17)
 
+call utl_tmg_start(123,'Obs8')
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
 
@@ -638,6 +651,7 @@ contains
       write(*,*) '--Done subroutine inn_computeInnovation--'
     end if
 
+call utl_tmg_stop(123)
     call utl_tmg_stop(10)
 
   end subroutine inn_computeInnovation
