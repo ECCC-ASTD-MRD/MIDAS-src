@@ -94,7 +94,7 @@ program midas_extractBmatrixFor1Dvar
   integer :: ierr
   integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
   integer :: kIndex1, kIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
-  integer :: idate, itime, nulnam, dateStamp
+  integer :: idate, itime, dateStamp
   integer :: stepBinExtractIndex
   integer :: nLonLatPos, lonLatPosIndex
 
@@ -122,6 +122,9 @@ program midas_extractBmatrixFor1Dvar
   call utl_tmg_start(0, 'Main')
   ierr = fstopc('MSGLVL', 'ERRORS', 0)
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Set default values for namelist NAMEXTRACT parameters
   extractdate        =  2011020100
   varNameExtract     = 'all'
@@ -129,12 +132,11 @@ program midas_extractBmatrixFor1Dvar
   lonlatExtract(:,:) = -1
 
   ! Read the parameters from NAMEXTRACT
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namextract, iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namextract, iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-extractBmatrix: Error reading namelist')
   write(*, nml=namextract)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   nLonLatPos = 0
   do lonlatPosIndex = 1, size(lonlatExtract(:,lonColumn))

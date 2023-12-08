@@ -292,7 +292,7 @@ module obsDiagFiles_mod
       call fSQL_exec_stmt (stmtHeader)
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
-         
+
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex)
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex)

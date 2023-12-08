@@ -132,10 +132,10 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:), fieldInterp(:,:,:)
 
-  integer :: fclos, fnom, fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
+  integer :: fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
   integer :: imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
-  integer :: datePrint, timePrint, nulnam, randomSeed
+  integer :: datePrint, timePrint, randomSeed
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
 
   integer :: latPerPEa, latPerPEmaxa, myLatBega, myLatEnda
@@ -189,6 +189,9 @@ program midas_randomPert
 
   ierr = fstopc('MSGLVL','ERRORS',0)
 
+  ! Read the namelists
+  call utl_readNml()
+
   !
   !- 1. Set/Read values for the namelist NAMENKF
   !
@@ -207,12 +210,11 @@ program midas_randomPert
   previousDateFraction = -1.0
 
   !- 1.2 Read the namelist
-  nulnam=0
-  ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namenkf, iostat=ierr)
-  if(ierr.ne.0) call utl_abort('midas-randomPert: Error reading namelist')
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namenkf, iostat=ierr)
+  if(ierr /= 0) call utl_abort('midas-randomPert: Error reading namelist')
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
-  ierr=fclos(nulnam)
+  call utl_tmg_stop(181)
 
   if (readEnsMean) then
     typvarOut = 'A'

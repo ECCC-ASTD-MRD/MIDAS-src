@@ -105,7 +105,7 @@ program midas_prepcma
 
   implicit none
 
-  integer :: fnom, fclos, nulnam, ierr, dateStampFromObs
+  integer :: fnom, ierr, dateStampFromObs
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
@@ -158,6 +158,8 @@ program midas_prepcma
 
   if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
 
+  call utl_readNml()
+
   !- Specify default values for namelist variables
   cmahdr        = 'NOT_DEFINED'
   cmabdy        = 'NOT_DEFINED'
@@ -174,12 +176,11 @@ program midas_prepcma
   writeObsFiles           = .false.
   writeAsciiCmaFiles       = .false.
 
-  nulnam = 0
-  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namprepcma,iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namprepcma, iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-prepcma: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namprepcma)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   !- RAM disk usage
   call ram_setup

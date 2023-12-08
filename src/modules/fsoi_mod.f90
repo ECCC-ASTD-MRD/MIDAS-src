@@ -79,8 +79,7 @@ module fsoi_mod
     type(struct_hco), pointer, intent(in) :: hco_anl_in
 
     ! Locals:
-    integer :: ierr,nulnam
-    integer :: fnom,fclos
+    integer :: ierr
 
     NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
     NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
@@ -109,12 +108,11 @@ module fsoi_mod
     StratoNorm = .false.
 
     ! read in the namelist NAMFSO
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namfso,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namfso, iostat=ierr)
     if(ierr /= 0) call utl_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     if (trim(fsoMode) /= 'HFSO' .and. trim(fsoMode) /= 'EFSO') then
       call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO or EFSO')

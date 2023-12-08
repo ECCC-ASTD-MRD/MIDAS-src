@@ -199,6 +199,9 @@ program midas_obsImpact
     call utl_writeStatus('VAR3D_BEG')
   end if
 
+  ! Read the namelists
+  call utl_readNml()
+
   call ram_setup
 
   !

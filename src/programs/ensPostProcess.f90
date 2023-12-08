@@ -163,9 +163,9 @@ program midas_ensPostProcess
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
   character(len=256) :: ensFileName, gridFileName, ctrlFileName
   integer, allocatable :: dateStampList(:)
-  integer :: ierr, nulnam, stepIndex
+  integer :: ierr, stepIndex
   logical :: targetGridFileExists
-  integer, external :: get_max_rss, fstopc, fnom, fclos
+  integer, external :: get_max_rss, fstopc
 
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
@@ -186,6 +186,9 @@ program midas_ensPostProcess
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -200,12 +203,11 @@ program midas_ensPostProcess
   hInterpolationDegree = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
 
   !- Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namEnsPostProc, iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
   if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProc)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
     call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')

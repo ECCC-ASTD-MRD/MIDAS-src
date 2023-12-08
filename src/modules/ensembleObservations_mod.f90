@@ -96,8 +96,7 @@ CONTAINS
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr, obsfamIndex, codtypIndex, varnumIndex
-    integer, external :: fnom, fclos
+    integer :: ierr, obsfamIndex, codtypIndex, varnumIndex
     logical, save :: eob_initialized = .false.
 
     if (eob_initialized) return
@@ -123,11 +122,10 @@ CONTAINS
 
     ! read namelist
     if (utl_isNamelistPresent('namensobs','./flnml')) then
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namensobs,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namensobs, iostat=ierr)
       if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
-      ierr=fclos(nulnam)
+      call utl_tmg_stop(181)
       do obsfamIndex = 1, ofl_numFamily
         if (trim(simObsFamily(obsfamIndex)) /= '') then
           numSimObsFam = numSimObsFam + 1

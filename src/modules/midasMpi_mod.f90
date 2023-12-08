@@ -119,6 +119,7 @@ module midasMpi_mod
     npex=1
     npey=1
 
+    call utl_tmg_start(181,'low-level--readNML')
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
@@ -126,6 +127,7 @@ module midasMpi_mod
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
   end subroutine mmpi_getptopo 
 

@@ -115,9 +115,8 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr
+    integer :: ierr
     logical, save :: first = .true.
-    integer, external :: fnom, fclos
     integer :: instrumentIndex
     namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair
     namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
@@ -140,9 +139,7 @@ contains
       crisCloudFractionThreshold = -1.d0
 
       ! read the namelist
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
-      read(nulnam, nml=NAMBGCKIR, iostat=ierr)
+      read(utl_flnml, nml=NAMBGCKIR, iostat=ierr)
       if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
       if (ninst /= MPC_missingValue_INT) then
@@ -153,7 +150,6 @@ contains
         if (inst(instrumentIndex) == '*EMPTY*') exit
         ninst = ninst + 1
       end do
-      ierr = fclos(nulnam)
       first = .false.
 
     end if

@@ -102,8 +102,7 @@ contains
     integer :: cvdim
     integer :: masterBmatIndex, bmatIndex
     logical :: active
-    integer :: nulnam, ierr
-    integer, external ::  fnom, fclos
+    integer :: ierr
     integer :: varIndex
 
     call utl_tmg_start(50, '--Bmatrix')
@@ -124,12 +123,11 @@ contains
     lonMin = -1000.d0
     lonMax = 1000.d0
     
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=nambmat1D, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=nambmat1D, iostat=ierr)
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambmat1D )
-    ierr = fclos( nulnam )
+    call utl_tmg_stop(181)
     if (numIncludeAnlVar /= MPC_missingValue_INT) then
       call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
     end if

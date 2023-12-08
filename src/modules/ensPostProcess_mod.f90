@@ -55,7 +55,7 @@ contains
 
     ! Locals:
     integer                   :: ierr, nEns, dateStamp, datePrint, timePrint, imode, randomSeedRandomPert
-    integer                   :: stepIndex, middleStepIndex, nulnam
+    integer                   :: stepIndex, middleStepIndex
     integer, allocatable      :: dateStampListInc(:)
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
@@ -76,7 +76,7 @@ contains
     character(len=256)        :: outFileName
     character(len=4), pointer :: varNames(:)
     character(len=12)         :: hInterpolationDegree = 'LINEAR'
-    integer, external         :: fnom, fclos, newdate
+    integer, external         :: newdate
     logical                   :: outputOnlyEnsMean
 
     ! Namelist variables
@@ -180,12 +180,11 @@ contains
     useMemberAsHuRefState = .false.
 
     !- Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namEnsPostProcModule, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namEnsPostProcModule, iostat=ierr)
     if ( ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
     if (alphaRTPP < 0.0D0) alphaRTPP = 0.0D0

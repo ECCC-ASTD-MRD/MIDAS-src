@@ -387,7 +387,7 @@ contains
     integer :: headerIndex,bodyIndex,ilyr,bufrCode,levIndexTop,levIndexBot
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     integer :: found  ! a group of bit flags
-    integer :: ierr, nulnam, fnom,fclos
+    integer :: ierr
     real(8) :: zvar,zwb,zwt
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: trlValueBot,trlValueTop
@@ -420,12 +420,11 @@ contains
 
     ! Read in the namelist NAMALADIN_OBS
     do_adjust_aladin = .false.
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namaladin_obs,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('oop_zzz_nl: Error reading namelist')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namaladin_obs, iostat=ierr)
+    if (ierr /= 0) call utl_abort('oop_zzz_nl: Error reading namelist')
     if (.not.beSilent) write(*,nml=namaladin_obs)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     BODY: do
       bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -568,7 +567,7 @@ contains
 
     ! Locals:
     integer :: columnLevelIndex, bufrCode, headerIndex, bodyIndex
-    integer :: ierr, nulnam, fnom, fclos
+    integer :: ierr
     real(8) :: obsValue, trlVirtTemp
     real(8) :: pCorrectionFactor, coeffA, coeffB
     real(8) :: obsHeight, deltaT, delTdelZ, trlLevelHeight
@@ -589,12 +588,11 @@ contains
       adjustTemperature = .true. ! default value
 
       if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
-        nulnam=0
-        ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam,nml=namSurfaceObs,iostat=ierr)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namSurfaceObs, iostat=ierr)
         if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
         if (.not. beSilent) write(*,nml=namSurfaceObs)
-        ierr=fclos(nulnam)
+        call utl_tmg_stop(181)
       else if (.not. beSilent) then
         write(*,*)
         write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'

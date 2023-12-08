@@ -27,9 +27,6 @@ module bgckOcean_mod
   ! Public functions/subroutines
   public :: ocebg_bgCheckSST, ocebg_bgCheckSeaIce
 
-  ! External functions
-  integer, external :: fnom, fclos
-
   ! mpi topology
   integer           :: myLatBeg, myLatEnd
   integer           :: myLonBeg, myLonEnd
@@ -89,7 +86,7 @@ module bgckOcean_mod
     type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
     real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
     type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
-    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                     :: ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
     integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
     real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
@@ -112,11 +109,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml = namOceanBGcheck, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namOceanBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (nmonthsExceptionNH /=0) then
         call utl_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
@@ -330,7 +326,7 @@ module bgckOcean_mod
     type(struct_obs), intent(inout) :: obsData  ! obsSpaceData object
 
     ! Locals:
-    integer              :: nulnam, ierr
+    integer              :: ierr
     integer              :: headerIndex, bodyIndex, stationIndex, bodyCount
     integer              :: obsChid, obsDate, obsTime, obsFlag
     integer              :: obsDateStamp
@@ -363,11 +359,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml = namIceBGcheck, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (numStation /= MPC_missingValue_INT) then
         call utl_abort('ocebg_bgCheckSeaIce: check namIceBGcheck namelist section: numStation should be removed')
       end if

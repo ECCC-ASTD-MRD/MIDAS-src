@@ -59,7 +59,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: ierr
     logical, save :: firstCall = .true.
 
     ! Namelist variables:
@@ -86,12 +86,11 @@ contains
     fullyUseExtremeTimeBins = .false.
 
     ! Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namtime, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namtime, iostat=ierr)
     if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namtime)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     ! Set the module variables for timestep length, number of timesteps and window length
     tim_dstepobs      = dstepobs

@@ -103,7 +103,7 @@ CONTAINS
     implicit none
 
     ! Locals:
-    integer  :: ierr, nulnam, sondeIndex
+    integer  :: ierr, sondeIndex
     
     if ( initialized ) then
       write(*,*) "bcc_readConfig has already been called. Returning..."
@@ -123,12 +123,11 @@ CONTAINS
     uaNlatBands  = 1        ! UA: Number of latitude bands in ua_bcors_stype file (1 or 5): 1 = no bands (global biases).
     ! read in the namelist NAMBIASCONV
     if ( utl_isNamelistPresent('nambiasconv','./flnml') ) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=nambiasconv,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=nambiasconv, iostat=ierr)
       if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
       if ( mmpi_myid == 0 ) write(*,nml=nambiasconv)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcc_readconfig: NAMBIASCONV section is missing in the namelist. The default values will be used.'
@@ -144,10 +143,10 @@ CONTAINS
         nlNbSondes = MPC_missingValue_INT
         nlSondeTypes(:)   = 'empty'
         nlSondeCodes(:,:) = MPC_missingValue_INT
-        nulnam = 0
-        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam,nml=namsondetypes,iostat=ierr)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namsondetypes, iostat=ierr)
         if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
+        call utl_tmg_stop(181)
         if (nlNbSondes /= MPC_missingValue_INT) then
           call utl_abort('bcc_readConfig: check namsondetypes namelist section, you should remove nlNbSondes')
         end if
@@ -157,7 +156,6 @@ CONTAINS
           nlNbSondes = nlNbSondes + 1
         end do
         if ( mmpi_myid == 0 ) write(*,nml=namsondetypes)
-        ierr = fclos(nulnam)
       else 
         write(*,*)
         call utl_abort('bcc_readconfig: NAMSONDETYPES section is missing in the namelist!')

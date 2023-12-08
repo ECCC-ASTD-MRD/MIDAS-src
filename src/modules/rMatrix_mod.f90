@@ -43,20 +43,18 @@ module rMatrix_mod
     integer, intent(in) :: nobtovs
 
     ! Locals:
-    integer :: nulnam,ierr
-    integer, external:: fnom,fclos
+    integer :: ierr
     namelist /NAMRMAT/rmat_lnonDiagR
 
     ! Default value for parameter rmat_lnondiagr, don't use interchannel correlation by default
     rmat_lnonDiagR = .false.
 
     ! Read the parameters from NAMRMAT
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namrmat, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=namrmat, iostat=ierr)
     if (ierr /= 0) call utl_abort('rmat_init: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namrmat)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
       allocate(R_tovs(nobtovs))

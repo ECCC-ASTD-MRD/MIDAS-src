@@ -1656,7 +1656,7 @@ contains
     integer              :: columnParamIndex
     integer              :: midasKey, obsIdf, updateItemIndex, updateValue_i
     integer              :: headIndex, maxNumHeader
-    integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
+    integer              :: obsSpaceColIndexSource, ierr
     integer              :: maxNumHeaderAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
     real(8)              :: updateValue_r
     character(len=3000)  :: query, queryCreateTable, queryInsertInTable
@@ -1686,11 +1686,10 @@ contains
       numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namObsDbMIDASHeaderUpdate, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namObsDbMIDASHeaderUpdate, iostat=ierr)
       if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasHeaderTable: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if ( numberUpdateItems /= MPC_missingValue_INT) then
         call utl_abort('odbf_insertInMidasHeaderTable: check namObsDbMIDASHeaderUpdate namelist section: numberUpdateItems should be removed')
       end if
@@ -1886,7 +1885,7 @@ contains
     integer              :: columnParamIndex, columnIndex
     integer              :: obsIdf, midasKey, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
-    integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
+    integer              :: obsSpaceColIndexSource, ierr
     integer              :: maxNumBodyAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
     real(8)              :: updateValue_r, obsValue
     character(len=3000)  :: query, queryCreateTable, queryInsertInTable
@@ -1916,11 +1915,10 @@ contains
       numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
       if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasBodyTable: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (numberUpdateItems /=  MPC_missingValue_INT) then
         call utl_abort('odbf_insertInMidasBodyTable: check namObsDbMIDASBodyUpdate namelist section: numberUpdateItems should be removed')
       end if
@@ -2243,7 +2241,7 @@ contains
     type(fSQL_STATUS)           :: stat ! sqlite error status
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
     type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
-    integer                     :: nulnam , ierr, fnom, fclos
+    integer                     :: ierr
     character(len = lenSqlName) :: flgSqlName
     
     ! Namelist variables:
@@ -2261,11 +2259,10 @@ contains
       end if
     else
       ! reading namelist variables
-      nulnam  = 0
-      ierr = fnom(nulnam ,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam , nml=namObsDbClean, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml , nml=namObsDbClean, iostat=ierr)
       if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
-      ierr = fclos(nulnam )
+      call utl_tmg_stop(181)
     end if
     if ( mmpi_myid == 0 ) write(*, nml=namObsDbClean)
 

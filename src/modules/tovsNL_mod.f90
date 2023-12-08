@@ -740,8 +740,7 @@ contains
     implicit none
 
     ! Locals:
-    integer  sensorIndex, ierr, nulnam
-    integer, external :: fclos, fnom
+    integer  sensorIndex, ierr
     integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
@@ -808,13 +807,12 @@ contains
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml=namtov, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namtov, iostat=ierr)
     if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist NAMTOV')
 
     if (mmpi_myid == 0) write(*,nml=namtov)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     !  1.3 Transfer namelist variables to module variables
     if (nsensors /= MPC_missingValue_INT) then
@@ -1072,12 +1070,11 @@ contains
     ! Locals:
     integer sensorIndex, instrumentIndex, platformIndex
     integer ipos1, ipos2
-    integer numerosat, ierr, kindex, nulnam
+    integer numerosat, ierr, kindex
     character(len=15) :: tempocsatid
     logical, save :: first=.true.
     integer, save :: ioffset1b(0:ninst-1)
     character(len=15) :: tempo_inst
-    integer, external :: fnom, fclos
 
     ! Namelist variables:
     character(len=8) :: listinstrum(0:ninst-1) ! List of instrument names
@@ -1098,15 +1095,10 @@ contains
         call utl_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
       end if
       ! read the namelist
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      if (ierr /= 0) then
-        write(*,*) 'Error while opening flnml_static namelist file !'
-        call utl_abort('sensors')
-      end if
+      call utl_tmg_start(181,'low-level--readNML')
       listoffset(:) = 0
       listinstrum(:) = 'XXXXXXXX'
-      read(nulnam,NAMCHANOFFSET, iostat=ierr)
+      read(utl_flnml_static,nml=NAMCHANOFFSET, iostat=ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMCHANOFFSET namelist section in flnml_static file !'
         call utl_abort('sensors')
@@ -1116,7 +1108,7 @@ contains
           ioffset1b( tvs_getInstrumentId( listinstrum(instrumentIndex) ) )  = listoffset(instrumentIndex)
         end if
       end do
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       first = .false.
     end if
 
@@ -1231,8 +1223,7 @@ contains
     ! Locals:
     logical, save :: first=.true.
     integer, save :: ninst_tovs
-    integer :: nulnam, ierr, instrumentIndex 
-    integer, external :: fnom, fclos
+    integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
 
     ! Namelist variables:
@@ -1250,15 +1241,14 @@ contains
       if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
         call utl_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namtovsinst, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX' ) then
           ninst_tovs = instrumentIndex - 1
@@ -1297,8 +1287,7 @@ contains
     ! Locals:
     logical, save :: first=.true.
     integer, save :: ninst_tovs
-    integer :: nulnam, ierr, instrumentIndex 
-    integer, external :: fnom, fclos
+    integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
 
     ! Namelist variables:
@@ -1315,15 +1304,14 @@ contains
        if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
         call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
+      call utl_tmg_start(181,'low-level--readNML')
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namtovsinst, iostat=ierr)
+      read(utl_flnml_static, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX' ) then
           ninst_tovs= instrumentIndex - 1
@@ -1367,8 +1355,7 @@ contains
     ! Locals:
     logical, save :: first=.true.
     integer, save :: ninst_hyper
-    integer :: nulnam, ierr, instrumentIndex 
-    integer, external :: fnom, fclos
+    integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
 
     ! Namelist variables:
@@ -1385,15 +1372,14 @@ contains
       if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
         call utl_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
       ninst_hyper = 0
       list_inst(:) = -1
       name_inst(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namhyper, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
         if (name_inst(instrumentIndex) == 'XXXXXX' ) then
           ninst_hyper = instrumentIndex - 1
@@ -1532,10 +1518,9 @@ contains
 
     ! Locals:
     integer, parameter :: maxsize = 100
-    integer :: nulnam, ierr, instrumentIndex 
+    integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
-    integer, external :: fclos, fnom
 
     ! Namelist variables:
     character (len=8) :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
@@ -1545,14 +1530,13 @@ contains
       if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
         call utl_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
+      call utl_tmg_start(181,'low-level--readNML')
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namhyper, iostat=ierr)
+      read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist section NAMHYPER in flnm_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
         list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
@@ -1597,10 +1581,9 @@ contains
 
     ! Locals:
     integer, parameter :: maxsize = 20
-    integer :: nulnam, ierr, i 
+    integer :: ierr, i 
     integer, save :: ninst_hir
     logical, save :: lfirst = .true.
-    integer, external :: fclos, fnom
     character (len=8) :: name2
 
     ! Namelist variables:
@@ -1608,14 +1591,13 @@ contains
     namelist /NAMHYPER/ name_inst
 
     if (lfirst) then
-      nulnam = 0
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namhyper, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       do i=1, maxsize
         if (name_inst(i) == 'XXXXXXX') then
           ninst_hir = i -1
@@ -1656,10 +1638,9 @@ contains
 
     ! Locals:
     integer, parameter :: maxsize = 100
-    integer :: nulnam, ierr, instrumentIndex 
+    integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_geo
     logical, save :: first = .true.
-    integer, external :: fnom, fclos
 
     ! Namelist variables:
     character(len=8) :: name_inst(maxsize) ! List of instrument names for geostationary
@@ -1669,14 +1650,13 @@ contains
       if ( utl_isNamelistPresent('NAMGEO', './flnml') ) then
         call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgeo, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=namgeo, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist section NAMGEO in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namgeo)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
         list_inst(instrumentIndex) = tvs_getInstrumentId( name_inst(instrumentIndex) )
@@ -1844,8 +1824,7 @@ contains
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp   = 100
     logical, save :: first = .true.
-    integer :: nulnam, ier
-    integer, external :: fnom, fclos
+    integer :: ier
 
     ! Namelist variables:
     integer, save ::   listburp(mxinstrumburp)           ! List of instrument ID values from obs file
@@ -1866,18 +1845,13 @@ contains
       listinstrum(:) = 'XXXXXXXX'
 
       ! read the namelist
-      nulnam = 0
-      ier = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      if (ier /= 0) then
-        write(*,*) 'Error while opening flnml_static namelist file !'
-        call utl_abort('tvs_mapInstrum')
-      end if
-      read(nulnam,NAMINST,iostat=ier)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=NAMINST, iostat=ier)
       if (ier /= 0) then
         write(*,*) 'Error while reading NAMINST namelist section in flnml_static file !'
         call utl_abort('tvs_mapInstrum')
       end if
-      ier = fclos(nulnam)
+      call utl_tmg_stop(181)
 
       ! figure out how many valid elements in the lists
       do instrumentIndex=1, mxinstrumburp
@@ -1921,10 +1895,9 @@ contains
 
     ! Locals:
     integer, parameter :: maxsize = 100
-    integer :: nulnam, ierr, i 
+    integer :: ierr, i 
     integer, save :: ninst_geo
     logical, save :: lfirst = .true.
-    integer, external :: fnom, fclos
 
     ! Namelist variables:
     character (len=8),save :: name_inst(maxsize) ! List of instrument names for geostationary
@@ -1934,14 +1907,13 @@ contains
       if ( utl_isNamelistPresent('NAMGEOBUFR', './flnml') ) then
         call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
       end if
-      nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXXXX'
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namgeobufr, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=namgeobufr, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
       if (mmpi_myid == 0) write(*,nml=namgeobufr)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       do i=1, maxsize
         if (name_inst(i) == 'XXXXXXXX') then
           ninst_geo = i - 1
@@ -2016,9 +1988,8 @@ contains
     integer, intent(out) :: isat       ! RTTOV-7 satellite ID numbers (e.g. 15)
 
     ! Locals:
-    integer           :: satelliteIndex, ierr, nulnam
+    integer           :: satelliteIndex, ierr
     logical, save     :: first=.true.
-    integer, external :: fnom, fclos
     integer, parameter:: mxsatburp = 100
     integer, save     :: numsatburp
 
@@ -2039,18 +2010,13 @@ contains
       listsat(:) = -1
       listplat(:) = 'XXXXXXXX'
       ! read the namelist
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
-      if (ierr /= 0) then
-        write(*,*) 'Error while opening namelist flnml_static file !'
-        call utl_abort('tvs_mapSat')
-      end if
-      read(nulnam, NAMSAT, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml_static, nml=NAMSAT, iostat = ierr)
       if (ierr /= 0) then
         write(*,*) 'Error while reading NAMSAT namelist section in flnml_static file !'
         call utl_abort('tvs_mapSat')
       end if
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
 
       !  Figure out how many valid elements in the lists
       do satelliteIndex=1, mxsatburp

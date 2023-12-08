@@ -511,8 +511,7 @@ module varNameList_mod
       character(len=4)               :: varLevel
 
       ! Locals:
-      integer                :: nulnam, ierr
-      integer, external      :: fnom, fclos
+      integer                :: ierr
       logical, save          :: firstTime = .true.
 
       ! Namelist variables
@@ -526,12 +525,11 @@ module varNameList_mod
         forceSfcOnly(:) = 'XXXX'
 
         if (utl_isNamelistPresent('namvnl','./flnml')) then
-          nulnam = 0
-          ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-          read (nulnam, nml = NAMVNL, iostat = ierr)
+          call utl_tmg_start(181,'low-level--readNML')
+          read (utl_flnml, nml = NAMVNL, iostat = ierr)
           if ( ierr /= 0 ) call utl_abort('vnl_varLevelFromVarname: Error reading namelist')
           if ( mmpi_myid == 0 ) write(*,nml=namvnl)
-          ierr = fclos(nulnam)
+          call utl_tmg_stop(181)
         else
           write(*,*)
           write(*,*) 'vnl_varLevelFromVarname: namvnl is missing in the namelist. The default value will be taken.'

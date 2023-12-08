@@ -142,8 +142,8 @@ program midas_ensembleH
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  integer :: get_max_rss, fclos, fnom, fstopc, ierr
-  integer :: memberIndex, nulnam, dateStampFromObs
+  integer :: get_max_rss, fstopc, ierr
+  integer :: memberIndex, dateStampFromObs
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
 
@@ -185,6 +185,9 @@ program midas_ensembleH
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
 
+  ! Read the namelists
+  call utl_readNml()
+
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
@@ -199,12 +202,11 @@ program midas_ensembleH
   numFullEns             = 0
 
   ! Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namensembleh, iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namensembleh, iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-ensembleH: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namensembleh)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
   
   if (numRetainedEigen < 0) call utl_abort('midas-ensembleH: numRetainedEigen should be ' // &
                                              'equal or greater than zero')
