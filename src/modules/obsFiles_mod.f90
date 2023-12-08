@@ -143,8 +143,6 @@ contains
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
-    call obsf_determineFileType(obsFileType)
-
     ! for every splitted file, the file type is defined separately 
     do fileIndex = 1, obsf_numMpiUniqueList
 
@@ -822,10 +820,10 @@ contains
 
     write(*,*) 'setObsFilesMpiUniqueList: obsf_numMpiUniqueList=', obsf_numMpiUniqueList
     write(*,*) 'setObsFilesMpiUniqueList: familyType/fileType/filename in unique list:'
-    write(*,*) 'Type  Name '
-    write(*,*) '----  ---- '
+    write(*,'(1X,A10,1X,A10,1X,A60)') 'familyType', 'fileType', 'fileName'
+    write(*,'(1X,A10,1X,A10,1X,A60)') '----------', '--------', '--------'
     do fileIndex = 1, obsf_numMpiUniqueList
-      write(*,'(1X,A2,1X,A10,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
+      write(*,'(1X,A10,1X,A10,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
                                         trim(obsf_fileTypeMpiUniqueList(fileIndex)), &
                                         trim(obsf_baseFileNameMpiUniqueList(fileIndex))
     end do
