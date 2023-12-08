@@ -416,7 +416,7 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
- 
+
   
   subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
@@ -735,6 +735,9 @@ module midasMpi_mod
       mykBeg = mykBeg + mykCounts(jproc)
     end do
     mykEnd = mykBeg + mykCount - 1
+
+    write(*,'(a,3i8)') 'mmpi_setup_varslevels: mykBeg, mykEnd, mykCount = ',  &
+         mykBeg, mykEnd, mykCount
 
   end subroutine mmpi_setup_varslevels
 

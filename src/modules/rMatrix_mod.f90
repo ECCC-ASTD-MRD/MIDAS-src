@@ -503,14 +503,14 @@ module rMatrix_mod
 
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not. tvs_isIdBurpTovs(idatyp)) then
-        write(*,*) 'rmat_estimateR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        write(*,*) 'rmat_updateRmat: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER1
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
-
       if (tovsIndex == -1) cycle HEADER1
+
+      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
 
       ! Exclude observations with land sea mask
       if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. & 
@@ -692,18 +692,20 @@ module rMatrix_mod
     
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
-        write(*,*) 'var1DIdealize_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        write(*,*) 'rmat_updateRmat: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
       end if
 
       tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
       if (tovsIndex == -1) cycle HEADER2
+
+      sensorIndex = tvs_lsensor(tovsIndex)
 
       idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
 
       do bodyIndex = idata, idatend
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle
 
         call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)

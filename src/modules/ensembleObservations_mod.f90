@@ -205,6 +205,9 @@ CONTAINS
     eob_simObsAssim = numSimObsFam > 0
     psvObsAssim = numPsvObsFam > 0
 
+    write(*,*) 'eob_init: eob_simObsAssim = ', eob_simObsAssim
+    write(*,*) 'eob_init: psvObsAssim     = ', psvObsAssim
+
   end subroutine eob_init
 
   !--------------------------------------------------------------------------

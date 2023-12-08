@@ -1009,8 +1009,8 @@ contains
             lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
-                                      xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-                                      lat_deg_r4, lon_deg_r4, subGridIndex )
+                                       xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
+                                       lat_deg_r4, lon_deg_r4, subGridIndex )
 
             if ( subGridIndex == 3 ) then
               ! both subGrids involved in interpolation, so first treat subGrid 1
@@ -1210,7 +1210,7 @@ contains
     call utl_tmg_start(30,'--StateToColumn')
 
     if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(37,'----s2c_TL')
+    call utl_tmg_start(38,'----s2c_TL')
 
     call rpn_comm_barrier('GRID',ierr)
 
@@ -1247,11 +1247,19 @@ contains
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
-    call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
-                       statevector%hco, statevector%vco,          &
-                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
-                       dataKind_opt=gsv_getDataKind(statevector), &
-                       varNames_opt=varNames )
+    if (statevector%mpi_distribution == 'None') then
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.false., mpi_distribution_opt='None', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    else
+      call gsv_allocate( statevector_VarsLevs, statevector%numstep, &
+                         statevector%hco, statevector%vco,          &
+                         mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
+                         dataKind_opt=gsv_getDataKind(statevector), &
+                         varNames_opt=varNames )
+    end if
     deallocate(varNames)
     call gsv_transposeTilesToVarsLevs( statevector, statevector_VarsLevs )
 
@@ -1262,13 +1270,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(37)
+      call utl_tmg_stop(38)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
       call utl_tmg_stop(31)
-      call utl_tmg_start(37,'----s2c_TL')
+      call utl_tmg_start(38,'----s2c_TL')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1304,7 +1312,7 @@ contains
           call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,kIndex)
         end if
 
-        call utl_tmg_start(38,'------s2c_TL_Hinterp')
+        call utl_tmg_start(39,'------s2c_TL_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1331,7 +1339,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(38)
+        call utl_tmg_stop(39)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mmpi_nprocs
@@ -1407,7 +1415,7 @@ contains
     
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call utl_tmg_stop(37)
+    call utl_tmg_stop(38)
 
     call utl_tmg_stop(30)
 
@@ -1448,7 +1456,7 @@ contains
     call utl_tmg_start(30,'--StateToColumn')
 
     if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(39,'----s2c_AD')
+    call utl_tmg_start(40,'----s2c_AD')
 
     call rpn_comm_barrier('GRID',ierr)
 
@@ -1496,13 +1504,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(39)
+      call utl_tmg_stop(40)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
                                 inputStateVectorType='ad' )
       call utl_tmg_stop(31)
-      call utl_tmg_start(39,'----s2c_AD')
+      call utl_tmg_start(40,'----s2c_AD')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1581,7 +1589,7 @@ contains
           end do
         end do
 
-        call utl_tmg_start(40,'------s2c_AD_Hinterp')
+        call utl_tmg_start(41,'------s2c_AD_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1608,7 +1616,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(40)
+        call utl_tmg_stop(41)
 
       end if ! if kIndex <= mykEnd
 
@@ -1638,7 +1646,7 @@ contains
 
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call utl_tmg_stop(39)
+    call utl_tmg_stop(40)
 
     call utl_tmg_stop(30)
 
@@ -1675,7 +1683,7 @@ contains
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
-    integer :: kIndexHeightSfc, varNameIndex
+    integer :: kIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1684,7 +1692,9 @@ contains
     real(8), allocatable :: cols_send(:,:)
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
-    integer, allocatable :: displs(:), nsizes(:)
+    integer              :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
+    integer              :: senddispls(mmpi_nprocs), sendsizes(mmpi_nprocs)
+    integer              :: recvdispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
     logical              :: dealloc, moveObsAtPole, rejectOutsideObs, beSilent
     logical, save        :: firstCall = .true.
     character(len=4), pointer :: varNames(:)
@@ -1692,7 +1702,11 @@ contains
     call utl_tmg_start(30,'--StateToColumn')
     call utl_tmg_start(34,'----s2c_NL')
 
-    if (present(beSilent_opt)) then
+    call utl_tmg_start(37,'------s2c_NL_barrier')
+    call rpn_comm_barrier('GRID',ierr)
+    call utl_tmg_stop(37)
+
+    if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
       beSilent = .false.
@@ -1794,8 +1808,17 @@ contains
       numHeader = headerIndexEnd - headerIndexBeg + 1
       call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                               'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
-      if ( .not. beSilent ) write(*,*) 's2c_nl: headerIndexBeg/End, numHeader = ',  &
-                                        headerIndexBeg, headerIndexEnd, numHeader
+      if ( .not. beSilent ) then
+        write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
+                   headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
+        if (mmpi_myid == 0) then
+          write(*,*) 's2c_nl: min/max of allNumHeader = ',  &
+                     minval(allNumHeader), maxval(allNumHeader)
+        end if
+      end if
+
+      call rpn_comm_allgather(numHeader,   1,'mpi_integer', &
+                              allNumHeader,1,'mpi_integer','grid',ierr)
       call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
 
@@ -1901,14 +1924,42 @@ contains
 
         end if ! if kIndex <= mykEnd
 
+        call utl_tmg_start(37,'------s2c_NL_barrier')
         call rpn_comm_barrier('GRID',ierr)
+        call utl_tmg_stop(37)
 
+        ! mpi communication: alltoallv for one level/variable
         call utl_tmg_start(36,'------s2c_NL_allToAll')
-        ! mpi communication: alltoall for one level/variable
-        nsize = numHeaderMax
+
+        ! only receive the data from tasks with data, same amount from all of those
+        recvsizes(:) = 0
+        do procIndex = 1, mmpi_nprocs
+          kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
+          if (kIndex2 > stateVector_VarsLevs%allkEnd(procIndex)) cycle
+          recvsizes(procIndex) = numHeader
+        end do
+        recvdispls(1) = 0
+        do procIndex = 2, mmpi_nprocs
+          recvdispls(procIndex) = recvdispls(procIndex-1) + numHeaderMax
+        end do
+
+        ! tasks send only from those with data
+        if (kIndex <= stateVector_VarsLevs%mykEnd) then
+          do procIndex = 1, mmpi_nprocs
+            sendsizes(procIndex) = allNumHeader(procIndex)
+          end do
+        else
+          sendsizes(:) = 0
+        end if
+        senddispls(1) = 0
+        do procIndex = 2, mmpi_nprocs
+          senddispls(procIndex) = senddispls(procIndex-1) + numHeaderMax
+        end do
+
         if(mmpi_nprocs > 1) then
-          call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
-                                 cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
+          call mpi_alltoallv(cols_send, sendsizes, senddispls, mmpi_datyp_real8,  &
+                             cols_recv, recvsizes, recvdispls, mmpi_datyp_real8,  &
+                             mmpi_comm_grid, ierr)
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
@@ -1989,20 +2040,15 @@ contains
         end if
 
         ! mpi communication: scatter data from task 0
-        nsize = numHeaderMax
+        nsize = numHeader
         if(mmpi_nprocs > 1) then
-          allocate(displs(mmpi_nprocs))
-          allocate(nsizes(mmpi_nprocs))
           do procIndex = 1, mmpi_nprocs
-            displs(procIndex) = (procIndex - 1) * nsize
-            nsizes(procIndex) = nsize
+            displs(procIndex) = (procIndex - 1) * numHeaderMax
+            nsizes(procIndex) = allNumHeader(procIndex)
           end do
           call rpn_comm_scatterv(cols_send, nsizes, displs, 'MPI_REAL8', &
                                  cols_recv, nsize, 'MPI_REAL8', &
                                  0, 'GRID', ierr)
-          deallocate(displs)
-          deallocate(nsizes)
-
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
@@ -2753,6 +2799,10 @@ contains
       else if (cstnid == 'CIS_REGIONAL') then
 
         fpr = bilinearFootprint
+
+      else if (cstnid(1:3) == 'RCM') then
+
+        fpr = 0.8e3
 
       else
 
@@ -3704,7 +3754,7 @@ contains
   ! s2c_getWeightsAndGridPointIndexes
   ! -------------------------------------------------------------
   subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
-       interpWeight, latIndex, lonIndex, gridptCount)
+                                               interpWeight, latIndex, lonIndex, gridptCount)
     ! :Purpose: Returns the weights and grid point indexes for a single observation.
     !           
     !

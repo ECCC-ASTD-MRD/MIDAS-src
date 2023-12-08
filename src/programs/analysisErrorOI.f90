@@ -117,7 +117,7 @@ program midas_analysisErrorOI
   integer :: istamp, exdb, exfin
   integer :: ierr, dateStampFromObs
   character(len=48) :: obsMpiStrategy, varMode
-  character, parameter :: myName = 'analysisErrorOI'
+  character(len=*), parameter :: myName = 'analysisErrorOI'
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: trlColumnOnAnlLev
@@ -130,11 +130,6 @@ program midas_analysisErrorOI
 
   ! MPI initialization
   call mmpi_initialize
-
-  if( mmpi_nprocs > 1 ) then
-    call msg(myName,'mmpi_nprocs = '//str(mmpi_nprocs))
-    call utl_abort(myName//': this version of the code should only be used with one mpi task.')
-  end if
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 

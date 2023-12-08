@@ -223,7 +223,7 @@ module var1DIdealize_mod
       integer          :: varIndex2
 
       varneed=.false.
-      do varIndex2=1,VNL_NUMVARMAX
+      do varIndex2=1,bmat1D_numIncludeAnlVar
         if (trim(varName) == trim(bmat1D_includeAnlVar(varIndex2))) then
           varneed=.true.
        end if

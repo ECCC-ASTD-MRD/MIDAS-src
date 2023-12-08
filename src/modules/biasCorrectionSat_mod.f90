@@ -2605,7 +2605,7 @@ contains
 
       call gsv_allocate(stateVector_mask, 1, hco_mask, vco_mask, dateStampList_opt=[-1], varNames_opt=["WT"], &
            dataKind_opt=4, mpi_local_opt=.true., mpi_distribution_opt="Tiles")
-      call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=[-1], varNames_opt=["WT"], &
+      call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=[ (-1, stepIndex = 1, tim_nstepobs) ], varNames_opt=["WT"], &
            dataKind_opt=4, mpi_local_opt=.true., mpi_distribution_opt="Tiles")
 
       call gio_readFromFile(stateVector_mask, './raob_masque.std', 'WEIGHT', 'O', unitConversion_opt=.false., &

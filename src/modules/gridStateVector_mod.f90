@@ -986,48 +986,66 @@ module gridStateVector_mod
       statevector%extraUVallocated = statevector%UVComponentPresent
     end if
 
+    allocate(statevector%allLonBeg(mmpi_npex))
+    allocate(statevector%allLonEnd(mmpi_npex))
+    allocate(statevector%allLonPerPE(mmpi_npex))
+    allocate(statevector%allLatBeg(mmpi_npey))
+    allocate(statevector%allLatEnd(mmpi_npey))
+    allocate(statevector%allLatPerPE(mmpi_npey))
+    allocate(statevector%allkCount(mmpi_nprocs))
+    allocate(statevector%allkBeg(mmpi_nprocs))
+    allocate(statevector%allkEnd(mmpi_nprocs))
+    allocate(statevector%allUVkCount(mmpi_nprocs))
+    allocate(statevector%allUVkBeg(mmpi_nprocs))
+    allocate(statevector%allUVkEnd(mmpi_nprocs))
+
     if (statevector%mpi_local) then
-      allocate(statevector%allLonBeg(mmpi_npex))
       CALL rpn_comm_allgather(statevector%myLonBeg,1,'mpi_integer',       &
                               statevector%allLonBeg,1,'mpi_integer','EW',ierr)
-      allocate(statevector%allLonEnd(mmpi_npex))
       CALL rpn_comm_allgather(statevector%myLonEnd,1,'mpi_integer',       &
                               statevector%allLonEnd,1,'mpi_integer','EW',ierr)
-      allocate(statevector%allLonPerPE(mmpi_npex))
       CALL rpn_comm_allgather(statevector%lonPerPE,1,'mpi_integer',       &
                               statevector%allLonPerPE,1,'mpi_integer','EW',ierr)
   
-      allocate(statevector%allLatBeg(mmpi_npey))
       CALL rpn_comm_allgather(statevector%myLatBeg,1,'mpi_integer',       &
                               statevector%allLatBeg,1,'mpi_integer','NS',ierr)
-      allocate(statevector%allLatEnd(mmpi_npey))
       CALL rpn_comm_allgather(statevector%myLatEnd,1,'mpi_integer',       &
                               statevector%allLatEnd,1,'mpi_integer','NS',ierr)
-      allocate(statevector%allLatPerPE(mmpi_npey))
       CALL rpn_comm_allgather(statevector%LatPerPE,1,'mpi_integer',       &
                               statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
 
       call gsv_checkMpiDistribution(stateVector)
 
-      allocate(statevector%allkCount(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykCount,1,'mpi_integer',       &
                               statevector%allkCount,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allkBeg(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykBeg,1,'mpi_integer',       &
                               statevector%allkBeg,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allkEnd(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykEnd,1,'mpi_integer',       &
                               statevector%allkEnd,1,'mpi_integer','grid',ierr)
 
-      allocate(statevector%allUVkCount(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkCount,1,'mpi_integer',       &
                               statevector%allUVkCount,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkBeg(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkBeg,1,'mpi_integer',       &
                               statevector%allUVkBeg,1,'mpi_integer','grid',ierr)
-      allocate(statevector%allUVkEnd(mmpi_nprocs))
       CALL rpn_comm_allgather(statevector%myUVkEnd,1,'mpi_integer',       &
                               statevector%allUVkEnd,1,'mpi_integer','grid',ierr)
+    else
+
+      statevector%allLonBeg(:) = statevector%myLonBeg
+      statevector%allLonEnd(:) = statevector%myLonEnd
+      statevector%allLonPerPE(:) = statevector%lonPerPE
+      statevector%allLatBeg(:) = statevector%myLatBeg
+      statevector%allLatEnd(:) = statevector%myLatEnd
+      statevector%allLatPerPE(:) = statevector%LatPerPE
+
+      statevector%allkCount(:) = statevector%mykCount
+      statevector%allkBeg(:) = statevector%mykBeg
+      statevector%allkEnd(:) = statevector%mykEnd
+
+      statevector%allUVkCount(:) = statevector%myUVkCount
+      statevector%allUVkBeg(:) = statevector%myUVkBeg
+      statevector%allUVkEnd(:) = statevector%myUVkEnd
+
     end if
 
     select case (ANLTIME_BIN)
@@ -1425,8 +1443,8 @@ module gridStateVector_mod
 
     if (statevector%dataKind == 8) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
       do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
         do stepIndex = 1, statevector%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
@@ -1434,12 +1452,12 @@ module gridStateVector_mod
             end do
           end do
         end do
+       !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
 
       if (statevector%extraUVallocated) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1UV, k2UV
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
           do stepIndex = 1, statevector%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
@@ -1447,14 +1465,14 @@ module gridStateVector_mod
               end do
             end do
           end do
+          !$OMP END PARALLEL DO
         end do
-        !$OMP END PARALLEL DO
       end if
 
     else if (statevector%dataKind == 4) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)
       do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)
         do stepIndex = 1, statevector%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
@@ -1462,12 +1480,12 @@ module gridStateVector_mod
             end do
           end do
         end do
+        !$OMP END PARALLEL DO
       end do
-      !$OMP END PARALLEL DO
 
       if (statevector%extraUVallocated) then
-        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
         do kIndex = k1UV, k2UV
+          !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,lonIndex)    
           do stepIndex = 1, statevector%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
@@ -1475,8 +1493,8 @@ module gridStateVector_mod
               end do
             end do
           end do
+          !$OMP END PARALLEL DO
         end do
-        !$OMP END PARALLEL DO
       end if
 
     else
@@ -2742,20 +2760,18 @@ module gridStateVector_mod
 
     statevector%allocated=.false.
 
-    if (statevector%mpi_local) then
-      deallocate(statevector%allLonBeg)
-      deallocate(statevector%allLonEnd)
-      deallocate(statevector%allLonPerPE)
-      deallocate(statevector%allLatBeg)
-      deallocate(statevector%allLatEnd)
-      deallocate(statevector%allLatPerPE)
-      deallocate(statevector%allkBeg)
-      deallocate(statevector%allkEnd)
-      deallocate(statevector%allkCount)
-      deallocate(statevector%allUVkBeg)
-      deallocate(statevector%allUVkEnd)
-      deallocate(statevector%allUVkCount)
-    end if
+    deallocate(statevector%allLonBeg)
+    deallocate(statevector%allLonEnd)
+    deallocate(statevector%allLonPerPE)
+    deallocate(statevector%allLatBeg)
+    deallocate(statevector%allLatEnd)
+    deallocate(statevector%allLatPerPE)
+    deallocate(statevector%allkBeg)
+    deallocate(statevector%allkEnd)
+    deallocate(statevector%allkCount)
+    deallocate(statevector%allUVkBeg)
+    deallocate(statevector%allUVkEnd)
+    deallocate(statevector%allUVkCount)
 
     if (statevector%dataKind == 8) then
       deallocate(statevector%gd_r8,stat=ierr)
@@ -3211,7 +3227,7 @@ module gridStateVector_mod
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
     integer :: sendrecvKind, inKind, outKind, stepIndex
-    integer, allocatable :: displs(:), nsizes(:)
+    integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
@@ -3404,8 +3420,6 @@ module gridStateVector_mod
       end if
 
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
-      allocate(displs(mmpi_nprocs))
-      allocate(nsizes(mmpi_nprocs))
       do yourid = 0, (mmpi_nprocs-1)
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
@@ -3419,8 +3433,6 @@ module gridStateVector_mod
         gd_recv_height(1:statevector_out%lonPerPE,  &
                        1:statevector_out%latPerPE)
 
-      deallocate(displs)
-      deallocate(nsizes)
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if
@@ -3476,6 +3488,13 @@ module gridStateVector_mod
     if ( .not. beSilent ) then
       call msg('gsv_transposeTilesToVarsLevs','START', verb_opt=2)
       call msg_memUsage('gsv_transposeTilesToVarsLevs')
+    end if
+
+    if (statevector_in%mpi_distribution == 'None' .and. &
+        statevector_out%mpi_distribution == 'None') then
+      write(*,*) 'gsv_transposeTilesToVarsLevs: Just copy non-MPI statevector'
+      call gsv_copy(statevector_in,statevector_out)
+      return
     end if
 
     if (statevector_in%mpi_distribution /= 'Tiles') then
@@ -3785,7 +3804,7 @@ module gridStateVector_mod
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
     integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
     integer :: mpiStatuses(mpi_status_size,stateVector_in%nk)
-    integer, allocatable :: displs(:), nsizes(:)
+    integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), allocatable :: gd_send_height(:,:,:), gd_recv_height(:,:)
@@ -4095,8 +4114,6 @@ module gridStateVector_mod
       end if
 
       nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
-      allocate(displs(mmpi_nprocs))
-      allocate(nsizes(mmpi_nprocs))
       do yourid = 0, (mmpi_nprocs-1)
         displs(yourid+1) = yourid*nsize
         nsizes(yourid+1) = nsize
@@ -4110,8 +4127,6 @@ module gridStateVector_mod
         gd_recv_height(1:statevector_out%lonPerPE,  &
                    1:statevector_out%latPerPE)
 
-      deallocate(displs)
-      deallocate(nsizes)
       deallocate(gd_recv_height)
       deallocate(gd_send_height)
     end if
