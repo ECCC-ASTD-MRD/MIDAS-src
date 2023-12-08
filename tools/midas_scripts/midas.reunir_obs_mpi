@@ -23,6 +23,7 @@ eval `${CCLARGS} -D "" $0 \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
   -ramdiskpath "" "" "[path to RAMDisk]" \
   -tmpfsdir "" "" "[array containing the ramdisk path for each node]" \
+  -rank_tmpdir       ""   ""      "[temporary directory unique for each MPI rank (not used)]" \
   -mpchild2slots "" "" "[list of number which indicates for each mpi tile on which slot it is]" \
   -ls_cmd "/bin/ls" "/bin/ls" "[path to 'ls' command (default '/bin/ls')]" \
   -rm_cmd "/bin/rm" "/bin/rm" "[path to 'rm' command (default '/bin/rm')]" \
