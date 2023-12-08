@@ -150,6 +150,7 @@ contains
 
       fileName = trim(obsf_baseFileNameMpiUniqueList(fileIndex)) // '_' // trim(obsf_myIdExt)
       obsFamilyType = obsf_familyTypeMpiUniqueList(fileIndex)
+      obsFileType = obsf_fileTypeMpiUniqueList(fileIndex)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
       inquire(file=trim(fileNameFull),exist=fileExists)
 
@@ -162,7 +163,6 @@ contains
           end if
         end do
 
-        call obsf_determineSplitFileType( obsFileType, fileNameFull )
         if ( obsFileType == 'BURP' )   then
           ! Add extra bias correction elements to conventional and TO files
           ! Bias correction elements for AI are added at the derivate file stage
