@@ -468,6 +468,8 @@ contains
     character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than 
                                                                 ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
     character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
+    character(len=fileTypeLen)       :: fileTypeList(maxNumObsfiles)
+    character(len=fileTypeLen)       :: obsFileType
     character(len=256)               :: fileNamefull
     logical :: fileExists
     integer :: fileIndex
@@ -707,6 +709,7 @@ contains
     obsf_nfiles = 0
     obsf_fileName(1) = 'DUMMY_FILE_NAME'
     baseFileNameList(:) = ''
+    fileTypeList(:) = ''
 
     do fileIndex = 1, maxNumObsfiles 
 
@@ -728,11 +731,14 @@ contains
         baseFileNameList(obsf_nfiles) = trim(baseFileName)
         obsf_fileName(obsf_nfiles) = fileNameFull
         obsf_familyType(obsf_nfiles) = familyName(fileIndex)
+        
+        call obsf_determineSplitFileType(obsFileType,fileNameFull)
+        fileTypeList(obsf_nfiles) = obsFileType
       end if
 
     end do
 
-    call setObsFilesMpiUniqueList(baseFileNameList)
+    call setObsFilesMpiUniqueList(baseFileNameList,fileTypeList)
     
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
@@ -747,7 +753,7 @@ contains
   !--------------------------------------------------------------------------
   ! setObsFilesMpiUniqueList
   !--------------------------------------------------------------------------
-  subroutine setObsFilesMpiUniqueList(baseFileNameList)
+  subroutine setObsFilesMpiUniqueList(baseFileNameList,fileTypeList)
     !
     ! :Purpose: Create a unique list of obs filenames/familyTypes across all mpi tasks.
     !
@@ -755,11 +761,13 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: baseFileNameList(:)
+    character(len=*), intent(in) :: fileTypeList(:)
 
     ! Locals:
     integer :: fileIndex, fileIndex2, procIndex, ierr
     character(len=maxLengthFilename), allocatable :: baseFileNameListAllMpi(:,:)
     character(len=familyTypeLen), allocatable :: familyTypeListAllMpi(:,:)
+    character(len=fileTypeLen), allocatable :: fileTypeListAllMpi(:,:)
 
     ! Communicate filenames across all mpi tasks
     allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
