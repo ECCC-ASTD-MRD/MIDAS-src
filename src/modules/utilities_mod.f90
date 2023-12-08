@@ -80,7 +80,7 @@ module utilities_mod
   end interface utl_findlocs
 
   ! For namelist reading
-  character(len=:),allocatable :: utl_flnml, utl_flnml_static
+  character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
 
 contains
 
@@ -2263,10 +2263,11 @@ contains
     logical :: found
 
     ! Locals:
-    integer :: unit, fnom, fclos, ierr
-    character (len=1000) :: text
-    character (len=100)  :: word, namelistSectionNameUpper
+    integer :: unit, fnom, fclos, ierr, positionBeg, positionEnd
+    character(len=1000) :: line
+    character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
+    character(len=:), pointer :: nameListStr_ptr
 
     ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
@@ -2274,29 +2275,68 @@ contains
       call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
     end if
 
-    ! Open the namelist file
-    unit=0
-    ierr=fnom(unit,namelistFileName,'FTN+SEQ+R/O',0)
-
-    ! Search for namelistSectionName
-    found = .false.
+    ! Ensure namelist section name is all in upper case
     namelistSectionNameUpper = namelistSectionName
     ierr = clib_toUpper(namelistSectionNameUpper)
-    namelistLoop : do
-      read (unit,"(a)",iostat=ierr) text ! read line into character variable
-      if (ierr /= 0) exit
-      if (trim(text) == "") cycle ! skip empty lines
-      read (text,*) word ! read first word of line
-      ierr = clib_toUpper(word)
-      if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
-        ! found search string at beginning of line
-        found = .true.
-        exit
-      end if
-    end do namelistLoop
 
-    ! Close the namelist file
-    ierr=fclos(unit)
+    ! Check if namelist file is already read into a character string
+    if (index(namelistFileName, 'flnml_static') > 0) then
+      nameListStr_ptr => utl_flnml_static
+    else if (index(namelistFileName, 'flnml') > 0) then
+      nameListStr_ptr => utl_flnml
+    else
+      nullify(nameListStr_ptr)
+    end if
+
+    if (associated(nameListStr_ptr)) then
+
+      ! Search for namelistSectionName in string
+      found = .false.
+      positionBeg = 1
+      namelistLoop1 : do
+        ! read next line from string
+        positionEnd = positionBeg - 1 + index(nameListStr_ptr(positionBeg:),new_line('A'))
+        read (nameListStr_ptr(positionBeg:(positionEnd-1)),"(a)",iostat=ierr) line ! read line into character variable
+        positionBeg = positionEnd + 1
+        if (positionBeg >= len(nameListStr_ptr)) exit namelistLoop1 ! reached end of the file
+        if (trim(line) == '') cycle namelistLoop1                   ! skip empty lines
+
+        read (line,*) word ! read first word of line
+        ierr = clib_toUpper(word)
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+          ! found search string at beginning of line
+          found = .true.
+          exit
+        end if
+      end do namelistLoop1
+
+    else
+
+      write(*,*) 'utl_isNamelistPresent: Namelist file is not already in a string, checking the file instead'
+
+      ! Open the namelist file
+      unit=0
+      ierr=fnom(unit,namelistFileName,'FTN+SEQ+R/O',0)
+
+      ! Search for namelistSectionName in the file
+      found = .false.
+      namelistLoop2 : do
+        read (unit,"(a)",iostat=ierr) line ! read line into character variable
+        if (ierr /= 0) exit namelistLoop2
+        if (trim(line) == "") cycle namelistLoop2 ! skip empty lines
+        read (line,*) word          ! read first word of line
+        ierr = clib_toUpper(word)
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+          ! found search string at beginning of line
+          found = .true.
+          exit namelistLoop2
+        end if
+      end do namelistLoop2
+
+      ! Close the namelist file
+      ierr=fclos(unit)
+
+    end if
 
   end function utl_isNamelistPresent
 

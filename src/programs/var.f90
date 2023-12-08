@@ -348,8 +348,8 @@ program midas_var
   computeFinalNlJo = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
-  call msg('midas-var','namvar is missing in the namelist. '&
-       //'The default values will be taken.', mpiAll_opt=.false.)
+    call msg('midas-var','namvar is missing in the namelist. ' // &
+             'The default values will be taken.', mpiAll_opt=.false.)
 
   else
     ! read in the namelist NAMVAR
