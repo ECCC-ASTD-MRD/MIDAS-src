@@ -108,6 +108,8 @@
    CINSTRUMENTID(4) = 'AMSUA',
    CSATID(5)        = 'METOP-1',
    CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'METOP-3',
+   CINSTRUMENTID(6) = 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .FALSE.,
