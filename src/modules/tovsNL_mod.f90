@@ -3425,10 +3425,8 @@ contains
 
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
-              write(*,*) "YY",bodyIndex,clearMwRadiance
             end if
           end do loopClearSky3
-          write(*,*) "etape 4"
           ! restore the cloud profiles in ...
           call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
                                              nlv_T,                             &
