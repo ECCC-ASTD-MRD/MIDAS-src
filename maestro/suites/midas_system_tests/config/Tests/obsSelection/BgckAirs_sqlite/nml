@@ -61,7 +61,6 @@
    CINSTRUMENTID(1) = 'AIRS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   updateSfcEmiss = .true.
 /
  &NAMCODTYP
 /

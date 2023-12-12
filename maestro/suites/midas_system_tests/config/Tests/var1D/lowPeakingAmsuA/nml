@@ -116,8 +116,6 @@
    regLimitExtrap=.false.,
    useMWEmissivityAtlas = .true.,
    mWAtlasId = 2,
-   updateSfcEmiss = .true.
-   updateTransmissivity = .true.
 /
  &NAMCODTYP
 /

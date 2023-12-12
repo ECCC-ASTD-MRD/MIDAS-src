@@ -63,7 +63,6 @@
    CINSTRUMENTID(2) = 'IASI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   updateSfcEmiss = .true.
 /
  &NAMCODTYP
 /

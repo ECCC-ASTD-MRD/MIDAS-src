@@ -1669,7 +1669,7 @@ contains
        destObs = OBS_OMP
     end if
 
-    if (.not. allocated(tvs_emissivity) .and. tvs_updateSfcEmiss) then 
+    if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
       allocate(tvs_emissivity(tvs_maxChannelNumber, tvs_nobtov))
     end if
 
@@ -1735,17 +1735,11 @@ contains
         end if
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
-        if (tvs_updateSfcEmiss .and. allocated(tvs_emissivity)) then
-          if (.not. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-            call utl_abort('oop_tovs_nl: obsSpace Column OBS_SEM must be active')
-          end if
+        if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
           call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
         end if
 
-        if (tvs_updateTransmissivity .and. allocated(tvs_transmission)) then
-          if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
-            call utl_abort('oop_tovs_nl: obsSpace Column OBS_TRAN must be active')
-          end if
+        if (allocated(tvs_transmission) .and. obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then
           call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, tvs_transmission(tovsIndex) % tau_total(channelIndex))
         end if
         

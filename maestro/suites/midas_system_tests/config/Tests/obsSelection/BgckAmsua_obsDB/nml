@@ -87,7 +87,6 @@
    MWINSTRUMUSINGCLW_TL = .true.
    cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
-   updateSfcEmiss = .true.
 /
  &NAMCODTYP
 /
