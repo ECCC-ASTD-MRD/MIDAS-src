@@ -70,6 +70,7 @@
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    regLimitExtrap=.false.
+   updateSfcEmiss = .true.
 /
  &NAMCODTYP
 /

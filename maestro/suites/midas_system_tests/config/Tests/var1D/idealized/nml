@@ -116,6 +116,8 @@
    regLimitExtrap=.false.
    useMWEmissivityAtlas = .TRUE.,
    mWAtlasId = 2,
+   updateSfcEmiss = .true.
+   updateTransmissivity = .true.
 /
  &NAMSIMEMISS
   simEmissSeed = 1,

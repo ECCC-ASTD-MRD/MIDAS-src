@@ -19,6 +19,7 @@ module sqliteRead_mod
   use obsFilter_mod
   use sqliteUtilities_mod
   use radialVelocity_mod
+  use tovsNL_mod
 
   implicit none
 
@@ -1009,9 +1010,20 @@ module sqliteRead_mod
         columnName = 'sim_surf_emiss'
       case('EMER')
         columnName = 'surf_emiss_error'
+      case('TRAN')
+        columnName = 'transmissivity'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select
+
+      ! Check if ObsSpace column information are stored.
+      if (item == 'SEM' .and. .not. tvs_updateSfcEmiss) then
+        call utl_abort('sqlr_updateSqlite: ensure sfc emissivity information is stored. &
+                        set namelist NAMTOV/tvs_updateSfcEmiss to .true.')
+      else if (item == 'TRAN' .and. .not. tvs_updateTransmissivity) then 
+        call utl_abort('sqlr_updateSqlite: ensure transmissivity information is stored. &
+                        set namelist NAMTOV/updateTransmissivity to .true.')
+      end if
 
       ! Check if column exist. If not, add column when corresponding
       ! obsspacedata variable have non-missing values

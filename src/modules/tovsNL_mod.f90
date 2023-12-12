@@ -101,7 +101,7 @@ module tovsNL_mod
   public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
   public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
-  public :: tvs_mwAllskyAssim
+  public :: tvs_mwAllskyAssim, tvs_updateSfcEmiss, tvs_updateTransmissivity
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
@@ -167,6 +167,8 @@ module tovsNL_mod
   logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
   logical tvs_userDefinedDoAzimuthCorrection
   logical tvs_userDefinedIsAzimuthValid
+  logical tvs_updateSfcEmiss                        ! Logical key to store surface emissivity
+  logical tvs_updateTransmissivity                  ! Logical key to store transmissivity
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -194,6 +196,7 @@ module tovsNL_mod
   logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
+
 
   integer, external :: get_max_rss
  
@@ -762,11 +765,13 @@ contains
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
+    logical :: updateSfcEmiss ! Logical key to update surface emissivity
+    logical :: updateTransmissivity ! Logical key to update transmissivity
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
-    namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
+    namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId, updateSfcEmiss, updateTransmissivity
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
@@ -804,6 +809,8 @@ contains
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     mpiTask0ReadCoeffs = .true.
+    updateSfcEmiss = .false.
+    updateTransmissivity = .false.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -845,6 +852,8 @@ contains
     tvs_cloudScaleFactor = cloudScaleFactor 
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
+    tvs_updateSfcEmiss = updateSfcEmiss
+    tvs_updateTransmissivity = updateTransmissivity
 
     !  1.4 Validate namelist values
     
@@ -3262,8 +3271,10 @@ contains
       end if
 
       !    2.4  Store hx in the structure tvs_radiance
+      if ((tvs_updateTransmissivity .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
+        call tvs_allocTransmission(nlv_T)
+      end if
 
-      if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
       do btIndex = 1, btCount
         profileIndex = chanprof(btIndex)%prof
         channelIndex = chanprof(btIndex)%chan

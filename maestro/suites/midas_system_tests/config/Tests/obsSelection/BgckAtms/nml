@@ -73,6 +73,7 @@
    mwInstrumUsingCLW_tl = .true.
    cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
+   updateSfcEmiss = .true.
 /
  &NAMCODTYP
 /
