@@ -5545,7 +5545,7 @@ contains
   subroutine tvs_writeJacobianAscii(jacobian, jacobian_emiss, profiles, chanprof, obsSpaceData, satelliteName, instrumentName, &
                                     bodyIndexFromBtIndex, sensorTovsIndexes, btCount)
     !
-    ! :Purpose: Write the Computed Jacobian into ASCII files
+    ! :Purpose: Write the computed Jacobian into ASCII files
     !
     implicit none
 

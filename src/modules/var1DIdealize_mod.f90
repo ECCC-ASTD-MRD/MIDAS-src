@@ -367,12 +367,6 @@ module var1DIdealize_mod
 
       ! Compute radiance
       call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)
-
-      call tvs_fillProfiles(columnTrlOnTrlLevTruth, obsSpaceData, datestamp, "nl", beSilent)
-
-      ! Compute the Jacobian
-      call tvslin_rttov_k(columnTrlOnTrlLevTruth, obsSpaceData)
-
     end if
 
      ! loop over all header indices of the 'TO' family
@@ -451,6 +445,13 @@ module var1DIdealize_mod
       ! Estimate and update R-Matrix.
       call rmat_updateRmat(obsSpaceData)
       call rmat_writeRCorrFile
+    end if
+
+    ! Compute the Jacobian
+    if (tvs_computeJacobian) then 
+      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, "nl", beSilent)
+
+      call tvslin_rttov_k(columnTruthOnTrlLev, obsSpaceData)
     end if
 
     write(*,*) 'var1Di_simulateObservation: Finished '

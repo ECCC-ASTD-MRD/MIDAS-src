@@ -1007,8 +1007,6 @@ contains
     integer                         :: errorstatus
     logical, pointer                :: calcemis(:)
 
-    if (.not. tvs_computeJacobian ) return
-
     if (tvs_nobtov == 0) return ! exit if there are not tovs data
   
     call tvs_getProfile(profiles, 'nl')
@@ -1134,6 +1132,7 @@ contains
         call utl_abort('tovs_rttov_k')
       end if
   
+      ! Write Jacobian to ASCII files
       call tvs_writeJacobianAscii(profiles_k, emissivity_k, profiles, chanprof, obsSpaceData, tvs_satelliteName(sensorIndex), tvs_instrumentName(sensorIndex), &
                                   sensorBodyIndexes, sensorTovsIndexes, btCount)
   

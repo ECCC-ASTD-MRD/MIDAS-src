@@ -264,7 +264,7 @@ else
     done
 
     # Move radiance Jacobian into a sub directory
-    if find . -type f -name "tvs_jacobian_*" 2>/dev/null; then
+    if [ -f tvs_jacobian_* ]; then
         if [ ! -d tvs_jacobian ]; then
             mkdir tvs_jacobian
         fi
