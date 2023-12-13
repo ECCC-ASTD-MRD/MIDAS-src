@@ -103,6 +103,7 @@ program midas_genCoeff
   use innovation_mod
   use obsErrors_mod
   use biasCorrectionSat_mod
+  use obsDiagFiles_mod
 
   implicit none
 
@@ -199,6 +200,21 @@ program midas_genCoeff
 
   ! output  O-F statistics after bias coorection
   call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
+
+  ! if requested, dump the thinned predictors and coefficients to sqlite
+  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+
+  if ( .not. obsf_filesSplit() ) then 
+    call msg('genCoeff','reading/writing global observation files')
+    call obs_expandToMpiGlobal(obsSpaceData)
+    if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+  else
+    ! redistribute obs data to how it was just after reading the files
+    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    !call obsf_writeFiles(obsSpaceData)
+    call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
+        addFSOdiag=.false.)
+  end if
 
   ! Deallocate internal bias correction structures 
   call bcs_finalize()

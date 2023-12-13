@@ -79,7 +79,7 @@ module biasCorrectionSat_mod
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 14
-  integer, parameter    :: NumPredictorsBcif = 6
+  integer, parameter    :: NumPredictorsBcif = 13
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
@@ -96,7 +96,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
-  integer, external     :: fnom, fclos 
+  integer, external     :: fnom, fclos
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
@@ -757,7 +757,7 @@ contains
     type(struct_obs), intent(inout)     :: obsSpaceData
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex,iobs, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, iobs, idata, indxtovs, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
     real(8)  :: predictor(NumPredictors)
@@ -815,8 +815,8 @@ contains
       end do
     end do
     write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: fileIndexes', fileIndexes(1:tovsFileNameListSize)
-    allocate(obsOffset(tovsFileNameListSize))
-    allocate(dataOffset(tovsFileNameListSize))
+    allocate(obsOffset(tovsFileNameListSize)) !id_obs
+    allocate(dataOffset(tovsFileNameListSize)) !id_data
     do fileIndex = 1, tovsFileNameListSize
       fileName = tovsFileNameList(fileIndex)
       write(*,*) 'tovs filename = ', fileName
@@ -838,6 +838,7 @@ contains
     end do
     
     iobs = 0
+    idata = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -850,6 +851,8 @@ contains
       end if
       iobs = iobs + 1
       fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_IDF, headerIndex))
+      if (fileIndex==-1) cycle HEADER
+      obsOffset(fileIndex) = obsOffset(fileIndex) + 1
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
       sensorIndex = tvs_lsensor(indxTovs)
@@ -862,7 +865,7 @@ contains
           fileNameExtension = ' '
         end if
 
-        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
+        fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
              // '_' // trim(filenameExtension)
 
         call fSQL_open(db(fileIndex), fileName, stat)
@@ -902,9 +905,13 @@ contains
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
+        dataOffset(fileIndex) = dataOffset(fileIndex) + 1
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY   
         if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
-        if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY 
+        if (obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex) == MPC_missingValue_R8) cycle BODY
+        if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY
+        idata = idata + 1
+        
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, chanIndx, bodyIndex)
         if (chanindx > 0) then
           biasCor = 0.0d0
@@ -942,8 +949,8 @@ contains
             call fSQL_bind_param(stmtCoeffs(fileIndex), param_index=5, int_var=burpChanIndex)
             call fSQL_bind_param(stmtCoeffs(fileIndex), param_index=6, int_var=iScan)
             call fSQL_exec_stmt (stmtCoeffs(fileIndex))
-            call fSQL_bind_param(stmtPreds(fileIndex), param_index=1, int_var=bodyIndex + dataOffset(fileIndex))
-            call fSQL_bind_param(stmtPreds(fileIndex), param_index=2, int_var=headerIndex + obsOffset(fileIndex))
+            call fSQL_bind_param(stmtPreds(fileIndex), param_index=1, int_var= dataOffset(fileIndex))
+            call fSQL_bind_param(stmtPreds(fileIndex), param_index=2, int_var= obsOffset(fileIndex))
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=3, int_var=jPred)
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=4, real8_var=predictor(jPred))
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=5, char_var=predtab(jPred))
@@ -3626,7 +3633,7 @@ contains
       chknp = count(pred(i,:) /= 'XX')
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
+      write(*,'(I4,2(5X,A1),5X,I2,14(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
     end do
     write(*,*) 'read_BCIF: exit '
 
