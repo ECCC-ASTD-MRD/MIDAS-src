@@ -864,6 +864,7 @@ contains
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
+    tvs_mwInstrumUsingHydrometeors_tl = mwInstrumUsingHydrometeors_tl
     tvs_regLimitExtrap = regLimitExtrap
     tvs_userDefinedDoAzimuthCorrection = userDefinedDoAzimuthCorrection
     tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
