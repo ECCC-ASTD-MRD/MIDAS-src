@@ -83,7 +83,7 @@ program midas_var1D
   !
   !               - Horizontally interpolate high-resolution stateVectorUpdate to trial columns: ``inn_setupColumnsOnTrlLev``
   !
-  !               - Simulate background if specified in NAM1DVAR ``var1DIdealize_simulateBackgroundState``
+  !               - Simulate background if specified in NAM1DVAR ``var1Di_simulateBackgroundState``
   !
   !               - Interpolate trial columns to analysis levels and setup for linearized H: ``inn_setupColumnsOnAnlIncLev``
   !
@@ -181,12 +181,13 @@ program midas_var1D
 
 
   ! Namelist variables:
-  logical :: simBgAndObs  ! Simulate Background and Observation
-  integer :: simBgSeed    ! Random seed used to generate background perturbation sampling
-  integer :: simObsSeed   ! Random seed used to generate observation perturbation sampling
-  logical :: useSimObsErr ! Simulate observation based on observation error that explicitly considers the surface emissivity error
+  logical :: simBgAndObs            ! Simulate Background and Observation
+  integer :: simBgSeed              ! Random seed used to generate background perturbation sampling
+  integer :: simObsSeed             ! Random seed used to generate observation perturbation sampling
+  logical :: useSimObsErr           ! Simulate observation based on observation error that explicitly considers the surface emissivity error
+  integer :: numSamplesHBHT         ! Number of realization used to estimate Sigma B in observation space
   
-  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr
+  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr, numSamplesHBHT
 
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -218,6 +219,7 @@ program midas_var1D
   simBgSeed = 0
   simObsSeed = 0
   useSimObsErr = .False.
+  numSamplesHBHT = 0
 
   ! Check if NAM1DVAR exist
   if (.not. utl_isNamelistPresent('NAM1DVAR','./flnml')) then
@@ -341,11 +343,11 @@ program midas_var1D
     call col_deallocate(columnTrlOnTrlLev)
     
     ! Simulate Background state columnTrlOnTrlLev
-    call var1DIdealize_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
+    call var1Di_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
                                                 obsSpaceData, vco_anl, simBgSeed)
-
-    call var1DIdealize_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
-                                           simObsSeed, useSimObsErr)                                            
+                                          
+    call var1Di_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
+                                           simObsSeed, useSimObsErr)
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -383,6 +385,10 @@ program midas_var1D
   if (mmpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 
   call inc_writeAnalysis(stateVectorAnalysis)
+
+  if (numSamplesHBHT> 0) then
+    call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs)
+  end if
 
   ! Deallocate memory related to B matrices
   call var1D_finalize()

@@ -188,7 +188,12 @@ contains
 
     end do
 
-    ! initializations
+    ! Initialize obsSpaceData header columns to 'missing'
+    do headerIndex = headerIndexBegin, headerIndexEnd
+      if (obs_columnActive_RH(obsdat, OBS_ELEV)) call obs_HeadSet_r(obsdat, OBS_ELEV, headerIndex, missingValue)
+    end do
+
+    ! Initialize obsSpaceData body columns to 'missing'
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
 
       if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
@@ -202,6 +207,11 @@ contains
       if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
+      if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, missingValue)
 
     end do
 

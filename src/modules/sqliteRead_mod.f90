@@ -445,6 +445,11 @@ module sqliteRead_mod
       if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, missingValue)
 
       READHEADER: if (obsNlv == 1) then
         headerIndex = headerIndex + 1
@@ -643,7 +648,7 @@ module sqliteRead_mod
         call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, obs_missingValue_R)
       end if
       if (obs_columnActive_RB(obsdat,OBS_SEM)) then
-        call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, 0.0)
+        call obs_bodySet_r(obsdat, OBS_SEM, bodyIndex, obs_missingValue_R)
       end if
 
       ! Copy body row into obsspacedata by looping over all columns that were read
@@ -803,6 +808,11 @@ module sqliteRead_mod
     if (obs_columnActive_RB(obsdat, OBS_SIGO)) call obs_bodySet_r(obsdat, OBS_SIGO, numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_ZHA))  call obs_bodySet_r(obsdat, OBS_ZHA , numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, numberData, obs_missingValue_R)
 
   end subroutine sqlr_addExtraDataRow
 
@@ -999,6 +1009,8 @@ module sqliteRead_mod
         columnName = 'sim_surf_emiss'
       case('EMER')
         columnName = 'surf_emiss_error'
+      case('TRAN')
+        columnName = 'transmissivity'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select

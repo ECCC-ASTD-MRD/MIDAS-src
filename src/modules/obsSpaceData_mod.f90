@@ -645,7 +645,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM', 'OERI', 'TRAN' /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM','OERI','TRAN'  /)
 end module ObsColumnNames_mod
 
 

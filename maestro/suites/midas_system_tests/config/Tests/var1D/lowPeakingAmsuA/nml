@@ -31,8 +31,8 @@
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 15,
-   NSIMMAX  = 100,
+   NITERMAX = 100,
+   NSIMMAX  = 125,
    REPSG    = 1.0D-5,
    LGRTEST  = .false.,
    LWRTHESS = .TRUE.,
@@ -108,6 +108,8 @@
    CINSTRUMENTID(6) = 'AMSUA',
    CSATID(7)       = 'NOAA19',
    CINSTRUMENTID(7)= 'AMSUA',
+   CSATID(8)       = 'METOP-3',
+   CINSTRUMENTID(8)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .FALSE.,

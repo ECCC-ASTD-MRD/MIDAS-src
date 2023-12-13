@@ -3260,8 +3260,11 @@ contains
         write(*,*) 'Error in rttov_parallel_direct',rttov_err_stat
         call utl_abort('tvs_rttov')
       end if
-                                        
+
       !    2.4  Store hx in the structure tvs_radiance
+      if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
+        call tvs_allocTransmission(nlv_T)
+      end if
 
       do btIndex = 1, btCount
         profileIndex = chanprof(btIndex)%prof
@@ -3283,7 +3286,6 @@ contains
             tvs_radiance(tovsIndex) % overcast(levelIndex,channelIndex) =   &
                  radiancedata_d % overcast(levelIndex,btIndex)
           end do
-          if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
         end if
 
         if ( allocated( tvs_transmission) ) then
@@ -3302,27 +3304,22 @@ contains
           
       end do
 
-      ! Append Surface Emissivity, Surface-Satellite Transmissivity into ObsSpaceData
-      do btIndex = 1, btCount
-        bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-        profileIndex = chanprof(btIndex)%prof
-        tovsIndex = sensorTovsIndexes(profileIndex)
-        headerIndex = tvs_headerIndex(tovsIndex)
+      ! Append Simulated Surface Emissivity into ObsSpaceData
+      if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
+        do btIndex = 1, btCount
+          bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
+          profileIndex = chanprof(btIndex)%prof
+          tovsIndex = sensorTovsIndexes(profileIndex)
+          headerIndex = tvs_headerIndex(tovsIndex)
 
-        if (bodyIndex > 0) then
-          if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+          if (bodyIndex > 0) then
+            if (obs_bodyElem_r(obsSpaceData, OBS_SSEM, bodyIndex) == MPC_missingValue_R8) then
+              call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+            end if
           end if
 
-          if (obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
-            call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_total(btIndex))
-          end if
-
-          if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
-            call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
-          end if
-        end if
-      end do
+        end do
+      end if
 
       !    Deallocate memory
       asw = 0 ! 0 to deallocate

@@ -23,10 +23,9 @@
   doAveraging=.true.
 /
 &NAM1DVAR
-  simBgAndObs = .TRUE.,
-  simBgSeed = 1,
-  simObsSeed = 1,
+  simBgAndObs = .True.,
   useSimObsErr =.True.
+  numSamplesHBHT = 100,
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -109,6 +108,8 @@
    CINSTRUMENTID(4) = 'AMSUA',
    CSATID(5)        = 'METOP-1',
    CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'METOP-3',
+   CINSTRUMENTID(6) = 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    mwAllskyAssim = .FALSE.,
@@ -139,6 +140,7 @@
   itemUpdateBodyList(7)='SSEM',
   itemUpdateBodyList(8)='EMER',
   itemUpdateBodyList(9)='SEM',
+  itemUpdateBodyList(10)='HPHT',
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT
