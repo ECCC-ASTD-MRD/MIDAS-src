@@ -844,6 +844,7 @@ contains
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
+    ! tvs_mwInstrumUsingHydrometeors_tl = mwInstrumUsingHydrometeors_tl ! uncomment to correct the bug present in 3.9.0
     tvs_regLimitExtrap = regLimitExtrap
     tvs_userDefinedDoAzimuthCorrection = userDefinedDoAzimuthCorrection
     tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
@@ -2922,12 +2923,7 @@ contains
 
       sensorType = tvs_coefs(sensorId) % coef % id_sensor
       instrum = tvs_coefs(sensorId) % coef % id_inst
-
-      runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
-                               tvs_isInstrumUsingCLW(tvs_instruments(sensorId)))
-      runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
-          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId)))
- 
+      
       hydroSensorIndex = tvs_getHydrometeorsIndex(tvs_instruments(sensorId))
       hydroChannelsCount = 0
       if ( hydroSensorIndex > 0 ) then
@@ -2937,6 +2933,13 @@ contains
           end if
         end do
       end if
+      
+      runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
+          tvs_isInstrumUsingCLW(tvs_instruments(sensorId)) )
+          
+      runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
+          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId))            .and. &
+          hydroChannelsCount >0 )
                                         
       if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) runObsOperatorWithClw = .false.
     
@@ -2964,8 +2967,12 @@ contains
         btCountScatt = 0
       else
         btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData)
-        btCountScatt = tvs_countRadiancesScatt(sensorTovsIndexes(1:profileCount), obsSpaceData, &
-            tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), sensorId)
+        if (runObsOperatorWithHydrometeors) then
+          btCountScatt = tvs_countRadiancesScatt(sensorTovsIndexes(1:profileCount), obsSpaceData, &
+              tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), sensorId)
+        else
+          btCountScatt = 0
+        end if
         btCount = btCount - btCountScatt 
       end if
 
@@ -3030,10 +3037,15 @@ contains
             end if
           end do
         else
-          call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
-              iptobs_cma_opt = tvs_bodyIndexFromBtIndex, &
-              channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
-              excludeChannelsFromList_opt=.true.)
+          if (btCountScatt > 0) then
+            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+                iptobs_cma_opt = tvs_bodyIndexFromBtIndex, &
+                channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
+                excludeChannelsFromList_opt=.true.)
+          else
+            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+                iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
+          end if
         end if
         call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
         if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
