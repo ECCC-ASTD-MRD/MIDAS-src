@@ -976,7 +976,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvslin_rttov_k(columnTrlOnAnlIncLev, obsSpaceData)
     !
-    ! :Purpose: Jacobian of the computation of radiance with rttov_k
+    ! :Purpose: Compute the Jacobian of radiance using rttov_k
     !
     implicit none
   
@@ -984,6 +984,7 @@ contains
     type(struct_obs)        :: obsSpaceData         ! obsSpaceData structure
     type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
 
+    ! Locals:
     type(rttov_emissivity), pointer :: emissivity_local(:)
     type(rttov_emissivity), pointer :: emissivity_k(:)
     type(rttov_chanprof), pointer   :: chanprof(:)
@@ -1001,7 +1002,7 @@ contains
     integer                         :: instrum, asw
     integer, external               :: omp_get_num_threads
     integer                         :: nthreads, max_nthreads
-    integer                         :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
+    integer                         :: sensorType
     real(8), allocatable            :: surfem1(:)
     integer, allocatable            :: sensorBodyIndexes(:)
     integer                         :: errorstatus

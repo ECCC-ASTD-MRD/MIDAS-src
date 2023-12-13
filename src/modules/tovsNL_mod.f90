@@ -5600,7 +5600,7 @@ contains
             size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%q(:)) .or. &
             size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%p(:))) then
           call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match &
-                                                  the number of model levels in Jacobian')
+                          the number of model levels in Jacobian')
         end if
 
         numLev = size(profiles(tovsIndex)%p(:))
