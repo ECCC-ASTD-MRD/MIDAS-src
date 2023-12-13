@@ -5574,8 +5574,8 @@ contains
 
     write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-    cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
-    filename = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'//cmyid
+    cmyid = trim(cmyidx) // '_' // trim(cmyidy)
+    filename = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'// cmyid
 
     inquire(file=trim(filename), exist=fileExists)
     write(*,*) 'tvs_writeJacobianAscii: fileExists', fileExists
@@ -5606,9 +5606,9 @@ contains
         numLev = size(profiles(tovsIndex)%p(:))
         write (strNumLev,'(I4)') numLev
 
-        WRITE(iunit,'(I20, I20, F16.2, F16.2, I4, '&
+        WRITE(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
                       // trim(strNumLev) // 'E16.5E2, &
-                      E16.5E2, E16.5E2, E16.5E2, E16.5E2, '&
+                      E16.5E2, E16.5E2, E16.5E2, E16.5E2, ' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2)') &

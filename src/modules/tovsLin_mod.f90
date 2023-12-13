@@ -1021,15 +1021,15 @@ contains
     !$omp end parallel
   
     allocStatus(:) = 0
-    allocate (sensorTovsIndexes(tvs_nobtov), stat = allocStatus(1))
+    allocate(sensorTovsIndexes(tvs_nobtov), stat = allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), " tvslin_rttov_tl sensorTovsIndexes")
         
     ! Loop over all sensors specified by user
   
     sensor_loop: do sensorIndex = 1, tvs_nsensors
   
-      sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
-      instrum = tvs_coefs(sensorIndex) % coef % id_inst
+      sensorType = tvs_coefs(sensorIndex)%coef%id_sensor
+      instrum = tvs_coefs(sensorIndex)%coef%id_inst
 
       ! Loop over all obs.
       profileCount = 0
@@ -1045,7 +1045,7 @@ contains
 
       ! Compute the number of calculated radiances for one call
       btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData, &
-                                   assim_flag_val_opt=obs_assimilated)
+                                   assim_flag_val_opt = obs_assimilated)
       if (btCount == 0) cycle sensor_loop
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_k")
@@ -1078,8 +1078,8 @@ contains
   
       ! Prepare all input variables required by rttov.
         
-      allocate ( surfem1(btCount)           ,stat=allocStatus(1))
-      allocate ( sensorBodyIndexes(btCount) ,stat=allocStatus(2))
+      allocate (surfem1(btCount)           ,stat=allocStatus(1))
+      allocate (sensorBodyIndexes(btCount) ,stat=allocStatus(2))
       call utl_checkAllocationStatus(allocStatus(1:2), " tovs_rtttov_k")
         
       write(*,*) 'tvslin_rttov_k: Get surface emissiviy'
@@ -1100,8 +1100,8 @@ contains
       end if
    
       ! Intialize variables'
-      emissivity_k%emis_in=0.0
-      emissivity_k%emis_out=0.0
+      emissivity_k%emis_in = 0.0
+      emissivity_k%emis_out = 0.0
   
       call rttov_init_prof(profiles_k)
       call rttov_init_transmission(transmission_k)
@@ -1129,7 +1129,7 @@ contains
       if (errorstatus /= errorStatus_success) then
         write(*,*) "Error in rttov_parallel_k", errorstatus
         write(*,*) 'temperature profile=', profiles(sensorTovsIndexes(1))%t(:)
-        write(*,*) 'temperature Jacobian profile=',profiles_k(1) % t(:)
+        write(*,*) 'temperature Jacobian profile=', profiles_k(1)%t(:)
         call utl_abort('tovs_rttov_k')
       end if
   
@@ -1157,8 +1157,8 @@ contains
               emissivity=emissivity_local,     &
               emissivity_k=emissivity_k)
   
-      deallocate (surfem1,          stat=allocStatus(2))
-      deallocate (sensorBodyIndexes,stat=allocStatus(3))
+      deallocate (surfem1, stat=allocStatus(2))
+      deallocate (sensorBodyIndexes, stat=allocStatus(3))
       call utl_checkAllocationStatus(allocStatus(1:3), "tvslin_rtttov_k", .false.)
     end do sensor_loop
   
