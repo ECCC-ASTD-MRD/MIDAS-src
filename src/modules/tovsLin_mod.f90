@@ -171,8 +171,6 @@ contains
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl .and. &
                                           hydroChannelsCount > 0
-
-      if (runObsOperatorWithClw_tl .and. runObsOperatorWithHydrometeors_tl) runObsOperatorWithClw_tl = .false.
       
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
@@ -712,8 +710,6 @@ contains
                                           tvs_mwInstrumUsingHydrometeors_tl .and. &
                                           hydroChannelsCount > 0
 
-      if (runObsOperatorWithClw_ad .and. runObsOperatorWithHydrometeors_ad) runObsOperatorWithClw_ad = .false.
-      
       sensorType = tvs_coefs(sensorIndex) % coef% id_sensor
       instrum = tvs_coefs(sensorIndex) % coef% id_inst
 

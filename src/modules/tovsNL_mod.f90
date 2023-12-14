@@ -2940,8 +2940,6 @@ contains
       runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId))            .and. &
           hydroChannelsCount >0 )
-                                        
-      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) runObsOperatorWithClw = .false.
     
       !  loop over all obs.
       profileCount = 0
