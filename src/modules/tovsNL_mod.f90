@@ -1000,7 +1000,7 @@ contains
         nl = tvs_coefs(iSensor) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
         call rttov_alloc_prof(allocStatus(1),1,tvs_profiles_nl(iObs),nl, &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
+             tvs_opts(iSensor), asw=0,coefs=tvs_coefs(iSensor), init=.false. ) ! asw =0 deallocation
         call rttov_alloc_prof(allocStatus(2),1,tvs_profiles_tlad(iObs),nl, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
         call utl_checkAllocationStatus(allocStatus(1:2), 'profiles deallocation in tvs_cleanup',.false.)
@@ -2853,7 +2853,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) ::obsSpaceData    ! obsSpaceData structure
+    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
     logical,           intent(in)    :: beSilent        ! flag to control verbosity
     logical, optional, intent(in)    :: SimSfcEmiss_opt ! Option to simulate surface emissivity based on mWAtlas
@@ -2880,7 +2880,6 @@ contains
     type (rttov_chanprof), allocatable :: chanprof1(:)
     type (rttov_radiance) :: radiancedata_d, radiancedata_d1, radiancedata_dScatt
     type (rttov_transmission) :: transmission, transmission1
-    integer              :: asw
     logical, pointer :: calcemis(:), calcemisScatt(:)
     real(8), allocatable  :: surfem1(:), surfem1Scatt(:)
     integer, allocatable  :: frequencies(:)
@@ -2980,10 +2979,9 @@ contains
         if (allocated(tvs_bodyIndexFromBtIndex)) deallocate(tvs_bodyIndexFromBtIndex)
         allocate(tvs_bodyIndexFromBtIndex(btCount))
         tvs_bodyIndexFromBtIndex(:) = -1
-        asw = 1 ! Allocation
         call rttov_alloc_direct(        &
             allocStatus(2),             &
-            asw,                        &
+            asw=1,                      &
             nprofiles=profileCount,     & ! (not used)
             nchanprof=btCount,          &
             nlevels=nlv_T,              &
@@ -3122,15 +3120,14 @@ contains
         if( bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
           write(*,*) 'for bgck IR: call rttov_parallel_direct for each profile...'
 
-          asw = 1 ! 1 to allocate,0 to deallocate
           ! allocate transmitance structure for 1 profile
           call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T, &
-              nchanprof=tvs_nchan(sensorId), asw=asw, init=.true.)
+              nchanprof=tvs_nchan(sensorId), asw=1, init=.true.)
           ! allocate radiance structure for 1 profile
-          call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorId), radiancedata_d1,nlv_T,asw,init=.true.)
+          call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw=1, init=.true.)
           ! allocate chanprof for 1 profile
           allocate(chanprof1(tvs_nchan(sensorId)))
-          do  channelIndex = 1,tvs_nchan(sensorId)
+          do  channelIndex = 1, tvs_nchan(sensorId)
             chanprof1(channelIndex)%prof = 1
             chanprof1(channelIndex)%chan = channelIndex
           end do
@@ -3171,12 +3168,11 @@ contains
 
           ! transmittance deallocation for 1 profile
           deallocate(chanprof1)
-          asw = 0 ! 1 to allocate,0 to deallocate
           ! transmittance deallocation for 1 profile
-          call rttov_alloc_transmission(allocStatus(1),transmission1,nlevels=nlv_T,  &
-              nchanprof=tvs_nchan(sensorId), asw=asw )
+          call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T,  &
+              nchanprof=tvs_nchan(sensorId), asw=0 )
           ! radiance deallocation for 1 profile
-          call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw)
+          call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw=0)
 
         else
 
@@ -3314,10 +3310,9 @@ contains
         end if
 
         !    Deallocate memory
-        asw = 0 ! 0 to deallocate
         call rttov_alloc_direct(        &
             allocStatus(1),             &
-            asw,                        &
+            asw=0,                      &
             nprofiles=profileCount,     & ! (not used)
             nchanprof=btCount,          &
             nlevels=nlv_T,              &
@@ -3345,16 +3340,15 @@ contains
          
         allocate ( surfem1Scatt     (btCountScatt), stat=allocStatus(2))
         allocate ( frequencies      (btCountScatt), stat=allocStatus(3))
-        asw = 1 ! Allocation
-        call rttov_alloc_direct(        &
-            allocStatus(2),             &
-            asw,                        &
-            nprofiles=profileCount,     & ! (not used)
-            nchanprof=btCountScatt,     &
-            nlevels=nlv_T,              &
-            chanprof=chanprofScatt,     &
-            opts=tvs_opts(sensorId),    &
-            coefs=tvs_coefs(sensorId),  &
+        call rttov_alloc_direct(             &
+            allocStatus(2),                  &
+            asw=1,                           &
+            nprofiles=profileCount,          & ! (not used)
+            nchanprof=btCountScatt,          &
+            nlevels=nlv_T,                   &
+            chanprof=chanprofScatt,          &
+            opts=tvs_opts(sensorId),         &
+            coefs=tvs_coefs(sensorId),       &
             radiance=radiancedata_dScatt,    &
             calcemis=calcemisScatt,          &
             emissivity=emissivity_localScatt,&
@@ -3489,16 +3483,6 @@ contains
             if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
           end if
 
-          !if ( allocated( tvs_transmission) ) then
-          !  do levelIndex = 1, nlv_T
-          !    tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
-          !        transmissionScatt % tau_levels(levelIndex,btIndex)
-          !  end do
-          !  
-          !  tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
-          !      transmissionScatt % tau_total(btIndex)
-          !end if
-
           if ( allocated(tvs_emissivity) ) then
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex)%emis_out
           end if
@@ -3518,10 +3502,6 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_localScatt(btIndex)%emis_out)
             end if
 
-            !if (obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then 
-            !  call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, transmission%tau_totalScatt(btIndex))
-            !end if
-            
             if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
               call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_localScatt(btIndex)%emis_out)
             end if
@@ -3529,10 +3509,9 @@ contains
         end do
 
         !    Deallocate memory
-        asw = 0 ! 0 to deallocate
         call rttov_alloc_direct(              &
              allocStatus(1),                  &
-             asw,                             &
+             asw=0,                           &
              nprofiles=profileCount,          & ! (not used)
              nchanprof=btCountScatt,          &
              nlevels=nlv_T,                   &
@@ -3544,8 +3523,8 @@ contains
              emissivity=emissivity_localScatt,&
              init=.true.)
 
-        deallocate ( surfem1Scatt, stat=allocStatus(3) )
-        deallocate ( frequencies, stat=allocStatus(4))
+        deallocate ( surfem1Scatt, stat=allocStatus(2))
+        deallocate ( frequencies, stat=allocStatus(3))
         call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
      
       end if

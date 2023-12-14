@@ -74,9 +74,9 @@ contains
     integer :: instrum
     integer :: sensorType   !sensor type(1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
     integer :: errorStatus
-    integer,allocatable :: sensorBodyIndexes(:)
-    integer,allocatable :: sensorBodyIndexesScatt(:)
-    logical,allocatable :: lchannel_subset(:,:)
+    integer, allocatable :: sensorBodyIndexes(:)
+    integer, allocatable :: sensorBodyIndexesScatt(:)
+    logical, allocatable :: lchannel_subset(:,:)
     real(8), allocatable :: surfem1(:)
     real(8), allocatable :: surfem1Scatt(:)
     integer, allocatable  :: frequencies(:)
@@ -99,7 +99,6 @@ contains
     logical, pointer :: calcemisScatt(:)
     logical :: runObsOperatorWithClw_tl
     logical :: runObsOperatorWithHydrometeors_tl
-    integer :: asw
     real(8) :: obsOMP
     type (rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
@@ -335,10 +334,9 @@ contains
 
       ! allocate profiledata_tl structures
       if (btCount > 0) then
-        asw = 1 ! 1 to allocate
         call rttov_alloc_tl(                 &
             allocStatus(1),                  &
-            asw,                             &
+            asw=1,                           &
             nprofiles=profileCount,          &
             nchanprof=btCount,               &
             nlevels=nlv_T,                   &
@@ -364,7 +362,7 @@ contains
         if (btCountScatt > 0) then
           call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
               iptobs_cma_opt =sensorBodyIndexes , &
-              channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount),&
+              channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
               excludeChannelsFromList_opt=.true.)
         else
           call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
@@ -417,10 +415,9 @@ contains
                 chanprof(btIndex)%chan, radiancedata_tl % bt(btIndex), obsOMP
           end if
         end do
-        asw = 0 ! 0 to deallocate
         call rttov_alloc_tl(                 &
            allocStatus(1),                   &
-           asw,                              &
+           asw=0,                            &
            nprofiles=profileCount,           &
            nchanprof=btCount,                &
            nlevels=nlv_T,                    &
@@ -442,10 +439,9 @@ contains
       end if
       
       if (btCountScatt >0) then 
-        asw = 1
         call rttov_alloc_tl(                  &
             allocStatus(1),                   &
-            asw,                              &
+            asw=1,                            &
             nprofiles=profileCount,           &
             nchanprof=btCountScatt,           &
             nlevels=nlv_T,                    &
@@ -533,10 +529,9 @@ contains
         deallocate ( surfem1Scatt           ,stat=allocStatus(1))
         deallocate ( sensorBodyIndexesScatt ,stat=allocStatus(2))
         deallocate ( frequencies            ,stat=allocStatus(3))
-        asw = 0
         call rttov_alloc_tl(                  &
             allocStatus(4),                   &
-            asw,                              &
+            asw=0,                            &
             nprofiles=profileCount,           &
             nchanprof=btCountScatt,           &
             nlevels=nlv_T,                    &
@@ -641,7 +636,6 @@ contains
     type(rttov_profile_cloud), pointer  :: cld_profiles_ad(:)
     type(rttov_chanprof), pointer :: chanprof(:)
     type(rttov_chanprof), pointer :: chanprofScatt(:)
-    integer :: asw
     logical, pointer :: calcemis  (:)
     logical, pointer :: calcemisScatt  (:)
     logical :: runObsOperatorWithClw_ad
@@ -786,10 +780,9 @@ contains
       
       !  2.2  Prepare all input variables required by rttov_ad.
       if (btCount > 0) then
-        asw = 1 ! 1 for allocation, 0 for deallocation
-        call rttov_alloc_ad(                  &
+        call rttov_alloc_ad(                 &
             allocStatus(1),                  &
-            asw,                             &
+            asw=1,                           &
             profileCount,                    &
             btCount,                         &
             nlv_T,                           &
@@ -818,7 +811,7 @@ contains
         if (btCountScatt >0) then
           call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
               iptobs_cma_opt =sensorBodyIndexes , &
-              channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount),&
+              channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
               excludeChannelsFromList_opt=.true.)
         else
           call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
@@ -862,11 +855,9 @@ contains
           call utl_abort('tvslin_rttov_ad')
         end if
 
-        asw = 0 ! 0 to deallocate
-       
-        call rttov_alloc_ad(                  &
+        call rttov_alloc_ad(                 &
             allocStatus(3),                  &
-            asw,                             &
+            asw=0,                           &
             profileCount,                    &
             btCount,                         &
             nlv_T,                           &
@@ -889,10 +880,9 @@ contains
       end if
 
       if (btCountScatt > 0) then
-        asw = 1 ! 1 for allocation, 0 for deallocation
         call rttov_alloc_ad(                   &
             allocStatus(1),                    &
-            asw,                               &
+            asw=1,                             &
             profileCount,                      &
             btCountScatt,                      &
             nlv_T,                             &
@@ -916,270 +906,269 @@ contains
                                      nlv_T,            &
                                      nhydro=5,         &
                                      nhydro_frac=1,    &
-                                     asw=asw,          &     
+                                     asw=1,            &     
                                      flux_conversion=[1,2,0,0,0])
-      call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad')
+        call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad')
 
-      ! Build the list of channels/profiles indices
-      allocate( lchannel_subset(profileCount,tvs_nchan(sensorIndex)) )
+        ! Build the list of channels/profiles indices
+        allocate( lchannel_subset(profileCount,tvs_nchan(sensorIndex)) )
 
-      call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprofScatt, &
-          lchannel_subset_opt = lchannel_subset, iptobs_cma_opt =sensorBodyIndexesScatt , &
-          channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount))
+        call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprofScatt, &
+            lchannel_subset_opt = lchannel_subset, iptobs_cma_opt =sensorBodyIndexesScatt , &
+            channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount))
       
-      call rttov_scatt_setupindex (       &
-          errorStatus,                  &
-          profileCount,                 &  ! number of profiles
-          tvs_nchan(sensorIndex),       &  ! number of channels 
-          tvs_coefs(sensorIndex),       &  ! coef structure read in from rttov coef file
-          tvs_coef_scatt(sensorIndex),  &  ! coef structure read in from rttov coef file
-          btcountScatt,                 &  ! number of calculated channels
-          chanprofScatt,                &  ! channels and profile numbers
-          frequencies,                  &  ! array, frequency number for each channel
-          lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
-      if (errorStatus /= errorStatus_success) then
-        write(*,*) 'tvslin_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
-        call utl_abort('tvslin_rttov_ad')
-      end if
-      deallocate( lchannel_subset )
-      !     get non Hyperspectral IR emissivities
-      call tvs_getOtherEmissivities(chanprofScatt, sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
+        call rttov_scatt_setupindex (     &
+            errorStatus,                  &
+            profileCount,                 &  ! number of profiles
+            tvs_nchan(sensorIndex),       &  ! number of channels 
+            tvs_coefs(sensorIndex),       &  ! coef structure read in from rttov coef file
+            tvs_coef_scatt(sensorIndex),  &  ! coef structure read in from rttov coef file
+            btcountScatt,                 &  ! number of calculated channels
+            chanprofScatt,                &  ! channels and profile numbers
+            frequencies,                  &  ! array, frequency number for each channel
+            lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
+        if (errorStatus /= errorStatus_success) then
+          write(*,*) 'tvslin_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
+          call utl_abort('tvslin_rttov_ad')
+        end if
+        deallocate( lchannel_subset )
+        !     get non Hyperspectral IR emissivities
+        call tvs_getOtherEmissivities(chanprofScatt, sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
 
-      call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, chanprofScatt, sensorTovsIndexes(1:profileCount))
+        call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, chanprofScatt, sensorTovsIndexes(1:profileCount))
         
-      do btIndex = 1, btCountScatt
-        bodyIndex = sensorBodyIndexesScatt(btIndex)
-        radiancedata_adScatt % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-      end do
+        do btIndex = 1, btCountScatt
+          bodyIndex = sensorBodyIndexesScatt(btIndex)
+          radiancedata_adScatt % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+        end do
       
-      errorStatus = errorStatus_success
-      emissivity_adScatt(:) % emis_in = 0.0d0
-      emissivity_adScatt(:) % emis_out = 0.0d0
-      !  2.3  Compute ad radiance with rttov_ad
-      call rttov_scatt_ad(                                & 
-          errorStatus,                                    &! out
-          tvs_opts_scatt(sensorIndex),                    &! in
-          nlv_T,                                          &! in
-          chanprofScatt,                                  &! in
-          frequencies,                                    &! in
-          profiles(sensorTovsIndexes(1:profileCount)),    &! in
-          cld_profiles(sensorTovsIndexes(1:profileCount)),&! in
-          tvs_coefs(sensorIndex),                         &! in
-          tvs_coef_scatt(sensorIndex),                    &! in
-          calcemisScatt,                                  &! in
-          emissivity_localScatt,                          &! inout
-          profilesdata_ad,                                &! inout
-          cld_profiles_ad,                                &! inout
-          emissivity_adScatt,                             &! inout
-          radiancedata_dScatt,                            &! inout
-          radiancedata_adScatt)                            ! inout
-      if (errorStatus /= errorStatus_success) then
-        write(*,*) 'Error in rttov_scatt_ad', errorStatus
-        call utl_abort('tvslin_rttov_ad')
+        errorStatus = errorStatus_success
+        emissivity_adScatt(:) % emis_in = 0.0d0
+        emissivity_adScatt(:) % emis_out = 0.0d0
+        !  2.3  Compute ad radiance with rttov_ad
+        call rttov_scatt_ad(                                & 
+            errorStatus,                                    &! out
+            tvs_opts_scatt(sensorIndex),                    &! in
+            nlv_T,                                          &! in
+            chanprofScatt,                                  &! in
+            frequencies,                                    &! in
+            profiles(sensorTovsIndexes(1:profileCount)),    &! in
+            cld_profiles(sensorTovsIndexes(1:profileCount)),&! in
+            tvs_coefs(sensorIndex),                         &! in
+            tvs_coef_scatt(sensorIndex),                    &! in
+            calcemisScatt,                                  &! in
+            emissivity_localScatt,                          &! inout
+            profilesdata_ad,                                &! inout
+            cld_profiles_ad,                                &! inout
+            emissivity_adScatt,                             &! inout
+            radiancedata_dScatt,                            &! inout
+            radiancedata_adScatt)                            ! inout
+        if (errorStatus /= errorStatus_success) then
+          write(*,*) 'Error in rttov_scatt_ad', errorStatus
+          call utl_abort('tvslin_rttov_ad')
+        end if
+      
+        call rttov_alloc_ad(                   &
+            allocStatus(3),                   &
+            asw=0,                            &
+            profileCount,                     &
+            btCountScatt,                     &
+            nlv_T,                            &
+            chanprofScatt,                    &
+            opts=tvs_opts(sensorIndex),       &
+            coefs=tvs_coefs(sensorIndex),     &
+            radiance=radiancedata_dScatt,     &
+            radiance_ad=radiancedata_adScatt, &
+            calcemis=calcemisScatt,           &
+            emissivity=emissivity_localScatt, &
+            emissivity_ad=emissivity_adScatt )
+      
+        deallocate ( surfem1Scatt,           stat=allocStatus(4))
+        deallocate ( sensorBodyIndexesScatt, stat=allocStatus(5))
+        deallocate ( frequencies,            stat=allocStatus(6))
+        call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad', .false.)
+      end if
+
+      !   2.0  Store adjoints in columnData object
+      tt_ad(:,:) = 0.d0
+      hu_ad(:,:) = 0.d0
+      pressure_ad(:,:) = 0.d0
+      if (.not. tvs_useO3Climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozone_ad(:,:) = 0.d0
+      end if
+      if (runObsOperatorWithClw_ad .or. runObsOperatorWithHydrometeors_ad) clw_ad(:,:) = 0.d0
+      if (runObsOperatorWithHydrometeors_ad) then
+        ciw_ad(:,:) = 0.d0
+        rf_ad(:,:) = 0.d0
+        sf_ad(:,:) = 0.d0
       end if
       
-      asw = 0 ! 0 to deallocate
-      call rttov_alloc_ad(                   &
-           allocStatus(3),                   &
-           asw,                              &
-           profileCount,                     &
-           btCountScatt,                     &
-           nlv_T,                            &
-           chanprofScatt,                    &
-           opts=tvs_opts(sensorIndex),       &
-           coefs=tvs_coefs(sensorIndex),     &
-           radiance=radiancedata_dScatt,     &
-           radiance_ad=radiancedata_adScatt, &
-           calcemis=calcemisScatt,           &
-           emissivity=emissivity_localScatt, &
-           emissivity_ad=emissivity_adScatt )
+      do profileIndex= 1, profileCount
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        ps_column => col_getColumn(columnAnlInc,headerIndex,'P0')
+        p_column  => col_getColumn(columnAnlInc,headerIndex,'P_T')
+        tg_column => col_getColumn(columnAnlInc,headerIndex,'TG')
+        tt_column => col_getColumn(columnAnlInc,headerIndex,'TT')
+        hu_column => col_getColumn(columnAnlInc,headerIndex,'HU')
+        uu_column => col_getColumn(columnAnlInc,headerIndex,'UU')
+        vv_column => col_getColumn(columnAnlInc,headerIndex,'VV')
       
-      deallocate ( surfem1Scatt,           stat=allocStatus(4))
-      deallocate ( sensorBodyIndexesScatt, stat=allocStatus(5))
-      deallocate ( frequencies,            stat=allocStatus(6))
-      call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad', .false.)
-    end if
-
-    !   2.0  Store adjoints in columnData object
-    tt_ad(:,:) = 0.d0
-    hu_ad(:,:) = 0.d0
-    pressure_ad(:,:) = 0.d0
-    if (.not. tvs_useO3Climatology) then
-      if (tvs_coefs(sensorIndex) %coef %nozone > 0) ozone_ad(:,:) = 0.d0
-    end if
-    if (runObsOperatorWithClw_ad .or. runObsOperatorWithHydrometeors_ad) clw_ad(:,:) = 0.d0
-    if (runObsOperatorWithHydrometeors_ad) then
-      ciw_ad(:,:) = 0.d0
-      rf_ad(:,:) = 0.d0
-      sf_ad(:,:) = 0.d0
-    end if
-      
-    do profileIndex= 1, profileCount
-      headerIndex = sensorHeaderIndexes(profileIndex)
-      ps_column => col_getColumn(columnAnlInc,headerIndex,'P0')
-      p_column  => col_getColumn(columnAnlInc,headerIndex,'P_T')
-      tg_column => col_getColumn(columnAnlInc,headerIndex,'TG')
-      tt_column => col_getColumn(columnAnlInc,headerIndex,'TT')
-      hu_column => col_getColumn(columnAnlInc,headerIndex,'HU')
-      uu_column => col_getColumn(columnAnlInc,headerIndex,'UU')
-      vv_column => col_getColumn(columnAnlInc,headerIndex,'VV')
-      
-      tt_ad(:,profileIndex) = profilesdata_ad(profileIndex) % t(:)
-      hu_ad(:,profileIndex) = profilesdata_ad(profileIndex) % q(:)
-      pressure_ad(:,profileIndex) =  profilesdata_ad(profileIndex) % p(:)
-      tg_column(1) = profilesdata_ad(profileIndex) % skin % t
-      tt_column(ilowlvl_T) = profilesdata_ad(profileIndex) % s2m % t
-      ps_column(1) = profilesdata_ad(profileIndex) % s2m % p * MPC_MBAR_PER_PA_R8
-      hu_column(ilowlvl_T) = 0.d0 
-      uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
-      vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
+        tt_ad(:,profileIndex) = profilesdata_ad(profileIndex) % t(:)
+        hu_ad(:,profileIndex) = profilesdata_ad(profileIndex) % q(:)
+        pressure_ad(:,profileIndex) =  profilesdata_ad(profileIndex) % p(:)
+        tg_column(1) = profilesdata_ad(profileIndex) % skin % t
+        tt_column(ilowlvl_T) = profilesdata_ad(profileIndex) % s2m % t
+        ps_column(1) = profilesdata_ad(profileIndex) % s2m % p * MPC_MBAR_PER_PA_R8
+        hu_column(ilowlvl_T) = 0.d0 
+        uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
+        vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
  
+        if (.not. tvs_useO3Climatology) then
+          if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+            ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
+            o3_column => col_getColumn(columnAnlInc,headerIndex,trim(ozoneVarName))
+            o3_column(ilowlvl_T) =  profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
+            ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
+          end if
+        end if
+      
+        if (runObsOperatorWithClw_ad) then
+          clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
+        end if
+      
+        if (runObsOperatorWithHydrometeors_ad) then
+          rf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,1)
+          sf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,2)
+          clw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,4)
+          ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
+        end if
+      end do
+    
+      call rttov_alloc_prof(            &
+          allocStatus(1),               &
+          nprofiles=profileCount,       &
+          profiles=profilesdata_ad,     &
+          nlevels=nlv_T,                &
+          opts=tvs_opts(sensorIndex),   &
+          asw=0,                        &
+          coefs=tvs_coefs(sensorIndex), &
+          init=.true.)
+    
+      deallocate(profilesdata_ad)
+    
+      if (btCountScatt > 0) then
+        call rttov_alloc_scatt_prof(  &
+            allocStatus(2),           &
+            profileCount,             &
+            cld_profiles_ad,          &
+            nlv_T,                    &
+            nhydro=5,                 &
+            nhydro_frac=1,            &
+            asw=0,                    &     
+            flux_conversion=[1,2,0,0,0])
+        deallocate (cld_profiles_ad, stat=allocStatus(2))
+      end if
+
+      !     .  2.1  Store adjoints in columnData object
+      !     .       -----------------------------------
+
+      do  profileIndex = 1 , profileCount 
+        p_column  => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'P_T')
+        tt_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'TT')
+        hu_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'HU')
+      
+        do levelIndex = 1, nlv_T
+          p_column(levelIndex) = p_column(levelIndex) + pressure_ad(levelIndex,profileIndex) * MPC_MBAR_PER_PA_R8
+          tt_column(levelIndex) = tt_column(levelIndex) + tt_ad(levelIndex,profileIndex)
+          hu_column(levelIndex) = hu_column(levelIndex) + hu_ad(levelIndex,profileIndex)
+        end do
+      end do
+
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
-          o3_column => col_getColumn(columnAnlInc,headerIndex,trim(ozoneVarName))
-          o3_column(ilowlvl_T) =  profilesdata_ad(profileIndex) % s2m % o * 1.0d-9
-          ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
+          do  profileIndex = 1 , profileCount 
+            o3_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
+            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+              o3_column(levelIndex) = o3_column(levelIndex) +  ozone_ad(levelIndex,profileIndex) * 1.0d-9
+            end do
+          end do
         end if
       end if
-      
+
       if (runObsOperatorWithClw_ad) then
-        clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
-      end if
-      
-      if (runObsOperatorWithHydrometeors_ad) then
-        rf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,1)
-        sf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,2)
-        clw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,4)
-        ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
-      end if
-    end do
-    
-    call rttov_alloc_prof(            &
-        allocStatus(1),               &
-        nprofiles=profileCount,       &
-        profiles=profilesdata_ad,     &
-        nlevels=nlv_T,                &
-        opts=tvs_opts(sensorIndex),   &
-        asw=0,                        &
-        coefs=tvs_coefs(sensorIndex), &
-        init=.true.)
-    
-    deallocate(profilesdata_ad)
-    
-    if (btCountScatt > 0) then
-      call rttov_alloc_scatt_prof(  &
-          allocStatus(2),           &
-          profileCount,             &
-          cld_profiles_ad,          &
-          nlv_T,                    &
-          nhydro=5,                 &
-          nhydro_frac=1,            &
-          asw=0,                    &     
-          flux_conversion=[1,2,0,0,0])
-      deallocate (cld_profiles_ad, stat=allocStatus(2))
-    end if
-
-    !     .  2.1  Store adjoints in columnData object
-    !     .       -----------------------------------
-
-    do  profileIndex = 1 , profileCount 
-      p_column  => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'P_T')
-      tt_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'TT')
-      hu_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'HU')
-      
-      do levelIndex = 1, nlv_T
-        p_column(levelIndex) = p_column(levelIndex) + pressure_ad(levelIndex,profileIndex) * MPC_MBAR_PER_PA_R8
-        tt_column(levelIndex) = tt_column(levelIndex) + tt_ad(levelIndex,profileIndex)
-        hu_column(levelIndex) = hu_column(levelIndex) + hu_ad(levelIndex,profileIndex)
-      end do
-    end do
-
-    if (.not. tvs_useO3Climatology) then
-      if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
         do  profileIndex = 1 , profileCount 
-          o3_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
-          do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-            o3_column(levelIndex) = o3_column(levelIndex) +  ozone_ad(levelIndex,profileIndex) * 1.0d-9
-          end do
+          surfTypeIsWater(profileIndex) = ( tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea )
+          if (surfTypeIsWater(profileIndex)) then
+            clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
+            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+              clw_column(levelIndex) = clw_column(levelIndex) + &
+                  clw_ad(levelIndex,profileIndex)
+            end do
+          end if
         end do
       end if
-    end if
-
-    if (runObsOperatorWithClw_ad) then
-      do  profileIndex = 1 , profileCount 
-        surfTypeIsWater(profileIndex) = ( tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea )
-        if (surfTypeIsWater(profileIndex)) then
-          clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
-          do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-            clw_column(levelIndex) = clw_column(levelIndex) + &
-                clw_ad(levelIndex,profileIndex)
-          end do
-        end if
-      end do
-    end if
     
-    if (runObsOperatorWithHydrometeors_ad) then
-      do  profileIndex = 1 , profileCount 
-        surfTypeIsWater(profileIndex) = (tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea)
-        if (surfTypeIsWater(profileIndex)) then
-          ! rain flux
-          if (col_varExist(columnAnlInc,'RF')) then
-            rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
+      if (runObsOperatorWithHydrometeors_ad) then
+        do  profileIndex = 1 , profileCount 
+          surfTypeIsWater(profileIndex) = (tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea)
+          if (surfTypeIsWater(profileIndex)) then
+            ! rain flux
+            if (col_varExist(columnAnlInc,'RF')) then
+              rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
+              do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+                rf_column(levelIndex) = rf_column(levelIndex) + rf_ad(levelIndex,profileIndex)
+              end do
+            end if
+
+            ! snow flux
+            if (col_varExist(columnAnlInc,'SF')) then
+              sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
+              do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+                sf_column(levelIndex) = sf_column(levelIndex) + sf_ad(levelIndex,profileIndex)
+              end do
+            end if
+
+            ! cloud liquid/ice water content
+            clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
+            ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'IWCR')
             do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-              rf_column(levelIndex) = rf_column(levelIndex) + rf_ad(levelIndex,profileIndex)
+              clw_column(levelIndex) = clw_column(levelIndex) + clw_ad(levelIndex,profileIndex)
+              ciw_column(levelIndex) = ciw_column(levelIndex) + ciw_ad(levelIndex,profileIndex)
             end do
-          end if
+          end if ! surfTypeIsWater
+        end do ! profileIndex
+      end if ! runObsOperatorWithHydrometeors_ad
 
-          ! snow flux
-          if (col_varExist(columnAnlInc,'SF')) then
-            sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
-            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-              sf_column(levelIndex) = sf_column(levelIndex) + sf_ad(levelIndex,profileIndex)
-            end do
-          end if
-
-          ! cloud liquid/ice water content
-          clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
-          ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'IWCR')
-          do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-            clw_column(levelIndex) = clw_column(levelIndex) + clw_ad(levelIndex,profileIndex)
-            ciw_column(levelIndex) = ciw_column(levelIndex) + ciw_ad(levelIndex,profileIndex)
-          end do
-        end if ! surfTypeIsWater
-      end do ! profileIndex
-    end if ! runObsOperatorWithHydrometeors_ad
-
-    deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
-    deallocate (tt_ad,               stat= allocStatus(2) )
-    deallocate (hu_ad,               stat= allocStatus(3) )
-    deallocate (pressure_ad,         stat= allocStatus(4) )
-    if (.not. tvs_useO3Climatology) then
-      if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-        deallocate (ozone_ad,        stat= allocStatus(5) )
+      deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
+      deallocate (tt_ad,               stat= allocStatus(2) )
+      deallocate (hu_ad,               stat= allocStatus(3) )
+      deallocate (pressure_ad,         stat= allocStatus(4) )
+      if (.not. tvs_useO3Climatology) then
+        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+          deallocate (ozone_ad,        stat= allocStatus(5) )
+        end if
       end if
-    end if
-    if ( allocated(clw_ad) ) then
-      deallocate (clw_ad,stat=allocStatus(6))
-    end if
-    deallocate (surfTypeIsWater,stat=allocStatus(7))
-    if ( allocated(ciw_ad) ) then
-      deallocate (ciw_ad, stat= allocStatus(8))
-      deallocate (rf_ad,  stat= allocStatus(9))
-      deallocate (sf_ad,  stat= allocStatus(10))
-    end if
+      if ( allocated(clw_ad) ) then
+        deallocate (clw_ad,stat=allocStatus(6))
+      end if
+      deallocate (surfTypeIsWater,stat=allocStatus(7))
+      if ( allocated(ciw_ad) ) then
+        deallocate (ciw_ad, stat= allocStatus(8))
+        deallocate (rf_ad,  stat= allocStatus(9))
+        deallocate (sf_ad,  stat= allocStatus(10))
+      end if
       
-    call utl_checkAllocationStatus(allocStatus, ' tvslin_fill_profiles_ad', .false.)
+      call utl_checkAllocationStatus(allocStatus, ' tvslin_fill_profiles_ad', .false.)
       
-  end do sensor_loop
+    end do sensor_loop
 
-  ! 3.  Close up
+    ! 3.  Close up
 
-  deallocate ( sensorTovsIndexes )
-  nullify( profiles )
-  write(*,*) 'tvslin_rttov_ad: Finished'
+    deallocate ( sensorTovsIndexes )
+    nullify( profiles )
+    write(*,*) 'tvslin_rttov_ad: Finished'
 
-end subroutine tvslin_rttov_ad
+  end subroutine tvslin_rttov_ad
 
   !--------------------------------------------------------------------------
   !  tvslin_rttov_K
