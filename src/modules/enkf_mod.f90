@@ -114,7 +114,7 @@ contains
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: myLatIndexesSend(:), myLonIndexesSend(:)
     integer, allocatable :: myNumProcIndexesSend(:)
-    integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
+    integer, allocatable :: myProcIndexesSend(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
     integer, allocatable :: memberIndexSubEnsComp(:,:)
@@ -163,7 +163,7 @@ contains
     call enkf_LETKFsetupMpiDistribution(myNumLatLonRecv, myNumLatLonSend,   &
                                         myLatIndexesRecv, myLonIndexesRecv,   &
                                         myLatIndexesSend, myLonIndexesSend,   &
-                                        myProcIndexesRecv, myProcIndexesSend, &
+                                        myProcIndexesSend, &
                                         myNumProcIndexesSend, mpiDistribution, wInterpInfo)
     allocate(requestIdSend(3*myNumLatLonSend*maxval(myNumProcIndexesSend)))
     allocate(requestIdRecv(3*myNumLatLonRecv))
@@ -409,6 +409,10 @@ contains
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
       call utl_printTime(reset_opt = (levIndex==1))
 
+      call utl_tmg_start(141,'----Barr')
+      call rpn_comm_barrier('GRID',ierr)
+      call utl_tmg_stop(141)
+
       !
       ! First post all recv instructions for communication of weights
       !
@@ -418,19 +422,19 @@ contains
       do latLonIndex = 1, myNumLatLonRecv
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
-        procIndex = myProcIndexesRecv(latLonIndex)
         recvTag = latLonTagMpiGlobal(lonIndex,latIndex)
 
+        ! Only recv if sent from a different mpi task, otherwise will be copied
         nsize = nEnsGain
         numRecv = numRecv + 1
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
-                        nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
+                        nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
         nsize = nEnsGain * nEns
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
-                        nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
+                        nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
       end do
       call utl_tmg_stop(132)
@@ -1277,6 +1281,7 @@ contains
           sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
+          ! Need to send to a different MPI task
           nsize = nEnsGain
           numSend = numSend + 1
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
@@ -1293,20 +1298,22 @@ contains
 
       end do LATLON_LOOP
 
+      call utl_tmg_start(141,'----Barr')
+      call rpn_comm_barrier('GRID',ierr)
+      call utl_tmg_stop(141)
+
       !
-      ! Wait for communiations to finish before continuing
+      ! Wait for RECV communications to finish before continuing
       !
       call utl_tmg_start(132,'----CommWeights')
       if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
       firstTime = .false.
 
+      call utl_tmg_start(145,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
         call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
       end if
-
-      if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
-      end if
+      call utl_tmg_stop(145)
 
       call utl_tmg_stop(132)
 
@@ -1483,6 +1490,21 @@ contains
 
       call utl_tmg_stop(143)
 
+      !
+      ! Wait for SEND communications to finish before continuing
+      !
+      call utl_tmg_start(132,'----CommWeights')
+      if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
+      firstTime = .false.
+
+      call utl_tmg_start(146,'----CommWeights-waitSend')
+      if ( numSend > 0 ) then
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+      end if
+      call utl_tmg_stop(146)
+
+      call utl_tmg_stop(132)
+
     end do LEV_LOOP
 
     if (countMaxExceeded > 0) then
@@ -1588,10 +1610,29 @@ contains
   subroutine enkf_LETKFsetupMpiDistribution(myNumLatLonRecv, myNumLatLonSend, &
                                             myLatIndexesRecv, myLonIndexesRecv, &
                                             myLatIndexesSend, myLonIndexesSend, &
-                                            myProcIndexesRecv, myProcIndexesSend, &
+                                            myProcIndexesSend, &
                                             myNumProcIndexesSend, mpiDistribution, wInterpInfo)
     !
-    ! :Purpose: Setup for distribution of grid points over mpi tasks.
+    ! :Purpose: Setup for distribution of grid points over mpi tasks. These are the
+    !           current options:
+    !
+    !             - 'TILES': No communication by computing weights on the local
+    !               lat-lon tile and also any surrounding grid points within the halo
+    !               required for horizontal interpolation of the weights to the full
+    !               resolution grid.
+    !
+    !             - 'LOADBALANCE': An attempt to reduce the amount of communication by
+    !               starting with only the grid points within the interior of the local
+    !               lat-lon tile (excluing the halo). And then shifting the minimum number
+    !               of grid points to neighbouring tiles to obtain balanced number of
+    !               weights on each mpi task. These moved grid points and the halo will
+    !               be communicated.
+    !
+    !             - 'ROUNDROBIN': Deal out all grid points where weights are computed to all
+    !               mpi tasks without considering where they are needed for use. This should
+    !               provide the best load balance in terms of the cost of covariance
+    !               calculation which can vary depending on the local density of observations,
+    !               but requires the most communication.
     !
     implicit none
 
@@ -1602,19 +1643,29 @@ contains
     integer, allocatable,        intent(out) :: myLonIndexesRecv(:)
     integer, allocatable,        intent(out) :: myLatIndexesSend(:)
     integer, allocatable,        intent(out) :: myLonIndexesSend(:)
-    integer, allocatable,        intent(out) :: myProcIndexesRecv(:)
     integer, allocatable,        intent(out) :: myProcIndexesSend(:,:)
     integer, allocatable,        intent(out) :: myNumProcIndexesSend(:)
     character(len=*),            intent(in)  :: mpiDistribution
     type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
 
     ! Locals:
-    integer :: latIndex, lonIndex, procIndex, procIndexSend, latLonIndex
+    integer :: latIndex, lonIndex, procIndex, procIndexSend, latLonIndex, myLatLonIndex
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: numLatLonRecvMax, numLatLonTotalUnique, ierr
+    integer :: myNumLatLonInterior, meanNumLatLonInterior
+    integer :: procIndexSrc, procIndexDst, procDirection, procIndexDist
+    integer :: numToMove, numToMoveMax, numTotalMoved, numMoved, numSkip
+    logical, allocatable :: myLatLonIsLocal(:), allLatLonisLocal(:,:)
     integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
     integer, allocatable :: allLatIndexesSend(:,:), allLonIndexesSend(:,:)
-    integer, allocatable :: allNumLatLonRecv(:), allNumLatLonSend(:)
+    integer              :: allNumLatLonRecv(mmpi_nprocs), allNumLatLonSend(mmpi_nprocs)
+    integer              :: allNumLatLonInterior(mmpi_nprocs), allLoadDifference(mmpi_nprocs)
+
+    myLonBeg = wInterpInfo%myLonBeg
+    myLonEnd = wInterpInfo%myLonEnd
+    myLatBeg = wInterpInfo%myLatBeg
+    myLatEnd = wInterpInfo%myLatEnd
 
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
@@ -1641,7 +1692,6 @@ contains
       ! Determine list of grid point indexes where weights needed locally (for recv-ing)
       allocate(myLatIndexesRecv(myNumLatLonRecv))
       allocate(myLonIndexesRecv(myNumLatLonRecv))
-      allocate(myProcIndexesRecv(myNumLatLonRecv))
       myNumLatLonRecv = 0
       do latIndex = myLatBegHalo, myLatEndHalo
         LON_LOOP1: do lonIndex = myLonBegHalo, myLonEndHalo
@@ -1651,7 +1701,7 @@ contains
 
           myLatIndexesRecv(myNumLatLonRecv) = latIndex
           myLonIndexesRecv(myNumLatLonRecv) = lonIndex
-          myProcIndexesRecv(myNumLatLonRecv) = mmpi_myid+1
+          myProcIndexesSend(myNumLatLonRecv,1) = mmpi_myid+1
         end do LON_LOOP1
       end do
 
@@ -1664,10 +1714,9 @@ contains
 
       myLatIndexesSend(:) = myLatIndexesRecv(:)
       myLonIndexesSend(:) = myLonIndexesRecv(:)
-      myProcIndexesSend(:,1) = myProcIndexesRecv(:)
       myNumProcIndexesSend(:) = 1
 
-    else if (trim(mpiDistribution) == 'ROUNDROBIN') then
+    else if (trim(mpiDistribution) == 'LOADBALANCE') then
 
       ! First, determine number of grid points needed locally (for recv-ing)
       myNumLatLonRecv = 0
@@ -1680,7 +1729,6 @@ contains
       end do
 
       ! Communicate to all mpi tasks
-      allocate(allNumLatLonRecv(mmpi_nprocs))
       call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
                               allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
       numLatLonRecvMax = maxval(allNumLatLonRecv)
@@ -1691,10 +1739,10 @@ contains
       ! Determine list of grid point indexes where weights needed locally (for recv-ing)
       allocate(myLatIndexesRecv(numLatLonRecvMax))
       allocate(myLonIndexesRecv(numLatLonRecvMax))
-      allocate(myProcIndexesRecv(numLatLonRecvMax))
+      allocate(myLatLonIsLocal(numLatLonRecvMax))
       myLatIndexesRecv(:) = -1
       myLonIndexesRecv(:) = -1
-      myProcIndexesRecv(:) = -1
+      myLatLonIsLocal(:) = .false.
       myNumLatLonRecv = 0
       do latIndex = myLatBegHalo, myLatEndHalo
         LON_LOOP3: do lonIndex = myLonBegHalo, myLonEndHalo
@@ -1704,7 +1752,236 @@ contains
 
           myLatIndexesRecv(myNumLatLonRecv) = latIndex
           myLonIndexesRecv(myNumLatLonRecv) = lonIndex
+          if (latIndex >= myLatBeg .and. latIndex <= myLatEnd .and. &
+              lonIndex >= myLonBeg .and. lonIndex <= myLonEnd) then
+            myLatLonIsLocal(myNumLatlonRecv) = .true.
+          end if
         end do LON_LOOP3
+      end do
+
+      ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+      allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
+      allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
+      allocate(allLatLonIsLocal(numLatLonRecvMax, mmpi_nprocs))
+      allLatLonIsLocal(:,:) = .false.
+      call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                              allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                              "GRID", ierr)
+      call rpn_comm_allgather(myLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                              allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
+                              "GRID", ierr)
+      call rpn_comm_allgather(mylatLonIsLocal, numLatLonRecvMax, "mpi_logical",  &
+                              allLatLonIsLocal, numLatLonRecvMax, "mpi_logical",  &
+                              "GRID", ierr)
+
+      ! From these lat-lon lists, create unique master list of all grid points where weights computed
+      ! and assign to mpi tasks for doing the calculation and for send-ing
+      allocate(myLatIndexesSend(numLatLonRecvMax))
+      allocate(myLonIndexesSend(numLatLonRecvMax))
+      myLatIndexesSend(:) = -1
+      myLonIndexesSend(:) = -1
+
+      ! First count the number of weights in my tile interior
+      myNumLatLonInterior = 0
+      procIndex = mmpi_myid + 1
+      LATLONINDEX_LOOP0: do latLonIndex = 1, myNumLatLonRecv
+        ! All weights are computed on mpi tasks where they are local
+        if (.not. myLatLonIsLocal(latLonIndex)) cycle LATLONINDEX_LOOP0
+
+        ! Count the number of weights I am responsible for
+        myNumLatLonInterior = myNumLatLonInterior + 1
+      end do LATLONINDEX_LOOP0
+
+      ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+      call rpn_comm_allgather(myNumLatLonInterior, 1, "mpi_integer",  &
+                              allNumLatLonInterior, 1,"mpi_integer", "GRID", ierr)
+      meanNumLatLonInterior = ceiling(real(sum(allNumLatLonInterior))/real(mmpi_nprocs))
+      write(*,*) 'min/max/mean(allNumLatLonInterior) = ', minval(allNumLatLonInterior), &
+                 maxval(allNumLatLonInterior), meanNumLatLonInterior
+
+      ! Compute load imbalance by subtracting count on each mpi task from meanNumLatLonInterior
+      do procIndex = 1, mmpi_nprocs
+        allLoadDifference(procIndex) = allNumLatLonInterior(procIndex) - meanNumLatLonInterior
+      end do
+      write(*,*) 'sum(allLoadDifference) **before** = ', sum(allLoadDifference)
+      write(*,*) 'min/max/mean(allLoadDifference) **before** = ', minval(allLoadDifference), &
+                 maxval(allLoadDifference), sum(allLoadDifference)/mmpi_nprocs
+      numToMoveMax = maxval(allLoadDifference)
+
+      myNumLatLonSend = 0
+      PROCINDEXSRC_LOOP: do procIndexSrc = 1, mmpi_nprocs
+
+        if (allLoadDifference(procIndexSrc) <=  0) then
+
+          ! This task has average or low load, store all interior lat-lon indexes
+          if (procIndexSrc == (mmpi_myid+1)) then
+            myLatLonIndex = myNumLatLonSend
+            do latLonIndex = 1, myNumLatLonRecv
+              if (.not. allLatLonIsLocal(latLonIndex, procIndexSrc)) cycle
+              myLatLonIndex = myLatLonIndex + 1
+              myLatIndexesSend(myLatLonIndex) =  &
+                   allLatIndexesRecv(latLonIndex, procIndexSrc)
+              myLonIndexesSend(myLatLonIndex) =  &
+                   allLonIndexesRecv(latLonIndex, procIndexSrc)
+              !write(*,*) 'low load, store interior indexes = ', myLatLonIndex, latLonIndex, myLatIndexesSend(myLatLonIndex), myLonIndexesSend(myLatLonIndex)
+            end do
+            myNumLatLonSend = myNumLatLonSend + myNumLatLonInterior
+          end if
+          
+        else
+
+          ! Move some grid points away from mpi tasks with high load
+          numTotalMoved = 0
+          PROCINDEXDIST_LOOP: do procIndexDist = 1, mmpi_nprocs
+
+            do procDirection = 1, 2
+              if (procDirection == 1) then
+                ! Check in positive direction
+                procIndexDst = procIndexSrc + procIndexDist
+              else
+                ! Check in negative direction
+                procIndexDst = procIndexSrc - procIndexDist
+              end if
+
+              ! Check if we went too far in one direction, other direction should still be ok
+              if (procIndexDst < 1 .or. procIndexDst > mmpi_nprocs) cycle
+
+              ! Do the move if the destination task has low load
+              if (allLoadDifference(procIndexDst) < 0) then
+                numToMove = min(-allLoadDifference(procIndexDst), &
+                                 allLoadDifference(procIndexSrc))
+                allLoadDifference(procIndexSrc) = allLoadDifference(procIndexSrc) - numToMove
+                allLoadDifference(procIndexDst) = allLoadDifference(procIndexDst) + numToMove
+                !write(*,*) 'Move: Src/Dst/Num/Total = ', procIndexSrc, procIndexDst, numToMove, numTotalMoved
+
+                ! Store the moved lat-lon indexes for destination task
+                numMoved = 0
+                numSkip = 0
+                if (procIndexDst == (mmpi_myid+1)) then
+                  do latLonIndex = allNumLatLonRecv(procIndexSrc), 1, -1
+                    if (.not. allLatLonIsLocal(latLonIndex, procIndexSrc)) cycle
+                    ! Determine if we need to skip indexes than have already been stored
+                    if (numSkip < numTotalMoved) then
+                      numSkip = numSkip + 1
+                      cycle
+                    end if
+
+                    ! Check if we have already moved all
+                    if (numMoved == numToMove) then
+                      exit
+                    else
+                      numMoved = numMoved + 1
+                    end if
+
+                    myNumLatLonSend = myNumLatLonSend + 1
+                    myLatLonIndex = myNumLatLonSend
+
+                    myLatIndexesSend(myLatLonIndex) =  &
+                         allLatIndexesRecv(latLonIndex, procIndexSrc)
+                    myLonIndexesSend(myLatLonIndex) =  &
+                         allLonIndexesRecv(latLonIndex, procIndexSrc)
+                    !write(*,*) 'low load, moved indexes = ', myLatLonIndex, latLonIndex, size(myLatIndexesSend) !myLatIndexesSend(myLatLonIndex), myLonIndexesSend(myLatLonIndex)
+                  end do
+                end if
+                numTotalMoved = numTotalMoved + numToMove
+
+                ! Check if we are finished getting rid of excess load from source task
+                if (allLoadDifference(procIndexSrc) == 0) exit PROCINDEXDIST_LOOP
+
+              end if
+
+            end do
+
+          end do PROCINDEXDIST_LOOP
+
+          ! Store the lat-lon indexes that don't move
+          if (procIndexSrc == (mmpi_myid+1)) then
+            myLatLonIndex = 0
+            do latLonIndex = 1, myNumLatLonRecv
+              if (.not. allLatLonIsLocal(latLonIndex, procIndexSrc)) cycle
+              myLatLonIndex = myLatLonIndex + 1
+              myLatIndexesSend(myLatLonIndex) =  &
+                   allLatIndexesRecv(latLonIndex, procIndexSrc)
+              myLonIndexesSend(myLatLonIndex) =  &
+                   allLonIndexesRecv(latLonIndex, procIndexSrc)
+              !write(*,*) 'high load, store interior indexes = ', myLatLonIndex, latLonIndex, myLatIndexesSend(myLatLonIndex), myLonIndexesSend(myLatLonIndex)
+              if (myLatLonIndex == meanNumLatLonInterior) exit
+            end do
+            myNumLatLonSend = meanNumLatLonInterior
+          end if
+
+        end if
+
+      end do PROCINDEXSRC_LOOP
+
+      write(*,*) 'sum(allLoadDifference) **after** = ', sum(allLoadDifference)
+      write(*,*) 'min/max/mean(allLoadDifference) **after** = ', minval(allLoadDifference), &
+                 maxval(allLoadDifference), sum(allLoadDifference)/mmpi_nprocs
+
+      ! Communicate to all mpi tasks this list of grid point lat-lon indexes
+      call rpn_comm_allgather(myNumLatLonSend, 1, "mpi_integer",  &
+                              allNumLatLonSend, 1,"mpi_integer", "GRID", ierr)
+      write(*,*) 'allnumLatLonSend = ', allNumLatLonSend(:)
+
+      allocate(allLatIndexesSend(numLatLonRecvMax, mmpi_nprocs))
+      allocate(allLonIndexesSend(numLatLonRecvMax, mmpi_nprocs))
+      call rpn_comm_allgather(myLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                              allLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                              "GRID", ierr)
+      call rpn_comm_allgather(myLonIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                              allLonIndexesSend, numLatLonRecvMax, "mpi_integer",  &
+                              "GRID", ierr)
+
+      ! Figure out which mpi tasks I will need to send my results to
+      allocate(myProcIndexesSend(myNumLatLonSend,mmpi_nprocs))
+      allocate(myNumProcIndexesSend(myNumLatLonSend))
+      myProcIndexesSend(:,:) = -1
+      myNumProcIndexesSend(:) = 0
+      do latLonIndex = 1, myNumLatLonSend
+        do procIndex = 1, mmpi_nprocs
+          if ( any( (myLatIndexesSend(latLonIndex) == allLatIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) .and.  &
+                    (myLonIndexesSend(latLonIndex) == allLonIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) ) ) then
+            myNumProcIndexesSend(latLonIndex) = myNumProcIndexesSend(latLonIndex) + 1
+            myProcIndexesSend(latLonIndex,myNumProcIndexesSend(latLonIndex)) = procIndex
+          end if
+        end do
+      end do
+
+    else if (trim(mpiDistribution) == 'ROUNDROBIN') then
+
+      ! First, determine number of grid points needed locally (for recv-ing)
+      myNumLatLonRecv = 0
+      do latIndex = myLatBegHalo, myLatEndHalo
+        LON_LOOP4: do lonIndex = myLonBegHalo, myLonEndHalo
+          ! If this lat-lon is to be interpolated, then skip calculation
+          if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP4
+          myNumLatLonRecv = myNumLatLonRecv + 1
+        end do LON_LOOP4
+      end do
+
+      ! Communicate to all mpi tasks
+      call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
+                              allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
+      numLatLonRecvMax = maxval(allNumLatLonRecv)
+      write(*,*) 'enkf_LETKFsetupMpiDistribution: allNumLatLonRecv =', allNumLatLonRecv(:)
+      write(*,*) 'enkf_LETKFsetupMpiDistribution: numLatLonRecvSum =', sum(allNumLatLonRecv)
+      write(*,*) 'enkf_LETKFsetupMpiDistribution: numLatLonRecvMax =', numLatLonRecvMax
+
+      ! Determine list of grid point indexes where weights needed locally (for recv-ing)
+      allocate(myLatIndexesRecv(numLatLonRecvMax))
+      allocate(myLonIndexesRecv(numLatLonRecvMax))
+      myLatIndexesRecv(:) = -1
+      myLonIndexesRecv(:) = -1
+      myNumLatLonRecv = 0
+      do latIndex = myLatBegHalo, myLatEndHalo
+        LON_LOOP5: do lonIndex = myLonBegHalo, myLonEndHalo
+          ! If this lat-lon is to be interpolated, then skip calculation
+          if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle LON_LOOP5
+          myNumLatLonRecv = myNumLatLonRecv + 1
+
+          myLatIndexesRecv(myNumLatLonRecv) = latIndex
+          myLonIndexesRecv(myNumLatLonRecv) = lonIndex
+        end do LON_LOOP5
       end do
 
       ! Communicate to all mpi tasks this list of grid point lat-lon indexes
@@ -1726,9 +2003,9 @@ contains
       numLatLonTotalUnique = 0
       myNumLatLonSend = 0
       do procIndex = 1, mmpi_nprocs
-        WEIGHTS1LEV_LOOP: do latLonIndex = 1, allNumLatLonRecv(procIndex)
+        WEIGHTS1LEV_LOOP2: do latLonIndex = 1, allNumLatLonRecv(procIndex)
           if (enkf_latLonAlreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex)) &
-               cycle WEIGHTS1LEV_LOOP
+               cycle WEIGHTS1LEV_LOOP2
           ! Count the total number of weights
           numLatLonTotalUnique = numLatLonTotalUnique + 1
 
@@ -1743,13 +2020,12 @@ contains
             myLonIndexesSend(myNumLatLonSend) =  &
                  allLonIndexesRecv(latLonIndex, procIndex)
           end if
-        end do WEIGHTS1LEV_LOOP
+        end do WEIGHTS1LEV_LOOP2
       end do
       write(*,*) 'enkf_LETKFsetupMpiDistribution: number of lat/lon points where weights to be computed =',  &
                  numLatLonTotalUnique
 
       ! Communicate to all mpi tasks this list of grid point lat-lon indexes
-      allocate(allNumLatLonSend(mmpi_nprocs))
       call rpn_comm_allgather(myNumLatLonSend, 1, "mpi_integer",  &
                               allNumLatLonSend, 1,"mpi_integer", "GRID", ierr)
       allocate(allLatIndexesSend(numLatLonRecvMax, mmpi_nprocs))
@@ -1776,24 +2052,13 @@ contains
         end do
       end do
 
-      ! Figure out which mpi tasks I will receive the results from
-      do latLonIndex = 1, myNumLatLonRecv
-        do procIndex = 1, mmpi_nprocs
-          if ( any( (myLatIndexesRecv(latLonIndex) == allLatIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) .and.  &
-                    (myLonIndexesRecv(latLonIndex) == allLonIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) ) ) then
-            myProcIndexesRecv(latLonIndex) = procIndex
-          end if
-        end do
-      end do
-
     else
       call utl_abort('enkf_LETKFsetupMpiDistribution: unknown MPI distribution selected')
     end if
 
     write(*,*) 'enkf_LETKFsetupMpiDistribution: lat/lon/proc indexes I need to receive:'
     do latLonIndex = 1, myNumLatLonRecv
-      write(*,*) myLatIndexesRecv(latLonIndex), myLonIndexesRecv(latLonIndex),  &
-                 myProcIndexesRecv(latLonIndex)
+      write(*,*) myLatIndexesRecv(latLonIndex), myLonIndexesRecv(latLonIndex)
     end do
 
     write(*,*) 'enkf_LETKFsetupMpiDistribution: number of lat/lon indexes I am responsible for =', myNumLatLonSend
@@ -1894,16 +2159,16 @@ contains
     ! check on all previous mpi tasks if this lat/lon has already been encountered
     found = .false.
     do procIndex2 = 1, procIndex-1
-      WEIGHTS1LEV_LOOP2: do latLonIndex2 = 1, numLatLonRecvMax
-        if (allLatIndexesRecv(latLonIndex2, procIndex2) < 0) cycle WEIGHTS1LEV_LOOP2
+      WEIGHTS1LEV_LOOP: do latLonIndex2 = 1, numLatLonRecvMax
+        if (allLatIndexesRecv(latLonIndex2, procIndex2) < 0) cycle WEIGHTS1LEV_LOOP
         if ( (allLatIndexesRecv(latLonIndex, procIndex) ==  &
               allLatIndexesRecv(latLonIndex2, procIndex2)) .and.  &
              (allLonIndexesRecv(latLonIndex, procIndex) ==  &
               allLonIndexesRecv(latLonIndex2, procIndex2)) ) then
           found = .true.
-          exit WEIGHTS1LEV_LOOP2
+          exit WEIGHTS1LEV_LOOP
         end if
-      end do WEIGHTS1LEV_LOOP2
+      end do WEIGHTS1LEV_LOOP
     end do
 
   end function enkf_latLonAlreadyFound
