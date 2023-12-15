@@ -5,7 +5,7 @@ module enkf_mod
   !:Purpose:  Various routines that are useful for implementing
   !           an EnKF in MIDAS, including the LETKF.
   !
-  use mpi, only : mpi_statuses_ignore ! this is the mpi library module
+  use mpi                 ! this is the mpi library module
   use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
@@ -64,7 +64,7 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen)
+                                numRetainedEigen, myNumLatLonSendFactor)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -86,10 +86,15 @@ contains
     real(8),                     intent(in)    :: hLocalize(:)
     real(8),                     intent(in)    :: hLocalizePressure(:)
     real(8),                     intent(in)    :: vLocalize
-    character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
+    integer,                     intent(in)    :: myNumLatLonSendFactor
 
     ! Locals:
+    integer   :: workerProcID, finishedSignal
+    integer   :: assignmentTag, readyTag
+    integer   :: stat(MPI_STATUS_SIZE)
+    character :: readySignal
+
     integer :: nEns, nEnsPerSubEns, nEnsPerSubEns_mod, nEnsIndependentPerSubEns
     integer :: nLev_M, nLev_depth, nLev_weights
     integer :: memberIndex, memberIndex1, memberIndex2, ierr, matrixRank
@@ -98,7 +103,7 @@ contains
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
     integer :: bodyIndex, localObsIndex, numLocalObs, numLocalObsFound
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
-    integer :: myNumLatLonRecv, myNumLatLonSend, numLatLonMpiGlobal
+    integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonSendMax
     integer :: latLonIndex, subEnsIndex, subEnsIndex2
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
@@ -106,6 +111,7 @@ contains
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
     integer :: nEnsGain, eigenVectorColumnIndex
     integer :: memberIndexInModEns
+    integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     real(8) :: anlLat, anlLon, anlVertLocation
     real(8) :: distance, tolerance, localization
     real(4) :: modulationFactor_r4
@@ -113,12 +119,13 @@ contains
     integer, allocatable :: localBodyIndices(:), levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
-    integer, allocatable :: numProcsSendMpiGlobal(:), myLatLonIndexesSend(:)
+    integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
     integer, allocatable :: memberIndexSubEnsComp(:,:)
     integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
+    integer, allocatable :: levIndex2FromVarLevIndex(:)
 
     real(8), pointer :: PaInv_mean(:,:), Pa_mean(:,:)
     real(8), pointer :: YbTinvR_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvRYb_mean(:,:)
@@ -150,7 +157,7 @@ contains
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: hLocalizeIsConstant, useModulatedEns, firstTime = .true.
+    logical :: hLocalizeIsConstant, useModulatedEns, firstTimeLatLonLoop = .true.
 
     call utl_tmg_start(131,'--LETKFanalysis')
 
@@ -160,12 +167,16 @@ contains
     !
     ! Set things up for the redistribution of work across mpi tasks
     !
-    call enkf_LETKFsetupMpiDistribution(numLatLonMpiGlobal, myNumLatLonRecv, myNumLatLonSend, myLatLonIndexesSend,  &
+    call enkf_LETKFsetupMpiDistribution(numLatLonMpiGlobal, myNumLatLonRecv,  &
                                         myLatIndexesRecv, myLonIndexesRecv,   &
                                         latIndexesSendMpiGlobal, lonIndexesSendMpiGlobal,   &
                                         procIndexesSendMpiGlobal, &
-                                        numProcsSendMpiGlobal, mpiDistribution, wInterpInfo)
-    allocate(requestIdSend(3*myNumLatLonSend*maxval(numProcsSendMpiGlobal)))
+                                        numProcsSendMpiGlobal, wInterpInfo)
+
+    ! Compute maximum expected number of grid points where weights computed on each mpi task 
+    myNumLatLonSendMax = myNumLatLonSendFactor*numLatLonMpiGlobal/mmpi_nprocs
+    write(*,*) 'enkf_LETKFanalyses: myNumLatLonSendMax = ', myNumLatLonSendMax
+    allocate(requestIdSend(3*myNumLatLonSendMax*maxval(numProcsSendMpiGlobal)))
     allocate(requestIdRecv(3*myNumLatLonRecv))
 
     nEns       = ens_getNumMembers(ensembleAnl)
@@ -237,12 +248,12 @@ contains
     ! Weights for mean analysis
     allocate(weightsMean(nEnsGain,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMean(:,:,:,:) = 0.0d0
-    allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonSend))
+    allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonSendMax))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
     allocate(weightsMembers(nEnsGain,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonSendMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -409,10 +420,6 @@ contains
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
       call utl_printTime(reset_opt = (levIndex==1))
 
-      call utl_tmg_start(141,'----Barr')
-      call rpn_comm_barrier('GRID',ierr)
-      call utl_tmg_stop(141)
-
       !
       ! First post all recv instructions for communication of weights
       !
@@ -439,8 +446,75 @@ contains
       end do
       call utl_tmg_stop(132)
 
-      LATLON_LOOP: do latLonIndex = 1, myNumLatLonSend
-        latLonIndexMpiGlobal = myLatLonIndexesSend(latLonIndex)
+      ! Set tag values for sending signals
+      assignmentTag = 100000
+      readyTag      = 100001
+
+MASTER_WORKER: if (mmpi_myid == 0) then  ! I am the master
+
+      ! Loop over all gridpoints where calculations need to be performed
+      write(*,*) 'Start of loop over all global grid points where weights computed'
+      do latLonIndexMpiGlobal = 1, numLatLonMpiGlobal
+
+        ! Determine which MPI task is ready for a new work assignment
+        call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &  
+                      mmpi_comm_grid, stat, ierr)
+        workerProcID = stat(MPI_SOURCE)
+
+        ! Assign this MPI task the next gridpoint to be calculated
+        call MPI_SEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
+                      mmpi_comm_grid, stat, ierr)
+
+      end do
+
+      ! Now that all work is done, we need to inform all workers
+      write(*,*) 'Finished all grid points, send *finished* signal to all mpi tasks'
+      do procIndex = 2, mmpi_nprocs
+
+        ! Wait for signal for every task that last assignment is complete
+        call MPI_IRECV(readySignal, 1, MPI_CHARACTER, procIndex-1, readyTag, &  
+                       mmpi_comm_grid, requestIdRecvFinished(procIndex-1), ierr)
+
+        ! Tell this worker we are done
+        finishedSignal = 0
+        call MPI_ISEND(finishedSignal, 1, MPI_INTEGER, procIndex-1, assignmentTag, &
+                       mmpi_comm_grid, requestIdSendFinished(procIndex-1), ierr)
+
+      end do
+      call mpi_waitAll(mmpi_nprocs-1, requestIdSendFinished(:), MPI_STATUSES_IGNORE, ierr)
+      call mpi_waitAll(mmpi_nprocs-1, requestIdRecvFinished(:), MPI_STATUSES_IGNORE, ierr)
+
+else  ! I am a worker
+
+      ! Main loop over grid points for computing analysis weights
+      latLonIndex = 0
+      LATLON_LOOP: do
+
+        ! Signal that I am ready for assignment
+        readySignal = 'A'
+        call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
+                      mmpi_comm_grid, stat, ierr)
+
+        ! Wait for assignment or signal that we are done
+        call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+                      mmpi_comm_grid, stat, ierr)
+
+        ! Check if we are done
+        if (latLonIndexMpiGlobal == 0) then
+          write(*,*) 'Received the *finished* signal, after doing this many gridpoints: ', latLonIndex
+          exit LATLON_LOOP
+        end if
+
+        ! Increment main loop index
+        latLonIndex = latLonIndex + 1
+
+        ! Check if latLonIndex is larger than expected for allocations
+        if (latLonIndex > myNumLatLonSendMax) then
+          write(*,*) 'enkf_LETKFanalyses: We encountered more latLonIndex values on this mpi task than expected!'
+          write(*,*) '                    You should probably increase the value of namelist variable: myNumLatLonSendFactor'
+          call utl_abort('enkf_LETKFanalyses: increase value of myNumLatLonSendFactor')
+        end if
+
         latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
         lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
 
@@ -1276,14 +1350,12 @@ contains
         ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
         !
         call utl_tmg_start(132,'----CommWeights')
-        latLonIndexMpiGlobal = myLatLonIndexesSend(latLonIndex)
         latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
         lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
         do procIndex = 1, numProcsSendMpiGlobal(latLonIndexMpiGlobal)
           sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
           procIndexSend = procIndexesSendMpiGlobal(latLonIndexMpiGlobal, procIndex)
 
-          ! Need to send to a different MPI task
           nsize = nEnsGain
           numSend = numSend + 1
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
@@ -1298,25 +1370,19 @@ contains
         end do
         call utl_tmg_stop(132)
 
+        firstTimeLatLonLoop = .false.
+
       end do LATLON_LOOP
 
-      call utl_tmg_start(141,'----Barr')
-      call rpn_comm_barrier('GRID',ierr)
-      call utl_tmg_stop(141)
+end if MASTER_WORKER
 
       !
       ! Wait for RECV communications to finish before continuing
       !
       call utl_tmg_start(132,'----CommWeights')
-      if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
-      firstTime = .false.
-
-      call utl_tmg_start(145,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
         call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
       end if
-      call utl_tmg_stop(145)
-
       call utl_tmg_stop(132)
 
       !
@@ -1338,6 +1404,30 @@ contains
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
+      if (.not. allocated(levIndex2FromVarLevIndex)) then
+        allocate(levIndex2FromVarLevIndex(numVarLev))
+        do varLevIndex = 1, numVarLev
+          ! Only treat varLevIndex values that correspond with current levIndex
+          if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
+              varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
+            if (varKindFromK(varLevIndex) == 'OC') then
+              levIndex2 = 1
+            else
+              levIndex2 = max(nLev_M,nLev_depth)
+            end if
+          else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
+            levIndex2 = levFromK(varLevIndex)
+          else if (varLevelFromK(varLevIndex) == 'OT') then
+            ! Most (all?) variables using the 'other' coordinate are surface
+            levIndex2 = max(nLev_M,nLev_depth)
+          else
+            write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
+            call utl_abort('enkf_LETKFanalyses: unknown varLevel')
+          end if
+          levIndex2FromVarLevIndex(varLevIndex) = levIndex2
+        end do
+      end if
+
       !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
       !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
       !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
@@ -1349,23 +1439,7 @@ contains
 
           ! Compute the ensemble mean increment and analysis
           do varLevIndex = 1, numVarLev
-            ! Only treat varLevIndex values that correspond with current levIndex
-            if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
-                varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
-              if (varKindFromK(varLevIndex) == 'OC') then
-                levIndex2 = 1
-              else
-                levIndex2 = max(nLev_M,nLev_depth)
-              end if
-            else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
-              levIndex2 = levFromK(varLevIndex)
-            else if (varLevelFromK(varLevIndex) == 'OT') then
-              ! Most (all?) variables using the 'other' coordinate are surface
-              levIndex2 = max(nLev_M,nLev_depth)
-            else
-              write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
-              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
-            end if
+            levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
             if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
@@ -1408,30 +1482,13 @@ contains
           end do ! varLevIndex
 
           ! Compute the ensemble member analyses
+          call utl_tmg_start(144,'------ApplyWeightsMember')
           do varLevIndex = 1, numVarLev
-            ! Only treat varLevIndex values that correspond with current levIndex
-            if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
-                varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
-              if (varKindFromK(varLevIndex) == 'OC') then
-                levIndex2 = 1
-              else
-                levIndex2 = max(nLev_M,nLev_depth)
-              end if
-            else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
-              levIndex2 = levFromK(varLevIndex)
-            else if (varLevelFromK(varLevIndex) == 'OT') then
-              ! Most (all?) variables using the 'other' coordinate are surface
-              levIndex2 = max(nLev_M,nLev_depth)
-            else
-              write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
-              call utl_abort('enkf_LETKFanalyses: unknown varLevel')
-            end if
+            levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
             if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
-
-              call utl_tmg_start(144,'------ApplyWeightsMember')
 
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
@@ -1481,10 +1538,10 @@ contains
               memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
                    meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
 
-              call utl_tmg_stop(144)
 
             end do ! stepIndex
           end do ! varLevIndex
+          call utl_tmg_stop(144)
 
         end do LON_LOOP5
       end do
@@ -1496,15 +1553,9 @@ contains
       ! Wait for SEND communications to finish before continuing
       !
       call utl_tmg_start(132,'----CommWeights')
-      if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
-      firstTime = .false.
-
-      call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
       end if
-      call utl_tmg_stop(146)
-
       call utl_tmg_stop(132)
 
     end do LEV_LOOP
@@ -1609,11 +1660,11 @@ contains
   !----------------------------------------------------------------------
   ! enkf_LETKFsetupMpiDistribution (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_LETKFsetupMpiDistribution(numLatLonMpiGlobal, myNumLatLonRecv, myNumLatLonSend, myLatLonIndexesSend, &
+  subroutine enkf_LETKFsetupMpiDistribution(numLatLonMpiGlobal, myNumLatLonRecv,  &
                                             myLatIndexesRecv, myLonIndexesRecv, &
                                             latIndexesSendMpiGlobal, lonIndexesSendMpiGlobal, &
                                             procIndexesSendMpiGlobal, &
-                                            numProcsSendMpiGlobal, mpiDistribution, wInterpInfo)
+                                            numProcsSendMpiGlobal, wInterpInfo)
     !
     ! :Purpose: Setup for distribution of grid points over mpi tasks. These are the
     !           current options:
@@ -1641,15 +1692,12 @@ contains
     ! Arguments:
     integer,                     intent(out) :: numLatLonMpiGlobal
     integer,                     intent(out) :: myNumLatLonRecv
-    integer,                     intent(out) :: myNumLatLonSend
-    integer, allocatable,        intent(out) :: myLatLonIndexesSend(:)
     integer, allocatable,        intent(out) :: myLatIndexesRecv(:)
     integer, allocatable,        intent(out) :: myLonIndexesRecv(:)
     integer, allocatable,        intent(out) :: latIndexesSendMpiGlobal(:)
     integer, allocatable,        intent(out) :: lonIndexesSendMpiGlobal(:)
     integer, allocatable,        intent(out) :: procIndexesSendMpiGlobal(:,:)
     integer, allocatable,        intent(out) :: numProcsSendMpiGlobal(:)
-    character(len=*),            intent(in)  :: mpiDistribution
     type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
 
     ! Locals:
@@ -1813,44 +1861,8 @@ contains
       end do
     end if
 
-    ! Count the number of grid points I am responsible for
-    myNumLatLonSend = 0
-    do latLonIndexMpiGlobal = 1, numLatLonMpiGlobal
-      ! Round robin distribution of items from global lat-lon list
-      procIndex = 1 + mod(latLonIndexMpiGlobal-1, mmpi_nprocs)
-      ! Build my local list of lat-lon indexes where I am responsible
-      if (procIndex == mmpi_myid+1) myNumLatLonSend = myNumLatLonSend + 1
-    end do
-
-    ! Now build the list of lat-lon indexes into the global list
-    allocate(myLatLonIndexesSend(myNumLatLonSend))
-    myNumLatLonSend = 0
-    do latLonIndexMpiGlobal = 1, numLatLonMpiGlobal
-      ! Round robin distribution of items from global lat-lon list
-      procIndex = 1 + mod(latLonIndexMpiGlobal-1, mmpi_nprocs)
-
-      ! Build my local list of lat-lon indexes where I am responsible
-      if (procIndex == mmpi_myid+1) then
-        myNumLatLonSend = myNumLatLonSend + 1
-        myLatLonIndexesSend(myNumLatLonSend) = latLonIndexMpiGlobal
-      end if
-    end do
-
-    write(*,*) 'enkf_LETKFsetupMpiDistribution: number of lat/lon indexes I am responsible for =', numLatLonMpiGlobal
-    write(*,*) 'enkf_LETKFsetupMpiDistribution: list of indexMpiGlobal/lat/lon/proc indexes I am responsbile for:'
-    do latLonIndex = 1, myNumLatLonSend
-      latLonIndexMpiGlobal = myLatLonIndexesSend(latLonIndex)
-      write(*,*) latLonIndexMpiGlobal,  &
-                 latIndexesSendMpiGlobal(latLonIndexMpiGlobal),  &
-                 lonIndexesSendMpiGlobal(latLonIndexMpiGlobal),  &
-                 procIndexesSendMpiGlobal(latLonIndexMpiGlobal,1:numProcsSendMpiGlobal(latLonIndexMpiGlobal))
-    end do
-
     write(*,*) 'enkf_LETKFsetupMpiDistribution: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-!    call rpn_comm_barrier('GRID',ierr)
-!    if (mmpi_myid ==0) call utl_abort('TESTING PURPOSES')
 
   end subroutine enkf_LETKFsetupMpiDistribution
 

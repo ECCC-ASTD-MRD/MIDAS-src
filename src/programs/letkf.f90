@@ -212,10 +212,12 @@ program midas_letkf
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
+  character(len=256) :: fileNameAnalysisGrid, fileNameForHCO
   character(len=9)   :: obsColumnMode
   character(len=48)  :: obsMpiStrategy
   character(len=48)  :: midasMode
 
+  logical :: fileExists
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
   logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen
@@ -237,6 +239,7 @@ program midas_letkf
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
+  integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck      ! apply additional background check using ensemble spread
   logical  :: huberize             ! apply huber norm quality control procedure
@@ -263,7 +266,7 @@ program midas_letkf
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug
+                     numRetainedEigen, myNumLatLonSendFactor, debug
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -323,6 +326,7 @@ program midas_letkf
   readEnsObsFromFile       = .false.
   writeLocalEnsObsToFile   = .false.
   numRetainedEigen         = 0
+  myNumLatLonSendFactor    = 10
   debug                    = .false.
   
   !- 1.2 Read the namelist
@@ -416,7 +420,14 @@ program midas_letkf
   if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
   call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1, &
                         copyToRamDisk_opt=.false. )
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
+  fileNameAnalysisGrid = trim(ensPathName) // '/analysisgrid'
+  inquire(file=fileNameAnalysisGrid, exist=fileExists)
+  if (fileExists) then
+    fileNameForHCO = fileNameAnalysisGrid
+  else
+    fileNameForHCO = ensFileName
+  end if
+  call hco_SetupFromFile( hco_ens, fileNameForHCO, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
@@ -776,7 +787,7 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen)
+                          numRetainedEigen, myNumLatLonSendFactor)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then

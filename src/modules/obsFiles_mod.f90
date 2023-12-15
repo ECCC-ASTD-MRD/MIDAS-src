@@ -326,10 +326,12 @@ contains
       sfFileName = 'sf'
     end if
 
+    call utl_tmg_start(15,'----WriteDiagFiles')
     if (lwritediagsql) then 
       call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
                                      addFSOdiag, ensObs_opt=ensObs_opt)
     end if
+    call utl_tmg_stop(15)
 
     if ( present(asciDumpObs_opt) ) then
       if ( asciDumpObs_opt ) then
