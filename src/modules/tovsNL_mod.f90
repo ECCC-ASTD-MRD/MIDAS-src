@@ -2926,11 +2926,14 @@ contains
       hydroSensorIndex = tvs_getHydrometeorsIndex(tvs_instruments(sensorId))
       hydroChannelsCount = 0
       if ( hydroSensorIndex > 0 ) then
-        do channelIndex= 1, tvs_maxNumberOfChannels
+        do channelIndex = 1, tvs_maxNumberOfChannels
           if (tvs_channelsUsingHydrometeors(hydroSensorIndex,channelIndex) > 0) then
             hydroChannelsCount = hydroChannelsCount + 1
           end if
         end do
+        if (hydroChannelsCount == 0) then
+          call utl_abort('tvs_rttov: you have to initialize channelsUsingHydrometeors(:,:) in NAMTOV namelist section')
+        end if
       end if
       
       runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
