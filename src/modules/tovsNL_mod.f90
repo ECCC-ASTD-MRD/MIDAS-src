@@ -5568,18 +5568,23 @@ contains
     character(len=1024)            :: filename
     integer                        :: btIndex, bodyIndex
     integer(8)                     :: obsIdd, obsIdo
-    logical                        :: fileExists
+    logical                        :: dirExists
     integer                        :: profileIndex, tovsIndex, headerIndex
     integer                        :: err, iunit, numLev
     integer, external              :: fnom,fclos
     character(len = 12), parameter :: dirName = 'tvs_jacobian'
 
-    err = clib_mkdir_r(trim(dirName))
+    inquire(directory=trim(dirName), exist=dirExists)
+
+    ! Create directory if it doesn't exists
+    if (.not. dirExists) then
+      err = clib_mkdir_r(trim(dirName))
+    end if
 
     write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
     cmyid = trim(cmyidx) // '_' // trim(cmyidy)
-    
+
     filename = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'// cmyid
 
     iunit = 0
