@@ -2312,7 +2312,6 @@ contains
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
     integer :: allocStatus(13)    
-    integer,external ::  omp_get_num_threads
     integer,external ::  newdate
     integer, allocatable :: sensorTovsIndexes(:)
     integer, allocatable :: sensorHeaderIndexes(:)  
@@ -2816,7 +2815,6 @@ contains
     integer :: btCount
     integer :: allocStatus(4)
     integer :: rttov_err_stat ! rttov error return code
-    integer, external :: omp_get_num_threads
     integer :: nthreads,max_nthreads
     integer :: sensorId, tovsIndex
     integer :: channelIndex, channelIndexFound, channelNumber
@@ -2850,9 +2848,8 @@ contains
     if (tvs_nobtov == 0) return                  ! exit if there are not tovs data
 
     !   1.  Get number of threads available and allocate memory for some variables
-    !$omp parallel
-    max_nthreads = omp_get_num_threads()
-    !$omp end parallel
+
+    max_nthreads = mmpi_numThread
 
     if (present(SimSfcEmiss_opt)) then
       SimSfcEmiss = SimSfcEmiss_opt
@@ -5555,7 +5552,7 @@ contains
     type(rttov_emissivity), pointer, intent(in)    :: jacobian_emiss(:)        ! Surface Emissivity Jacobian
     integer,                         intent(in)    :: bodyIndexFromBtIndex(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
     integer,                         intent(in)    :: btCount                  ! Total number of simulated radiances
-    type(struct_obs),                intent(inout) :: obsSpaceData             ! ObsSpaceData Object
+    type(struct_obs),                intent(in)    :: obsSpaceData             ! ObsSpaceData Object
     character(len=15),               intent(in)    :: satelliteName            ! Satellite Name
     character(len=15),               intent(in)    :: instrumentName           ! Instrument Name
     type (rttov_profile), pointer,   intent(in)    :: profiles(:)              ! Input profiles from background state
@@ -5613,7 +5610,7 @@ contains
         numLev = size(profiles(tovsIndex)%p(:))
         write (strNumLev,'(I4)') numLev
 
-        WRITE(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
+        write(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
                       // trim(strNumLev) // 'E16.5E2, &
                       E16.5E2, E16.5E2, E16.5E2, E16.5E2, ' &
                       // trim(strNumLev) // 'E16.5E2,' &

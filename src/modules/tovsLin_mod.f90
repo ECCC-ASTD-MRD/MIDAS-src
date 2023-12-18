@@ -25,6 +25,7 @@ module tovsLin_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
+  use midasMpi_mod
  
   implicit none
   save
@@ -66,7 +67,6 @@ contains
     real(8), pointer :: delCLW(:)
     real(8), pointer :: delCIW(:), delRF(:), delSF(:)
     integer :: btCount
-    integer,external :: omp_get_num_threads
     integer :: nthreads, max_nthreads
     integer :: btIndex, bodyIndex
     integer :: instrum
@@ -129,9 +129,7 @@ contains
     !     1.  Get number of threads available and allocate memory for some variables
     !     .   ---------------------------------------------------------------------- 
 
-    !$omp parallel 
-    max_nthreads = omp_get_num_threads()
-    !$omp end parallel
+    max_nthreads = mmpi_numThread
 
     allocStatus(:) = 0
     allocate ( sensorTovsIndexes(tvs_nobtov), stat = allocStatus(1) )
@@ -496,7 +494,7 @@ contains
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
     integer :: allocStatus(17)
-    integer :: omp_get_num_threads, nthreads
+    integer :: nthreads
     integer :: nobmax
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_T,ilowlvl_M,profileCount,headerIndex,nlv_M,nlv_T
@@ -569,9 +567,7 @@ contains
 
     !     1.  Get number of threads available and allocate memory for some variables
  
-    !$omp parallel 
-    max_nthreads = omp_get_num_threads()
-    !$omp end parallel
+    max_nthreads = mmpi_numThread
 
     allocate ( sensorTovsIndexes(tvs_nobtov) )
 
@@ -981,8 +977,8 @@ contains
     implicit none
   
     ! Arguments:
-    type(struct_obs)        :: obsSpaceData         ! obsSpaceData structure
-    type(struct_columnData) :: columnTrlOnAnlIncLev ! column structure for background profile
+    type(struct_obs),        intent(in) :: obsSpaceData         ! obsSpaceData structure
+    type(struct_columnData), intent(in) :: columnTrlOnAnlIncLev ! column structure for background profile
 
     ! Locals:
     type(rttov_emissivity), pointer :: emissivity_local(:)
@@ -1000,7 +996,6 @@ contains
     integer                         :: sensorIndex, tovsIndex
     integer                         :: nlv_T
     integer                         :: instrum, asw
-    integer, external               :: omp_get_num_threads
     integer                         :: nthreads, max_nthreads
     integer                         :: sensorType
     real(8), allocatable            :: surfem1(:)
@@ -1016,10 +1011,8 @@ contains
   
     nlv_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
   
-    !$omp parallel 
-    max_nthreads = omp_get_num_threads()
-    !$omp end parallel
-  
+    max_nthreads = mmpi_numThread 
+
     allocStatus(:) = 0
     allocate(sensorTovsIndexes(tvs_nobtov), stat = allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), " tvslin_rttov_tl sensorTovsIndexes")
