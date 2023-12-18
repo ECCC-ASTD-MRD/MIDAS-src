@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
  * Option to estimate background error stddev in observation space in Idealized var1D (#874 and !784)
  * All-sky assimilation for ATMS humidity channels (#875 and !787)
  * Added the ability to update header-level SQLite columns (#871 and !779)
