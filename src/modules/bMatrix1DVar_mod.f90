@@ -25,6 +25,7 @@ module bMatrix1DVar_mod
   use stateToColumn_mod
   use calcHeightAndPressure_mod
   use surfaceEmissivity_mod
+
   implicit none
   save
   private
@@ -48,6 +49,9 @@ module bMatrix1DVar_mod
   integer             :: nkgdim
   integer             :: cvDim_mpilocal
  
+  character(len=18) :: oneDBmatHiLand = './Bmatrix_land.bin'
+  character(len=17) :: oneDBmatHiSea = './Bmatrix_sea.bin'
+
   real(8), allocatable :: bMatSqrtLand(:,:,:), bMatSqrtSea(:,:,:)
   real(8), allocatable :: bMatSqrtEns(:,:,:)
   real(8), allocatable :: bMatLand(:,:,:), bMatSea(:,:,:)
@@ -133,8 +137,8 @@ contains
     
     nEns = -1
     vLocalize = -1.d0
-    includeAnlVar(:)= ''
-    excludeVarScaling(:)=''
+    includeAnlVar(:) = ''
+    excludeVarScaling(:) = ''
     numIncludeAnlVar = MPC_missingValue_INT
     numExcludeVarScaling = MPC_missingValue_INT
     dumpBmatrixTofile = .false.
@@ -252,8 +256,6 @@ contains
     type(struct_vco), pointer :: vco_file => null()
     type(struct_vco), target  :: vco_1Dvar
     type(struct_vco), pointer :: vco_anl
-    character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
-    character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     integer :: locationIndex, varIndex
     integer :: shiftLevel, varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat
@@ -313,8 +315,8 @@ contains
     end if
 
     ! Read static B-Matrix files for land and sea
-    call bmat1D_readBMatHi(oneDBmatLand, nkgdim, nLonLatPosLand, vco_1Dvar, bMatLand, latLand)
-    call bmat1D_readBMatHi(oneDBmatSea, nkgdim, nLonLatPosSea, vco_1Dvar, bMatSea, latSea)
+    call bmat1D_readBMatHi(oneDBmatHiLand, nkgdim, nLonLatPosLand, vco_1Dvar, bMatLand, latLand)
+    call bmat1D_readBMatHi(oneDBmatHiSea, nkgdim, nLonLatPosSea, vco_1Dvar, bMatSea, latSea)
 
     allocate (multFactor(nkgdim))
     multFactor(:) = 1.0d0
@@ -353,7 +355,6 @@ contains
           if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) cycle
           multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case('EMMW')
-          ! ZQ Temporary solution - better way to get nlevEmiss
           varListEmiss = vnl_varListIndexOther('EMMW')
           nlevEmiss = vco_in%nlev_Other(varListEmiss)
           do levelIndex = 1, nlevEmiss
@@ -371,12 +372,10 @@ contains
 
     !application of the scaling factor for land B-Matrix and compute its sqrt
     do locationIndex = 1, nLonLatPosLand
-      
       do varLevIndex2 = 1, nkgdim
         do varLevIndex1 = 1, nkgdim
           bMatLand(locationIndex, varLevIndex1, varLevIndex2) = bMatLand(locationIndex, varLevIndex1, varLevIndex2) * &
                                                                 multFactor(varLevIndex1) * multFactor(varLevIndex2)
-
         end do
       end do
       bMatSqrtLand(locationIndex, :, :) = bMatLand(locationIndex, :, :)
@@ -385,7 +384,6 @@ contains
 
     !application of the scaling factor for sea B-Matrix and compute its sqrt
     do locationIndex = 1, nLonLatPosSea
-      !application of the scaling factor
       do varLevIndex2 = 1, nkgdim
         do varLevIndex1 = 1, nkgdim
           bMatSea(locationIndex, varLevIndex1, varLevIndex2) = bMatSea(locationIndex, varLevIndex1, varLevIndex2) * &
@@ -461,7 +459,7 @@ contains
     read(nulbgst) extractDate, vco_bMat%nLev_T, vco_bMat%nLev_M, vco_bMat%Vcode, &
          vco_bMat%ip1_sfc, vco_bMat%ip1_T_2m, vco_bMat%ip1_M_10m, numIncludeAnlVarHi, nkgdimBMat, nLonLatPos
 
-    allocate( vco_bMat%ip1_T(vco_bMat%nLev_T), vco_bMat%ip1_M(vco_bMat%nLev_M) )
+    allocate(vco_bMat%ip1_T(vco_bMat%nLev_T), vco_bMat%ip1_M(vco_bMat%nLev_M))
     if (numIncludeAnlVarHi /= bmat1D_numIncludeAnlVar) then
       write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
       call utl_abort('bmat1D_readBMatHi: incompatible number of 1DVar analyzed variables in ' // trim(bMatFile))
@@ -483,7 +481,7 @@ contains
 
     ! Read B-Matrix
     do locationIndex = 1, nLonLatPos
-      read(nulbgst) latBMat(locationIndex), lonBMat(locationIndex), bMatrix(locationIndex, :,:)
+      read(nulbgst) latBMat(locationIndex), lonBMat(locationIndex), bMatrix(locationIndex, :, :)
     end do
     ierr = fclos(nulbgst)
 
@@ -532,8 +530,6 @@ contains
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
-    character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
-    character(len=18) :: oneDBmatSea = './Bmatrix_sea.bin'
     integer :: nkgdimHi, nLonLatPosLandHi, nLonLatPosSeaHi
     type(struct_vco), target :: vco_1DvarHi
     real(8), allocatable :: bMatLandHi(:,:,:), bMatSeaHi(:,:,:)
@@ -776,9 +772,9 @@ contains
           if (any(bmat1D_includeAnlVar(varIndex) == bmat1D_excludeVarScaling(:))) then
             if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Do not apply scaling factor', bmat1D_includeAnlVar(varIndex)
           else
-            if ( varLevel == 'MM' ) then      ! Momentum
+            if (varLevel == 'MM') then      ! Momentum
               multFactor(varLevIndexBmat) = scaleFactor_M(levIndex)
-            else if ( varLevel == 'TH' ) then ! Thermo
+            else if (varLevel == 'TH') then ! Thermo
               multFactor(varLevIndexBmat) = scaleFactor_T(levIndex)
             else                              ! SF
               multFactor(varLevIndexBmat) = scaleFactor_SF
@@ -820,7 +816,7 @@ contains
 
     do varLevIndexBmat =1, nkgdim
       write(*,*) 'bmat1D_setupBEns: variance = ', varLevIndexBmat, &
-                 sum(bMatEns(:,varLevIndexBmat,varLevIndexBmat))/real((nEns-1)*var1D_validHeaderCount)
+                 sum(bMatEns(:, varLevIndexBmat, varLevIndexBmat)) / real((nEns-1) * var1D_validHeaderCount)
     end do
 
     deallocate(lineVector)
@@ -836,7 +832,7 @@ contains
       do varLevIndexBmat = 1, nkgdim
         varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
         varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
-        if (varLevel=='SF' .or. varLevel=='OT' ) then
+        if (varLevel=='SF' .or. varLevel=='OT') then
           meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
         else
           levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
@@ -875,20 +871,20 @@ contains
 
     do varLevIndexBmat =1, nkgdim
       write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
-          sum(bMatEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
+          sum(bMatEns(:, varLevIndexBmat, varLevIndexBmat)) / real(var1D_validHeaderCount)
     end do
     
-    if (dumpBmatrixTofile) then
-      call dumpBmatrices(vco_in, obsSpaceData, dateStampList, bMatEns)
-    end if
-    
     if (copyEmissBEnsFromBHi) then
-      call bmat1D_readBMatHi(oneDBmatLand, nkgdimHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
-      call bmat1D_readBMatHi(oneDBmatSea, nkgdimHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
+      call bmat1D_readBMatHi(oneDBmatHiLand, nkgdimHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
+      call bmat1D_readBMatHi(oneDBmatHiSea, nkgdimHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
       call sse_updateBEnsMatEmissFromBHi(bMatLandHi, bMatSeaHi, bMatEns, latLandHi, latSeaHi, obsSpaceData, var1D_validHeaderIndex, &
                                          var1D_validHeaderCount, bmat1D_includeAnlVar, vco_1DvarHi, vco_in)
     end if
 
+    if (dumpBmatrixTofile) then
+      call dumpBmatrices(vco_in, obsSpaceData, dateStampList, bMatEns)
+    end if
+    
     bMatSqrtEns(:,:,:) = bMatEns(:,:,:)
 
     if (allocated(bMatEns)) deallocate(bMatEns)
@@ -1433,4 +1429,3 @@ contains
   end subroutine bmat1D_Finalize
 
 end module bMatrix1DVar_mod
-
