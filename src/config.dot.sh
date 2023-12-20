@@ -158,7 +158,7 @@ echo "... loading makedepf90"
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
-OPTF="-qmkl ${OPTF} -warn noexternal"
+OPTF="-qmkl ${OPTF} -warn noexternal -qopt-report=5"
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
