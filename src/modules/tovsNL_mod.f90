@@ -3298,7 +3298,7 @@ contains
         end do
 
         ! Append Simulated Surface Emissivity into ObsSpaceData
-        if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceDtata,OBS_SSEM)) then
+        if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData,OBS_SSEM)) then
           do btIndex = 1, btCount
             bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
             profileIndex = chanprof(btIndex)%prof
