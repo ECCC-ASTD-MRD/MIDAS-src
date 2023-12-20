@@ -328,7 +328,7 @@ program midas_letkf
   numRetainedEigen         = 0
   myNumLatLonSendFactor    = 10
   debug                    = .false.
-  
+
   !- 1.2 Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namletkf, iostat=ierr)
@@ -616,9 +616,9 @@ program midas_letkf
 
         ! modulate the member with eigenvectors of vertical localization matrix
         call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
-                                    vLocalize, numRetainedEigen, nEns, &
-                                    eigenVectorIndex, stateVector4Dmod, &
-                                    beSilent=.true. )
+                                     vLocalize, numRetainedEigen, nEns, &
+                                     eigenVectorIndex, stateVector4Dmod, &
+                                     beSilent=.true. )
         if ( debug ) then
           call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
           write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
@@ -781,7 +781,8 @@ program midas_letkf
   !
 
   !- 5.1 Call to perform LETKF
-  call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
+  call enkf_LETKFanalyses(algorithm, numSubEns, mpiDistribution, &
+                          randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, &
                           ensObs_mpiglobal, ensObsGain_mpiglobal, &
                           stateVectorMeanAnl, &

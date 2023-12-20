@@ -9,6 +9,7 @@ module midasMpi_mod
   !
   use mpi
   use utilities_mod
+  use mpi
   implicit none
   save
   private
@@ -18,6 +19,7 @@ module midasMpi_mod
   public :: mmpi_numthread, mmpi_nodeMasters
   public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
   public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  public :: mmpi_maxTagValue
   ! public procedures
   public :: mmpi_initialize,mmpi_getptopo
   public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
@@ -40,6 +42,7 @@ module midasMpi_mod
 
   integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
   integer :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  integer :: mmpi_maxTagValue
 
   integer, allocatable :: mmpi_nodeMasters(:)
 
@@ -55,6 +58,7 @@ module midasMpi_mod
     integer :: ierr, numNodeMasters
     integer :: rpn_comm_comm, rpn_comm_datyp
     integer, allocatable :: allMyidHost(:)
+    logical :: flag
 
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
@@ -116,6 +120,14 @@ module midasMpi_mod
     mmpi_datyp_real4 = rpn_comm_datyp('MPI_REAL4')
     mmpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
     mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
+
+    ! get some other useful values
+    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, mmpi_maxTagValue, flag, ierr)
+    if (flag) then
+      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', mmpi_maxTagValue
+    else
+      call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
+    end if
 
     write(*,*) ' '
     if(mmpi_doBarrier) then
