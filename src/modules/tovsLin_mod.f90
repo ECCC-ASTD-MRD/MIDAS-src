@@ -789,14 +789,14 @@ contains
         call rttov_alloc_ad(                 &
             allocStatus(1),                  &
             asw=1,                           &
-            profileCount,                    &
-            btCount,                         &
-            nlv_T,                           &
-            chanprof,                        &
+            nprofiles=profileCount,          &
+            nchanprof=btCount,               &
+            nlevels=nlv_T,                   &
+            chanprof=chanprof,               &
             opts=tvs_opts(sensorIndex),      &
             coefs=tvs_coefs(sensorIndex),    &
-            transmission= transmission,      &
-            transmission_ad= transmission_ad,&
+            transmission=transmission,       &
+            transmission_ad=transmission_ad, &
             radiance=radiancedata_d,         &
             radiance_ad=radiancedata_ad,     &
             calcemis=calcemis,               &
@@ -864,14 +864,14 @@ contains
         call rttov_alloc_ad(                 &
             allocStatus(3),                  &
             asw=0,                           &
-            profileCount,                    &
-            btCount,                         &
-            nlv_T,                           &
-            chanprof,                        &
+            nprofiles=profileCount,          &
+            nchanprof=btCount,               &
+            nlevels=nlv_T,                   &
+            chanprof=chanprof,               &
             opts=tvs_opts(sensorIndex),      &
             coefs=tvs_coefs(sensorIndex),    &
-            transmission= transmission,      &
-            transmission_ad= transmission_ad,&
+            transmission=transmission,       &
+            transmission_ad=transmission_ad, &
             radiance=radiancedata_d,         &
             radiance_ad=radiancedata_ad,     &
             calcemis=calcemis,               &
@@ -889,10 +889,10 @@ contains
         call rttov_alloc_ad(                   &
             allocStatus(1),                    &
             asw=1,                             &
-            profileCount,                      &
-            btCountScatt,                      &
-            nlv_T,                             &
-            chanprofScatt,                     &
+            nprofiles=profileCount,            &
+            nchanprof=btCountScatt,            &
+            nlevels=nlv_T,                     &
+            chanprof=chanprofScatt,            &
             opts=tvs_opts(sensorIndex),        &
             coefs=tvs_coefs(sensorIndex),      &
             radiance=radiancedata_dScatt,      &
@@ -974,13 +974,13 @@ contains
           call utl_abort('tvslin_rttov_ad')
         end if
       
-        call rttov_alloc_ad(                   &
+        call rttov_alloc_ad(                  &
             allocStatus(3),                   &
             asw=0,                            &
-            profileCount,                     &
-            btCountScatt,                     &
-            nlv_T,                            &
-            chanprofScatt,                    &
+            nprofiles=profileCount,           &
+            nchanprof=btCountScatt,           &
+            nlevels=nlv_T,                    &
+            chanprof=chanprofScatt,           &
             opts=tvs_opts(sensorIndex),       &
             coefs=tvs_coefs(sensorIndex),     &
             radiance=radiancedata_dScatt,     &
@@ -1186,8 +1186,8 @@ contains
     implicit none
   
     ! Arguments:
-    type(struct_obs),        intent(in) :: obsSpaceData         ! obsSpaceData structure
-    type(struct_columnData), intent(in) :: columnTrlOnAnlIncLev ! column structure for background profile
+    type(struct_obs),        intent(inout) :: obsSpaceData         ! obsSpaceData structure
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev ! column structure for background profile
 
     ! Locals:
     type(rttov_emissivity), pointer :: emissivity_local(:)
@@ -1246,8 +1246,7 @@ contains
       nobmax = sensorTovsIndexes(profileCount)
 
       ! Compute the number of calculated radiances for one call
-      btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData, &
-                                   assim_flag_val_opt = obs_assimilated)
+      btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData)
       if (btCount == 0) cycle sensor_loop
 
       call utl_checkAllocationStatus(allocStatus, " tvslin_rttov_k")
