@@ -1072,7 +1072,7 @@ module sqliteRead_mod
       updateHeaderList(itemIndex) = obs_columnIndexFromName(item)
       select case(item)
       case('ELEV')
-        columnName = 'sfc_elev'
+        columnName = 'surf_elev'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
       end select

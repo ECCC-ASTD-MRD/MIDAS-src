@@ -447,6 +447,13 @@ module var1DIdealize_mod
       call rmat_writeRCorrFile
     end if
 
+    ! Compute the Jacobian
+    if (tvs_computeJacobian) then 
+      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, "nl", beSilent)
+
+      call tvslin_rttov_k(columnTruthOnTrlLev, obsSpaceData)
+    end if
+
     write(*,*) 'var1Di_simulateObservation: Finished '
   end subroutine var1Di_simulateObservation
 

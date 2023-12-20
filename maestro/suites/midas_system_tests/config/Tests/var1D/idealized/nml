@@ -116,6 +116,7 @@
    regLimitExtrap=.false.
    useMWEmissivityAtlas = .TRUE.,
    mWAtlasId = 2,
+   computeJacobian = .TRUE.,
 /
  &NAMSIMEMISS
   simEmissSeed = 1,
@@ -141,6 +142,7 @@
   itemUpdateBodyList(8)='EMER',
   itemUpdateBodyList(9)='SEM',
   itemUpdateBodyList(10)='HPHT',
+  itemUpdateBodyList(11)='TRAN',
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT
