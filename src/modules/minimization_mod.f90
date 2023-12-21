@@ -592,6 +592,7 @@ CONTAINS
        if(mmpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+         call utl_printTime(reset_opt = (min_nsim==1))
        endif
 
        ! note: controlVectorIncrSum_ptr is sum of previous outer-loops
