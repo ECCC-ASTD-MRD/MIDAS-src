@@ -317,7 +317,6 @@ contains
         profilesdata_tl(profileIndex) % t(1:nlv_T)    = delTT(:)
         delHU => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'HU')
         profilesdata_tl(profileIndex) % q(1:nlv_T)    = delHU(:)
-
         if (runObsOperatorWithHydrometeors_tl) then
           cld_profiles_tl(profileIndex) % ph (1) = 0.d0
           cld_profiles_tl(profileIndex) % cfrac = 0.d0
@@ -359,12 +358,38 @@ contains
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
         
         if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btcount), sensorTovsIndexes(1:profileCount))
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            ! Read surface emissivity from column when it's included as an analysis variable
+  
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+  
+            ! Setup the surface emissvity from column object to rttov emissivity_local
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                              tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                              tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                              emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else
+            ! Read surface emissivity from emissivity atlas
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          end if
         else
-          emissivity_local(:) % emis_in = surfem1(:)
+          emissivity_local(:)%emis_in = surfem1(:)
+        end if
+   
+        !  2.3  Compute tl radiance with rttov_tl
+        
+        if (col_varExist(columnAnlInc, 'EMMW')) then
+          ! Setup the emissivity_tl from column object
+          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                            tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                            tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                            columProfTl_opt = columnAnlInc)
+        else
+          emissivity_tl(:)%emis_in = 0.0d0
         end if
         errorStatus = errorStatus_success
-        emissivity_tl(:) % emis_in = 0.0d0
+
         !  set nthreads to actual number of threads which will be used.
 
         nthreads = min(mmpi_numThread, profileCount)  
@@ -818,29 +843,28 @@ contains
           end if
         end if
         deallocate( lchannel_subset )
-        !     get non Hyperspectral IR emissivities
-        call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-
-        if (sensorType == sensor_id_mw) then
-          if (col_varExist(columnAnlInc, 'EMMW')) then
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
-                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
-                                        emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
-          else
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
-          end if
-        else
-          emissivity_local(:)%emis_in = surfem1(:)
-        end if
         
         !     get non Hyperspectral IR emissivities
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-
+      
         if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            ! Read surface emissivity from column when it's included as an analysis variable
+    
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+    
+            ! Setup the surface emissvity from column object to rttov emissivity_local
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                           tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                           tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                           emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else
+            ! Read surface emissivity from emissivity atlas
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          end if 
         else
-          emissivity_local(:) % emis_in = surfem1(:)
+            emissivity_local(:) % emis_in = surfem1(:)
         end if
         
         do btIndex = 1, btCount
@@ -1074,8 +1098,11 @@ contains
       end if
 
       if (col_varExist(columnAnlInc, 'EMMW')) then
-        call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
-                                 tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, columnInout_opt = columnAnlInc)
+        ! Setup emissivity in column object from emissivity_ad
+        call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
+                                          tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                          tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                          columProfAd_opt = columnAnlInc)
       end if
 
       !     .  2.1  Store adjoints in columnData object

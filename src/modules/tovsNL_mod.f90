@@ -2719,7 +2719,6 @@ contains
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
-        
         call validateRttovVariable(profiles(tovsIndex) % p(nlv_T), "pressure profile near surface", obsSpaceData, headerIndex, maximum_opt=2000.d0)
         call validateRttovVariable(profiles(tovsIndex) % p(1), "pressure profile near top", obsSpaceData, headerIndex, 0.d0) 
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
@@ -2778,7 +2777,9 @@ contains
 
       ! Extract emissivity from background column object to be used in the computation
       ! of non-linear RTTOV
-      call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, tvs_nobtov)
+      if (col_varExist(columnTrl, 'EMMW')) then
+        call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, tvs_nobtov)
+      end if
 
       deallocate(pressure)
       deallocate(ozone)
@@ -3098,6 +3099,7 @@ contains
           end do
 
       else if (sensorType == sensor_id_mw) then
+<<<<<<< HEAD
           if (allocated(tvs_emissivityFromTrl)) then
             call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), &
                                        sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
@@ -3111,7 +3113,31 @@ contains
                                           tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
                                           tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
             end if
+=======
+        if (allocated(tvs_emissivityFromTrl)) then
+          ! Read surface emissivity from column when it's included as an analysis variable
+
+          ! Set the default surface emissivity values
+          emissivity_local(:)%emis_in = surfem1(:)
+
+          ! Setup the surface emissvity from column object to rttov emissivity_local
+          call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, chanprof, sensorTovsIndexes, &
+                                            tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                            tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
+                                            emissivityProfDt_opt = tvs_emissivityFromTrl)
+        else
+          ! Read surface emissivity from emissivity atlas
+          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
+              sensorTovsIndexes(1:profileCount))
+
+          ! Simulate surface emissivity from emissivity atlas
+          if (SimSfcEmiss) then
+            call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId, &
+                                        tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
+                                        tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
+>>>>>>> fba086a1a (Issue #878: Revised set limit for simulated surface emissivity.)
           end if
+        end if
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if

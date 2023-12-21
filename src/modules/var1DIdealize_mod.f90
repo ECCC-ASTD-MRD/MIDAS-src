@@ -231,7 +231,7 @@ module var1DIdealize_mod
       if (.not. col_varExist(columnAnlLev, vnl_varNameListOther(varIndex))) cycle
       if (col_getNumCol(columnAnlLev) > 0) then       
         do columnIndex = 1, col_getNumCol(columnAnlLev)
-          columnTrlLev_ptr  => col_getColumn(columnTrlLev , columnIndex, vnl_varNameListOther(varIndex))
+          columnTrlLev_ptr => col_getColumn(columnTrlLev, columnIndex, vnl_varNameListOther(varIndex))
           columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameListOther(varIndex))
           columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
         end do
@@ -322,13 +322,15 @@ module var1DIdealize_mod
     implicit none
 
     ! Arguments:
-    type(struct_columnData),           intent(inout)  :: column
-    type(struct_columnData), optional, intent(in)     :: columnRef_opt
+    type(struct_columnData),           intent(inout)  :: column         ! Perturbed column object
+    type(struct_columnData), optional, intent(in)     :: columnRef_opt  ! Reference column object (non-perturbed)
     ! Locals:
-    real(8), pointer :: emissPtr(:,:), emissPtrRef(:,:)
-    integer          :: numCol, numLev, numColRef, numLevRef
-    integer          :: icol, ilev
-    real(8), parameter :: missingValue = -1.0d0
+    real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
+    integer              :: numCol, numLev, numColRef, numLevRef
+    integer              :: icol, ilev
+    real(8), parameter   :: missingValue = -1.0d0
+    real(8)              :: emissDiffTmp
+    real(8)              :: emissAboveThres
 
     numCol = col_getNumCol(column)
     numLev = col_getNumLev(column,'OT', varname_opt = 'EMMW')
@@ -346,17 +348,40 @@ module var1DIdealize_mod
     end if
 
     do icol = 1, numCol
+      if (present(columnRef_opt)) then
+        ! Fill missing value if ref column also have missing value
+        if (any(emissPtrRef(:, icol) == missingValue)) then
+          emissPtr(:, icol) = missingValue
+        ! Fill missing value if ref column have negative emissivity
+        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
+          emissPtr(:, icol) = missingValue
+        ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
+        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
+          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
+        ! Limit simulated emissivity to one
+        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
+          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
+        end if
+      else
+        ! Limit simulated emissivity to one
+        if(any(emissPtr(:, icol) < 0.0d0)) then 
+          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
+        !  Limit simulated emissivity to zero
+        else if(any(emissPtr(:, icol) > 1.0d0)) then 
+          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
+         emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
+        end if
+      end if
+    end do
+
+    do icol = 1, numCol
       do ilev = 1, numLev
 
         if (present(columnRef_opt)) then
-          ! Fill missing value if ref column also have missing value
-          if (emissPtrRef(ilev, icol) == missingValue) then 
-            emissPtr(ilev, icol) = missingValue
-          ! Fill missing value if ref column have negative emissivity
-          else if (emissPtrRef(ilev, icol) < 0.0d0) then
-            emissPtr(ilev, icol) = missingValue
-          ! Limit simulated emissivity to zero if ref column emissivity is greater or equal to zero 
-          else if (emissPtrRef(ilev, icol) >= 0.0d0 .and. emissPtr(ilev, icol) < 0.0d0) then
+          if (emissPtrRef(ilev, icol) >= 0.0d0 .and. emissPtr(ilev, icol) < 0.0d0) then
             emissPtr(ilev, icol) = 0.0d0
           ! Limit simulated emissivity to one
           else if (emissPtrRef(ilev, icol) <= 1.0d0 .and. emissPtr(ilev, icol) > 1.0d0) then

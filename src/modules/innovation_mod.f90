@@ -318,8 +318,8 @@ contains
 
     ! copy other surface variables
     do jvar = 1, vnl_numvarmaxOther 
-      if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameListOther(jvar)) ) cycle
-      if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 ) then       
+      if (.not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameListOther(jvar))) cycle
+      if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then       
         do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
           columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameListOther(jvar))
           columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameListOther(jvar))
