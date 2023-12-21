@@ -191,6 +191,7 @@ program midas_diagHBHt
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   varMode='analysis'
 
@@ -253,6 +254,7 @@ program midas_diagHBHt
   istamp = exfin('diagHBHt','FIN','NON')
 
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

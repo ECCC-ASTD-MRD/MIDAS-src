@@ -150,7 +150,8 @@ program midas_pseudoSSTobs
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
- 
+  call utl_printTime()
+
   ! 1. Top level setup
 
   ! Read the namelists
@@ -168,6 +169,7 @@ program midas_pseudoSSTobs
 
   istamp = exfin('pseudoSSTobs','FIN','NON')
 
+  call utl_printTime()
   call utl_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

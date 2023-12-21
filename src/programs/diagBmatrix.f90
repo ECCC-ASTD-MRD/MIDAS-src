@@ -178,6 +178,7 @@ program midas_diagBmatrix
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Read the namelists
@@ -783,6 +784,7 @@ program midas_diagBmatrix
 
   ! MPI, tmg finalize
   call utl_tmg_stop(0)
+  call utl_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 

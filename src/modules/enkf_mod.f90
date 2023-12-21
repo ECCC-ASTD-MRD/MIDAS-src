@@ -407,6 +407,7 @@ contains
     numGridPointWeights = 0
     LEV_LOOP: do levIndex = 1, nLev_weights
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
+      call utl_printTime(reset_opt = (levIndex==1))
 
       !
       ! First post all recv instructions for communication of weights

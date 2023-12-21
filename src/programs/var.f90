@@ -324,6 +324,7 @@ program midas_var
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
@@ -331,9 +332,6 @@ program midas_var
   end if 
 
   varMode='analysis'
-
-  ! Reset main time counter
-  call utl_printTime()
 
   ! Read the namelists
   call utl_readNml()

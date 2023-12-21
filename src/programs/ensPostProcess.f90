@@ -185,6 +185,7 @@ program midas_ensPostProcess
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call utl_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -329,6 +330,7 @@ program midas_ensPostProcess
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

@@ -120,6 +120,7 @@ program midas_extractBmatrixFor1Dvar
   call mmpi_initialize
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0, 'Main')
+  call utl_printTime()
   ierr = fstopc('MSGLVL', 'ERRORS', 0)
 
   ! Read the namelists
@@ -325,6 +326,7 @@ program midas_extractBmatrixFor1Dvar
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   
   ! MPI, tmg finalize
+  call utl_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
