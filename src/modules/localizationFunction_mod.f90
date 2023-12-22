@@ -33,13 +33,25 @@ CONTAINS
   
     select case(trim(LocFunctionWanted))
     case ('FifthOrder')
-       write(*,*)
-       write(*,*) 'lfn_setup: Using Gaspari and Cohn 5th order piecewise rationale function'
-       LocFunction='FifthOrder'
+      write(*,*)
+      write(*,*) 'lfn_setup: Using Gaspari and Cohn 5th order piecewise rationale function'
+      LocFunction='FifthOrder'
+    case ('ThirdOrder')
+      write(*,*)
+      write(*,*) 'lfn_setup: Using 3rd order autoregression function (TOAR)'
+      LocFunction='ThirdOrder'
+    case ('SecondOrder')
+      write(*,*)
+      write(*,*) 'lfn_setup: Using 2nd order autoregression function (SOAR)'
+      LocFunction='SecondOrder'
+    case ('FirstOrder')
+      write(*,*)
+      write(*,*) 'lfn_setup: Using 1st order autoregression function (FOAR)'
+      LocFunction='FirstOrder'
     case default
-       write(*,*)
-       write(*,*) 'Unsupported HORIZONTAL localization function : ', trim(LocFunctionWanted)
-       call utl_abort('lfn_setup')
+      write(*,*)
+      write(*,*) 'Unsupported localization function : ', trim(LocFunctionWanted)
+      call utl_abort('lfn_setup')
     end select
 
     initialized  = .true.
@@ -66,11 +78,17 @@ CONTAINS
 
     select case(trim(LocFunction))
     case ('FifthOrder')
-       correlation=lfn_FifthOrderFunction(distance,lengthscale)
+      correlation=lfn_FifthOrderFunction(distance,lengthscale)
+    case ('ThirdOrder')
+      correlation=lfn_thirdOrderFunction(distance,lengthscale)
+    case ('SecondOrder')
+      correlation=lfn_secondOrderFunction(distance,lengthscale)
+    case ('FirstOrder')
+      correlation=lfn_firstOrderFunction(distance,lengthscale)
     case default
-       write(*,*)
-       write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call utl_abort('lfn_Response')
+      write(*,*)
+      write(*,*) 'Unsupported localization function : ', trim(LocFunction)
+      call utl_abort('lfn_Response')
     end select
 
   end function lfn_Response
@@ -95,11 +113,17 @@ CONTAINS
 
     select case(trim(LocFunction))
     case ('FifthOrder')
-       gradient=lfn_FifthOrderFunctionGradient(distance,lengthscale)
+      gradient=lfn_FifthOrderFunctionGradient(distance,lengthscale)
+    case ('ThirdOrder')
+      gradient=lfn_thirdOrderFunctionGradient(distance,lengthscale)
+    case ('SecondOrder')
+      gradient=lfn_secondOrderFunctionGradient(distance,lengthscale)
+    case ('FirstOrder')
+      gradient=lfn_firstOrderFunctionGradient(distance,lengthscale)
     case default
-       write(*,*)
-       write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call utl_abort('lfn_gradient')
+      write(*,*)
+      write(*,*) 'Unsupported localization function : ', trim(LocFunction)
+      call utl_abort('lfn_gradient')
     end select
 
   end function lfn_gradient
@@ -122,21 +146,21 @@ CONTAINS
     halflength = lengthscale/2.d0
 
     if ( distance <= halflength ) then
-       correlation = -0.250d0*(distance/halflength)**5  &
-                     +         0.5d0*(distance/halflength)**4  &
-                     +       0.625d0*(distance/halflength)**3  &
-                     - (5.0d0/3.0d0)*(distance/halflength)**2  &
-                     + 1.0d0
+      correlation = -0.250d0*(distance/halflength)**5  &
+                    +         0.5d0*(distance/halflength)**4  &
+                    +       0.625d0*(distance/halflength)**3  &
+                    - (5.0d0/3.0d0)*(distance/halflength)**2  &
+                    + 1.0d0
     else if ( distance <= (2.0d0*halflength) ) then
-       correlation =  (1.0d0/12.0d0)*(distance/halflength)**5  &
-                     -         0.5d0*(distance/halflength)**4  &
-                     +       0.625d0*(distance/halflength)**3  &
-                     + (5.0d0/3.0d0)*(distance/halflength)**2  &
-                     -         5.0d0*(distance/halflength)     &
-                     + 4.0d0                                 &
-                     - (2.0d0/3.0d0)*(halflength/distance) 
+      correlation =  (1.0d0/12.0d0)*(distance/halflength)**5  &
+                    -         0.5d0*(distance/halflength)**4  &
+                    +       0.625d0*(distance/halflength)**3  &
+                    + (5.0d0/3.0d0)*(distance/halflength)**2  &
+                    -         5.0d0*(distance/halflength)     &
+                    + 4.0d0                                 &
+                    - (2.0d0/3.0d0)*(halflength/distance) 
     else
-       correlation = 0.d0
+      correlation = 0.d0
     endif
 
   end function lfn_FifthOrderFunction
@@ -160,25 +184,201 @@ CONTAINS
 
     ! Compute df/dhalflength
     if ( distance <= halflength ) then
-       gradient =     5.d0*0.250d0*(distance/halflength)**5 / halflength  &
-                  -     4.d0*0.5d0*(distance/halflength)**4 / halflength  &
-                  -   3.d0*0.625d0*(distance/halflength)**3 / halflength  &
-                  + (10.0d0/3.0d0)*(distance/halflength)**2 / halflength
+      gradient =     5.d0*0.250d0*(distance/halflength)**5 / halflength  &
+                 -     4.d0*0.5d0*(distance/halflength)**4 / halflength  &
+                 -   3.d0*0.625d0*(distance/halflength)**3 / halflength  &
+                 + (10.0d0/3.0d0)*(distance/halflength)**2 / halflength
     else if ( distance <= (2.0d0*halflength) ) then
-       gradient =  (-5.0d0/12.0d0)*(distance/halflength)**5 / halflength  &
-                  +    4.0d0*0.5d0*(distance/halflength)**4 / halflength  &
-                  -  3.0d0*0.625d0*(distance/halflength)**3 / halflength  &
-                  - (10.0d0/3.0d0)*(distance/halflength)**2 / halflength  &
-                  +          5.0d0*(distance/halflength)    / halflength  &
-                  -   (2.0d0/3.0d0)*(1.0d0/distance) 
+      gradient =  (-5.0d0/12.0d0)*(distance/halflength)**5 / halflength  &
+                 +    4.0d0*0.5d0*(distance/halflength)**4 / halflength  &
+                 -  3.0d0*0.625d0*(distance/halflength)**3 / halflength  &
+                 - (10.0d0/3.0d0)*(distance/halflength)**2 / halflength  &
+                 +          5.0d0*(distance/halflength)    / halflength  &
+                 -   (2.0d0/3.0d0)*(1.0d0/distance) 
     else
-       gradient = 0.d0
+      gradient = 0.d0
     endif
 
     ! Compute df/dlengthscale (= df/dhalflength * dhalflength/dlengthscale)
     gradient = gradient / 2.d0
 
   end function lfn_FifthOrderFunctionGradient
+
+  !--------------------------------------------------------------------------
+  ! lfn_thirdOrderFunction
+  !--------------------------------------------------------------------------
+  function lfn_thirdOrderFunction(distance,lengthscale) result(correlation)
+  !
+  !:Purpose: Calculate third-order autoregression function value (TOAR)
+  !
+  !:Comments: See "Gneiting, T., 1999: Correlation functions for atmospheric
+  !           data analysis, QJRMS, 125, pp. 2449-2464"
+  ! 
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: correlation
+
+    ! Locals:
+    real(8) :: scale, expn
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale
+    if ( expn > 10 ) then
+      correlation = 0.0d0
+    else
+      correlation = (1.0d0 + expn*(1.0d0 + expn/3.0d0)) * exp(-expn)
+    end if
+
+  end function lfn_thirdOrderFunction
+
+  !--------------------------------------------------------------------------
+  ! lfn_thirdOrderFunctionGradient
+  !--------------------------------------------------------------------------
+  function lfn_thirdOrderFunctionGradient(distance,lengthscale) result(gradient)
+  !
+  !:Purpose: Calculate gradient of third-order autoregression function (TOAR)
+  !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: gradient
+
+    ! Locals:
+    real(8) :: scale, expn
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale
+    if ( expn > 10 ) then
+      gradient = 0.0d0
+    else
+      gradient = expn**2 * scale * (1.0d0 + expn)/3.0d0 * exp(-expn)
+    end if
+    
+  end function lfn_thirdOrderFunctionGradient
+
+  !--------------------------------------------------------------------------
+  ! lfn_secondOrderFunction
+  !--------------------------------------------------------------------------
+  function lfn_secondOrderFunction(distance,lengthscale) result(correlation)
+  !
+  !:Purpose: Calculate second-order autoregression function value (SOAR)
+  !
+  !:Comments: See "Gneiting, T., 1999: Correlation functions for atmospheric
+  !           data analysis, QJRMS, 125, pp. 2449-2464"
+  !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: correlation
+
+    ! Locals:
+    real(8) :: scale, expn
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale
+    if ( expn > 10 ) then
+      correlation = 0.0d0
+    else
+      correlation = (1.0d0 + expn) * exp(-expn)
+    end if
+
+  end function lfn_secondOrderFunction
+
+  !--------------------------------------------------------------------------
+  ! lfn_secondOrderFunctionGradient
+  !--------------------------------------------------------------------------
+  function lfn_secondOrderFunctionGradient(distance,lengthscale) result(gradient)
+  !
+  !:Purpose: Calculate gradient of second-order autoregression function (SOAR)
+  !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: gradient
+
+    ! Locals:
+    real(8) :: scale, expn
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale 
+    if ( expn > 10 ) then
+      gradient = 0.0d0
+    else
+      gradient = expn**2 * scale * exp(-expn)
+    end if
+
+  end function lfn_secondOrderFunctionGradient
+
+  !--------------------------------------------------------------------------
+  ! lfn_firstOrderFunction
+  !--------------------------------------------------------------------------
+  function lfn_firstOrderFunction(distance,lengthscale) result(correlation)
+  !
+  !:Purpose: Calculate first-order autoregression function value (FOAR)
+  !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: correlation
+
+    ! Locals:
+    real(8) :: scale, expn
+    real(8), parameter :: power = 1.0d0
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale
+    if ( expn > 10 ) then
+      correlation = 0.0d0
+    else
+      correlation = exp(-expn**power)
+    end if
+
+  end function lfn_firstOrderFunction
+
+  !--------------------------------------------------------------------------
+  ! lfn_firstOrderFunctionGradient
+  !--------------------------------------------------------------------------
+  function lfn_firstOrderFunctionGradient(distance,lengthscale) result(gradient)
+  !
+  !:Purpose: Calculate gradient of first-order autoregression function (FOAR)
+  !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: distance       ! Distance (arbitrary units)
+    real(8), intent(in) :: lengthscale    ! Length scale in distance 
+    ! Result:
+    real(8) :: gradient
+
+    ! Locals:
+    real(8) :: scale, expn
+    real(8), parameter :: power = 1.0d0
+
+    scale = 1.0d0 / lengthscale
+    expn = distance * scale
+    if ( expn > 10 ) then
+      gradient = 0.0d0
+    else
+      gradient = expn**power * scale * exp(-expn**power)
+    end if
+    
+  end function lfn_firstOrderFunctionGradient
 
 !--------------------------------------------------------------------------
 ! lfn_CreateBiPerFunction
@@ -260,32 +460,38 @@ CONTAINS
   ! LFN_LENGTHSCALE
   !--------------------------------------------------------------------------
   subroutine lfn_lengthscale(lengthscale, rmse, localizationValues, &
-                             distance, weight, numbins)
+                             distance, weight, numbins, verbose_opt)
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: numBins
-    real(8), intent(in)    :: localizationValues(numBins)
-    real(8), intent(in)    :: distance(numBins)
-    real(8), intent(in)    :: weight(numBins)
-    real(8), intent(inout) :: lengthscale
-    real(8), intent(out)   :: rmse
+    integer, intent(in)    :: numBins                     ! Number of values to fit
+    real(8), intent(in)    :: localizationValues(numBins) ! Values to fit
+    real(8), intent(in)    :: distance(numBins)           ! Positions
+    real(8), intent(in)    :: weight(numBins)             ! Weight assigned to value
+    real(8), intent(inout) :: lengthscale                 ! Fit parameter
+    real(8), intent(out)   :: rmse                        ! rmse of final fit
+    logical, optional, intent(in) :: verbose_opt          ! .true. for summary of iteration process
 
     ! Locals:
-    integer :: ierr, ilist
+    integer :: ierr
+    logical :: verbose
     real(8) :: minv, fit
 
     ! 1.  Initialization
-    ilist       = 1 
-    ierr        = 0
-    minv        = 0.01
+    ierr = 0
+    minv = 0.01
+    if (present(verbose_opt)) then
+      verbose = verbose_opt
+    else 
+      verbose = .true. 
+    end if
 
     ! 2.  Apply Curve fitting algorithm
     call lfn_curveFit(numBins, distance,      & ! IN
                       localizationValues,     & ! IN
                       weight, numBins,        & ! IN
                       lengthscale,            & ! INOUT
-                      minv, ilist,            & ! IN
+                      minv, verbose,          & ! IN
                       ierr,                   & ! INOUT
                       fit)                      ! OUT
 
@@ -297,7 +503,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! LFN_CURVEFIT
   !--------------------------------------------------------------------------
-  subroutine lfn_curveFit(Nn, x, y, w, nmax, param, minv, ilist, ierr, ssq)
+  subroutine lfn_curveFit(Nn, x, y, w, nmax, param, minv, verbose, ierr, ssq)
     !
     !:Purpose: This subroutine computes the lengthscale (sl, here: param) of a
     !          FUNCTION that best fits (in a least-square perspective) a
@@ -316,7 +522,7 @@ CONTAINS
     INTEGER, INTENT(IN)    :: nmax
     REAL(8), INTENT(INOUT) :: param
     REAL(8), INTENT(IN)    :: minv
-    INTEGER, INTENT(IN)    :: ilist
+    LOGICAL, INTENT(IN)    :: verbose
     INTEGER, INTENT(INOUT) :: ierr
     REAL(8), INTENT(OUT)   :: ssq
 
@@ -420,7 +626,7 @@ CONTAINS
        ! 2.5  Print some info
        FMT1 = "(A12,2X,A2,I6,2X,A2,I3,2X,A2,G10.4,2X,A5,G10.4,2X,A2,G10.4)"
        
-       IF (ilist == 1) WRITE(*,FMT1) RoutineName,'i=',iter,'n=',nbis,'m=',m,  &
+       IF (verbose) WRITE(*,FMT1) RoutineName,'i=',iter,'n=',nbis,'m=',m,  &
             'rmsd=',rootmsq,'s=',param
        
     END DO

@@ -334,7 +334,8 @@ contains
   !--------------------------------------------------------------------------
   ! utl_matInverse
   !--------------------------------------------------------------------------
-  subroutine utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt)
+  subroutine utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt, &
+                            eigenValueRelThreshold_opt)
     !
     !:Purpose: Calculate the inverse of a covariance matrix 
     !          and, optionally, also the inverse square-root.
@@ -345,11 +346,12 @@ contains
     integer,           intent(in)    :: rank                 ! order of the matrix
     real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
     real(8), optional, intent(inout) :: inverseSqrt_opt(:,:) ! if present, the inverse sqrt matrix on exit 
+    real(8), optional, intent(in)    :: eigenValueRelThreshold_opt
     logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
-
+    
     ! Locals:
     integer :: index1, index2, info, sizework
-    real(8) :: sizework_r8
+    real(8) :: sizework_r8, eigenValueMin
     real(8), allocatable :: work(:), eigenVectors(:,:), eigenValues(:)
     logical :: printInformation
 
@@ -365,7 +367,7 @@ contains
       write(*,*)' utl_matInvers: Inverse matrix of a symmetric matrix'
     end if
 
-    !     1. Computation of eigenvalues and eigenvectors
+    ! 1. Computation of eigenvalues and eigenvectors
 
     allocate(eigenVectors(rank,rank))
     allocate(eigenValues(rank))
@@ -397,10 +399,16 @@ contains
       end if
     end if
 
-    !     2.  Take inverse of eigenvalues
+    ! 2.  Take inverse of eigenvalues
 
+    if (present(eigenValueRelThreshold_opt)) then
+      eigenValueMin = eigenValueRelThreshold_opt*maxval(eigenValues(1:rank))
+    else
+      eigenValueMin = 1.0d-10
+    end if
+    
     do index1=1,rank
-      if(eigenValues(index1) > 1.0d-10) then
+      if(eigenValues(index1) > eigenValueMin) then
         eigenValues(index1)= 1.0d0/eigenValues(index1)
       else
         write(*,*) 'utl_matInverse: WARNING eigenvalue is too small = ', index1, eigenValues(index1)
@@ -413,7 +421,7 @@ contains
       write(*,'(1x,10f7.3)') (eigenValues(index1),index1=1,rank)
     end if
 
-    !     3.  Compute the inverse matrix
+    ! 3.  Compute the inverse matrix
 
     do index2 = 1, rank
       do index1 = 1, rank
@@ -423,7 +431,7 @@ contains
       end do
     end do
 
-    !     4.  If requested, computed the inverse square-root also
+    ! 4.  If requested, computed the inverse square-root also
 
     if (present(inverseSqrt_opt)) then
       do index1=1,rank
@@ -442,7 +450,7 @@ contains
       end do
     end if
 
-    !     5. Deallocate local arrays
+    ! 5. Deallocate local arrays
     deallocate(eigenVectors,eigenValues)
 
     if (printInformation) then

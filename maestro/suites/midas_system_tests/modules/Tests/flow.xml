@@ -518,6 +518,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="latbands_glb"/>
+    <FAMILY  name="latbands_glb">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="vertCorr_glb"/>
     <FAMILY  name="vertCorr_glb">
       <SUBMITS sub_name="UnitTest"/>
