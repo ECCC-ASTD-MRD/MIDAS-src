@@ -747,28 +747,6 @@ contains
         end if
       end if
     end do
-
-    do icol = 1, numCol
-      do ilev = 1, numLev
-
-        if (present(columnRef_opt)) then
-          if (emissPtrRef(ilev, icol) >= 0.0d0 .and. emissPtr(ilev, icol) < 0.0d0) then
-            emissPtr(ilev, icol) = 0.0d0
-          ! Limit simulated emissivity to one
-          else if (emissPtrRef(ilev, icol) <= 1.0d0 .and. emissPtr(ilev, icol) > 1.0d0) then
-            emissPtr(ilev, icol) = 1.0d0
-          end if
-        else
-          ! Limit simulated emissivity to one
-          if (emissPtr(ilev, icol) > 1.0d0) then
-            emissPtr(ilev, icol) = 1.0d0
-          !  Limit simulated emissivity to zero
-          else if (emissPtr(ilev, icol) < 0.0d0) then 
-            emissPtr(ilev, icol) = 0.0d0
-          end if
-        end if
-      end do
-    end do
-
   end subroutine sse_emissivityRttovLimits
+  
 end module surfaceEmissivity_mod 

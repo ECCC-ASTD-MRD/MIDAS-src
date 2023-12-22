@@ -309,7 +309,7 @@ module var1DIdealize_mod
   end subroutine var1Di_writeSimTrial
 
   !--------------------------------------------------------------------------
-  ! var1DIdealize_simulateObservation
+  ! var1Di_simulateObservation
   !--------------------------------------------------------------------------
   subroutine var1Di_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
     !
