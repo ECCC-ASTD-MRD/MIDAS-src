@@ -95,6 +95,7 @@ contains
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag
     integer :: stat(MPI_STATUS_SIZE)
+    integer, allocatable :: waitStatuses(:,:)
     integer :: latLonIndex, nEns, nLev_M, nLev_depth, nLev_weights
     integer :: memberIndex, memberIndex1, memberIndex2, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
@@ -106,14 +107,14 @@ contains
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: nEnsGain, eigenVectorColumnIndex
     integer :: memberIndexInModEns
-    type(mpi_request) :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
+    integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
 
     integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
     integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
-    type(mpi_request), allocatable :: requestIdRecv(:), requestIdSend(:)
+    integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: latLonTagMpiGlobal(:,:)
     integer, allocatable :: levIndex2FromVarLevIndex(:)
 
@@ -164,8 +165,11 @@ contains
     write(*,*) 'enkf_LETKFanalyses: myNumLatLonSendMax = ', myNumLatLonSendMax
     allocate(requestIdSend(3*myNumLatLonSendMax*maxval(numProcsSendMpiGlobal)))
     allocate(requestIdRecv(3*myNumLatLonRecv))
+    allocate(waitStatuses(MPI_STATUS_SIZE,myNumLatLonSendMax))
     allocate(weightsRecvCombined(nEnsGain, nEns+1, myNumLatLonRecv))
     allocate(weightsSendCombined(nEnsGain, nEns+1, myNumLatLonSendMax))
+    requestIdRecv(:) = 0
+    requestIdSend(:) = 0
     weightsRecvCombined(:,:,:) = 0.0d0
     weightsSendCombined(:,:,:) = 0.0d0
 
@@ -265,7 +269,7 @@ contains
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
                         nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestIdRecv(numRecv)
+write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, ierr, requestIdRecv(numRecv), latIndex, lonIndex
       end do
       call utl_tmg_stop(148)
       call utl_tmg_stop(132)
@@ -277,6 +281,9 @@ write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestI
       masterIsMe = (mmpi_myid == 0) .and. (trim(mpiDistribution) == 'MASTERWORKER')
 
       MASTER_WORKER: if (masterIsMe) then  ! I am the master
+
+        call utl_tmg_start(132,'----CommWeights')
+        call utl_tmg_start(145,'----CommWeights-signals')
 
         ! Loop over all gridpoints where calculations need to be performed
         write(*,*) 'Start of loop over all global grid points where weights computed'
@@ -310,6 +317,9 @@ write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestI
         call mpi_waitAll(mmpi_nprocs-1, requestIdSendFinished(:), MPI_STATUSES_IGNORE, ierr)
         call mpi_waitAll(mmpi_nprocs-1, requestIdRecvFinished(:), MPI_STATUSES_IGNORE, ierr)
 
+        call utl_tmg_stop(145)
+        call utl_tmg_stop(132)
+
       else  ! I am a worker
 
         ! Main loop over grid points for computing analysis weights
@@ -318,6 +328,9 @@ write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestI
         LATLON_LOOP: do
 
           if (trim(mpiDistribution) == 'MASTERWORKER') then
+
+            call utl_tmg_start(132,'----CommWeights')
+            call utl_tmg_start(145,'----CommWeights-signals')
 
             ! Signal that I am ready for assignment
             readySignal = 'A'
@@ -328,6 +341,9 @@ write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestI
             call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
                           mmpi_comm_grid, stat, ierr)
 
+            call utl_tmg_stop(145)
+            call utl_tmg_stop(132)
+
             ! Check if we are done
             if (latLonIndexMpiGlobal == 0) then
               write(*,*) 'Received the *finished* signal, after doing this many gridpoints: ', latLonIndex
@@ -337,7 +353,7 @@ write(*,*) 'recv weights, numRecv, recvTag = ', numRecv, recvTag, ierr, requestI
           else if (trim(mpiDistribution) == 'ROUNDROBIN') then
 
             ! Find the next value of latLonIndexMpiGlobal that I am responsible for
-            do 
+            do
               latLonIndexMpiGlobal = latLonIndexMpiGlobal + 1
               if (latLonIndexMpiGlobal > numLatLonMpiGlobal) then
                 write(*,*) 'Finished processing this many gridpoints: ', latLonIndex
@@ -403,7 +419,7 @@ write(*,*) 'copy weights for :', latLonIndex, latIndex, lonIndex
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
                             nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                             mmpi_comm_grid, requestIdSend(numSend), ierr )
-write(*,*) 'sent weights, numSend, sendTag = ', numSend, sendTag, ierr, requestIdSend(numSend)
+write(*,*) 'sent weights, numSend, sendTag, lat/lonIndex = ', numSend, sendTag, ierr, requestIdSend(numSend), latIndex, lonIndex
           end do
           call utl_tmg_stop(149)
           call utl_tmg_stop(132)
@@ -421,7 +437,8 @@ write(*,*) 'original waitAll for irecv, numRecv = ', numRecv, requestIdRecv(1:nu
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), waitStatuses, ierr)
+        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for IRECV')
       end if
       call utl_tmg_stop(147)
 
@@ -443,7 +460,8 @@ write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:nu
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatuses, ierr)
+        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
       end if
       call utl_tmg_stop(146)
       call utl_tmg_stop(132)
