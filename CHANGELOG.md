@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)
+   ** New namelist NAMCOMPUTEBHILATBANDS and new possible output files hCorrelFit.txt and vCorrelFit.txt. 
  * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
  * Option to estimate background error stddev in observation space in Idealized var1D (#874 and !784)
  * All-sky assimilation for ATMS humidity channels (#875 and !787)
