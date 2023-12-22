@@ -29,6 +29,7 @@ module var1DIdealize_mod
     use obsErrors_mod
     use tovsNL_mod
     use tovsLin_mod
+    use surfaceEmissivity_mod
   
     implicit none
     save
@@ -114,7 +115,7 @@ module var1DIdealize_mod
 
     ! Restict simulate background surface emissivity within physical values
     if (col_varExist(columnSimTrlOnTrlLev, 'EMMW')) then
-      call var1DIdealize_emissivityRttovLimits(columnSimTrlOnTrlLev, columnRef_opt = columnTruthOnTrlLev)
+      call sse_emissivityRttovLimits(columnSimTrlOnTrlLev, columnRef_opt = columnTruthOnTrlLev)
     end if
 
     ! Interpolate the truth from trial to analysis increment levels
@@ -308,102 +309,7 @@ module var1DIdealize_mod
   end subroutine var1Di_writeSimTrial
 
   !--------------------------------------------------------------------------
-<<<<<<< HEAD
-  ! var1Di_simulateObservation
-=======
-  ! var1DIdealize_emissivityRttovLimits
-  !--------------------------------------------------------------------------
-  subroutine var1DIdealize_emissivityRttovLimits(column, columnRef_opt)
-    !
-    !:Purpose: Restrict simulated background surface emissivity within physical
-    !          values, between 0 and 1. Fill column%all(:,:) with missing emissivity 
-    !          values based on a reference column object, if present.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_columnData),           intent(inout)  :: column         ! Perturbed column object
-    type(struct_columnData), optional, intent(in)     :: columnRef_opt  ! Reference column object (non-perturbed)
-    ! Locals:
-    real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
-    integer              :: numCol, numLev, numColRef, numLevRef
-    integer              :: icol, ilev
-    real(8), parameter   :: missingValue = -1.0d0
-    real(8)              :: emissDiffTmp
-    real(8)              :: emissAboveThres
-
-    numCol = col_getNumCol(column)
-    numLev = col_getNumLev(column,'OT', varname_opt = 'EMMW')
-    emissPtr => col_getAllColumns(column,'EMMW')
-
-    if (present(columnRef_opt)) then
-      numColRef = col_getNumCol(columnRef_opt)
-      numLevRef = col_getNumLev(columnRef_opt,'OT', varname_opt = 'EMMW')
-      emissPtrRef => col_getAllColumns(columnRef_opt,'EMMW')
-
-      if (numCol /= numColRef .and. numLev /= numLevRef) then
-        call utl_abort('var1DIdealize_emissivityRttovLimits: number of column and &
-                        levels between column and reference column are not the same')
-      end if
-    end if
-
-    do icol = 1, numCol
-      if (present(columnRef_opt)) then
-        ! Fill missing value if ref column also have missing value
-        if (any(emissPtrRef(:, icol) == missingValue)) then
-          emissPtr(:, icol) = missingValue
-        ! Fill missing value if ref column have negative emissivity
-        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
-          emissPtr(:, icol) = missingValue
-        ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
-          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        ! Limit simulated emissivity to one
-        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
-          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        end if
-      else
-        ! Limit simulated emissivity to one
-        if(any(emissPtr(:, icol) < 0.0d0)) then 
-          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        !  Limit simulated emissivity to zero
-        else if(any(emissPtr(:, icol) > 1.0d0)) then 
-          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-         emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        end if
-      end if
-    end do
-
-    do icol = 1, numCol
-      do ilev = 1, numLev
-
-        if (present(columnRef_opt)) then
-          if (emissPtrRef(ilev, icol) >= 0.0d0 .and. emissPtr(ilev, icol) < 0.0d0) then
-            emissPtr(ilev, icol) = 0.0d0
-          ! Limit simulated emissivity to one
-          else if (emissPtrRef(ilev, icol) <= 1.0d0 .and. emissPtr(ilev, icol) > 1.0d0) then
-            emissPtr(ilev, icol) = 1.0d0
-          end if
-        else
-          ! Limit simulated emissivity to one
-          if (emissPtr(ilev, icol) > 1.0d0) then
-            emissPtr(ilev, icol) = 1.0d0
-          !  Limit simulated emissivity to zero
-          else if (emissPtr(ilev, icol) < 0.0d0) then 
-            emissPtr(ilev, icol) = 0.0d0
-          end if
-        end if
-      end do
-    end do
-
-  end subroutine var1DIdealize_emissivityRttovLimits
-
-  !--------------------------------------------------------------------------
   ! var1DIdealize_simulateObservation
->>>>>>> 7a964a9ff (Issue #878: Impose physical restriction on simulated surface emissivity, between 0 and 1.)
   !--------------------------------------------------------------------------
   subroutine var1Di_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
     !
