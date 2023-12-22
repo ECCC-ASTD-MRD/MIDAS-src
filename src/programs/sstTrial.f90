@@ -100,7 +100,8 @@ program midas_sstTrial
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
-  
+  call utl_printTime()
+
   ! 1. Top level setup
 
   ! Read the namelists
@@ -118,6 +119,7 @@ program midas_sstTrial
 
   istamp = exfin('SSTTRIAL','FIN','NON')
   call utl_tmg_stop(0)
+  call utl_printTime()
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 

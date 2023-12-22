@@ -186,6 +186,7 @@ program midas_randomPert
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call utl_printTime()
 
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -765,6 +766,7 @@ program midas_randomPert
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   !
   !- 6.  MPI, tmg finalize

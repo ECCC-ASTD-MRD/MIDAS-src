@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added new timing tool to print time and accumulated time to listing (#864 and !798)
 
 ### Changed
 

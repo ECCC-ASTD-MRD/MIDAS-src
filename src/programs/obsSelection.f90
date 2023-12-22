@@ -236,6 +236,7 @@ program midas_obsSelection
   !- 1.1 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   ! Read the namelists
   call utl_readNml()
@@ -479,6 +480,7 @@ program midas_obsSelection
 
   call rpn_comm_finalize(ierr)
 
+  call utl_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

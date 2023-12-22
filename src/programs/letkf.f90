@@ -279,6 +279,7 @@ program midas_letkf
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   call utl_readNml()
 
@@ -572,6 +573,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+      call utl_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
@@ -784,6 +786,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to analysis ensemble member ', memberIndex
       write(*,*) ''
+      call utl_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleAnl, stateVectorMemberAnl, memberIndex)
@@ -846,6 +849,8 @@ program midas_letkf
   
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
+    call utl_printTime()
+
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)
     call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
@@ -866,6 +871,7 @@ program midas_letkf
                              readHeightSfc_opt=.false. )
     end do
 
+    call utl_printTime()
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
                          writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
   else
@@ -888,6 +894,7 @@ program midas_letkf
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
