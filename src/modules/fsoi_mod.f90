@@ -1016,7 +1016,7 @@ module fsoi_mod
                     field_LQ(lonIndex,latIndex,levIndex,stepIndex) * field_LQ(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
 
               field_LQ(lonIndex,latIndex,levIndex,stepIndex) = &
-                       field_LQ(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor * qfac * 0.0
+                       field_LQ(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor * qfac
 
             end do
           end do

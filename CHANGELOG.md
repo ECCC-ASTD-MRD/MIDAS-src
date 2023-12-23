@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug in `fsoi_mod` for calculating the forecast error in terms of humidity (#891 and !799)
  * Fix bug when reading mixture of burp and sqlite files (#887 and !795)
  * Fix array bounds error in `fsoi_mod` (#883 and !792)
 
