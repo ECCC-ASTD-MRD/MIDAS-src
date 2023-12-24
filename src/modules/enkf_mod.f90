@@ -262,10 +262,12 @@ contains
       do latLonIndex = 1, myNumLatLonRecv
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
-        recvTag = latLonTagMpiGlobal(lonIndex,latIndex)
+        recvTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
+        recvTag = 1 + mod(recvTag-1, mmpi_maxTagValue - 10) 
 
         nsize = nEnsGain * (nEns+1)
         numRecv = numRecv + 1
+        weightsRecvCombined(:,:,latLonIndex) = -999.8d0
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
                         nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
@@ -411,7 +413,8 @@ write(*,*) 'copy weights for :', latLonIndex, latIndex, lonIndex
           weightsSendCombined(:,(nEns+1),latLonIndex) = weightsMeanLatLon(:,1,latLonIndex)
 
           do procIndex = 1, numProcsSendMpiGlobal(latLonIndexMpiGlobal)
-            sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
+            sendTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
+            sendTag = 1 + mod(sendTag-1, mmpi_maxTagValue - 10) 
             procIndexSend = procIndexesSendMpiGlobal(latLonIndexMpiGlobal, procIndex)
 
             nsize = nEnsGain * (nEns+1)
@@ -449,21 +452,18 @@ write(*,*) 'original waitAll for irecv, numRecv = ', numRecv, requestIdRecv(1:nu
         lonIndex = myLonIndexesRecv(latLonIndex)
         weightsMembers(:,:,lonIndex,latIndex) = weightsRecvCombined(:,1:nEns,latLonIndex)
         weightsMean(:,1,lonIndex,latIndex)    = weightsRecvCombined(:,(nEns+1),latLonIndex)
+        if (any(weightsMembers(:,:,lonIndex,latIndex) < -999.0d0)) then
+          write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
+          write(*,*) 'weightsMembers = ', weightsMembers(:,:,lonIndex,latIndex)
+          call utl_abort('Invalid weight value received!!!')
+        end if
+        if (any(weightsMean(:,:,lonIndex,latIndex) < -999.0d0)) then
+          write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
+          write(*,*) 'weightsMean = ', weightsMean(:,:,lonIndex,latIndex)
+          call utl_abort('Invalid weight value received!!!')
+        end if
       end do
       call utl_tmg_stop(148)
-      call utl_tmg_stop(132)
-
-      !
-      ! Wait for SEND communications to finish before continuing
-      !
-write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:numSend)
-      call utl_tmg_start(132,'----CommWeights')
-      call utl_tmg_start(146,'----CommWeights-waitSend')
-      if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatuses, ierr)
-        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
-      end if
-      call utl_tmg_stop(146)
       call utl_tmg_stop(132)
 
       !
@@ -629,6 +629,21 @@ write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:nu
       !$OMP END PARALLEL DO
 
       call utl_tmg_stop(143)
+
+      !
+      ! Wait for SEND communications to finish before continuing
+      !
+write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:numSend)
+      call utl_tmg_start(132,'----CommWeights')
+      call utl_tmg_start(146,'----CommWeights-waitSend')
+      if ( numSend > 0 ) then
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatuses, ierr)
+        if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
+      end if
+      call utl_tmg_stop(146)
+      call utl_tmg_stop(132)
+      ! Should be safe to reuse buffer used for mpi_isend and the call to mpi_waitAll
+      weightsSendCombined(:,:,:) = -999.9d0
 
     end do LEV_LOOP
 
