@@ -20,8 +20,8 @@ module physicsFunctions_mod
   public :: phf_FOEWI8_CMAM, phf_FODLE8_CMAM, phf_FOQST8_CMAM, phf_FOTW8_CMAM, phf_FOTI8_CMAM, phf_FODTW8_CMAM
   public :: phf_FODTI8_CMAM, phf_FOTWI8_CMAM, phf_FODTWI8_CMAM, phf_FQBRANCH, phf_FOEFQL, phf_fotvvl, phf_FOEFQA
   public :: phf_FOEFQPSA, phf_fottva, phf_folnqva
-  public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
-  public :: phf_get_tropopause, phf_get_pbl, phf_calcDistance, phf_calcDistanceFast
+  public :: phf_convertZtoPressure,phf_convertZtoGZ
+  public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf
 
   logical           :: phf_initialized = .false.
@@ -844,9 +844,9 @@ module physicsFunctions_mod
   !-------------------------------------------------------------------------------------------
 
   !--------------------------------------------------------------------------
-  ! PHF_CONVERT_Z_TO_PRESSURE
+  ! phf_convertZtoPressure
   !--------------------------------------------------------------------------
-  function  phf_convert_z_to_pressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
+  function  phf_convertZtoPressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
     !          
     !:Purpose: Converts an array of (geometric) altitudes to pressures. Uses linear interpolation
     !          in log(p).  
@@ -868,44 +868,50 @@ module physicsFunctions_mod
     integer :: ilev,ilev_mod
 
     ! Check model pressures
-    if (any(press_mod.lt.0.0D0)) call utl_abort("phf_compute_z_to_pressure: Invalid model pressure.")
+    if (any(press_mod < 0.0d0)) call utl_abort("phf_convertZtoPressure: Invalid model pressure.")
     
     ! Convert altitudes to geopotential heights
-    rgz = phf_convert_z_to_gz(altitude,lat,nlev)
+    rgz = phf_convertZtoGZ(altitude,lat,nlev)
 
-    do ilev=1,nlev
-
-       ! Check if height is above or below model boundaries
-       if ( rgz(ilev).gt.rgz_mod(1) .or. rgz(ilev).lt.rgz_mod(nlev_mod) ) then
-          success(ilev)=.false.
-       end if
-
-       if (success(ilev)) then
-
-          ! Find model layers directly above and below rgz(ilev).
-          ! After exit of loop we will have 
-          ! rgz_mod(ilev_mod) >= rgz(ilev) > rgz_mod(ilev_mod+1)
-          do ilev_mod=1,nlev_mod-1
-             if ( rgz(ilev).le.rgz_mod(ilev_mod) .and. &
-                  rgz(ilev).gt.rgz_mod(ilev_mod+1) ) exit
-          end do
-          
-          ! Linear interpolation in gz,log(p)
-          press(ilev) = press_mod(ilev_mod+1) * (press_mod(ilev_mod)/press_mod(ilev_mod+1))**( &
-               (rgz(ilev)-rgz_mod(ilev_mod+1))/(rgz_mod(ilev_mod)-rgz_mod(ilev_mod+1)) )
-
-       else
-          press(ilev) = 0.0
-       end if
-
+    do ilev = 1, nlev
+      ! Check if height is within model boundaries
+      if ( rgz(ilev) <= rgz_mod(1) .and. rgz(ilev) >= rgz_mod(nlev_mod) ) then
+        ! Find model layers directly above and below rgz(ilev).
+        ! After exit of loop we will have 
+        ! rgz_mod(ilev_mod) >= rgz(ilev) > rgz_mod(ilev_mod+1)
+        do ilev_mod = 1, nlev_mod-1
+          if ( rgz(ilev) <= rgz_mod(ilev_mod) .and. &
+               rgz(ilev) > rgz_mod(ilev_mod+1) ) exit
+        end do          
+        ! Linear interpolation in gz,log(p)
+        press(ilev) = press_mod(ilev_mod+1) * (press_mod(ilev_mod)/press_mod(ilev_mod+1))**( &
+          (rgz(ilev)-rgz_mod(ilev_mod+1))/(rgz_mod(ilev_mod)-rgz_mod(ilev_mod+1)) )
+      else
+        ! Linear extrapolation 
+        if (rgz(ilev) > rgz_mod(1)) then
+          press(ilev) = press_mod(2) * (press_mod(1)/press_mod(2))**( &
+            (rgz(ilev)-rgz_mod(2))/(rgz_mod(1)-rgz_mod(2)) )
+	  if (press(ilev) < 0.1d0*press_mod(1)) then
+	    press(ilev) = 0.1d0*press_mod(1)
+	    success(ilev) = .false.
+          end if	    
+        else
+          press(ilev) = press_mod(nlev_mod) * (press_mod(nlev_mod-1)/press_mod(nlev_mod))**( &
+            (rgz(ilev)-rgz_mod(nlev_mod))/(rgz_mod(nlev_mod-1)-rgz_mod(nlev_mod)) )
+	  if (press(ilev) > max(1.2d5,1.2d0*press_mod(nlev_mod))) then
+	    press(ilev) = max(1.2d5,1.2d0*press_mod(nlev_mod))
+	    success(ilev) = .false.
+          end if	    
+        end if
+      end if
     end do
 
-  end function phf_convert_z_to_pressure
+  end function phf_convertZtoPressure
 
   !--------------------------------------------------------------------------
-  ! PHF_CONVERT_Z_TO_GZ
+  ! phf_convertZtoGZ
   !--------------------------------------------------------------------------
-  function phf_convert_z_to_gz(altitude,lat,nlev) result(rgz)
+  function phf_convertZtoGZ(altitude,lat,nlev) result(rgz)
     !          
     !:Purpose: Converts altitudes to geopotential heights. Uses the Helmert formula to
     !          parameterize the latitude dependence and uses analytical result of the
@@ -922,14 +928,14 @@ module physicsFunctions_mod
     ! Result:
     real(8) :: rgz(nlev)                  ! geopotential heights (m)
 
-    rgz = (ec_rg/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * ec_ra*altitude/(ec_ra+altitude)
+    rgz = (ec_rg/9.8) * (1.0d0-2.64d-03*cos(2.0d0*lat)+5.9d-6*cos(2.0d0*lat)**2) * ec_ra*altitude/(ec_ra+altitude)
 
-  end function phf_convert_z_to_gz
+  end function phf_convertZtoGZ
 
   !--------------------------------------------------------------------------
-  ! PHF_GET_TROPOPAUSE
+  ! phf_calcTropopause
   !--------------------------------------------------------------------------
-  function phf_get_tropopause(nmodlev,pressmod,tt,height,hu_opt) result(tropo_press)
+  function phf_calcTropopause(nmodlev,pressmod,tt,height,hu_opt) result(tropo_press)
     !          
     !:Purpose: Determines pressure level of tropopause. 
     !          Final tropopause is taken as max pressure (lowest altitude) from the
@@ -949,14 +955,14 @@ module physicsFunctions_mod
     ! Locals:
     integer :: itop,i,k,ilaps
     real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
-    real(8), parameter :: press_min=6000.         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
-    real(8), parameter :: height_min=6000.0           ! Min tropopause level in meters.
-    real(8), parameter :: ppmv_threshold=10.0     
-    real(8), parameter :: tgrad_threshold=0.002   ! degrees/m (2 degrees/km)
-    real(8), parameter :: consth=0.160754938e+07  ! conversion from mass mixing ratio to ppmv;  1.0e+06 / (18.015/28.96)
+    real(8), parameter :: press_min=6.0d3         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
+    real(8), parameter :: height_min=6.0d3        ! Min tropopause level in meters.
+    real(8), parameter :: ppmv_threshold=10.0d0     
+    real(8), parameter :: tgrad_threshold=0.002d0 ! degrees/m (2 degrees/km)
+    real(8), parameter :: consth=0.160754938d7    ! conversion from mass mixing ratio to ppmv;  1.0d06 / (18.015/28.96)
 
-    tropo_press=-1.0
-    if (all(height.lt.0.0))  call utl_abort('phf_get_tropopause: Missing height for determining tropopause pressure')
+    tropo_press = -1.0d0
+    if (all(height < 0.0d0))  call utl_abort('phf_calcTropopause: Missing height for determining tropopause pressure')
 
     ! Initialize tropopause pressure level using temperature gradient.
     ! Thermal tropopause is defined as the lowest level (above height_min) at which (1) the lapse rate decreases
@@ -965,92 +971,84 @@ module physicsFunctions_mod
     !      Organization. 1992. p. 636. ISBN 92-63-02182-1.
     ! The second requirement, based on hu, may give levels that are to high (pressure too low) in the winter hemisphere.
 
-    do itop=3,nmodlev
-       if (pressmod(itop).ge.press_min) exit
+    do itop = 3 ,nmodlev
+      if (pressmod(itop) >= press_min) exit
     end do
-    itop=itop-1
+    itop = itop-1
        
-    do i=nmodlev,itop+1,-1
-       if (height(i)-height(nmodlev).lt.height_min) cycle
-       xlaps=-(tt(i)-tt(i-1))/(height(i)-height(i-1))
-       if (xlaps.le.tgrad_threshold) then
-          ilaps=1
-          do k=i-1,itop,-1
-             if (height(k)-height(i).gt.2000.0) exit
-             xlaps=xlaps-(tt(k)-tt(k-1))/(height(k)-height(k-1))
-             ilaps=ilaps+1
-          end do
-          if (xlaps/ilaps.le.tgrad_threshold) exit
-       end if
+    do i = nmodlev, itop+1, -1
+      if (height(i)-height(nmodlev) < height_min) cycle
+      xlaps = -(tt(i)-tt(i-1))/(height(i)-height(i-1))
+      if (xlaps <= tgrad_threshold) then
+        ilaps = 1
+        do k = i-1, itop, -1
+          if (height(k)-height(i) > 2.0d3) exit
+          xlaps = xlaps-(tt(k)-tt(k-1))/(height(k)-height(k-1))
+          ilaps = ilaps+1
+        end do
+        if (xlaps/ilaps <= tgrad_threshold) exit
+      end if
     enddo
-    tropo_press=pressmod(i)
+    tropo_press = pressmod(i)
     
     ! Improve on tropopause pressure levels using specific humidity if available,
 
-    if (present(hu_opt)) then
-    
-      !  Use water vapour
-      
-       hu_ppmv1=0.0
-       do i=itop,nmodlev
-
-          ! Convert specific humidity to ppmv mixing ratio.
-          ! First apply r=q/(1-q) to convert to mass mixing ratio.
-
-          if (hu_opt(i).le.0.8.and.hu_opt(i).ge.0) then
-               hu_ppmv2 = consth*hu_opt(i)/(1.0-hu_opt(i))
-          else if (hu_opt(i).gt.0.8) then
-               hu_ppmv2 = consth*0.8/(1.0-0.8)
-          else if (hu_opt(i).lt.0.0) then
-               hu_ppmv2 = 0.0
-          end if
-
-          ! Check if transition point reached.
-          ! Added requirement that levels below also satisfy this condition.
-
-          if (hu_ppmv2.ge.ppmv_threshold) then
-             ilaps=1
-             do k=i+1,nmodlev
-                if (height(i)-height(k).gt.5000.0) exit
-                if (hu_opt(k).le.0.8.and.hu_opt(k).ge.0) then
-                   hu_ppmv3 = consth*hu_opt(k)/(1.0-hu_opt(k))
-                else if (hu_opt(k).gt.0.8) then
-                   hu_ppmv3 = consth*0.8/(1.0-0.8)
-                else
-                   hu_ppmv3=0.0
-                end if
-                if (hu_ppmv3.lt.ppmv_threshold) ilaps=0
-             end do
-             if (ilaps.eq.1) exit
-          end if
-          hu_ppmv1=hu_ppmv2
-       end do
+    if (present(hu_opt)) then    
+      !  Use water vapour      
+      hu_ppmv1 = 0.0d0
+      do i = itop, nmodlev
+        ! Convert specific humidity to ppmv mixing ratio.
+        ! First apply r=q/(1.0d0-q) to convert to mass mixing ratio.
+        if (hu_opt(i) <= 0.8d0 .and. hu_opt(i) >= 0.0d0) then
+          hu_ppmv2 = consth*hu_opt(i)/(1.0d0-hu_opt(i))
+        else if (hu_opt(i) > 0.8d0) then
+          hu_ppmv2 = consth*0.8d0/(1.0d0-0.8d0)
+        else if (hu_opt(i) < 0.0d0) then
+          hu_ppmv2 = 0.0d0
+        end if
+	
+        ! Check if transition point reached.
+        ! Added requirement that levels below also satisfy this condition.
+        if (hu_ppmv2 >= ppmv_threshold) then
+          ilaps = 1
+          do k = i+1, nmodlev
+            if (height(i)-height(k) > 5.0d3) exit
+            if (hu_opt(k) <= 0.8d0 .and. hu_opt(k) >= 0.0d0) then
+              hu_ppmv3 = consth*hu_opt(k)/(1.0d0-hu_opt(k))
+            else if (hu_opt(k) > 0.8d0) then
+              hu_ppmv3 = consth*0.8d0/(1.0d0-0.8d0)
+            else
+              hu_ppmv3 = 0.0d0
+            end if
+            if (hu_ppmv3 < ppmv_threshold) ilaps = 0
+          end do
+          if (ilaps == 1) exit
+        end if
+        hu_ppmv1 = hu_ppmv2
+      end do
        
-       if (hu_ppmv2.ge.ppmv_threshold.and.ilaps.eq.1) then
-       
-            ! Interpolate between levels
-      
-             if (abs(hu_ppmv2-hu_ppmv1).lt.0.1) hu_ppmv1=hu_ppmv2-0.1
-!             tropo_press_hu=(log(pressmod(i))*(ppmv_threshold-hu_ppmv1)+ &
-!                    log(pressmod(i-1))*(hu_ppmv2-ppmv_threshold)) &
-!                   /(hu_ppmv2-hu_ppmv1)
-!             tropo_press_hu=exp(tropo_press_hu)
-             tropo_press_hu=pressmod(i)
+      if (hu_ppmv2 >= ppmv_threshold .and. ilaps == 1) then       
+        ! Interpolate between levels      
+        if (abs(hu_ppmv2-hu_ppmv1) < 0.1) hu_ppmv1 = hu_ppmv2-0.1
+!        tropo_press_hu = (log(pressmod(i))*(ppmv_threshold-hu_ppmv1)+ &
+!                        log(pressmod(i-1))*(hu_ppmv2-ppmv_threshold)) &
+!                        /(hu_ppmv2-hu_ppmv1)
+!        tropo_press_hu = exp(tropo_press_hu)
+        tropo_press_hu = pressmod(i)
              
-             tropo_press=min(tropo_press,tropo_press_hu)
-       else
-          write(*,*) 'phf_get_tropopause: Level and specific humidity: ',itop,hu_ppmv2
-          call utl_abort('phf_get_tropopause: Specific humidity too small.')
-       end if
-                             
+        tropo_press = min(tropo_press,tropo_press_hu)
+      else
+        write(*,*) 'phf_calcTropopause: Level and specific humidity: ',itop,hu_ppmv2
+        call utl_abort('phf_calcTropopause: Specific humidity too small.')
+      end if
     end if
     
-  end function phf_get_tropopause
+  end function phf_calcTropopause
 
   !--------------------------------------------------------------------------
-  ! PHF_GET_PBL
+  ! phf_calcPBL
   !--------------------------------------------------------------------------
-  function phf_get_pbl(nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(pbl_press)
+  function phf_calcPBL(nmodlev,pressmod,tt,height,hu_opt,uu_opt,vv_opt) result(pbl_press)
     ! 
     !:Purpose: Determines pressure level of planetary boundary layer using 
     !          a first threshold of 0.5 for the bulk Richadson number (after Mahrt, 1981; 
@@ -1086,19 +1084,19 @@ module physicsFunctions_mod
     real(8),           intent(in) :: pressmod(nmodlev) ! Model pressure array (Pa)
     real(8),           intent(in) :: tt(nmodlev)       ! Model temperature (Kelvin)
     real(8),           intent(in) :: height(nmodlev)   ! Model height (meters)
-    real(8), optional, intent(in) :: uu_opt(:)           ! Model zonal wind component (m/s)
-    real(8), optional, intent(in) :: vv_opt(:)           ! Model meridional wind component (m/s)
-    real(8), optional, intent(in) :: hu_opt(nmodlev)     ! Specific humidity
+    real(8), optional, intent(in) :: uu_opt(:)         ! Model zonal wind component (m/s)
+    real(8), optional, intent(in) :: vv_opt(:)         ! Model meridional wind component (m/s)
+    real(8), optional, intent(in) :: hu_opt(nmodlev)   ! Specific humidity
     ! Result:
     real(8) :: pbl_press                     ! PBL level in Pa (output)
 
     ! Locals:
     integer :: itop,i,id,igradmax,inv,iRiBmax
     real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(nmodlev),us,vs,uv,hus,huh,gradmax,grad
-    real(8), parameter :: kappa = 287.04/1004.67  ! R/Cp
-    real(8), parameter :: RiB_threshold=0.5, reduced=0.5 
+    real(8), parameter :: kappa = 287.04d0/1004.67d0  ! R/Cp
+    real(8), parameter :: RiB_threshold=0.5d0, reduced=0.5d0 
     ! Imposed min presssure of PBL height of 200 hPa (extreme; PBL height should normally be under 3km)
-    real(8), parameter :: press_min=20000.  
+    real(8), parameter :: press_min=2.0d4  
     real(8) :: huw(nmodlev)
 
     pbl_press=-1.0
@@ -1107,157 +1105,147 @@ module physicsFunctions_mod
 
     i = nmodlev   
     
-    if (all(height.lt.0.0))  call utl_abort('phf_get_pbl: Missing height for determining PBL pressure')
+    if (all(height < 0.0d0))  call utl_abort('phf_calcPBL: Missing height for determining PBL pressure')
 
     ! Convert hu to mass mixing ratio
 
     if (present(hu_opt)) then
-       huw(:)=hu_opt(:)
+       huw(:) = hu_opt(:)
     else
-       huw(:)=0.0
+       huw(:) = 0.0d0
     end if
     
-    if (huw(i).le.0.8.and.huw(i).ge.0) then
-        hus = huw(i)/(1.0-huw(i))
-    else if (huw(i).gt.0.8) then
-        hus = 0.8/(1.0-0.8)
-    else if (huw(i).lt.0.0) then
-        hus = 0.0
+    if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
+      hus = huw(i)/(1.0d0-huw(i))
+    else if (huw(i) > 0.8d0) then
+      hus = 0.8d0/(1.0d0-0.8d0)
+    else if (huw(i) < 0.0d0) then
+      hus = 0.0d0
     end if
-    zs = height(i)*0.001
+    zs = height(i)*0.001d0
     
     ! Potential virtual temperature at lowest prognostic level
-
-    thetavs = tt(i)*(1.D5/pressmod(i))**kappa* (1.0 + 0.61*hus )
+    thetavs = tt(i)*(1.d5/pressmod(i))**kappa* (1.0d0 + 0.61d0*hus )
     thetavh(nmodlev)=thetavs
 
     ! Set max vertical level
-
-    do itop=2,nmodlev-1
-       if (pressmod(itop).ge.press_min) exit
+    do itop = 2, nmodlev-1
+      if (pressmod(itop) >= press_min) exit
     end do
 
-    RiB1=0.0
-    RiB2=0.0
-    RiBmax=0.0
-    iRiBmax=0
-    if (present(uu_opt).and.present(vv_opt)) then
-       id=nmodlev-size(uu_opt)
-       if (id.gt.1.or.id.lt.0) then
-          call utl_abort('phf_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )    
-       end if
-       us = uu_opt(size(uu_opt))
-       vs = vv_opt(size(vv_opt))
+    RiB1 = 0.0d0
+    RiB2 = 0.0d0
+    RiBmax = 0.0d0
+    iRiBmax = 0
+    if (present(uu_opt) .and. present(vv_opt)) then
+      id = nmodlev-size(uu_opt)
+      if (id > 1 .or. id < 0) then
+        call utl_abort('phf_calcPBL: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )    
+      end if
+      us = uu_opt(size(uu_opt))
+      vs = vv_opt(size(vv_opt))
        
-!      us,vs set to 0.0
-!       us=0.0
-!       vs=0.0
+!     us,vs set to 0.0d0
+!     us=0.0d0
+!     vs=0.0d0
  
-       ! Calc RiB from near-surface to level attaining RiB_threshold
- 
-       do i=nmodlev-1,itop,-1
-  
-           if (huw(i).le.0.8.and.huw(i).ge.0) then
-               huh = huw(i)/(1.0-huw(i))
-           else if (huw(i).gt.0.8) then
-               huh = 0.8/(1.0-0.8)
-           else if (huw(i).lt.0.0) then
-               huh = 0.0
-           end if
-           thetavh(i) = tt(i)*(1.D5/pressmod(i))**kappa* ( 1.0 + 0.61*huh )
+      ! Calc RiB from near-surface to level attaining RiB_threshold 
+      do i = nmodlev-1, itop, -1  
+        if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
+          huh = huw(i)/(1.0d0-huw(i))
+        else if (huw(i) > 0.8d0) then
+          huh = 0.8d0/(1.0d0-0.8d0)
+        else if (huw(i) < 0.0d0) then
+          huh = 0.0d0
+        end if
+        thetavh(i) = tt(i)*(1.d5/pressmod(i))**kappa* ( 1.0d0 + 0.61d0*huh )
 
-           if (id.eq.0) then
-               uv = max( (uu_opt(i)-us)**2 + (vv_opt(i)-vs)**2, 1.D-8 ) 
-           else
-              ! Take layer midpoint values
-              uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0-vs)**2, 1.D-8 ) 
-           end if
+        if (id == 0) then
+          uv = max( (uu_opt(i)-us)**2 + (vv_opt(i)-vs)**2, 1.0d-8 ) 
+        else
+          ! Take layer midpoint values
+          uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0d0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0d0-vs)**2, 1.0d-8 ) 
+        end if
          
-           RiB2 = ec_rg * (thetavh(i)-thetavs) * (height(i)*0.001-zs) / (thetavs*uv)
-           if (RiBmax.lt.RiB2.and.RiB2.ge.reduced*RiB_threshold) then
-              RiBmax=RiB2
-              iRiBmax=i
-           end if
-           if (RiB2.ge.RiB_threshold) exit
-           RiB1=RiB2
-       end do
-    else
-    
-       ! Calc only theta
-      
-       do i=nmodlev-1,itop,-1
-  
-           if (huw(i).le.0.8.and.huw(i).ge.0) then
-               huh = huw(i)/(1.0-huw(i))
-           else if (huw(i).gt.0.8) then
-               huh = 0.8/(1.0-0.8)
-           else if (huw(i).lt.0.0) then
-               huh = 0.0
-           end if
-           thetavh(i) = tt(i)*(1.D5/pressmod(i))**kappa* ( 1.0 + 0.61*huh )
-       end do
+        RiB2 = ec_rg * (thetavh(i)-thetavs) * (height(i)*0.001d0-zs) / (thetavs*uv)
+        if (RiBmax < RiB2 .and. RiB2 >= reduced*RiB_threshold) then
+          RiBmax = RiB2
+          iRiBmax = i
+        end if
+        if (RiB2 >= RiB_threshold) exit
+        RiB1 = RiB2
+      end do
+    else    
+      ! Calc only theta      
+      do i = nmodlev-1, itop, -1  
+        if (huw(i) <= 0.8d0 .and. huw(i) >= 0.0d0) then
+          huh = huw(i)/(1.0d0-huw(i))
+        else if (huw(i) > 0.8d0) then
+          huh = 0.8d0/(1.0d0-0.8d0)
+        else if (huw(i) < 0.0d0) then
+          huh = 0.0d0
+        end if
+        thetavh(i) = tt(i)*(1.d5/pressmod(i))**kappa* ( 1.0d0 + 0.61d0*huh )
+      end do
     end if   
     
-    if (RiB2.ge.RiB_threshold) then    
-   
+    if (RiB2 >= RiB_threshold) then
       !  Interpolate between levels
-
-       pbl_press=(log(pressmod(i))*(RiB_threshold-RiB1)+ &
-               log(pressmod(i+1))*(RiB2-RiB_threshold)) &
-               /(RiB2-RiB1)
-       pbl_press=exp(pbl_press)
-    else if (RiBmax.ge.reduced*RiB_threshold) then
-       ! Apply to level with largest RiB between reduced*RiB_threshold and RiB_threshold
-       pbl_press=pressmod(iRiBmax)
-    else
-    
-       ! Estimate PBL level using the Heffter conditions:
-       ! First find lowest inversion layer where dtheta>2K.
-       ! If found, assign mid of layer as PBL level. 
-       ! Otherwise, assign PBL level as that with largest
-       ! theta gradient.
-       
-       i=nmodlev-1
-       do while (i.gt.itop) 
-          !if (thetavh(i)-thetavh(i+1).gt.0.0) then
-          if ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)).ge.0.005) then
-             ! Near bottom of inversion layer found
-             inv=i+1
-             i=i-1
-             !do while (thetavh(i)-thetavh(i+1).gt.0.0.and.i.gt.itop) 
-             do while ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)).ge.0.005.and.i.gt.itop) 
-                 i=i-1
-             end do
-             if ((thetavh(i+1)-thetavh(inv)).gt.2.0)  then
-                ! Apply  midlayer as PBL
-                pbl_press=sqrt(pressmod(i+1)*pressmod(inv))
-                exit
-             end if 
-          else
-             i=i-1
-          end if
-       end do
-       if (pbl_press.le.0.0) then
-          gradmax=-1.D30
-          igradmax=nmodlev-1
-          do i=nmodlev-1,itop,-1
-             grad=(thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
-             if (gradmax.lt.grad) then
-                gradmax=(thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
-                igradmax=i
-                if (grad.ge.0.005) then ! Check next layer as well
-                   if ((thetavh(i-1)-thetavh(i))/(height(i-1)-height(i)).ge.0.005) exit
-                end if
+      pbl_press = (log(pressmod(i))*(RiB_threshold-RiB1)+ &
+                 log(pressmod(i+1))*(RiB2-RiB_threshold)) &
+                 /(RiB2-RiB1)
+      pbl_press = exp(pbl_press)
+    else if (RiBmax >= reduced*RiB_threshold) then
+      ! Apply to level with largest RiB between reduced*RiB_threshold and RiB_threshold
+      pbl_press = pressmod(iRiBmax)
+    else    
+      ! Estimate PBL level using the Heffter conditions:
+      ! First find lowest inversion layer where dtheta>2K.
+      ! If found, assign mid of layer as PBL level. 
+      ! Otherwise, assign PBL level as that with largest
+      ! theta gradient.       
+      i = nmodlev-1
+      do while (i > itop) 
+        !if (thetavh(i)-thetavh(i+1) > 0.0d0) then
+        if ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)) >= 0.005d0) then
+          ! Near bottom of inversion layer found
+          inv = i+1
+          i = i-1
+          !do while (thetavh(i)-thetavh(i+1) > 0.0d0 .and. i > itop) 
+          do while ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)) >= 0.005d0 &
+	            .and. i > itop) 
+            i = i-1
+          end do
+          if ((thetavh(i+1)-thetavh(inv)) > 2.0d0)  then
+            ! Apply  midlayer as PBL
+            pbl_press = sqrt(pressmod(i+1)*pressmod(inv))
+            exit
+          end if 
+        else
+          i=i-1
+        end if
+      end do
+      if (pbl_press <= 0.0d0) then
+        gradmax = -1.0d30
+        igradmax = nmodlev-1
+        do i = nmodlev-1, itop, -1
+          grad = (thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
+          if (gradmax < grad) then
+            gradmax = (thetavh(i)-thetavh(i+1))/(height(i)-height(i+1))
+            igradmax = i
+            if (grad >= 0.005d0) then ! Check next layer as well
+              if ((thetavh(i-1)-thetavh(i))/(height(i-1)-height(i)) >= 0.005) exit
             end if
-          end do          
-          pbl_press=pressmod(igradmax)
-          ! write(*,*) 'phf_get_pbl: Warning2 - Max allowed altitude reached for. ',pbl_press,igradmax,gradmax,RiB2,iRiBmax,RiBmax
-       !else
-       !   write(*,*) 'phf_get_pbl: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax     
-       end if
+          end if
+        end do          
+        pbl_press = pressmod(igradmax)
+      ! write(*,*) 'phf_calcPBL: Warning2 - Max allowed altitude reached for. ',pbl_press,igradmax,gradmax,RiB2,iRiBmax,RiBmax
+      !else
+      !  write(*,*) 'phf_calcPBL: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax     
+      end if
     end if
 
-  end function phf_get_pbl
+  end function phf_calcPBL
 
   !--------------------------------------------------------------------------
   ! phf_calcDistance

@@ -1055,7 +1055,7 @@ contains
 
              ! Convert altidudes to pressure
              success = status > 0
-             lev = phf_convert_z_to_pressure(lev,height_mod,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
+             lev = phf_convertZtoPressure(lev,height_mod,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
 
              deallocate(pres_mod)
                 
