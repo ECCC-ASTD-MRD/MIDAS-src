@@ -2143,7 +2143,7 @@ contains
     numMembers2 = size(weights,2)
     totalCount(:) = 0
 
-    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
     do latIndex = wInterpInfo%myLatBeg, wInterpInfo%myLatEnd
       do lonIndex = wInterpInfo%myLonBeg, wInterpInfo%myLonEnd
         if (wInterpInfo%numIndexes(lonIndex,latIndex) <= 0) cycle
