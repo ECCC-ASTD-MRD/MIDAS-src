@@ -83,7 +83,7 @@ module tovsNL_mod
   use codePrecision_mod
   use humidityLimits_mod
   use interpolation_mod
-  use simulateEmissivity_mod
+  use surfaceEmissivity_mod
   use clibInterfaces_mod
 
   implicit none

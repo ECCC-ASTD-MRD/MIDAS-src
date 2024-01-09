@@ -696,6 +696,7 @@ contains
     ! Arguments:
     type(struct_columnData),           intent(inout)  :: column         ! Perturbed column object
     type(struct_columnData), optional, intent(in)     :: columnRef_opt  ! Reference column object (non-perturbed)
+
     ! Locals:
     real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
     integer              :: numCol, numLev, numColRef, numLevRef
@@ -720,33 +721,26 @@ contains
 
     do icol = 1, numCol
       if (present(columnRef_opt)) then
-        ! Fill missing value if ref column also have missing value
-        if (any(emissPtrRef(:, icol) == missingValue)) then
+        ! Fill missing value if ref column also have missing value or
+        ! Fill missing value if ref column have negative emissivity or
+        ! Fill missing value if simulated emissivity is less or equal to zero or
+        ! Fill missing value if simulated emissivity is greater or equal to one.
+        if (any(emissPtrRef(:, icol) == missingValue) .or. &
+            any(emissPtrRef(:, icol) < 0.0d0) .or. &
+            any(emissPtr(:, icol) <= 0.0d0) .or. &
+            any(emissPtr(:, icol) >= 1.0d0)) then
           emissPtr(:, icol) = missingValue
-        ! Fill missing value if ref column have negative emissivity
-        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
-          emissPtr(:, icol) = missingValue
-        ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
-          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        ! Limit simulated emissivity to one
-        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
-          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
         end if
       else
-        ! Limit simulated emissivity to one
-        if(any(emissPtr(:, icol) < 0.0d0)) then 
-          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
-        !  Limit simulated emissivity to zero
-        else if(any(emissPtr(:, icol) > 1.0d0)) then 
-          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-         emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp
+        ! Fill missing value if simulated emissivity is less or equal to zero or
+        ! Fill missing value if simulated emissivity is greater or equal to one.
+        if(any(emissPtr(:, icol) <= 0.0d0) .or. &
+           any(emissPtr(:, icol) >= 1.0d0)) then 
+          emissPtr(:, icol) = missingValue
         end if
       end if
     end do
+
   end subroutine sse_emissivityRttovLimits
-  
+
 end module surfaceEmissivity_mod 

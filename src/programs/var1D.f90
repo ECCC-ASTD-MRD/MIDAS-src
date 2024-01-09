@@ -388,7 +388,7 @@ program midas_var1D
 
   call inc_writeAnalysis(stateVectorAnalysis)
 
-  if (numSamplesHBHT> 0) then
+  if (numSamplesHBHT > 0) then
     call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs)
   end if
 

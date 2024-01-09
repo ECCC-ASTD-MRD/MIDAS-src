@@ -301,7 +301,7 @@ module var1DIdealize_mod
         fileName = './'//trim(prefixFileName)//'_' // trim(coffset) // 'm'
         call gio_writeToFile( statevectorSim, fileName, trim(etiket), scaleFactor_opt = 1.0d0, &
                               ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=containsFullField, &
-                              numBits_opt=16 )
+                              numBits_opt=32 )
       end if
     end do
 
@@ -398,7 +398,7 @@ module var1DIdealize_mod
     end if
 
     call rng_setup(abs(randomSeed))
-
+    
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER2
