@@ -69,7 +69,20 @@ contains
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
-    !          mean.
+    !          mean. Two MPI distributions are currently available for
+    !          distributing the calculation of the LETKF weights at each
+    !          grid point:
+    !
+    !           - 'MASTERWORKER': Dynamic load balancing with the first MPI task acting
+    !             as the 'MASTER' with the sole job of assigning work to all of the other
+    !             MPI tasks. When all of the LETKF weights are computed, then the MASTER
+    !             send a signal to all workers that we are done and can move on to the next
+    !             part of the algorithm.
+    !           - 'ROUNDROBIN': Deal out all grid points where weights are computed to all
+    !             mpi tasks without considering where they are needed for use. This should
+    !             provide the best load balance in terms of the cost of covariance
+    !             calculation which can vary depending on the local density of observations,
+    !             but requires the most communication.
     !
     implicit none
 
@@ -93,15 +106,15 @@ contains
 
     ! Locals:
     character :: readySignal
-    integer :: workerProcID, finishedSignal, assignmentTag, readyTag
-    integer :: stat(MPI_STATUS_SIZE)
-    integer, allocatable :: waitStatuses(:,:)
+    integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
+    integer :: mpiStatus(MPI_STATUS_SIZE)
+    integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEns, nLev_M, nLev_depth, nLev_weights
     integer :: memberIndex, memberIndex1, memberIndex2, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
     integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
-    integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonSendMax
+    integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonCalcMax, myNumLatLonSendMax
     integer :: sendTag, recvTag, nsize, numRecv, numSend
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
@@ -136,10 +149,12 @@ contains
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: useModulatedEns, masterIsMe, firstTimeLatLonLoop = .true.
+    logical :: procAlreadyFinished(mmpi_nprocs)
+    logical :: useModulatedEns, masterIsMe
 
     call utl_tmg_start(131,'--LETKFanalysis')
 
+    write(*,*)
     write(*,*) 'enkf_LETKFanalyses: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -160,16 +175,31 @@ contains
                                         procIndexesSendMpiGlobal, &
                                         numProcsSendMpiGlobal, wInterpInfo)
 
+    write(*,*) 'enkf_LETKFanalyses: numLatLonMpiGlobal, maxval(numProcsSendMpiGlobal) = ', &
+                                    numLatLonMpiGlobal, maxval(numProcsSendMpiGlobal)
+
     ! Compute maximum expected number of grid points where weights computed on each mpi task 
-    myNumLatLonSendMax = myNumLatLonSendFactor*numLatLonMpiGlobal/mmpi_nprocs
-    write(*,*) 'enkf_LETKFanalyses: myNumLatLonSendMax = ', myNumLatLonSendMax
-    allocate(requestIdSend(3*myNumLatLonSendMax*maxval(numProcsSendMpiGlobal)))
-    allocate(requestIdRecv(3*myNumLatLonRecv))
-    allocate(waitStatuses(MPI_STATUS_SIZE,myNumLatLonSendMax))
+    if (trim(mpiDistribution) == 'ROUNDROBIN') then
+      myNumLatLonCalcMax = ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
+    else if (trim(mpiDistribution) == 'MASTERWORKER') then
+      myNumLatLonCalcMax = myNumLatLonSendFactor*ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
+    else
+      write(*,*) 'mpiDistribution = ', trim(mpiDistribution)
+      call utl_abort('enkf_LETKFanalyses: unknown mpiDistribution')
+    end if
+    myNumLatLonSendMax = ceiling(real(maxval(numProcsSendMpiGlobal))*real(myNumLatLonCalcMax))
+    write(*,*) 'enkf_LETKFanalyses: myNumLatLonCalcMax, myNumLatLonSendMax = ',  &
+                                    myNumLatLonCalcMax, myNumLatLonSendMax
+    allocate(requestIdSend(myNumLatLonSendMax))
+    allocate(requestIdRecv(myNumLatLonRecv))
+    allocate(waitStatusesSend(MPI_STATUS_SIZE,myNumLatLonSendMax))
+    allocate(waitStatusesRecv(MPI_STATUS_SIZE,myNumLatLonRecv))
     allocate(weightsRecvCombined(nEnsGain, nEns+1, myNumLatLonRecv))
-    allocate(weightsSendCombined(nEnsGain, nEns+1, myNumLatLonSendMax))
+    allocate(weightsSendCombined(nEnsGain, nEns+1, myNumLatLonCalcMax))
     requestIdRecv(:) = 0
     requestIdSend(:) = 0
+    waitStatusesRecv(:,:) = 0
+    waitStatusesSend(:,:) = 0
     weightsRecvCombined(:,:,:) = 0.0d0
     weightsSendCombined(:,:,:) = 0.0d0
 
@@ -194,12 +224,12 @@ contains
     ! Weights for mean analysis
     allocate(weightsMean(nEnsGain,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMean(:,:,:,:) = 0.0d0
-    allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonSendMax))
+    allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonCalcMax))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
     allocate(weightsMembers(nEnsGain,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonSendMax))
+    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -248,7 +278,7 @@ contains
     maxCountMaxExceeded = 0
     numGridPointWeights = 0
     LEV_LOOP: do levIndex = 1, nLev_weights
-      write(*,*) 'computing ensemble updates for vertical level = ', levIndex
+      write(*,*) 'Computing ensemble updates for vertical level = ', levIndex
       call utl_printTime(reset_opt = (levIndex==1))
 
       !
@@ -271,7 +301,6 @@ contains
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
                         nsize, mmpi_datyp_real8, mpi_any_source, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, ierr, requestIdRecv(numRecv), latIndex, lonIndex
       end do
       call utl_tmg_stop(148)
       call utl_tmg_stop(132)
@@ -287,37 +316,66 @@ write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, 
         call utl_tmg_start(132,'----CommWeights')
         call utl_tmg_start(145,'----CommWeights-signals')
 
+        procAlreadyFinished(:) = .false.
+
+        write(*,*) 'Send all assignments'
+        call utl_printTime()
+
         ! Loop over all gridpoints where calculations need to be performed
         write(*,*) 'Start of loop over all global grid points where weights computed'
         do latLonIndexMpiGlobal = 1, numLatLonMpiGlobal
 
-          ! Determine which MPI task is ready for a new work assignment
-          call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &  
-                        mmpi_comm_grid, stat, ierr)
-          workerProcID = stat(MPI_SOURCE)
+          ReadyLoop: do ! Loop until we get a valid read signal
 
-          ! Assign this MPI task the next gridpoint to be calculated
-          call MPI_SEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
-                        mmpi_comm_grid, stat, ierr)
+            ! Determine which MPI task is ready for a new work assignment
+            call MPI_RECV(readySignal, 1, MPI_CHARACTER, mpi_any_source, readyTag, &  
+                          mmpi_comm_grid, mpiStatus, ierr)
+            workerProcID = mpiStatus(MPI_SOURCE)
+
+            if (readySignal == 'N') then
+              procAlreadyFinished(workerProcID+1) = .true.
+            end if
+
+            ! Assign this MPI task the next gridpoint to be calculated
+            ! NOTE: this assignment will be ignored when readySignal is 'N'
+            call MPI_SEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
+                          mmpi_comm_grid, mpiStatus, ierr)
+
+            if (readySignal == 'Y') then
+              exit ReadyLoop
+            end if
+
+          end do ReadyLoop
 
         end do
 
         ! Now that all work is done, we need to inform all workers
         write(*,*) 'Finished all grid points, send *finished* signal to all mpi tasks'
+        call utl_printTime()
+
+        numFinished = 0
         do procIndex = 2, mmpi_nprocs
+
+          ! Skip this proc if he already told us that he is finished
+          if (procAlreadyFinished(procIndex)) cycle
+
+          numFinished = numFinished + 1
 
           ! Wait for signal for every task that last assignment is complete
           call MPI_IRECV(readySignal, 1, MPI_CHARACTER, procIndex-1, readyTag, &  
-                         mmpi_comm_grid, requestIdRecvFinished(procIndex-1), ierr)
+                         mmpi_comm_grid, requestIdRecvFinished(numFinished), ierr)
 
           ! Tell this worker we are done
           finishedSignal = 0
           call MPI_ISEND(finishedSignal, 1, MPI_INTEGER, procIndex-1, assignmentTag, &
-                         mmpi_comm_grid, requestIdSendFinished(procIndex-1), ierr)
+                         mmpi_comm_grid, requestIdSendFinished(numFinished), ierr)
 
         end do
-        call mpi_waitAll(mmpi_nprocs-1, requestIdSendFinished(:), MPI_STATUSES_IGNORE, ierr)
-        call mpi_waitAll(mmpi_nprocs-1, requestIdRecvFinished(:), MPI_STATUSES_IGNORE, ierr)
+        call mpi_waitAll(numFinished, requestIdSendFinished(1:numFinished), MPI_STATUSES_IGNORE, ierr)
+        call mpi_waitAll(numFinished, requestIdRecvFinished(1:numFinished), MPI_STATUSES_IGNORE, ierr)
+
+        write(*,*) 'All *finished* signals received and acknowledged'
+        call utl_printTime()
 
         call utl_tmg_stop(145)
         call utl_tmg_stop(132)
@@ -334,21 +392,46 @@ write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, 
             call utl_tmg_start(132,'----CommWeights')
             call utl_tmg_start(145,'----CommWeights-signals')
 
-            ! Signal that I am ready for assignment
-            readySignal = 'A'
-            call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
-                          mmpi_comm_grid, stat, ierr)
+            write(*,*) 'Requesting an assignment'
+            call utl_printTime()
 
-            ! Wait for assignment or signal that we are done
-            call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
-                          mmpi_comm_grid, stat, ierr)
+            if ( (latLonIndex+1) <= myNumLatLonCalcMax) then
+
+              ! Signal that I am ready for assignment
+              readySignal = 'Y'
+              call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
+                            mmpi_comm_grid, mpiStatus, ierr)
+
+              ! Wait for assignment or signal that we are done
+              call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+                            mmpi_comm_grid, mpiStatus, ierr)
+
+            else
+
+              ! Signal that I reached my maximum number of assignments
+              write(*,*) 'Reached maximum number of assignments, wait until others are finished'
+              readySignal = 'N'
+              call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
+                            mmpi_comm_grid, mpiStatus, ierr)
+
+              ! Wait for dummy signal that WILL BE IGNORED
+              call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+                            mmpi_comm_grid, mpiStatus, ierr)
+
+              ! No assignment, so set latLonIndex to 0 to exit LATLON_LOOP
+              latLonIndexMpiGlobal = 0
+
+            end if
+
+            write(*,*) 'Received assignment: ', latLonIndexMpiGlobal
+            call utl_printTime()
 
             call utl_tmg_stop(145)
             call utl_tmg_stop(132)
 
             ! Check if we are done
             if (latLonIndexMpiGlobal == 0) then
-              write(*,*) 'Received the *finished* signal, after doing this many gridpoints: ', latLonIndex
+              write(*,*) 'Received the *finished* signal, after computing weights for this many gridpoints: ', latLonIndex
               exit LATLON_LOOP
             end if
 
@@ -362,7 +445,6 @@ write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, 
                 exit LATLON_LOOP
               end if
               if (mod(latLonIndexMpiGlobal-1,mmpi_nprocs)==mmpi_myid) then
-                !write(*,*) 'Start processing for latLonIndexMpiGlobal = ', latLonIndexMpiGlobal
                 exit
               end if
             end do              
@@ -378,7 +460,7 @@ write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, 
           latLonIndex = latLonIndex + 1
 
           ! Check if latLonIndex is larger than expected for allocations
-          if (latLonIndex > myNumLatLonSendMax) then
+          if (latLonIndex > myNumLatLonCalcMax) then
             write(*,*) 'enkf_LETKFanalyses: We encountered more latLonIndex values on this mpi task than expected!'
             write(*,*) '                    You should probably increase the value of namelist variable: myNumLatLonSendFactor'
             call utl_abort('enkf_LETKFanalyses: increase value of myNumLatLonSendFactor')
@@ -408,7 +490,6 @@ write(*,*) 'recv weights, numRecv, recvTag, lat/lonIndex = ', numRecv, recvTag, 
           call utl_tmg_start(149,'----CommWeights-isend')
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
           lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
-write(*,*) 'copy weights for :', latLonIndex, latIndex, lonIndex
           weightsSendCombined(:,1:nEns,latLonIndex) = weightsMembersLatLon(:,:,latLonIndex)
           weightsSendCombined(:,(nEns+1),latLonIndex) = weightsMeanLatLon(:,1,latLonIndex)
 
@@ -419,15 +500,15 @@ write(*,*) 'copy weights for :', latLonIndex, latIndex, lonIndex
 
             nsize = nEnsGain * (nEns+1)
             numSend = numSend + 1
+            if (numSend > myNumLatLonSendMax) then
+              call utl_abort('numSend larger than allowed limit')
+            end if
             call mpi_isend( weightsSendCombined(:,:,latLonIndex),  &
                             nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                             mmpi_comm_grid, requestIdSend(numSend), ierr )
-write(*,*) 'sent weights, numSend, sendTag, lat/lonIndex = ', numSend, sendTag, ierr, requestIdSend(numSend), latIndex, lonIndex
           end do
           call utl_tmg_stop(149)
           call utl_tmg_stop(132)
-
-          firstTimeLatLonLoop = .false.
 
         end do LATLON_LOOP
 
@@ -436,11 +517,10 @@ write(*,*) 'sent weights, numSend, sendTag, lat/lonIndex = ', numSend, sendTag, 
       !
       ! Wait for RECV communications to finish before continuing
       !
-write(*,*) 'original waitAll for irecv, numRecv = ', numRecv, requestIdRecv(1:numRecv)
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
-        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), waitStatuses, ierr)
+        call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), waitStatusesRecv(:,1:numRecv), ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for IRECV')
       end if
       call utl_tmg_stop(147)
@@ -633,11 +713,10 @@ write(*,*) 'original waitAll for irecv, numRecv = ', numRecv, requestIdRecv(1:nu
       !
       ! Wait for SEND communications to finish before continuing
       !
-write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:numSend)
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
-        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatuses, ierr)
+        call mpi_waitAll(numSend, requestIdSend(1:numSend), waitStatusesSend(:,1:numSend), ierr)
         if (ierr == mpi_err_in_status) call utl_abort('Error code return by mpi_waitAll for ISEND')
       end if
       call utl_tmg_stop(146)
@@ -664,6 +743,7 @@ write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:nu
 
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*)
 
     call utl_tmg_stop(131)
 
@@ -823,8 +903,8 @@ write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:nu
         end do
         call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
         if (firstCall) then
-          write(*,*) 'enkf_LETKFanalyses: seed for random shuffle of sub ens = ', randomSeed
-          write(*,*) 'enkf_LETKFanalyses: randomOrder = ', randomMemberIndexArray(:)
+          write(*,*) 'enkf_LETKFcomputeWeights: seed for random shuffle of sub ens = ', randomSeed
+          write(*,*) 'enkf_LETKFcomputeWeights: randomOrder = ', randomMemberIndexArray(:)
         end if
         do subEnsIndex = 1, numSubEns
           do memberIndex = 1, nEnsPerSubEns
@@ -1878,26 +1958,9 @@ write(*,*) 'original waitAll for isend, numSend = ', numSend, requestIdSend(1:nu
                                             procIndexesSendMpiGlobal, &
                                             numProcsSendMpiGlobal, wInterpInfo)
     !
-    ! :Purpose: Setup for distribution of grid points over mpi tasks. These are the
-    !           current options:
-    !
-    !             - 'TILES': No communication by computing weights on the local
-    !               lat-lon tile and also any surrounding grid points within the halo
-    !               required for horizontal interpolation of the weights to the full
-    !               resolution grid.
-    !
-    !             - 'LOADBALANCE': An attempt to reduce the amount of communication by
-    !               starting with only the grid points within the interior of the local
-    !               lat-lon tile (excluing the halo). And then shifting the minimum number
-    !               of grid points to neighbouring tiles to obtain balanced number of
-    !               weights on each mpi task. These moved grid points and the halo will
-    !               be communicated.
-    !
-    !             - 'ROUNDROBIN': Deal out all grid points where weights are computed to all
-    !               mpi tasks without considering where they are needed for use. This should
-    !               provide the best load balance in terms of the cost of covariance
-    !               calculation which can vary depending on the local density of observations,
-    !               but requires the most communication.
+    ! :Purpose: Setup for distribution of grid points over mpi tasks by building a global
+    !           list of which MPI tasks need the computed weights for which grid points.
+    !           Also build local list for grid points required to recv.
     !
     implicit none
 
