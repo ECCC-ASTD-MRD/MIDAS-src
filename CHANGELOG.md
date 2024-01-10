@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Reduce slowness due to the creation of many files concurrently in the same working directory (#885 and !802)
+ * Reduce slowness due to the creation of many files concurrently during observation splitting in the same working directory (#885 and !802)
 
 ### Fixed
 
