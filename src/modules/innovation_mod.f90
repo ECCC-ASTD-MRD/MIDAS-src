@@ -858,7 +858,7 @@ contains
   !--------------------------------------------------------------------------
   ! inn_getHcoVcoFromTrlmFile
   !--------------------------------------------------------------------------
-  subroutine inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  subroutine inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
     !
     !:Purpose: Get hco/vco of the trials
     !
@@ -883,7 +883,7 @@ contains
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
-    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
+    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt = anlVar(1))
 
     call vco_SetupFromFile(vco_trl, './trlm_01')
 

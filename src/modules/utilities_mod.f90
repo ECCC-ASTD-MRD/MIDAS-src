@@ -6,6 +6,7 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
+  use netcdf
   
   implicit none
   save
@@ -29,7 +30,7 @@ module utilities_mod
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
-  public :: utl_fileType
+  public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOTemperature
 
   ! module interfaces
   ! -----------------
@@ -2848,5 +2849,95 @@ contains
     end do
 
   end function utl_medianIndex
+  
+  !--------------------------------------------------------------------------
+  ! utl_checkNetCDFstatus
+  !--------------------------------------------------------------------------
+  subroutine utl_checkNetCDFstatus(status, subroutineName_opt, ncCommand_opt, addInfo_opt)
+    !
+    ! :Purpose: to check the status of a netCDF command. This subroutine may be usefull
+    !           when adding a new netCDF realted code.
+    !
+    implicit none
+
+    ! Arguments:
+    integer                   , intent(in) :: status
+    character(len=*), optional, intent(in) :: subroutineName_opt
+    character(len=*), optional, intent(in) :: ncCommand_opt
+    character(len=*), optional, intent(in) :: addInfo_opt
+
+    ! Locals:
+    character(len=256) :: errorMessage
+
+    if(status /= nf90_noerr) then 
+
+      errorMessage = 'netCDF error'
+      if (present(subroutineName_opt)) then
+        errorMessage = trim(subroutineName_opt)//': '//trim(errorMessage)
+      end if
+      if (present(ncCommand_opt)) then
+        errorMessage = trim(errorMessage)//' when calling: '//trim(ncCommand_opt)
+      end if
+      if (present(addInfo_opt)) then
+        errorMessage=trim(errorMessage)//' for '//trim(addInfo_opt)
+      end if
+
+      write(*,*) 'nf90 error status: ', trim(nf90_strerror(status))
+      call utl_abort(trim(errorMessage))
+
+    end if
+    
+  end subroutine utl_checkNetCDFstatus
+
+  !--------------------------------------------------------------------------
+  ! utl_inquireNEMOTemperature
+  !--------------------------------------------------------------------------
+  subroutine utl_inquireNEMOTemperature(templateFile, beSilent, variableFound)
+    !
+    ! :Purpose: to assess the content of NEMO netCDF file.
+    !           In NEMO, the 3D ocean temperature filed variable is 'toce',
+    !           whereas the 2D Sea Surface Temperature (SST), 'tos'.
+    !           In MIDAS, both 3D and 2D ocean temperature are called 'TM'
+    !           resulting in confusion when vco object is to be defined.
+    !
+    implicit none
+ 
+    ! Arguments:
+    character(len=*), intent(in)  :: templateFile     ! NEMO template file
+    logical         , intent(in)  :: beSilent
+    logical         , intent(out) :: variableFound(3) ! logical switches:
+                                                      !   1. found depth,
+                                                      !   2. found 3D ocean temperature, 
+                                                      !   3. found SST.
+    ! Locals:
+    integer :: ncid, varID, ierr, varIndex
+    character(len=10), parameter :: varNameList(size(variableFound)) = (/'deptht', 'toce', 'tos'/)
+
+    ! initialize output logical switches      
+    variableFound(:) = .false.
+    
+    ! Open the template file
+    call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
+
+    do varIndex = 1, size(variableFound)
+    
+      ierr = nf90_inq_varid(ncid, trim(varNameList(varIndex)), varID)
+      if (ierr == nf90_noerr) then
+        if (.not. beSilent) write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+                                       trim(varNameList(varIndex)), ' is found in file: ', &
+                                       trim(templateFile)
+        variableFound(varIndex) = .true.
+      else
+        if (.not. beSilent) write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+                                       trim(varNameList(varIndex)), ' is missing from file: ', &
+                                       trim(templateFile)        
+      end if
+
+    end do
+      
+    ! Close the file
+    call utl_checkNetCDFstatus(nf90_close(ncid))
+    
+  end subroutine utl_inquireNEMOTemperature
 
 end module utilities_mod

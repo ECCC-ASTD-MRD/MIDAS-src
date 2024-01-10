@@ -581,11 +581,11 @@ module bgckOcean_mod
       call incdatr(dataStampList(timeStepIndex), dataStampList(timeStepIndex - 1), deltaT)
     end do
 
-    call vco_SetupFromFile(vco_winds,'./winds')
+    call vco_SetupFromFile(vco_winds, './winds')
     call gsv_allocate(stateVector, ndaysWinds * 24 / timeStepWinds, hco, vco_winds, &
                       dateStampList_opt = dataStampList, dataKind_opt = 4, &
                       varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt = 'LINEAR')
       
     call msg('ocebg_getFGEamplification', 'reading wind speed fields...')
     do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds

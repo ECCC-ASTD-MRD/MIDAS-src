@@ -1,24 +1,26 @@
  &NAMLETKF
-   algorithm             = 'LETKF'
-   ensPostProcessing     = .true.
-   recenterInputEns      = .true.
-   NENS                  = 80
-   maxNumLocalObs        = 5000
-   weightLatLonStep      = 4
-   hLocalize             = 200.0D0
-   vLocalize             = 15.0D0
-   minDistanceToLand     = 75.0D0
-   modifyAmsubObsError   = .false.
-   backgroundCheck       = .false.
-   huberize              = .false.
-   rejectHighLatIR       = .false.
-   rejectRadNearSfc      = .false.
-   ignoreEnsDate         = .true.
-   outputOnlyEnsMean     = .true.
-   obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'ROUNDROBIN'
+   algorithm           = 'LETKF'
+   ensPostProcessing   = .true.
+   recenterInputEns    = .true.
+   NENS                = 80
+   maxNumLocalObs      = 5000
+   weightLatLonStep    = 4
+   hLocalize           = 200.0D0
+   vLocalize           = 15.0D0
+   minDistanceToLand   = 75.0D0
+   modifyAmsubObsError = .false.
+   backgroundCheck     = .false.
+   huberize            = .false.
+   rejectHighLatIR     = .false.
+   rejectRadNearSfc    = .false.
+   ignoreEnsDate       = .true.
+   outputOnlyEnsMean   = .true.
+   obsTimeInterpType   = 'LINEAR'
+   mpiDistribution     = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
+   lwriteNetCDFInc     = .true.
+   referenceDateNetCDF = 19500101
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.

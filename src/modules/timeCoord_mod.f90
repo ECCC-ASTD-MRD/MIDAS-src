@@ -21,10 +21,10 @@ module timeCoord_mod
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
   ! public functions
-  public :: tim_yyyymmddhhToDatestamp
+  public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate
 
   character(len=4) :: varNameForDate
-  character(len=6) :: tim_referencetime
+  character(len=6) :: tim_referenceTime
   real(8)   :: tim_dstepobs
   real(8)   :: tim_dstepobsinc
   real(8)   :: tim_windowsize
@@ -68,7 +68,7 @@ contains
     real(8) :: dstepobs      ! time step length for background state (in hours)
     real(8) :: dstepobsinc   ! time step length for increment and/or B matrix (in hours)
     real(8) :: dwindowsize   ! length of assimilation window (in hours)
-    character(len=6) :: referencetime  ! location of 'date' within the window: 'middle' or 'start'
+    character(len=6) :: referenceTime  ! location of 'date' within the window: 'middle' or 'start'
     logical :: fullyUseExtremeTimeBins ! choose to use full-size bins at both ends of window (usually only half size)
 
     NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, referencetime, fullyUseExtremeTimeBins
@@ -88,22 +88,23 @@ contains
     fullyUseExtremeTimeBins = .false.
 
     ! Read the namelist
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=namtime, iostat=ierr)
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml = namtime, iostat = ierr)
     if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
-    if (mmpi_myid == 0) write(*,nml=namtime)
-    call utl_tmg_stop(181)
+    if (mmpi_myid == 0) write(*, nml = namtime)
+    ierr = fclos(nulnam)
 
     ! Set the module variables for timestep length, number of timesteps and window length
     tim_dstepobs      = dstepobs
     tim_dstepobsinc   = dstepobsinc
     tim_windowsize    = dwindowsize
-    tim_referencetime = referenceTime
+    tim_referenceTime = referenceTime
     tim_fullyUseExtremeTimeBins = fullyUseExtremeTimeBins
 
-    if (tim_fullyUseExtremeTimeBins .and. tim_referencetime=="middle") then
-      write(*,*) "Warning: tim_fullyUseExtremeTimeBins==.true. and tim_referencetime=='middle' is a non-standard combination"
-      write(*,*) "Is it really what you want ?"
+    if (tim_fullyUseExtremeTimeBins .and. tim_referencetime=='middle') then
+      write(*,*) 'Warning: tim_fullyUseExtremeTimeBins = .true. and tim_referencetime = "middle" is a non-standard combination'
+      write(*,*) 'Is it really what you want ?'
     end if
 
     if (dstepobs > dwindowsize) then
@@ -114,14 +115,14 @@ contains
       if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
     end if 
-    if (tim_referencetime == "middle") then
-      tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
-      tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
+    if (tim_referenceTime == 'middle') then
+      tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
+      tim_nstepobsinc = 2 * nint(((tim_windowsize - tim_dstepobsinc) / 2.d0) / tim_dstepobsinc) + 1
     end if
 
-    if (trim(tim_referencetime) == "start") then
-      tim_nstepobs = max(nint(tim_windowsize/tim_dstepobs), 1)
-      tim_nstepobsinc = max(nint(tim_windowsize/tim_dstepobsinc), 1)
+    if (trim(tim_referenceTime) == 'start') then
+      tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs), 1)
+      tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
     end if
 
   end subroutine tim_readNml
@@ -220,9 +221,9 @@ contains
       dateStamp = dateStampEnvVar
       imode = -3 ! stamp to printable
       ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ',prntdate
-      write(*,*) 'tim_setup: printtime = ',prnttime
-      write(*,*) 'tim_setup: datestamp = ',datestamp      
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', datestamp      
     else if (present(fileNameForDate_opt)) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
@@ -230,21 +231,21 @@ contains
       datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
       imode = -3 ! stamp to printable
       ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ',prntdate
-      write(*,*) 'tim_setup: printtime = ',prnttime
-      write(*,*) 'tim_setup: datestamp = ',datestamp
+      write(*,*) 'tim_setup: printdate = ', prntdate
+      write(*,*) 'tim_setup: printtime = ', prnttime
+      write(*,*) 'tim_setup: datestamp = ', datestamp
     else
       write(*,*) 'tim_setup: =========================================================='
       write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
       write(*,*) 'tim_setup: =========================================================='      
     end if
 
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs       =',tim_dstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs       =',tim_nstepobs
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc    =',tim_dstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc    =',tim_nstepobsinc
-    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referencetime   =',tim_referencetime
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize   = ', tim_windowsize
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs          = ', tim_dstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs          = ', tim_nstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
 
     initialized = .true.
 
@@ -325,7 +326,7 @@ contains
 
       ! Extract the datestamp from the file
       nulFile = 0
-      ierr = fnom(nulFile,trim(fileName),'RND+OLD+R/O',0)
+      ierr = fnom(nulFile, trim(fileName), 'RND+OLD+R/O', 0)
       ierr = fstouv(nulFile,'RND+OLD')
       ierr = fstinl(nulFile,ini,inj,ink,-1,' ',-1,-1,-1,' ', &
                     trim(varNameForDate),ikeys,numdates,maxnumdates)
@@ -368,7 +369,7 @@ contains
       end do window_loop
 
       if (.not. foundWindow) then
-        write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour
+        write(*,*) 'windowsPerDay, fileHour = ', windowsPerDay, fileHour
         call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
       end if
 
@@ -452,22 +453,22 @@ contains
 
     else
 
-      if (tim_referencetime == "middle") then
+      if (tim_referenceTime == 'middle') then
         if (numStep > 1) then
-          dtstep = tim_windowsize/(real(numStep-1,8))
+          dtstep = tim_windowsize / (real(numStep - 1, 8))
         else
           dtstep = tim_windowsize
         end if
 
         do stepIndex = 1, numStep
-          dldelt = (stepIndex - ((numStep-1)/2 + 1)) * dtstep
+          dldelt = (stepIndex - ((numStep - 1) / 2 + 1)) * dtstep
           call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
         end do
       end if
 
-      if (trim(tim_referencetime) == "start") then
+      if (trim(tim_referencetime) == 'start') then
      
-        dtstep = tim_windowsize/(real(numStep,8))
+        dtstep = tim_windowsize / (real(numStep, 8))
      
         do stepIndex = 1, numStep
           dldelt = (stepIndex - 1) * dtstep
@@ -513,24 +514,24 @@ contains
 
     if (numStep > 1) then
       ! FGAT: more than 1 trial field in time window
-      if (tim_referencetime == "middle") then
-        dddt = tim_windowsize / (real(numStep-1,8))
+      if (tim_referenceTime == 'middle') then
+        dddt = tim_windowsize / (real(numStep - 1, 8))
       else
-        dddt = tim_windowsize / (real(numStep,8))
+        dddt = tim_windowsize / (real(numStep, 8))
       end if
       dnstepobs = dlhours / dddt ! number of step obs from reference (e.g. synoptic)
-      if (tim_referencetime == "middle") then
-        dnstepobs = dnstepobs + real((numStep+1)/2,8)
+      if (tim_referenceTime == 'middle') then
+        dnstepobs = dnstepobs + real((numStep + 1) / 2, 8)
       end if
-      if (trim(tim_referencetime) == "start") then
+      if (trim(tim_referencetime) == 'start') then
         dnstepobs = dnstepobs + 1.d0
       end if
-      if (dnstepobs < 0.5d0.or.dnstepobs > (0.5d0+real(numStep,8))) dnstepobs = -1.0d0
+      if (dnstepobs < 0.5d0 .or. dnstepobs > (0.5d0 + real(numStep, 8))) dnstepobs = -1.0d0
 
     else
       ! 3D: only 1 trial field in time window
-      if (tim_referencetime == "middle") then
-        if (dlhours < -tim_windowsize/2.0D0 .or. dlhours > tim_windowsize/2.0D0) then
+      if (tim_referenceTime == 'middle') then
+        if (dlhours < -tim_windowsize / 2.0D0 .or. dlhours > tim_windowsize / 2.0D0) then
           ! outside time window
           dnstepobs = -1.0d0
         else
@@ -539,7 +540,7 @@ contains
         end if
       else
         dddt = tim_windowsize
-        if (dlhours < -dddt/2.0d0 .or. dlhours > tim_windowsize + dddt/2.d0) then
+        if (dlhours < -dddt / 2.0d0 .or. dlhours > tim_windowsize + dddt / 2.d0) then
           ! outside time window
           dnstepobs = -1.0d0
         else
@@ -733,5 +734,32 @@ contains
     ierr = newdate(currentDateStamp, printableDate, hour, imode)
 
   end function tim_yyyymmddhhToDatestamp
+
+  !----------------------------------------------------------------------------------------
+  ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
+  !----------------------------------------------------------------------------------------
+  subroutine tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
+    !
+    ! :Purpose: to compute number of hours between current and reference date.
+    !
+    implicit none
   
+    integer, intent(in)  :: currentDateStamp ! current datestamp
+    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
+    integer, intent(out) :: numberHours
+
+    ! Locals:
+    integer :: ierr, imode, refDateStamp, newdate
+    
+    write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate 
+    imode = 3
+    ierr = newdate(refDateStamp, referenceDate, 0, imode)
+    write(*,*) 'tim_getSecondsSinceReferenceDate: reference datestamp: ', refDateStamp
+
+    ! Difference (in hours) between current date and reference date
+    call difdat(currentDateStamp, refDateStamp, numberHours)
+    write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
+
+  end subroutine tim_getHoursSinceReferenceDate
+
 end module timeCoord_mod

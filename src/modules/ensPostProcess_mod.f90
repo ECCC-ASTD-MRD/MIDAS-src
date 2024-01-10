@@ -111,6 +111,7 @@ contains
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
+    logical  :: lwriteNetCDFInc       ! to write LETKF increments into a netCDF file
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -122,6 +123,7 @@ contains
                                    etiket_anlmean_raw, etiket_anlrms_raw,  &
                                    etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask,  &
                                    writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble
+                                   writeRawAnalStats, lwriteNetCDFInc
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -152,21 +154,24 @@ contains
     end if
 
     !- Setting default namelist variable values
-    randomSeed            =  -999
-    includeYearInSeed     = .false.
-    writeSubSample        = .false.
-    writeSubSampleUnPert  = .false.
-    alphaRTPS             =  0.0D0
-    alphaRTPP             =  0.0D0
-    alphaRandomPert       =  0.0D0
+    randomSeed               =  -999
+    includeYearInSeed        = .false.
+    writeSubSample           = .false.
+    writeSubSampleUnPert     = .false.
+    alphaRTPS                =  0.0D0
+    alphaRTPP                =  0.0D0
+    alphaRandomPert          =  0.0D0
     alphaRandomPertSubSample =  -1.0D0
-    huLimitsBeforeRecenter = .true.
-    imposeSaturationLimit = .false.
-    imposeRttovHuLimits   = .false.
-    weightRecenter(:)     = -1.0D0 ! means no specified values
-    weightRecenterLand    = -1.0D0 ! means same recentering for land as other variables
-    numMembersToRecenter  = -1     ! means all members recentered by default
-    useOptionTableRecenter = .false.
+    huLimitsBeforeRecenter   = .true.
+    imposeSaturationLimit    = .false.
+    imposeRttovHuLimits      = .false.
+    weightRecenter(:)        = -1.0D0 ! means no specified values
+    weightRecenterLand       = -1.0D0 ! means same recentering for land as other variables
+    numMembersToRecenter     = -1     ! means all members recentered by default
+    useOptionTableRecenter   = .false.
+    lwriteNetCDFInc          = .false.
+    referenceDateNetCDF      = 19800101
+
     ! For the next 3 variables, the member number will be appended to this string
     ! for files '${trialdate}_006_${member}'
     etiket_trl = 'E27_0_0P'
@@ -744,47 +749,46 @@ contains
       if (ens_isAllocated(ensembleTrl)) then
         call utl_tmg_start(5,'--WriteEnsMeanRms')
         ! output ensemble mean increment
-        call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
+        call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt = 'inc')
+        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
-        if (gsv_isAllocated(stateVectorMeanAnl4D)) then
-          call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
-          do stepIndex = 1, tim_nstepobs
-            call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket,  &
-                                 typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                                 stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-            if (gsv_isAllocated(stateVectorMeanAnlSfcPres4D)) then
-              call gio_writeToFile(stateVectorMeanAnlSfcPres4D, outFileName, etiket,  &
-                                   typvar_opt='A', writeHeightSfc_opt=.true., &
-                                   stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-            end if
-          end do
-        else
-          call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
-          do stepIndex = 1, tim_nstepobsinc
-            call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
-                                 typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                                 stepIndex_opt=stepIndex, containsFullField_opt=.false.)
-            if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-              call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
-                                   typvar_opt='A', writeHeightSfc_opt=.true., &
-                                   stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-            end if
-          end do
-        end if
+        do stepIndex = 1, tim_nstepobsinc
+          call gio_writeToFile(stateVectorMeanInc, outFileName, etiket, &
+                               typvar_opt = 'R', writeHeightSfc_opt = .false., &
+                               numBits_opt = numBits, stepIndex_opt = stepIndex, &
+                               containsFullField_opt = .false.)
+
+          if (lwriteNetCDFInc) then
+            outFileName = trim(outFileName) // '.nc'
+            call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+                                       referenceDateNetCDF, &
+                                       stepIndex_opt = stepIndex, &
+                                       containsFullField_opt = .false.)
+          end if
+
+          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
+            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+                                 typvar_opt = 'A', writeHeightSfc_opt = .true., &
+                                 stepIndex_opt = stepIndex, containsFullField_opt = .true.)
+          end if
+        end do
         call utl_tmg_stop(5)
 
         !- Output all ensemble member increments
         call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
+                                 numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
+                                 containsFullField_opt = .false., &
+                                 resetTimeParams_opt = .true., &
+                                 lwriteNetCDFInc_opt = lwriteNetCDFInc, &
+                                 referenceDateNetCDF_opt = referenceDateNetCDF)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
-            ! Also write the reference (analysis) surface pressure to ensemble increment files
-            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns,  &
-                                       etiket='ENS_INC', typvar='A', fileNameSuffix='inc',  &
-                                       ensPath='.')
+            ! Also write the reference (analysis) surface pressure to increment files
+            call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns, &
+                                       etiket = 'ENS_INC', typvar = 'A', &
+                                       fileNameSuffix = 'inc', ensPath='.')
           end if
         end if
         call utl_tmg_stop(3)

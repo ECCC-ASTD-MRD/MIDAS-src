@@ -252,6 +252,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="SST-NEMO"/>
+    <FAMILY  name="SST-NEMO">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="BgckChem"/>
     <FAMILY  name="BgckChem">
       <SUBMITS sub_name="UnitTest"/>

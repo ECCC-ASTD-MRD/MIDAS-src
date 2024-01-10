@@ -824,10 +824,11 @@ module varNameList_mod
       ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
-      integer :: unit, varID
+      integer :: unit
       character(len=128) :: fileName
       character(len=2)   :: typvar
       logical            :: openFile
+      logical, parameter :: beSilent = .true.
 
       if (present(fileUnit_opt)) then
         unit = fileUnit_opt
@@ -848,43 +849,22 @@ module varNameList_mod
         typvar = ' '
       end if
 
-      if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
+      if (openFile) then
+	ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
+	ierr = fstouv(unit, 'RND+OLD')
+      end if
 
-        if (openFile) then
-          ierr = nf90_open(fileName, nf90_nowrite, unit)
-        end if
+      key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+  
+      if (key > 0)  then
+	found = .true.
+      else
+	found = .false.
+      end if
 
-        ierr = nf90_inq_varid(unit, trim(vnl_varNameNetCDF(varName)), varID)
-        if (ierr == nf90_noerr) then
-          found = .true.
-        else
-          found = .false.
-        end if
-
-        if (openFile) then
-          ierr = nf90_close(unit)
-        end if
-
-      else ! assume standard file
-
-        if (openFile) then
-          ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
-          ierr = fstouv(unit, 'RND+OLD')
-        end if
-
-        key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
-    
-        if (key > 0)  then
-          found = .true.
-        else
-          found = .false.
-        end if
-
-        if (openFile) then
-          ierr =  fstfrm(unit)
-          ierr =  fclos (unit)
-        end if
-
+      if (openFile) then
+	ierr =  fstfrm(unit)
+	ierr =  fclos (unit)
       end if
 
     end function vnl_varNamePresentInFile
@@ -892,23 +872,48 @@ module varNameList_mod
     !-----------------------------------------------------------------------
     ! vnl_varNameNetCDF
     !----------------------------------------------------------------------
-    function vnl_varNameNetCDF(varName) result(varNameNetCDF)
+    function vnl_varNameNetCDF(varName, templateFile_opt) result(varNameNetCDF)
       !
       ! :Purpose: Return the equivalent variable name used for netCDF files
       !           in use by the NEMO ocean model.
       implicit none
   
       ! Arguments:
-      character(len=*), intent(in) :: varName       ! input MIDAS variable name
-      
+      character(len=*), intent(in)           :: varName          ! input MIDAS variable name
+      character(len=*), intent(in), optional :: templateFile_opt ! template NEMO file   
+          
       ! Result:
-      character(len=20)            :: varNameNetCDF ! variable name used for NEMO netCDF files
+      character(len=20)                      :: varNameNetCDF    ! variable name used in NEMO netCDF
+
+      ! Locals:
+      logical :: varFound(3) ! logical switches:
+                             !   1. found depth,
+                             !   2. found 3D ocean temperature, 
+                             !   3. found SST.
+      logical, parameter :: beSilent = .true.
+
+      write(*,*) 'vnl_varNameNetCDF: DEBUG: varName: ', varName
 
       select case(trim(varName))
       case('SSH')
         varNameNetCDF = 'zos'
-      case('TM')
-        varNameNetCDF = 'toce'
+      case('TM')    
+        ! special case for TM which is currently a variable used for SST as well as 
+	! for 3D ocean temperature field
+        if (present(templateFile_opt)) then
+          call utl_inquireNEMOTemperature(templateFile_opt, beSilent, varFound(:))
+          if (varFound(2)) then
+            varNameNetCDF = 'toce'
+          else if (varFound(3)) then
+            varNameNetCDF = 'tos'
+          else
+            write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
+                       trim(templateFile_opt), ' for varName = ', trim(varName)
+          end if
+	else
+	  ! 3D ocean temperature field
+          varNameNetCDF = 'toce'
+        end if
       case('SALW')
         varNameNetCDF = 'soce'
       case('UUW')
@@ -916,10 +921,10 @@ module varNameList_mod
       case('VVW')
         varNameNetCDF = 'vo'
       case default
-        varNameNetCDF = trim(varName)
+        varNameNetCDF = 'notFound'
         write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
       end select
-  
+
     end function vnl_varNameNetCDF
 
 end module varNameList_mod
