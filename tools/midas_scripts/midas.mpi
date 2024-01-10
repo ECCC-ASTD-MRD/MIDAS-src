@@ -322,11 +322,14 @@ if [ -n "${observations}" ]; then
 
 fi ## End of 'if [ -n "${observations}" ]'
 
+${echo_cmd} observation preparation done at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+SECONDS=0
+
 if [ -n "${midas_mpi_barrier}" ]; then
-    ${midas_mpi_barrier} -master 0 -child ${MP_CHILD} -id midas -npex ${npex} -npey ${npey} -sleep 0.01 -workdir ${PWD} \
-        -echo_cmd ${echo_cmd} \
-        -date_cmd ${date_cmd} \
-        -sleep_cmd ${sleep_cmd}
+    ${echo_cmd} launching midas.mpi_barrier at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
+    ${midas_mpi_barrier} -master 0 -child ${MP_CHILD} -id midas -npex ${npex} -npey ${npey} \
+                         -sleep 0.01 -workdir ${PWD} -echo_cmd ${echo_cmd} \
+                         -date_cmd ${date_cmd} -sleep_cmd ${sleep_cmd}
 
     if [ "${splitobs_mode}" != no ]; then
         if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
