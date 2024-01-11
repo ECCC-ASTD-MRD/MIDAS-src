@@ -29,6 +29,7 @@ eval `${CCLARGS}  -D "" $0 \
   -fasttmp           "no" "yes"   "[Using the FASTTMP technology]" \
   -ramdiskpath       ""   ""      "[path to RAMDisk]" \
   -tmpfsdir          ""   ""      "[array containing the ramdisk path for each node]" \
+  -rank_tmpdir       ""   ""      "[temporary directory unique for each MPI rank]" \
   -editbrp      "editbrp"         "editbrp"       "[path to 'editbrp' (default: the one in the PATH)]" \
   -reflex       "reflex"          "reflex"        "[path to 'reflex'  (default: the one in the PATH)]" \
   -rfiletype    "r.filetype"      "r.filetype"    "[path to 'r.filetype'  (default: the one in the PATH)]" \
@@ -239,8 +240,8 @@ if [ -n "${observations}" ]; then
                 -splitobs_fstin   ${splitobs_fstin}                             \
                 -splitobs_nomvar  ${splitobs_nomvar}                            \
                 -cp_cmd ${cp_cmd} -mv_cmd ${mv_cmd} -mkdir_cmd ${mkdir_cmd}     \
-                -sleep_cmd ${sleep_cmd} -echo_cmd ${echo_cmd}                   \
-                > splitfiles.${bfilename}.${MP_CHILD}.listing 2>&1 || touch splitfiles.${bfilename}.${MP_CHILD}.abort &
+                -sleep_cmd ${sleep_cmd} -date_cmd ${date_cmd} -echo_cmd ${echo_cmd} \
+                > ${rank_tmpdir}/splitfiles.${bfilename}.${MP_CHILD}.listing 2>&1 || touch ${rank_tmpdir}/splitfiles.${bfilename}.${MP_CHILD}.abort &
             let splitobs_counter=splitobs_counter+1
             if [ -n "${MIDAS_CONCURRENT_SPLITOBS}" ]; then
                 if [ "${splitobs_counter}" -eq "${MIDAS_CONCURRENT_SPLITOBS}" ]; then
@@ -288,12 +289,24 @@ if [ -n "${observations}" ]; then
         fi
 
         ${echo_cmd} "The splitting took ${SECONDS} seconds for all observations."
-        for listing in splitfiles.*.${MP_CHILD}.listing; do
-            cat ${listing}
-            rm  ${listing}
+        did_some_abort_occured=false
+        for observation_file in ${observations}; do
+            filename=${observation_file##*/}
+            listing=${rank_tmpdir}/splitfiles.${filename}.${MP_CHILD}.listing
+            if [ -f ${listing} ]; then
+                cat ${listing}
+                rm  ${listing}
+            else
+                echo "The listing ${listing} should exist and does not!"
+            fi
+            abort_file=${rank_tmpdir}/splitfiles.${filename}.${MP_CHILD}.abort
+            if [ -f ${abort_file} ]; then
+                did_some_abort_occured=true
+            fi
         done
+
         [ "${fasttmp}" = yes ] && ${df_cmd} -hP ${MIDAS_RAMDISKDIR}
-        if [ -n "$(${ls_cmd} splitfiles.*.${MP_CHILD}.abort || ${true_cmd})" ]; then
+        if [ "${did_some_abort_occured}" = true ]; then
             ${echo_cmd} "One of the splitting commands aborted!"
             exit 1
         fi
@@ -309,11 +322,14 @@ if [ -n "${observations}" ]; then
 
 fi ## End of 'if [ -n "${observations}" ]'
 
+${echo_cmd} observation preparation done at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
+SECONDS=0
+
 if [ -n "${midas_mpi_barrier}" ]; then
-    ${midas_mpi_barrier} -master 0 -child ${MP_CHILD} -id midas -npex ${npex} -npey ${npey} -sleep 0.01 -workdir ${PWD} \
-        -echo_cmd ${echo_cmd} \
-        -date_cmd ${date_cmd} \
-        -sleep_cmd ${sleep_cmd}
+    ${echo_cmd} launching midas.mpi_barrier at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) SECONDS=${SECONDS}
+    ${midas_mpi_barrier} -master 0 -child ${MP_CHILD} -id midas -npex ${npex} -npey ${npey} \
+                         -sleep 0.01 -workdir ${PWD} -echo_cmd ${echo_cmd} \
+                         -date_cmd ${date_cmd} -sleep_cmd ${sleep_cmd}
 
     if [ "${splitobs_mode}" != no ]; then
         if [ "${MP_CHILD}" = "${MINIMIZE_COPY}" ]; then
@@ -327,7 +343,7 @@ ulimit -c unlimited
 ${echo_cmd} starting ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 SECONDS=0
 ${abs}
-#/usr/bin/time --format "Total Memory: %MMb" ${abs}
+#/usr/bin/time --format "Total Memory: %M Kb" ${abs}
 ELAPSED_TIME=${SECONDS}
 ${echo_cmd} ending ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} ${abs} took ${SECONDS}
