@@ -157,7 +157,7 @@ program midas_ensPostProcess
   type(struct_ens)          :: ensembleAnl
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
-  type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
+  type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl4D
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
@@ -305,7 +305,7 @@ program midas_ensPostProcess
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
     !- Allocate and read control member Trl
-    call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+    call gsv_allocate( stateVectorCtrlTrl4D, tim_nstepobs, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -313,8 +313,8 @@ program midas_ensPostProcess
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt=0, &
                          copyToRamDisk_opt=.false.)
-    do stepIndex = 1, tim_nstepobsinc
-      call gio_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+    do stepIndex = 1, tim_nstepobs
+      call gio_readFromFile( stateVectorCtrlTrl4D, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
@@ -322,7 +322,7 @@ program midas_ensPostProcess
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call epp_postProcess(ensembleTrl, ensembleAnl, &
-                       stateVectorHeightSfc, stateVectorCtrlTrl, &
+                       stateVectorHeightSfc, stateVectorCtrlTrl4D, &
                        writeTrlEnsemble)
 
   !
