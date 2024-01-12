@@ -13,6 +13,10 @@ module oceanMask_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use mathPhysConstants_mod
+  use earthConstants_mod
+  use message_mod
+  
   implicit none
   save
   private
@@ -41,7 +45,7 @@ module oceanMask_mod
   !--------------------------------------------------------------------------
   ! ocm_readMaskFromFile
   !--------------------------------------------------------------------------
-  subroutine ocm_readMaskFromFile(oceanMask, hco, vco, filename)
+  subroutine ocm_readMaskFromFile(oceanMask, hco, vco, fileName)
     !
     ! :Purpose: Check if any mask fields exist for surface or ocean depth levels.
     !
@@ -55,29 +59,44 @@ module oceanMask_mod
     character(len=*),          intent(in)    :: fileName
 
     ! Locals:
-    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file
+    integer :: nulfile, ierr, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
-    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui
+    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui, fstprm
     integer, allocatable :: mask(:,:)
     integer :: maxkeys
-
+    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute waterMinGridSpacing 
+    integer :: latIndex, lonIndex
+    real(8) :: minDeltaLat, minDeltaLon 
+    real(8) :: deltaLon, deltaLon1, deltaLon2, deltaLon3
+    real(8) :: deltaLat, deltaLat1, deltaLat2, deltaLat3
+    real(8) :: minGridSpacing ! in meter 
+    character(len=1) :: grtyp
+    integer :: dateo, deet, npas, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ig1, ig2, ig3, ig4
+    character(len=20) :: varName
+    character(len=12) :: etiket
+    character(len=2 ) :: typvar
+    
     ! Check if any mask is present in file, return if not
-    if ( .not. vnl_varNamePresentInFile(' ',fileName_opt=trim(fileName),typvar_opt='@@') ) then
+    if ( .not. vnl_varNamePresentInFile(' ', fileName_opt = trim(fileName), typvar_opt='@@')) then
       return
     end if
 
+    call msg('ocm_readMaskFromFile', 'File name = '//trim(fileName))
+    
     !- Open input file
     nulfile = 0
-    write(*,*) 'ocm_readMaskFromFile: file name = ',trim(fileName)
-    ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
+    ierr = fnom(nulfile, trim(fileName), 'RND+OLD+R/O', 0)
 
-    if ( ierr >= 0 ) then
-      maxkeys = fstouv(nulfile,'RND+OLD')
+    if (ierr >= 0) then
+      maxkeys = fstouv(nulfile, 'RND+OLD')
     else
-      call utl_abort('ocm_readMaskFromFile: problem opening input file')
+      call utl_abort('ocm_readMaskFromFile problem opening input file')
     end if
 
-    if (nulfile == 0 ) then
+    if (nulfile == 0) then
       call utl_abort('ocm_readMaskFromFile: unit number for input file not valid')
     end if
 
@@ -86,38 +105,47 @@ module oceanMask_mod
       lev_loop: do levIndex = 1, vco%nLev_depth
 
         ip1 = vco%ip1_depth(levIndex)
-
+        
         ! Make sure that the mask for this variable has the same grid size as hco
         ikey = fstinf(nulfile, ni_file, nj_file, nk_file, &
-                      -1, ' ', ip1, -1, -1, '@@', ' ')
+                      -1, ' ', ip1, -1, -1, '@@', ' ')    
 
         if (ikey < 0) then
-          write(*,*) 'ocm_readMaskFromFile: searched for mask with ip1 = ', ip1
+          call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: '//str(ip1))
           call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
+	
+        ! get grid type (grtyp) from the mask file
+        ierr = fstprm(ikey,                                                & ! IN
+		      dateo, deet, npas, ni_file, nj_file, nk_file, nbits, & ! OUT
+		      datyp, ip1, ip2, ip3, typvar, varName, etiket,       & ! OUT
+		      grtyp, ig1, ig2, ig3,                                & ! OUT
+		      ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)      ! OUT
 
         do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
           ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
         end do
 
         if (ni_file == hco%ni .and. nj_file == hco%nj) then
-          write(*,*) 'ocm_readMaskFromFile: read mask for ip1 = ', ip1
+          call msg('ocm_readMaskFromFile', 'Read mask for ip1: ' // str(ip1))
           if (.not. associated(oceanMask%mask)) then
-            call ocm_allocate(oceanMask,hco,vco%nLev_depth)
+            call ocm_allocate(oceanMask, hco, vco%nLev_depth)
           end if
-          if (.not. allocated(mask)) allocate(mask(hco%ni,hco%nj))
+          if (.not. allocated(mask)) allocate(mask(hco%ni, hco%nj))
           ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
-          call ocm_copyFromInt(oceanMask,mask,levIndex)
+          call ocm_copyFromInt(oceanMask, mask, levIndex)
           if (ierr < 0) then
             call utl_abort('ocm_readMaskFromFile: error when reading mask record')
           end if
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
-          write(*,*) 'ocm_readMaskFromFile: mask is on a different horizontal grid'
-          write(*,*) 'ni = ', ni_file, hco%ni, ', nj = ', nj_file, hco%nj
+          call msg('ocm_readMaskFromFile', 'Mask is on a different horizontal grid')
+          call msg('ocm_readMaskFromFile', 'ni = ' // str(ni_file) //','// str(hco%ni)// &
+                                           ', nj = ' // str(nj_file)//','// str(hco%nj))
           call utl_abort('ocm_readMaskFromFile: This is not allowed at the moment')
         end if
+	
       end do lev_loop
 
     else
@@ -130,18 +158,18 @@ module oceanMask_mod
       if (ikey < 0) then
         call utl_abort('ocm_readMaskFromFile: cannot find any mask in file ' // trim(fileName))
       end if
-
+      
       do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
         ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
       end do
 
       if (ni_file == hco%ni .and. nj_file == hco%nj) then
-        write(*,*) 'ocm_readMaskFromFile: reading mask'
+        call msg('ocm_readMaskFromFile', 'Reading mask')
         if (.not. associated(oceanMask%mask)) then
-          call ocm_allocate(oceanMask,hco,1)
-          if (.not. allocated(mask)) allocate(mask(hco%ni,hco%nj))
+          call ocm_allocate(oceanMask, hco, 1)
+          if (.not. allocated(mask)) allocate(mask(hco%ni, hco%nj))
           ierr = fstluk(mask(:,:), ikey, ni_file, nj_file, nk_file)
-          call ocm_copyFromInt(oceanMask,mask,1)
+          call ocm_copyFromInt(oceanMask, mask, 1)
           if (ierr < 0) then
             call utl_abort('ocm_readMaskFromFile: error when reading mask record')
           end if
@@ -149,8 +177,9 @@ module oceanMask_mod
       else
         ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
         write(*,*)
-        write(*,*) 'ocm_readMaskFromFile: mask is on a different horizontal grid'
-        write(*,*) 'ni = ', ni_file, hco%ni, ', nj = ', nj_file, hco%nj
+        call msg('ocm_readMaskFromFile', 'Mask is on a different horizontal grid')
+        call msg('ocm_readMaskFromFile', 'ni = ' // str(ni_file)//','//str(hco%ni)//&
+                                         ', nj = '// str(nj_file)//','//str(hco%nj))
         call utl_abort('ocm_readMaskFromFile: This is not allowed at the moment')
       end if
 
@@ -159,7 +188,78 @@ module oceanMask_mod
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
 
-    if (allocated(mask)) deallocate(mask)
+    if (allocated(mask)) deallocate(mask)    
+    
+    !- Compute waterMinGridSpacing 
+     
+    ORCA025: if (trim(grtyp) == 'Y') then
+
+      call msg  ('ocm_readMaskFromFile', 'hco%minGridSpacing computed within hco_setupFromFile: '//str(hco%minGridSpacing)//' m')
+      call msg  ('ocm_readMaskFromFile', 'As hco%minGridSpacing cannot be computed correctly for the ORCA025 grid'//&
+                                         'due to its numerical pole on land, in Canada around (107W, 66N),'//&
+                                         'minGridSpacing will be updated here.')
+    
+      minDeltaLat = 1.0d6
+      do lonIndex = 1, hco%ni - 1
+        do latIndex = 1, hco%nj - 1
+        
+	  if (oceanMask%mask(lonIndex, latIndex, 1)) then
+
+            deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
+            deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
+            deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
+
+            deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
+            if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
+	  
+          end if
+
+        end do      
+      end do
+
+      minDeltaLon = 1.0d6
+      do lonIndex = 1, hco%ni - 1
+        do latIndex = 1, hco%nj - 1
+
+          if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
+
+ 	    if (oceanMask%mask(lonIndex, latIndex, 1)) then
+	  
+              deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
+              deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
+              deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
+
+              if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+              deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
+              if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+              deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
+              if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+              deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+
+              deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+              if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
+         
+            end if
+	  
+          end if
+
+        end do
+      end do
+
+      minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
+
+      if (minGridSpacing /= hco%minGridSpacing) then
+        hco%minGridSpacing = minGridSpacing
+        call msg('ocm_readMaskFromFile', 'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+        call msg('ocm_readMaskFromFile', 'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+        call msg('ocm_readMaskFromFile', 'Updated ocean water points hco%minGridSpacing: '//str(hco%minGridSpacing)//' m')
+      end if
+
+      if (minGridSpacing > 1.0d6) then
+        call utl_abort('ocm_readMaskFromFile: minGridSpacing is greater than 1000 km.')
+      end if
+
+    end if ORCA025
 
   end subroutine ocm_readMaskFromFile
 

@@ -12,7 +12,8 @@ module horizontalCoord_mod
   use varNameList_mod
   use physicsFunctions_mod
   use netcdf
-
+  use message_mod
+  
   implicit none
   save
   private
@@ -106,11 +107,6 @@ contains
     character(len=12) :: etiket
     character(len=100) :: fileName
 
-    ! for NetCDF
-    integer :: varID, xtype, nDims, dimIndex, nAtts
-    integer :: dimids(NF90_MAX_VAR_DIMS), dimLength(NF90_MAX_VAR_DIMS)
-    character(len=NF90_MAX_NAME) :: dimName
-
     if(.not.associated(hco)) then
       allocate(hco)
     else
@@ -167,7 +163,7 @@ contains
 
     end if
 
-    write(*,*) 'hco_SetupFromFile: defining hco by varname = ', varName
+    call msg('hco_SetupFromFile', 'Defining hco by varname: '// trim(varName))
 
     ! Check if file exists
     inquire(file = trim(fileName), exist = fileExist)
@@ -183,7 +179,7 @@ contains
     ier = fnom(iu_template,trim(fileName), 'RND+OLD+R/O', 0)
     if (ier == 0) then
       write(*,*)
-      write(*,*) 'hco_setupFromFile: Template File =', trim(fileName)
+      call msg('hco_SetupFromFile', 'Template file: ' // trim(fileName))
       ier = fstouv(iu_template, 'RND+OLD')
     else
       write(*,*)
@@ -196,7 +192,7 @@ contains
 
     !- 2.1 Grid size and grid projection info
     dateo  = -1
-    etiket = EtiketName
+    etiket = etiketName
     ip1    = -1
     ip2    = -1
     ip3    = -1
@@ -208,8 +204,8 @@ contains
 
     if (key < 0) then
       write(*,*)
-      write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ', varName
-      write(*,*) '		     with etiket = ',trim(EtiketName)
+      call msg('hco_SetupFromFile', 'Unable to find output horiz grid info using '//trim(varName)//&
+                                    'with etiket '//trim(etiketName))
       call utl_abort('hco_setupFromFile: unable to setup the structure')
     end if
 
@@ -233,7 +229,7 @@ contains
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
   
-    ier = gdll(EZscintID,		& ! IN
+    ier = gdll(EZscintID,              & ! IN
 	       hco%lat2d_4, hco%lon2d_4) ! OUT
 
     xlat1_yan_4 = MPC_missingValue_R4
@@ -263,17 +259,15 @@ contains
 		       dateo, etiket, ip1, ip2, ip3, typvar, varName)  ! IN
 
       if (ier < 0) then
-	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
+	call msg('hco_SetupFromFile', 'Unable to find >> grid descriptors')
 	call utl_abort('hco_setupFromFile')
       end if
     
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= ni .or. nj_t /= 1) then
-	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
-	write(*,*) 'Found     :', ni_t, nj_t
-	write(*,*) 'Should be :', ni, 1
+	call msg('hco_SetupFromFile', 'Incompatible >> grid descriptors!')
+	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+	call msg('hco_SetupFromFile', 'Should be: '//str(ni)//','//str(1))
 	call utl_abort('hco_setupFromFile')
       end if
 
@@ -292,17 +286,15 @@ contains
 		       dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
 
       if (ier < 0) then
-	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
+	call msg('hco_SetupFromFile', 'Unable to find ^^ grid descriptors')
 	call utl_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= 1 .or. nj_t /= nj) then
-	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
-	write(*,*) 'Found     :', ni_t, nj_t
-	write(*,*) 'Should be :', 1, nj
+	call msg('hco_SetupFromFile', 'Incompatible ^^ grid descriptors!')
+	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+	call msg('hco_SetupFromFile', 'Should be: '//str(1)//','//str(nj))
 	call utl_abort('hco_setupFromFile')
       end if
 
@@ -399,16 +391,15 @@ contains
   
       if (ier < 0) then
 	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Unable to find ^> grid descriptors'
+	call msg('hco_SetupFromFile', 'Unable to find ^> grid descriptors')
 	call utl_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= ni_tictacU .or. nj_t /= 1) then
-	write(*,*)
-	write(*,*) 'hco_SetupFromFile: Incompatible ^> grid descriptors !'
-	write(*,*) 'Found     :', ni_t, nj_t
-	write(*,*) 'Should be :', ni_tictacU, 1
+	call msg('hco_SetupFromFile', 'Incompatible ^> grid descriptors!')
+	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+	call msg('hco_SetupFromFile', 'Should be: '//str(ni_tictacU)//','//str(1))
 	call utl_abort('hco_setupFromFile')
       end if
 
@@ -465,8 +456,7 @@ contains
       lat_8(:) = MPC_missingValue_R8
 
     else
-      write(*,*)
-      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or B or U or Y are supported !, grtyp = ', trim(grtyp)
+      call msg('hco_SetupFromFile', 'Only grtyp = Z or G or B or U or Y are supported !, grtyp: '//trim(grtyp))
       call utl_abort('hco_setupFromFile')
     end if
 
@@ -568,9 +558,9 @@ contains
 
     if (mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious) then
       maxGridSpacingPrevious = maxGridSpacing
-      write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-      write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-      write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
+      call msg('hco_setupFromFile', 'maxGridSpacing='//str(maxGridSpacing)//' m')
+      call msg('hco_setupFromFile', 'maxDeltaLat= '//str(maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+      call msg('hco_setupFromFile', 'maxDeltaLon= '//str(maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
     if (maxGridSpacing > 1.0d6) then
@@ -614,7 +604,7 @@ contains
 
           deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
           if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
-
+       
         end if
 
       end do
@@ -624,9 +614,9 @@ contains
 
     if (mmpi_myid == 0 .and. minGridSpacing /= minGridSpacingPrevious) then
       minGridSpacingPrevious = minGridSpacing
-      write(*,*) 'hco_setupFromFile: minDeltaLat=', minDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-      write(*,*) 'hco_setupFromFile: minDeltaLon=', minDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
-      write(*,*) 'hco_setupFromFile: minGridSpacing=', minGridSpacing, ' m'
+      call msg('hco_setupFromFile', 'minGridSpacing='//str(minGridSpacing)//' m')
+      call msg('hco_setupFromFile', 'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+      call msg('hco_setupFromFile', 'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
     if (minGridSpacing > 1.0d6) then
@@ -635,9 +625,7 @@ contains
 
     hco%minGridSpacing = minGridSpacing
 
-    write(*,*) ''
-    write(*,*) 'hco_setupFromFile: completed'
-    write(*,*) ''
+    call msg('hco_setupFromFile', 'Completed')
 
   end subroutine hco_SetupFromFile
 

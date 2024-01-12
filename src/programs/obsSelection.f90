@@ -206,7 +206,7 @@ program midas_obsSelection
   use bgckCSR_mod
   use bgckOcean_mod 
   use sstBias_mod
-   
+  
   implicit none
 
   integer :: dateStampFromObs, headerIndex, ierr
@@ -286,7 +286,7 @@ program midas_obsSelection
   if(mmpi_myid == 0) write(*,*)
   if(mmpi_myid == 0) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-
+  
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
@@ -400,7 +400,7 @@ program midas_obsSelection
 
   ! Do the ocean data background check
   if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
-                                                              columnTrlOnTrlLev, hco_trl)
+                                                              columnTrlOnTrlLev, hco_trl, vco_trl)
 
   ! Do the sea ice data gross background check
   if (obs_famExist(obsSpaceData, 'GL')) call ocebg_bgCheckSeaIce(obsSpaceData)
