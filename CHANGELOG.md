@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to compute 4D control member increments (#873 and !803)
  * Added new timing tool to print time and accumulated time to listing (#864 and !798)
 
 ### Changed
