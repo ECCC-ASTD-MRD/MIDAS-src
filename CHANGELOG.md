@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.0.1]
+
+### Added
+
  * More namelist variables in `nambgck` for all-sky ATMS humidity channels (#935 and !844)
    * Small impact on number of all-sky humidity ATMS observations assimilated
  * Added new program dfs.f90 to compute DFS and to perform channel selection (#904 and !840)
@@ -1250,7 +1268,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...HEAD
+[4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
 [4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_4.0.0
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
