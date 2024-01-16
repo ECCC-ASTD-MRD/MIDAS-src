@@ -386,7 +386,7 @@ program midas_var
   end if
 
   ! Initialize constants
-  if ( mmpi_myid == 0 ) then
+  if (mmpi_myid == 0) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
@@ -451,8 +451,8 @@ program midas_var
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupColumnsOnTrlLev
-  call min_setup( cvm_nvadim, hco_anl,                                   & ! IN
-                  varqc_opt=varqcActive, nwoqcv_opt=numIterWithoutVarqc )  ! OUT
+  call min_setup(cvm_nvadim, hco_anl,                                 & ! IN
+                 varqc_opt=varqcActive, nwoqcv_opt=numIterWithoutVarqc) ! OUT
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     call msg('var','Problem allocating memory for controlVectorIncr'//str(ierr))

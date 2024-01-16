@@ -18,7 +18,8 @@ module bgckOcean_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use message_mod
-
+  use bMatrixDiff_mod
+  
   implicit none
 
   save
@@ -54,12 +55,17 @@ module bgckOcean_mod
   real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
   real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
   real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
+  logical           :: fourSeasonsBgstdSST = .false. ! to mimic operational SST analysis, where there are 4 seasonal fields of 
+                                                     ! BG std. To compute daily BG std interpolated in time,  
+                                                     ! two fields are used: from the left and from the right of the current date.
+                                                     ! The seasonal fields are considered to be valid on the 15th of Jan, Apr, Aug and Nov. 
+
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
                              monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale, &
                              globalSelectCriteria, separateSelectCriteria, inlandWaterSelectCriteriaSatData, &
                              inlandWaterSelectCriteriaInsitu, seaWaterSelectCriteriaSatData, &
-                             seaWaterSelectCriteriaInsitu, seaWaterThreshold 
+                             seaWaterSelectCriteriaInsitu, seaWaterThreshold, fourSeasonsBgstdSST
 
   character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -156,8 +162,14 @@ module bgckOcean_mod
     call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
-                          unitConversion_opt=.false., containsFullField_opt=.true.)
+    if (fourSeasonsBgstdSST) then
+      call bdiff_getSSTBGstdFromFourSeasons(hco, columnTrlOnTrlLev%vco, stateVectorFGE)
+    else		      
+      call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
+                            unitConversion_opt=.false., containsFullField_opt=.true.)
+    end if
+    call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
+    
     if (checkWinds) then
       call utl_tmg_start(122, '--checkWindsForSST') 
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
@@ -187,9 +199,6 @@ module bgckOcean_mod
 
       call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
       
-      ! FGE state vector
-      call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
-
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd

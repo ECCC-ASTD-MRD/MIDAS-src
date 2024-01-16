@@ -20,6 +20,8 @@ module timeCoord_mod
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
+  ! public functions
+  public :: tim_yyyymmddhhToDatestamp
 
   character(len=4) :: varNameForDate
   character(len=6) :: tim_referencetime
@@ -588,11 +590,11 @@ contains
     if (present(verbose_opt)) verbose = verbose_opt
     
     if(verbose) then
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  date = ', prntdate
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  year = ', yyyy
-      write(*,'(a,i5,a,i5,a)') 'tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:   day = ', dd
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  time = ', prnttime
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', prntdate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
+      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
     end if     
   
   end subroutine tim_dateStampToYYYYMMDDHH
@@ -702,4 +704,34 @@ contains
     
   end subroutine tim_getValidDateTimeFromList
 
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestamp
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: year
+    integer, intent(in)  :: month
+    integer, intent(in)  :: day
+    integer, intent(in)  :: hour
+
+    ! Result:
+    integer :: currentDateStamp
+
+    ! Locals:
+    integer :: imode, ierr
+    integer :: printableDate
+    integer, external :: newdate
+    
+    printableDate = year * 10000 + month * 100 + day
+    
+    imode = 3
+    ierr = newdate(currentDateStamp, printableDate, hour, imode)
+
+  end function tim_yyyymmddhhToDatestamp
+  
 end module timeCoord_mod
