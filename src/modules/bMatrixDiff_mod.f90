@@ -122,7 +122,7 @@ CONTAINS
     else
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml = nambdiff, iostat = ierr)
-      if (ierr /= 0) call utl_abort( myName//': Error reading namelist')
+      if (ierr /= 0) call utl_abort('bdiff_setup: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml = nambdiff)
       call utl_tmg_stop(181)
     end if
