@@ -23,6 +23,8 @@ MODULE ensembleObservations_mod
   use codtyp_mod
   use obsfamilylist_mod
   use varnamelist_mod
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
+  use mpi
   implicit none
   save
   private
@@ -63,9 +65,9 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
-    real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
-    real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
-    real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
+    real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
+    real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space    
+    real(4), pointer              :: randPert_r4(:,:) => null() ! unbiased random perturbations with covariance equal to R
     real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
@@ -273,8 +275,14 @@ CONTAINS
     deallocate(ensObs%obsErrInv)
     if (allocated(ensObs%obsErrInv_sim)) deallocate(ensObs%obsErrInv_sim)
     deallocate(ensObs%Yb_r4)
-    if (allocated(ensObs%Ya_r4)) deallocate(ensObs%Ya_r4)
-    if (allocated(ensObs%randPert_r4)) deallocate(ensObs%randPert_r4)
+    if (associated(ensObs%Ya_r4)) then
+      deallocate(ensObs%Ya_r4)
+      nullify(ensObs%Ya_r4)
+    end if
+    if (associated(ensObs%randPert_r4)) then
+      deallocate(ensObs%randPert_r4)
+      nullify(ensObs%randPert_r4)
+    end if
     deallocate(ensObs%meanYb)
     deallocate(ensObs%deterYb)
     deallocate(ensObs%assFlag)
@@ -306,8 +314,8 @@ CONTAINS
     ensObs%obsErrInv(:)     = 0.0d0
     if (allocated(ensObs%obsErrInv_sim)) ensObs%obsErrInv_sim(:) = 0.0
     ensObs%Yb_r4(:,:)       = 0.0
-    if (allocated(ensObs%Ya_r4)) ensObs%Ya_r4(:,:) = 0.0
-    if (allocated(ensObs%randPert_r4)) ensObs%randPert_r4(:,:) = 0.0
+    if (associated(ensObs%Ya_r4)) ensObs%Ya_r4(:,:) = 0.0
+    if (associated(ensObs%randPert_r4)) ensObs%randPert_r4(:,:) = 0.0
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
@@ -366,10 +374,10 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
-    if (allocated(ensObs%Ya_r4)) then
+    if (associated(ensObs%Ya_r4)) then
       allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
     end if
-    if (allocated(ensObs%randPert_r4)) then
+    if (associated(ensObs%randPert_r4)) then
       allocate(ensObsClean%randPert_r4(ensObs%numMembers,numObsClean))
     end if
 
@@ -385,10 +393,10 @@ CONTAINS
           ensObsClean%obsErrInv_sim(obsCleanIndex) = ensObs%obsErrInv_sim(obsIndex)
         end if 
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
-        if (allocated(ensObs%Ya_r4)) then
+        if (associated(ensObs%Ya_r4)) then
           ensObsClean%Ya_r4(:,obsCleanIndex) = ensObs%Ya_r4(:,obsIndex)
         end if
-        if (allocated(ensObs%randPert_r4)) then
+        if (associated(ensObs%randPert_r4)) then
           ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
         end if
         ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
@@ -418,11 +426,11 @@ CONTAINS
       ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_sim(:)
     end if
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
-    if (allocated(ensObsIn%Ya_r4)) then
+    if (associated(ensObsIn%Ya_r4)) then
       allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%Ya_r4(:,:) = ensObsIn%Ya_r4(:,:)
     end if
-    if (allocated(ensObsIn%randPert_r4)) then
+    if (associated(ensObsIn%randPert_r4)) then
       allocate(ensObsOut%randPert_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
     end if
@@ -454,6 +462,13 @@ CONTAINS
     integer :: ierr, procIndex, memberIndex, numObs_mpiglobal
     integer :: allNumObs(mmpi_nprocs), displs(mmpi_nprocs)
 
+    integer :: win,hostcomm,hostrank, get_max_rss
+    integer(kind=mpi_address_kind) :: windowsize
+    integer :: disp_unit,my_rank,total
+    type(c_ptr) :: baseptr
+    real(4), pointer :: matrix_elementsy(:,:,:,:)
+    integer, allocatable :: arrayshape(:)
+    
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -474,10 +489,10 @@ CONTAINS
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
                       fileMemberIndex1_opt=ensObs%fileMemberIndex1)
-    if (allocated(ensObsClean%Ya_r4)) then
+    if (associated(ensObsClean%Ya_r4)) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
-    if (allocated(ensObsClean%randPert_r4)) then
+    if (associated(ensObsClean%randPert_r4)) then
       allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
@@ -524,12 +539,12 @@ CONTAINS
       call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                             ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                             0, 'GRID', ierr)
-      if (allocated(ensObsClean%Ya_r4)) then
+      if (associated(ensObsClean%Ya_r4)) then
         call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                               ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                               0, 'GRID', ierr)
       end if
-      if (allocated(ensObsClean%randPert_r4)) then
+      if (associated(ensObsClean%randPert_r4)) then
         call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                               ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                               0, 'GRID', ierr)
@@ -559,11 +574,11 @@ CONTAINS
     do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
-      if (allocated(ensObs_mpiglobal%Ya_r4)) then
+      if (associated(ensObs_mpiglobal%Ya_r4)) then
         call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                             0, 'GRID', ierr)
       end if
-      if (allocated(ensObs_mpiglobal%randPert_r4)) then
+      if (associated(ensObs_mpiglobal%randPert_r4)) then
         call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                             0, 'GRID', ierr)        
       end if
@@ -1313,7 +1328,7 @@ CONTAINS
     integer         , intent(in)     :: memberIndex
     integer         , intent(in)     :: obsColumnName
 
-    if ( .not. allocated(ensObs%Ya_r4) ) then
+    if ( .not. associated(ensObs%Ya_r4) ) then
       call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
     end if
         
@@ -1436,7 +1451,7 @@ CONTAINS
     real(4) :: meanRandPert, sigObs
 
     call rng_setup(abs(randomSeed))
-    if ( allocated(ensObs%randPert_r4) ) then
+    if ( associated(ensObs%randPert_r4) ) then
       call utl_abort('eob_calcRandPert: ensObs%randPert_r4 must not be already allocated')
     end if
 
