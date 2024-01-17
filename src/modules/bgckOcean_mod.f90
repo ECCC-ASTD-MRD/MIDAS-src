@@ -58,7 +58,7 @@ module bgckOcean_mod
   logical           :: fourSeasonsBgstdSST = .false. ! to mimic operational SST analysis, where there are 4 seasonal fields of 
                                                      ! BG std. To compute daily BG std interpolated in time,  
                                                      ! two fields are used: from the left and from the right of the current date.
-                                                     ! The seasonal fields are considered to be valid on the 15th of Jan, Apr, Aug and Nov. 
+                                                     ! The seasonal fields are considered to be valid on the 15th of Feb, May, Aug and Nov. 
 
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
