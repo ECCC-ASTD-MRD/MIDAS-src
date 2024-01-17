@@ -781,25 +781,28 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_hco), pointer , intent(in)    :: hco
-    type(struct_vco), pointer , intent(in)    :: vco
-    type(struct_gsv), optional, intent(inout) :: stateVector_opt
+    type(struct_hco), pointer , intent(in)    :: hco             ! horizontal coordinates
+    type(struct_vco), pointer , intent(in)    :: vco             ! vertical coordinates
+    type(struct_gsv), optional, intent(inout) :: stateVector_opt ! state vector with resulting estimation 
+                                                                 ! of SST BG std
 
     ! Locals:
-    integer          :: ierr, ip3Left, ip3Right
+    integer          :: ierr, indexLeft, indexRight
     type(struct_gsv) :: stateVectorLeft, stateVectorRight
     real(4), pointer :: field3DLeft_r4_ptr(:,:,:), field3DRight_r4_ptr(:,:,:)
-    real(4), pointer :: stateVector_opt_r4_ptr(:,:,:) 
+    real(4), pointer :: ptr_r4(:,:,:) 
     real(8)          :: minStddev, maxStddev
     integer          :: hour, day, month, yyyy, ndays, indexMonth
     integer          :: dateStamp ! date stamp for the current day
     real(4)          :: weight
+    logical          :: updatedDatestampNov
+    real(8)          :: deltaDatestampLeft, deltaRightLeft, delta
 
     type :: bgops      ! operationally used estimations of background error standard deviation
-                       ! are valid on the 15th of Jan, 15th Apr, 15th Aug and 15th Nov. 
-      character(len=3) :: validMonthName(4)   = (/    'Jan',    'Apr',    'Aug',    'Nov' /)
-      character(len=6) :: etiket(4)           = (/ 'STDJAN', 'STDAPR', 'STDAUG', 'STDNOV' /) 
-      integer          :: validMonthNumber(4) = (/        1,        4,        8,       11 /)  
+                       ! are valid on the 15th of Feb, 15th May, 15th Aug and 15th Nov. 
+      character(len=3) :: validMonthName(4)   = (/    'Feb',    'May',    'Aug',    'Nov' /)
+      character(len=6) :: etiket(4)           = (/ 'STDFEB', 'STDMAY', 'STDAUG', 'STDNOV' /) 
+      integer          :: validMonthNumber(4) = (/        2,        5,        8,       11 /)  
       integer          :: validDay  = 15
       integer          :: validHour = 0
       integer          :: dataStamp(4)
@@ -821,61 +824,88 @@ CONTAINS
                                                               bgstd%validDay, bgstd%validHour)
     end do
 
-    ! compute lower and upper ip3 in bgstddev, ip3 can be 3, 6, 9 or 12
+    ! compute lower and upper position indexes of the seasonal BG std fields
+    updatedDatestampNov = .false.
     do indexMonth = 1, 4
-      if (dateStamp <= bgstd%dataStamp(indexMonth)) then
-        ip3Right = indexMonth * 3
-        ip3Left  = (indexMonth - 1) * 3
-        ! for dates in range 1 Jan - 15 Jan:
-        if (ip3Left == 0) ip3Left = 12
+      call difdatr(dateStamp, bgstd%dataStamp(indexMonth), delta)
+      if (delta <= 0.d0) then
+        indexRight = indexMonth
+        if (indexRight == 1) then
+          call msg('bdiff_getSSTBGstdFromFourSeasons', 'Seasonal field from the right is in Feb.')
+          indexLeft = 4
+          call msg('bdiff_getSSTBGstdFromFourSeasons', &
+                   'It requires an update of the corresponding bgstd%datestamp(4): '//&
+                   str(bgstd%dataStamp(indexLeft))//&
+                   'to Nov of the previous year: '//str(yyyy - 1))
+          bgstd%dataStamp(indexLeft) = tim_yyyymmddhhToDatestamp(yyyy - 1, bgstd%validMonthNumber(indexLeft), &
+                                                                 bgstd%validDay, bgstd%validHour)
+          call msg('bdiff_getSSTBGstdFromFourSeasons', 'Updated bgstd%datestamp(4): '//&
+                                                       str(bgstd%dataStamp(indexLeft)))
+          updatedDatestampNov = .true.
+        else
+          indexLeft = indexRight - 1
+        end if
         exit
       end if
     end do
 
     ! for dates in range 16 Nov - 31 Dec:
-    if (dateStamp > bgstd%dataStamp(4)) then
-      ip3Left  = 12
-      ip3Right =  3
+    call difdatr(dateStamp, bgstd%dataStamp(4), delta)
+    if (delta > 0.d0 .and. .not. updatedDatestampNov) then
+      indexLeft  = 4
+      indexRight = 1
+      call msg('bdiff_getSSTBGstdFromFourSeasons', &
+               'Seasonal field from the right is in Feb of the next year.'//&
+               'Updating bgstd%datestamp(1): '//str(bgstd%dataStamp(indexRight)))
+      bgstd%dataStamp(indexRight) = tim_yyyymmddhhToDatestamp(yyyy + 1, bgstd%validMonthNumber(indexRight), &
+                                                              bgstd%validDay, bgstd%validHour)
+      call msg('bdiff_getSSTBGstdFromFourSeasons', &
+               'Updated bgstd%datestamp(1): '//str(bgstd%dataStamp(indexRight)))
     end if
-  
-    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Lower and upper ip3 in bgstddev file: '&
-                                                 //str(ip3Left)//','//str(ip3Right))
 
-    weight  = real(dateStamp - bgstd%dataStamp(ip3Left / 3)) / &
-              real(bgstd%dataStamp(ip3Right / 3) - bgstd%dataStamp(ip3Left / 3))
+    call difdatr(dateStamp, bgstd%dataStamp(indexLeft), deltaDatestampLeft)
+    call difdatr(bgstd%dataStamp(indexRight), bgstd%dataStamp(indexLeft), deltaRightLeft)
+
+    if (deltaDatestampLeft < 0. .or. deltaRightLeft < 0.) then
+      call utl_abort('bdiff_getSSTBGstdFromFourSeasons: Confusion! '//&
+                     'Both distances between two dates must be positive! '//&
+                     str(deltaDatestampLeft)//', '//str(deltaRightLeft))  
+    end if
+
+    weight  = deltaDatestampLeft / deltaRightLeft
 
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'BG std will be computed between: '//&
-                                                 bgstd%validMonthName(ip3Left / 3)//' and '//&
-                                                 bgstd%validMonthName(ip3Right / 3))
+                                                 bgstd%validMonthName(indexLeft)//' and '//&
+                                                 bgstd%validMonthName(indexRight))
     call msg('bdiff_getSSTBGstdFromFourSeasons', &
-             'Weight for: '//bgstd%validMonthName(ip3Left/3) //': '//str(1. - weight))
+             'Weight for: '//bgstd%validMonthName(indexLeft) //': '//str(1. - weight))
     call msg('bdiff_getSSTBGstdFromFourSeasons', &
-             'Weight for: '//bgstd%validMonthName(ip3Right/3)//': '//str(     weight))
+             'Weight for: '//bgstd%validMonthName(indexRight)//': '//str(     weight))
 
     ! read BG std from the left
-    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(ip3Left/3)//&
-                                                 ' BG std field with etiket: '//bgstd%etiket(ip3Left/3))
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexLeft)//&
+                                                 ' BG std field with etiket: '//bgstd%etiket(indexLeft))
     call gsv_allocate(stateVectorLeft, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVectorLeft, './bgstddev', bgstd%etiket(ip3Left/3), &
+    call gio_readFromFile(stateVectorLeft, './bgstddev', bgstd%etiket(indexLeft), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVectorLeft, field3DLeft_r4_ptr) 
 
     ! read BG std from the right
-    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(ip3Right/3)//&
-                                                 ' BG std field with etiket: '//bgstd%etiket(ip3Right/3))
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexRight)//&
+                                                 ' BG std field with etiket: '//bgstd%etiket(indexRight))
     call gsv_allocate(stateVectorRight, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVectorRight, './bgstddev', bgstd%etiket(ip3Right/3), &
+    call gio_readFromFile(stateVectorRight, './bgstddev', bgstd%etiket(indexRight), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVectorRight, field3DRight_r4_ptr) 
 
     if (present(stateVector_opt)) then
-      call gsv_getField(stateVector_opt, stateVector_opt_r4_ptr)
-      stateVector_opt_r4_ptr(:,:,1) = dble((1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
-                                                 weight  * field3DRight_r4_ptr(:,:,1))
+      call gsv_getField(stateVector_opt, ptr_r4)
+      ptr_r4(:,:,1) = (1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
+                            weight  * field3DRight_r4_ptr(:,:,1)
     else
       stddev(:,:,1) = dble((1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
                                  weight  * field3DRight_r4_ptr(:,:,1))
