@@ -16,6 +16,9 @@ MODULE bMatrixDiff_mod
   use physicsFunctions_mod
   use utilities_mod
   use diffusion_mod
+  use message_mod
+  use timeCoord_mod
+
   implicit none
   save
   private
@@ -23,6 +26,7 @@ MODULE bMatrixDiff_mod
   ! public procedures
   public :: bdiff_Setup, bdiff_BSqrt, bdiff_BSqrtAd, bdiff_Finalize
   public :: bdiff_getScaleFactor, bdiff_reduceToMPILocal
+  public :: bdiff_getSSTBGstdFromFourSeasons
 
   logical             :: initialized = .false.
   integer             :: nj_l, ni_l
@@ -40,6 +44,7 @@ MODULE bMatrixDiff_mod
   real(8)          :: scaleFactor(maxNumVars)     ! scale factor applied to variances
   character(len=4) :: stddevMode                  ! can be 'GD2D' or 'HOMO'
   real(8)          :: homogeneous_std(maxNumVars) ! homogeneous standard deviation (when stddevMode is 'HOMO')
+  logical          :: fourSeasonsBgstdSST         ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov
 
   ! Number of incremental variables/fields
   integer             :: numvar2d
@@ -61,7 +66,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! bdiff_setup
   !--------------------------------------------------------------------------
-  subroutine bdiff_setup ( hco_in, vco_in, cvDim_out, mode_opt )
+  subroutine bdiff_setup (hco_in, vco_in, cvDim_out, mode_opt)
     !
     !:Purpose: Setup the diffusion B matrix
     !
@@ -80,19 +85,20 @@ CONTAINS
     integer                   :: variableIndex, latIndex, latIndexIgnore
     real(8)                   :: maxDistance
     real(8), allocatable      :: distance(:)
-    character(len=*), parameter :: myName = 'bdiff_setup'
+
     ! namelist variables
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
     integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization
     real(8) :: latIgnoreFraction       ! Relative zonal grid spacing limit where lats near each numerical pole are ignored
     logical :: useImplicit(maxNumVars) ! choose to use implicit formulation of diffusion operator (.true.) or explicit version (.false.)
-    
-    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std, latIgnoreFraction
+
+    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, &
+                        homogeneous_std, latIgnoreFraction, fourSeasonsBgstdSST
 
     call utl_tmg_start(65,'----B_DIFF_Setup')
-    if(mmpi_myid == 0) write(*,*) myName//': starting'
-    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) call msg('bdiff_setup', 'Starting')
+    if(mmpi_myid == 0) call msg('bdiff_setup', 'Memory Used: '//str(get_max_rss()/1024)//'Mb')
 
     ! default values for namelist variables
     corr_len(:) = 10.0
@@ -103,91 +109,90 @@ CONTAINS
     stddevMode  = 'GD2D'
     homogeneous_std(:) = -1.0d0
     latIgnoreFraction = 1.0d6 ! large value so that nothing is ignored by default
+    fourSeasonsBgstdSST = .false.
 
-    if ( .not. utl_isNamelistPresent('NAMBDIFF','./flnml') ) then
+    if (.not. utl_isNamelistPresent('NAMBDIFF','./flnml')) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'bdiff_setup: nambdiff is missing in the namelist.'
-        write(*,*) '             The default values will be taken.'
+        call msg('bdiff_setup', 'nambdiff is missing in the namelist.')
+        call msg('bdiff_setup', 'The default values will be taken.')
       end if
     else
       call utl_tmg_start(181,'low-level--readNML')
-      read( utl_flnml, nml = nambdiff, iostat = ierr )
-      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-      if ( mmpi_myid == 0) write( *, nml = nambdiff )
+      read(utl_flnml, nml = nambdiff, iostat = ierr)
+      if (ierr /= 0) call utl_abort('bdiff_setup: Error reading namelist')
+      if (mmpi_myid == 0) write(*, nml = nambdiff)
       call utl_tmg_stop(181)
     end if
 
-    if ( sum(scaleFactor(:) ) == 0.0d0 ) then
-      if( mmpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
+    if (sum(scaleFactor(:)) == 0.0d0) then
+      if(mmpi_myid == 0) call msg('bdiff_setup', 'scaleFactor=0, skipping rest of setup')
       cvdim_out = 0
       call utl_tmg_stop(65)
       return
     end if
 
-    if ( present( mode_opt ) ) then
-      if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck' ) then
+    if (present(mode_opt)) then
+      if (trim(mode_opt) == 'Analysis' .or. trim( mode_opt) == 'BackgroundCheck') then
         bdiff_mode = trim( mode_opt )
-        if( mmpi_myid == 0 ) write(*,*)
-        if( mmpi_myid == 0 ) write(*,*) myName//': Mode activated = ', trim(bdiff_mode)
+        if(mmpi_myid == 0) write(*,*)
+        if(mmpi_myid == 0) call msg('bdiff_setup', 'Mode activated = '//trim(bdiff_mode))
       else
         write(*,*)
-        write(*,*)  myName//'mode = ', trim(mode_opt)
-        call utl_abort( myName//': unknown mode' )
+        call msg('bdiff_setup', 'mode = '//trim(mode_opt))
+        call utl_abort('bdiff_setup: unknown mode')
       end if
     else
       bdiff_mode = 'Analysis'
-      if( mmpi_myid == 0 ) write(*,*)
-      if( mmpi_myid == 0 ) write(*,*) myName//': analysis mode activated (by default)'
+      if(mmpi_myid == 0) write(*,*)
+      if(mmpi_myid == 0) call msg('bdiff_setup', 'Analysis mode activated (by default)')
     end if
 
     vco_anl => vco_in
-    if (vco_anl%Vcode  /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0 ) then
-      write(*,*)  myName//'vco_anl%Vcode = ', vco_anl%Vcode
-      call utl_abort( myName//': unknown vertical coordinate type!')
+    if (vco_anl%Vcode /= 5002 .and. vco_anl%Vcode /= 5005 .and. vco_anl%Vcode /= 0) then
+      call msg('bdiff_setup', 'vco_anl%Vcode = '//str(vco_anl%Vcode))
+      call utl_abort('bdiff_setup: unknown vertical coordinate type!')
     end if
 
     numvar2d = 0
 
-    allocate( bdiff_varNameList( vnl_numvarmax ) )
-    bdiff_varNameList( : )=''
-    allocate( nsposit( vnl_numvarmax + 1 ) )
+    allocate(bdiff_varNameList(vnl_numvarmax))
+    bdiff_varNameList(:)=''
+    allocate(nsposit(vnl_numvarmax + 1))
     nsposit(1) = 1
 
     ! Find the 2D variables (within NAMSTATE namelist)
 
-    if ( gsv_varExist( varName = 'GL  ' )) then
+    if (gsv_varExist(varName = 'GL  ')) then
 
       numvar2d = numvar2d + 1
-      nsposit( numvar2d + 1 ) = nsposit( numvar2d ) + 1
-      bdiff_varNameList( numvar2d ) = 'GL  '
+      nsposit(numvar2d + 1) = nsposit(numvar2d) + 1
+      bdiff_varNameList(numvar2d) = 'GL  '
 
     end if
    
-    if ( gsv_varExist( varName = 'TM  ')) then
+    if (gsv_varExist(varName = 'TM  ')) then
 
       numvar2d = numvar2d + 1
       nsposit( numvar2d + 1 ) = nsposit( numvar2d ) + 1
-      bdiff_varNameList( numvar2d ) = 'TM  '
+      bdiff_varNameList(numvar2d) = 'TM  '
 
     end if
 
-    if ( numvar2d == 0) then
+    if (numvar2d == 0) then
        
-      if ( mmpi_myid == 0) then
-        write(*,*) myName//': Bdiff matrix not produced.'
-        write(*,*) myName//': END'
+      if (mmpi_myid == 0) then
+        call msg('bdiff_setup', 'Bdiff matrix not produced.')
+        call msg('bdiff_setup', 'END')
       end if
       call utl_tmg_stop(65)
       cvdim_out = 0
       return
       
     else if (mmpi_myid == 0) then
-
-      write(*,*) myName//': number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
-
+      write(*,*) 'bdiff_setup: number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)
     end if
 
-    if ( trim(bdiff_mode) == 'BackgroundCheck' ) then
+    if (trim(bdiff_mode) == 'BackgroundCheck') then
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                        ! that Diff is used
       call utl_tmg_stop(65)
@@ -197,10 +202,10 @@ CONTAINS
     ! Assumes the input 'scalefactor' is a scaling factor of the variances.
 
     do variableIndex = 1, numvar2d
-      if ( scaleFactor( variableIndex ) > 0.0d0 ) then 
-        scaleFactor_sigma( variableIndex ) = sqrt( scaleFactor( variableIndex ) )
+      if (scaleFactor( variableIndex ) > 0.0d0) then 
+        scaleFactor_sigma(variableIndex) = sqrt(scaleFactor(variableIndex))
       else
-        scaleFactor_sigma( variableIndex ) = 0.0d0
+        scaleFactor_sigma(variableIndex) = 0.0d0
       end if
     end do
 
@@ -216,7 +221,7 @@ CONTAINS
                               real(hco_in%lat2d_4(ni_l/2,latIndex),8), real(hco_in%lon2d_4((ni_l/2)  ,latIndex),8))
       end do
       maxDistance = maxval(distance(:))
-      if (mmpi_myid==0) write(*,*) myName//': maxDistance = ', maxDistance
+      if (mmpi_myid==0) write(*,*) 'bdiff_setup: maxDistance = ', maxDistance
       latIndexIgnore = 0
       latLoop: do latIndex = 1, nj_l
         if (distance(latIndex)/maxDistance > latIgnoreFraction) then
@@ -233,33 +238,34 @@ CONTAINS
     else
       latIndexIgnore = 0
     end if
-    if (mmpi_myid==0) write(*,*) myName//': latIndexIgnore = ', latIndexIgnore
+    if (mmpi_myid==0) write(*,*) 'bdiff_setup: latIndexIgnore = ', latIndexIgnore
 
     allocate( diffID( numvar2d ) )
     do variableIndex = 1, numvar2d
-      write(*,*) myName//': setup the diffusion operator for the variable ', bdiff_varNameList( variableIndex ) 
-      diffID( variableIndex ) = diff_setup ( variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, corr_len( variableIndex ), &
-                                             stab( variableIndex ), nsamp( variableIndex ), useImplicit( variableIndex ), &
-                                             latIndexIgnore )
+      write(*,*) 'bdiff_setup: setup the diffusion operator for the variable ', &
+                 bdiff_varNameList(variableIndex) 
+      diffID(variableIndex) = diff_setup (variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, &
+                                          corr_len(variableIndex), stab(variableIndex), nsamp(variableIndex), &
+                                          useImplicit(variableIndex), latIndexIgnore)
     end do
 
-    call mmpi_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
-    call mmpi_setup_lonbands( ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
+    call mmpi_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     ! compute mpilocal control vector size
     cvDim_mpilocal = lonPerPE * latPerPE * numvar2d
     cvDim_out = cvDim_mpilocal
 
     ! also compute mpiglobal control vector dimension
-    call rpn_comm_allreduce( cvDim_mpilocal, cvDim_mpiglobal, 1, "mpi_integer", "mpi_sum", "GRID", ierr )
+    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_mpiglobal, 1, "mpi_integer", "mpi_sum", "GRID", ierr)
 
     allocate(stddev(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d))
 
-    call bdiff_rdstats( hco_in, vco_in )
+    call bdiff_rdstats(hco_in, vco_in)
 
-    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bdiff_setup: Memory Used: ', get_max_rss() / 1024, 'Mb'
 
-    if(mmpi_myid == 0) write(*,*) myName//': END'
+    if(mmpi_myid == 0) call msg('bdiff_setup', 'Completed')
 
     initialized = .true.
 
@@ -270,7 +276,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! bdiff_getScaleFactor
   !--------------------------------------------------------------------------
-  subroutine bdiff_getScaleFactor( scaleFactor_out )
+  subroutine bdiff_getScaleFactor(scaleFactor_out)
     !
     !:Purpose: Return the specified scaleFactor.
     !    
@@ -293,7 +299,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! bdiff_rdstats
   !--------------------------------------------------------------------------
-  subroutine bdiff_rdstats( hco_in, vco_in )
+  subroutine bdiff_rdstats(hco_in, vco_in)
     !
     !:Purpose: To read background-error stats file.
     !
@@ -307,67 +313,69 @@ CONTAINS
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
     integer :: variableIndex
     logical :: lExists
-    character(len=12) :: bFileName1 = './bgstddev'
-    character(len=8)  :: bFileName2 = './bgcov'
-    character(len=*), parameter :: myName = 'bdiff_rdstats'
     
-    write(*,*) myName//': stddevMode is ', stddevMode
-    write(*,*) myName//': Number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
+    call msg('bdiff_rdstats', 'stddevMode is '//stddevMode)
+    write(*,*) 'bdiff_rdstats: Number of 2D variables', numvar2d, bdiff_varNameList(1:numvar2d)
     
-    if ( stddevMode == 'GD2D' ) then
+    if (stddevMode == 'GD2D') then
 
-      inquire( file = bFileName1, exist = lExists )
+      inquire(file = './bgstddev', exist = lExists)
        
-      if ( lexists ) then
-        ierr = fnom(nulbgst, bFileName1, 'RND+OLD+R/O', 0)
-        if ( ierr == 0 ) then
+      if (lexists) then
+        ierr = fnom(nulbgst, './bgstddev', 'RND+OLD+R/O', 0)
+        if (ierr == 0) then
           nmax = fstouv(nulbgst, 'RND+OLD')
         else
-          call utl_abort( myName//': error opening file '//trim(bFileName1))
+          call utl_abort('bdiff_rdstats: Error opening file bgstddev')
         end if
       else
         ! Assume background-error stats in file bgcov. 
-        inquire( file = bFileName2, exist = lExists )  
-        if ( lexists ) then 
-          ierr = fnom( nulbgst, bFileName2, 'RND+OLD+R/O', 0 )
-          if ( ierr == 0 ) then
+        inquire( file = './bgcov', exist = lExists )  
+        if (lexists) then 
+          ierr = fnom(nulbgst, './bgcov', 'RND+OLD+R/O', 0)
+          if (ierr == 0) then
             nmax = fstouv(nulbgst, 'RND+OLD')
           else
-            call utl_abort( myName//': error opening file '//trim(bFileName2) )
+            call utl_abort('bdiff_rdstats: error opening file bgcov')
           end if
         else
-          call utl_abort( myName//': no background error statistics file found!!' )
+          call utl_abort('bdiff_rdstats: No background error statistics file found.')
         end if
       end if
 
-      call bdiff_readBGstdField( hco_in, vco_in )
+      if (fourSeasonsBgstdSST) then
+        call bdiff_getSSTBGstdFromFourSeasons(hco_in, vco_in)
+      else
+        call bdiff_readBGstdField(hco_in, vco_in)
+      end if
 
       ierr = fstfrm(nulbgst)
       ierr = fclos(nulbgst)
 
-    else if ( stddevMode == 'HOMO' ) then
+    else if (stddevMode == 'HOMO') then
 
       do variableIndex = 1, numvar2d
-        write(*,*) myName//': stdev = ', homogeneous_std( variableIndex ), ' for variable ', bdiff_varNameList( variableIndex )    
-        stddev( :, :, variableIndex) = homogeneous_std( variableIndex )
+        write(*,*) 'bdiff_rdstats: stdev = ', homogeneous_std(variableIndex), &
+                   ' for variable ', bdiff_varNameList(variableIndex)    
+        stddev(:,:,variableIndex) = homogeneous_std(variableIndex)
       end do
        
     else
 
-      call utl_abort( myName//': unknown stddevMode: '//trim(stddevMode) )
+      call utl_abort('bdiff_rdstats: unknown stddevMode: '//trim(stddevMode))
 
     end if
 
     call bdiff_scalestd
 
-    write(*,*) myName//': END '
+    call msg('bdiff_rdstats', 'Completed.')
     
   end subroutine bdiff_rdstats
 
   !--------------------------------------------------------------------------
   ! bdiff_readBGstdField
   !--------------------------------------------------------------------------
-  subroutine bdiff_readBGstdField( hco_in, vco_in )
+  subroutine bdiff_readBGstdField(hco, vco)
     !
     !:Purpose: to read 2D background error standard deviation field
     !          stored on Z, U or G grid and interpolate it to the analysis grid
@@ -375,41 +383,46 @@ CONTAINS
     implicit none
     
     ! Arguments:
-    type(struct_hco), pointer, intent(in) :: hco_in 
-    type(struct_vco), pointer, intent(in) :: vco_in
+    type(struct_hco), pointer, intent(in) :: hco
+    type(struct_vco), pointer, intent(in) :: vco
 
     ! Locals:
-    integer                     :: variableIndex, ierr
-    type(struct_gsv)            :: statevector
-    real(4), pointer            :: field3D_r4_ptr(:,:,:)
-    real(8)                     :: minStddev, maxStddev
-    character(len=*), parameter :: myName = 'bdiff_readBGstdField'
+    integer          :: variableIndex, ierr
+    type(struct_gsv) :: stateVector
+    real(4), pointer :: field3D_r4_ptr(:,:,:)
+    real(8)          :: minStddev, maxStddev
 
-    write(*,*) myName//': Reading 2D fields from ./bgstddev...'
-    write(*,*) myName//': Number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
+    call msg('bdiff_readBGstdField', 'Reading 2D fields from ./bgstddev...')
+    call msg('bdiff_readBGstdField', 'Number of 2D variables'//str(numvar2d)//&
+                                     str(bdiff_varNameList(1:numvar2d)))
+  
+    call gsv_allocate(stateVector, 1, hco, vco, dateStamp_opt = -1, &
+		      dataKind_opt = 4, mpi_local_opt = .true., &
+		      hInterpolateDegree_opt = 'LINEAR', &
+		      varNames_opt = bdiff_varNameList(1:numvar2d))
+    call gsv_zero(stateVector)
 
-    call gsv_allocate( statevector, 1, hco_in, vco_in, dateStamp_opt=-1, &
-                       dataKind_opt=4, mpi_local_opt=.true., &
-                       hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=bdiff_varNameList(1:numvar2d) )
-    call gsv_zero( statevector )
-    call gio_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
+    call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false.)
 
     do variableIndex = 1, numvar2d
-      call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
-      stddev( :, :, variableIndex ) = dble( field3D_r4_ptr( :, :, 1 ) )
+
+      call gsv_getField(statevector, field3D_r4_ptr, bdiff_varNameList(variableIndex))
+      stddev(:,:,variableIndex) = dble(field3D_r4_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
-        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+	call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
+	call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
       else
-        minStddev = minval(stddev(:,:,variableIndex))
-        maxStddev = maxval(stddev(:,:,variableIndex))
+	minStddev = minval(stddev(:,:,variableIndex))
+	maxStddev = maxval(stddev(:,:,variableIndex))
       end if
-      write(*,*) myName//': variable ', bdiff_varNameList( variableIndex ),' min/max: ', &
-                 minStddev, maxStddev
+
+      call msg('bdiff_readBGstdField', 'Variable '//bdiff_varNameList(variableIndex)//&
+                                       ' min/max: '//str(minStddev)//', '//str(maxStddev))
     end do
-   
-    call gsv_deallocate( statevector )
+ 
+    call gsv_deallocate(statevector)
+
+    call msg('bdiff_readBGstdField', 'Completed.')
 
   end subroutine bdiff_readBGstdField
 
@@ -749,5 +762,166 @@ CONTAINS
     end if
 
   end subroutine bdiff_Finalize
+
+  !--------------------------------------------------------------------------
+  ! bdiff_getBGstdFromFourSeasons
+  !--------------------------------------------------------------------------
+  subroutine bdiff_getSSTBGstdFromFourSeasons(hco, vco, stateVector_opt)
+    !
+    !:Purpose: to get SST 2D background error standard deviation field
+    !          stored on Z, U or G grid and interpolate it to the analysis grid.
+    !          The operationally used BG std field is updated daily using
+    !          four seasonal fields. The estimation for current day is computed 
+    !          as a weighted average between two fields: from the left and from the right
+    !          of the current date.
+    ! 
+    implicit none
+    
+    ! Arguments:
+    type(struct_hco), pointer , intent(in)    :: hco             ! horizontal coordinates
+    type(struct_vco), pointer , intent(in)    :: vco             ! vertical coordinates
+    type(struct_gsv), optional, intent(inout) :: stateVector_opt ! state vector with resulting estimation 
+                                                                 ! of SST BG std
+
+    ! Locals:
+    integer          :: ierr, indexLeft, indexRight
+    type(struct_gsv) :: stateVectorLeft, stateVectorRight
+    real(4), pointer :: field3DLeft_r4_ptr(:,:,:), field3DRight_r4_ptr(:,:,:)
+    real(4), pointer :: ptr_r4(:,:,:) 
+    real(8)          :: minStddev, maxStddev
+    integer          :: hour, day, month, yyyy, ndays, indexMonth
+    integer          :: dateStamp ! date stamp for the current day
+    real(4)          :: weight
+    logical          :: updatedDatestampNov
+    real(8)          :: deltaDatestampLeft, deltaRightLeft, delta
+
+    type :: bgops      ! operationally used estimations of background error standard deviation
+                       ! are valid on the 15th of Feb, 15th May, 15th Aug and 15th Nov. 
+      character(len=3) :: validMonthName(4)   = (/    'Feb',    'May',    'Aug',    'Nov' /)
+      character(len=6) :: etiket(4)           = (/ 'STDFEB', 'STDMAY', 'STDAUG', 'STDNOV' /) 
+      integer          :: validMonthNumber(4) = (/        2,        5,        8,       11 /)  
+      integer          :: validDay  = 15
+      integer          :: validHour = 0
+      integer          :: dataStamp(4)
+    end type bgops
+    type(bgops) :: bgstd 
+
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading SST BG std fields from ./bgstddev...')
+  
+    dateStamp = tim_getDateStamp()
+    call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy)
+    call msg('bdiff_getSSTBGstdFromFourSeasons', &
+             'Interpolating SST BG std field for day/month/year (datestamp): '//&
+                                                 str(day) // ',' // str(month) //','//&
+                                                 str(yyyy) //', ('//str(dateStamp)//')')
+
+    ! compute datestamps for 4 seasonal fields in bgstddev file
+    do indexMonth = 1, 4
+      bgstd%dataStamp(indexMonth) = tim_yyyymmddhhToDatestamp(yyyy, bgstd%validMonthNumber(indexMonth), &
+                                                              bgstd%validDay, bgstd%validHour)
+    end do
+
+    ! compute lower and upper position indexes of the seasonal BG std fields
+    updatedDatestampNov = .false.
+    do indexMonth = 1, 4
+      call difdatr(dateStamp, bgstd%dataStamp(indexMonth), delta)
+      if (delta <= 0.d0) then
+        indexRight = indexMonth
+        if (indexRight == 1) then
+          call msg('bdiff_getSSTBGstdFromFourSeasons', 'Seasonal field from the right is in Feb.')
+          indexLeft = 4
+          call msg('bdiff_getSSTBGstdFromFourSeasons', &
+                   'It requires an update of the corresponding bgstd%datestamp(4): '//&
+                   str(bgstd%dataStamp(indexLeft))//&
+                   'to Nov of the previous year: '//str(yyyy - 1))
+          bgstd%dataStamp(indexLeft) = tim_yyyymmddhhToDatestamp(yyyy - 1, bgstd%validMonthNumber(indexLeft), &
+                                                                 bgstd%validDay, bgstd%validHour)
+          call msg('bdiff_getSSTBGstdFromFourSeasons', 'Updated bgstd%datestamp(4): '//&
+                                                       str(bgstd%dataStamp(indexLeft)))
+          updatedDatestampNov = .true.
+        else
+          indexLeft = indexRight - 1
+        end if
+        exit
+      end if
+    end do
+
+    ! for dates in range 16 Nov - 31 Dec:
+    call difdatr(dateStamp, bgstd%dataStamp(4), delta)
+    if (delta > 0.d0 .and. .not. updatedDatestampNov) then
+      indexLeft  = 4
+      indexRight = 1
+      call msg('bdiff_getSSTBGstdFromFourSeasons', &
+               'Seasonal field from the right is in Feb of the next year.'//&
+               'Updating bgstd%datestamp(1): '//str(bgstd%dataStamp(indexRight)))
+      bgstd%dataStamp(indexRight) = tim_yyyymmddhhToDatestamp(yyyy + 1, bgstd%validMonthNumber(indexRight), &
+                                                              bgstd%validDay, bgstd%validHour)
+      call msg('bdiff_getSSTBGstdFromFourSeasons', &
+               'Updated bgstd%datestamp(1): '//str(bgstd%dataStamp(indexRight)))
+    end if
+
+    call difdatr(dateStamp, bgstd%dataStamp(indexLeft), deltaDatestampLeft)
+    call difdatr(bgstd%dataStamp(indexRight), bgstd%dataStamp(indexLeft), deltaRightLeft)
+
+    if (deltaDatestampLeft < 0. .or. deltaRightLeft < 0.) then
+      call utl_abort('bdiff_getSSTBGstdFromFourSeasons: Confusion! '//&
+                     'Both distances between two dates must be positive! '//&
+                     str(deltaDatestampLeft)//', '//str(deltaRightLeft))  
+    end if
+
+    weight  = deltaDatestampLeft / deltaRightLeft
+
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'BG std will be computed between: '//&
+                                                 bgstd%validMonthName(indexLeft)//' and '//&
+                                                 bgstd%validMonthName(indexRight))
+    call msg('bdiff_getSSTBGstdFromFourSeasons', &
+             'Weight for: '//bgstd%validMonthName(indexLeft) //': '//str(1. - weight))
+    call msg('bdiff_getSSTBGstdFromFourSeasons', &
+             'Weight for: '//bgstd%validMonthName(indexRight)//': '//str(     weight))
+
+    ! read BG std from the left
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexLeft)//&
+                                                 ' BG std field with etiket: '//bgstd%etiket(indexLeft))
+    call gsv_allocate(stateVectorLeft, 1, hco, vco, dataKind_opt = 4, &
+                      datestamp_opt = -1, mpi_local_opt = .true., &
+                      hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
+    call gio_readFromFile(stateVectorLeft, './bgstddev', bgstd%etiket(indexLeft), &
+                          ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
+    call gsv_getField(stateVectorLeft, field3DLeft_r4_ptr) 
+
+    ! read BG std from the right
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexRight)//&
+                                                 ' BG std field with etiket: '//bgstd%etiket(indexRight))
+    call gsv_allocate(stateVectorRight, 1, hco, vco, dataKind_opt = 4, &
+                      datestamp_opt = -1, mpi_local_opt = .true., &
+                      hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
+    call gio_readFromFile(stateVectorRight, './bgstddev', bgstd%etiket(indexRight), &
+                          ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
+    call gsv_getField(stateVectorRight, field3DRight_r4_ptr) 
+
+    if (present(stateVector_opt)) then
+      call gsv_getField(stateVector_opt, ptr_r4)
+      ptr_r4(:,:,1) = (1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
+                            weight  * field3DRight_r4_ptr(:,:,1)
+    else
+      stddev(:,:,1) = dble((1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
+                                 weight  * field3DRight_r4_ptr(:,:,1))
+      if (mmpi_nprocs > 1) then
+        call rpn_comm_allreduce(minval(stddev(:,:,1)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
+        call rpn_comm_allreduce(maxval(stddev(:,:,1)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+      else
+        minStddev = minval(stddev(:,:,1))
+        maxStddev = maxval(stddev(:,:,1))
+      end if
+      call msg('bdiff_getSSTBGstdFromFourSeasons', &
+               'SST BG std min/max: '//str(minStddev)//', '//str(maxStddev))
+    end if
+
+    call gsv_deallocate(stateVectorLeft)      
+    call gsv_deallocate(stateVectorRight)
+
+    call msg('bdiff_getSSTBGstdFromFourSeasons', 'Completed.')
+
+  end subroutine bdiff_getSSTBGstdFromFourSeasons
 
 end module bMatrixDiff_mod
