@@ -410,6 +410,12 @@ program midas_ensembleH
                           maxNumMembersPerGroup_opt=numFullEns)
   end if
 
+  !- Deallocate ensObs objects
+  call eob_deallocate(ensObs)
+  if (useModulatedEns) then
+    call eob_deallocate(ensObsGain)
+  end if
+
   !
   !- MPI, tmg finalize
   !  

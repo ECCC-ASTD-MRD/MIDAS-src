@@ -896,6 +896,14 @@ program midas_letkf
   call utl_tmg_stop(0)
   call utl_printTime()
 
+  !- Deallocate ensObs objects
+  call eob_deallocate(ensObs)
+  call eob_deallocate(ensObs_mpiglobal)
+  if (useModulatedEns) then
+    call eob_deallocate(ensObsGain)
+    call eob_deallocate(ensObsGain_mpiglobal)
+  end if
+
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 

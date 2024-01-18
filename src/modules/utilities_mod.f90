@@ -78,6 +78,7 @@ module utilities_mod
 
   interface utl_findlocs
     module procedure utl_findlocs_char
+    module procedure utl_findlocs_int
   end interface utl_findlocs
 
   ! For namelist reading
@@ -2699,6 +2700,55 @@ contains
     end if
 
   end function utl_findlocs_char
+
+  !--------------------------------------------------------------------------
+  ! utl_findlocs_int
+  !--------------------------------------------------------------------------
+  function utl_findlocs_int(intArray, value) result(locations)
+    !
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          Returns an array of all matches found in the array.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: intArray(:)
+    integer, intent(in)  :: value
+    ! Result:
+    integer, allocatable :: locations(:)
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    if (allocated(locations)) deallocate(locations)
+
+    ! count number of matches found
+    numFound = 0
+    do arrayIndex = 1, size(intArray)
+      if (intArray(arrayIndex) == value) numFound = numFound + 1
+    end do
+
+    if (numFound > 0) then
+
+      ! return all found locations
+      allocate(locations(numFound))
+      numFound = 0
+      do arrayIndex = 1, size(intArray)
+        if (intArray(arrayIndex) == value) then
+          numFound = numFound + 1
+          locations(numFound) = arrayIndex
+        end if
+      end do
+
+    else
+
+      ! return zero if not found
+      allocate(locations(1))
+      locations(1) = 0
+
+    end if
+
+  end function utl_findlocs_int
 
   !--------------------------------------------------------------------------
   ! utl_randomOrderInt

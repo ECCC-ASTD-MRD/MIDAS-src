@@ -240,6 +240,7 @@ program midas_oMinusF
   write(*,*) '> midas-OminusF: Ending'
 
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
+  call eob_deallocate(ensObs)
   
   call utl_printTime()
   call utl_tmg_stop(0)
