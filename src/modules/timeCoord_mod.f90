@@ -714,10 +714,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: year
-    integer, intent(in)  :: month
-    integer, intent(in)  :: day
-    integer, intent(in)  :: hour
+    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
+    integer, intent(in)  :: month ! month number in [1,12]
+    integer, intent(in)  :: day   ! day number to compute dateStamp
+    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
 
     ! Result:
     integer :: currentDateStamp

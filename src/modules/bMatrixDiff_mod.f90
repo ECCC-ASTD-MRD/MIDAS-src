@@ -44,10 +44,7 @@ MODULE bMatrixDiff_mod
   real(8)          :: scaleFactor(maxNumVars)     ! scale factor applied to variances
   character(len=4) :: stddevMode                  ! can be 'GD2D' or 'HOMO'
   real(8)          :: homogeneous_std(maxNumVars) ! homogeneous standard deviation (when stddevMode is 'HOMO')
-  logical          :: fourSeasonsBgstdSST         ! to mimic operational SST analysis, where there are 4 seasonal fields of 
-                                                  ! BG std. To compute daily BG std interpolated in time,  
-                                                  ! two fields are used: from the left and from the right of the current date.
-                                                  ! The seasonal fields are considered to be valid on the 15th of Jan, Apr, Aug and Nov. 
+  logical          :: fourSeasonsBgstdSST         ! to mimic operational SST analysis, where there are 4 seasonal fields of BG std. To compute daily BG std interpolated in time, two fields are used: from the left and from the right of the current date. The seasonal fields are considered to be valid on the 15th of Feb, May, Aug and Nov.
 
   ! Number of incremental variables/fields
   integer             :: numvar2d
