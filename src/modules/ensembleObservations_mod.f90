@@ -65,8 +65,10 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
+    integer                       :: Yb_window = -1   ! handle to shared data "window" for Yb_r4
     type(c_ptr)                   :: Yb_baseptr
     real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
+    integer                       :: Ya_window = -1   ! handle to shared data "window" for Ya_r4
     type(c_ptr)                   :: Ya_baseptr
     real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space    
     type(c_ptr)                   :: randPert_baseptr
@@ -75,7 +77,6 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
     integer, allocatable          :: assFlag(:)       ! assimilation flag
-    integer                       :: window = -1      ! handle to shared data "window"
   end type struct_eob
 
   type(kdtree2), pointer :: tree => null()
@@ -291,10 +292,6 @@ CONTAINS
     deallocate(ensObs%obsValue)
     deallocate(ensObs%obsErrInv)
     if (allocated(ensObs%obsErrInv_sim)) deallocate(ensObs%obsErrInv_sim)
-    if (associated(ensObs%Ya_r4)) then
-      deallocate(ensObs%Ya_r4)
-      nullify(ensObs%Ya_r4)
-    end if
     if (associated(ensObs%randPert_r4)) then
       deallocate(ensObs%randPert_r4)
       nullify(ensObs%randPert_r4)
@@ -303,15 +300,19 @@ CONTAINS
     deallocate(ensObs%deterYb)
     deallocate(ensObs%assFlag)
 
-    if (ensObs%window /= -1) then
+    if (ensObs%Yb_window /= -1) then
       ! using shared memory
-      call mpi_win_free(ensObs%window, ierr)
-      ensObs%window = -1
-    else if (associated(ensObs%Yb_r4)) then
-      ! using regular local array
-      deallocate(ensObs%Yb_r4)
+      call mpi_win_free(ensObs%Yb_window, ierr)
+      ensObs%Yb_window = -1
     end if
     nullify(ensObs%Yb_r4)
+
+    if (ensObs%Ya_window /= -1) then
+      ! using shared memory
+      call mpi_win_free(ensObs%Ya_window, ierr)
+      ensObs%Ya_window = -1
+    end if
+    nullify(ensObs%Ya_r4)
 
     ensObs%allocated = .false.
 
@@ -522,14 +523,27 @@ CONTAINS
     end if
     dispUnit = 1
     write(*,*) 'eob_allGather: allocate shared memory arrays with size = ', windowSize
+
+    ! Shared memory for Yb_r4
     call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
                                  mmpi_mpicomm_shared, ensObs_mpiglobal%Yb_baseptr, &
-                                 ensObs_mpiglobal%window, ierr)    
-
-    ! Obtain the location of the remote memory segment
+                                 ensObs_mpiglobal%Yb_window, ierr)    
     if (mmpi_myidHost /= 0) then
-      call mpi_win_shared_query(ensObs_mpiglobal%window, 0, windowSize, dispUnit, &
+      call mpi_win_shared_query(ensObs_mpiglobal%Yb_window, 0, windowSize, dispUnit, &
                                 ensObs_mpiglobal%Yb_baseptr, ierr)     
+    end if
+    call c_f_pointer(ensObs_mpiglobal%Yb_baseptr, ensObs_mpiglobal%Yb_r4, arrayShape)
+
+    ! Share memory for Ya_r4
+    if (associated(ensObsClean%Ya_r4)) then
+      call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
+                                   mmpi_mpicomm_shared, ensObs_mpiglobal%Ya_baseptr, &
+                                   ensObs_mpiglobal%Ya_window, ierr)
+      if (mmpi_myidHost /= 0) then
+        call mpi_win_shared_query(ensObs_mpiglobal%Ya_window, 0, windowSize, dispUnit, &
+                                  ensObs_mpiglobal%Ya_baseptr, ierr)     
+      end if
+      call c_f_pointer(ensObs_mpiglobal%Ya_baseptr, ensObs_mpiglobal%Ya_r4, arrayShape)
     end if
 
     ! The baseptr now associated with Fortran pointer for access to global shared data
@@ -538,11 +552,7 @@ CONTAINS
     else
       allocate(tempBuffer(1,1))
     end if
-    call c_f_pointer(ensObs_mpiglobal%Yb_baseptr, ensObs_mpiglobal%Yb_r4, arrayShape)
 
-    if (associated(ensObsClean%Ya_r4)) then
-      allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
-    end if
     if (associated(ensObsClean%randPert_r4)) then
       allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
@@ -586,28 +596,39 @@ CONTAINS
                             ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
                             0, 'GRID', ierr)
     end if
+
     do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                             tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                             0, 'GRID', ierr)
-      if (associated(ensObsClean%Ya_r4)) then
-        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
-      end if
-      if (associated(ensObsClean%randPert_r4)) then
-        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
-      end if
     end do
-
-    call eob_deallocate(ensObsClean)
-
     if (mmpi_myid == 0) then
       ensObs_mpiglobal%Yb_r4(:,:) = tempBuffer(:,:)
     end if
-    call mpi_win_fence(0, ensObs_mpiglobal%window, ierr)
+    call mpi_win_fence(0, ensObs_mpiglobal%Yb_window, ierr)
+
+    if (associated(ensObsClean%Ya_r4)) then
+      do memberIndex = 1, ensObsClean%numMembers
+        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr)
+      end do
+      if (mmpi_myid == 0) then
+        ensObs_mpiglobal%Ya_r4(:,:) = tempBuffer(:,:)
+      end if
+      call mpi_win_fence(0, ensObs_mpiglobal%Ya_window, ierr)
+    end if
+
+    if (associated(ensObsClean%randPert_r4)) then
+      do memberIndex = 1, ensObsClean%numMembers
+        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr)
+      end do
+    end if
+
+    call eob_deallocate(ensObsClean)
+
     deallocate(tempBuffer)
 
     call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
@@ -644,26 +665,45 @@ CONTAINS
       if (size(mmpi_nodeMasters) > 1) then
         call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
       end if
+      if (associated(ensObs_mpiglobal%Ya_r4)) then
+        do procIndex = 2, size(mmpi_nodeMasters)
+          call mpi_isend(ensObs_mpiglobal%Ya_r4(:,:),  &
+                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 2,  &
+                         mmpi_comm_grid, requestId(procIndex-1), ierr)
+        end do
+        if (size(mmpi_nodeMasters) > 1) then
+          call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
+        end if
+      end if
     else if(mmpi_myidHost == 0) then
       write(*,*) 'eob_allGather: I am a nodeMaster, receive data for shared array'
       call mpi_recv(ensObs_mpiglobal%Yb_r4(:,:),  &
                     nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 1,  &
                     mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      if (associated(ensObs_mpiglobal%Ya_r4)) then
+        call mpi_recv(ensObs_mpiglobal%Ya_r4(:,:),  &
+                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 2,  &
+                      mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      end if
     else
       write(*,*) 'eob_allGather: I am not a nodeMaster, do nothing'
     end if
-    call mpi_win_fence(0, ensObs_mpiglobal%window, ierr)
+
+    call mpi_win_fence(0, ensObs_mpiglobal%Yb_window, ierr)
+    if (associated(ensObs_mpiglobal%Ya_r4)) then
+      call mpi_win_fence(0, ensObs_mpiglobal%Ya_window, ierr)
+    end if
 
     write(*,*) 'eob_allGather: Yb_r4(1,1), Yb_r4(end,0.5*end) = ', &
                ensObs_mpiglobal%Yb_r4(1,1), &
                ensObs_mpiglobal%Yb_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+    if (associated(ensObs_mpiglobal%Ya_r4)) then
+      write(*,*) 'eob_allGather: Ya_r4(1,1), Ya_r4(end,0.5*end) = ', &
+                 ensObs_mpiglobal%Ya_r4(1,1), &
+                 ensObs_mpiglobal%Ya_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+    end if
 
     do memberIndex = 1, ensObs_mpiglobal%numMembers
-      if (associated(ensObs_mpiglobal%Ya_r4)) then
-        write(*,*) 'eob_allGather: broadcast Ya_r4'
-        call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                            0, 'GRID', ierr)
-      end if
       if (associated(ensObs_mpiglobal%randPert_r4)) then
         write(*,*) 'eob_allGather: broadcast randPert_r4'
         call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
