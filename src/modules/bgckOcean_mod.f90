@@ -55,10 +55,7 @@ module bgckOcean_mod
   real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
   real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
   real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
-  logical           :: fourSeasonsBgstdSST = .false. ! to mimic operational SST analysis, where there are 4 seasonal fields of 
-                                                     ! BG std. To compute daily BG std interpolated in time,  
-                                                     ! two fields are used: from the left and from the right of the current date.
-                                                     ! The seasonal fields are considered to be valid on the 15th of Feb, May, Aug and Nov. 
+  logical           :: fourSeasonsBgstdSST = .false. ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov. 
 
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
