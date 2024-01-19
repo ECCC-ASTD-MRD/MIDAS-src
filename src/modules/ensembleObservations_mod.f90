@@ -228,12 +228,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob)        , intent(inout) :: ensObs
-    integer                 , intent(in)    :: numMembers
-    integer                 , intent(in)    :: numObs
-    type(struct_obs), target, intent(in)    :: obsSpaceData
-    integer, optional       , intent(in)    :: fileMemberIndex1_opt
-    logical, optional       , intent(in)    :: allocYb_opt
+    type(struct_eob)        , intent(inout) :: ensObs               ! eob object to be allocated
+    integer                 , intent(in)    :: numMembers           ! number of ensemble members
+    integer                 , intent(in)    :: numObs               ! number of observations
+    type(struct_obs), target, intent(in)    :: obsSpaceData         ! obs object
+    integer, optional       , intent(in)    :: fileMemberIndex1_opt ! first member index of this set (default is 1) 
+    logical, optional       , intent(in)    :: allocYb_opt          ! request that Yb_r4 is allocated (default is true)
 
     ! Locals:
     logical                                 :: allocYb
@@ -281,7 +281,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to be deallocated
 
     ! Locals:
     integer :: ierr
@@ -339,7 +339,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to be modified
 
     if ( .not.ensObs%allocated ) then
       call utl_abort('eob_zero: this object is not allocated')
@@ -372,8 +372,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    character(len=*), intent(in)    :: typeVertCoord
+    type(struct_eob), intent(inout) :: ensObs        ! eob object to be modified
+    character(len=*), intent(in)    :: typeVertCoord ! type of vertical coordinate
 
     if ( trim(typeVertCoord) /= 'logPressure' .and. &
          trim(typeVertCoord) /= 'depth' ) then
@@ -397,8 +397,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    type(struct_eob), intent(out)   :: ensObsClean
+    type(struct_eob), intent(inout) :: ensObs      ! input eob object to be cleaned
+    type(struct_eob), intent(out)   :: ensObsClean ! resulting cleaned eob object
 
     ! Locals:
     integer :: obsIndex, obsCleanIndex, numObsClean
@@ -457,8 +457,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)    :: ensObsIn
-    type(struct_eob), intent(inout) :: ensObsOut
+    type(struct_eob), intent(in)    :: ensObsIn   ! input eob object
+    type(struct_eob), intent(inout) :: ensObsOut  ! output eob object
 
     if (ensObsIn%mpiglobal) then
       call utl_abort('eob_copy: Cannot be called with an mpiglobal object')
@@ -500,8 +500,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout)  :: ensObs
-    type(struct_eob), intent(out)    :: ensObs_mpiglobal
+    type(struct_eob), intent(inout)  :: ensObs           ! input mpi local eob object
+    type(struct_eob), intent(out)    :: ensObs_mpiglobal ! output mpi global eob object (all obs on each mpi task)
 
     ! Locals:
     type(struct_eob) :: ensObsClean
@@ -753,9 +753,11 @@ CONTAINS
                ensObs_mpiglobal%Yb_r4(1,1), &
                ensObs_mpiglobal%Yb_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
 
-    write(*,*) 'eob_allGather: randPert_r4(1,1), randPert_r4(end,0.5*end) = ', &
-               ensObs_mpiglobal%randPert_r4(1,1), &
-               ensObs_mpiglobal%randPert_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+    if (associated(ensObs_mpiglobal%randPert_r4)) then
+      write(*,*) 'eob_allGather: randPert_r4(1,1), randPert_r4(end,0.5*end) = ', &
+                 ensObs_mpiglobal%randPert_r4(1,1), &
+                 ensObs_mpiglobal%randPert_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+    end if
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
@@ -779,11 +781,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(in) :: ensObs
-    character(len=*),  intent(in) :: outputFilenamePrefix
-    logical,           intent(in) :: writeObsInfo
-    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
-    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
+    type(struct_eob),  intent(in) :: ensObs                       ! input eob object
+    character(len=*),  intent(in) :: outputFilenamePrefix         ! prefix for output files
+    logical,           intent(in) :: writeObsInfo                 ! choose to write info common to all members
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt ! number of groups to divide members in files
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt    ! maximum number of members per group
 
     ! Locals:
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -875,10 +877,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: numMembersToRead
-    character(len=*), intent(in)    :: inputFilenamePrefix
-    logical,          intent(in)    :: readObsInfo
+    type(struct_eob), intent(inout) :: ensObs               ! eob object to be filled
+    integer         , intent(in)    :: numMembersToRead     ! number of members to read
+    character(len=*), intent(in)    :: inputFilenamePrefix  ! prefix of filename to read
+    logical,          intent(in)    :: readObsInfo          ! read info common to all members
     
     ! Locals:
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -1020,13 +1022,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)  :: ensObs
-    integer         , intent(out) :: localBodyIndices(:)
-    real(8)         , intent(out) :: distances(:)
-    real(8)         , intent(in)  :: lat, lon, vertLocation, hLocalize, vLocalize
-    integer         , intent(out) :: numLocalObsFound
+    type(struct_eob), intent(in)  :: ensObs  ! input eob object
+    integer         , intent(out) :: localBodyIndices(:) ! resulting dist of body indexes
+    real(8)         , intent(out) :: distances(:)        ! corresponding list of obs distances
+    real(8)         , intent(in)  :: lat                 ! reference location lat
+    real(8)         , intent(in)  :: lon                 ! reference location lon
+    real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
+    real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
+    real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
+    integer         , intent(out) :: numLocalObsFound    ! total number of local obs
     ! Result:
-    integer                       :: numLocalObs ! function output
+    integer                       :: numLocalObs         ! number of local obs up to the array size
 
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
@@ -1105,7 +1111,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     call obs_extractObsRealHeaderColumn(ensObs%lat, ensObs%obsSpaceData, OBS_LAT)
     call obs_extractObsRealHeaderColumn(ensObs%lon, ensObs%obsSpaceData, OBS_LON)
@@ -1120,7 +1126,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -1154,7 +1160,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(inout) :: ensObs
+    type(struct_eob),  intent(inout) :: ensObs ! eob object to modify
     
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1222,7 +1228,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(inout) :: ensObs
+    type(struct_eob),  intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1299,8 +1305,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob)       , intent(inout) :: ensObs
-    type(struct_columnData), intent(in)    :: columnMeanTrl
+    type(struct_eob)       , intent(inout) :: ensObs        ! eob object to modify
+    type(struct_columnData), intent(in)    :: columnMeanTrl ! column object to supply vertical level info
 
     ! Locals:
     integer          :: obsIndex, headerIndex, channelIndex, tovsIndex, numTovsLevels, nosensor
@@ -1464,7 +1470,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs  ! eob object to modify
 
     call obs_extractObsIntBodyColumn(ensObs%assFlag, ensObs%obsSpaceData, OBS_ASS)
 
@@ -1477,8 +1483,8 @@ CONTAINS
     implicit none
 
     ! Arguments: 
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: memberIndex
+    type(struct_eob), intent(inout) :: ensObs      ! eob object to modify
+    integer         , intent(in)    :: memberIndex ! index of member to set
         
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
@@ -1495,9 +1501,9 @@ CONTAINS
     implicit none
 
     ! Arguments: 
-    type(struct_eob), intent(inout)  :: ensObs
-    integer         , intent(in)     :: memberIndex
-    integer         , intent(in)     :: obsColumnName
+    type(struct_eob), intent(inout)  :: ensObs        ! eob object to modify
+    integer         , intent(in)     :: memberIndex   ! index of member to set
+    integer         , intent(in)     :: obsColumnName ! name of obs column to get the value
 
     if ( .not. associated(ensObs%Ya_r4) ) then
       call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
@@ -1522,7 +1528,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob) , intent(inout)  :: ensObs
+    type(struct_eob) , intent(inout)  :: ensObs ! eob object to modify
 
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1576,7 +1582,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn(ensObs%DeterYb(:), ensObs%obsSpaceData, OBS_OMP)
@@ -1593,7 +1599,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -1614,8 +1620,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: randomSeed
+    type(struct_eob), intent(inout) :: ensObs     ! eob object to modify
+    integer         , intent(in)    :: randomSeed ! value of random seed to use
 
     ! Locals:
     integer :: obsIndex, memberIndex
@@ -1651,7 +1657,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -1671,7 +1677,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex, memberIndex
@@ -1704,7 +1710,7 @@ CONTAINS
     implicit none
 
     ! Arguments::
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
@@ -1792,9 +1798,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    type(struct_ocm), intent(in)    :: oceanMask
-    real(8),          intent(in)    :: minDistanceToLand
+    type(struct_eob), intent(inout) :: ensObs            ! eob object to modify
+    type(struct_ocm), intent(in)    :: oceanMask         ! ocm object to define coast line
+    real(8),          intent(in)    :: minDistanceToLand ! minimum distance from land
 
     ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
@@ -1850,7 +1856,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer           :: bodyIndex
@@ -1880,7 +1886,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
@@ -1966,7 +1972,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
@@ -2022,10 +2028,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(in)    :: ensObs
-    integer,           intent(inout) :: memberIndexArray(:)
-    integer, optional, intent(in)    :: numGroupsToDivideMembers_opt
-    integer, optional, intent(in)    :: maxNumMembersPerGroup_opt
+    type(struct_eob),  intent(in)    :: ensObs                       ! input eob object
+    integer,           intent(inout) :: memberIndexArray(:)          ! resulting list of member indexes
+    integer, optional, intent(in)    :: numGroupsToDivideMembers_opt ! number of groups to divide the members
+    integer, optional, intent(in)    :: maxNumMembersPerGroup_opt    ! maximum number of members per group
 
     ! Locals:
     integer :: memberIndex, groupIndex, memberIndexOffset, memberIndexInGroup
@@ -2083,7 +2089,7 @@ CONTAINS
     integer(kind=jpim)      , intent(in)  :: numLevels    ! number of RTTOV levels
     integer                 , intent(in)  :: transIndex   ! index of transmission%tau_levels
     real(kind=jprb), pointer, intent(in)  :: rttovPres(:) ! pressure of RTTOV levels
-    real(8)                 , intent(out) :: maxLnP       ! log pressure of maximum
+    real(8)                 , intent(out) :: maxLnP       ! computed log pressure of maximum
 
     ! Locals:
     integer :: levIndex
@@ -2128,9 +2134,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: maxIndex, nlev
-    real(8), intent(in)    :: lnp(nlev), deriv(nlev+1)
-    real(8), intent(inout) :: maxLnP
+    integer, intent(in)    :: maxIndex      ! level index of the max value
+    integer, intent(in)    :: nlev          ! number of levels for dimensioning arguments
+    real(8), intent(in)    :: lnp(nlev)     ! natural log of pressure
+    real(8), intent(in)    :: deriv(nlev+1) ! derivative with respect to log pressure
+    real(8), intent(inout) :: maxLnP        ! computed log pressure of maximum
 
     ! Locals:
     external :: dgesv
