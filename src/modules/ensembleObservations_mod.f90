@@ -55,7 +55,8 @@ MODULE ensembleObservations_mod
 
   type struct_eob
     logical                       :: allocated      = .false.
-    logical                       :: meanRemoved = .false.
+    logical                       :: mpiGlobal      = .false.
+    logical                       :: meanRemoved    = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
     integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
@@ -66,13 +67,14 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
     integer                       :: Yb_window = -1   ! handle to shared data "window" for Yb_r4
-    type(c_ptr)                   :: Yb_baseptr
+    type(c_ptr)                   :: Yb_baseptr                 ! pointer used to allocated shared memory
     real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
-    integer                       :: Ya_window = -1   ! handle to shared data "window" for Ya_r4
-    type(c_ptr)                   :: Ya_baseptr
+    integer                       :: Ya_window = -1             ! handle to shared data "window" for Ya_r4
+    type(c_ptr)                   :: Ya_baseptr                 ! pointer used to allocated shared memory
     real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space    
-    type(c_ptr)                   :: randPert_baseptr
+    type(c_ptr)                   :: randPert_baseptr           ! pointer used to allocated shared memory
     real(4), pointer              :: randPert_r4(:,:) => null() ! unbiased random perturbations with covariance equal to R
+    integer                       :: randPert_window = -1       ! handle to shared data "window" for Ya_r4
     real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
@@ -292,10 +294,6 @@ CONTAINS
     deallocate(ensObs%obsValue)
     deallocate(ensObs%obsErrInv)
     if (allocated(ensObs%obsErrInv_sim)) deallocate(ensObs%obsErrInv_sim)
-    if (associated(ensObs%randPert_r4)) then
-      deallocate(ensObs%randPert_r4)
-      nullify(ensObs%randPert_r4)
-    end if
     deallocate(ensObs%meanYb)
     deallocate(ensObs%deterYb)
     deallocate(ensObs%assFlag)
@@ -304,6 +302,8 @@ CONTAINS
       ! using shared memory
       call mpi_win_free(ensObs%Yb_window, ierr)
       ensObs%Yb_window = -1
+    else if (associated(ensObs%Yb_r4)) then
+      deallocate(ensObs%Yb_r4)
     end if
     nullify(ensObs%Yb_r4)
 
@@ -311,8 +311,19 @@ CONTAINS
       ! using shared memory
       call mpi_win_free(ensObs%Ya_window, ierr)
       ensObs%Ya_window = -1
+    else if (associated(ensObs%Ya_r4)) then
+      deallocate(ensObs%Ya_r4)
     end if
     nullify(ensObs%Ya_r4)
+
+    if (ensObs%randPert_window /= -1) then
+      ! using shared memory
+      call mpi_win_free(ensObs%randPert_window, ierr)
+      ensObs%randPert_window = -1
+    else if (associated(ensObs%randPert_r4)) then
+      deallocate(ensObs%randPert_r4)
+    end if
+    nullify(ensObs%randPert_r4)
 
     ensObs%allocated = .false.
 
@@ -392,6 +403,10 @@ CONTAINS
     ! Locals:
     integer :: obsIndex, obsCleanIndex, numObsClean
 
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_clean: Cannot be called with an mpiglobal object')
+    end if
+
     call eob_setAssFlag(ensObs)
 
     numObsClean = 0
@@ -445,6 +460,10 @@ CONTAINS
     type(struct_eob), intent(in)    :: ensObsIn
     type(struct_eob), intent(inout) :: ensObsOut
 
+    if (ensObsIn%mpiglobal) then
+      call utl_abort('eob_copy: Cannot be called with an mpiglobal object')
+    end if
+
     ensObsOut%lat(:)           = ensObsIn%lat(:)
     ensObsOut%lon(:)           = ensObsIn%lon(:)
     ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
@@ -454,7 +473,7 @@ CONTAINS
     end if
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
     if (associated(ensObsIn%Ya_r4)) then
-      allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
+      allocate(ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%Ya_r4(:,:) = ensObsIn%Ya_r4(:,:)
     end if
     if (associated(ensObsIn%randPert_r4)) then
@@ -496,6 +515,10 @@ CONTAINS
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_allGather: Input eob object is already mpiglobal')
+    end if
+
     call utl_tmg_start(10,'--Observations')
     call utl_tmg_start(24,'----Eob_AllGather')
 
@@ -513,6 +536,7 @@ CONTAINS
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
                       fileMemberIndex1_opt=ensObs%fileMemberIndex1, allocYb_opt=.false.)
+    ensObs_mpiglobal%mpiglobal = .true.
 
     ! Allocate large mpi global arrays that will be put in shared memory
     arrayShape=(/ ensObsClean%numMembers,numObs_mpiglobal /)
@@ -546,6 +570,18 @@ CONTAINS
       call c_f_pointer(ensObs_mpiglobal%Ya_baseptr, ensObs_mpiglobal%Ya_r4, arrayShape)
     end if
 
+    ! Share memory for randPert_r4
+    if (associated(ensObsClean%randPert_r4)) then
+      call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
+                                   mmpi_mpicomm_shared, ensObs_mpiglobal%randPert_baseptr, &
+                                   ensObs_mpiglobal%randPert_window, ierr)
+      if (mmpi_myidHost /= 0) then
+        call mpi_win_shared_query(ensObs_mpiglobal%randPert_window, 0, windowSize, dispUnit, &
+                                  ensObs_mpiglobal%randPert_baseptr, ierr)     
+      end if
+      call c_f_pointer(ensObs_mpiglobal%randPert_baseptr, ensObs_mpiglobal%randPert_r4, arrayShape)
+    end if
+
     ! The baseptr now associated with Fortran pointer for access to global shared data
     if (mmpi_myid == 0) then
       allocate(tempBuffer(ensObsClean%numMembers,numObs_mpiglobal))
@@ -553,9 +589,6 @@ CONTAINS
       allocate(tempBuffer(1,1))
     end if
 
-    if (associated(ensObsClean%randPert_r4)) then
-      allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
-    end if
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
     if (mmpi_myid == 0) then
@@ -622,9 +655,13 @@ CONTAINS
     if (associated(ensObsClean%randPert_r4)) then
       do memberIndex = 1, ensObsClean%numMembers
         call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                               0, 'GRID', ierr)
       end do
+      if (mmpi_myid == 0) then
+        ensObs_mpiglobal%randPert_r4(:,:) = tempBuffer(:,:)
+      end if
+      call mpi_win_fence(0, ensObs_mpiglobal%randPert_window, ierr)
     end if
 
     call eob_deallocate(ensObsClean)
@@ -675,6 +712,16 @@ CONTAINS
           call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
         end if
       end if
+      if (associated(ensObs_mpiglobal%randPert_r4)) then
+        do procIndex = 2, size(mmpi_nodeMasters)
+          call mpi_isend(ensObs_mpiglobal%randPert_r4(:,:),  &
+                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 3,  &
+                         mmpi_comm_grid, requestId(procIndex-1), ierr)
+        end do
+        if (size(mmpi_nodeMasters) > 1) then
+          call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
+        end if
+      end if
     else if(mmpi_myidHost == 0) then
       write(*,*) 'eob_allGather: I am a nodeMaster, receive data for shared array'
       call mpi_recv(ensObs_mpiglobal%Yb_r4(:,:),  &
@@ -685,6 +732,11 @@ CONTAINS
                       nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 2,  &
                       mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
       end if
+      if (associated(ensObs_mpiglobal%randPert_r4)) then
+        call mpi_recv(ensObs_mpiglobal%randPert_r4(:,:),  &
+                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 3,  &
+                      mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      end if
     else
       write(*,*) 'eob_allGather: I am not a nodeMaster, do nothing'
     end if
@@ -693,23 +745,17 @@ CONTAINS
     if (associated(ensObs_mpiglobal%Ya_r4)) then
       call mpi_win_fence(0, ensObs_mpiglobal%Ya_window, ierr)
     end if
+    if (associated(ensObs_mpiglobal%randPert_r4)) then
+      call mpi_win_fence(0, ensObs_mpiglobal%randPert_window, ierr)
+    end if
 
     write(*,*) 'eob_allGather: Yb_r4(1,1), Yb_r4(end,0.5*end) = ', &
                ensObs_mpiglobal%Yb_r4(1,1), &
                ensObs_mpiglobal%Yb_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
-    if (associated(ensObs_mpiglobal%Ya_r4)) then
-      write(*,*) 'eob_allGather: Ya_r4(1,1), Ya_r4(end,0.5*end) = ', &
-                 ensObs_mpiglobal%Ya_r4(1,1), &
-                 ensObs_mpiglobal%Ya_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
-    end if
 
-    do memberIndex = 1, ensObs_mpiglobal%numMembers
-      if (associated(ensObs_mpiglobal%randPert_r4)) then
-        write(*,*) 'eob_allGather: broadcast randPert_r4'
-        call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                            0, 'GRID', ierr)        
-      end if
-    end do
+    write(*,*) 'eob_allGather: randPert_r4(1,1), randPert_r4(end,0.5*end) = ', &
+               ensObs_mpiglobal%randPert_r4(1,1), &
+               ensObs_mpiglobal%randPert_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
@@ -1574,6 +1620,10 @@ CONTAINS
     ! Locals:
     integer :: obsIndex, memberIndex
     real(4) :: meanRandPert, sigObs
+
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_calcRandPert: Input eob object must not already be mpiglobal')
+    end if
 
     call rng_setup(abs(randomSeed))
     if ( associated(ensObs%randPert_r4) ) then
