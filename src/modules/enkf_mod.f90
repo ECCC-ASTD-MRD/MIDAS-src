@@ -121,6 +121,7 @@ contains
     integer :: nEnsGain, eigenVectorColumnIndex
     integer :: memberIndexInModEns
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
+    integer :: requestIdSignal
 
     integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -338,8 +339,8 @@ contains
 
             ! Assign this MPI task the next gridpoint to be calculated
             ! NOTE: this assignment will be ignored when readySignal is 'N'
-            call MPI_SEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
-                          mmpi_comm_grid, mpiStatus, ierr)
+            call MPI_RSEND(latLonIndexMpiGlobal, 1, MPI_INTEGER, workerProcID, assignmentTag, &
+                           mmpi_comm_grid, mpiStatus, ierr)
 
             if (readySignal == 'Y') then
               exit ReadyLoop
@@ -397,16 +398,22 @@ contains
 
             if ( (latLonIndex+1) <= myNumLatLonCalcMax) then
 
+              ! Post recv to obtain assignment or signal that we are done
+              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+                             mmpi_comm_grid, requestIdSignal, ierr)
+
               ! Signal that I am ready for assignment
               readySignal = 'Y'
               call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
                             mmpi_comm_grid, mpiStatus, ierr)
 
-              ! Wait for assignment or signal that we are done
-              call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
-                            mmpi_comm_grid, mpiStatus, ierr)
+              call mpi_wait(requestIdSignal, MPI_STATUS_IGNORE, ierr)
 
             else
+
+              ! Post recv to obtain assignment that WILL BE IGNORED
+              call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
+                             mmpi_comm_grid, requestIdSignal, ierr)
 
               ! Signal that I reached my maximum number of assignments
               write(*,*) 'Reached maximum number of assignments, wait until others are finished'
@@ -414,9 +421,7 @@ contains
               call MPI_SEND(readySignal, 1, MPI_CHAR, 0, readyTag, &
                             mmpi_comm_grid, mpiStatus, ierr)
 
-              ! Wait for dummy signal that WILL BE IGNORED
-              call MPI_RECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
-                            mmpi_comm_grid, mpiStatus, ierr)
+              call mpi_wait(requestIdSignal, MPI_STATUS_IGNORE, ierr)
 
               ! No assignment, so set latLonIndex to 0 to exit LATLON_LOOP
               latLonIndexMpiGlobal = 0
