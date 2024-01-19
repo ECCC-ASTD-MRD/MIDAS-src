@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Removed the possibility of zero-valued pressures from routine `phf_convertZtoPressure` (#892 and !800)
  * Ensure to clean ObsDb tables after thinning in ObsSelction (#846 and !755)
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)

@@ -2710,7 +2710,7 @@ module obsOperatorsChem_mod
     case(1)
       ! Convert altitude to pressure
       if (trim(obsoper%operatorCategory) == 'Interp') then
-        press_obs = phf_convert_z_to_pressure(obsoper%obslev,obsoper%height, &
+        press_obs = phf_convertZtoPressure(obsoper%obslev,obsoper%height, &
 	            obsoper%pp, &
                     obsoper%nobslev,obsoper%nmodlev,obsoper%lat,successLocal)
         ! Allows for obs levels below the lowest TH level and above the surface
@@ -2720,11 +2720,11 @@ module obsOperatorsChem_mod
 	  
       else if (trim(obsoper%operatorCategory) == 'Integ' .or. &
                trim(obsoper%operatorCategory) == 'LayerAvg') then
-        obsoper%vlayertop = phf_convert_z_to_pressure(obsoper%vlayertop, &
+        obsoper%vlayertop = phf_convertZtoPressure(obsoper%vlayertop, &
 	                    obsoper%height, &
                             obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
 			    obsoper%lat,successLocal)
-        obsoper%vlayerbottom = phf_convert_z_to_pressure(obsoper%vlayerbottom, &
+        obsoper%vlayerbottom = phf_convertZtoPressure(obsoper%vlayerbottom, &
 	                       obsoper%height, &
                                obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
 			       obsoper%lat,successLocal)
@@ -3914,13 +3914,13 @@ module obsOperatorsChem_mod
     
           ! Get tropopause pressure level
       
-          boundPress = phf_get_tropopause(nmodlev,pressmod,tt,height,hu_opt=hu_opt)
+          boundPress = phf_calcTropopause(nmodlev,pressmod,tt,height,hu_opt=hu_opt)
     
         case(2)
  
           ! Get PBL pressure level
       
-          boundPress = phf_get_pbl(nmodlev,pressmod,tt,height,hu_opt=hu_opt, &
+          boundPress = phf_calcPBL(nmodlev,pressmod,tt,height,hu_opt=hu_opt, &
 	               uu_opt=uu_opt,vv_opt=vv_opt) 
       
         case default
@@ -4372,11 +4372,11 @@ module obsOperatorsChem_mod
       where (pressrefin < modelHeightLevs(numModelLevs))
         pressrefin=modelHeightLevs(numModelLevs)
       end where
-      pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
+      pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
                       climatFields(id,1)%nlev,numModelLevs,obsLat,success)
     else if (climatFields(id,1)%ivkind == 4) then
       pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
-      pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
+      pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
                       climatFields(id,1)%nlev,numModelLevs,obsLat,success)
     else if (climatFields(id,1)%ivkind == 1) then
       pressrefin(:)=pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
@@ -4409,14 +4409,14 @@ module obsOperatorsChem_mod
         
       if ( present(hu_opt) ) then
         if (all(hu_opt >= 0.0D0)) then
-          tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs, &
+          tropo_press=phf_calcTropopause(numModelLevs,modelPressLevs, &
 	              tt_opt,modelHeightLevs,hu_opt=hu_opt)
         else
-          tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs, &
+          tropo_press=phf_calcTropopause(numModelLevs,modelPressLevs, &
 	              tt_opt,modelHeightLevs)
         end if
       else
-        tropo_press=phf_get_tropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
+        tropo_press=phf_calcTropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
       end if
 	
       if (tropo_press > 0) then
@@ -4438,13 +4438,13 @@ module obsOperatorsChem_mod
           where (pressrefin < modelHeightLevs(numModelLevs)) 
 	    pressrefin=modelHeightLevs(numModelLevs)
 	  end where 
-          pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
+          pressrefin(:) = phf_convertZtoPressure(pressrefin, &
 	                  modelHeightLevs,modelPressLevs, &
                           climatFields(id,2)%nlev,numModelLevs, &
 	                  obsLat,success)
         else if (climatFields(id,2)%ivkind == 4) then
           pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
-          pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
+          pressrefin(:) = phf_convertZtoPressure(pressrefin, &
 	                   modelHeightLevs,modelPressLevs, &
                            climatFields(id,2)%nlev,numModelLevs,obsLat, &
 	                   success)
