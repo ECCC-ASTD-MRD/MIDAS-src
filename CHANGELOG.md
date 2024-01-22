@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added the branch v_3.9-RandD in the official documentation and activate the automatic tests for that branche (#888 and !808)
  * Added the ability to compute daily BG std for SST 2D-Var and BG check (#894 and !806)
  * Added ability to compute 4D control member increments (#873 and !803)
  * Added new timing tool to print time and accumulated time to listing (#864 and !798)
