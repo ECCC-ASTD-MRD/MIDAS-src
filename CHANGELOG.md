@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
  * Read namelists from strings instead of files for improved efficiency (#886 and !794)
 
 ### Fixed
