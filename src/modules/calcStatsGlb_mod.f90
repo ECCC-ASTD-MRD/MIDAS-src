@@ -90,7 +90,7 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: ierr, waveBandIndex, memberIndex
+    integer :: ierr, memberIndex
     real(8) :: zps
 
     ! Namelist variables (local):
