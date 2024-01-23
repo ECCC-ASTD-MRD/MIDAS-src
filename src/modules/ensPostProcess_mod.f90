@@ -760,10 +760,8 @@ contains
                                containsFullField_opt = .false.)
 
           if (lwriteNetCDFInc) then
-            outFileName = trim(outFileName) // '.nc'
             call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
                                        referenceDateNetCDF, &
-                                       stepIndex_opt = stepIndex, &
                                        containsFullField_opt = .false.)
           end if
 

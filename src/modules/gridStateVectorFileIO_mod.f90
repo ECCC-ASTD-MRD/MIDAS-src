@@ -20,6 +20,8 @@ module gridStateVectorFileIO_mod
   use codePrecision_mod
   use Vgrid_Descriptors
   use netcdf
+  use message_mod
+  
   implicit none
   save
   private
@@ -48,6 +50,8 @@ module gridStateVectorFileIO_mod
     integer :: SSH
     integer :: seaice
     integer :: timeCounter
+    integer :: dateBeg
+    integer :: dateEnd
     integer :: time
   end type netCDFvarID
 
@@ -569,8 +573,11 @@ module gridStateVectorFileIO_mod
       call gio_readFileFst(statevector, filename, etiket_in, typvar_in, &
                            containsFullField, readHeightSfc_opt, stepIndex_opt, &
                            ignoreDate_opt)
-    else
+    else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
       call gio_readFileNetCDF(statevector, filename, stepIndex_opt)
+    else
+      call utl_abort('gio_readFile: unknown file type: '//&
+                     trim(utl_fileType(trim(fileName))))
     end if
     
   end subroutine gio_readFile
@@ -665,7 +672,7 @@ module gridStateVectorFileIO_mod
 
     deallocate(fileField2D)
 
-    write(*,*) 'gio_readFileNetCDF: completed'
+    call msg('gio_readFileNetCDF', 'Completed')
 
   end subroutine gio_readFileNetCDF
 
@@ -1130,8 +1137,8 @@ module gridStateVectorFileIO_mod
     ! Read in an oceanMask if it is present in the file
     call gio_readMaskFromFile(statevector, trim(filename))
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'gio_readFileFst: finished'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
+    write(*,*) 'gio_readFileFst: Completed'
 
   end subroutine gio_readFileFst
 
@@ -1178,11 +1185,12 @@ module gridStateVectorFileIO_mod
       hInterpolationDegree = 'LINEAR'
     end if
 
-    call gsv_allocate(statevector_mask, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                      dataKind_opt=pre_incrReal, &
-                      mpi_local_opt=.true., varNames_opt=(/'MSKC'/),           &
-                      hInterpolateDegree_opt=hInterpolationDegree)
-    call gio_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', unitConversion_opt=.false., &
+    call gsv_allocate(statevector_mask, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      dataKind_opt = pre_incrReal, &
+                      mpi_local_opt = .true., varNames_opt = (/'MSKC'/),         &
+                      hInterpolateDegree_opt = hInterpolationDegree)
+    call gio_readFromFile(statevector_mask, './analinc_mask', ' ', ' ', &
+                          unitConversion_opt = .false., &
                           vcoFileIn_opt=vco_ptr)
 
   end subroutine gio_getMaskLAM
@@ -1220,7 +1228,7 @@ module gridStateVectorFileIO_mod
     if ( mmpi_myid == 0 ) then
       write(*,*) ''
       write(*,*) 'gio_readTrials: START'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
     end if
 
     if (gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
@@ -1308,13 +1316,13 @@ module gridStateVectorFileIO_mod
             inquire(file = trim(fileName), exist = fileExists)
             if (.not. fileExists) exit
             nulTrial = 0
-            ierr = fnom(nulTrial, trim(fileName),'RND+OLD+R/O',0)
+            ierr = fnom(nulTrial, trim(fileName), 'RND+OLD+R/O', 0)
             ierr = fstouv(nulTrial, 'RND+OLD')
-            ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
-                          dateStamp, ' ', -1, -1, -1, ' ', varNameForDateStampSearch)
+            ikey = fstinf(nulTrial, ni_file, nj_file, nk_file, dateStamp, &
+                          ' ', -1, -1, -1, ' ', varNameForDateStampSearch)
             ierr = fstfrm(nulTrial)
             ierr = fclos(nulTrial)
-            if ( ikey > 0 ) exit
+            if (ikey > 0) exit
           end do
           
 	  if (ikey <= 0 .or. .not.fileExists) then 
@@ -1325,7 +1333,8 @@ module gridStateVectorFileIO_mod
 	else if (trim(utl_fileType('trlm_01')) == 'NetCDF') then
  	
 	  fileName = 'trlm_01'
-	  write(*,*) 'gio_readTrials: all NEMO trial fields are stored in one netCDF file: ', trim(fileName) 
+	  call msg('gio_readTrials', 'All NEMO trial fields are stored in one netCDF file: '//&
+                                     str(trim(fileName))) 
 	  
 	end if
 
@@ -1377,8 +1386,8 @@ module gridStateVectorFileIO_mod
       call gsv_deallocate( stateVectorTrial )
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'gio_readTrials: FINISHED'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    write(*,*) 'gio_readTrials: Completed'
     write(*,*) ''
 
     call utl_tmg_stop(1)
@@ -1434,7 +1443,7 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
 
-    write(*,*) 'gio_writeToFile: START'
+    call msg('gio_writeToFile', 'START')
 
     call utl_tmg_start(161,'low-level--gsv_writeToFile')
 
@@ -1464,7 +1473,7 @@ module gridStateVectorFileIO_mod
     !- 2.  Set some variables
     !
     if (.not. statevector%mpi_local) then
-      write(*,*) 'gio_writeToFile: writing statevector that is already mpiglobal!'
+      call msg('gio_writeToFile', 'Writing statevector that is already mpiglobal!')
     end if
 
     if (present(ip3_opt)) then
@@ -1484,7 +1493,7 @@ module gridStateVectorFileIO_mod
     else
       containsFullField = .false.
     end if
-    write(*,*) 'gio_writeToFile: containsFullField = ', containsFullField
+    call msg('gio_writeToFile', 'containsFullField = '//str(containsFullField))
 
     ! if step index not specified, choose anltime (usually center of window)
     if (present(stepIndex_opt)) then
@@ -1559,7 +1568,7 @@ module gridStateVectorFileIO_mod
 
       !- Open output field
       nulfile = 0
-      write(*,*) 'gio_writeToFile: file name = ',trim(fileName)
+      call msg('gio_writeToFile', 'File name = ' // str(trim(fileName)))
       ierr = fnom(nulfile,trim(fileName),'RND+APPEND',0)
 
       if (ierr >= 0) then
@@ -1573,7 +1582,7 @@ module gridStateVectorFileIO_mod
       end if
 
       !- Write TicTacToc
-      if ( (mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local ) then
+      if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
         call writeTicTacToc(statevector, nulfile, etiket) ! IN
       endif
 
@@ -1597,7 +1606,7 @@ module gridStateVectorFileIO_mod
     ! Write surface height, if requested
     if (present(writeHeightSfc_opt)) then
       if (writeHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector)) then
-        write(*,*) 'gio_writeToFile: writing surface height'
+        call msg('gio_writeToFile', 'Writing surface height')
         heightSfc_ptr => gsv_getHeightSfc(statevector)
         ! MPI communication
         gd_send_r4(1:statevector%lonPerPE, &
@@ -1634,7 +1643,7 @@ module gridStateVectorFileIO_mod
           nomvar = 'GZ'
 
           !- Scale
-          factor_r4 = real(1.0d0/10.0d0,4)
+          factor_r4 = real(1.0d0 / 10.0d0, 4)
           work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
           !- Writing to file
@@ -1648,13 +1657,13 @@ module gridStateVectorFileIO_mod
 
     do varIndex = 1, vnl_numvarmax 
  
-      if (gsv_varExist(statevector,vnl_varNameList(varIndex)) ) then
+      if (gsv_varExist(statevector,vnl_varNameList(varIndex))) then
 
         nlev = statevector%varNumLev(varIndex)
 
         do levIndex = 1, nlev
 
-          if ( statevector%dataKind == 8 ) then
+          if (statevector%dataKind == 8) then
             call gsv_getField(statevector,field_r8,vnl_varNameList(varIndex))
             gd_send_r4(1:statevector%lonPerPE,  &
                        1:statevector%latPerPE) =  &
@@ -1669,9 +1678,9 @@ module gridStateVectorFileIO_mod
           end if
 
           nsize = statevector%lonPerPEmax*statevector%latPerPEmax
-          if ( (mmpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+          if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
             call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
+                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
           else
             ! just copy when either nprocs is 1 or data is global
             gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -1728,30 +1737,31 @@ module gridStateVectorFileIO_mod
              
             ! Set the output variable name
             nomvar = trim(vnl_varNameList(varIndex))
-            if ( trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt) ) then
-               if ( HUcontainsLQ_opt ) nomvar = 'LQ'
+            if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
+               if (HUcontainsLQ_opt) nomvar = 'LQ'
             end if
 
-            if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField ) then 
+            if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then 
               ! Impose lower limits
-              if ( gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01*mpc_missingValue_r8 ) &
-                work2d_r4(:,:) = max( work2d_r4(:,:), real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))) )
+              if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
+                work2d_r4(:,:) = max(work2d_r4(:,:), &
+                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
             end if
  
             ! Set the conversion factor
-            if ( unitConversion ) then
+            if (unitConversion) then
 
-              if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+              if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-              else if ( trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-                        trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS' ) then
+              else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
+                       trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
                 factor_r4 = 0.01 ! Pa -> hPa
               else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
                 if ( gsv_conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
                   if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
-                    factor_r4 = 1.0E-9*mpc_molar_mass_dry_air_r4 &
-                              /vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+                    factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
+                                vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
                   else
                     factor_r4 = 1.0d0 ! no conversion
                   end if
@@ -1771,7 +1781,7 @@ module gridStateVectorFileIO_mod
             work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
             !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')  ) then
+            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
               where (work2d_r4(:,:) > 100.0)
                 work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
               end where
@@ -1783,9 +1793,9 @@ module gridStateVectorFileIO_mod
                          nomvar, associated(statevector%hco_physics)
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
-              ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
-              ierr = int_hInterpScalar( work2dFile_r4, work2d_r4, &
-                                        interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+              ierr = ezdefset(statevector%hco_physics%EZscintID, statevector%hco%EZscintID)
+              ierr = int_hInterpScalar(work2dFile_r4, work2d_r4, &
+                                       interpDegree='NEAREST', extrapDegree_opt='NEUTRAL')
 
               !- Writing to file
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
@@ -1805,7 +1815,7 @@ module gridStateVectorFileIO_mod
 
             end if
 
-            if ( statevector%oceanMask%maskPresent ) then
+            if (statevector%oceanMask%maskPresent) then
               if (.not.allocated(mask)) allocate(mask(ni,nj))
               call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
               ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
@@ -1834,13 +1844,13 @@ module gridStateVectorFileIO_mod
     !
     !- 4.  Ending
     !
-    if ( stateVector_in%mpi_distribution == 'VarsLevs' .and. &
-         stateVector_in%mpi_local ) then
+    if (stateVector_in%mpi_distribution == 'VarsLevs' .and. &
+        stateVector_in%mpi_local ) then
       call gsv_deallocate(statevector_tiles)
     end if
 
     call utl_tmg_stop(161)
-    write(*,*) 'gio_writeToFile: END'
+    call msg('gio_writeToFile', 'Completed')
 
   end subroutine gio_writeToFile
 
@@ -1870,7 +1880,7 @@ module gridStateVectorFileIO_mod
     !
     !- 1.  Writing Tic-Tac
     !
-    if ( statevector % hco % grtyp == 'Z' ) then
+    if (statevector%hco%grtyp == 'Z') then
       npak     = -32
       deet     =  0
       ip1      =  statevector%hco%ig1
@@ -1882,10 +1892,10 @@ module gridStateVectorFileIO_mod
       typvar   = 'X'
       dateo =  0
 
-      call cxgaig ( grtyp,                                          & ! IN
-                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
-                    real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
+      call cxgaig (grtyp,                                                    & ! IN
+                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,           & ! OUT
+                   real(statevector%hco%xlat1), real(statevector%hco%xlon1), & ! IN
+                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))   ! IN
 
       ig1      =  ig1_tictac
       ig2      =  ig2_tictac
@@ -1893,12 +1903,12 @@ module gridStateVectorFileIO_mod
       ig4      =  ig4_tictac
 
       ier = utl_fstecr(statevector%hco%lon*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
+                       iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,   &
                        ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
                        ig2, ig3, ig4, datyp, .true.)
 
       ier = utl_fstecr(statevector%hco%lat*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
+                       iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,   &
                        ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                        ig2, ig3, ig4, datyp, .true.)
 
@@ -1910,10 +1920,10 @@ module gridStateVectorFileIO_mod
         ip3      =  statevector%hco_physics%ig3
         grtyp    =  statevector%hco_physics%grtypTicTac
         
-        call cxgaig ( grtyp,                                          & ! IN
-                      ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                      real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1),   & ! IN
-                      real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2)  )   ! IN
+        call cxgaig (grtyp,                                                                   & ! IN
+                     ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,                          & ! OUT
+                     real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1),& ! IN
+                     real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2))  ! IN
 
         ig1      =  ig1_tictac
         ig2      =  ig2_tictac
@@ -1931,13 +1941,14 @@ module gridStateVectorFileIO_mod
                          ig2, ig3, ig4, datyp, .true.)
       end if
 
-    else if ( statevector % hco % grtyp == 'U' ) then
+    else if (statevector%hco%grtyp == 'U') then
       npak     = -32
-      ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
-                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'X', '^>', etiket, &
-                   'F', 1, 0, 0, 0, 5, .false.)
+      ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, &
+                   0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
+                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, &
+                   'X', '^>', etiket, 'F', 1, 0, 0, 0, 5, .false.)
 
-    else if ( statevector % hco % grtyp == 'Y' ) then
+    else if (statevector%hco%grtyp == 'Y') then
       npak     = -32
       deet     =  0
       ip1      =  statevector%hco%ig1
@@ -1949,10 +1960,10 @@ module gridStateVectorFileIO_mod
       typvar   = 'X'
       dateo =  0
 
-      call cxgaig ( grtyp,                                          & ! IN
-                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
-                    real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
-                    real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
+      call cxgaig (grtyp,                                                   & ! IN
+                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,          & ! OUT
+                   real(statevector%hco%xlat1), real(statevector%hco%xlon1),& ! IN
+                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))  ! IN
 
       ig1      =  ig1_tictac
       ig2      =  ig2_tictac
@@ -1960,12 +1971,12 @@ module gridStateVectorFileIO_mod
       ig4      =  ig4_tictac
 
       ier = utl_fstecr(statevector%hco%lon2d_4*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
+                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1, &
                        ip1, ip2, ip3, typvar, '>>', etiket, grtyp,          &
                        ig1, ig2, ig3, ig4, datyp, .true.)
 
       ier = utl_fstecr(statevector%hco%lat2d_4*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1,    &
+                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1, &
                        ip1, ip2, ip3, typvar, '^^', etiket, grtyp,          &
                        ig1, ig2, ig3, ig4, datyp, .true.)
 
@@ -1975,9 +1986,9 @@ module gridStateVectorFileIO_mod
     !
     !- Writing Toc-Toc
     !
-    if ( statevector%vco%vgridPresent ) then
+    if (statevector%vco%vgridPresent) then
       status = vgd_write(statevector%vco%vgrid,iun,'fst')
-      if ( status /= VGD_OK ) then
+      if (status /= VGD_OK) then
         call utl_abort('writeTicTacToc: ERROR with vgd_write')
       end if
     end if
@@ -2155,9 +2166,9 @@ module gridStateVectorFileIO_mod
       interpToPhysicsGrid = .false.
 
       ! read the namelist block if it exists
-      if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-        if ( mmpi_myid == 0 ) then
-          write(*,*) 'readNml (gio): namstio is missing in the namelist. The default values will be taken.'
+      if (.not. utl_isNamelistPresent('NAMSTIO','./flnml')) then
+        if (mmpi_myid == 0) then
+          call msg('readNml (gio)', 'namstio is missing in the namelist. The default values will be taken.')
         end if
       else
         ! Read namelist NAMSTIO
@@ -2177,7 +2188,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFileNetCDF(statevector_in, fileName, referenceDate, &
+  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, referenceDate, &
                                    stepIndex_opt, containsFullField_opt)
     !
     ! :Purpose: Write a statevector object to a netCDF file.
@@ -2185,16 +2196,15 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target,   intent(in) :: statevector_in
-    character(len=*),           intent(in) :: fileName
-    integer                   , intent(in) :: referenceDate
-    integer,          optional, intent(in) :: stepIndex_opt
-    logical,          optional, intent(in) :: containsFullField_opt
+    type(struct_gsv), target,   intent(in) :: stateVector_in   ! input stateVector object
+    character(len=*),           intent(in) :: fileNameTemplate ! template for increment file name
+    integer                   , intent(in) :: referenceDate    ! reference date of NEMO
+    integer,          optional, intent(in) :: stepIndex_opt    ! step index
+    logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
 
     ! Locals:
     logical :: iDoWriting, containsFullField
-    integer :: nulfile, stepIndex
-    integer :: ierr, ncid
+    integer :: ierr, ncid, stepIndex
     integer :: ni, nj, nk
     integer :: varID
     integer :: levIndex, nlev, varIndex
@@ -2204,17 +2214,17 @@ module gridStateVectorFileIO_mod
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:)
     real(4), pointer :: field_r4(:,:,:,:)
-    type(struct_gsv), pointer :: statevector
-    type(struct_gsv), target  :: statevector_tiles
+    type(struct_gsv), pointer :: stateVector
+    type(struct_gsv), target  :: stateVector_tiles
     type(netCDFvarID) :: varIDs
-    integer :: datestampNetCDFend, datestampNetCDFbeg, numberHours
-    real(8) :: netCDFtime
-    integer :: varIDdateBeg, varIDdateEnd
-    integer(8) :: numberSeconds
+    integer :: datestampNetCDFend, numberHoursEnd
+    real(8) :: netCDFtimeEnd, netCDFtimeBeg
+    integer(8) :: numberSecondsBeg, numberSecondsEnd
+    character(len=100) :: fileName
     
-    write(*,*) 'gio_writeToFileNetCDF: START'
+    call msg('gio_writeToFileNetCDF', 'START')
     
-    call utl_tmg_start(180,'low-level--gsv_writeToFileNetCDF')
+    call utl_tmg_start(182,'low-level--gsv_writeToFileNetCDF')
 
     call readNml()
 
@@ -2225,24 +2235,24 @@ module gridStateVectorFileIO_mod
     if (stateVector_in%mpi_distribution == 'VarsLevs' .and. &
         stateVector_in%mpi_local) then
       nullify(varNamesToRead)
-      call gsv_varNamesList(varNamesToRead,statevector_in) 
-      call gsv_allocate(statevector_tiles, statevector_in%numStep, statevector_in%hco, &
-                        statevector_in%vco, dataKind_opt = statevector_in%dataKind,    &
+      call gsv_varNamesList(varNamesToRead,stateVector_in) 
+      call gsv_allocate(stateVector_tiles, stateVector_in%numStep, statevector_in%hco, &
+                        stateVector_in%vco, dataKind_opt = stateVector_in%dataKind,    &
                         mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',        &
-                        dateStampList_opt = statevector_in%dateStampList,              &
+                        dateStampList_opt = stateVector_in%dateStampList,              &
                         varNames_opt = varNamesToRead)
-      call gsv_transposeVarsLevsToTiles(statevector_in, statevector_tiles)
-      statevector => stateVector_tiles
+      call gsv_transposeVarsLevsToTiles(stateVector_in, stateVector_tiles)
+      stateVector => stateVector_tiles
       deallocate(varNamesToRead)
     else
-      statevector => stateVector_in
+      stateVector => stateVector_in
     end if
 
     !
     !- 2.  Set some variables
     !
-    if (.not. statevector%mpi_local) then
-      write(*,*) 'gio_writeToFileNetCDF: writing statevector that is already mpiglobal!'
+    if (.not. stateVector%mpi_local) then
+      call msg('gio_writeToFileNetCDF', 'Writing statevector that is already mpiglobal!')
     end if
 
     if (present(containsFullField_opt)) then
@@ -2250,17 +2260,18 @@ module gridStateVectorFileIO_mod
     else
       containsFullField = .false.
     end if
-    write(*,*) 'gio_writeToFileNetCDF: containsFullField = ', containsFullField
+    call msg('gio_writeToFileNetCDF', 'containsFullField = '//str(containsFullField))
 
     ! if step index not specified, choose anltime (usually center of window)
     if (present(stepIndex_opt)) then
       stepIndex = stepIndex_opt
     else
-      stepIndex = statevector%anltime
+      stepIndex = stateVector%anltime
     end if
+    call msg('gio_writeToFileNetCDF', 'Step index: '//str(stepIndex))
 
-    ni     = statevector%ni
-    nj     = statevector%nj
+    ni     = stateVector%ni
+    nj     = stateVector%nj
     nk     = 1
     
     ! get number of levels for NEMO grid, 
@@ -2276,45 +2287,64 @@ module gridStateVectorFileIO_mod
     
     ! only proc 0 does writing or each proc when data is global 
     ! (assuming only called for proc with global data)
-    iDoWriting = (mmpi_myid == 0) .or. (.not. statevector%mpi_local)
+    iDoWriting = (mmpi_myid == 0) .or. (.not. stateVector%mpi_local)
 
     !
     !- 3.  Write the global StateVector
     !
     if (iDoWriting) then
 
-      !- create output file (and close it)
-      nulfile = 0
-      write(*,*) 'gio_writeToFileNetCDF: file name = ', trim(fileName)
-      call gio_createOceanIncrementNetCDFfile(fileName, ni, nj, nlev, varIDs)
+      ! compute begin and and time for the increments 
+      datestampNetCDFend = stateVector%dateStampList(stepIndex)
+      call msg('gio_writeToFileNetCDF', 'Datestamp END: ' // str(datestampNetCDFend))
+
+      ! compute difference in hours between current date (END) and reference
+      call tim_getHoursSinceReferenceDate(datestampNetCDFend, referenceDate, numberHoursEnd)
+      numberSecondsEnd = numberHoursEnd * 3600
+      netCDFtimeEnd = abs(real(numberSecondsEnd, 8))
+      call msg('gio_writeToFileNetCDF', 'Number of hours/netCDF date END  : ' // &
+                                        str(numberHoursEnd) // ', ' // &
+					str(netCDFtimeEnd))
+      ! extract dstepobsinc hours to get hours since reference date for BEGIN, and convert to seconds
+      numberSecondsBeg = (numberHoursEnd - int(tim_dstepobsinc)) * 3600
+      netCDFtimeBeg = abs(real(numberSecondsBeg, 8))
+      call msg('gio_writeToFileNetCDF', 'Number of hours/netCDF date BEGIN: '//&
+                                        str(numberHoursEnd - tim_dstepobsinc)//', '//&
+					str(netCDFtimeBeg))
+
+      !- create increment file, close and reopen it here for writing the increments
+      fileName = trim(fileNameTemplate)//'.nc'	
       
-      ! reopen the file for writing analysis increments
-      call utl_checkNetCDFstatus(nf90_open(trim(filename), nf90_write, ncid), &
-                                 'gio_writeToFileNetCDF', 'nf90_open')
+      call gio_createOceanIncrementNetCDFfile(trim(fileName), ni, nj, nlev, varIDs)
+      ! reopen the file for writing analysis increments and dates
+      call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
+      ! put time END into netCDF file: time and z_inc_datef variables
+      call utl_checkNetCDFstatus(nf90_put_var(ncid, varIDs%dateEnd, netCDFtimeEnd))
+      call utl_checkNetCDFstatus(nf90_put_var(ncid, varIDs%time   , netCDFtimeEnd))
+      call utl_checkNetCDFstatus(nf90_put_var(ncid, varIDs%dateBeg, netCDFtimeBeg))
 
     end if
 
-    allocate(gd_send_r4(statevector%lonPerPEmax, statevector%latPerPEmax))
-    if (mmpi_myid == 0 .or. (.not. statevector%mpi_local)) then
-      allocate(work2d_r4(statevector%ni, statevector%nj))
-      if (statevector%mpi_local) then
+    allocate(gd_send_r4(stateVector%lonPerPEmax, stateVector%latPerPEmax))
+    if (mmpi_myid == 0 .or. (.not. stateVector%mpi_local)) then
+      allocate(work2d_r4(stateVector%ni, stateVector%nj))
+      if (stateVector%mpi_local) then
         ! Receive tile data from all mpi tasks
-        allocate(gd_recv_r4(statevector%lonPerPEmax, statevector%latPerPEmax, mmpi_nprocs))
+        allocate(gd_recv_r4(stateVector%lonPerPEmax, stateVector%latPerPEmax, mmpi_nprocs))
       else
         ! Already have entire domain on mpi task (lat/lonPerPEmax == nj/ni)
-        allocate(gd_recv_r4(statevector%lonPerPEmax, statevector%latPerPEmax, 1))
+        allocate(gd_recv_r4(stateVector%lonPerPEmax, stateVector%latPerPEmax, 1))
       end if
     else
       allocate(gd_recv_r4(1,1,1))
       allocate(work2d_r4(1,1))
     end if
 
-
     do varIndex = 1, vnl_numvarmax 
  
       if (gsv_varExist(statevector, vnl_varNameList(varIndex))) then
 
-        write(*,*)'gio_writeToFileNetCDF: writing variable: ', vnl_varNameList(varIndex)
+        call msg('gio_writeToFileNetCDF', 'Writing variable: '//vnl_varNameList(varIndex))
 	select case(trim(vnl_varNameList(varIndex)))
           case('TM')
             varID = varIDs%TM
@@ -2333,22 +2363,22 @@ module gridStateVectorFileIO_mod
 
         do levIndex = 1, nlev
 
-          if (statevector%dataKind == 8) then
-            call gsv_getField(statevector, field_r8, vnl_varNameList(varIndex))
-            gd_send_r4(1:statevector%lonPerPE,  &
-                       1:statevector%latPerPE) =  &
-                real(field_r8(statevector%myLonBeg : statevector%myLonEnd, &
-                              statevector%myLatBeg : statevector%myLatEnd, levIndex, stepIndex), 4)
+          if (stateVector%dataKind == 8) then
+            call gsv_getField(stateVector, field_r8, vnl_varNameList(varIndex))
+            gd_send_r4(1:stateVector%lonPerPE,  &
+                       1:stateVector%latPerPE) =  &
+                real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
+                              stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
           else
-            call gsv_getField(statevector, field_r4, vnl_varNameList(varIndex))
-            gd_send_r4(1:statevector%lonPerPE,  &
-                       1:statevector%latPerPE) =  &
-                field_r4(statevector%myLonBeg : statevector%myLonEnd, &
-                         statevector%myLatBeg : statevector%myLatEnd, levIndex, stepIndex)
+            call gsv_getField(stateVector, field_r4, vnl_varNameList(varIndex))
+            gd_send_r4(1:stateVector%lonPerPE,  &
+                       1:stateVector%latPerPE) =  &
+                field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
+                         stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
           end if
 
-          nsize = statevector%lonPerPEmax * statevector%latPerPEmax
-          if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
+          nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
+          if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
             call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
                                  gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
           else
@@ -2356,19 +2386,19 @@ module gridStateVectorFileIO_mod
             gd_recv_r4(:,:,1) = gd_send_r4(:,:)
           end if
 
-          if (mmpi_myid == 0 .and. statevector%mpi_local) then
+          if (mmpi_myid == 0 .and. stateVector%mpi_local) then
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
             do youridy = 0, (mmpi_npey - 1)
               do youridx = 0, (mmpi_npex - 1)
                 yourid = youridx + youridy * mmpi_npex
-                work2d_r4(statevector%allLonBeg(youridx + 1) : statevector%allLonEnd(youridx + 1), &
-                          statevector%allLatBeg(youridy + 1) : statevector%allLatEnd(youridy + 1)) = &
-                    gd_recv_r4(1 : statevector%allLonPerPE(youridx + 1),  &
-                               1 : statevector%allLatPerPE(youridy + 1), yourid + 1)
+                work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
+                          stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
+                    gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
+                               1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
               end do
             end do
             !$OMP END PARALLEL DO
-          else if (.not. statevector%mpi_local) then
+          else if (.not. stateVector%mpi_local) then
             work2d_r4(:,:) = gd_recv_r4(:,:,1)
           end if
 
@@ -2394,65 +2424,25 @@ module gridStateVectorFileIO_mod
       end if ! varExist
     end do ! varIndex
 
-    if (present(stepIndex_opt)) then
-      stepIndex = stepIndex_opt
-    else
-      stepIndex = statevector%anltime
-    end if
-
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
 
     if (iDoWriting) then
-    
       ! close netCDF file after writing increments
       call utl_checkNetCDFstatus(nf90_close(ncid))
-      
-      ! reopen the file
-      call utl_checkNetCDFstatus(nf90_open(trim(filename), nf90_write, ncid))
-      
-      ! define date BEGIN and date END variables
-      call utl_checkNetCDFstatus(nf90_def_var(ncid, 'z_inc_dateb' , nf90_double, 1, varIDdateBeg))
-      call utl_checkNetCDFstatus(nf90_def_var(ncid, 'z_inc_datef' , nf90_double, 1, varIDdateEnd))
-      ! end definitions
-      call utl_checkNetCDFstatus(nf90_enddef(ncid))
-    
-      ! compute begin and and time for the increments 
-      datestampNetCDFend = statevector%dateStampList(stepIndex)
-      write(*,*)'gio_writeToFileNetCDF: datestampNetCDFend: ', datestampNetCDFend
-      
-      ! compute difference in hours between current date (END) and reference
-      call tim_getHoursSinceReferenceDate(datestampNetCDFbeg, referenceDate, numberHours)
-      numberSeconds = numberHours * 3600
-      netCDFtime = real(numberSeconds, 8)
-      write(*,*)'gio_writeToFileNetCDF: number of hours/seconds date END: ', numberHours, netCDFtime
-      
-      ! put time END into netCDF file
-      call utl_checkNetCDFstatus(nf90_put_var(ncid, varIDdateEnd, netCDFtime))
-      
-      ! extract dstepobsinc hours to get hours since reference date for BEGIN, and convert to seconds
-      numberSeconds = (numberHours - tim_dstepobsinc) * 3600
-      netCDFtime = real(numberSeconds, 8)
-
-      write(*,*)'gio_writeToFileNetCDF: number of hours/seconds date BEGIN: ', numberHours, netCDFtime
-      call utl_checkNetCDFstatus(nf90_put_var(ncid, varIDdateBeg, netCDFtime))
-      
-      ! close netCDF file
-      call utl_checkNetCDFstatus(nf90_close(ncid))
-      
     end if
     
     !
     !- 4.  Ending
     !
-    if ( stateVector_in%mpi_distribution == 'VarsLevs' .and. &
-         stateVector_in%mpi_local ) then
-      call gsv_deallocate(statevector_tiles)
+    if (stateVector_in%mpi_distribution == 'VarsLevs' .and. &
+        stateVector_in%mpi_local) then
+      call gsv_deallocate(stateVector_tiles)
     end if
 
-    call utl_tmg_stop(180)
-    write(*,*) 'gio_writeToFileNetCDF: END'
+    call utl_tmg_stop(182)
+    call msg('gio_writeToFileNetCDF', 'Completed')
 
   end subroutine gio_writeToFileNetCDF
 
@@ -2473,7 +2463,7 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    character(len=*) , intent(in)  :: fileName
+    character(len=*) , intent(in)  :: fileName   ! file name being created
     integer          , intent(in)  :: ni, nj, nk ! ORCA025 grid dimensions
     type(netCDFvarID), intent(out) :: varIDs     ! variable IDs in netCDF file   
 
@@ -2482,8 +2472,7 @@ module gridStateVectorFileIO_mod
     integer :: latDimID, lonDimID, levDimID, timeID
     integer :: dimID2D(2), dimID3D(3), dimID4D(4) 
 
-    write(*,*) 'gio_createOceanIncrementNetCDFfile: creating file: ', trim(fileName)
-    write(*,*) 'gio_createOceanIncrementNetCDFfile: ORCA025 grid dimensions: ', ni, nj, nk
+    call msg('gio_createOceanIncrementNetCDFfile', 'Creating file: '//str(trim(fileName)))
     ! create netCDF file    
     call utl_checkNetCDFstatus(nf90_create(trim(fileName), nf90_netcdf4, ncid))
 
@@ -2500,14 +2489,17 @@ module gridStateVectorFileIO_mod
     call utl_checkNetCDFstatus(nf90_def_var(ncid, 'nav_lon'     , nf90_float , dimID2D , varIDs%lon))
     call utl_checkNetCDFstatus(nf90_def_var(ncid, 'nav_lat'     , nf90_float , dimID2D , varIDs%lat))
     call utl_checkNetCDFstatus(nf90_def_var(ncid, 'nav_lev'     , nf90_float , levDimID, varIDs%lev))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckint'      , nf90_double, dimID4D , varIDs%TM))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckins'      , nf90_double, dimID4D , varIDs%SALW))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinu'      , nf90_double, dimID4D , varIDs%UUW))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinv'      , nf90_double, dimID4D , varIDs%VVW))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckineta'    , nf90_double, dimID3D , varIDs%SSH))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinseaice' , nf90_double, dimID3D , varIDs%seaice))
     call utl_checkNetCDFstatus(nf90_def_var(ncid, 'time_counter', nf90_double, timeID  , varIDs%timeCounter))
-    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'time'        , nf90_double,        1, varIDs%time))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'z_inc_dateb' , nf90_double,           varIDs%dateBeg))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'z_inc_datef' , nf90_double,           varIDs%dateEnd))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'time'        , nf90_double,           varIDs%time))
+
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckint'     , nf90_double, dimID4D , varIDs%TM))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckins'     , nf90_double, dimID4D , varIDs%SALW))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckineta'   , nf90_double, dimID3D , varIDs%SSH))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinseaice', nf90_double, dimID3D , varIDs%seaice))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinu'     , nf90_double, dimID4D , varIDs%UUW))
+    call utl_checkNetCDFstatus(nf90_def_var(ncid, 'bckinv'     , nf90_double, dimID4D , varIDs%VVW))
     
     ! end definitions
     call utl_checkNetCDFstatus(nf90_enddef(ncid))
@@ -2515,7 +2507,7 @@ module gridStateVectorFileIO_mod
     ! close netCDF file
     call utl_checkNetCDFstatus(nf90_close(ncid))
     
-    write(*,*) 'gio_createOceanIncrementNetCDFfile: completed'
+    call msg('gio_createOceanIncrementNetCDFfile', 'Completed')
     
   end subroutine gio_createOceanIncrementNetCDFfile
   
