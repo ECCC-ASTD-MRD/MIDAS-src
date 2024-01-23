@@ -273,7 +273,7 @@ module calcStatsGlb_mod
     ! parameters from namelist
     formulation='legacy'
 
-    read(utl_flnml,nml=NAMCOMPUTEBHI)
+    read(utl_flnml,nml=NAMCOMPUTEBHI, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHI)
 
@@ -570,7 +570,7 @@ module calcStatsGlb_mod
     vertModesLengthScale(2) = -1.d0
     ctrlVarHumidity          = 'HU'
     
-    read(utl_flnml,nml=NAMTOOLBOX)
+    read(utl_flnml,nml=NAMTOOLBOX, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
 

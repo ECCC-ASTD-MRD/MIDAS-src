@@ -586,7 +586,7 @@ CONTAINS
     if (mmpi_myid == 0) then
       allocate(tempBuffer(ensObsClean%numMembers,numObs_mpiglobal))
     else
-      allocate(tempBuffer(1,1))
+      allocate(tempBuffer(ensObsClean%numMembers,1))
     end if
 
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
