@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added new namelist variables to allow deactivating extra thinning in `prepcma` (#870 and !809)
  * Added the branch v_3.9-RandD in the official documentation and activate the automatic tests for that branche (#888 and !808)
  * Added the ability to compute daily BG std for SST 2D-Var and BG check (#894 and !806)
  * Added ability to compute 4D control member increments (#873 and !803)
