@@ -135,7 +135,7 @@ contains
     implicit none
 
     ! Locals:
-    integer  :: ierr, nulnam
+    integer  :: ierr
     logical, save :: firstCall = .true.
     integer :: instrumentIndex, channelIndex
     
@@ -170,12 +170,11 @@ contains
     !
     ! read in the namelist NAMBIASSAT
     if (utl_isNamelistPresent('nambiassat', './flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam,nml=nambiassat,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=nambiassat, iostat=ierr)
       if (ierr /= 0) call utl_abort('bcs_readConfig: Error reading namelist section nambiassat')
       if (mmpi_myid == 0) write(*,nml=nambiassat)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'bcs_readconfig: nambiassat is missing in the namelist. The default value will be taken.'

@@ -346,7 +346,7 @@ contains
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
     integer :: kIndex, kIndexCount, myKBeg
-    integer :: numStep, stepIndex, fnom, fclos, nulnam, ierr
+    integer :: numStep, stepIndex, ierr
     integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
     real(8) :: latRot, lonRot, lat, lon
@@ -413,11 +413,10 @@ contains
 
       else
         ! reading namelist variables
-        nulnam = 0
-        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam, nml = nams2c, iostat = ierr)
-        if (ierr /= 0) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
-        ierr = fclos(nulnam)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml = nams2c, iostat = ierr)
+        if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
+        call utl_tmg_stop(181)
       end if
       if (mmpi_myid == 0) write(*, nml = nams2c)
     end if

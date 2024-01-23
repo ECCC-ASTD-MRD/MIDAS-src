@@ -7,14 +7,16 @@ module midasMpi_mod
   !           Also, subroutine and public variables related to the mpi decomposition
   !           specific to the MIDAS code.
   !
+  use mpi
   use utilities_mod
   implicit none
   save
   private
 
   ! public variables
-  public :: mmpi_myid,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey,mmpi_numthread
-  public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_doBarrier
+  public :: mmpi_myid,mmpi_myidHost,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey
+  public :: mmpi_numthread, mmpi_nodeMasters
+  public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
   public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
   ! public procedures
   public :: mmpi_initialize,mmpi_getptopo
@@ -28,6 +30,7 @@ module midasMpi_mod
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
 
   integer :: mmpi_myid   = 0
+  integer :: mmpi_myidHost = 0
   integer :: mmpi_nprocs = 0
   integer :: mmpi_myidx  = 0
   integer :: mmpi_myidy  = 0
@@ -35,8 +38,10 @@ module midasMpi_mod
   integer :: mmpi_npey   = 0
   integer :: mmpi_numthread = 0
 
-  integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID
+  integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
   integer :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+
+  integer, allocatable :: mmpi_nodeMasters(:)
 
   logical :: mmpi_doBarrier = .true.
 
@@ -47,8 +52,9 @@ module midasMpi_mod
 
     ! Locals:
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
-    integer :: ierr
+    integer :: ierr, numNodeMasters
     integer :: rpn_comm_comm, rpn_comm_datyp
+    integer, allocatable :: allMyidHost(:)
 
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
@@ -58,20 +64,39 @@ module midasMpi_mod
     npex=0
     npey=0
     call rpn_comm_init(mmpi_getptopo,mmpi_myid,mmpi_nprocs,npex,npey)
+
+    ! this is a special mpi communicator (not rpn_comm) for using shared memory arrays
+    call mpi_comm_split_type(mpi_comm_world, mpi_comm_type_shared, 0,  &
+                             mpi_info_null, mmpi_mpicomm_SHARED,ierr)
+
     if(mmpi_nprocs.lt.1) then
       mmpi_nprocs=1
       mmpi_npex=1
       mmpi_npey=1
       mmpi_myid=0
+      mmpi_myidHost=0
       mmpi_myidx=0
       mmpi_myidy=0
     else
       ierr = rpn_comm_mype(mmpi_myid,mmpi_myidx,mmpi_myidy)
       mmpi_npex=npex
       mmpi_npey=npey
+      call mpi_comm_rank(mmpi_mpicomm_shared, mmpi_myidHost, ierr)
     endif
 
-    write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy = ', mmpi_myid, mmpi_myidx, mmpi_myidy
+    write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost = ', &
+                                 mmpi_myid, mmpi_myidx, mmpi_myidy, mmpi_myidHost
+
+    ! Determine list of node masters (i.e. first task on each node)
+    allocate(allMyidHost(mmpi_nprocs))
+    call rpn_comm_allgather(mmpi_myidHost,    1, 'mpi_integer',  &
+                            allMyidHost, 1, 'mpi_integer', &
+                            'GRID', ierr)
+    numNodeMasters = count(allMyidHost(:) == 0)
+    allocate(mmpi_nodeMasters(numNodeMasters))
+    mmpi_nodeMasters = utl_findlocs(allMyidHost,0) - 1
+    deallocate(allMyidHost)
+    write(*,*) 'mmpi_initialize: mmpi_nodeMasters = ', mmpi_nodeMasters(:)
 
     !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()
@@ -119,6 +144,7 @@ module midasMpi_mod
     npex=1
     npey=1
 
+    call utl_tmg_start(181,'low-level--readNML')
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
@@ -126,6 +152,7 @@ module midasMpi_mod
     if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
   end subroutine mmpi_getptopo 
 

@@ -121,8 +121,8 @@ program midas_pseudoSSTobs
    
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos, get_max_rss
-  integer :: ierr, istamp, nulnam
+  integer, external :: exdb, exfin, get_max_rss
+  integer :: ierr, istamp
 
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
@@ -150,8 +150,12 @@ program midas_pseudoSSTobs
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
- 
+  call utl_printTime()
+
   ! 1. Top level setup
+
+  ! Read the namelists
+  call utl_readNml()
 
   call ram_setup()
  
@@ -165,6 +169,7 @@ program midas_pseudoSSTobs
 
   istamp = exfin('pseudoSSTobs','FIN','NON')
 
+  call utl_printTime()
   call utl_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
@@ -197,12 +202,11 @@ program midas_pseudoSSTobs
     seaWaterThreshold      = 0.0
     
     ! Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml = pseudoSSTobs, iostat = ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = pseudoSSTobs, iostat = ierr)
     if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     write(*,*)''
     write(*,*) myName//': output SST globally: ', outputSST

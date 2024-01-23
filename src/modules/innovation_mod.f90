@@ -202,7 +202,7 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
-    integer                   :: ierr, nulnam, fnom, fclos
+    integer                   :: ierr
     logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
@@ -217,13 +217,11 @@ contains
     numObsBatches     = 20
 
     if (utl_isNamelistPresent('naminn','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error opening file flnml')
-      read(nulnam,nml=naminn,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=naminn, iostat=ierr)
       if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=naminn)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'

@@ -1,5 +1,5 @@
  &NAMLETKF
-   algorithm             = 'LETKF'
+   algorithm             = 'CVLETKF-PERTOBS'
    ensPostProcessing     = .true.
    NENS                  = 40
    maxNumLocalObs        = 10000

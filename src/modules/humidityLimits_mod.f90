@@ -56,8 +56,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr
-    integer, external :: fnom, fclos
+    integer :: ierr
     logical, save :: nmlAlreadyRead = .false.
 
     ! Namelist variables:
@@ -102,11 +101,10 @@ contains
 
     else
       ! Reading the namelist
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=namqlim, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namqlim, iostat=ierr)
       if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
 
     end if
     if ( mmpi_myid == 0 ) write(*,nml=namqlim)

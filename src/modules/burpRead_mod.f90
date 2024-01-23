@@ -1728,8 +1728,6 @@ contains
 
     ! Locals:
     logical            :: beSilent
-    INTEGER            :: NULNAM,IER,FNOM,FCLOS
-    CHARACTER *256     :: NAMFILE
     integer            :: itemIndex
 
     NAMELIST /NAMBURP_FILTER_CONV/NELEMS, BLISTELEMENTS, &
@@ -1747,16 +1745,14 @@ contains
       beSilent = .false.
     end if
 
-    NAMFILE=trim("flnml")
-    nulnam=0
-    IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+    call utl_tmg_start(181,'low-level--readNML')
     write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
     SELECT CASE(trim(NML_SECTION))
       CASE( 'namburp_filter_gp')
         nElems_gps = MPC_missingValue_INT
         LISTE_ELE_GPS(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
         call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_gps == 0) then
@@ -1765,7 +1761,7 @@ contains
       CASE( 'namburp_filter_sfc')
         nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_sfc == 0) then
@@ -1774,7 +1770,7 @@ contains
       CASE( 'namburp_filter_conv')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_CONV)
+        READ(utl_flnml,NML=NAMBURP_FILTER_CONV)
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
         if (nElems == 0) then
@@ -1783,7 +1779,7 @@ contains
       CASE( 'namburp_filter_tovs')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
+        READ(utl_flnml,NML=NAMBURP_FILTER_TOVS)
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
         if (nElems == 0) then
@@ -1792,7 +1788,7 @@ contains
       CASE( 'namburp_filter_chm_sfc')
         nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
+        READ(utl_flnml,NML=NAMBURP_FILTER_CHM_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
         if (nElems_sfc == 0) then
@@ -1801,7 +1797,7 @@ contains
       CASE( 'namburp_filter_chm')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        READ(NULNAM,NML=NAMBURP_FILTER_CHM)
+        READ(utl_flnml,NML=NAMBURP_FILTER_CHM)
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
         if (nElems == 0) then
@@ -1810,7 +1806,7 @@ contains
       CASE( 'namburp_update')
         BN_ITEMS = MPC_missingValue_INT
         bItemList(:) = '***' 
-        READ(NULNAM,NML=NAMBURP_UPDATE)
+        READ(utl_flnml,NML=NAMBURP_UPDATE)
         if (BN_ITEMS /= MPC_missingValue_INT) then
           call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
         end if
@@ -1824,7 +1820,7 @@ contains
         call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
       END SELECT
 
-    ier=FCLOS(NULNAM)
+    call utl_tmg_stop(181)  
 
   contains
 
@@ -5628,7 +5624,6 @@ contains
     integer                     :: nbele, nvale, nte
     integer                     :: valIndex, tIndex, reportIndex, btyp, idatyp, bfam, error
     integer                     :: ind, indele, nsize, iun_burpin
-    integer                     :: nulnam
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     character(len=codtyp_name_length) :: instrumName
@@ -5685,12 +5680,11 @@ contains
     if ( familyType == "TO" ) then
       if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
         ! read the namelist
-        nulnam = 0
-        error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read(nulnam, nml=NAMADDTOBURP, iostat=error)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=NAMADDTOBURP, iostat=error)
         if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
         write(*,nml=NAMADDTOBURP)
-        error = fclos(nulnam)
+        call utl_tmg_stop(181)
       else
         write(*,*)
         write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'

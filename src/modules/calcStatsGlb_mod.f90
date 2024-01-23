@@ -90,9 +90,8 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: nulnam, ierr, memberIndex
-    integer :: fclos, fnom
-    real(8) :: zps 
+    integer :: ierr, waveBandIndex, memberIndex
+    real(8) :: zps
 
     ! Namelist variables (local):
     integer :: horizWaveBandIndex, vertWaveBandIndex
@@ -118,12 +117,9 @@ module calcStatsGlb_mod
     horizWaveBandPeaks(:) = -1.0d0
     vertWaveBandPeaks(:) = -1.0d0
     
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMCALCSTATS_GLB)
+    read(utl_flnml, nml=NAMCALCSTATS_GLB, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_setup: Error reading namelist NAMCALCSTATS_GLB')
     if (mmpi_myid == 0) write(*,nml=NAMCALCSTATS_GLB)
-    ierr=fclos(nulnam)
 
     !- Setup horizontal grid
     hco_ens => hco_in
@@ -389,10 +385,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Locals:
-    integer :: ierr, nulnam
-    integer :: fclos, fnom
-
-    ! Namelist variables (local):
+    integer :: ierr
     character(len=12) :: formulation ! Bhi formulation
 
     NAMELIST /NAMCOMPUTEBHI/formulation
@@ -400,12 +393,9 @@ module calcStatsGlb_mod
     ! parameters from namelist
     formulation='legacy'
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMCOMPUTEBHI)
+    read(utl_flnml,nml=NAMCOMPUTEBHI, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHI)
-    ierr=fclos(nulnam)
 
     select case(trim(formulation))
     case ('legacy')   
@@ -788,7 +778,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer :: waveBandIndex, vertWaveBandIndex
-    integer :: nulnam, ierr, fclos, fnom, numStep
+    integer :: ierr, numStep
     real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
     integer, allocatable :: dateStampList(:)    
     type(struct_ens), target  :: ensPerts
@@ -823,12 +813,9 @@ module calcStatsGlb_mod
     vertModesLengthScale(2) = -1.d0
     ctrlVarHumidity          = 'HU'
     
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMTOOLBOX)
+    read(utl_flnml,nml=NAMTOOLBOX, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
-    ierr = fclos(nulnam)
 
      if (vertModesLengthScale(2) == -1.d0) then
       vertModesLengthScale(2) = vertModesLengthScale(1)
@@ -3526,7 +3513,7 @@ module calcStatsGlb_mod
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
     character(len=4), pointer :: varNamesList(:)
-    integer :: ierr, fclos, fnom, nulnam
+    integer :: ierr
 
     ! Namelist variables (local):
     integer :: blockpadding
@@ -3545,12 +3532,9 @@ module calcStatsGlb_mod
     njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMHVCORREL_LOCAL)
+    read(utl_flnml,nml=NAMHVCORREL_LOCAL)
     if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
     if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
-    ierr = fclos(nulnam)
 
     blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
     ! around each reference point

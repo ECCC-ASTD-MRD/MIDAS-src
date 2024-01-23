@@ -40,12 +40,7 @@
 /
  &namSSTbiasEstimate
    sensorList(1) = 'AMSR2'
-   sensorList(2) = 'METO-B'
-   sensorList(3) = 'METO-A'
-   sensorList(4) = 'NOAA19'
-   sensorList(5) = 'NPP'
-   sensorList(6) = 'N20'
-   sensorList(7) = 'METO-C'
+   sensorList(2) = 'METO-C'
    
 /
  &namOceanBGcheck
@@ -67,6 +62,7 @@
    seaWaterSelectCriteriaSatData    =  5.d0, 25.d0, 30.d0
    seaWaterSelectCriteriaInsitu     =  5.d0, 25.d0, 30.d0
    seaWaterThreshold = 0.1
+   fourSeasonsBgstdSST = .true.
 /
  &namSQLUpdate
   itemUpdateBodyList(1) = 'OMP'

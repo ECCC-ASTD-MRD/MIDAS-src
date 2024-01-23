@@ -201,12 +201,16 @@ program midas_var1D
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   write(*,*)
   write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
   write(*,*)
 
   varMode='analysis'
+
+  ! Read the namelists
+  call utl_readNml()
 
   ! Setup the ram disk
   call ram_setup
@@ -423,6 +427,7 @@ program midas_var1D
   ! Job termination
   istamp = exfin('VAR1D','FIN','NON')
 
+  call utl_printTime()
   call utl_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

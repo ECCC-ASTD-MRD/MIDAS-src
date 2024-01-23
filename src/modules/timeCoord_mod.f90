@@ -20,6 +20,8 @@ module timeCoord_mod
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
+  ! public functions
+  public :: tim_yyyymmddhhToDatestamp
 
   character(len=4) :: varNameForDate
   character(len=6) :: tim_referencetime
@@ -59,7 +61,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: ierr
     logical, save :: firstCall = .true.
 
     ! Namelist variables:
@@ -86,12 +88,11 @@ contains
     fullyUseExtremeTimeBins = .false.
 
     ! Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namtime, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namtime, iostat=ierr)
     if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namtime)
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
 
     ! Set the module variables for timestep length, number of timesteps and window length
     tim_dstepobs      = dstepobs
@@ -589,11 +590,11 @@ contains
     if (present(verbose_opt)) verbose = verbose_opt
     
     if(verbose) then
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  date = ', prntdate
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  year = ', yyyy
-      write(*,'(a,i5,a,i5,a)') 'tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:   day = ', dd
-      write(*,*) 'tim_dateStampToYYYYMMDDHH:  time = ', prnttime
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: date = ', prntdate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: year = ', yyyy
+      write(*,'(a,i5,a,i5,a)') ' tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: day = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH: time = ', prnttime
     end if     
   
   end subroutine tim_dateStampToYYYYMMDDHH
@@ -703,4 +704,34 @@ contains
     
   end subroutine tim_getValidDateTimeFromList
 
+  !----------------------------------------------------------------------------------------
+  ! tim_yyyymmddhhToDatestamp
+  !----------------------------------------------------------------------------------------
+  function tim_yyyymmddhhToDatestamp(year, month, day, hour) result(currentDateStamp)
+    !
+    !:Purpose: compute datestamp from year, month day and hour.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: year  ! year in format yyyy to compute dateStamp
+    integer, intent(in)  :: month ! month number in [1,12]
+    integer, intent(in)  :: day   ! day number to compute dateStamp
+    integer, intent(in)  :: hour  ! hour in hours, like 0, 6, 12, etc.
+
+    ! Result:
+    integer :: currentDateStamp
+
+    ! Locals:
+    integer :: imode, ierr
+    integer :: printableDate
+    integer, external :: newdate
+    
+    printableDate = year * 10000 + month * 100 + day
+    
+    imode = 3
+    ierr = newdate(currentDateStamp, printableDate, hour, imode)
+
+  end function tim_yyyymmddhhToDatestamp
+  
 end module timeCoord_mod

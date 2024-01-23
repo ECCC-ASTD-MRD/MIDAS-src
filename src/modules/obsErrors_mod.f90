@@ -217,7 +217,7 @@ contains
     namelist /namoer/ minRetrievableClwValue, maxRetrievableClwValue
     namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ readOldSymmetricObsErrFile
-    integer :: fnom, fclos, nulnam, ierr
+    integer :: ierr
 
     !
     !- 1.  Setup Mode
@@ -250,12 +250,11 @@ contains
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read (nulnam, nml = NAMOER, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read (utl_flnml, nml = NAMOER, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_setObsErrors: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namoer)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     else
       write(*,*)
       write(*,*) 'oer_setObsErrors: namoer is missing in the namelist. The default value will be taken.'
@@ -1048,16 +1047,15 @@ contains
     implicit none
 
     ! Locals:
-    integer :: fnom, fclos, nulnam, ierr, indexDataset
+    integer :: ierr, indexDataset
     namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
     
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read (nulnam, nml = namSSTObsErrors, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read (utl_flnml, nml = namSSTObsErrors, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_readObsErrorsSST: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namSSTObsErrors)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (numberSSTDatasets /= MPC_missingValue_INT) then
         call utl_abort('oer_readObsErrorsSST: check namSSTObsErrors namelist section: numberSSTDatasets should be removed')
       end if

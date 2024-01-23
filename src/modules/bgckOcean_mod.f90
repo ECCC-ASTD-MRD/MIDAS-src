@@ -18,7 +18,8 @@ module bgckOcean_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use message_mod
-
+  use bMatrixDiff_mod
+  
   implicit none
 
   save
@@ -26,9 +27,6 @@ module bgckOcean_mod
 
   ! Public functions/subroutines
   public :: ocebg_bgCheckSST, ocebg_bgCheckSeaIce
-
-  ! External functions
-  integer, external :: fnom, fclos
 
   ! mpi topology
   integer           :: myLatBeg, myLatEnd
@@ -57,12 +55,14 @@ module bgckOcean_mod
   real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
   real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
   real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
+  logical           :: fourSeasonsBgstdSST = .false. ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov. 
+
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
                              monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale, &
                              globalSelectCriteria, separateSelectCriteria, inlandWaterSelectCriteriaSatData, &
                              inlandWaterSelectCriteriaInsitu, seaWaterSelectCriteriaSatData, &
-                             seaWaterSelectCriteriaInsitu, seaWaterThreshold 
+                             seaWaterSelectCriteriaInsitu, seaWaterThreshold, fourSeasonsBgstdSST
 
   character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -89,7 +89,7 @@ module bgckOcean_mod
     type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
     real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
     type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
-    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                     :: ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
     integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
     real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
@@ -112,11 +112,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml = namOceanBGcheck, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namOceanBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (nmonthsExceptionNH /=0) then
         call utl_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
@@ -160,8 +159,14 @@ module bgckOcean_mod
     call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
-                          unitConversion_opt=.false., containsFullField_opt=.true.)
+    if (fourSeasonsBgstdSST) then
+      call bdiff_getSSTBGstdFromFourSeasons(hco, columnTrlOnTrlLev%vco, stateVectorFGE)
+    else		      
+      call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
+                            unitConversion_opt=.false., containsFullField_opt=.true.)
+    end if
+    call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
+    
     if (checkWinds) then
       call utl_tmg_start(122, '--checkWindsForSST') 
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
@@ -191,9 +196,6 @@ module bgckOcean_mod
 
       call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
       
-      ! FGE state vector
-      call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
-
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -330,7 +332,7 @@ module bgckOcean_mod
     type(struct_obs), intent(inout) :: obsData  ! obsSpaceData object
 
     ! Locals:
-    integer              :: nulnam, ierr
+    integer              :: ierr
     integer              :: headerIndex, bodyIndex, stationIndex, bodyCount
     integer              :: obsChid, obsDate, obsTime, obsFlag
     integer              :: obsDateStamp
@@ -363,11 +365,10 @@ module bgckOcean_mod
       end if
     else
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml = namIceBGcheck, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namIceBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
       if (numStation /= MPC_missingValue_INT) then
         call utl_abort('ocebg_bgCheckSeaIce: check namIceBGcheck namelist section: numStation should be removed')
       end if

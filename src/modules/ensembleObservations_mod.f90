@@ -23,6 +23,8 @@ MODULE ensembleObservations_mod
   use codtyp_mod
   use obsfamilylist_mod
   use varnamelist_mod
+  use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
+  use mpi
   implicit none
   save
   private
@@ -53,7 +55,8 @@ MODULE ensembleObservations_mod
 
   type struct_eob
     logical                       :: allocated      = .false.
-    logical                       :: meanRemoved = .false.
+    logical                       :: mpiGlobal      = .false.
+    logical                       :: meanRemoved    = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
     integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
@@ -63,9 +66,15 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
-    real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
-    real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
-    real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
+    integer                       :: Yb_window = -1   ! handle to shared data "window" for Yb_r4
+    type(c_ptr)                   :: Yb_baseptr                 ! pointer used to allocated shared memory
+    real(4), pointer              :: Yb_r4(:,:) => null()       ! background ensemble perturbation in obs space
+    integer                       :: Ya_window = -1             ! handle to shared data "window" for Ya_r4
+    type(c_ptr)                   :: Ya_baseptr                 ! pointer used to allocated shared memory
+    real(4), pointer              :: Ya_r4(:,:) => null()       ! analysis ensemble perturbation in obs space    
+    type(c_ptr)                   :: randPert_baseptr           ! pointer used to allocated shared memory
+    real(4), pointer              :: randPert_r4(:,:) => null() ! unbiased random perturbations with covariance equal to R
+    integer                       :: randPert_window = -1       ! handle to shared data "window" for Ya_r4
     real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
@@ -96,8 +105,7 @@ CONTAINS
     implicit none
 
     ! Locals:
-    integer :: nulnam, ierr, obsfamIndex, codtypIndex, varnumIndex
-    integer, external :: fnom, fclos
+    integer :: ierr, obsfamIndex, codtypIndex, varnumIndex
     logical, save :: eob_initialized = .false.
 
     if (eob_initialized) return
@@ -123,11 +131,10 @@ CONTAINS
 
     ! read namelist
     if (utl_isNamelistPresent('namensobs','./flnml')) then
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namensobs,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namensobs, iostat=ierr)
       if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
-      ierr=fclos(nulnam)
+      call utl_tmg_stop(181)
       do obsfamIndex = 1, ofl_numFamily
         if (trim(simObsFamily(obsfamIndex)) /= '') then
           numSimObsFam = numSimObsFam + 1
@@ -214,18 +221,22 @@ CONTAINS
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
-                          fileMemberIndex1_opt)
+                          fileMemberIndex1_opt, allocYb_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
     implicit none
 
     ! Arguments:
-    type(struct_eob)        , intent(inout) :: ensObs
-    integer                 , intent(in)    :: numMembers
-    integer                 , intent(in)    :: numObs
-    type(struct_obs), target, intent(in)    :: obsSpaceData
-    integer, optional       , intent(in)    :: fileMemberIndex1_opt
+    type(struct_eob)        , intent(inout) :: ensObs               ! eob object to be allocated
+    integer                 , intent(in)    :: numMembers           ! number of ensemble members
+    integer                 , intent(in)    :: numObs               ! number of observations
+    type(struct_obs), target, intent(in)    :: obsSpaceData         ! obs object
+    integer, optional       , intent(in)    :: fileMemberIndex1_opt ! first member index of this set (default is 1) 
+    logical, optional       , intent(in)    :: allocYb_opt          ! request that Yb_r4 is allocated (default is true)
+
+    ! Locals:
+    logical                                 :: allocYb
 
     if (ensObs%allocated) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
@@ -233,6 +244,12 @@ CONTAINS
     end if
 
     if (present(fileMemberIndex1_opt)) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
+
+    if (present(allocYb_opt)) then
+      allocYb = allocYb_opt
+    else
+      allocYb = .true.
+    end if
 
     call eob_init()
 
@@ -246,7 +263,7 @@ CONTAINS
     allocate(ensObs%obsValue(ensObs%numObs))
     allocate(ensObs%obsErrInv(ensObs%numObs))
     if (eob_simObsAssim) allocate(ensObs%obsErrInv_sim(ensObs%numObs))
-    allocate(ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs))
+    if (allocYb) allocate(ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs))
     allocate(ensObs%meanYb(ensObs%numObs))
     allocate(ensObs%deterYb(ensObs%numObs))
     allocate(ensObs%assFlag(ensObs%numObs))
@@ -264,7 +281,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to be deallocated
+
+    ! Locals:
+    integer :: ierr
 
     if (.not. ensObs%allocated) return
 
@@ -274,12 +294,36 @@ CONTAINS
     deallocate(ensObs%obsValue)
     deallocate(ensObs%obsErrInv)
     if (allocated(ensObs%obsErrInv_sim)) deallocate(ensObs%obsErrInv_sim)
-    deallocate(ensObs%Yb_r4)
-    if (allocated(ensObs%Ya_r4)) deallocate(ensObs%Ya_r4)
-    if (allocated(ensObs%randPert_r4)) deallocate(ensObs%randPert_r4)
     deallocate(ensObs%meanYb)
     deallocate(ensObs%deterYb)
     deallocate(ensObs%assFlag)
+
+    if (ensObs%Yb_window /= -1) then
+      ! using shared memory
+      call mpi_win_free(ensObs%Yb_window, ierr)
+      ensObs%Yb_window = -1
+    else if (associated(ensObs%Yb_r4)) then
+      deallocate(ensObs%Yb_r4)
+    end if
+    nullify(ensObs%Yb_r4)
+
+    if (ensObs%Ya_window /= -1) then
+      ! using shared memory
+      call mpi_win_free(ensObs%Ya_window, ierr)
+      ensObs%Ya_window = -1
+    else if (associated(ensObs%Ya_r4)) then
+      deallocate(ensObs%Ya_r4)
+    end if
+    nullify(ensObs%Ya_r4)
+
+    if (ensObs%randPert_window /= -1) then
+      ! using shared memory
+      call mpi_win_free(ensObs%randPert_window, ierr)
+      ensObs%randPert_window = -1
+    else if (associated(ensObs%randPert_r4)) then
+      deallocate(ensObs%randPert_r4)
+    end if
+    nullify(ensObs%randPert_r4)
 
     ensObs%allocated = .false.
 
@@ -295,7 +339,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to be modified
 
     if ( .not.ensObs%allocated ) then
       call utl_abort('eob_zero: this object is not allocated')
@@ -308,8 +352,8 @@ CONTAINS
     ensObs%obsErrInv(:)     = 0.0d0
     if (allocated(ensObs%obsErrInv_sim)) ensObs%obsErrInv_sim(:) = 0.0
     ensObs%Yb_r4(:,:)       = 0.0
-    if (allocated(ensObs%Ya_r4)) ensObs%Ya_r4(:,:) = 0.0
-    if (allocated(ensObs%randPert_r4)) ensObs%randPert_r4(:,:) = 0.0
+    if (associated(ensObs%Ya_r4)) ensObs%Ya_r4(:,:) = 0.0
+    if (associated(ensObs%randPert_r4)) ensObs%randPert_r4(:,:) = 0.0
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
@@ -328,8 +372,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    character(len=*), intent(in)    :: typeVertCoord
+    type(struct_eob), intent(inout) :: ensObs        ! eob object to be modified
+    character(len=*), intent(in)    :: typeVertCoord ! type of vertical coordinate
 
     if ( trim(typeVertCoord) /= 'logPressure' .and. &
          trim(typeVertCoord) /= 'depth' ) then
@@ -353,11 +397,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    type(struct_eob), intent(out)   :: ensObsClean
+    type(struct_eob), intent(inout) :: ensObs      ! input eob object to be cleaned
+    type(struct_eob), intent(out)   :: ensObsClean ! resulting cleaned eob object
 
     ! Locals:
     integer :: obsIndex, obsCleanIndex, numObsClean
+
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_clean: Cannot be called with an mpiglobal object')
+    end if
 
     call eob_setAssFlag(ensObs)
 
@@ -368,10 +416,10 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
-    if (allocated(ensObs%Ya_r4)) then
+    if (associated(ensObs%Ya_r4)) then
       allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
     end if
-    if (allocated(ensObs%randPert_r4)) then
+    if (associated(ensObs%randPert_r4)) then
       allocate(ensObsClean%randPert_r4(ensObs%numMembers,numObsClean))
     end if
 
@@ -387,10 +435,10 @@ CONTAINS
           ensObsClean%obsErrInv_sim(obsCleanIndex) = ensObs%obsErrInv_sim(obsIndex)
         end if 
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
-        if (allocated(ensObs%Ya_r4)) then
+        if (associated(ensObs%Ya_r4)) then
           ensObsClean%Ya_r4(:,obsCleanIndex) = ensObs%Ya_r4(:,obsIndex)
         end if
-        if (allocated(ensObs%randPert_r4)) then
+        if (associated(ensObs%randPert_r4)) then
           ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
         end if
         ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
@@ -409,8 +457,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)    :: ensObsIn
-    type(struct_eob), intent(inout) :: ensObsOut
+    type(struct_eob), intent(in)    :: ensObsIn   ! input eob object
+    type(struct_eob), intent(inout) :: ensObsOut  ! output eob object
+
+    if (ensObsIn%mpiglobal) then
+      call utl_abort('eob_copy: Cannot be called with an mpiglobal object')
+    end if
 
     ensObsOut%lat(:)           = ensObsIn%lat(:)
     ensObsOut%lon(:)           = ensObsIn%lon(:)
@@ -420,11 +472,11 @@ CONTAINS
       ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_sim(:)
     end if
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
-    if (allocated(ensObsIn%Ya_r4)) then
-      allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
+    if (associated(ensObsIn%Ya_r4)) then
+      allocate(ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%Ya_r4(:,:) = ensObsIn%Ya_r4(:,:)
     end if
-    if (allocated(ensObsIn%randPert_r4)) then
+    if (associated(ensObsIn%randPert_r4)) then
       allocate(ensObsOut%randPert_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
     end if
@@ -448,16 +500,24 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout)  :: ensObs
-    type(struct_eob), intent(out)    :: ensObs_mpiglobal
+    type(struct_eob), intent(inout)  :: ensObs           ! input mpi local eob object
+    type(struct_eob), intent(out)    :: ensObs_mpiglobal ! output mpi global eob object (all obs on each mpi task)
 
     ! Locals:
     type(struct_eob) :: ensObsClean
-    integer :: ierr, procIndex, memberIndex, numObs_mpiglobal
+    integer :: ierr, nsize, procIndex, memberIndex, numObs_mpiglobal
     integer :: allNumObs(mmpi_nprocs), displs(mmpi_nprocs)
-
+    integer :: dispUnit, arrayShape(2)
+    integer, allocatable :: requestId(:)
+    integer(kind=mpi_address_kind) :: windowSize
+    real(4), allocatable :: tempBuffer(:,:)
+    
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_allGather: Input eob object is already mpiglobal')
+    end if
 
     call utl_tmg_start(10,'--Observations')
     call utl_tmg_start(24,'----Eob_AllGather')
@@ -475,13 +535,60 @@ CONTAINS
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
-                      fileMemberIndex1_opt=ensObs%fileMemberIndex1)
-    if (allocated(ensObsClean%Ya_r4)) then
-      allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
+                      fileMemberIndex1_opt=ensObs%fileMemberIndex1, allocYb_opt=.false.)
+    ensObs_mpiglobal%mpiglobal = .true.
+
+    ! Allocate large mpi global arrays that will be put in shared memory
+    arrayShape=(/ ensObsClean%numMembers,numObs_mpiglobal /)
+    if (mmpi_myidHost == 0) then
+      windowSize = int(product(arrayShape),MPI_ADDRESS_KIND)*4_MPI_ADDRESS_KIND
+    else
+      windowSize = 0_MPI_ADDRESS_KIND
     end if
-    if (allocated(ensObsClean%randPert_r4)) then
-      allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
+    dispUnit = 1
+    write(*,*) 'eob_allGather: allocate shared memory arrays with size = ', windowSize
+
+    ! Shared memory for Yb_r4
+    call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
+                                 mmpi_mpicomm_shared, ensObs_mpiglobal%Yb_baseptr, &
+                                 ensObs_mpiglobal%Yb_window, ierr)    
+    if (mmpi_myidHost /= 0) then
+      call mpi_win_shared_query(ensObs_mpiglobal%Yb_window, 0, windowSize, dispUnit, &
+                                ensObs_mpiglobal%Yb_baseptr, ierr)     
     end if
+    call c_f_pointer(ensObs_mpiglobal%Yb_baseptr, ensObs_mpiglobal%Yb_r4, arrayShape)
+
+    ! Share memory for Ya_r4
+    if (associated(ensObsClean%Ya_r4)) then
+      call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
+                                   mmpi_mpicomm_shared, ensObs_mpiglobal%Ya_baseptr, &
+                                   ensObs_mpiglobal%Ya_window, ierr)
+      if (mmpi_myidHost /= 0) then
+        call mpi_win_shared_query(ensObs_mpiglobal%Ya_window, 0, windowSize, dispUnit, &
+                                  ensObs_mpiglobal%Ya_baseptr, ierr)     
+      end if
+      call c_f_pointer(ensObs_mpiglobal%Ya_baseptr, ensObs_mpiglobal%Ya_r4, arrayShape)
+    end if
+
+    ! Share memory for randPert_r4
+    if (associated(ensObsClean%randPert_r4)) then
+      call mpi_win_allocate_shared(windowSize, dispUnit, MPI_INFO_NULL, &
+                                   mmpi_mpicomm_shared, ensObs_mpiglobal%randPert_baseptr, &
+                                   ensObs_mpiglobal%randPert_window, ierr)
+      if (mmpi_myidHost /= 0) then
+        call mpi_win_shared_query(ensObs_mpiglobal%randPert_window, 0, windowSize, dispUnit, &
+                                  ensObs_mpiglobal%randPert_baseptr, ierr)     
+      end if
+      call c_f_pointer(ensObs_mpiglobal%randPert_baseptr, ensObs_mpiglobal%randPert_r4, arrayShape)
+    end if
+
+    ! The baseptr now associated with Fortran pointer for access to global shared data
+    if (mmpi_myid == 0) then
+      allocate(tempBuffer(ensObsClean%numMembers,numObs_mpiglobal))
+    else
+      allocate(tempBuffer(ensObsClean%numMembers,1))
+    end if
+
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
     if (mmpi_myid == 0) then
@@ -522,21 +629,44 @@ CONTAINS
                             ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
                             0, 'GRID', ierr)
     end if
+
     do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                            ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                            tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                             0, 'GRID', ierr)
-      if (allocated(ensObsClean%Ya_r4)) then
-        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
-      end if
-      if (allocated(ensObsClean%randPert_r4)) then
-        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr)
-      end if
     end do
+    if (mmpi_myid == 0) then
+      ensObs_mpiglobal%Yb_r4(:,:) = tempBuffer(:,:)
+    end if
+    call mpi_win_fence(0, ensObs_mpiglobal%Yb_window, ierr)
+
+    if (associated(ensObsClean%Ya_r4)) then
+      do memberIndex = 1, ensObsClean%numMembers
+        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr)
+      end do
+      if (mmpi_myid == 0) then
+        ensObs_mpiglobal%Ya_r4(:,:) = tempBuffer(:,:)
+      end if
+      call mpi_win_fence(0, ensObs_mpiglobal%Ya_window, ierr)
+    end if
+
+    if (associated(ensObsClean%randPert_r4)) then
+      do memberIndex = 1, ensObsClean%numMembers
+        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              tempBuffer(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr)
+      end do
+      if (mmpi_myid == 0) then
+        ensObs_mpiglobal%randPert_r4(:,:) = tempBuffer(:,:)
+      end if
+      call mpi_win_fence(0, ensObs_mpiglobal%randPert_window, ierr)
+    end if
+
+    call eob_deallocate(ensObsClean)
+
+    deallocate(tempBuffer)
 
     call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
@@ -558,20 +688,76 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
-    do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                          0, 'GRID', ierr)
-      if (allocated(ensObs_mpiglobal%Ya_r4)) then
-        call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                            0, 'GRID', ierr)
-      end if
-      if (allocated(ensObs_mpiglobal%randPert_r4)) then
-        call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                            0, 'GRID', ierr)        
-      end if
-    end do
 
-    call eob_deallocate(ensObsClean)
+    ! For shared memory we only need to send data to the other node masters
+    nsize = ensObs_mpiglobal%numMembers*ensObs_mpiglobal%numObs
+    if (mmpi_myid == 0) then
+      write(*,*) 'eob_allGather: send data from task 0 to all node masters: ', mmpi_nodeMasters(:)
+      allocate(requestId(size(mmpi_nodeMasters)-1))
+      do procIndex = 2, size(mmpi_nodeMasters)
+        call mpi_isend(ensObs_mpiglobal%Yb_r4(:,:),  &
+                       nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 1,  &
+                       mmpi_comm_grid, requestId(procIndex-1), ierr)
+      end do
+      if (size(mmpi_nodeMasters) > 1) then
+        call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
+      end if
+      if (associated(ensObs_mpiglobal%Ya_r4)) then
+        do procIndex = 2, size(mmpi_nodeMasters)
+          call mpi_isend(ensObs_mpiglobal%Ya_r4(:,:),  &
+                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 2,  &
+                         mmpi_comm_grid, requestId(procIndex-1), ierr)
+        end do
+        if (size(mmpi_nodeMasters) > 1) then
+          call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
+        end if
+      end if
+      if (associated(ensObs_mpiglobal%randPert_r4)) then
+        do procIndex = 2, size(mmpi_nodeMasters)
+          call mpi_isend(ensObs_mpiglobal%randPert_r4(:,:),  &
+                         nsize, mmpi_datyp_real4, mmpi_nodeMasters(procIndex), 3,  &
+                         mmpi_comm_grid, requestId(procIndex-1), ierr)
+        end do
+        if (size(mmpi_nodeMasters) > 1) then
+          call mpi_waitAll(size(mmpi_nodeMasters)-1, requestId(:), MPI_STATUSES_IGNORE, ierr)
+        end if
+      end if
+    else if(mmpi_myidHost == 0) then
+      write(*,*) 'eob_allGather: I am a nodeMaster, receive data for shared array'
+      call mpi_recv(ensObs_mpiglobal%Yb_r4(:,:),  &
+                    nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 1,  &
+                    mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      if (associated(ensObs_mpiglobal%Ya_r4)) then
+        call mpi_recv(ensObs_mpiglobal%Ya_r4(:,:),  &
+                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 2,  &
+                      mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      end if
+      if (associated(ensObs_mpiglobal%randPert_r4)) then
+        call mpi_recv(ensObs_mpiglobal%randPert_r4(:,:),  &
+                      nsize, mmpi_datyp_real4, MPI_ANY_SOURCE, 3,  &
+                      mmpi_comm_grid, MPI_STATUS_IGNORE, ierr)
+      end if
+    else
+      write(*,*) 'eob_allGather: I am not a nodeMaster, do nothing'
+    end if
+
+    call mpi_win_fence(0, ensObs_mpiglobal%Yb_window, ierr)
+    if (associated(ensObs_mpiglobal%Ya_r4)) then
+      call mpi_win_fence(0, ensObs_mpiglobal%Ya_window, ierr)
+    end if
+    if (associated(ensObs_mpiglobal%randPert_r4)) then
+      call mpi_win_fence(0, ensObs_mpiglobal%randPert_window, ierr)
+    end if
+
+    write(*,*) 'eob_allGather: Yb_r4(1,1), Yb_r4(end,0.5*end) = ', &
+               ensObs_mpiglobal%Yb_r4(1,1), &
+               ensObs_mpiglobal%Yb_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+
+    if (associated(ensObs_mpiglobal%randPert_r4)) then
+      write(*,*) 'eob_allGather: randPert_r4(1,1), randPert_r4(end,0.5*end) = ', &
+                 ensObs_mpiglobal%randPert_r4(1,1), &
+                 ensObs_mpiglobal%randPert_r4(ensObs_mpiglobal%numMembers,nint(0.5*ensObs_mpiglobal%numObs))
+    end if
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
@@ -595,11 +781,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(in) :: ensObs
-    character(len=*),  intent(in) :: outputFilenamePrefix
-    logical,           intent(in) :: writeObsInfo
-    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
-    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
+    type(struct_eob),  intent(in) :: ensObs                       ! input eob object
+    character(len=*),  intent(in) :: outputFilenamePrefix         ! prefix for output files
+    logical,           intent(in) :: writeObsInfo                 ! choose to write info common to all members
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt ! number of groups to divide members in files
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt    ! maximum number of members per group
 
     ! Locals:
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -691,10 +877,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: numMembersToRead
-    character(len=*), intent(in)    :: inputFilenamePrefix
-    logical,          intent(in)    :: readObsInfo
+    type(struct_eob), intent(inout) :: ensObs               ! eob object to be filled
+    integer         , intent(in)    :: numMembersToRead     ! number of members to read
+    character(len=*), intent(in)    :: inputFilenamePrefix  ! prefix of filename to read
+    logical,          intent(in)    :: readObsInfo          ! read info common to all members
     
     ! Locals:
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -836,13 +1022,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)  :: ensObs
-    integer         , intent(out) :: localBodyIndices(:)
-    real(8)         , intent(out) :: distances(:)
-    real(8)         , intent(in)  :: lat, lon, vertLocation, hLocalize, vLocalize
-    integer         , intent(out) :: numLocalObsFound
+    type(struct_eob), intent(in)  :: ensObs  ! input eob object
+    integer         , intent(out) :: localBodyIndices(:) ! resulting dist of body indexes
+    real(8)         , intent(out) :: distances(:)        ! corresponding list of obs distances
+    real(8)         , intent(in)  :: lat                 ! reference location lat
+    real(8)         , intent(in)  :: lon                 ! reference location lon
+    real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
+    real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
+    real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
+    integer         , intent(out) :: numLocalObsFound    ! total number of local obs
     ! Result:
-    integer                       :: numLocalObs ! function output
+    integer                       :: numLocalObs         ! number of local obs up to the array size
 
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
@@ -921,7 +1111,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     call obs_extractObsRealHeaderColumn(ensObs%lat, ensObs%obsSpaceData, OBS_LAT)
     call obs_extractObsRealHeaderColumn(ensObs%lon, ensObs%obsSpaceData, OBS_LON)
@@ -936,7 +1126,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -970,7 +1160,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(inout) :: ensObs
+    type(struct_eob),  intent(inout) :: ensObs ! eob object to modify
     
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1038,7 +1228,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(inout) :: ensObs
+    type(struct_eob),  intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1115,8 +1305,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob)       , intent(inout) :: ensObs
-    type(struct_columnData), intent(in)    :: columnMeanTrl
+    type(struct_eob)       , intent(inout) :: ensObs        ! eob object to modify
+    type(struct_columnData), intent(in)    :: columnMeanTrl ! column object to supply vertical level info
 
     ! Locals:
     integer          :: obsIndex, headerIndex, channelIndex, tovsIndex, numTovsLevels, nosensor
@@ -1280,7 +1470,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs  ! eob object to modify
 
     call obs_extractObsIntBodyColumn(ensObs%assFlag, ensObs%obsSpaceData, OBS_ASS)
 
@@ -1293,8 +1483,8 @@ CONTAINS
     implicit none
 
     ! Arguments: 
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: memberIndex
+    type(struct_eob), intent(inout) :: ensObs      ! eob object to modify
+    integer         , intent(in)    :: memberIndex ! index of member to set
         
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
@@ -1311,11 +1501,11 @@ CONTAINS
     implicit none
 
     ! Arguments: 
-    type(struct_eob), intent(inout)  :: ensObs
-    integer         , intent(in)     :: memberIndex
-    integer         , intent(in)     :: obsColumnName
+    type(struct_eob), intent(inout)  :: ensObs        ! eob object to modify
+    integer         , intent(in)     :: memberIndex   ! index of member to set
+    integer         , intent(in)     :: obsColumnName ! name of obs column to get the value
 
-    if ( .not. allocated(ensObs%Ya_r4) ) then
+    if ( .not. associated(ensObs%Ya_r4) ) then
       call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
     end if
         
@@ -1338,7 +1528,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob) , intent(inout)  :: ensObs
+    type(struct_eob) , intent(inout)  :: ensObs ! eob object to modify
 
     ! Locals:
     integer       :: obsIndex, headerIndex
@@ -1392,7 +1582,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn(ensObs%DeterYb(:), ensObs%obsSpaceData, OBS_OMP)
@@ -1409,7 +1599,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -1430,15 +1620,19 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    integer         , intent(in)    :: randomSeed
+    type(struct_eob), intent(inout) :: ensObs     ! eob object to modify
+    integer         , intent(in)    :: randomSeed ! value of random seed to use
 
     ! Locals:
     integer :: obsIndex, memberIndex
     real(4) :: meanRandPert, sigObs
 
+    if (ensObs%mpiglobal) then
+      call utl_abort('eob_calcRandPert: Input eob object must not already be mpiglobal')
+    end if
+
     call rng_setup(abs(randomSeed))
-    if ( allocated(ensObs%randPert_r4) ) then
+    if ( associated(ensObs%randPert_r4) ) then
       call utl_abort('eob_calcRandPert: ensObs%randPert_r4 must not be already allocated')
     end if
 
@@ -1463,7 +1657,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex
@@ -1483,7 +1677,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: obsIndex, memberIndex
@@ -1516,7 +1710,7 @@ CONTAINS
     implicit none
 
     ! Arguments::
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
@@ -1604,9 +1798,9 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
-    type(struct_ocm), intent(in)    :: oceanMask
-    real(8),          intent(in)    :: minDistanceToLand
+    type(struct_eob), intent(inout) :: ensObs            ! eob object to modify
+    type(struct_ocm), intent(in)    :: oceanMask         ! ocm object to define coast line
+    real(8),          intent(in)    :: minDistanceToLand ! minimum distance from land
 
     ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, levIndex
@@ -1662,7 +1856,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer           :: bodyIndex
@@ -1692,7 +1886,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
@@ -1778,7 +1972,7 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(inout) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs ! eob object to modify
 
     ! Locals:
     integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
@@ -1834,10 +2028,10 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob),  intent(in)    :: ensObs
-    integer,           intent(inout) :: memberIndexArray(:)
-    integer, optional, intent(in)    :: numGroupsToDivideMembers_opt
-    integer, optional, intent(in)    :: maxNumMembersPerGroup_opt
+    type(struct_eob),  intent(in)    :: ensObs                       ! input eob object
+    integer,           intent(inout) :: memberIndexArray(:)          ! resulting list of member indexes
+    integer, optional, intent(in)    :: numGroupsToDivideMembers_opt ! number of groups to divide the members
+    integer, optional, intent(in)    :: maxNumMembersPerGroup_opt    ! maximum number of members per group
 
     ! Locals:
     integer :: memberIndex, groupIndex, memberIndexOffset, memberIndexInGroup
@@ -1895,7 +2089,7 @@ CONTAINS
     integer(kind=jpim)      , intent(in)  :: numLevels    ! number of RTTOV levels
     integer                 , intent(in)  :: transIndex   ! index of transmission%tau_levels
     real(kind=jprb), pointer, intent(in)  :: rttovPres(:) ! pressure of RTTOV levels
-    real(8)                 , intent(out) :: maxLnP       ! log pressure of maximum
+    real(8)                 , intent(out) :: maxLnP       ! computed log pressure of maximum
 
     ! Locals:
     integer :: levIndex
@@ -1940,9 +2134,11 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: maxIndex, nlev
-    real(8), intent(in)    :: lnp(nlev), deriv(nlev+1)
-    real(8), intent(inout) :: maxLnP
+    integer, intent(in)    :: maxIndex      ! level index of the max value
+    integer, intent(in)    :: nlev          ! number of levels for dimensioning arguments
+    real(8), intent(in)    :: lnp(nlev)     ! natural log of pressure
+    real(8), intent(in)    :: deriv(nlev+1) ! derivative with respect to log pressure
+    real(8), intent(inout) :: maxLnP        ! computed log pressure of maximum
 
     ! Locals:
     external :: dgesv

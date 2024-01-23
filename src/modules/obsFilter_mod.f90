@@ -98,8 +98,7 @@ contains
     character(len=*), intent(in) :: filterMode_in
 
     ! Locals:
-    integer :: nulnam, ierr, elem, jflag, ibit, obsFamilyIndex, elemIndex
-    integer :: fnom, fclos
+    integer :: ierr, elem, jflag, ibit, obsFamilyIndex, elemIndex
     integer :: flagIndex, elementIndex
 
     character(len=35) :: CREASON(-12:13)
@@ -167,12 +166,11 @@ contains
     useEnkfTopoFilt = .false.
     rejectGZforAnalysis = .true.
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namfilt,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=namfilt,iostat=ierr)
+    if(ierr /= 0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
     if(mmpi_myid == 0) write(*,nml=namfilt)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     filt_rlimlvhu    = rlimlvhu
     
@@ -1321,7 +1319,7 @@ end subroutine filt_topoAISW
 
     ! Locals:
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
-    integer :: fnom, fclos, nulnam, ierr, levelIndex
+    integer :: ierr, levelIndex
     real(8) :: obsAltitude, radarAltitude, beamElevation
     real(8) :: levelAltLow, levelAltHigh
     real(8) :: levelBracketLow, levelBracketHigh
@@ -1344,12 +1342,11 @@ end subroutine filt_topoAISW
       maxRangeInterp = -1.0D0
 
       if ( utl_isNamelistPresent('namradvel', './flnml') ) then
-        nulnam=0
-        ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-        read(nulnam, nml=namradvel, iostat=ierr)
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namradvel, iostat=ierr)
         if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
         if ( .not. beSilent ) write(*,nml=namradvel)
-        ierr = fclos(nulnam)
+        call utl_tmg_stop(181)
       else if ( .not. beSilent ) then
         write(*,*)
         write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
@@ -1687,9 +1684,8 @@ end subroutine filt_topoAISW
 
     ! Locals:
     character(len=12) :: cstnid
-    integer           :: nulnam, ierr
+    integer           :: ierr
     integer           :: headerIndex, bodyIndex, codeType, platformIndex
-    integer           :: fnom, fclos
     logical           :: inPlatformList
     logical, save     :: firstCall = .true.
     integer, parameter :: maxPlatformIce = 50
@@ -1708,12 +1704,11 @@ end subroutine filt_topoAISW
       listPlatformIce(:) = '1234567890ab'
 
       if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
-        nulnam = 0
-        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-        read (nulnam, nml = namPlatformIce, iostat = ierr)
+        call utl_tmg_start(181,'low-level--readNML')
+        read (utl_flnml, nml = namPlatformIce, iostat = ierr)
         if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
         if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
-        ierr = fclos(nulnam)
+        call utl_tmg_stop(181)
         if (nPlatformIce /= MPC_missingValue_INT) then
           call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
         end if
