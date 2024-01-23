@@ -21,12 +21,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix bug when reading mixture of burp and sqlite files (#887 and !795)
- * Fix array bounds error in `fsoi_mod` (#883 and !792)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.1]
+
+### Changed
+
+ * Reduce slowness due to the creation of many files concurrently during observation splitting in the same working directory (#885 and !802)
+
+### Fixed
+
+ * Fix missing variable in `private` openMP clause in `enkf_mod` (#893 and !801)
+ * Fix bug in `fsoi_mod` for calculating the forecast error in terms of humidity (#891 and !799)
+ * Fix bug when reading mixture of burp and sqlite files (#887 and !795)
+ * Fix array bounds error in `fsoi_mod` (#883 and !792)
 
 ## [3.9.0]
 
@@ -1151,7 +1163,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...HEAD
+[3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
 [3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.3...v_3.8.0
