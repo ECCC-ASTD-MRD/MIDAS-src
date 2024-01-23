@@ -11,6 +11,8 @@
    rejectHighLatIR         = .true.
    obsClean                = .true.
    thinning                = .true.
+   thinningConv            = .true.
+   thinningRadiance        = .true.
    writeObsFiles           = .true.
    writeAsciiCmaFiles      = .false.
 /
