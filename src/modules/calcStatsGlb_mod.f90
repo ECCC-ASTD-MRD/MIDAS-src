@@ -4199,15 +4199,15 @@ module calcStatsGlb_mod
 	work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
         if (work(loopIndex) < 0.5d0) exit
       end do
-      if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
+      if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
 	write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
 	           ' at a distance of ',distance(loopIndex+1)
 	hwhm = distance(loopIndex+1)
       else
         hwhm = ((work(loopIndex-1) - 0.5d0)*distance(loopIndex) + &
                (0.5d0 - work(loopIndex))*distance(loopIndex-1))/(work(loopIndex-1) - work(loopIndex))
-      end if      
-    end if    
+      end if
+    end if
 
   end function getFitHWHM
   
