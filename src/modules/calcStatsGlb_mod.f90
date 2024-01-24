@@ -248,8 +248,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     character(len=4), pointer :: controlVarNames(:)
-    integer :: varIndex, loopIndex, nulnam, ierr
-    integer :: fclos, fnom
+    integer :: varIndex, loopIndex, ierr
     ! Namelist variables:
     character(len=4) :: anlvar(vnl_numVarMax)           ! list of state variable names
     logical          :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
@@ -265,12 +264,11 @@ module calcStatsGlb_mod
 
     ! Namelist read to obtain list of variable names following order of input
     ! Needed for consistency of input ordering from NAMCOMPUTEBHILATBANDS    
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namstate, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namstate, iostat = ierr)
+    call utl_tmg_stop(181)
     if (ierr /= 0) call utl_abort('csg_setNomvar: Error reading namelist NAMSTATE')
     if (mmpi_myid == 0) write(*,nml=namstate)
-    ierr = fclos(nulnam)
     
     nullify(controlVarNames)
     call gsv_varNamesList(controlVarNames)  ! order according to varNamesList which can differ from that of anlvar
@@ -571,8 +569,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer :: latIndex, jlatband, lat1, lat2, lat3
-    integer :: ierr, nulnam
-    integer :: fclos, fnom
+    integer :: ierr
     real(4), pointer     :: ensPerturbations(:,:,:,:)
     real(8), pointer     :: stddev3d(:,:,:)
     real(8), pointer     :: stddevZonAvg(:,:)
@@ -615,11 +612,10 @@ module calcStatsGlb_mod
     if (.not. utl_isNamelistPresent('NAMCOMPUTEBHILATBANDS','./flnml')) then
       write(*,*) 'csg_computeBhiLatBands: Use default configuration shown below:'
     else
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=NAMCOMPUTEBHILATBANDS, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = NAMCOMPUTEBHILATBANDS, iostat = ierr)
+      call utl_tmg_stop(181)
       if (ierr /= 0) call utl_abort('csg_computeBhiLatBands: Error reading namelist NAMCOMPUTEBHILATBAND')
-      ierr = fclos(nulnam)
     end if
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHILATBANDS)
     

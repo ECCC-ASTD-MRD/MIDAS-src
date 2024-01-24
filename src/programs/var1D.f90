@@ -176,7 +176,6 @@ program midas_var1D
 
   integer            :: outerLoopIndex, numIterMaxInnerLoop
   logical            :: allocHeightSfc
-  integer            :: nulnam, fclos, fnom
   character(len=9)   :: obsColumnMode
 
 
@@ -232,11 +231,10 @@ program midas_var1D
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    nulnam=0
-    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=NAM1DVAR, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=NAM1DVAR, iostat=ierr)
+    call utl_tmg_stop(181)
     if(ierr.ne.0) call utl_abort('midas-var1D: Error reading namelist')
-    ierr=fclos(nulnam)
   end if
 
   if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
