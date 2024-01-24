@@ -658,16 +658,18 @@ module calcStatsGlb_mod
         
     if (mmpi_myid == 0) then
       ! Below for standard weather fields (PP,CC,TT,LQ,P0)
-      if (trim(nomvar3d(1,modelSpace)) == 'UU' .and. &
-           trim(nomvar3d(2,modelSpace)) == 'VV' .and. &
-           trim(nomvar3d(3,modelSpace)) == 'TT' .and. &
-           trim(nomvar3d(4,modelSpace)) == 'LQ' .and. &
-           trim(nomvar2d(1,modelSpace)) == 'P0') then	 
-        write(200,*) stddevZonAvg(1:nlevEns_M,:)
-        write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
-        write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
-        write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-        write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
+      if (nvar3d == 4 .and. nvar2d == 1) then
+        if (trim(nomvar3d(1,modelSpace)) == 'UU' .and. &
+             trim(nomvar3d(2,modelSpace)) == 'VV' .and. &
+             trim(nomvar3d(3,modelSpace)) == 'TT' .and. &
+             trim(nomvar3d(4,modelSpace)) == 'LQ' .and. &
+             trim(nomvar2d(1,modelSpace)) == 'P0') then
+          write(200,*) stddevZonAvg(1:nlevEns_M,:)
+          write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
+          write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
+          write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
+          write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
+        end if
       end if
     end if
 
