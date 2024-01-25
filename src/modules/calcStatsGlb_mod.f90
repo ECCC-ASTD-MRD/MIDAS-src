@@ -4177,15 +4177,18 @@ module calcStatsGlb_mod
     real(8) :: work(ndim)
     integer :: loopIndex
     
-    if (distance(1) > distance(2)) then    
+    if (distance(1) > distance(2)) then
       ! Ordered in decreasing distance     
       work(ndim) = lfn_response(distance(ndim), fitParam)
       do loopIndex = ndim-1, 1, -1
-	 work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
-	 if (work(loopIndex) < 0.5d0) exit
+        work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
+        if (work(loopIndex) < 0.5d0) exit
       end do
-      loopIndex = max(loopIndex,1)
-      if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
+      if (loopIndex == 0) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+	           ' at a distance of ',distance(loopIndex+1)
+        hwhm = -999.0d0
+      else if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
         write(*,*) 'Warning from getFitHWHM: suspicious fit', &
 	           ' at a distance of ',distance(loopIndex+1)
         hwhm = distance(loopIndex+1)
@@ -4197,14 +4200,17 @@ module calcStatsGlb_mod
       ! Ordered in increasing distance    
       work(1) = lfn_response(distance(1), fitParam)
       do loopIndex = 2, ndim-1
-	work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
+        work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
         if (work(loopIndex) < 0.5d0) exit
       end do
-      loopIndex = min(loopIndex,ndim)
-      if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
-	write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
-	           ' at a distance of ',distance(loopIndex+1)
-	hwhm = distance(loopIndex+1)
+      if (loopIndex == ndim) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+             ' at a distance of ',distance(loopIndex-1)
+        hwhm = -999.0d0
+      else if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+             ' at a distance of ',distance(loopIndex-1)
+        hwhm = distance(loopIndex-1)
       else
         hwhm = ((work(loopIndex-1) - 0.5d0)*distance(loopIndex) + &
                (0.5d0 - work(loopIndex))*distance(loopIndex-1))/(work(loopIndex-1) - work(loopIndex))
