@@ -4184,6 +4184,7 @@ module calcStatsGlb_mod
 	 work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
 	 if (work(loopIndex) < 0.5d0) exit
       end do
+      loopIndex = max(loopIndex,1)
       if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
         write(*,*) 'Warning from getFitHWHM: suspicious fit', &
 	           ' at a distance of ',distance(loopIndex+1)
@@ -4199,6 +4200,7 @@ module calcStatsGlb_mod
 	work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
         if (work(loopIndex) < 0.5d0) exit
       end do
+      loopIndex = min(loopIndex,ndim)
       if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
 	write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
 	           ' at a distance of ',distance(loopIndex+1)
