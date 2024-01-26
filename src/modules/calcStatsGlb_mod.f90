@@ -486,18 +486,13 @@ module calcStatsGlb_mod
     call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
     call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
-    if (mmpi_myid == 0) write(301,*) theta1
 
     call removeBalancedChi(ensPerturbations,theta1)
 
     call normalize3d(ensPerturbations,stddev3d)
 
     call calcPtoT(ensPerturbations,PtoT)
-    if (mmpi_myid == 0) write(303,*) PTOT(:,:,1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-!    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
-!    if (mmpi_myid == 0) write(302,*) theta2
 
     call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -541,20 +536,6 @@ module calcStatsGlb_mod
 
     call writeSpStats(ptot,theta1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    if (mmpi_myid == 0) then
-      write(200,*) stddevZonAvg(1:nlevEns_M,:)
-      write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
-      write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
-      write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-      write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-
-      write(400,*) stddevZonAvgUnbal(1:nlevEns_M,:)
-      write(401,*) stddevZonAvgUnbal((1+1*nlevEns_M):(2*nlevEns_M),:)
-      write(402,*) stddevZonAvgUnbal((1+2*nlevEns_M):(3*nlevEns_T),:)
-      write(403,*) stddevZonAvgUnbal((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-      write(404,*) stddevZonAvgUnbal((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-    end if
 
   end subroutine csg_computeBhiLegacy
 
