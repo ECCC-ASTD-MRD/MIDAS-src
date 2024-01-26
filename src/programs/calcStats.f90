@@ -95,7 +95,7 @@ program midas_calcStats
   character(len=256), parameter :: enspathname = 'ensemble'
 
   integer           :: fstopc
-  integer           :: nulnam, ierr, fnom, fclos
+  integer           :: ierr
   character(len=256) :: ensFileName
   character(len=4), pointer :: anlVar(:)
 
@@ -119,6 +119,10 @@ program midas_calcStats
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
+
+  ! Read the namelists
+  call utl_readNml()
 
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
@@ -130,11 +134,10 @@ program midas_calcStats
   nens              = 96                ! default value
   ip2               = -1                ! default value
 
-  nulnam = 0
-  ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read (nulnam,nml=namens)
-  write(*     ,nml=namens)
-  ierr=fclos(nulnam)
+  call utl_tmg_start(181,'low-level--readNML')
+  read (utl_flnml, nml=namens)
+  write(*, nml=namens)
+  call utl_tmg_stop(181)
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
@@ -153,11 +156,10 @@ program midas_calcStats
   !- 1.5 Read NAMCONF namelist to find the mode
   mode  = 'BHI'  ! default value
 
-  nulnam = 0
-  ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read (nulnam,nml=namconf)
-  write(*     ,nml=namconf)
-  ierr   = fclos(nulnam)
+  call utl_tmg_start(181,'low-level--readNML')
+  read (utl_flnml, nml=namconf)
+  write(*, nml=namconf)
+  call utl_tmg_stop(181)
 
   !
   !- 2. Select and launch the appropriate mode
@@ -203,6 +205,7 @@ program midas_calcStats
   !- 4.  MPI, tmg finalize
   !  
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

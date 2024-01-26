@@ -207,7 +207,7 @@ module message_mod
 
     ! Locals:
     logical, save :: alreadyRead = .false.
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: ierr
 
     ! Namelist variables
     logical :: arrayVertical  ! choose to use array vertical representation by default
@@ -228,12 +228,11 @@ module message_mod
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
                 mpiAll_opt=.false., verb_opt=msg_ALWAYS)
     else
-      nulnam = 0
-      ierr = fnom(nulnam, 'flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=nammsg,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=nammsg, iostat=ierr)
       if (ierr /= 0) call utl_abort('msg_readNml: Error reading namelist NAMMSG')
       if (mmpi_myid == 0) write(*,nml=nammsg)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     end if
     msg_NML = verbosity
     call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)

@@ -276,8 +276,7 @@ program midas_var
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStampFromObs, nulnam
-  integer :: fclos, fnom
+  integer :: ierr, dateStampFromObs
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -329,6 +328,7 @@ program midas_var
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
@@ -336,6 +336,9 @@ program midas_var
   end if 
 
   varMode='analysis'
+
+  ! Read the namelists
+  call utl_readNml()
 
   ! Setup the ram disk
   call ram_setup
@@ -351,16 +354,15 @@ program midas_var
   useTovsUtil = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
-  call msg('midas-var','namvar is missing in the namelist. '&
-       //'The default values will be taken.', mpiAll_opt=.false.)
+    call msg('midas-var','namvar is missing in the namelist. ' // &
+             'The default values will be taken.', mpiAll_opt=.false.)
 
   else
     ! read in the namelist NAMVAR
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namvar, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namvar, iostat=ierr)
     if( ierr /= 0) call utl_abort('midas-var: Error reading namelist')
-    ierr = fclos(nulnam)
+    call utl_tmg_stop(181)
   end if
   if ( mmpi_myid == 0 ) write(*,nml=namvar)
 
@@ -389,7 +391,7 @@ program midas_var
   end if
 
   ! Initialize constants
-  if ( mmpi_myid == 0 ) then
+  if (mmpi_myid == 0) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
@@ -457,8 +459,8 @@ program midas_var
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupColumnsOnTrlLev
-  call min_setup( cvm_nvadim, hco_anl,                                   & ! IN
-                  varqc_opt=varqcActive, nwoqcv_opt=numIterWithoutVarqc )  ! OUT
+  call min_setup(cvm_nvadim, hco_anl,                                 & ! IN
+                 varqc_opt=varqcActive, nwoqcv_opt=numIterWithoutVarqc) ! OUT
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     call msg('var','Problem allocating memory for controlVectorIncr'//str(ierr))
@@ -472,6 +474,7 @@ program midas_var
   ! Enter outer-loop
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     call msg('var','start of outer-loop index='//str(outerLoopIndex))
+    call utl_printTime()
 
     ! Impose limits on ALL cloud variables
     call qlim_rttovLimit(stateVectorUpdateHighRes, applyLimitToCloud_opt=.true.)
@@ -526,6 +529,7 @@ program midas_var
     controlVectorIncr(:) = 0.0d0
     deallocHessian = ( numOuterLoopIterations == 1 )
     isMinimizationFinalCall = ( outerLoopIndex == numOuterLoopIterations )
+    call utl_printTime()
     call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                        controlVectorIncr, numIterMaxInnerLoop(outerLoopIndex), &
                        deallocHessian_opt=deallocHessian, &
@@ -674,6 +678,8 @@ program midas_var
     clmsg = 'VAR3D_END'
     call utl_writeStatus(clmsg)
   end if
+
+  call utl_printTime()
 
   call utl_tmg_stop(0)
 

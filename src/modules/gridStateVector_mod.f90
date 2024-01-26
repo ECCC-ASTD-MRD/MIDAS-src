@@ -513,7 +513,7 @@ module gridStateVector_mod
     implicit none
 
     ! Locals:
-    integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
+    integer           :: varIndex, ierr, loopIndex
     ! namelist variables:
     character(len=4)  :: anlvar(vnl_numVarMax)           ! list of state variable names
     logical           :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
@@ -540,12 +540,11 @@ module gridStateVector_mod
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namstate,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=namstate,iostat=ierr)
+    if (ierr /= 0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mmpi_myid.eq.0) write(*,nml=namstate)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
@@ -1530,6 +1529,9 @@ module gridStateVector_mod
     if ( statevector_in%mykBeg /= statevector_inout%mykBeg .or. &
          statevector_in%mykEnd /= statevector_inout%mykEnd ) then
       call utl_abort('gsv_add: mykBeg/mykEnd of stateVector_in/inout do not match')
+    end if
+    if ( statevector_in%numStep /= statevector_inout%numStep ) then
+      call utl_abort('gsv_add: numStep of stateVector_in/inout do not match')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -2593,7 +2595,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_3dto4d
   !--------------------------------------------------------------------------
-  subroutine gsv_3dto4d(statevector_inout)
+  subroutine gsv_3dto4d(statevector_inout, statevector_in_opt)
     !
     ! :Purpose: Copies the 3D data array to all time steps of the 4D array of the
     !           same statevector
@@ -2601,7 +2603,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector_inout
+    type(struct_gsv),           intent(inout) :: statevector_inout
+    type(struct_gsv), optional, intent(in)    :: statevector_in_opt
 
     ! Locals:
     integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
@@ -2617,43 +2620,81 @@ module gridStateVector_mod
     k1=statevector_inout%mykBeg
     k2=statevector_inout%mykEnd
 
-    if (statevector_inout%numStep.eq.1) return
+    if (present(statevector_in_opt)) then
 
-    if (statevector_inout%dataKind == 8) then
+      if (statevector_inout%dataKind == 8) then
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
-      do kIndex = k1, k2
-        do stepIndex = 1, statevector_inout%numStep
-          if (stepIndex.ne.statevector_inout%anltime) then
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do stepIndex = 1, statevector_inout%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
                 statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
-                     statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex)
+                     statevector_in_opt%gd3d_r8(lonIndex,latIndex,kIndex)
               end do
             end do
-          end if
+          end do
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
-    else
+      else
 
-      !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
-      do kIndex = k1, k2
-        do stepIndex = 1, statevector_inout%numStep
-          if (stepIndex.ne.statevector_inout%anltime) then
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do stepIndex = 1, statevector_inout%numStep
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
                 statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
-                     statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex)
+                     statevector_in_opt%gd3d_r4(lonIndex,latIndex,kIndex)
               end do
             end do
-          end if
+          end do
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
-    end if
+      end if
+
+    else ! if(present(statevector_in_opt))
+
+      if (statevector_inout%numStep == 1) return
+
+      if (statevector_inout%dataKind == 8) then
+
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do stepIndex = 1, statevector_inout%numStep
+            if (stepIndex.ne.statevector_inout%anltime) then
+              do latIndex = lat1, lat2
+                do lonIndex = lon1, lon2
+                  statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                       statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex)
+                end do
+              end do
+            end if
+          end do
+        end do
+        !$OMP END PARALLEL DO
+
+      else
+
+        !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+        do kIndex = k1, k2
+          do stepIndex = 1, statevector_inout%numStep
+            if (stepIndex.ne.statevector_inout%anltime) then
+              do latIndex = lat1, lat2
+                do lonIndex = lon1, lon2
+                  statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
+                       statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex)
+                end do
+              end do
+            end if
+          end do
+        end do
+        !$OMP END PARALLEL DO
+
+      end if
+
+    end if ! if(present(statevector_in_opt))
 
   end subroutine gsv_3dto4d
 

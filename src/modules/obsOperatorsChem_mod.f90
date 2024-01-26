@@ -548,9 +548,7 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Locals:
-    integer :: fnom, fclos
-    integer :: ierr, ios, nulnam, i
-    character(len=10)  :: namfile 
+    integer :: ios, i
 
     ! Namelist variables (local):
     integer :: tropo_mode(0:oopc_constituentsSize) ! Special treatment for troposphere of total column obs
@@ -601,19 +599,15 @@ module obsOperatorsChem_mod
 
     ! Read from namelist file NAMCHEM
 
-    namfile=trim("flnml")
-    nulnam=0
-    ierr=fnom(nulnam,namfile,'R/O',0)
-
-    read(nulnam,nml=namchem,iostat=ios)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namchem, iostat=ios)
     if (ios < -4 .or. ios > 0) then 
       call utl_abort('oopc_readNamchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )   
     else if (mmpi_myid == 0) then
       write(*,nml=namchem)   
     end if
+    call utl_tmg_stop(181)
   
-    ierr=fclos(nulnam)      
-
     do i=size(assim_fam),1,-1
       if (assim_fam(i) /= '') exit
     end do

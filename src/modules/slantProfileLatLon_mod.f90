@@ -58,7 +58,7 @@ contains
     ! Locals:
     real(8) :: lat, lon, azimuthAngle
     integer :: idatyp
-    integer :: ierr, fnom, fclos, nulnam
+    integer :: ierr
     integer :: nlev_T, lev_T, nlev_M, lev_M
 
     namelist /namSlantPath/ toleranceHeightDiff, maxNumIteration
@@ -71,12 +71,11 @@ contains
       maxNumIteration = 1
 
       ! reading namelist variables
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml = namSlantPath, iostat = ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = namSlantPath, iostat = ierr)
       if (ierr /= 0) write(*,*) 'slp_calcLatLonTovs: namSlantPath is missing in the namelist. The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = namSlantPath)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     end if
 
     nlev_M = size(height3D_M_r4,3)

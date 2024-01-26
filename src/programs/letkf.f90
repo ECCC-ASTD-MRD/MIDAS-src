@@ -206,8 +206,8 @@ program midas_letkf
   type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
-  integer :: nulnam, dateStampFromObs, ierr
-  integer :: get_max_rss, fclos, fnom, fstopc
+  integer :: dateStampFromObs, ierr
+  integer :: get_max_rss, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
@@ -279,6 +279,9 @@ program midas_letkf
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
+
+  call utl_readNml()
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -323,12 +326,11 @@ program midas_letkf
   debug                    = .false.
   
   !- 1.2 Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml = namletkf, iostat = ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namletkf, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-letkf: Error reading namelist')
-  if ( mmpi_myid == 0 ) write(*, nml = namletkf)
-  ierr = fclos(nulnam)
+  if ( mmpi_myid == 0 ) write(*,nml=namletkf)
+  call utl_tmg_stop(181)
 
   !- 1.3 Some minor modifications of namelist values
   if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
@@ -575,6 +577,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+      call utl_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
@@ -788,6 +791,7 @@ program midas_letkf
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to analysis ensemble member ', memberIndex
       write(*,*) ''
+      call utl_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
       call ens_copyMember(ensembleAnl, stateVectorMemberAnl, memberIndex)
@@ -852,6 +856,8 @@ program midas_letkf
   
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
+    call utl_printTime()
+
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)
     call gsv_allocate(stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
                       dateStamp_opt = tim_getDateStamp(),  &
@@ -872,6 +878,7 @@ program midas_letkf
                             readHeightSfc_opt = .false.)
     end do
 
+    call utl_printTime()
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
                          writeTrlEnsemble = .false., outputOnlyEnsMean_opt = outputOnlyEnsMean)
   else
@@ -894,6 +901,15 @@ program midas_letkf
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
+  call utl_printTime()
+
+  !- Deallocate ensObs objects
+  call eob_deallocate(ensObs)
+  call eob_deallocate(ensObs_mpiglobal)
+  if (useModulatedEns) then
+    call eob_deallocate(ensObsGain)
+    call eob_deallocate(ensObsGain_mpiglobal)
+  end if
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

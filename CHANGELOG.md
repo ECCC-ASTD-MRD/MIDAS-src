@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
  * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)
    ** New namelist NAMCOMPUTEBHILATBANDS and new possible output files hCorrelFit.txt and vCorrelFit.txt. 
  * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
@@ -29,10 +30,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
  * Option to reject MHS over sea in clear-sky if Scattering Index is missing (#847 and !756)
    * Added `rejectWhenSiMissing` to `nambgck` namelist. Minor impact on results in HRDPS and GEPS if set to `true`.
+ * Added new namelist variables to allow deactivating extra thinning in `prepcma` (#870 and !809)
+ * Added the branch v_3.9-RandD in the official documentation and activate the automatic tests for that branche (#888 and !808)
+ * Added the ability to compute daily BG std for SST 2D-Var and BG check (#894 and !806)
+ * Added ability to compute 4D control member increments (#873 and !803)
+ * Added new timing tool to print time and accumulated time to listing (#864 and !798)
 
 ### Changed
 
- * (Nothing yet)
+ * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
+ * Read namelists from strings instead of files for improved efficiency (#886 and !794)
 
 ### Fixed
 
@@ -45,6 +52,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.1]
+
+### Changed
+
+ * Reduce slowness due to the creation of many files concurrently during observation splitting in the same working directory (#885 and !802)
+
+### Fixed
+
+ * Fix missing variable in `private` openMP clause in `enkf_mod` (#893 and !801)
+ * Fix bug in `fsoi_mod` for calculating the forecast error in terms of humidity (#891 and !799)
+ * Fix bug when reading mixture of burp and sqlite files (#887 and !795)
+ * Fix array bounds error in `fsoi_mod` (#883 and !792)
 
 ## [3.9.0]
 
@@ -1169,7 +1189,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...HEAD
+[3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
 [3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.3...v_3.8.0

@@ -12,10 +12,12 @@ module utilities_mod
   private
 
   ! public procedures
+  public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_pseudo_inverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
+  public :: utl_printTime
   public :: utl_stopAndWait4Debug
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
@@ -76,9 +78,122 @@ module utilities_mod
 
   interface utl_findlocs
     module procedure utl_findlocs_char
+    module procedure utl_findlocs_int
   end interface utl_findlocs
 
+  ! For namelist reading
+  character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
+
 contains
+
+  subroutine utl_readNml()
+    !
+    !:Purpose: Read the namelist files into strings for quicker access.
+    !
+    !:Note:    It currently does not work correctly for "NAMBEN" which
+    !          may have multiple instance of the namelist block within the
+    !          same file.
+    !
+    implicit none
+
+    ! Locals:
+    integer :: fileSize, ierr, nulnam, positionBeg, positionEnd
+    integer :: myid, myidx, myidy, rpn_comm_mype
+    logical :: fileExists
+
+    write(*,*)
+    write(*,*) 'utl_readNML: reading namelist files into strings for later use'
+
+    ! Get some MPI information
+    ierr = rpn_comm_mype(myid,myidx,myidy)
+
+    ! First read the file flnml which must exist
+    inquire(file='./flnml', exist=fileExists, size=fileSize)
+    if (fileExists) then
+      allocate( character(len=filesize) :: utl_flnml )
+
+      ! read flnml into a string
+      nulnam = 0
+      open(newunit=nulnam,file='./flnml',status='OLD',&
+           form='UNFORMATTED',access='STREAM',iostat=ierr)
+      read(nulnam, pos=1, iostat=ierr) utl_flnml
+      close(nulnam, iostat=ierr)
+
+      ! print to the listing
+      if (myid == 0) then
+        write(*,*)
+        write(*,*) '============BEGIN CONTENTS OF FLNML================'
+        write(*,*) utl_flnml
+        write(*,*) '============END   CONTENTS OF FLNML================'
+      end if
+    else
+      call utl_abort('utl_readNml: The file "flnml" is not accessible')
+    end if
+
+    ! Check for and remove comments
+    do
+      positionBeg = index(utl_flnml, '!')
+      if (positionBeg < 1) then
+        ! No (more) comments found
+        exit
+      else
+        ! Found a comment, replace it with blank space
+        do positionEnd = positionBeg, positionBeg+1000
+          if (utl_flnml(positionEnd:positionEnd) == new_line('A')) exit
+        end do
+        positionEnd = positionEnd - 1
+        utl_flnml(positionBeg:PositionEnd) = ' '
+      end if
+    end do
+
+    ! Second read the file flnml_static which may exist
+    inquire(file='./flnml_static', exist=fileExists, size=fileSize)
+    if (fileExists) then
+
+      allocate( character(len=filesize) :: utl_flnml_static )
+
+      ! read flnml_static into a string
+      nulnam = 0
+      open(newunit=nulnam,file='./flnml_static',status='OLD',&
+           form='UNFORMATTED',access='STREAM',iostat=ierr)
+      read(nulnam, pos=1, iostat=ierr) utl_flnml_static
+      close(nulnam, iostat=ierr)
+
+      ! print to the listing
+      if (myid == 0) then
+        write(*,*)
+        write(*,*) '============BEGIN CONTENTS OF FLNML_STATIC================'
+        write(*,*) utl_flnml_static
+        write(*,*) '============END   CONTENTS OF FLNML_STATIC================'
+      end if
+
+      ! Check for and remove comments
+      do
+        positionBeg = index(utl_flnml_static, '!')
+        if (positionBeg < 1) then
+          ! No (more) comments found
+          exit
+        else
+          ! Found a comment, replace it with blank space
+          do positionEnd = positionBeg, positionBeg+1000
+            if (utl_flnml_static(positionEnd:positionEnd) == new_line('A')) exit
+          end do
+          positionEnd = positionEnd - 1
+          utl_flnml_static(positionBeg:PositionEnd) = ' '
+        end if
+      end do
+
+    else
+      allocate( character(len=1) :: utl_flnml_static )
+      utl_flnml_static = ' '
+      write(*,*) 'utl_readNml: The file "flnml_static" is not accessible, will use default values'
+    end if
+
+    write(*,*)
+    write(*,*) 'utl_readNML: finished'
+    write(*,*)
+
+  end subroutine utl_readNml
 
   function utl_fstlir(fld8, iun, ni, nj, nk, datev, etiket, &
                       ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
@@ -642,7 +757,6 @@ contains
 
   end subroutine utl_pseudo_inverse
 
-
   !--------------------------------------------------------------------------
   ! utl_writeStatus
   !--------------------------------------------------------------------------
@@ -664,6 +778,77 @@ contains
     ierr = fclos(iulstatus)
 
   end subroutine utl_writeStatus
+
+  !--------------------------------------------------------------------------
+  ! utl_printTime
+  !--------------------------------------------------------------------------
+  subroutine utl_printTime(reset_opt)
+    !
+    !:Purpose: Print the elapsed time in the listing. Use of the optional
+    !          argument `reset_opt=.true.` resets the accumulator to zero.
+    !
+    implicit none
+
+    ! Arguments:
+    logical, optional, intent(in) :: reset_opt ! Allow user to reset the accumulator
+
+    ! Locals:
+    real(8), save :: startTime = -1.0d0
+    real(8), save :: accumulatedStart = -1.0d0
+    real(8), save :: previousTime = -1.0d0
+    real(8)       :: currentTime, omp_get_wtime
+    logical, save :: firstCall = .true.
+    logical       :: reset
+    character(len=8)  :: dateString
+    character(len=10) :: timeString
+
+    if (present(reset_opt)) then
+      reset = reset_opt
+    else
+      reset = .false.
+    end if
+
+    currentTime = omp_get_wtime()
+
+    if (startTime < 0.0d0) then
+      startTime = currentTime
+    end if
+
+    if (previousTime < 0.0d0) then
+      previousTime = currentTime
+    end if
+
+    if (accumulatedStart < 0.0d0 .or. reset) then
+      accumulatedStart = currentTime
+    end if
+
+    ! Also get the actual date and time
+    call date_and_time(dateString, timeString)
+
+    if (firstCall) then
+      write(*,'(A,A)') &
+           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+           'First call, counters initialized'
+    end if
+
+    if (reset .and. .not.firstCall) then
+      write(*,'(A,A)') &
+           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+           'Accumulator reset'
+    end if
+
+    if (.not. firstCall) then
+      write(*,'(A,A,f10.4,A,A,f10.4,A,A,f10.4,A)') &
+           ' utl_printTime: '//dateString//' '//timeString(1:2)//'h '//timeString(3:4)//'m '//timeString(5:10)//'s, ', &
+                          'deltaT = ', (currentTime - previousTime), ' s, ', &
+                          'accumT = ', (currentTime - accumulatedStart), ' s, ', &
+                          'totalT = ', (currentTime - startTime), ' s'
+    end if
+
+    previousTime = currentTime
+    firstCall = .false.
+
+  end subroutine utl_printTime
 
 
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
@@ -2143,10 +2328,11 @@ contains
     logical :: found
 
     ! Locals:
-    integer :: unit, fnom, fclos, ierr
-    character (len=1000) :: text
-    character (len=100)  :: word, namelistSectionNameUpper
+    integer :: unit, fnom, fclos, ierr, positionBeg, positionEnd
+    character(len=1000) :: line
+    character(len=100)  :: word, namelistSectionNameUpper
     logical :: namelistExist
+    character(len=:), pointer :: nameListStr_ptr
 
     ! Check if namelistFileName is present
     inquire(file=namelistFileName,exist=namelistExist)
@@ -2154,29 +2340,68 @@ contains
       call utl_abort('utl_isNamelistPresent: namelist file is missing : '// namelistFileName)
     end if
 
-    ! Open the namelist file
-    unit=0
-    ierr=fnom(unit,namelistFileName,'FTN+SEQ+R/O',0)
-
-    ! Search for namelistSectionName
-    found = .false.
+    ! Ensure namelist section name is all in upper case
     namelistSectionNameUpper = namelistSectionName
     ierr = clib_toUpper(namelistSectionNameUpper)
-    namelistLoop : do
-      read (unit,"(a)",iostat=ierr) text ! read line into character variable
-      if (ierr /= 0) exit
-      if (trim(text) == "") cycle ! skip empty lines
-      read (text,*) word ! read first word of line
-      ierr = clib_toUpper(word)
-      if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
-        ! found search string at beginning of line
-        found = .true.
-        exit
-      end if
-    end do namelistLoop
 
-    ! Close the namelist file
-    ierr=fclos(unit)
+    ! Check if namelist file is already read into a character string
+    if (index(namelistFileName, 'flnml_static') > 0) then
+      nameListStr_ptr => utl_flnml_static
+    else if (index(namelistFileName, 'flnml') > 0) then
+      nameListStr_ptr => utl_flnml
+    else
+      nullify(nameListStr_ptr)
+    end if
+
+    if (associated(nameListStr_ptr)) then
+
+      ! Search for namelistSectionName in string
+      found = .false.
+      positionBeg = 1
+      namelistLoop1 : do
+        ! read next line from string
+        positionEnd = positionBeg - 1 + index(nameListStr_ptr(positionBeg:),new_line('A'))
+        read (nameListStr_ptr(positionBeg:(positionEnd-1)),"(a)",iostat=ierr) line ! read line into character variable
+        positionBeg = positionEnd + 1
+        if (positionBeg >= len(nameListStr_ptr)) exit namelistLoop1 ! reached end of the file
+        if (trim(line) == '') cycle namelistLoop1                   ! skip empty lines
+
+        read (line,*) word ! read first word of line
+        ierr = clib_toUpper(word)
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+          ! found search string at beginning of line
+          found = .true.
+          exit
+        end if
+      end do namelistLoop1
+
+    else
+
+      write(*,*) 'utl_isNamelistPresent: Namelist file is not already in a string, checking the file instead'
+
+      ! Open the namelist file
+      unit=0
+      ierr=fnom(unit,namelistFileName,'FTN+SEQ+R/O',0)
+
+      ! Search for namelistSectionName in the file
+      found = .false.
+      namelistLoop2 : do
+        read (unit,"(a)",iostat=ierr) line ! read line into character variable
+        if (ierr /= 0) exit namelistLoop2
+        if (trim(line) == "") cycle namelistLoop2 ! skip empty lines
+        read (line,*) word          ! read first word of line
+        ierr = clib_toUpper(word)
+        if (trim(word) == '&'//trim(namelistSectionNameUpper)) then ! case insensitive 
+          ! found search string at beginning of line
+          found = .true.
+          exit namelistLoop2
+        end if
+      end do namelistLoop2
+
+      ! Close the namelist file
+      ierr=fclos(unit)
+
+    end if
 
   end function utl_isNamelistPresent
 
@@ -2468,6 +2693,55 @@ contains
     end if
 
   end function utl_findlocs_char
+
+  !--------------------------------------------------------------------------
+  ! utl_findlocs_int
+  !--------------------------------------------------------------------------
+  function utl_findlocs_int(intArray, value) result(locations)
+    !
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          Returns an array of all matches found in the array.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)  :: intArray(:)
+    integer, intent(in)  :: value
+    ! Result:
+    integer, allocatable :: locations(:)
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+
+    if (allocated(locations)) deallocate(locations)
+
+    ! count number of matches found
+    numFound = 0
+    do arrayIndex = 1, size(intArray)
+      if (intArray(arrayIndex) == value) numFound = numFound + 1
+    end do
+
+    if (numFound > 0) then
+
+      ! return all found locations
+      allocate(locations(numFound))
+      numFound = 0
+      do arrayIndex = 1, size(intArray)
+        if (intArray(arrayIndex) == value) then
+          numFound = numFound + 1
+          locations(numFound) = arrayIndex
+        end if
+      end do
+
+    else
+
+      ! return zero if not found
+      allocate(locations(1))
+      locations(1) = 0
+
+    end if
+
+  end function utl_findlocs_int
 
   !--------------------------------------------------------------------------
   ! utl_randomOrderInt

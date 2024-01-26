@@ -174,7 +174,7 @@ module bCovarSetupChem_mod
     character(len=*),          intent(in)  :: mode ! 'Analysis' or 'BackgroundCheck'
 
     ! Locals:
-    integer :: nulnam, ierr, fnom, fclos
+    integer :: ierr
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
     real(8), pointer    :: pressureProfile_T(:)
@@ -241,12 +241,9 @@ module bCovarSetupChem_mod
             
     ! Read namelist input
     
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMBCHM,iostat=ierr)
+    read(utl_flnml, nml=NAMBCHM, iostat=ierr)
     if(ierr /= 0) call utl_abort('bcsc_setupCH: Error reading namelist')
     if(mmpi_myid == 0) write(*,nml=NAMBCHM)
-    ierr = fclos(nulnam)
 
     ! Set BchmVars
     nChmVars=0

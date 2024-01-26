@@ -407,6 +407,7 @@ contains
     numGridPointWeights = 0
     LEV_LOOP: do levIndex = 1, nLev_weights
       write(*,*) 'computing ensemble updates for vertical level = ', levIndex
+      call utl_printTime(reset_opt = (levIndex==1))
 
       !
       ! First post all recv instructions for communication of weights
@@ -2143,7 +2144,7 @@ contains
     numMembers2 = size(weights,2)
     totalCount(:) = 0
 
-    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
     do latIndex = wInterpInfo%myLatBeg, wInterpInfo%myLatEnd
       do lonIndex = wInterpInfo%myLonBeg, wInterpInfo%myLonEnd
         if (wInterpInfo%numIndexes(lonIndex,latIndex) <= 0) cycle

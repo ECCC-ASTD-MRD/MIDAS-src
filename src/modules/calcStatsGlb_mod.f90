@@ -90,9 +90,8 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: nulnam, ierr, memberIndex
-    integer :: fclos, fnom
-    real(8) :: zps 
+    integer :: ierr, memberIndex
+    real(8) :: zps
 
     ! Namelist variables (local):
     integer :: horizWaveBandIndex, vertWaveBandIndex
@@ -118,12 +117,9 @@ module calcStatsGlb_mod
     horizWaveBandPeaks(:) = -1.0d0
     vertWaveBandPeaks(:) = -1.0d0
     
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMCALCSTATS_GLB)
+    read(utl_flnml, nml=NAMCALCSTATS_GLB, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_setup: Error reading namelist NAMCALCSTATS_GLB')
     if (mmpi_myid == 0) write(*,nml=NAMCALCSTATS_GLB)
-    ierr=fclos(nulnam)
 
     !- Setup horizontal grid
     hco_ens => hco_in
@@ -252,8 +248,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     character(len=4), pointer :: controlVarNames(:)
-    integer :: varIndex, loopIndex, nulnam, ierr
-    integer :: fclos, fnom
+    integer :: varIndex, loopIndex, ierr
     ! Namelist variables:
     character(len=4) :: anlvar(vnl_numVarMax)           ! list of state variable names
     logical          :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
@@ -269,12 +264,11 @@ module calcStatsGlb_mod
 
     ! Namelist read to obtain list of variable names following order of input
     ! Needed for consistency of input ordering from NAMCOMPUTEBHILATBANDS    
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=namstate, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namstate, iostat = ierr)
+    call utl_tmg_stop(181)
     if (ierr /= 0) call utl_abort('csg_setNomvar: Error reading namelist NAMSTATE')
     if (mmpi_myid == 0) write(*,nml=namstate)
-    ierr = fclos(nulnam)
     
     nullify(controlVarNames)
     call gsv_varNamesList(controlVarNames)  ! order according to varNamesList which can differ from that of anlvar
@@ -389,10 +383,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Locals:
-    integer :: ierr, nulnam
-    integer :: fclos, fnom
-
-    ! Namelist variables (local):
+    integer :: ierr
     character(len=12) :: formulation ! Bhi formulation
 
     NAMELIST /NAMCOMPUTEBHI/formulation
@@ -400,12 +391,9 @@ module calcStatsGlb_mod
     ! parameters from namelist
     formulation='legacy'
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMCOMPUTEBHI)
+    read(utl_flnml,nml=NAMCOMPUTEBHI, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHI)
-    ierr=fclos(nulnam)
 
     select case(trim(formulation))
     case ('legacy')   
@@ -498,18 +486,13 @@ module calcStatsGlb_mod
     call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
     call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
-    if (mmpi_myid == 0) write(301,*) theta1
 
     call removeBalancedChi(ensPerturbations,theta1)
 
     call normalize3d(ensPerturbations,stddev3d)
 
     call calcPtoT(ensPerturbations,PtoT)
-    if (mmpi_myid == 0) write(303,*) PTOT(:,:,1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-!    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
-!    if (mmpi_myid == 0) write(302,*) theta2
 
     call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -554,20 +537,6 @@ module calcStatsGlb_mod
     call writeSpStats(ptot,theta1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if (mmpi_myid == 0) then
-      write(200,*) stddevZonAvg(1:nlevEns_M,:)
-      write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
-      write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
-      write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-      write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-
-      write(400,*) stddevZonAvgUnbal(1:nlevEns_M,:)
-      write(401,*) stddevZonAvgUnbal((1+1*nlevEns_M):(2*nlevEns_M),:)
-      write(402,*) stddevZonAvgUnbal((1+2*nlevEns_M):(3*nlevEns_T),:)
-      write(403,*) stddevZonAvgUnbal((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-      write(404,*) stddevZonAvgUnbal((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-    end if
-
   end subroutine csg_computeBhiLegacy
 
   !--------------------------------------------------------------------------
@@ -581,8 +550,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer :: latIndex, jlatband, lat1, lat2, lat3
-    integer :: ierr, nulnam
-    integer :: fclos, fnom
+    integer :: ierr
     real(4), pointer     :: ensPerturbations(:,:,:,:)
     real(8), pointer     :: stddev3d(:,:,:)
     real(8), pointer     :: stddevZonAvg(:,:)
@@ -625,11 +593,10 @@ module calcStatsGlb_mod
     if (.not. utl_isNamelistPresent('NAMCOMPUTEBHILATBANDS','./flnml')) then
       write(*,*) 'csg_computeBhiLatBands: Use default configuration shown below:'
     else
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=NAMCOMPUTEBHILATBANDS, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml = NAMCOMPUTEBHILATBANDS, iostat = ierr)
+      call utl_tmg_stop(181)
       if (ierr /= 0) call utl_abort('csg_computeBhiLatBands: Error reading namelist NAMCOMPUTEBHILATBAND')
-      ierr = fclos(nulnam)
     end if
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHILATBANDS)
     
@@ -670,21 +637,6 @@ module calcStatsGlb_mod
 
     call writeStddev(stddevZonAvg, stddev3d)
         
-    if (mmpi_myid == 0) then
-      ! Below for standard weather fields (PP,CC,TT,LQ,P0)
-      if (trim(nomvar3d(1,modelSpace)) == 'UU' .and. &
-           trim(nomvar3d(2,modelSpace)) == 'VV' .and. &
-           trim(nomvar3d(3,modelSpace)) == 'TT' .and. &
-           trim(nomvar3d(4,modelSpace)) == 'LQ' .and. &
-           trim(nomvar2d(1,modelSpace)) == 'P0') then	 
-        write(200,*) stddevZonAvg(1:nlevEns_M,:)
-        write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
-        write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
-        write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-        write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-      end if
-    end if
-
     ! Calculation and output of correlations
     
     call normalize3d(ensPerturbations, stddev3d)
@@ -788,7 +740,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer :: waveBandIndex, vertWaveBandIndex
-    integer :: nulnam, ierr, fclos, fnom, numStep
+    integer :: ierr, numStep
     real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
     integer, allocatable :: dateStampList(:)    
     type(struct_ens), target  :: ensPerts
@@ -823,12 +775,9 @@ module calcStatsGlb_mod
     vertModesLengthScale(2) = -1.d0
     ctrlVarHumidity          = 'HU'
     
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMTOOLBOX)
+    read(utl_flnml,nml=NAMTOOLBOX, iostat=ierr)
     if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
-    ierr = fclos(nulnam)
 
      if (vertModesLengthScale(2) == -1.d0) then
       vertModesLengthScale(2) = vertModesLengthScale(1)
@@ -3526,7 +3475,7 @@ module calcStatsGlb_mod
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
     character(len=4), pointer :: varNamesList(:)
-    integer :: ierr, fclos, fnom, nulnam
+    integer :: ierr
 
     ! Namelist variables (local):
     integer :: blockpadding
@@ -3545,12 +3494,9 @@ module calcStatsGlb_mod
     njrefpoint = 2 ! Number of reference grid point in y
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMHVCORREL_LOCAL)
+    read(utl_flnml,nml=NAMHVCORREL_LOCAL)
     if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
     if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
-    ierr = fclos(nulnam)
 
     blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
     ! around each reference point
@@ -4195,14 +4141,18 @@ module calcStatsGlb_mod
     real(8) :: work(ndim)
     integer :: loopIndex
     
-    if (distance(1) > distance(2)) then    
+    if (distance(1) > distance(2)) then
       ! Ordered in decreasing distance     
       work(ndim) = lfn_response(distance(ndim), fitParam)
       do loopIndex = ndim-1, 1, -1
-	 work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
-	 if (work(loopIndex) < 0.5d0) exit
+        work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
+        if (work(loopIndex) < 0.5d0) exit
       end do
-      if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
+      if (loopIndex == 0) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+	           ' at a distance of ',distance(loopIndex+1)
+        hwhm = -999.0d0
+      else if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
         write(*,*) 'Warning from getFitHWHM: suspicious fit', &
 	           ' at a distance of ',distance(loopIndex+1)
         hwhm = distance(loopIndex+1)
@@ -4214,18 +4164,22 @@ module calcStatsGlb_mod
       ! Ordered in increasing distance    
       work(1) = lfn_response(distance(1), fitParam)
       do loopIndex = 2, ndim-1
-	work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
+        work(loopIndex) = lfn_response(distance(loopIndex), fitParam)
         if (work(loopIndex) < 0.5d0) exit
       end do
-      if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
-	write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
-	           ' at a distance of ',distance(loopIndex+1)
-	hwhm = distance(loopIndex+1)
+      if (loopIndex == ndim) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+             ' at a distance of ',distance(loopIndex-1)
+        hwhm = -999.0d0
+      else if (abs(work(loopIndex)-work(loopIndex-1)) < 0.001) then
+        write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
+             ' at a distance of ',distance(loopIndex-1)
+        hwhm = distance(loopIndex-1)
       else
         hwhm = ((work(loopIndex-1) - 0.5d0)*distance(loopIndex) + &
                (0.5d0 - work(loopIndex))*distance(loopIndex-1))/(work(loopIndex-1) - work(loopIndex))
-      end if      
-    end if    
+      end if
+    end if
 
   end function getFitHWHM
   

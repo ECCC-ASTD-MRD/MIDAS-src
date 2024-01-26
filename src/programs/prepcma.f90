@@ -105,7 +105,7 @@ program midas_prepcma
 
   implicit none
 
-  integer :: fnom, fclos, nulnam, ierr, dateStampFromObs
+  integer :: fnom, ierr, dateStampFromObs
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
@@ -135,6 +135,8 @@ program midas_prepcma
   logical :: suprep                   ! choose to execute 'suprep' obs filtering
   logical :: rejectOutsideTimeWindow  ! choose to reject obs outside time window
   logical :: thinning                 ! choose to apply 'extra' thinning of some obs types
+  logical :: thinningConv             ! choose to apply 'extra' thinning of conventional (AI+SW+SC) obs types
+  logical :: thinningRadiance         ! choose to apply 'extra' thinning of radiance (TO) obs types
   logical :: applySatUtil             ! choose to reject satellite obs based on 'util' column of stats_tovs
   logical :: modifyAmsubObsError      ! choose to modify the obs error stddev for AMSUB/MHS in the tropics
   logical :: rejectHighLatIR          ! choose to reject IR data in high latitudes
@@ -143,7 +145,8 @@ program midas_prepcma
   logical :: writeAsciiCmaFiles       ! choose to write ascii output
 
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
-                        suprep, rejectOutsideTimeWindow, thinning, &
+                        suprep, rejectOutsideTimeWindow, &
+                        thinning, thinningConv, thinningRadiance, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
                         obsClean, writeObsFiles, writeAsciiCmaFiles
 
@@ -155,8 +158,11 @@ program midas_prepcma
   !- 1.1 timings
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
+
+  call utl_readNml()
 
   !- Specify default values for namelist variables
   cmahdr        = 'NOT_DEFINED'
@@ -167,6 +173,8 @@ program midas_prepcma
   suprep                  = .true.
   rejectOutsideTimeWindow = .true.
   thinning                = .true.
+  thinningConv            = .true.
+  thinningRadiance        = .true.
   applySatUtil            = .true.
   modifyAmsubObsError     = .true.
   rejectHighLatIR         = .true.
@@ -174,12 +182,11 @@ program midas_prepcma
   writeObsFiles           = .false.
   writeAsciiCmaFiles       = .false.
 
-  nulnam = 0
-  ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namprepcma,iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namprepcma, iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-prepcma: Error reading namelist')
   if (mmpi_myid == 0) write(*,nml=namprepcma)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   !- RAM disk usage
   call ram_setup
@@ -260,13 +267,13 @@ program midas_prepcma
   !- Perform thinning for several observation types
   if (thinning) then
     ! perform thinning for aircraft observations
-    call thinning_fam(obsSpaceData, nai_pmax, nai_target, 'AI')
-    ! perform thinning for scatterometer observations
-    call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
-    ! perform thinning for radiance observations
-    call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+    if (thinningConv)     call thinning_fam(obsSpaceData, nai_pmax, nai_target, 'AI')
     ! perform thinning for satwind observations
-    call thinning_fam(obsSpaceData, nsw_pmax, nsw_target, 'SW')
+    if (thinningConv)     call thinning_fam(obsSpaceData, nsw_pmax, nsw_target, 'SW')
+    ! perform thinning for scatterometer observations
+    if (thinningConv)     call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
+    ! perform thinning for radiance observations
+    if (thinningRadiance) call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
   end if
 
   !- Write the results
@@ -329,6 +336,7 @@ program midas_prepcma
   write(*,*) '> midas-prepcma: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
+  call utl_printTime()
   call utl_tmg_stop(0)
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 

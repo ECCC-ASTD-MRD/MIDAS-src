@@ -176,7 +176,6 @@ program midas_var1D
 
   integer            :: outerLoopIndex, numIterMaxInnerLoop
   logical            :: allocHeightSfc
-  integer            :: nulnam, fclos, fnom
   character(len=9)   :: obsColumnMode
 
 
@@ -201,12 +200,16 @@ program midas_var1D
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
+  call utl_printTime()
 
   write(*,*)
   write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
   write(*,*)
 
   varMode='analysis'
+
+  ! Read the namelists
+  call utl_readNml()
 
   ! Setup the ram disk
   call ram_setup
@@ -228,11 +231,10 @@ program midas_var1D
     write(*,*) '       the default values will be taken.'
   else
     ! Read the namelist
-    nulnam=0
-    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml=NAM1DVAR, iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=NAM1DVAR, iostat=ierr)
+    call utl_tmg_stop(181)
     if(ierr.ne.0) call utl_abort('midas-var1D: Error reading namelist')
-    ierr=fclos(nulnam)
   end if
 
   if( mmpi_myid == 0 ) write(*,nml=NAM1DVAR)
@@ -423,6 +425,7 @@ program midas_var1D
   ! Job termination
   istamp = exfin('VAR1D','FIN','NON')
 
+  call utl_printTime()
   call utl_tmg_stop(0)
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')

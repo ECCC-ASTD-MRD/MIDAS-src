@@ -27,15 +27,20 @@ eval `${CCLARGS} -D "" $0 \
   -rm_cmd "/bin/rm" "/bin/rm" "[path to 'rm' command (default '/bin/rm')]" \
   -mv_cmd "/bin/mv" "/bin/mv" "[path to 'mv' command (default '/bin/mv')]" \
   -cp_cmd "/bin/cp" "/bin/cp" "[path to 'cp' command (default '/bin/cp')]" \
-  -echo_cmd "/bin/echo" "/bin/echo" "[path to 'echo' command (default '/bin/echo')]" \
+  -echo_cmd  "/bin/echo"  "/bin/echo"  "[path to 'echo' command (default '/bin/echo')]" \
+  -date_cmd  "/bin/date"  "/bin/date"  "[path to 'date' command (default '/bin/date')]" \
   -mkdir_cmd "/bin/mkdir" "/bin/mkdir" "[path to 'mkdir' command (default '/bin/mkdir')]" \
   -sleep_cmd "/bin/sleep" "/bin/sleep" "[path to 'sleep' command (default '/bin/sleep')]" \
   ++ $arguments`
+
+${echo_cmd} "midas.splitobs starting at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) for MP_CHILD=${MP_CHILD}"
 
 obsfile_x=${x}
 obsfile_y=${y}
 
 bobsfile=${obsfile##*/}
+
+SECONDS=0
 if [ "${fasttmp}" = yes ]; then
     if [ "${minimize_copy}" = false ]; then
         source_obs_file=${obsoutput}/${bobsfile}
@@ -55,6 +60,8 @@ else
     source_obs_file=${obsfile}
 fi
 
+${echo_cmd} "midas.splitobs input files ready in ${SECONDS} seconds at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) for MP_CHILD=${MP_CHILD}"
+
 if [ "${splitobs_mode}" = 'splitobs' ]; then
     splitobs_args="-fstin ${splitobs_fstin} -nomvar ${splitobs_nomvar}"
     splitobs_args="${splitobs_args} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}"
@@ -65,10 +72,10 @@ elif [ "${splitobs_mode}"  != no ]; then
     exit 1
 fi
 
-SECONDS=0
+START_SECONDS=${SECONDS}
 ${splitobs_pgm} -obsin ${source_obs_file} -obsout ${obsoutput}/${bobsfile} \
       -x ${obsfile_x} -y ${obsfile_y} ${splitobs_args}
-${echo_cmd} "The splitting for file '${bobsfile}' took ${SECONDS} seconds."
+${echo_cmd} "midas.splitobs The splitting for file '${bobsfile}' took $((SECONDS-START_SECONDS)) seconds at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) for MP_CHILD=${MP_CHILD}"
 
 if [ "${fasttmp}" = yes ]; then
     ## We do not erase the original file if we are in the mode where only the first tile of each node copies the file
@@ -76,3 +83,5 @@ if [ "${fasttmp}" = yes ]; then
         ${rm_cmd} ${source_obs_file}
     fi
 fi
+
+${echo_cmd} "midas.splitobs ending for file '${bobsfile}' in ${SECONDS} seconds at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N) for MP_CHILD=${MP_CHILD}"

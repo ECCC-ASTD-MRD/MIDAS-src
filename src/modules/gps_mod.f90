@@ -2797,7 +2797,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam,ierr,fnom,fclos,SatID
+    integer :: ierr,SatID
     
     ! Namelist variables for GPS-RO
     INTEGER :: LEVELGPSRO       ! Data level to use (1 for bending angle, 2 for refractivity)
@@ -2843,12 +2843,11 @@ contains
     !
     !   Override with NML values:
     !     
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMGPSRO,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=NAMGPSRO,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
     !if(mmpi_myid.eq.0) write(*,nml=NAMGPSRO)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
     gps_Level_RO      = LEVELGPSRO
     gps_RO_MAXPRFSIZE = GPSRO_MAXPRFSIZE
@@ -2905,7 +2904,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: nulnam,ierr,fnom,fclos
+    integer :: ierr
 
     ! Namelist variables for Ground-based GPS (ZTD)
     REAL(8) :: DZMIN            ! Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD will be made
@@ -2940,9 +2939,8 @@ contains
     LTESTOP = .FALSE.
     IZTDOP = 1
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMGPSGB,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml,nml=NAMGPSGB,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupgb: Error reading namelist')
     gps_gb_DZMIN     = DZMIN
     gps_gb_DZMAX     = DZMAX
@@ -2957,7 +2955,7 @@ contains
     gps_gb_LTESTOP   = LTESTOP
     gps_gb_IZTDOP    = IZTDOP
     if(mmpi_myid.eq.0) write(*,nml=NAMGPSGB)
-    ierr=fclos(nulnam)
+    call utl_tmg_stop(181)
 
     IF (L1OBS.and.mmpi_myid.eq.0) THEN
       write(*,*)' '

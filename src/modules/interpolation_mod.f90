@@ -69,7 +69,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: ierr, nulnam, fnom, fclos
+    integer :: ierr
     logical, save :: alreadyRead = .false.
 
     NAMELIST /NAMINT/ vInterpCopyLowestLevel, checkCloudToGridUnassigned, maxBoxSize
@@ -91,12 +91,11 @@ contains
            //'The default values will be taken.', mpiAll_opt=.false.)
     else
       ! Read namelist NAMINT
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namint,iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namint,iostat=ierr)
       if (ierr /= 0) call utl_abort('int_readlNml: Error reading namelist NAMINT')
       if (mmpi_myid == 0) write(*,nml=namint)
-      ierr = fclos(nulnam)
+      call utl_tmg_stop(181)
     end if
 
     call msg('int_readNml', 'END', verb_opt=2)

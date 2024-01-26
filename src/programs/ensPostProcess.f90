@@ -157,15 +157,15 @@ program midas_ensPostProcess
   type(struct_ens)          :: ensembleAnl
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
-  type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl
+  type(struct_gsv)          :: stateVectorHeightSfc, stateVectorCtrlTrl4D
 
   character(len=256) :: ensPathNameAnl = 'ensemble_anal'
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
   character(len=256) :: ensFileName, gridFileName, ctrlFileName
   integer, allocatable :: dateStampList(:)
-  integer :: ierr, nulnam, stepIndex
+  integer :: ierr, stepIndex
   logical :: targetGridFileExists
-  integer, external :: get_max_rss, fstopc, fnom, fclos
+  integer, external :: get_max_rss, fstopc
 
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
@@ -185,6 +185,10 @@ program midas_ensPostProcess
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call utl_printTime()
+
+  ! Read the namelists
+  call utl_readNml()
 
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -200,12 +204,11 @@ program midas_ensPostProcess
   hInterpolationDegree = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
 
   !- Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namEnsPostProc, iostat=ierr)
+  call utl_tmg_start(181,'low-level--readNML')
+  read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
   if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProc)
-  ierr = fclos(nulnam)
+  call utl_tmg_stop(181)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
     call utl_abort('midas-ensPostProcess: must read either Trial or Analysis ensemble')
@@ -302,7 +305,7 @@ program midas_ensPostProcess
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
     !- Allocate and read control member Trl
-    call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+    call gsv_allocate( stateVectorCtrlTrl4D, tim_nstepobs, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -310,8 +313,8 @@ program midas_ensPostProcess
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt=0, &
                          copyToRamDisk_opt=.false.)
-    do stepIndex = 1, tim_nstepobsinc
-      call gio_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+    do stepIndex = 1, tim_nstepobs
+      call gio_readFromFile( stateVectorCtrlTrl4D, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
@@ -319,7 +322,7 @@ program midas_ensPostProcess
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call epp_postProcess(ensembleTrl, ensembleAnl, &
-                       stateVectorHeightSfc, stateVectorCtrlTrl, &
+                       stateVectorHeightSfc, stateVectorCtrlTrl4D, &
                        writeTrlEnsemble)
 
   !
@@ -327,6 +330,7 @@ program midas_ensPostProcess
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
+  call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

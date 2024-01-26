@@ -297,6 +297,8 @@ CONTAINS
                                containsFullField_opt=.true.)
       end do
 
+      ierr = ram_remove(fileName)
+
       call gsv_getField(statevector_steeringFlow, uu_steeringFlow_ptr4d, 'UU')
       call gsv_getField(statevector_steeringFlow, vv_steeringFlow_ptr4d, 'VV')
 

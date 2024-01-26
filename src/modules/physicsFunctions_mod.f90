@@ -45,7 +45,7 @@ module physicsFunctions_mod
      implicit none
 
      ! Locals:
-     integer            :: NULNAM,IERR,FNOM,FCLOS
+     integer            :: IERR
      logical            :: validOption
      NAMELIST /NAMPHY/ saturationCurve
 
@@ -59,11 +59,10 @@ module physicsFunctions_mod
               'NAMPHY is missing in the namelist. Default values will be taken.', mpiAll_opt=.False.)
        else
          ! Reading the namelist
-         nulnam = 0
-         ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-         read(nulnam, nml=namphy, iostat=ierr)
+         call utl_tmg_start(181,'low-level--readNML')
+         read(utl_flnml, nml=namphy, iostat=ierr)
          if ( ierr /= 0) call utl_abort('tetens_coefs: Error reading namelist')
-         ierr = fclos(nulnam)
+         call utl_tmg_stop(181)
        end if
 
        validOption = (trim(saturationCurve) == 'Tetens_1930'  .or.  &

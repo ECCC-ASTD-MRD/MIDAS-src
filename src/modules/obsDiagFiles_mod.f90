@@ -292,7 +292,7 @@ module obsDiagFiles_mod
       call fSQL_exec_stmt (stmtHeader)
 
       BODY: do bodyIndex = obsRln, obsNlv + obsRln -1
-         
+
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM , bodyIndex)
         obsFlag       = obs_bodyElem_i(obsdat, OBS_FLG , bodyIndex)
         vertCoordType = obs_bodyElem_i(obsdat, OBS_VCO , bodyIndex)
@@ -430,7 +430,7 @@ module obsDiagFiles_mod
         numberInsertions = numberInsertions + 1
 
         if ( present( ensObs_opt ) ) then
-          if ( .not. allocated(ensObs_opt%Yb_r4) ) then
+          if ( .not. associated(ensObs_opt%Yb_r4) ) then
             call utl_abort('diaf_writeSqlDiagFile: ensObs%Yb_r4 must be allocated and it is not')
           end if
           ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
@@ -443,7 +443,7 @@ module obsDiagFiles_mod
             call fSQL_bind_param(stmtEnsObs, param_index = 2, int_var  = idObs)
             call fSQL_bind_param(stmtEnsObs, param_index = 3, int_var  = memberIndex)
             call fSQL_bind_param(stmtEnsObs, param_index = 4, real_var = ENSOBSTRL)
-            if ( allocated(ensObs_opt%Ya_r4) ) then
+            if ( associated(ensObs_opt%Ya_r4) ) then
               ENSOBSANL = ensObs_opt%Ya_r4(memberIndex,bodyIndex)
               call fSQL_bind_param(stmtEnsObs, param_index = 5, real_var = ENSOBSANL)
             else
