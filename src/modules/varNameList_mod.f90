@@ -892,8 +892,6 @@ module varNameList_mod
                              !   3. found SST.
       logical, parameter :: beSilent = .true.
 
-      write(*,*) 'vnl_varNameNetCDF: DEBUG: varName: ', varName
-
       select case(trim(varName))
       case('SSH')
         varNameNetCDF = 'zos'

@@ -93,7 +93,7 @@ contains
     logical           :: beSilent
     character(len=12) :: etiket
     integer :: nultemplate,ierr
-    integer, parameter :: maxNumRecords = 1000
+    integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     integer :: ip1_sfc
@@ -482,7 +482,7 @@ contains
 
     ! Locals:
     integer :: nultemplate, ierr
-    integer, parameter :: maxNumRecords = 500
+    integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     character(len=10) :: blk_S

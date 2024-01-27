@@ -254,7 +254,8 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  
+  logical  :: ocean                ! ocean assimilation option to allow for decentered assimilation window
+ 
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -263,7 +264,7 @@ program midas_letkf
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug
+                     numRetainedEigen, debug, ocean
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -324,6 +325,7 @@ program midas_letkf
   writeLocalEnsObsToFile   = .false.
   numRetainedEigen         = 0
   debug                    = .false.
+  ocean                    = .false.
   
   !- 1.2 Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
@@ -536,7 +538,9 @@ program midas_letkf
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorRecenter)
     
-    call fln_ensTrlFileName(recenterFileName, './', tim_getDateStamp())
+    write(*,*) 'DEBUG: datestamp = ', tim_getDateStamp()
+    
+    call fln_ensTrlFileName(recenterFileName, './', tim_getDateStamp(), ocean_opt = ocean)
 
     do stepIndex = 1, tim_nstepobs
       call gio_readFromFile(stateVectorRecenter, recenterFileName, ' ', ' ',  &
