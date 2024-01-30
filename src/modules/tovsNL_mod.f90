@@ -128,27 +128,27 @@ module tovsNL_mod
   real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
   real(pre_obsReal), parameter :: tvs_defaultEmissivity = 0.95
 
-  integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
-  integer, parameter :: tvs_maxNumberOfChannels = 2211  ! Max. no. of channels (for one profile/spectra)
-  integer, parameter :: tvs_maxNumberOfSensors  = 100   ! Max no sensors to be used
-  integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
+  integer, parameter :: tvs_maxChannelNumber    = 8461 ! Max. value for channel number
+  integer, parameter :: tvs_maxNumberOfChannels = 2211 ! Max. no. of channels (for one profile/spectra)
+  integer, parameter :: tvs_maxNumberOfSensors  = 100  ! Max no sensors to be used
+  integer, parameter :: tvs_nlevels             = 101  ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
 
   ! Module variables
-  integer, allocatable :: tvs_bodyIndexFromBtIndex(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
-  integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
+  integer, allocatable :: tvs_bodyIndexFromBtIndex(:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
+  integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:) ! Provides RttovScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
   integer, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
   integer, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
-  integer, allocatable :: tvs_nchanMpiGlobal(:)     ! Number of channels per instrument (global)
+  integer, allocatable :: tvs_nchanMpiGlobal(:)    ! Number of channels per instrument (global)
   integer, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
   integer, allocatable :: tvs_lsensor(:)           ! Sensor number for each profile
-  integer, allocatable :: tvs_headerIndex (:)      ! Observation position in obsSpaceData header for each profile
-  integer, allocatable :: tvs_tovsIndex (:)        ! Index in TOVS structures for each observation header in obsSpaceData
+  integer, allocatable :: tvs_headerIndex(:)       ! Observation position in obsSpaceData header for each profile
+  integer, allocatable :: tvs_tovsIndex(:)         ! Index in TOVS structures for each observation header in obsSpaceData
   logical, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
   logical, allocatable :: tvs_isReallyPresentMpiGLobal(:)   ! Logical flag to identify instruments really assimilated (global)
   integer, allocatable :: tvs_listSensors(:,:)     ! Sensor list
   type (rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   type(surface_params), allocatable :: tvs_surfaceParameters(:) ! surface parameters 
-  integer tvs_nobtov                               ! Number of tovs observations
+  integer tvs_nobtov                               ! Number of tovs observations (FOVs)
   integer tvs_nsensors                             ! Number of individual sensors.
   integer tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
   integer tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
@@ -186,7 +186,7 @@ module tovsNL_mod
   ! Derived typeso
   type(rttov_coefs), allocatable           :: tvs_coefs(:)          ! rttov coefficients
   type(rttov_options), allocatable         :: tvs_opts(:)           ! rttov options
-  type(rttov_scatt_coef),allocatable       :: tvs_coef_scatt(:)     ! rttovscatt coefficients
+  type(rttov_scatt_coef), allocatable      :: tvs_coef_scatt(:)     ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable   :: tvs_opts_scatt(:)     ! rttovscatt options
   type(rttov_profile), target, allocatable :: tvs_profiles_nl(:)    ! all profiles on trial vertical coordinate for nl obs operator
   type(rttov_profile), target, allocatable :: tvs_profiles_tlad(:)  ! all profiles on increments vertical coordinates for linearized obs. operator
@@ -326,9 +326,9 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
-
+    
     ! Locals:
-    integer :: allocStatus(9)
+    integer :: allocStatus(11)
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
     integer :: tovsIndex, idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
@@ -337,7 +337,7 @@ contains
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
     logical, allocatable :: logicalBuffer(:)
-    character(len=32) :: hydroTableFilename
+    character(len=32) :: hydroTableFileName
 
     if (tvs_nsensors == 0) return
 
@@ -347,16 +347,16 @@ contains
 
     write(*,*) 'tvs_setupAlloc: Starting' 
 
-    allocStatus = 0
-    allocate (tvs_nchan(tvs_nsensors),                         stat= allocStatus(1))
-    allocate (tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors), stat= allocStatus(2))
-    allocate (tvs_lsensor(obs_numheader(obsSpaceData)),        stat= allocStatus(3))
-    allocate (tvs_headerIndex (obs_numheader(obsSpaceData)),   stat= allocStatus(4))
-    allocate (tvs_tovsIndex(obs_numheader(obsSpaceData)),      stat= allocStatus(5))
-    allocate (tvs_isReallyPresent(tvs_nsensors),               stat= allocStatus(6))
-    allocate (tvs_nchanMpiGlobal(tvs_nsensors),                stat= allocStatus(7))
-    allocate (tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors), stat= allocStatus(8))
-    allocate (tvs_isReallyPresentMpiGlobal(tvs_nsensors), stat= allocStatus(9))
+    allocStatus(:) = 0
+    allocate(tvs_nchan(tvs_nsensors),                                  stat=allocStatus(1))
+    allocate(tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors),          stat=allocStatus(2))
+    allocate(tvs_lsensor(obs_numheader(obsSpaceData)),                 stat=allocStatus(3))
+    allocate(tvs_headerIndex (obs_numheader(obsSpaceData)),            stat=allocStatus(4))
+    allocate(tvs_tovsIndex(obs_numheader(obsSpaceData)),               stat=allocStatus(5))
+    allocate(tvs_isReallyPresent(tvs_nsensors),                        stat=allocStatus(6))
+    allocate(tvs_nchanMpiGlobal(tvs_nsensors),                         stat=allocStatus(7))
+    allocate(tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors), stat=allocStatus(8))
+    allocate(tvs_isReallyPresentMpiGlobal(tvs_nsensors),               stat=allocStatus(9))
 
     call utl_checkAllocationStatus(allocStatus, ' tvs_setupAlloc')
 
@@ -366,7 +366,6 @@ contains
     tvs_lsensor(:) = -1
     tvs_headerIndex(:) = -1
     tvs_tovsIndex (:) = -1
-
     tvs_nobtov = 0
 
     ! Loop over all header indices of the 'TO' family
@@ -401,7 +400,7 @@ contains
         call utl_abort('tvs_setupAlloc')
       end if
       !    find sensor number for this obs.
-      nosensor =0
+      nosensor = 0
       do sensorIndex = 1, tvs_nsensors
         if ( iplatform == tvs_platforms  (sensorIndex) .and. &
              isat      == tvs_satellites (sensorIndex) .and. &
@@ -413,8 +412,8 @@ contains
 
       if (nosensor > 0) then
         tvs_lsensor(tvs_nobtov) = nosensor
-        tvs_headerIndex (tvs_nobtov) = headerIndex
-        tvs_tovsIndex (headerIndex) = tvs_nobtov
+        tvs_headerIndex(tvs_nobtov) = headerIndex
+        tvs_tovsIndex(headerIndex) = tvs_nobtov
       else
         write(*,*) ' tvs_setupAlloc: Warning Invalid Sensor ', iplatform, isat, instrum, ' skipping ...'
       end if
@@ -427,8 +426,8 @@ contains
         if (bodyIndex < 0) exit BODY
         if (nosensor > 0) then
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                                                channelNumber, channelIndex )
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                               channelNumber, channelIndex )
             if ( channelIndex == 0 ) then
               tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
               tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
@@ -477,7 +476,7 @@ contains
     do sensorIndex = 1, tvs_nsensors
       call isort(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex))
       if ( tvs_nchan(sensorIndex) == 0 ) then
-        tvs_isReallyPresent ( sensorIndex ) =.false.
+        tvs_isReallyPresent(sensorIndex) = .false.
         tvs_nchan(sensorIndex) = 1
         tvs_ichan(1,sensorIndex) = 1
       end if
@@ -487,7 +486,7 @@ contains
 
     do sensorIndex = 1, tvs_nsensors
       call tvs_getCommonChannelSet(tvs_ichan(:,sensorIndex),tvs_nchanMpiGlobal(sensorIndex), tvs_ichanMpiGlobal(:,sensorIndex))
-      print *, 'sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
+      write(*,*) 'sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
     end do
 
     if (mmpi_myid ==0) then
@@ -527,12 +526,12 @@ contains
 
       write(*,'(//,10x,A)') '-rttov_setup: initializing the TOVS radiative transfer model'
 
-      allocate (tvs_coefs(tvs_nsensors)          ,stat= allocStatus(1))
-      allocate (tvs_listSensors (3,tvs_nsensors) ,stat= allocStatus(2))
-      allocate (tvs_opts (tvs_nsensors)          ,stat= allocStatus(3))
+      allocate(tvs_coefs(tvs_nsensors),          stat=allocStatus(1))
+      allocate(tvs_listSensors(3,tvs_nsensors),  stat=allocStatus(2))
+      allocate(tvs_opts(tvs_nsensors),           stat=allocStatus(3))
       if (tvs_numMWInstrumUsingHydrometeors  > 0) then
-        allocate (tvs_opts_scatt (tvs_nsensors) ,stat= allocStatus(4))
-        allocate (tvs_coef_scatt (tvs_nsensors) ,stat= allocStatus(5))
+        allocate(tvs_opts_scatt(tvs_nsensors),  stat=allocStatus(4))
+        allocate(tvs_coef_scatt(tvs_nsensors),  stat=allocStatus(5))
       end if
       call utl_checkAllocationStatus(allocStatus(1:5), ' tvs_setupAlloc before rttov initialization')
 
@@ -612,12 +611,12 @@ contains
           call tvs_rttov_read_coefs(errorStatus, tvs_coefs(sensorIndex), tvs_opts(sensorIndex), & 
                tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         else
-          call rttov_read_coefs (                               &
-               errorStatus,                                     &! out
-               tvs_coefs(sensorIndex),                          &
-               tvs_opts(sensorIndex),                           &
-               instrument= tvs_listSensors(:,sensorIndex),      &! in
-               channels=  tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) )     ! in option
+          call rttov_read_coefs(                               &
+               errorStatus,                                    &! out
+               tvs_coefs(sensorIndex),                         &
+               tvs_opts(sensorIndex),                          &
+               instrument=tvs_listSensors(:,sensorIndex),      &! in
+               channels=tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) ) ! in option
         end if
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
@@ -625,12 +624,12 @@ contains
         end if
        
         if (runObsOperatorWithHydrometeors) then
-          hydrotableFilename = 'hydrotable_' // trim(platform_name(tvs_platforms(sensorIndex))) // '_' // &
+          hydrotableFileName = 'hydrotable_' // trim(platform_name(tvs_platforms(sensorIndex))) // '_' // &
                trim(inst_name(tvs_instruments(sensorIndex))) // '.dat'
           call rttov_read_scattcoeffs(errorStatus, tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
                tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
           if (errorStatus /= errorStatus_success) then
-            write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
+            write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFileName
             call utl_abort('tvs_setupAlloc')
           end if
         end if
@@ -652,7 +651,7 @@ contains
 
       ! Radiance by profile
 
-      allocate( tvs_radiance(tvs_nobtov) ,stat= allocStatus(1))
+      allocate(tvs_radiance(tvs_nobtov), stat=allocStatus(1))
 
       call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_setupAlloc radiances 1')
   
@@ -660,10 +659,10 @@ contains
         sensorIndex = tvs_lsensor(tovsIndex)
         if (sensorIndex > -1) then
           ! allocate BT equivalent to total direct, tl and ad radiance output
-          allocate( tvs_radiance(tovsIndex)  % bt  ( tvs_nchan(sensorIndex) ) ,stat= allocStatus(1))
-          tvs_radiance(tovsIndex)  % bt  ( : ) = 0.d0
+          allocate(tvs_radiance(tovsIndex) % bt (tvs_nchan(sensorIndex)), stat=allocStatus(1))
+          tvs_radiance(tovsIndex) % bt (:) = 0.d0
           call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_setupAlloc radiances 2')
-          nullify (tvs_radiance(tovsIndex)  % clear )
+          nullify (tvs_radiance(tovsIndex) % clear)
         end if
       end do
 
@@ -696,7 +695,7 @@ contains
         profiles => tvs_profiles_tlad
         if (present(cld_profiles_opt)) cld_profiles_opt => tvs_cld_profiles_tlad
       case default
-        call utl_abort('tvs_getProfile: invalid profileType ' // profileType )
+        call utl_abort('tvs_getProfile: invalid profileType ' // profileType)
     end select
 
   end subroutine tvs_getProfile
@@ -720,15 +719,15 @@ contains
     integer :: allocStatus(2), jo, isens, nc
 
     allocStatus(:) = 0
-    allocate( tvs_transmission(tvs_nobtov), stat=allocStatus(1))
+    allocate(tvs_transmission(tvs_nobtov), stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_allocTransmission')
 
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
       nc = tvs_nchan(isens)
       ! allocate transmittance from surface and from pressure levels
-      allocate( tvs_transmission(jo) % tau_total(nc),     stat= allocStatus(1))
-      allocate( tvs_transmission(jo) % tau_levels(nlevels,nc), stat= allocStatus(2))
+      allocate(tvs_transmission(jo) % tau_total(nc)         , stat=allocStatus(1))
+      allocate(tvs_transmission(jo) % tau_levels(nlevels,nc), stat=allocStatus(2))
       call utl_checkAllocationStatus(allocStatus, ' tvs_allocTransmission')
     end do
 
@@ -968,7 +967,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_cleanup
     !
-    ! :Purpose: release memory used by RTTOV-12.
+    ! :Purpose: release memory used by RTTOV.
     !
     implicit none
 
@@ -976,7 +975,7 @@ contains
     integer :: allocStatus(8)
     integer :: iSensor,iObs,nChans,nl
 
-    Write(*,*) 'tvs_cleanup: Starting'
+    write(*,*) 'tvs_cleanup: Starting'
 
     allocStatus(:) = 0
 
@@ -988,11 +987,11 @@ contains
         iSensor = tvs_lsensor(iObs)
         nchans = tvs_nchan(isensor)
         ! deallocate BT equivalent to total direct, tl and ad radiance output
-        deallocate( tvs_radiance(iObs)  % bt ,stat= allocStatus(1))
+        deallocate(tvs_radiance(iObs) % bt, stat=allocStatus(1))
         call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_cleanup radiances 1',.false.)
       end do
 
-      deallocate( tvs_radiance ,stat= allocStatus(1))
+      deallocate(tvs_radiance, stat=allocStatus(1))
       call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_cleanup radiances 2')
 
       do iObs = 1, tvs_nobtov
@@ -1012,30 +1011,30 @@ contains
 
       do iSensor = tvs_nsensors,1,-1
         call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
-        Write(*,*) 'Deallocating coefficient structure for instrument', iSensor
+        write(*,*) 'Deallocating coefficient structure for instrument', iSensor
         call utl_checkAllocationStatus(allocStatus(1:1), ' rttov_dealloc_coefs in tvs_cleanup', .false.)
       end do
 
-      deallocate (tvs_coefs       ,stat= allocStatus(1))
-      deallocate (tvs_listSensors ,stat= allocStatus(2))
-      deallocate (tvs_opts        ,stat= allocStatus(3))
+      deallocate(tvs_coefs       ,stat=allocStatus(1))
+      deallocate(tvs_listSensors ,stat=allocStatus(2))
+      deallocate(tvs_opts        ,stat=allocStatus(3))
 
       call utl_checkAllocationStatus(allocStatus(1:3), ' tvs_cleanup', .false.)
 
     end if
 
-    deallocate (tvs_nchan,          stat= allocStatus(1))
-    deallocate (tvs_ichan,          stat= allocStatus(2))
-    deallocate (tvs_lsensor,        stat= allocStatus(3))
-    deallocate (tvs_headerIndex,    stat= allocStatus(4))
-    deallocate (tvs_tovsIndex,      stat= allocStatus(5))
-    deallocate (tvs_isReallyPresent,stat= allocStatus(6))
-    deallocate (tvs_nchanMpiGlobal, stat= allocStatus(7))
-    deallocate (tvs_ichanMpiGlobal, stat= allocStatus(8))
+    deallocate (tvs_nchan,                     stat=allocStatus(1))
+    deallocate (tvs_ichan,                     stat=allocStatus(2))
+    deallocate (tvs_lsensor,                   stat=allocStatus(3))
+    deallocate (tvs_headerIndex,               stat=allocStatus(4))
+    deallocate (tvs_tovsIndex,                 stat=allocStatus(5))
+    deallocate (tvs_isReallyPresent,           stat=allocStatus(6))
+    deallocate (tvs_nchanMpiGlobal,            stat=allocStatus(7))
+    deallocate (tvs_ichanMpiGlobal,            stat=allocStatus(8))
 
     call utl_checkAllocationStatus(allocStatus, ' tvs_cleanup', .false.)
 
-    Write(*,*) 'tvs_cleanup: Finished'
+    write(*,*) 'tvs_cleanup: Finished'
 
   end subroutine tvs_cleanup
 
@@ -1051,17 +1050,17 @@ contains
     ! Locals:
     integer :: allocStatus(8)
 
-    Write(*,*) 'tvs_deallocateProfilesNlTlAd: Starting'
+    write(*,*) 'tvs_deallocateProfilesNlTlAd: Starting'
 
     allocStatus(:) = 0
 
     if ( radiativeTransferCode == 'RTTOV' ) then
-      if ( allocated(tvs_profiles_nl) ) deallocate(tvs_profiles_nl, stat=allocStatus(1))
+      if ( allocated(tvs_profiles_nl) )   deallocate(tvs_profiles_nl, stat=allocStatus(1))
       if ( allocated(tvs_profiles_tlad) ) deallocate(tvs_profiles_tlad, stat=allocStatus(2))
       call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_profiles_nl tvs_profiles_tlad', .false.)
     end if
 
-    Write(*,*) 'tvs_deallocateProfilesNlTlAd: Finished'
+    write(*,*) 'tvs_deallocateProfilesNlTlAd: Finished'
 
   end subroutine tvs_deallocateProfilesNlTlAd
 
@@ -2134,8 +2133,8 @@ contains
               end if
               if (selected) then
                 count =  count + 1
-                chanprof(count)%prof = profileIndex
-                chanprof(count)%chan = channelIndex
+                chanprof(count) % prof = profileIndex
+                chanprof(count) % chan = channelIndex
                 if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = bodyIndex
                 if (present( lchannel_subset_opt )) lchannel_subset_opt(profileIndex,channelIndex) = .true.
               end if
@@ -2159,8 +2158,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:)
-    type(struct_obs),  intent(inout) :: obsSpaceData
+    integer,           intent(in)    :: sensorTovsIndexes(:) ! pointer to radiance observations in obsSpaceData header
+    type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
     
     ! Locals:
     integer :: profileIndex, headerIndex, bodyIndex, iobs
@@ -2191,10 +2190,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:)
-    type(struct_obs),  intent(inout) :: obsSpaceData
-    integer,           intent(in)    :: scattChannelList(:)
-    integer,           intent(in)    :: sensorIndex
+    integer,           intent(in)    :: sensorTovsIndexes(:) ! pointer to radiance observations in obsSpaceData header
+    type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
+    integer,           intent(in)    :: scattChannelList(:)  ! list of channel numbers to process using RttovScatt
+    integer,           intent(in)    :: sensorIndex          ! sensor index in NAMTOV namelist section
     
     ! Locals:
     integer :: profileIndex, headerIndex, bodyIndex, iobs, channelNumber
@@ -2210,9 +2209,9 @@ contains
           if (bodyIndex < 0) exit BODY
           if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
+            channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
             channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-            if (utl_findloc(scattChannelList,channelNumber)>0) then
+            if (utl_findloc(scattChannelList,channelNumber) > 0) then
               tvs_countRadiancesScatt  = tvs_countRadiancesScatt + 1
             end if
           end if
@@ -2222,7 +2221,6 @@ contains
   
   end function tvs_countRadiancesScatt
 
- 
   !--------------------------------------------------------------------------
   !  tvs_ChangedStypValue(obsspacedata, headerIndex)
   !--------------------------------------------------------------------------
@@ -2308,7 +2306,7 @@ contains
     integer :: radiance_index, profileIndex, iobs, surfaceType
 
     do radiance_index = 1, size(chanprof)
-      profileIndex = chanprof(radiance_index)%prof
+      profileIndex = chanprof(radiance_index) % prof
       iobs = sensorTovsIndexes(profileIndex)
       surfaceType = tvs_profiles_nl(iobs) % skin % surftype
       if ( sensorType == sensor_id_mw ) then
@@ -2426,17 +2424,17 @@ contains
 
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(tvs_nobtov) , stat=allocStatus(1) )
-        if (tvs_numMWInstrumUsingHydrometeors  > 0) then
-          allocate(tvs_cld_profiles_nl(tvs_nobtov) , stat=allocStatus(2))
+        allocate(tvs_profiles_nl(tvs_nobtov), stat=allocStatus(1))
+        if (tvs_numMWInstrumUsingHydrometeors > 0) then
+          allocate(tvs_cld_profiles_nl(tvs_nobtov), stat=allocStatus(2))
         end if
         call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_fillProfiles tvs_profiles_nl')
       end if
     else if ( profileType == 'tlad' ) then
-      if ( .not. allocated( tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(tvs_nobtov) , stat=allocStatus(1) )
-        if (tvs_numMWInstrumUsingHydrometeors  > 0) then
-          allocate(tvs_cld_profiles_tlad(tvs_nobtov) , stat=allocStatus(2))
+      if ( .not. allocated(tvs_profiles_tlad) ) then
+        allocate(tvs_profiles_tlad(tvs_nobtov), stat=allocStatus(1))
+        if (tvs_numMWInstrumUsingHydrometeors > 0) then
+          allocate(tvs_cld_profiles_tlad(tvs_nobtov), stat=allocStatus(2))
         end if
         call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_fillProfiles tvs_profiles_tlad')
       else
@@ -2467,7 +2465,7 @@ contains
     end if
 
     vco => col_getVco(columnTrl)
-    Vcode = vco%Vcode
+    Vcode = vco % Vcode
 
     ierr = newdate(datestamp,ijour,itime,-3)
     if (ierr < 0) then
@@ -2506,33 +2504,33 @@ contains
 
       if (profileCount == 0) cycle sensor_loop
 
-      if (tvs_coefs(sensorIndex)%coef%fmv_model_ver >= 9) then
+      if (tvs_coefs(sensorIndex) % coef % fmv_model_ver >= 9) then
         zmax = zenmaxv9
       else
         zmax = zenmax
       end if
       
       allocStatus(:) = 0
-      allocate (sensorTovsIndexes(profileCount),                     stat = allocStatus(1) )
-      allocate (sensorHeaderIndexes(profileCount),                   stat = allocStatus(2) )
-      allocate (latitudes(profileCount),                             stat = allocStatus(3) )
-      allocate (ozone(nlv_T,profileCount),                           stat = allocStatus(4) ) 
-      allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
+      allocate(sensorTovsIndexes(profileCount),      stat=allocStatus(1) )
+      allocate(sensorHeaderIndexes(profileCount),    stat=allocStatus(2) )
+      allocate(latitudes(profileCount),              stat=allocStatus(3) )
+      allocate(ozone(nlv_T,profileCount),            stat=allocStatus(4) ) 
+      allocate(pressure(nlv_T,profileCount),         stat=allocStatus(5) )
       if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
-        allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
+        allocate(clw(nlv_T,profileCount), stat=allocStatus(6))
         clw(:,:) = qlim_getMinValueCloud('LWCR')
       end if
       if (runObsOperatorWithHydrometeors) then
-        allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
-        allocate (rainFlux  (nlv_T,profileCount),stat= allocStatus(8))
-        allocate (snowFlux  (nlv_T,profileCount),stat= allocStatus(9))
-        allocate (cloudFraction(nlv_T,profileCount),stat= allocStatus(10))
+        allocate(ciw          (nlv_T,profileCount), stat=allocStatus(7))
+        allocate(rainFlux     (nlv_T,profileCount), stat=allocStatus(8))
+        allocate(snowFlux     (nlv_T,profileCount), stat=allocStatus(9))
+        allocate(cloudFraction(nlv_T,profileCount), stat=allocStatus(10))
         ciw(:,:) = qlim_getMinValueCloud('IWCR')
         rainFlux(:,:) = qlim_getMinValueCloud('RF')
         snowFlux(:,:) = qlim_getMinValueCloud('SF')
         cloudFraction(:,:) = qlim_getMinValueCloud('CLDR')
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(11)) 
+      allocate(surfTypeIsWater(profileCount), stat=allocStatus(11)) 
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles')
@@ -2586,7 +2584,7 @@ contains
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
         profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
-        if (tvs_opts(sensorIndex)%rt_ir%addsolar) then
+        if (tvs_opts(sensorIndex) % rt_ir % addsolar) then
           call validateRttovVariable(profiles(tovsIndex) % sunzenangle, "sun zenith angle", &
               obsSpaceData, headerIndex, 0.d0)
         end if
@@ -2737,7 +2735,7 @@ contains
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
         call validateRttovProfile(profiles(tovsIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+        if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv over dry air                                                                                                            ! because atmosphere is very dry where there is significant absorption by ozone)
           if (.not. tvs_useO3Climatology)  then
             profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
@@ -2778,24 +2776,24 @@ contains
         end if  ! runObsOperatorWithClw
       end do ! profileIndex
 
-      deallocate (pressure,            stat = allocStatus(2))
-      deallocate (ozone,               stat = allocStatus(3))
-      deallocate (latitudes,           stat = allocStatus(4))
-      deallocate (sensorHeaderIndexes, stat = allocStatus(5))
-      deallocate (sensorTovsIndexes,   stat = allocStatus(6))
-      if (tvs_coefs(sensorIndex) %coef %nozone > 0 .and. .not.tvs_useO3Climatology) then
-        deallocate (ozone,             stat = allocStatus(7))
+      deallocate(pressure,            stat=allocStatus(2))
+      deallocate(ozone,               stat=allocStatus(3))
+      deallocate(latitudes,           stat=allocStatus(4))
+      deallocate(sensorHeaderIndexes, stat=allocStatus(5))
+      deallocate(sensorTovsIndexes,   stat=allocStatus(6))
+      if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. .not.tvs_useO3Climatology) then
+        deallocate(ozone,             stat=allocStatus(7))
       end if
-      if ( allocated(clw) ) then
-        deallocate (clw,      stat= allocStatus(8))
+      if (allocated(clw)) then
+        deallocate(clw,      stat=allocStatus(8))
       end if
-      if ( allocated(ciw) ) then
-        deallocate (ciw,      stat= allocStatus(9))
-        deallocate (rainFlux, stat= allocStatus(10))
-        deallocate (snowFlux, stat= allocStatus(11))
-        deallocate (cloudFraction, stat= allocStatus(12))
+      if (allocated(ciw)) then
+        deallocate(ciw,           stat=allocStatus(9))
+        deallocate(rainFlux,      stat=allocStatus(10))
+        deallocate(snowFlux,      stat=allocStatus(11))
+        deallocate(cloudFraction, stat=allocStatus(12))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(13))
+      deallocate(surfTypeIsWater, stat=allocStatus(13))
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles', .false.)
      
@@ -2865,14 +2863,14 @@ contains
     integer :: allocStatus(4)
     integer :: rttov_err_stat ! rttov error return code
     integer :: nthreads,max_nthreads
-    integer :: sensorId, tovsIndex
-    integer :: channelIndex, channelIndexFound, channelNumber
+    integer :: sensorIndex, tovsIndex
+    integer :: channelIndex, channelNumber
     integer :: hydroSensorIndex, hydroChannelsCount
     integer :: profileCount
     integer :: profileIndex, levelIndex, jj, btIndex
     integer :: instrum
     integer :: sensorType        ! sensor type (1=infrared; 2=microwave; 3=high resolution,4=polarimetric)
-    integer, allocatable:: sensorTovsIndexes(:)
+    integer, allocatable :: sensorTovsIndexes(:)
     type (rttov_emissivity), pointer :: emissivity_local(:)    ! emissivity structure with input and output
     type (rttov_emissivity), pointer :: emissivity_localScatt(:)    ! emissivity structure with input and output
     type (rttov_chanprof), pointer :: chanprof(:)
@@ -2888,7 +2886,6 @@ contains
     integer               :: profileIndex2, tb1, tb2
     integer :: istart, iend, bodyIndex, headerIndex
     real(8) :: clearMwRadiance
-    logical :: ifBodyIndexFound
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
     logical :: SimSfcEmiss
@@ -2909,7 +2906,7 @@ contains
     end if
 
     allocStatus(:) = 0
-    allocate(sensorTovsIndexes(tvs_nobtov),stat=allocStatus(1))
+    allocate(sensorTovsIndexes(tvs_nobtov), stat=allocStatus(1))
     call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
     
     !   1.1   Read surface information
@@ -2918,12 +2915,12 @@ contains
     !   2.  Computation of hx for tovs data only
 
     ! Loop over all sensors specified by user
-    sensor_loop:do sensorId = 1, tvs_nsensors
+    sensor_loop:do sensorIndex = 1, tvs_nsensors
 
-      sensorType = tvs_coefs(sensorId) % coef % id_sensor
-      instrum = tvs_coefs(sensorId) % coef % id_inst
+      sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
+      instrum = tvs_coefs(sensorIndex) % coef % id_inst
       
-      hydroSensorIndex = tvs_getHydrometeorsIndex(tvs_instruments(sensorId))
+      hydroSensorIndex = tvs_getHydrometeorsIndex(tvs_instruments(sensorIndex))
       hydroChannelsCount = 0
       if ( hydroSensorIndex > 0 ) then
         do channelIndex = 1, tvs_maxNumberOfChannels
@@ -2937,17 +2934,17 @@ contains
       end if
       
       runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
-          tvs_isInstrumUsingCLW(tvs_instruments(sensorId)) )
+          tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)) )
           
       runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
-          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId))            .and. &
+          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex))            .and. &
           hydroChannelsCount >0 )
     
       !  loop over all obs.
       profileCount = 0
       obs_loop: do tovsIndex = 1, tvs_nobtov  
         !    Currently processed sensor?
-        if ( tvs_lsensor(tovsIndex) == sensorId ) then
+        if ( tvs_lsensor(tovsIndex) == sensorIndex ) then
           profileCount = profileCount + 1
           sensorTovsIndexes(profileCount) = tovsIndex
           nlv_T = tvs_profiles_nl(tovsIndex) % nlevels
@@ -2963,13 +2960,13 @@ contains
       !    2.2  Prepare all input variables required by rttov.
       
       if ( bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
-        btCount = profileCount * tvs_nchan(sensorId)
+        btCount = profileCount * tvs_nchan(sensorIndex)
         btCountScatt = 0
       else
         btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData)
         if (runObsOperatorWithHydrometeors) then
           btCountScatt = tvs_countRadiancesScatt(sensorTovsIndexes(1:profileCount), obsSpaceData, &
-              tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), sensorId)
+              tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), sensorIndex)
         else
           btCountScatt = 0
         end if
@@ -2982,40 +2979,40 @@ contains
         if (allocated(tvs_bodyIndexFromBtIndex)) deallocate(tvs_bodyIndexFromBtIndex)
         allocate(tvs_bodyIndexFromBtIndex(btCount))
         tvs_bodyIndexFromBtIndex(:) = -1
-        call rttov_alloc_direct(        &
-            allocStatus(2),             &
-            asw=1,                      &
-            nprofiles=profileCount,     & ! (not used)
-            nchanprof=btCount,          &
-            nlevels=nlv_T,              &
-            chanprof=chanprof,          &
-            opts=tvs_opts(sensorId),    &
-            coefs=tvs_coefs(sensorId),  &
-            transmission=transmission,  &
-            radiance=radiancedata_d,    &
-            calcemis=calcemis,          &
-            emissivity=emissivity_local,&
+        call rttov_alloc_direct(         &
+            allocStatus(2),              &
+            asw=1,                       &
+            nprofiles=profileCount,      & ! (not used)
+            nchanprof=btCount,           &
+            nlevels=nlv_T,               &
+            chanprof=chanprof,           &
+            opts=tvs_opts(sensorIndex),  &
+            coefs=tvs_coefs(sensorIndex),&
+            transmission=transmission,   &
+            radiance=radiancedata_d,     &
+            calcemis=calcemis,           &
+            emissivity=emissivity_local, &
             init=.true.)
-        allocate ( surfem1          (btCount), stat=allocStatus(1))
+        allocate(surfem1(btCount), stat=allocStatus(1))
         if (useUofWIREmiss) then
-          allocate ( uOfWLandWSurfaceEmissivity(btCount), stat=allocStatus(4) )
+          allocate(uOfWLandWSurfaceEmissivity(btCount), stat=allocStatus(4))
         end if
         if ( tvs_isInstrumHyperSpectral(instrum) ) then
           !     get Hyperspectral IR emissivities
           surfem1(:) = 0.
           if ( bgckMode ) then
-            call emis_getIrEmissivity (surfem1,tvs_nchan(sensorId),sensorId,profileCount,btCount,sensorTovsIndexes)
+            call emis_getIrEmissivity (surfem1,tvs_nchan(sensorIndex),sensorIndex,profileCount,btCount,sensorTovsIndexes)
           else
             call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), obsSpaceData, surfem1)
           end if
         end if
         if ( bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
           btIndex = 0
-          do profileIndex = 1 , profileCount
-            do  channelIndex = 1,tvs_nchan(sensorId)
+          do profileIndex = 1, profileCount
+            do  channelIndex = 1, tvs_nchan(sensorIndex)
               btIndex = btIndex + 1
-              chanprof(btIndex)%prof = profileIndex
-              chanprof(btIndex)%chan = channelIndex
+              chanprof(btIndex) % prof = profileIndex
+              chanprof(btIndex) % chan = channelIndex
             end do
           end do
         
@@ -3028,7 +3025,7 @@ contains
                 call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                     channelNumber, channelIndex )
                 if (channelIndex > 0) then
-                  tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorId)+channelIndex) = bodyIndex
+                  tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorIndex)+channelIndex) = bodyIndex
                 else
                   write(*,*) 'tvs_rttov: strange channel number',channelNumber
                 end if
@@ -3037,40 +3034,40 @@ contains
           end do
         else
           if (btCountScatt > 0) then
-            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanProf, &
                 iptobs_cma_opt = tvs_bodyIndexFromBtIndex, &
                 channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
                 excludeChannelsFromList_opt=.true.)
           else
-            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+            call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanProf, &
                 iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
           end if
         end if
-        call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        call tvs_getOtherEmissivities(chanProf(1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
         if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
           if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
-          if ( .not. tvs_atlas(sensorId)%init) then
+          if ( .not. tvs_atlas(sensorIndex) % init) then
             call rttov_setup_emis_atlas( rttov_err_stat, &! out
-                tvs_opts(sensorId),                      &! in
-                tvs_profiles_nl(1)%date(2) ,             &! in
+                tvs_opts(sensorIndex),                   &! in
+                tvs_profiles_nl(1) % date(2) ,           &! in
                 atlas_type_ir,                           &! in
-                tvs_atlas(sensorId),                     &! in
+                tvs_atlas(sensorIndex),                  &! in
                 ir_atlas_ang_corr = .false.,             &! in
                 ir_atlas_read_std = .false.,             &! in
-                coefs = tvs_coefs(sensorId)  )
-            if (rttov_err_stat/=0) then
+                coefs = tvs_coefs(sensorIndex)  )
+            if (rttov_err_stat /= 0) then
               write(*,*) 'Error in rttov_atlas_setup IR',rttov_err_stat
               call utl_abort('tvs_rttov')
             end if
           end if
           
-          call rttov_get_emis( rttov_err_stat,                    & ! out
-              tvs_opts(sensorId),                                 & ! in
-              chanprof(1:btCount),                                & ! in
-              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)), & ! in
-              tvs_coefs(sensorId),                                & ! in
-              tvs_atlas(sensorId),                                & ! inout
-              uOfWLandWSurfaceEmissivity(1:btCount) )               ! out
+          call rttov_get_emis( rttov_err_stat,                       & ! out
+              tvs_opts(sensorIndex),                                 & ! in
+              chanprof(1:btCount),                                   & ! in
+              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),    & ! in
+              tvs_coefs(sensorIndex),                                & ! in
+              tvs_atlas(sensorIndex),                                & ! inout
+              uOfWLandWSurfaceEmissivity(1:btCount) )                  ! out
 
           if (rttov_err_stat /= 0) then
             write(*,*) 'Error in rttov_get_emis IR', rttov_err_stat
@@ -3080,7 +3077,7 @@ contains
           do profileIndex=1, profileCount !loop on profiles
             jj = sensorTovsIndexes(profileIndex)
             do btIndex=1, btCount !loop on channels
-              if (chanprof(btIndex)%prof==profileIndex) then
+              if (chanProf(btIndex) % prof==profileIndex) then
                 ! surftype: 0 land, 1 sea, 2 sea-ice
                 ! this logic is primitive and could be improved for example using
                 ! additional criteria based on emissivity_std and emissivity_flg
@@ -3095,26 +3092,26 @@ contains
                 ! other information that could be useful for quality control can be found in the in the profile_qc structure
                 ! Now we have the 'traditionnal' emissivity in surfem1(:)
                 ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-                if (tvs_profiles_nl(jj)% skin % surftype == surftype_land .and. &
+                if (tvs_profiles_nl(jj) % skin % surftype == surftype_land .and. &
                     uOfWLandWSurfaceEmissivity(btIndex) > 0.5 ) then
-                  emissivity_local(btIndex)%emis_in = uOfWLandWSurfaceEmissivity(btIndex)
+                  emissivity_local(btIndex) % emis_in = uOfWLandWSurfaceEmissivity(btIndex)
                 else
-                  emissivity_local(btIndex)%emis_in = surfem1(btIndex)
+                  emissivity_local(btIndex) % emis_in = surfem1(btIndex)
                 end if
               end if
             end do
           end do
 
         else if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
+          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanProf(1:btCount), &
               sensorTovsIndexes(1:profileCount))
           if (SimSfcEmiss) then
-            call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId, &
+            call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorIndex, &
                 tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
                 tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
           end if
         else
-          emissivity_local(:)%emis_in = surfem1(:)
+          emissivity_local(:) % emis_in = surfem1(:)
         end if
          !   2.3  Compute radiance with rttov_direct
 
@@ -3125,47 +3122,47 @@ contains
 
           ! allocate transmitance structure for 1 profile
           call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T, &
-              nchanprof=tvs_nchan(sensorId), asw=1, init=.true.)
+              nchanprof=tvs_nchan(sensorIndex), asw=1, init=.true.)
           ! allocate radiance structure for 1 profile
-          call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw=1, init=.true.)
+          call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=1, init=.true.)
           ! allocate chanprof for 1 profile
-          allocate(chanprof1(tvs_nchan(sensorId)))
-          do  channelIndex = 1, tvs_nchan(sensorId)
-            chanprof1(channelIndex)%prof = 1
-            chanprof1(channelIndex)%chan = channelIndex
+          allocate(chanprof1(tvs_nchan(sensorIndex)))
+          do  channelIndex = 1, tvs_nchan(sensorIndex)
+            chanprof1(channelIndex) % prof = 1
+            chanprof1(channelIndex) % chan = channelIndex
           end do
           
           do profileIndex2 = 1, profileCount
-            tb1 = 1 + (profileIndex2-1) * tvs_nchan(sensorId) 
-            tb2 = profileIndex2 * tvs_nchan(sensorId)
+            tb1 = 1 + (profileIndex2-1) * tvs_nchan(sensorIndex) 
+            tb2 = profileIndex2 * tvs_nchan(sensorIndex)
 
             call rttov_parallel_direct(                                                             &
                 rttov_err_stat,                                                                     & ! out
                 chanprof1,                                                                          & ! in
-                tvs_opts(sensorId),                                                                 & ! in
+                tvs_opts(sensorIndex),                                                              & ! in
                 tvs_profiles_nl(sensorTovsIndexes(profileIndex2):sensorTovsIndexes(profileIndex2)), & ! in
-                tvs_coefs(sensorId),                                                                & ! in
+                tvs_coefs(sensorIndex),                                                             & ! in
                 transmission1,                                                                      & ! inout
                 radiancedata_d1,                                                                    & ! inout
                 calcemis=calcemis(tb1:tb2),                                                         & ! in
                 emissivity=emissivity_local(tb1:tb2),                                               & ! inout
-                nthreads=nthreads )   
+                nthreads=nthreads )
 
             ! copy contents of single profile structures into complete structures
-            transmission%tau_total(tb1:tb2)             = transmission1%tau_total(:)
-            transmission%tau_levels(:,tb1:tb2)          = transmission1%tau_levels(:,:)
-            transmission%tausun_levels_path1(:,tb1:tb2) = transmission1%tausun_levels_path1(:,:)
-            transmission%tausun_levels_path2(:,tb1:tb2) = transmission1%tausun_levels_path2(:,:)
-            transmission%tausun_total_path1(tb1:tb2)    = transmission1%tausun_total_path1(:)
-            transmission%tausun_total_path2(tb1:tb2)    = transmission1%tausun_total_path2(:)
-            radiancedata_d%clear(tb1:tb2)      = radiancedata_d1%clear(:)
-            radiancedata_d%total(tb1:tb2)      = radiancedata_d1%total(:)
-            radiancedata_d%bt_clear(tb1:tb2)   = radiancedata_d1%bt_clear(:)
-            radiancedata_d%bt(tb1:tb2)         = radiancedata_d1%bt(:)
-            radiancedata_d%refl_clear(tb1:tb2) = radiancedata_d1%refl_clear(:)
-            radiancedata_d%refl(tb1:tb2)       = radiancedata_d1%refl(:)
-            radiancedata_d%overcast(:,tb1:tb2) = radiancedata_d1%overcast(:,:)
-            radiancedata_d%cloudy(tb1:tb2)     = radiancedata_d1%cloudy(:)
+            transmission % tau_total(tb1:tb2)             = transmission1 % tau_total(:)
+            transmission % tau_levels(:,tb1:tb2)          = transmission1 % tau_levels(:,:)
+            transmission % tausun_levels_path1(:,tb1:tb2) = transmission1 % tausun_levels_path1(:,:)
+            transmission % tausun_levels_path2(:,tb1:tb2) = transmission1 % tausun_levels_path2(:,:)
+            transmission % tausun_total_path1(tb1:tb2)    = transmission1 % tausun_total_path1(:)
+            transmission % tausun_total_path2(tb1:tb2)    = transmission1 % tausun_total_path2(:)
+            radiancedata_d % clear(tb1:tb2)      = radiancedata_d1 % clear(:)
+            radiancedata_d % total(tb1:tb2)      = radiancedata_d1 % total(:)
+            radiancedata_d % bt_clear(tb1:tb2)   = radiancedata_d1 % bt_clear(:)
+            radiancedata_d % bt(tb1:tb2)         = radiancedata_d1 % bt(:)
+            radiancedata_d % refl_clear(tb1:tb2) = radiancedata_d1 % refl_clear(:)
+            radiancedata_d % refl(tb1:tb2)       = radiancedata_d1 % refl(:)
+            radiancedata_d % overcast(:,tb1:tb2) = radiancedata_d1 % overcast(:,:)
+            radiancedata_d % cloudy(tb1:tb2)     = radiancedata_d1 % cloudy(:)
             
           end do
 
@@ -3173,9 +3170,9 @@ contains
           deallocate(chanprof1)
           ! transmittance deallocation for 1 profile
           call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T,  &
-              nchanprof=tvs_nchan(sensorId), asw=0 )
+              nchanprof=tvs_nchan(sensorIndex), asw=0 )
           ! radiance deallocation for 1 profile
-          call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw=0)
+          call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=0)
 
         else
 
@@ -3189,10 +3186,10 @@ contains
                                            beSilent=.true.)
             call rttov_parallel_direct(                                &
                  rttov_err_stat,                                       & ! out
-                 chanprof,                                             & ! in
-                 tvs_opts(sensorId),                                   & ! in
+                 chanProf(1:btCount),                                  & ! in
+                 tvs_opts(sensorIndex),                                & ! in
                  tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),   & ! in
-                 tvs_coefs(sensorId),                                  & ! in
+                 tvs_coefs(sensorIndex),                               & ! in
                  transmission,                                         & ! inout
                  radiancedata_d,                                       & ! inout
                  calcemis=calcemis,                                    & ! in
@@ -3200,34 +3197,13 @@ contains
                  nthreads=nthreads      )   
 
             ! save in obsSpaceData
-            loopClearSky1: do btIndex = 1, btCount
-              profileIndex = chanprof(btIndex)%prof
-              channelIndex = chanprof(btIndex)%chan
-              tovsIndex = sensorTovsIndexes(profileIndex)
-
+            do btIndex = 1, btCount
               clearMwRadiance = radiancedata_d % bt(btIndex)
-              
-              headerIndex = tvs_headerIndex(tovsIndex)
-              if ( headerIndex < 1 ) cycle loopClearSky1
-              istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-              iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
-              
-              ifBodyIndexFound = .false.
-              loopClearSky2: do bodyIndex = istart, iend
-                call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                    channelNumber, channelIndexFound )
-                if ( channelIndex == channelIndexFound ) then
-                  ifBodyIndexFound = .true.
-                  exit loopClearSky2
-                end if
-              end do loopClearSky2
-
-              if ( .not. ifBodyIndexFound ) call utl_abort('tvs_rttov: bodyIndex not found.')
-
+              bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
               if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
                 call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
               end if
-            end do loopClearSky1
+            end do
 
              ! tvs_profiles_nl
             call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
@@ -3236,14 +3212,14 @@ contains
                                           beSilent=.true.)
           end if
 
-          if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorID, profileCount, btCount
+          if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorIndex, profileCount, btCount
           
           call rttov_parallel_direct(                              &
               rttov_err_stat,                                      & ! out
-              chanprof,                                            & ! in
-              tvs_opts(sensorId),                                  & ! in
+              chanProf(1:btCount),                                 & ! in
+              tvs_opts(sensorIndex),                               & ! in
               tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
-              tvs_coefs(sensorId),                                 & ! in
+              tvs_coefs(sensorIndex),                              & ! in
               transmission,                                        & ! inout
               radiancedata_d,                                      & ! inout
               calcemis=calcemis,                                   & ! in
@@ -3260,28 +3236,28 @@ contains
           call tvs_allocTransmission(nlv_T)
         end if
         do btIndex = 1, btCount
-          profileIndex = chanprof(btIndex)%prof
-          channelIndex = chanprof(btIndex)%chan
+          profileIndex = chanProf(btIndex) % prof
+          channelIndex = chanProf(btIndex) % chan
           tovsIndex = sensorTovsIndexes(profileIndex)
           tvs_radiance(tovsIndex) % bt(channelIndex) = radiancedata_d % bt(btIndex)
 
           if ( bgckMode ) then
-            if ( .not. associated(tvs_radiance(tovsIndex)  % clear)) then 
+            if ( .not. associated(tvs_radiance(tovsIndex) % clear)) then 
               allocStatus = 0
-              allocate( tvs_radiance(tovsIndex)  % clear  ( tvs_nchan(sensorId)  ), stat= allocStatus(1) )
+              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex)  ), stat=allocStatus(1))
               !  allocate overcast black cloud sky radiance output
-              allocate( tvs_radiance(tovsIndex)  % overcast  (nlv_T - 1, tvs_nchan(sensorId) ), stat=allocStatus(2))
+              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T - 1, tvs_nchan(sensorIndex) ), stat=allocStatus(2))
               call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_rttov')
             end if
             tvs_radiance(tovsIndex) % clear(channelIndex) =  &
-                radiancedata_d %clear(btIndex)
+                radiancedata_d % clear(btIndex)
             do levelIndex = 1, nlv_T - 1
               tvs_radiance(tovsIndex) % overcast(levelIndex,channelIndex) =   &
                   radiancedata_d % overcast(levelIndex,btIndex)
             end do
           end if
 
-          if ( allocated( tvs_transmission) ) then
+          if (allocated(tvs_transmission)) then
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
@@ -3291,8 +3267,8 @@ contains
                 transmission % tau_total(btIndex)
           end if
 
-          if ( allocated(tvs_emissivity) ) then
-            tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex)%emis_out
+          if (allocated(tvs_emissivity)) then
+            tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex) % emis_out
           end if
           
         end do
@@ -3301,38 +3277,34 @@ contains
         if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData,OBS_SSEM)) then
           do btIndex = 1, btCount
             bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-            profileIndex = chanprof(btIndex)%prof
-            tovsIndex = sensorTovsIndexes(profileIndex)
-            headerIndex = tvs_headerIndex(tovsIndex)
             if (bodyIndex > 0) then
               if (obs_bodyElem_r(obsSpaceData,OBS_SSEM,bodyIndex) == MPC_missingValue_R8) then
-                call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+                call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex) % emis_out)
               end if
             end if
           end do
         end if
 
         !    Deallocate memory
-        call rttov_alloc_direct(        &
-            allocStatus(1),             &
-            asw=0,                      &
-            nprofiles=profileCount,     & ! (not used)
-            nchanprof=btCount,          &
-            nlevels=nlv_T,              &
-            chanprof=chanprof,          &
-            opts=tvs_opts(sensorId),    &
-            coefs=tvs_coefs(sensorId),  &
-            transmission=transmission,  &
-            radiance=radiancedata_d,    &
-            calcemis=calcemis,          &
-            emissivity=emissivity_local,&
+        call rttov_alloc_direct(         &
+            allocStatus(1),              &
+            asw=0,                       &
+            nprofiles=profileCount,      & ! (not used)
+            nchanprof=btCount,           &
+            nlevels=nlv_T,               &
+            chanprof=chanprof,           &
+            opts=tvs_opts(sensorIndex),  &
+            coefs=tvs_coefs(sensorIndex),&
+            transmission=transmission,   &
+            radiance=radiancedata_d,     &
+            calcemis=calcemis,           &
+            emissivity=emissivity_local, &
             init=.true.)
-        
- 
+         
         if (useUofWIREmiss) then
-          deallocate ( uOfWLandWSurfaceEmissivity  ,stat=allocStatus(2) )
+          deallocate(uOfWLandWSurfaceEmissivity, stat=allocStatus(2))
         end if
-        deallocate ( surfem1    ,stat=allocStatus(3) )
+        deallocate(surfem1, stat=allocStatus(3))
         call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
       end if
       
@@ -3341,8 +3313,8 @@ contains
         allocate(tvs_bodyIndexFromBtIndexScatt(btCountScatt))
         tvs_bodyIndexFromBtIndexScatt(:) = -1
          
-        allocate ( surfem1Scatt     (btCountScatt), stat=allocStatus(2))
-        allocate ( frequencies      (btCountScatt), stat=allocStatus(3))
+        allocate(surfem1Scatt(btCountScatt), stat=allocStatus(2))
+        allocate(frequencies (btCountScatt), stat=allocStatus(3))
         call rttov_alloc_direct(             &
             allocStatus(2),                  &
             asw=1,                           &
@@ -3350,32 +3322,32 @@ contains
             nchanprof=btCountScatt,          &
             nlevels=nlv_T,                   &
             chanprof=chanprofScatt,          &
-            opts=tvs_opts(sensorId),         &
-            coefs=tvs_coefs(sensorId),       &
+            opts=tvs_opts(sensorIndex),      &
+            coefs=tvs_coefs(sensorIndex),    &
             radiance=radiancedata_dScatt,    &
             calcemis=calcemisScatt,          &
             emissivity=emissivity_localScatt,&
             init=.true.)
-        allocate ( lchannel_subset  (profileCount,tvs_nchan(sensorId)), stat=allocStatus(4))
-        call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprofScatt, &
+        allocate (lchannel_subset(profileCount,tvs_nchan(sensorIndex)), stat=allocStatus(4))
+        call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanProfScatt(1:btCountScatt), &
             lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndexScatt, &
             channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount))
-        call rttov_scatt_setupindex (  &
-            rttov_err_stat,            &
-            profileCount,              &  ! number of profiles
-            tvs_nchan(sensorId),       &  ! number of channels 
-            tvs_coefs(sensorId),       &  ! coef structure read in from rttov coef file
-            tvs_coef_scatt(sensorId),  &  ! 
-            btcountScatt,              &  ! number of calculated channels
-            chanprofScatt,             &  ! channels and profile numbers
-            frequencies,               &  ! array, frequency number for each channel
-            lchannel_subset )             ! OPTIONAL array of logical flags to indicate a subset of channels
-        deallocate( lchannel_subset )
-        call tvs_getOtherEmissivities(chanprofScatt, sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
-        call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorId, chanprofScatt, &
+        call rttov_scatt_setupindex(                       &
+            rttov_err_stat,                                &
+            profileCount,                                  &  ! number of profiles
+            tvs_nchan(sensorIndex),                        &  ! number of channels 
+            tvs_coefs(sensorIndex),                        &  ! coef structure read in from rttov coef file
+            tvs_coef_scatt(sensorIndex),                   &  ! 
+            btCountScatt,                                  &  ! number of calculated channels
+            chanProfScatt(1:btCountScatt),                 &  ! channels and profile numbers
+            frequencies,                                   &  ! array, frequency number for each channel
+            lchannel_subset )                                 ! OPTIONAL array of logical flags to indicate a subset of channels
+        deallocate(lchannel_subset)
+        call tvs_getOtherEmissivities(chanProfScatt(1:btCountScatt), sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
+        call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, chanProfScatt(1:btCountScatt), &
             sensorTovsIndexes(1:profileCount))
         if (SimSfcEmiss) then
-          call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_localScatt, sensorId, &
+          call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_localScatt, sensorIndex, &
                                       tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex,                        &
                                       tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
         end if
@@ -3393,47 +3365,27 @@ contains
                                              beSilent=.true.)
           call rttov_scatt(                                           &
               rttov_err_stat,                                         &! out
-              tvs_opts_scatt(sensorId),                               &! in
+              tvs_opts_scatt(sensorIndex),                            &! in
               nlv_T,                                                  &! in
-              chanprofScatt,                                          &! in
+              chanProfScatt(1:btCountScatt),                          &! in
               frequencies,                                            &! in
               tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),     &! in
               tvs_cld_profiles_nl(sensorTovsIndexes(1:profileCount)), &! in
-              tvs_coefs(sensorId),                                    &! in
-              tvs_coef_scatt(sensorId),                               &! in
+              tvs_coefs(sensorIndex),                                 &! in
+              tvs_coef_scatt(sensorIndex),                            &! in
               calcemisScatt,                                          &! in
               emissivity_localScatt,                                  &! inout
               radiancedata_dScatt) 
 
           ! save in obsSpaceData
-          loopClearSky3: do btIndex = 1, btCountScatt
-            profileIndex = chanprofScatt(btIndex)%prof
-            channelIndex = chanprofScatt(btIndex)%chan
-            tovsIndex = sensorTovsIndexes(profileIndex)
-
+          do btIndex = 1, btCountScatt
             clearMwRadiance = radiancedata_dScatt % bt(btIndex)
-           
-            headerIndex = tvs_headerIndex(tovsIndex)
-            if ( headerIndex < 1 ) cycle loopClearSky3
-            istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-            iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
-            
-            ifBodyIndexFound = .false.
-            loopClearSky4: do bodyIndex = istart, iend
-              call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                  channelNumber, channelIndexFound )
-              if ( channelIndex == channelIndexFound ) then
-                ifBodyIndexFound = .true.
-                exit loopClearSky4
-              end if
-            end do loopClearSky4
-
-            if ( .not. ifBodyIndexFound ) call utl_abort('tvs_rttov: bodyIndex not found.')
-
+            bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex)
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
-          end do loopClearSky3
+          end do
+
           ! restore the cloud profiles in ...
           call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
                                              nlv_T,                             &
@@ -3442,17 +3394,17 @@ contains
           
         end if ! run clear-sky RTTOV
         
-        if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorID, profileCount, btCountScatt
+        if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorIndex, profileCount, btCountScatt
         call rttov_scatt(                                           &
             rttov_err_stat,                                         &! out
-            tvs_opts_scatt(sensorId),                               &! in
+            tvs_opts_scatt(sensorIndex),                            &! in
             nlv_T,                                                  &! in
             chanprofScatt,                                          &! in
             frequencies,                                            &! in
             tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),     &! in
             tvs_cld_profiles_nl(sensorTovsIndexes(1:profileCount)), &! in
-            tvs_coefs(sensorId),                                    &! in
-            tvs_coef_scatt(sensorId),                               &! in
+            tvs_coefs(sensorIndex),                                 &! in
+            tvs_coef_scatt(sensorIndex),                            &! in
             calcemisScatt,                                          &! in
             emissivity_localScatt,                                  &! inout
             radiancedata_dScatt) 
@@ -3464,21 +3416,21 @@ contains
 
         !    2.4  Store hx in the structure tvs_radiance        
         do btIndex = 1, btCountScatt
-          profileIndex = chanprofScatt(btIndex)%prof
-          channelIndex = chanprofScatt(btIndex)%chan
+          profileIndex = chanProfScatt(btIndex) % prof
+          channelIndex = chanprofScatt(btIndex) % chan
           tovsIndex = sensorTovsIndexes(profileIndex)
           tvs_radiance(tovsIndex) % bt(channelIndex) = radiancedata_dScatt % bt(btIndex)
 
           if ( bgckMode ) then
-            if ( .not. associated(tvs_radiance(tovsIndex)  % clear)) then 
+            if ( .not. associated(tvs_radiance(tovsIndex) % clear)) then 
               allocStatus = 0
-              allocate( tvs_radiance(tovsIndex)  % clear  ( tvs_nchan(sensorId)  ), stat= allocStatus(1) )
+              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex) ), stat=allocStatus(1))
               !  allocate overcast black cloud sky radiance output
-              allocate( tvs_radiance(tovsIndex)  % overcast  (nlv_T - 1, tvs_nchan(sensorId) ), stat=allocStatus(2))
+              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T - 1, tvs_nchan(sensorIndex) ), stat=allocStatus(2))
               call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_rttov')
             end if
             tvs_radiance(tovsIndex) % clear(channelIndex) =  &
-                radiancedata_dScatt %clear(btIndex)
+                radiancedata_dScatt % clear(btIndex)
             do levelIndex = 1, nlv_T - 1
               tvs_radiance(tovsIndex) % overcast(levelIndex,channelIndex) =   &
                   radiancedata_dScatt % overcast(levelIndex,btIndex)
@@ -3487,7 +3439,7 @@ contains
           end if
 
           if ( allocated(tvs_emissivity) ) then
-            tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex)%emis_out
+            tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex) % emis_out
           end if
           
         end do
@@ -3495,18 +3447,13 @@ contains
         ! Append Surface Emissivity, Surface-Satellite Transmissivity into ObsSpaceData
         do btIndex = 1, btCountScatt
           bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex)
-          profileIndex = chanprofScatt(btIndex)%prof
-          tovsIndex = sensorTovsIndexes(profileIndex)
-          headerIndex = tvs_headerIndex(tovsIndex)
-
           if (bodyIndex > 0) then
-
             if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-              call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_localScatt(btIndex)%emis_out)
+              call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_localScatt(btIndex) % emis_out)
             end if
 
             if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
-              call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_localScatt(btIndex)%emis_out)
+              call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_localScatt(btIndex) % emis_out)
             end if
           end if
         end do
@@ -3519,15 +3466,15 @@ contains
              nchanprof=btCountScatt,          &
              nlevels=nlv_T,                   &
              chanprof=chanprofScatt,          &
-             opts=tvs_opts(sensorId),         &
-             coefs=tvs_coefs(sensorId),       &
+             opts=tvs_opts(sensorIndex),      &
+             coefs=tvs_coefs(sensorIndex),    &
              radiance=radiancedata_dScatt,    &
              calcemis=calcemisScatt,          &
              emissivity=emissivity_localScatt,&
              init=.true.)
 
-        deallocate ( surfem1Scatt, stat=allocStatus(2))
-        deallocate ( frequencies, stat=allocStatus(3))
+        deallocate(surfem1Scatt, stat=allocStatus(2))
+        deallocate(frequencies,  stat=allocStatus(3))
         call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
      
       end if
@@ -3544,13 +3491,13 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
-  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
+  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorIndex, chanprof, sensorTovsIndexes)
     implicit none
 
     ! Arguments:
     real(8),                 intent(in)  :: originalEmissivity(:)
     type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)
-    integer,                 intent(in)  :: sensorId
+    integer,                 intent(in)  :: sensorIndex
     type(rttov_chanprof),    intent(in)  :: chanprof(:)
     integer,                 intent(in)  :: sensorTovsIndexes(:)
 
@@ -3558,20 +3505,20 @@ contains
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
     integer :: btCount, profileCount
-    integer :: profileIndex, btIndex, sensorIndex
+    integer :: profileIndex, btIndex, tovsIndex
     
     btCount = size( originalEmissivity )
     if (useMWEmissivityAtlas) then
 
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
-      if ( .not. tvs_atlas(sensorId)%init) then
+      if ( .not. tvs_atlas(sensorIndex) % init) then
         call rttov_setup_emis_atlas( returnCode, &! out
-             tvs_opts(sensorId),                 &! in
-             tvs_profiles_nl(1)%date(2),         &! in
+             tvs_opts(sensorIndex),              &! in
+             tvs_profiles_nl(1) % date(2),       &! in
              atlas_type_mw,                      &! in
-             tvs_atlas(sensorId),                &! inout
+             tvs_atlas(sensorIndex),             &! inout
              atlas_id = mWAtlasId,               &! in ! 1 TELSEM2, 2 CNRM
-             coefs = tvs_coefs(sensorId)  )
+             coefs = tvs_coefs(sensorIndex)  )
         if (returnCode /= 0) then
           write(*,*) 'Error in rttov_atlas_setup MW',returnCode
           call utl_abort('tvs_getMWemissivityFromAtlas')
@@ -3579,11 +3526,11 @@ contains
       end if
    
       call rttov_get_emis( returnCode,            & ! out
-           tvs_opts(sensorId),                    & ! in
+           tvs_opts(sensorIndex),                 & ! in
            chanprof,                              & ! in
            tvs_profiles_nl(sensorTovsIndexes(:)), & ! in
-           tvs_coefs(sensorId),                   & ! in
-           tvs_atlas(sensorId),                   & ! in
+           tvs_coefs(sensorIndex),                & ! in
+           tvs_atlas(sensorIndex),                & ! in
            mWAtlasSurfaceEmissivity)                ! out
     
       if (returnCode /= 0) then
@@ -3594,27 +3541,24 @@ contains
       profileCount = size( sensorTovsIndexes )
 
       do profileIndex=1, profileCount !loop on profiles
-        sensorIndex = sensorTovsIndexes(profileIndex)
-  
+        tovsIndex = sensorTovsIndexes(profileIndex)
         do btIndex=1, btCount !loop on channels
-          if (chanprof(btIndex)%prof==profileIndex) then
+          if (chanprof(btIndex) % prof==profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
-
-            if ( tvs_profiles_nl(sensorIndex)% skin % surftype == surftype_land .and. &
+            if ( tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
                  mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
                  mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
-              updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
-
+              updatedEmissivity(btIndex) % emis_in = mWAtlasSurfaceEmissivity(btIndex)
             else
-              updatedEmissivity(btIndex)%emis_in = originalEmissivity(btIndex)
+              updatedEmissivity(btIndex) % emis_in = originalEmissivity(btIndex)
             end if
             ! Note that emissivity above sea-ice is not modified
           end if
         end do
       end do
     else
-      updatedEmissivity(:)%emis_in = originalEmissivity(:)
+      updatedEmissivity(:) % emis_in = originalEmissivity(:)
     end if
   end subroutine tvs_getMWemissivityFromAtlas
 
@@ -4099,9 +4043,9 @@ contains
 
 
     ! allocation of the field on the grid
-    allocate ( glace  (ni3,nj3) )
-    allocate ( neige  (ni4,nj4) )
-    allocate ( alb    (ni5,nj5) )
+    allocate (glace(ni3,nj3))
+    allocate (neige(ni4,nj4))
+    allocate (alb  (ni5,nj5))
 
 
     ! utl_fstlir: read records data (field on the grid) given the key
@@ -4568,241 +4512,241 @@ contains
         call utl_abort('tvs_rttov_read_coefs')
       end if
     else
-      call rttov_nullify_coef(coefs%coef)
+      call rttov_nullify_coef(coefs % coef)
     end if
 
     ! Third step: common (i.e. independent from the channel list) parameters are simply broadcasted to other processors
     ! Scalar and fixed size arrays and  strings first
-    coefs%initialised = .true.                                                    ! Logical flag for initialization
-    call rpn_comm_bcast(coefs%coef%id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
-    call rpn_comm_bcast(coefs%coef%id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)     ! OK
-    call rpn_comm_bcast(coefs%coef%id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)    ! OK
-    call rpn_comm_bcast(coefs%coef%id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  ! OK 
-    call rpn_comm_bcast(coefs%coef%id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
-    call rpn_comm_bcast(coefs%coef%id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK
+    coefs % initialised = .true.                                                    ! Logical flag for initialization
+    call rpn_comm_bcast(coefs % coef % id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
+    call rpn_comm_bcast(coefs % coef % id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)     ! OK
+    call rpn_comm_bcast(coefs % coef % id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)    ! OK
+    call rpn_comm_bcast(coefs % coef % id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  ! OK 
+    call rpn_comm_bcast(coefs % coef % id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
+    call rpn_comm_bcast(coefs % coef % id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK
 
-    call rpn_comm_bcast(coefs%coef%fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs%coef%fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs%coef%fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs%coef%fmv_ori_nchn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+    call rpn_comm_bcast(coefs % coef % fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+    call rpn_comm_bcast(coefs % coef % fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+    call rpn_comm_bcast(coefs % coef % fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+    call rpn_comm_bcast(coefs % coef % fmv_ori_nchn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
 
-    call rpn_comm_bcast(coefs%coef%nmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Mixed Gases
-    call rpn_comm_bcast(coefs%coef%nwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Water Vapour
-    call rpn_comm_bcast(coefs%coef%nozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Ozone
-    call rpn_comm_bcast(coefs%coef%nwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of variables/predictors for WV continuum
-    call rpn_comm_bcast(coefs%coef%nco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CO2
-    call rpn_comm_bcast(coefs%coef%nn2o , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of variables/predictors for N2O
-    call rpn_comm_bcast(coefs%coef%nco, 1, 'MPI_INTEGER', 0, 'GRID', ierr)             ! number of variables/predictors for CO
-    call rpn_comm_bcast(coefs%coef%nch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CH4
-    call rpn_comm_bcast(coefs%coef%nso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for SO2
+    call rpn_comm_bcast(coefs % coef % nmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Mixed Gases
+    call rpn_comm_bcast(coefs % coef % nwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Water Vapour
+    call rpn_comm_bcast(coefs % coef % nozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Ozone
+    call rpn_comm_bcast(coefs % coef % nwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of variables/predictors for WV continuum
+    call rpn_comm_bcast(coefs % coef % nco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CO2
+    call rpn_comm_bcast(coefs % coef % nn2o , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of variables/predictors for N2O
+    call rpn_comm_bcast(coefs % coef % nco, 1, 'MPI_INTEGER', 0, 'GRID', ierr)             ! number of variables/predictors for CO
+    call rpn_comm_bcast(coefs % coef % nch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CH4
+    call rpn_comm_bcast(coefs % coef % nso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for SO2
 
-    call rpn_comm_bcast(coefs%coef%nlevels, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of levels(pres/absorber) same for all gases
-    call rpn_comm_bcast(coefs%coef%nlayers, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of layers(pres/absorber) nlevels-1
-    call rpn_comm_bcast(coefs%coef%pmc_nlay, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%pmc_nvar, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%IncZeeman, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include Zeeman effect for this sensor
-    call rpn_comm_bcast(coefs%coef%solarcoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include solar reflection
-    call rpn_comm_bcast(coefs%coef%nltecoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)        ! Flag to include nlte corrections
-    call rpn_comm_bcast(coefs%coef%pmc_shift, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % nlevels, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of levels(pres/absorber) same for all gases
+    call rpn_comm_bcast(coefs % coef % nlayers, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of layers(pres/absorber) nlevels-1
+    call rpn_comm_bcast(coefs % coef % pmc_nlay, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % pmc_nvar, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % IncZeeman, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include Zeeman effect for this sensor
+    call rpn_comm_bcast(coefs % coef % solarcoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include solar reflection
+    call rpn_comm_bcast(coefs % coef % nltecoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)        ! Flag to include nlte corrections
+    call rpn_comm_bcast(coefs % coef % pmc_shift, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
 
-    call rpn_comm_bcast(coefs%coef%ncmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
-    call rpn_comm_bcast(coefs%coef%ncwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
-    call rpn_comm_bcast(coefs%coef%ncozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
-    call rpn_comm_bcast(coefs%coef%ncwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
-    call rpn_comm_bcast(coefs%coef%ncco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
-    call rpn_comm_bcast(coefs%coef%ncn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
-    call rpn_comm_bcast(coefs%coef%ncco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
-    call rpn_comm_bcast(coefs%coef%ncch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
-    call rpn_comm_bcast(coefs%coef%ncso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
+    call rpn_comm_bcast(coefs % coef % ncmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
+    call rpn_comm_bcast(coefs % coef % ncwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
+    call rpn_comm_bcast(coefs % coef % ncozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
+    call rpn_comm_bcast(coefs % coef % ncwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
+    call rpn_comm_bcast(coefs % coef % ncco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
+    call rpn_comm_bcast(coefs % coef % ncn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
+    call rpn_comm_bcast(coefs % coef % ncco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
+    call rpn_comm_bcast(coefs % coef % ncch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
+    call rpn_comm_bcast(coefs % coef % ncso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
 
-    call rpn_comm_bcast(coefs%coef%nccmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
-    call rpn_comm_bcast(coefs%coef%nccwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
-    call rpn_comm_bcast(coefs%coef%nccozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
-    call rpn_comm_bcast(coefs%coef%nccwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
-    call rpn_comm_bcast(coefs%coef%nccco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
-    call rpn_comm_bcast(coefs%coef%nccn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
-    call rpn_comm_bcast(coefs%coef%nccco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
-    call rpn_comm_bcast(coefs%coef%nccch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
-    call rpn_comm_bcast(coefs%coef%nccso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
+    call rpn_comm_bcast(coefs % coef % nccmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
+    call rpn_comm_bcast(coefs % coef % nccwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
+    call rpn_comm_bcast(coefs % coef % nccozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
+    call rpn_comm_bcast(coefs % coef % nccwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
+    call rpn_comm_bcast(coefs % coef % nccco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
+    call rpn_comm_bcast(coefs % coef % nccn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
+    call rpn_comm_bcast(coefs % coef % nccco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
+    call rpn_comm_bcast(coefs % coef % nccch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
+    call rpn_comm_bcast(coefs % coef % nccso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
 
-    call rpn_comm_bcast(coefs%coef%ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-    call rpn_comm_bcast(coefs%coef%id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK 
-    call rpn_comm_bcastc(coefs%coef%id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr)  ! OK 
-    call rpn_comm_bcastc(coefs%coef%id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) !OK
+    call rpn_comm_bcast(coefs % coef % id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK 
+    call rpn_comm_bcastc(coefs % coef % id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr)  ! OK 
+    call rpn_comm_bcastc(coefs % coef % id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) !OK
     do i=1, 100
-      call rpn_comm_bcastc(coefs%coef%line_by_line(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
-      call rpn_comm_bcastc(coefs%coef%readme_srf(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
+      call rpn_comm_bcastc(coefs % coef % line_by_line(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
+      call rpn_comm_bcastc(coefs % coef % readme_srf(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
     end do
-    call rpn_comm_bcastc(coefs%coef%fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !OK
-    call rpn_comm_bcast(coefs%coef%fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4)) !ok
-    call rpn_comm_bcast(coefs%coef%fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4)) !ok
-    call rpn_comm_bcast(coefs%coef%fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km) !ok
+    call rpn_comm_bcastc(coefs % coef % fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !OK
+    call rpn_comm_bcast(coefs % coef % fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4)) !ok
+    call rpn_comm_bcast(coefs % coef % fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4)) !ok
+    call rpn_comm_bcast(coefs % coef % fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km) !ok
 
-    call rpn_comm_bcast(coefs%coef%pmc_lengthcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%pmc_tempcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%pmc_betaplus1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % pmc_lengthcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % pmc_tempcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % pmc_betaplus1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     ! FASTEM section
-    call rpn_comm_bcast(coefs%coef%ssirem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%iremis_version, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%iremis_ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%iremis_angle0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%iremis_tskin0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs%coef%ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
+    call rpn_comm_bcast(coefs % coef % ssirem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % iremis_version, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % iremis_ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % iremis_angle0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % iremis_tskin0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(coefs % coef % ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
     ! then variable size vectors
     ! this one must be done first because it is used to dimension other ones ....
-    if (mmpi_myid > 0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
-    call rpn_comm_bcast(coefs%coef%fmv_lvl, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
+    if (mmpi_myid > 0) allocate(coefs % coef % fmv_lvl(coefs % coef % fmv_gas))
+    call rpn_comm_bcast(coefs % coef % fmv_lvl, coefs % coef % fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
     if (mmpi_myid > 0) then
-      if (coefs%coef%nltecoef) allocate( coefs%coef%nlte_coef)
-      allocate( coefs%coef%fmv_gas_id(coefs%coef%fmv_gas))
-      allocate( coefs%coef%fmv_gas_pos(ngases_max)) !size is from rttov consts
-      allocate( coefs%coef%fmv_var(coefs%coef%fmv_gas))
-      allocate( coefs%coef%fmv_coe(coefs%coef%fmv_gas)) ! number of coefficients by gas (fmv_gas)
-      allocate( coefs%coef%fmv_ncorr(coefs%coef%fmv_gas)) ! number of coefs by gas for correction term (fmv_gas) (v13 only)
-      allocate( coefs%coef%ws_npoint(coefs%coef%ws_nomega) )
-      allocate( coefs%coef%ws_k_omega(coefs%coef%ws_nomega) )
-      allocate( coefs%coef%ref_prfl_p(coefs%coef%nlevels ) )
-      allocate( coefs%coef%ref_prfl_t(coefs%coef%nlevels, coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%ref_prfl_mr(coefs%coef%nlevels, coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%bkg_prfl_mr(coefs%coef%nlevels, coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%lim_prfl_p(coefs%coef%nlevels ) )
-      allocate( coefs%coef%lim_prfl_tmax(coefs%coef%fmv_lvl(gas_id_mixed) ) )
-      allocate( coefs%coef%lim_prfl_tmin(coefs%coef%fmv_lvl(gas_id_mixed) ) )
-      allocate( coefs%coef%lim_prfl_gmax(coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%lim_prfl_gmin(coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%env_prfl_tmax(coefs%coef%nlevels ) )
-      allocate( coefs%coef%env_prfl_tmin(coefs%coef%nlevels ) )
-      allocate( coefs%coef%env_prfl_gmax(coefs%coef%nlevels, coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%env_prfl_gmin(coefs%coef%nlevels, coefs%coef%fmv_gas ) )
-      allocate( coefs%coef%dpp(0:coefs%coef%nlayers) )
-      allocate( coefs%coef%dp(coefs%coef%nlayers) )
-      allocate( coefs%coef%tstar(coefs%coef%nlayers) )
-      allocate( coefs%coef%tstar_r(coefs%coef%nlayers) )
-      allocate( coefs%coef%tstar_wsum_r(0:coefs%coef%nlayers) )
-      if (coefs%coef%fmv_model_ver == 8) &
-           allocate( coefs%coef%tstarmod_wsum_r(coefs%coef%nlayers) )
-      if (coefs%coef%fmv_model_ver <= 9) &
-           allocate( coefs%coef%tstar_uwsum_r(0:coefs%coef%nlayers) )
-      allocate( coefs%coef%wstar(coefs%coef%nlayers) )
-      allocate( coefs%coef%wstar_r(coefs%coef%nlayers) )
-      allocate( coefs%coef%wstar_wsum_r(0:coefs%coef%nlayers) )
-      allocate( coefs%coef%wtstar_wsum_r(0:coefs%coef%nlayers) )
+      if (coefs % coef % nltecoef) allocate(coefs % coef % nlte_coef)
+      allocate(coefs % coef % fmv_gas_id(coefs % coef % fmv_gas))
+      allocate(coefs % coef % fmv_gas_pos(ngases_max)) !size is from rttov consts
+      allocate(coefs % coef % fmv_var(coefs % coef % fmv_gas))
+      allocate(coefs % coef % fmv_coe(coefs % coef % fmv_gas)) ! number of coefficients by gas (fmv_gas)
+      allocate(coefs % coef % fmv_ncorr(coefs % coef % fmv_gas)) ! number of coefs by gas for correction term (fmv_gas) (v13 only)
+      allocate(coefs % coef % ws_npoint(coefs % coef % ws_nomega))
+      allocate(coefs % coef % ws_k_omega(coefs % coef % ws_nomega))
+      allocate(coefs % coef % ref_prfl_p(coefs % coef % nlevels ))
+      allocate(coefs % coef % ref_prfl_t(coefs % coef % nlevels, coefs % coef % fmv_gas ))
+      allocate(coefs % coef % ref_prfl_mr(coefs % coef % nlevels, coefs % coef % fmv_gas ))
+      allocate(coefs % coef % bkg_prfl_mr(coefs % coef % nlevels, coefs % coef % fmv_gas ))
+      allocate(coefs % coef % lim_prfl_p(coefs % coef % nlevels ))
+      allocate(coefs % coef % lim_prfl_tmax(coefs % coef % fmv_lvl(gas_id_mixed) ))
+      allocate(coefs % coef % lim_prfl_tmin(coefs % coef % fmv_lvl(gas_id_mixed) ))
+      allocate(coefs % coef % lim_prfl_gmax(coefs % coef % fmv_lvl(gas_id_mixed), coefs % coef % fmv_gas ))
+      allocate(coefs % coef % lim_prfl_gmin(coefs % coef % fmv_lvl(gas_id_mixed), coefs % coef % fmv_gas ))
+      allocate(coefs % coef % env_prfl_tmax(coefs % coef % nlevels ))
+      allocate(coefs % coef % env_prfl_tmin(coefs % coef % nlevels ))
+      allocate(coefs % coef % env_prfl_gmax(coefs % coef % nlevels, coefs % coef % fmv_gas ))
+      allocate(coefs % coef % env_prfl_gmin(coefs % coef % nlevels, coefs % coef % fmv_gas ))
+      allocate(coefs % coef % dpp(0:coefs % coef % nlayers))
+      allocate(coefs % coef % dp(coefs % coef % nlayers))
+      allocate(coefs % coef % tstar(coefs % coef % nlayers))
+      allocate(coefs % coef % tstar_r(coefs % coef % nlayers))
+      allocate(coefs % coef % tstar_wsum_r(0:coefs % coef % nlayers))
+      if (coefs % coef % fmv_model_ver == 8) &
+           allocate(coefs % coef % tstarmod_wsum_r(coefs % coef % nlayers))
+      if (coefs % coef % fmv_model_ver <= 9) &
+           allocate(coefs % coef % tstar_uwsum_r(0:coefs % coef % nlayers))
+      allocate(coefs % coef % wstar(coefs % coef % nlayers))
+      allocate(coefs % coef % wstar_r(coefs % coef % nlayers))
+      allocate(coefs % coef % wstar_wsum_r(0:coefs % coef % nlayers))
+      allocate(coefs % coef % wtstar_wsum_r(0:coefs % coef % nlayers))
     end if
 
-    call broadcastI41dArray( coefs%coef%fmv_gas_id )
-    call broadcastI41dArray( coefs%coef%fmv_gas_pos )
-    call broadcastI41dArray( coefs%coef%fmv_var )
-    call broadcastI41dArray( coefs%coef%fmv_coe )
-    call broadcastI41dArray( coefs%coef%fmv_ncorr )
-    call broadcastR81dArray( coefs%coef%ws_npoint )
-    call broadcastR81dArray( coefs%coef%ws_k_omega )
-    call broadcastR81dArray( coefs%coef%ref_prfl_p )
-    call broadcastR82dArray( coefs%coef%ref_prfl_t )
-    call broadcastR82dArray( coefs%coef%ref_prfl_mr )
-    call broadcastR82dArray( coefs%coef%bkg_prfl_mr )
-    call broadcastR81dArray( coefs%coef%lim_prfl_p )
-    call broadcastR81dArray( coefs%coef%lim_prfl_tmax )
-    call broadcastR81dArray( coefs%coef%lim_prfl_tmin )
-    call broadcastR82dArray( coefs%coef%lim_prfl_gmax )
-    call broadcastR82dArray( coefs%coef%lim_prfl_gmin )
-    call broadcastR81dArray( coefs%coef%env_prfl_tmax )
-    call broadcastR81dArray( coefs%coef%env_prfl_tmin )
-    call broadcastR82dArray( coefs%coef%env_prfl_gmax )
-    call broadcastR82dArray( coefs%coef%env_prfl_gmin )
-    call broadcastR81dArray( coefs%coef%dp )
-    call broadcastR81dArray( coefs%coef%dpp )
-    call broadcastR81dArray( coefs%coef%tstar ) 
-    call broadcastR81dArray( coefs%coef%tstar_r )
-    call broadcastR81dArray( coefs%coef%tstar_wsum_r )
-    if (coefs%coef%fmv_model_ver == 8) &
-         call broadcastR81dArray( coefs%coef%tstarmod_wsum_r )
-    if (coefs%coef%fmv_model_ver <= 9) &
-         call broadcastR81dArray( coefs%coef%tstar_uwsum_r )
-    call broadcastR81dArray( coefs%coef%wstar )
-    call broadcastR81dArray( coefs%coef%wstar_r )
-    call broadcastR81dArray( coefs%coef%wstar_wsum_r )
-    call broadcastR81dArray( coefs%coef%wtstar_wsum_r )
-    if (coefs%coef%nozone > 0) then
+    call broadcastI41dArray( coefs % coef % fmv_gas_id )
+    call broadcastI41dArray( coefs % coef % fmv_gas_pos )
+    call broadcastI41dArray( coefs % coef % fmv_var )
+    call broadcastI41dArray( coefs % coef % fmv_coe )
+    call broadcastI41dArray( coefs % coef % fmv_ncorr )
+    call broadcastR81dArray( coefs % coef % ws_npoint )
+    call broadcastR81dArray( coefs % coef % ws_k_omega )
+    call broadcastR81dArray( coefs % coef % ref_prfl_p )
+    call broadcastR82dArray( coefs % coef % ref_prfl_t )
+    call broadcastR82dArray( coefs % coef % ref_prfl_mr )
+    call broadcastR82dArray( coefs % coef % bkg_prfl_mr )
+    call broadcastR81dArray( coefs % coef % lim_prfl_p )
+    call broadcastR81dArray( coefs % coef % lim_prfl_tmax )
+    call broadcastR81dArray( coefs % coef % lim_prfl_tmin )
+    call broadcastR82dArray( coefs % coef % lim_prfl_gmax )
+    call broadcastR82dArray( coefs % coef % lim_prfl_gmin )
+    call broadcastR81dArray( coefs % coef % env_prfl_tmax )
+    call broadcastR81dArray( coefs % coef % env_prfl_tmin )
+    call broadcastR82dArray( coefs % coef % env_prfl_gmax )
+    call broadcastR82dArray( coefs % coef % env_prfl_gmin )
+    call broadcastR81dArray( coefs % coef % dp )
+    call broadcastR81dArray( coefs % coef % dpp )
+    call broadcastR81dArray( coefs % coef % tstar ) 
+    call broadcastR81dArray( coefs % coef % tstar_r )
+    call broadcastR81dArray( coefs % coef % tstar_wsum_r )
+    if (coefs % coef % fmv_model_ver == 8) &
+         call broadcastR81dArray( coefs % coef % tstarmod_wsum_r )
+    if (coefs % coef % fmv_model_ver <= 9) &
+         call broadcastR81dArray( coefs % coef % tstar_uwsum_r )
+    call broadcastR81dArray( coefs % coef % wstar )
+    call broadcastR81dArray( coefs % coef % wstar_r )
+    call broadcastR81dArray( coefs % coef % wstar_wsum_r )
+    call broadcastR81dArray( coefs % coef % wtstar_wsum_r )
+    if (coefs % coef % nozone > 0) then
       if (mmpi_myid > 0) then
-        allocate( coefs%coef%to3star(coefs%coef%nlayers) )
-        allocate( coefs%coef%ostar(coefs%coef%nlayers) )
-        allocate( coefs%coef%to3star_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%ostar_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%ostar_wsum_r(0:coefs%coef%nlayers) )
+        allocate(coefs % coef % to3star(coefs % coef % nlayers))
+        allocate(coefs % coef % ostar(coefs % coef % nlayers))
+        allocate(coefs % coef % to3star_r(coefs % coef % nlayers))
+        allocate(coefs % coef % ostar_r(coefs % coef % nlayers))
+        allocate(coefs % coef % ostar_wsum_r(0:coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%to3star, size(coefs%coef%to3star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%ostar, size(coefs%coef%ostar) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%to3star_r, size(coefs%coef%to3star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%ostar_r, size(coefs%coef%ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%ostar_wsum_r, size(coefs%coef%ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % to3star, size(coefs % coef % to3star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ostar, size(coefs % coef % ostar) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % to3star_r, size(coefs % coef % to3star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ostar_r, size(coefs % coef % ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % ostar_wsum_r, size(coefs % coef % ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
-    if ( coefs%coef%nco2 > 0) then
+    if ( coefs % coef % nco2 > 0) then
       if (mmpi_myid>0) then
-        allocate( coefs%coef%co2star(coefs%coef%nlayers) )
-        allocate( coefs%coef%co2star_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%co2star_wsum_r(0:coefs%coef%nlayers) )
+        allocate(coefs % coef % co2star(coefs % coef % nlayers))
+        allocate(coefs % coef % co2star_r(coefs % coef % nlayers))
+        allocate(coefs % coef % co2star_wsum_r(0:coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%co2star, size(coefs%coef%co2star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%co2star_r, size(coefs%coef%co2star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%co2star_wsum_r, size(coefs%coef%co2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % co2star, size(coefs % coef % co2star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % co2star_r, size(coefs % coef % co2star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % co2star_wsum_r, size(coefs % coef % co2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
-    if ( coefs%coef%nn2o > 0) then
+    if ( coefs % coef % nn2o > 0) then
       if (mmpi_myid>0) then
-        allocate( coefs%coef%n2ostar(coefs%coef%nlayers) )
-        allocate( coefs%coef%n2ostar_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%n2ostar_wsum_r(0:coefs%coef%nlayers) )
-        allocate( coefs%coef%n2otstar_wsum_r(0:coefs%coef%nlayers) )
+        allocate(coefs % coef % n2ostar(coefs % coef % nlayers))
+        allocate(coefs % coef % n2ostar_r(coefs % coef % nlayers))
+        allocate(coefs % coef % n2ostar_wsum_r(0:coefs % coef % nlayers))
+        allocate(coefs % coef % n2otstar_wsum_r(0:coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%n2ostar, size(coefs%coef%n2ostar) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%n2ostar_r, size(coefs%coef%n2ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%n2ostar_wsum_r, size(coefs%coef%n2ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%n2otstar_wsum_r, size(coefs%coef%n2otstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % n2ostar, size(coefs % coef % n2ostar) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % n2ostar_r, size(coefs % coef % n2ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % n2ostar_wsum_r, size(coefs % coef % n2ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % n2otstar_wsum_r, size(coefs % coef % n2otstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
-    if ( coefs%coef%nco > 0) then
+    if ( coefs % coef % nco > 0) then
       if (mmpi_myid>0) then
-        allocate( coefs%coef%costar(coefs%coef%nlayers) )
-        allocate( coefs%coef%costar_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%costar_wsum_r(0:coefs%coef%nlayers) )
-        allocate( coefs%coef%cotstar_wsum_r(0:coefs%coef%nlayers) )
+        allocate(coefs % coef % costar(coefs % coef % nlayers))
+        allocate(coefs % coef % costar_r(coefs % coef % nlayers))
+        allocate(coefs % coef % costar_wsum_r(0:coefs % coef % nlayers))
+        allocate(coefs % coef % cotstar_wsum_r(0:coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%costar, size(coefs%coef%costar) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%costar_r, size(coefs%coef%costar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%costar_wsum_r, size(coefs%coef%costar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%cotstar_wsum_r, size(coefs%coef%cotstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % costar, size(coefs % coef % costar) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % costar_r, size(coefs % coef % costar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % costar_wsum_r, size(coefs % coef % costar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % cotstar_wsum_r, size(coefs % coef % cotstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
-    if ( coefs%coef%nch4 > 0) then
+    if ( coefs % coef % nch4 > 0) then
       if (mmpi_myid>0) then
-        allocate( coefs%coef%ch4star(coefs%coef%nlayers) )
-        allocate( coefs%coef%ch4star_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%ch4star_wsum_r(0:coefs%coef%nlayers) )
-        allocate( coefs%coef%ch4tstar_wsum_r(coefs%coef%nlayers) )
+        allocate(coefs % coef % ch4star(coefs % coef % nlayers))
+        allocate(coefs % coef % ch4star_r(coefs % coef % nlayers))
+        allocate(coefs % coef % ch4star_wsum_r(0:coefs % coef % nlayers))
+        allocate(coefs % coef % ch4tstar_wsum_r(coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%ch4star, size(coefs%coef%ch4star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%ch4star_r, size(coefs%coef%ch4star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%ch4star_wsum_r, size(coefs%coef%ch4star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs%coef%ch4tstar_wsum_r, size(coefs%coef%ch4tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ch4star, size(coefs % coef % ch4star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ch4star_r, size(coefs % coef % ch4star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ch4star_wsum_r, size(coefs % coef % ch4star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
+      call rpn_comm_bcast(coefs % coef % ch4tstar_wsum_r, size(coefs % coef % ch4tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
-    if (coefs%coef%nso2 > 0) then
+    if (coefs % coef % nso2 > 0) then
       if (mmpi_myid>0) then
-        allocate( coefs%coef%so2star(coefs%coef%nlayers) )
-        allocate( coefs%coef%so2star_r(coefs%coef%nlayers) )
-        allocate( coefs%coef%so2star_wsum_r(0:coefs%coef%nlayers) )
-        allocate( coefs%coef%so2tstar_wsum_r(coefs%coef%nlayers) )
+        allocate(coefs % coef % so2star(coefs % coef % nlayers))
+        allocate(coefs % coef % so2star_r(coefs % coef % nlayers))
+        allocate(coefs % coef % so2star_wsum_r(0:coefs % coef % nlayers))
+        allocate(coefs % coef % so2tstar_wsum_r(coefs % coef % nlayers))
       end if
-      call rpn_comm_bcast(coefs%coef%so2star, size(coefs%coef%so2star) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%so2star_r, size(coefs%coef%so2star_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%so2star_wsum_r, size(coefs%coef%so2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%so2tstar_wsum_r, size(coefs%coef%so2tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % so2star, size(coefs % coef % so2star) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % so2star_r, size(coefs % coef % so2star_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % so2star_wsum_r, size(coefs % coef % so2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % so2tstar_wsum_r, size(coefs % coef % so2tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
     end if
     ! Fourth step: channel dependent parameters are extracted according to the channel list and sent to each MPI task
-    coefs%coef%fmv_chn = size( channels )
+    coefs % coef % fmv_chn = size( channels )
 
-    if (mmpi_myid == 0) deallocate ( coefs%coef%ff_ori_chn)
-    allocate ( coefs%coef%ff_ori_chn(coefs%coef%fmv_chn) )
-    coefs%coef%ff_ori_chn =  channels
+    if (mmpi_myid == 0) deallocate ( coefs % coef % ff_ori_chn)
+    allocate (coefs % coef % ff_ori_chn(coefs % coef % fmv_chn))
+    coefs % coef % ff_ori_chn =  channels
 
-    do i=1,  coefs%coef%fmv_chn
+    do i=1,  coefs % coef % fmv_chn
       loopj2:do j=1, countUniqueChannel
         if (listAll(j) == channels(i)) then
           indexchan(i) = j
@@ -4812,158 +4756,158 @@ contains
     end do
     
     ! 1D arrays first
-    call extractI41dArray(coefs%coef%pw_val_chn, countUniqueChannel,indexchan)
-    call extractI41dArray(coefs%coef%ff_val_chn, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ff_cwn, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ff_bco, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ff_bcs, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs%coef%ff_gam, countUniqueChannel,indexchan)
-    call extractI41dArray(coefs%coef%tt_val_chn, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs%coef%tt_a0, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs%coef%tt_a1, countUniqueChannel,indexchan) 
-    call extractI41dArray(coefs%coef%ss_val_chn, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs%coef%ss_solar_spectrum, countUniqueChannel,indexchan)
-    if ( coefs%coef%fmv_model_ver > 9) then
-      call extractR81dArray(coefs%coef%ss_rayleigh_ext, countUniqueChannel,indexchan)
+    call extractI41dArray(coefs % coef % pw_val_chn, countUniqueChannel,indexchan)
+    call extractI41dArray(coefs % coef % ff_val_chn, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ff_cwn, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ff_bco, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ff_bcs, countUniqueChannel,indexchan) 
+    call extractR81dArray(coefs % coef % ff_gam, countUniqueChannel,indexchan)
+    call extractI41dArray(coefs % coef % tt_val_chn, countUniqueChannel,indexchan) 
+    call extractR81dArray(coefs % coef % tt_a0, countUniqueChannel,indexchan) 
+    call extractR81dArray(coefs % coef % tt_a1, countUniqueChannel,indexchan) 
+    call extractI41dArray(coefs % coef % ss_val_chn, countUniqueChannel,indexchan) 
+    call extractR81dArray(coefs % coef % ss_solar_spectrum, countUniqueChannel,indexchan)
+    if ( coefs % coef % fmv_model_ver > 9) then
+      call extractR81dArray(coefs % coef % ss_rayleigh_ext, countUniqueChannel,indexchan)
     end if
-    call extractCmplx81dArray(coefs%coef%woc_waopc_ow, countUniqueChannel, indexchan) 
-    call extractCmplx81dArray(coefs%coef%woc_waopc_fw, countUniqueChannel, indexchan)
+    call extractCmplx81dArray(coefs % coef % woc_waopc_ow, countUniqueChannel, indexchan) 
+    call extractCmplx81dArray(coefs % coef % woc_waopc_fw, countUniqueChannel, indexchan)
   
-    call extractI41dArray(coefs%coef%fastem_polar, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%pol_phi, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ssirem_a0, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ssirem_a1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ssirem_a2, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ssirem_xzn1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%ssirem_xzn2, countUniqueChannel,indexchan)
+    call extractI41dArray(coefs % coef % fastem_polar, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % pol_phi, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ssirem_a0, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ssirem_a1, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ssirem_a2, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ssirem_xzn1, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % ssirem_xzn2, countUniqueChannel,indexchan)
 
-    call extractR81dArray(coefs%coef%planck1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%planck2, countUniqueChannel,indexchan)
-    if (coefs%coef%id_sensor == sensor_id_mw .or. coefs%coef%id_sensor == sensor_id_po) &
-         call extractR81dArray(coefs%coef%frequency_ghz, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % planck1, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % planck2, countUniqueChannel,indexchan)
+    if (coefs % coef % id_sensor == sensor_id_mw .or. coefs % coef % id_sensor == sensor_id_po) &
+         call extractR81dArray(coefs % coef % frequency_ghz, countUniqueChannel,indexchan)
 
-    call extractR81dArray(coefs%coef%pmc_pnominal, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%pmc_ppmc, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%pol_fac_v, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs%coef%pol_fac_h, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % pmc_pnominal, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % pmc_ppmc, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % pol_fac_v, countUniqueChannel,indexchan)
+    call extractR81dArray(coefs % coef % pol_fac_h, countUniqueChannel,indexchan)
 
     ! 2D arrays
-    call extractR82dArray(coefs%coef%iremis_coef,coefs%coef%iremis_ncoef,countUniqueChannel,indexchan)
+    call extractR82dArray(coefs % coef % iremis_coef,coefs % coef % iremis_ncoef,countUniqueChannel,indexchan)
     ! 3D arrays
-    call extractR83dArray(coefs%coef%pmc_coef,coefs%coef%pmc_nlay,countUniqueChannel,coefs%coef%pmc_nvar,indexchan)
+    call extractR83dArray(coefs % coef % pmc_coef,coefs % coef % pmc_nlay,countUniqueChannel,coefs % coef % pmc_nvar,indexchan)
 
     ! then coefficients. It is more complicated with RTTOV12
-    call dispatch_fast_coef(errorStatus, coefs%coef%thermal, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
-         coefs%coef%nlayers, coefs%coef%fmv_gas)
-    if (coefs%coef%fmv_model_ver > 9) THEN
-      call dispatch_fast_coef(errorStatus, coefs%coef%thermal_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
-           coefs%coef%nlayers, coefs%coef%fmv_gas)
+    call dispatch_fast_coef(errorStatus, coefs % coef % thermal, coefs % coef % fmv_gas_id, coefs % coef % fmv_coe, coefs % coef % fmv_model_ver, &
+         coefs % coef % nlayers, coefs % coef % fmv_gas)
+    if (coefs % coef % fmv_model_ver > 9) THEN
+      call dispatch_fast_coef(errorStatus, coefs % coef % thermal_corr, coefs % coef % fmv_gas_id, coefs % coef % fmv_ncorr, coefs % coef % fmv_model_ver, &
+           coefs % coef % nlayers, coefs % coef % fmv_gas)
     end if
-    if (coefs%coef%solarcoef) then
-      call dispatch_fast_coef(errorStatus, coefs%coef%solar, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
-           coefs%coef%nlayers, coefs%coef%fmv_gas)
-      if (coefs%coef%fmv_model_ver > 9) THEN
-        call dispatch_fast_coef(errorStatus, coefs%coef%solar_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
-             coefs%coef%nlayers, coefs%coef%fmv_gas)
+    if (coefs % coef % solarcoef) then
+      call dispatch_fast_coef(errorStatus, coefs % coef % solar, coefs % coef % fmv_gas_id, coefs % coef % fmv_coe, coefs % coef % fmv_model_ver, &
+           coefs % coef % nlayers, coefs % coef % fmv_gas)
+      if (coefs % coef % fmv_model_ver > 9) THEN
+        call dispatch_fast_coef(errorStatus, coefs % coef % solar_corr, coefs % coef % fmv_gas_id, coefs % coef % fmv_ncorr, coefs % coef % fmv_model_ver, &
+             coefs % coef % nlayers, coefs % coef % fmv_gas)
       end if
     end if
 
-    if (coefs%coef%nltecoef) then
+    if (coefs % coef % nltecoef) then
 
-      call rpn_comm_bcast(coefs%coef%nlte_coef%ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%nsol, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%nsat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%nchan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%start_chan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % nsol, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % nsat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % nchan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % start_chan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-      allocate(nlte_chans(coefs%coef%fmv_chn)) ! Index of selected channels in nlte_coefs array in the file
+      allocate(nlte_chans(coefs % coef % fmv_chn)) ! Index of selected channels in nlte_coefs array in the file
 
       nlte_count = 0  ! Number of NLTE channels being read in
       nlte_start = 0  ! Index (in input channel list) of first NLTE channel being read in
-      do i = 1, coefs%coef%fmv_chn
-        if (channels(i) >= coefs%coef%nlte_coef%start_chan .and. &
-             channels(i) < coefs%coef%nlte_coef%start_chan + coefs%coef%nlte_coef%nchan) then
+      do i = 1, coefs % coef % fmv_chn
+        if (channels(i) >= coefs % coef % nlte_coef % start_chan .and. &
+             channels(i) < coefs % coef % nlte_coef % start_chan + coefs % coef % nlte_coef % nchan) then
           nlte_count = nlte_count + 1
-          nlte_chans(nlte_count) = channels(i) - coefs%coef%nlte_coef%start_chan + 1
+          nlte_chans(nlte_count) = channels(i) - coefs % coef % nlte_coef % start_chan + 1
           if (nlte_count == 1) nlte_start = i
         end if
       end do
 
-      coefs%coef%nltecoef = ( nlte_count > 0)
+      coefs % coef % nltecoef = ( nlte_count > 0)
 
-      nlte_file_nchan  = coefs%coef%nlte_coef%nchan
+      nlte_file_nchan  = coefs % coef % nlte_coef % nchan
 
       ! Reset NLTE channel variables according to input channel limit
-      coefs%coef%nlte_coef%start_chan  = nlte_start
-      coefs%coef%nlte_coef%nchan      = nlte_count
+      coefs % coef % nlte_coef % start_chan  = nlte_start
+      coefs % coef % nlte_coef % nchan      = nlte_count
 
       if (mmpi_myid > 0) then
-         allocate (coefs%coef%nlte_coef%sec_sat(coefs%coef%nlte_coef%nsat) )
-         allocate (coefs%coef%nlte_coef%sol_zen_angle(coefs%coef%nlte_coef%nsol) )
-         allocate (coefs%coef%nlte_coef%sat_zen_angle(coefs%coef%nlte_coef%nsat) )
-         allocate (coefs%coef%nlte_coef%cos_sol(coefs%coef%nlte_coef%nsol) )
+         allocate (coefs % coef % nlte_coef % sec_sat(coefs % coef % nlte_coef % nsat) )
+         allocate (coefs % coef % nlte_coef % sol_zen_angle(coefs % coef % nlte_coef % nsol) )
+         allocate (coefs % coef % nlte_coef % sat_zen_angle(coefs % coef % nlte_coef % nsat) )
+         allocate (coefs % coef % nlte_coef % cos_sol(coefs % coef % nlte_coef % nsol) )
       end if
-      call rpn_comm_bcast(coefs%coef%nlte_coef%sec_sat, coefs%coef%nlte_coef%nsat, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%sol_zen_angle, coefs%coef%nlte_coef%nsol, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%sat_zen_angle, coefs%coef%nlte_coef%nsat, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%cos_sol, coefs%coef%nlte_coef%nsol, 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % sec_sat, coefs % coef % nlte_coef % nsat, 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % sol_zen_angle, coefs % coef % nlte_coef % nsol, 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % sat_zen_angle, coefs % coef % nlte_coef % nsat, 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs % coef % nlte_coef % cos_sol, coefs % coef % nlte_coef % nsol, 'MPI_REAL8', 0, 'GRID', ierr)
 
-      allocate(bigArray(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
-           coefs%coef%nlte_coef%nsol, nlte_file_nchan) )
+      allocate(bigArray(coefs % coef % nlte_coef % ncoef, coefs % coef % nlte_coef % nsat, &
+           coefs % coef % nlte_coef % nsol, nlte_file_nchan) )
 
       if (mmpi_myid == 0) then
          do ichan = 1, nlte_file_nchan
-            do isol = 1, coefs%coef%nlte_coef%nsol
-               do isat = 1, coefs%coef%nlte_coef%nsat
-                  do I=1, coefs%coef%nlte_coef%ncoef
-                     bigArray(i, isat, isol, ichan) = coefs%coef%nlte_coef%coef(i,isat,isol,ichan)
+            do isol = 1, coefs % coef % nlte_coef % nsol
+               do isat = 1, coefs % coef % nlte_coef % nsat
+                  do I=1, coefs % coef % nlte_coef % ncoef
+                     bigArray(i, isat, isol, ichan) = coefs % coef % nlte_coef % coef(i,isat,isol,ichan)
                   end do
                end do
             end do
          end do
-         deallocate(  coefs%coef%nlte_coef%coef )
+         deallocate( coefs % coef % nlte_coef % coef )
       end if
 
       call rpn_comm_bcast(bigArray, size(bigArray), 'MPI_REAL8', 0, 'GRID', ierr)
-      allocate(coefs%coef%nlte_coef%coef(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
-           coefs%coef%nlte_coef%nsol, nlte_count))
-      coefs%coef%nlte_coef%coef(:,:,:,:) = bigArray(:,:,:,nlte_chans(1:nlte_count))
+      allocate(coefs % coef % nlte_coef % coef(coefs % coef % nlte_coef % ncoef, coefs % coef % nlte_coef % nsat, &
+           coefs % coef % nlte_coef % nsol, nlte_count))
+      coefs % coef % nlte_coef % coef(:,:,:,:) = bigArray(:,:,:,nlte_chans(1:nlte_count))
       deallocate(nlte_chans, bigArray)
        
     end if
 
-    if (mmpi_myid==0 .and. associated(coefs%coef%bounds) )  deallocate(coefs%coef%bounds)
+    if (mmpi_myid==0 .and. associated(coefs % coef % bounds) )  deallocate(coefs % coef % bounds)
   
     !allocate bounds array to store opdep calculation layer limits
     !1st dim: upper boundary layer [ub](above which coefs all zeros), lower boundary layer [lb]
     !4th dim: thermal layer limits, solar layer limits
-    allocate(coefs%coef%bounds(2, coefs%coef%fmv_gas, coefs%coef%fmv_chn, 2))
-    call set_fastcoef_level_bounds(coefs%coef, coefs%coef%thermal, thermal = .true._jplm)
+    allocate(coefs % coef % bounds(2, coefs % coef % fmv_gas, coefs % coef % fmv_chn, 2))
+    call set_fastcoef_level_bounds(coefs % coef, coefs % coef % thermal, thermal = .true._jplm)
     ! if the solar_fast_coefficients section is not present then point the solar coefs to the thermal coefs
-    if (coefs%coef%solarcoef) then
-      call set_fastcoef_level_bounds(coefs%coef, coefs%coef%solar, thermal = .false._jplm)
+    if (coefs % coef % solarcoef) then
+      call set_fastcoef_level_bounds(coefs % coef, coefs % coef % solar, thermal = .false._jplm)
     else
-      coefs%coef%solar => coefs%coef%thermal
-      coefs%coef%solar_corr => coefs%coef%thermal_corr
-      coefs%coef%bounds(:,:,:,2) = coefs%coef%bounds(:,:,:,1)
+      coefs % coef % solar => coefs % coef % thermal
+      coefs % coef % solar_corr => coefs % coef % thermal_corr
+      coefs % coef % bounds(:,:,:,2) = coefs % coef % bounds(:,:,:,1)
     end if
 
-    coefs%coef%ff_val_bc = any(coefs%coef%ff_bco(:) /= 0.0d0) .or. any(coefs%coef%ff_bcs(:) /= 1.d0)
-    coefs%coef%ff_val_gam = any(coefs%coef%ff_gam(:) /= 1.d0)
+    coefs % coef % ff_val_bc = any(coefs % coef % ff_bco(:) /= 0.0d0) .or. any(coefs % coef % ff_bcs(:) /= 1.d0)
+    coefs % coef % ff_val_gam = any(coefs % coef % ff_gam(:) /= 1.d0)
 
     ! surface water reflectance for visible/near-ir channels
-    if (any(coefs%coef%ss_val_chn == 2)) then
-      if ( mmpi_myid==0) deallocate(coefs%coef%refl_visnir_ow, &
-           coefs%coef%refl_visnir_fw, stat = errorStatus)
-      allocate(coefs%coef%refl_visnir_ow(coefs%coef%fmv_chn), &
-           coefs%coef%refl_visnir_fw(coefs%coef%fmv_chn), stat = errorStatus)
-      call rttov_refl_water_interp(coefs%coef%ff_cwn, coefs%coef%refl_visnir_ow, coefs%coef%refl_visnir_fw)
+    if (any(coefs % coef % ss_val_chn == 2)) then
+      if ( mmpi_myid==0) deallocate(coefs % coef % refl_visnir_ow, &
+           coefs % coef % refl_visnir_fw, stat = errorStatus)
+      allocate(coefs % coef % refl_visnir_ow(coefs % coef % fmv_chn), &
+           coefs % coef % refl_visnir_fw(coefs % coef % fmv_chn), stat = errorStatus)
+      call rttov_refl_water_interp(coefs % coef % ff_cwn, coefs % coef % refl_visnir_ow, coefs % coef % refl_visnir_fw)
     end if
 
-    if (coefs%coef%pmc_shift .and. mmpi_myid > 0) then
-      allocate(coefs%coef%pmc_ppmc(coefs%coef%fmv_chn), stat = errorStatus)
+    if (coefs % coef % pmc_shift .and. mmpi_myid > 0) then
+      allocate(coefs % coef % pmc_ppmc(coefs % coef % fmv_chn), stat = errorStatus)
     else
-      nullify(coefs%coef%pmc_pnominal, coefs%coef%pmc_coef, coefs%coef%pmc_ppmc)
+      nullify(coefs % coef % pmc_pnominal, coefs % coef % pmc_coef, coefs % coef % pmc_ppmc)
     end if
 
     contains
@@ -4974,15 +4918,15 @@ contains
       ! Arguments:
       type(rttov_fast_coef), intent(inout) :: fast_coef
 
-      nullify (fast_coef%mixedgas,&
-           fast_coef%watervapour, &
-           fast_coef%ozone,       &
-           fast_coef%wvcont,      &
-           fast_coef%co2,         &
-           fast_coef%n2o,         &
-           fast_coef%co,          &
-           fast_coef%ch4,         &
-           fast_coef%so2)
+      nullify (fast_coef % mixedgas,&
+           fast_coef % watervapour, &
+           fast_coef % ozone,       &
+           fast_coef % wvcont,      &
+           fast_coef % co2,         &
+           fast_coef % n2o,         &
+           fast_coef % co,          &
+           fast_coef % ch4,         &
+           fast_coef % so2)
     end subroutine nullify_gas_coef_pointers
 
     subroutine dispatch_fast_coef(err, fast_coef, gas_ids, ncoefs, version, nlayers, ngas)
@@ -5002,33 +4946,33 @@ contains
       real(8), allocatable :: bigArray(:,:,:,:)
       logical :: allocated0
 
-      allocate(bigArray(countUniqueChannel,maxval(ncoefs),ngas,nlayers), stat=err )
+      allocate(bigArray(countUniqueChannel,maxval(ncoefs),ngas,nlayers), stat=err)
       bigArray(:,:,:,:) = 0.0d0
 
       if (mmpi_myid > 0) then
-        allocate (fast_coef(countUniqueChannel) )
+        allocate(fast_coef(countUniqueChannel) )
         do channelIndex = 1, countUniqueChannel
-          allocate(fast_coef(channelIndex)%gasarray(ngas) )
+          allocate(fast_coef(channelIndex) % gasarray(ngas))
           do gasIndex = 1, ngas
-            allocate (fast_coef(channelIndex)%gasarray(gasIndex)%coef( ncoefs(gasIndex), nlayers) )
+            allocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef( ncoefs(gasIndex), nlayers))
           end do
         end do
       end if
 
       do channelIndex = 1, countUniqueChannel
         do gasIndex = 1, ngas
-          call broadcastR82dArray( fast_coef(channelIndex)%gasarray(gasIndex)%coef )
+          call broadcastR82dArray( fast_coef(channelIndex) % gasarray(gasIndex) % coef )
         end do
       end do
 
       do channelIndex = 1, countUniqueChannel  
         do gasIndex = 1, ngas
-          associated0 = associated( fast_coef(channelIndex)%gasarray(gasIndex)%coef )
+          associated0 = associated( fast_coef(channelIndex) % gasarray(gasIndex) % coef )
           call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
           if (associated0) then
             do layerIndex=1, nlayers
               do coefIndex=1, ncoefs(gasIndex)
-                bigArray(channelIndex,coefIndex,gasIndex,layerIndex) = fast_coef(channelIndex)%gasarray(gasIndex)%coef(coefIndex,layerIndex)
+                bigArray(channelIndex,coefIndex,gasIndex,layerIndex) = fast_coef(channelIndex) % gasarray(gasIndex) % coef(coefIndex,layerIndex)
               end do
             end do
           end if
@@ -5037,22 +4981,22 @@ contains
 
       do channelIndex = 1, countUniqueChannel
         do gasIndex = 1, ngas
-          associated0 = associated(fast_coef(channelIndex)%gasarray(gasIndex)%coef)
-          if (associated0) deallocate(fast_coef(channelIndex)%gasarray(gasIndex)%coef)
+          associated0 = associated(fast_coef(channelIndex) % gasarray(gasIndex) % coef)
+          if (associated0) deallocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef)
         end do
-        deallocate(fast_coef(channelIndex)%gasarray)
+        deallocate(fast_coef(channelIndex) % gasarray)
       end do
       deallocate(fast_coef)
-      allocate (fast_coef(coefs%coef%fmv_chn) )
-      do channelIndex = 1, coefs%coef%fmv_chn
-        allocate (fast_coef(channelIndex)%gasarray(ngas) )
+      allocate(fast_coef(coefs % coef % fmv_chn))
+      do channelIndex = 1, coefs % coef % fmv_chn
+        allocate(fast_coef(channelIndex) % gasarray(ngas))
         call nullify_gas_coef_pointers( fast_coef(channelIndex) )
         do gasIndex = 1, ngas
           if (any( bigArray(indexchan(channelIndex),:,gasIndex,:) /= 0.) ) then
-            allocate (fast_coef(channelIndex)%gasarray(gasIndex)%coef( ncoefs(gasIndex), nlayers) )
+            allocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef( ncoefs(gasIndex), nlayers))
             do layerIndex=1, nlayers
               do coefIndex=1, ncoefs(gasIndex)
-                fast_coef(channelIndex)%gasarray(gasIndex)%coef(coefIndex,layerIndex)  = bigArray(indexchan(channelIndex),coefIndex,gasIndex,layerIndex)
+                fast_coef(channelIndex) % gasarray(gasIndex) % coef(coefIndex,layerIndex)  = bigArray(indexchan(channelIndex),coefIndex,gasIndex,layerIndex)
               end do
             end do
           end if
@@ -5060,7 +5004,7 @@ contains
         end do
       end do
 
-      deallocate(bigArray, stat=err )
+      deallocate(bigArray, stat=err)
 
     end subroutine dispatch_fast_coef
 
@@ -5099,7 +5043,7 @@ contains
     
     newSize = size( index )
 
-    if (mmpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate(array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_INTEGER', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -5107,8 +5051,8 @@ contains
       call utl_abort('extractI41dArray')
     end if
     tmpI41d = array
-    deallocate( array )
-    allocate( array(newSize))
+    deallocate(array)
+    allocate(array(newSize))
     array( : ) =  tmpI41d( index(:) )
   end subroutine extractI41dArray
   
@@ -5145,7 +5089,7 @@ contains
     
     newSize = size( index )
 
-    if (mmpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate(array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -5153,8 +5097,8 @@ contains
       call utl_abort('extractR81dArray')
     end if
     tmpR81d = array
-    deallocate( array )
-    allocate( array(newSize))
+    deallocate(array )
+    allocate(array(newSize))
     array( : ) =  tmpR81d( index(:) )
   end subroutine extractR81dArray
 
@@ -5194,7 +5138,7 @@ contains
 
     newSize = size( index )
 
-    if (mmpi_myid > 0) allocate( array(oldSize1,oldSize2) )
+    if (mmpi_myid > 0) allocate(array(oldSize1,oldSize2) )
     ierr = 0
     call rpn_comm_bcast(array, oldSize1*oldSize2, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -5202,8 +5146,8 @@ contains
       call utl_abort('extractR82dArray')
     end if
     tmpR82d = array
-    deallocate( array )
-    allocate( array(oldSize1,newSize))
+    deallocate(array )
+    allocate(array(oldSize1,newSize))
     do i=1, newSize
       array( :,i) =  tmpR82d(:, index(i) )
     end do
@@ -5245,7 +5189,7 @@ contains
   
     newSize = size( index )
   
-    if (mmpi_myid > 0) allocate( array(oldSize1,oldSize2, oldSIze3) )
+    if (mmpi_myid > 0) allocate(array(oldSize1,oldSize2, oldSIze3) )
     ierr = 0
     call rpn_comm_bcast(array, oldSize1*oldSize2*oldSize3, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -5253,8 +5197,8 @@ contains
       call utl_abort('extractR83dArray')
     end if
     tmpR83d = array
-    deallocate( array )
-    allocate( array(oldSize1,newSize,oldSize3))
+    deallocate(array )
+    allocate(array(oldSize1,newSize,oldSize3))
     do i=1, newSize
       array( :,i,:) =  tmpR83d(:, index(i),: )
     end do
@@ -5293,7 +5237,7 @@ contains
 
     newSize = size( index )
     
-    if (mmpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate(array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_COMPLEX8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -5301,8 +5245,8 @@ contains
       call utl_abort('extractCmplx81dArray')
     end if
     tmpCx81d = array
-    deallocate( array )
-    allocate( array(newSize))
+    deallocate(array)
+    allocate(array(newSize))
     array( : ) =  tmpCx81d( index(:) )
   end subroutine extractCmplx81dArray
   
@@ -5460,11 +5404,11 @@ contains
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
-             tvs_radiance (tovsIndex) % bt(channelIndex)
+             tvs_radiance(tovsIndex) % bt(channelIndex)
         if ( tvs_debug ) then
           obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' rttovChannelNumber,sim,obs,diff= ', &
-               rttovChannelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
+               rttovChannelNumber, tvs_radiance(tovsIndex) % bt(channelIndex), &
                obsPRM, -zdtb
         end if
 
@@ -5553,7 +5497,7 @@ contains
     integer, allocatable, save :: savedChannelIndexes(:,:)
 
     if (first) then
-      allocate( savedChannelIndexes(tvs_nsensors, tvs_maxChannelNumber ) )
+      allocate(savedChannelIndexes(tvs_nsensors, tvs_maxChannelNumber ))
       savedChannelIndexes(:,:) = -1
       do sensorIndex = 1, tvs_nsensors
         channels:do channelNumber = 1,  tvs_maxChannelNumber
@@ -5644,10 +5588,11 @@ contains
     real(8), allocatable, save :: ciwProfileToStore(:,:)
     real(8), allocatable, save :: cloudFractionProfileToStore(:,:)
 
-    if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting'
+    profileCount = size(sensorTovsIndexes)
+
+    if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting', profileCount
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    profileCount = size(sensorTovsIndexes)
 
     if ( trim(mode) == 'save' ) then 
       if (allocated(rainFluxProfileToStore)) deallocate(rainFluxProfileToStore)
@@ -5751,7 +5696,7 @@ contains
     ! Locals:
     character(len=4)               :: cmyidx, cmyidy, strNumLev
     character(len=9)               :: cmyid
-    character(len=1024)            :: filename
+    character(len=1024)            :: fileName
     integer                        :: btIndex, bodyIndex
     integer(8)                     :: obsIdd, obsIdo
     logical                        :: dirExists
@@ -5771,16 +5716,16 @@ contains
     write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
     cmyid = trim(cmyidx) // '_' // trim(cmyidy)
 
-    filename = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'// cmyid
+    fileName = 'tvs_jacobian_' // trim(satelliteName) //'_'// trim(instrumentName) //'_'// cmyid
 
     iunit = 0
-    err = fnom(iunit, trim(dirName) // '/' // trim(filename), 'FTN+SEQ+R/W', 0)
+    err = fnom(iunit, trim(dirName) // '/' // trim(fileName), 'FTN+SEQ+R/W', 0)
     if (err /= 0) then 
       call utl_abort('tvs_writeJacobianAscii: Error writing Jacobian files')
     end if 
 
     do btIndex = 1, btCount
-      profileIndex = chanprof(btIndex)%prof
+      profileIndex = chanprof(btIndex) % prof
       tovsIndex = sensorTovsIndexes(profileIndex)
       headerIndex = tvs_headerIndex(tovsIndex)
       obsIdo = obs_headPrimaryKey(obsSpaceData, headerIndex)
@@ -5789,14 +5734,14 @@ contains
       if (bodyIndex > 0) then
         obsIdd = obs_bodyPrimaryKey(obsSpaceData, bodyIndex)
 
-        if (size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%t(:)) .or. &
-            size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%q(:)) .or. &
-            size(profiles(tovsIndex)%p(:)) /= size(jacobian(btIndex)%p(:))) then
+        if (size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % t(:)) .or. &
+            size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % q(:)) .or. &
+            size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % p(:))) then
           call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match &
                           the number of model levels in Jacobian')
         end if
 
-        numLev = size(profiles(tovsIndex)%p(:))
+        numLev = size(profiles(tovsIndex) % p(:))
         write (strNumLev,'(I4)') numLev
 
         write(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
@@ -5805,10 +5750,10 @@ contains
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2)') &
-              obsIdo, obsIdd, profiles(tovsIndex)%latitude, profiles(tovsIndex)%longitude, numLev, &
-              profiles(tovsIndex)%p(:), &
-              jacobian_emiss(btIndex)%emis_out, jacobian(btIndex)%skin%t, jacobian(btIndex)%s2m%t, jacobian(btIndex)%s2m%p, &
-              jacobian(btIndex)%t(:), jacobian(btIndex)%q(:), jacobian(btIndex)%p(:)
+              obsIdo, obsIdd, profiles(tovsIndex) % latitude, profiles(tovsIndex) % longitude, numLev, &
+              profiles(tovsIndex) % p(:), &
+              jacobian_emiss(btIndex) % emis_out, jacobian(btIndex) % skin % t, jacobian(btIndex) % s2m % t, jacobian(btIndex) % s2m % p, &
+              jacobian(btIndex) % t(:), jacobian(btIndex) % q(:), jacobian(btIndex) % p(:)
       end if
     end do
 
