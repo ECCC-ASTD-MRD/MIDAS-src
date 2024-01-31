@@ -6,18 +6,24 @@ module tovsNL_mod
   !           nonlinear version of RTTOV
   !
   use rttovInterfaces_mod
-  use rttov_types, only :   &
-       rttov_coefs         ,&
-       rttov_fast_coef     ,&
-       rttov_scatt_coef    ,&
-       rttov_options       ,&
-       rttov_options_scatt ,&
-       rttov_profile       ,&
-       rttov_profile_cloud ,&
-       rttov_radiance      ,&
-       rttov_transmission  ,&
-       rttov_chanprof      ,&
-       rttov_emissivity
+  use rttov_types, only :              &
+       rttov_coefs                    ,&
+       rttov_fast_coef                ,&
+       rttov_scatt_coef               ,&
+       rttov_options                  ,&
+       rttov_options_scatt            ,&
+       rttov_profile                  ,&
+       rttov_profile_cloud            ,&
+       rttov_radiance                 ,&
+       rttov_transmission             ,&
+       rttov_chanprof                 ,&
+       rttov_emissivity               ,&
+       rttov_scatt_emis_retrieval_type,&
+       rttov_geometry                 ,&
+       rttov_profile_scatt_aux        ,&
+       rttov_radiance2                ,&
+       rttov_reflectivity             ,&
+       eddington_sfc_type
   use rttov_const, only :           &
        platform_name               ,&
        nplatforms                  ,&
@@ -54,8 +60,13 @@ module tovsNL_mod
        elevmax                     ,&
        wmax                        ,&
        pmin                        ,&
-       pmax
-  use parkind1, only : jpim, jplm
+       pmax                        ,&
+       errorstatus_fatal           ,&
+       sensor_id_po                ,&
+       min_reflectivity            ,&
+       min_radiance_radar
+
+  use parkind1, only : jpim, jplm, jprb
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
   use midasMpi_mod
@@ -671,6 +682,23 @@ contains
     write(*,*) 'Leaving tvs_setupAlloc'
 
   end subroutine tvs_setupAlloc
+
+
+  !--------------------------------------------------------------------------
+  ! tvs_allocateObservationPointers
+  !--------------------------------------------------------------------------
+  subroutine tvs_allocateObservationPointers(obsSpaceData)
+    !
+    ! :Purpose: allocate module variables tvs_chanProf, tvs_chanProfScatt,
+    !           tvs_bodyIndexFromBtIndex and tvs_bodyIndexFromBtIndexScatt
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    
+  end subroutine tvs_allocateObservationPointers
+  
 
   !--------------------------------------------------------------------------
   ! tvs_getProfile
@@ -2860,7 +2888,7 @@ contains
     integer :: nlv_T
     integer :: btCount
     integer :: btCountScatt
-    integer :: allocStatus(4)
+    integer :: allocStatus(5)
     integer :: rttov_err_stat ! rttov error return code
     integer :: nthreads,max_nthreads
     integer :: sensorIndex, tovsIndex
@@ -3213,7 +3241,17 @@ contains
           end if
 
           if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorIndex, profileCount, btCount
-          
+          !if (sensorIndex == 22) then
+          !  call rttov_print_opts(tvs_opts(sensorIndex), text=" rttov options for sensor 22")
+          !  do btIndex = 1, btCount
+          !    write(*,'(A9,1x,i12,1x,i12,1x,i12,1x,L1,1x,e14.6)') "Chan Info", btIndex, chanProf(btIndex)%chan, &
+          !        chanProf(btIndex)%prof, &
+          !        calcemis(btIndex), emissivity_local(btIndex)%emis_in
+          !  end do
+          !  do profileIndex =1,profileCount
+          !    call rttov_print_profile(tvs_profiles_nl(sensorTovsIndexes(profileIndex)), text=" debug ")
+          !  end do
+          !end if
           call rttov_parallel_direct(                              &
               rttov_err_stat,                                      & ! out
               chanProf(1:btCount),                                 & ! in
@@ -3261,6 +3299,8 @@ contains
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
+              !write(*,*) "tau_levels ", sensorIndex, channelIndex, btIndex, levelIndex, &
+              !    transmission % tau_levels(levelIndex,btIndex)
             end do
           
             tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
@@ -3363,7 +3403,7 @@ contains
                                              nlv_T,                             &
                                              mode='save',                       &
                                              beSilent=.true.)
-          call rttov_scatt(                                           &
+          call tvs_rttovScatt(                                           &
               rttov_err_stat,                                         &! out
               tvs_opts_scatt(sensorIndex),                            &! in
               nlv_T,                                                  &! in
@@ -3375,6 +3415,7 @@ contains
               tvs_coef_scatt(sensorIndex),                            &! in
               calcemisScatt,                                          &! in
               emissivity_localScatt,                                  &! inout
+              transmission,                                           &
               radiancedata_dScatt) 
 
           ! save in obsSpaceData
@@ -3392,10 +3433,13 @@ contains
                                              mode='restore',                    &
                                              beSilent=.true.)
           
+          deallocate(transmission % tau_total)
+          deallocate(transmission % tau_levels) 
+          
         end if ! run clear-sky RTTOV
         
         if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorIndex, profileCount, btCountScatt
-        call rttov_scatt(                                           &
+        call tvs_rttovScatt(                                        &
             rttov_err_stat,                                         &! out
             tvs_opts_scatt(sensorIndex),                            &! in
             nlv_T,                                                  &! in
@@ -3407,6 +3451,7 @@ contains
             tvs_coef_scatt(sensorIndex),                            &! in
             calcemisScatt,                                          &! in
             emissivity_localScatt,                                  &! inout
+            transmission,                                           & ! allocated inside
             radiancedata_dScatt) 
         if ( .not. beSilent ) write(*,*) 'after rttov_scatt...'
         if (rttov_err_stat /= 0) then
@@ -3441,7 +3486,23 @@ contains
           if ( allocated(tvs_emissivity) ) then
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex) % emis_out
           end if
+
+          if (allocated(tvs_transmission)) then
+            !write(*,*) associated(transmission % tau_levels)
+            !write(*,*) associated(transmission % tau_total)
+            !write(*,*) shape(transmission % tau_levels)
+            !write(*,*) shape(transmission % tau_total)
+            do levelIndex = 1, nlv_T
+              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                  transmission % tau_levels(levelIndex,btIndex)
+             ! write(*,*) "tau_levels (from scatt)", sensorIndex, channelIndex, btIndex, levelIndex, &
+             !     transmission % tau_levels(levelIndex,btIndex)
+             ! call flush(6)
+            end do
           
+            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+                transmission % tau_total(btIndex)
+          end if
         end do
 
         ! Append Surface Emissivity, Surface-Satellite Transmissivity into ObsSpaceData
@@ -3475,6 +3536,8 @@ contains
 
         deallocate(surfem1Scatt, stat=allocStatus(2))
         deallocate(frequencies,  stat=allocStatus(3))
+        deallocate(transmission % tau_total,  stat=allocStatus(4))
+        deallocate(transmission % tau_levels, stat=allocStatus(5)) 
         call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
      
       end if
@@ -5759,5 +5822,360 @@ contains
 
     err = fclos(iunit)
   end subroutine tvs_writeJacobianAscii
+
+
+  !--------------------------------------------------------------------------
+  !  tvs_rttovScatt
+  !--------------------------------------------------------------------------
+  subroutine tvs_rttovScatt(   &
+      errorstatus,       &! out
+      opts_scatt,        &! in
+      nlevels,           &! in
+      chanprof,          &! in
+      frequencies,       &! in
+      profiles,          &! in
+      cld_profiles,      &! in
+      coef_rttov,        &! in
+      coef_scatt,        &! in
+      calcemis,          &! in
+      emissivity,        &! inout
+      transmission,      &! inout
+      radiance,          &! inout 
+      cfrac,             &! out, optional
+      emis_retrieval_terms, & !
+      reflectivity)        ! inout, optional
+    !
+    ! :Purpose: modified rttov_scatt subroutine with additional transmission argument
+    !
+  
+    
+    implicit none
+
+
+    !* Subroutine arguments:
+    type(rttov_options_scatt), intent(in) :: opts_scatt  ! RTTOV-SCATT options
+    integer (kind=jpim), intent(in)       :: nlevels     ! Number of levels
+    type(rttov_chanprof), intent(in)      :: chanprof(:) ! Channel and profile indices
+    type(rttov_profile), intent(in)       :: profiles(:)
+    integer (kind=jpim), intent(in)       :: frequencies (size(chanprof)) ! Frequency indices
+    integer (kind=jpim), intent(out)      :: errorstatus                  ! Error return flag
+    
+    logical (kind=jplm),    intent(in)    :: calcemis   (size(chanprof))  ! Switch for emmissivity calculation
+    type(rttov_emissivity), intent(inout) :: emissivity (size(chanprof))  ! Surface emissivity
+    
+    type (rttov_coefs),         intent(in)    :: coef_rttov               ! RTTOV Coefficients
+    type (rttov_scatt_coef),    intent(in)    :: coef_scatt               ! RTTOV_SCATT Coefficients
+    type (rttov_profile_cloud), intent(in)    :: cld_profiles (size(profiles)) ! Cloud profiles
+    type (rttov_radiance),      intent(inout) :: radiance                 ! Radiances
+    type (rttov_transmission),  intent(inout) :: transmission             ! Transmittances
+ 
+    real (kind=jprb), optional, intent (out)  :: cfrac (size(profiles))  ! Cloud fraction (diagnostic)
+
+    type (rttov_scatt_emis_retrieval_type), optional, intent (inout) :: emis_retrieval_terms ! Optional for all-sky emis retrievals
+    type (rttov_reflectivity), optional, intent (inout) :: reflectivity ! Optional for radar
+
+
+
+    integer (kind=jpim), target :: sa__mclayer (size(chanprof))
+ 
+    real (kind=jprb), target :: sa__cfrac   (size(profiles))
+    real (kind=jprb), target :: sa__ems_bnd (size(chanprof))
+    real (kind=jprb), target :: sa__ref_bnd (size(chanprof))
+    real (kind=jprb), target :: sa__ems_cld (size(chanprof))
+    real (kind=jprb), target :: sa__ref_cld (size(chanprof))
+    
+    real (kind=jprb), target :: sa__tbd (size(chanprof),nlevels+1)
+    real (kind=jprb), target :: sa__tsfc (size(chanprof))
+    real (kind=jprb), target :: sa__tcosmic (size(chanprof))
+    
+    real (kind=jprb), target :: sa__delta  (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__tau    (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__int_tau(size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__ext    (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__ssa    (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__asm    (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__zef    (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__lambda (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__h      (size(chanprof),nlevels)
+  
+    real (kind=jprb), target :: sa__b0     (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__b1     (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__bn     (size(chanprof),nlevels)
+    real (kind=jprb), target :: sa__btop   (size(chanprof))
+    real (kind=jprb), target :: sa__bsfc   (size(chanprof))
+    real (kind=jprb), target :: sa__dz     (size(profiles),nlevels)
+    real (kind=jprb), target :: sa__hydro  (size(profiles),nlevels,cld_profiles(1)%nhydro)
+    
+    real (kind=jprb), target :: sf__t_down (size(chanprof))
+    real (kind=jprb), target :: sf__t_up   (size(chanprof))
+    real (kind=jprb), target :: sf__tau    (size(chanprof))
+    
+    real (kind=jprb), target :: sr__upclear(size(chanprof))
+    real (kind=jprb), target :: sr__dnclear(size(chanprof))
+    real (kind=jprb), target :: sr__refldnclear(size(chanprof))
+    real (kind=jprb), target :: sr__up  (nlevels-1, size(chanprof))
+    real (kind=jprb), target :: sr__down(nlevels-1, size(chanprof))
+    real (kind=jprb), target :: sr__surf(nlevels-1, size(chanprof))
+    
+    !* Local variables:
+    integer (kind=jpim) :: nprofiles, nchannels
+    Logical (kind=jplm) :: lpolarimetric(size(chanprof)), lthermal(size(chanprof))
+    integer (kind=jpim) :: iprof, ichan, ilayer
+    integer (kind=jpim) :: ichan_act
+    real    (kind=jprb) :: rad_cld     (size(chanprof))
+    real    (kind=jprb) :: zlayers(nlevels) !altitude from ground in km
+    Logical (kind=jplm) :: lreflectivity
+    
+    ! Variables for emissivity calculations
+    type (eddington_sfc_type) :: sfc_terms ! Downward radiance source terms, Upward radiance source terms, Total transmittancs
+    type (rttov_radiance2)    :: radiance2               
+    
+    type (rttov_geometry)          :: angles (size(profiles))
+    type (rttov_profile_scatt_aux) :: scatt_aux  
+                         
+    type(rttov_options)    :: opts
+
+    character (len=80) :: errMessage
+    character (len=16) :: NameOfRoutine = 'tvs_rttov_scatt '
+  
+    !- End of header --------------------------------------------------------
+
+    lreflectivity = present(reflectivity)
+
+    nprofiles = size(profiles)
+    nchannels = size(chanprof)
+
+    errorstatus = errorstatus_success
+  
+    !we want to be able to get trasmittance as an argument. It is no longer possible to use autonatic allocation
+    allocate(transmission % tau_total(size(chanprof)))
+    allocate(transmission % tau_levels(nlevels,size(chanprof))) 
+ 
+    scatt_aux % cfrac    => sa__cfrac
+    scatt_aux % ems_bnd  => sa__ems_bnd
+    scatt_aux % ref_bnd  => sa__ref_bnd
+    scatt_aux % ems_cld  => sa__ems_cld
+    scatt_aux % ref_cld  => sa__ref_cld
+    scatt_aux % tbd      => sa__tbd
+    scatt_aux % tsfc     => sa__tsfc
+    scatt_aux % tcosmic  => sa__tcosmic
+    scatt_aux % mclayer  => sa__mclayer
+    scatt_aux % delta    => sa__delta
+    scatt_aux % tau      => sa__tau
+    scatt_aux % ext      => sa__ext
+    scatt_aux % ssa      => sa__ssa
+    scatt_aux % asm      => sa__asm
+    scatt_aux % int_tau  => sa__int_tau
+    scatt_aux % zef      => sa__zef
+    scatt_aux % lambda   => sa__lambda
+    scatt_aux % h        => sa__h
+    scatt_aux % b0       => sa__b0
+    scatt_aux % b1       => sa__b1
+    scatt_aux % bn       => sa__bn
+    scatt_aux % btop     => sa__btop
+    scatt_aux % bsfc     => sa__bsfc
+    scatt_aux % dz       => sa__dz
+    scatt_aux % hydro    => sa__hydro
+    
+    sfc_terms % down   => sf__t_down
+    sfc_terms % up     => sf__t_up
+    sfc_terms % tau    => sf__tau
+    
+    radiance2 % upclear => sr__upclear
+    radiance2 % dnclear => sr__dnclear
+    radiance2 % refldnclear => sr__refldnclear
+    radiance2 % up      => sr__up  
+    radiance2 % down    => sr__down
+    radiance2 % surf    => sr__surf
+   
+    ! Check inputs
+    ! ------------
+    do iprof = 1, nprofiles
+      if (  profiles(iprof) % s2m % p /= cld_profiles(iprof) % ph(nlevels+1)  ) then
+        errorstatus = errorstatus_fatal
+        write( errMessage, '( "Surface pressure and lowest half level should be identical")' )
+      end if
+      if ( cld_profiles(iprof) % nhydro /= coef_scatt % nhydro ) then
+        errorstatus = errorstatus_fatal
+        write( errMessage, '( "Number of hydrometeors differs between inputs and scattering coefficients ")' )
+      end if
+      if ( cld_profiles(iprof) % nhydro_frac /= coef_scatt % nhydro .and. &
+          cld_profiles(iprof) % nhydro_frac /= 1_JPIM ) then
+        errorstatus = errorstatus_fatal
+        write( errMessage, '( "Number of hydrometeor fractions should be 1 or nhydro ")' )
+      endif
+      if (errorstatus == errorstatus_fatal) then
+        call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
+        return
+      end if
+    end do
+
+    ! Identify polarimetric channels for fix to use only the clear sky part of RT calculation 
+    do ichan = 1, nchannels
+      ichan_act = chanprof(ichan)%chan
+      lpolarimetric(ichan) = ( (coef_rttov % coef % id_sensor == sensor_id_po) &
+          .and.   (coef_rttov % coef % fastem_polar(ichan_act) + 1_jpim >= 6_jpim) )
+    end do
+      
+    !* 1.   Gas absorption
+    
+    ! Profiles will be interpolated from model/RTTOV-SCATT levels to 
+    ! RTTOV coefficient levels within RTTOV itself.
+    opts % interpolation % addinterp   = .true.
+    opts % rt_ir % addclouds           = .false.
+    opts % rt_ir % addsolar            = .false.
+    opts % rt_ir % addaerosl           = .false.
+    opts % rt_ir % pc % addpc          = .false.
+    opts % rt_ir % pc % addradrec      = .false.
+    opts % rt_mw % clw_data            = .false.
+    
+    opts % rt_mw % fastem_version           = opts_scatt % fastem_version
+    opts % rt_mw % supply_foam_fraction     = opts_scatt % supply_foam_fraction
+    opts % rt_all % ozone_data              = opts_scatt % ozone_data
+    opts % rt_all % use_t2m_opdep           = opts_scatt % use_t2m_opdep
+    opts % rt_all % use_q2m                 = opts_scatt % use_q2m
+    opts % rt_all % addrefrac               = opts_scatt % addrefrac
+    opts % rt_all % rad_down_lin_tau        = opts_scatt % rad_down_lin_tau
+    opts % rt_all % dtau_test               = opts_scatt % dtau_test
+    opts % config                           = opts_scatt % config
+    opts % interpolation % interp_mode      = opts_scatt % interp_mode
+    opts % interpolation % reg_limit_extrap = opts_scatt % reg_limit_extrap
+    opts % interpolation % lgradp           = opts_scatt % lgradp
+
+    call rttov_direct(              &!
+        errorstatus,            &! out
+        chanprof,               &! in
+        opts,                   &! in
+        profiles,               &! in
+        coef_rttov,             &! in
+        transmission,           &! inout
+        radiance,               &! inout
+        radiance2 = radiance2,  &! inout 
+        calcemis   = calcemis,  &! in
+        emissivity = emissivity) ! inout
+
+    if ( errorstatus == errorstatus_fatal ) Then
+      write( errMessage, '( "error in rttov_direct")' )
+      call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
+      return
+    end if
+    
+    scatt_aux % ems_cld (:) = emissivity (:) % emis_in
+    scatt_aux % ref_cld (:) = 1.0_JPRB - emissivity (:) % emis_in
+
+    !* 2.   Initialisations for Eddington
+    call rttov_iniscatt(           &
+        errorstatus,           &! out
+        opts,                  &! in
+        opts_scatt,            &! in
+        lreflectivity,         &! in
+        nlevels,               &! in
+        nchannels,             &! in
+        nprofiles,             &! in
+        chanprof,              &! in
+        frequencies,           &! in
+        profiles,              &! in
+        cld_profiles,          &! in
+        coef_rttov%coef,       &! in
+        coef_scatt,            &! in
+        transmission,          &! in
+        calcemis,              &! in
+        opts_scatt%lusercfrac, &! in
+        angles,                &! out
+        scatt_aux)              ! inout
+    
+    if ( errorstatus == errorstatus_fatal ) Then
+      write( errMessage, '( "error in rttov_iniscatt")' )
+      call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
+      return
+    end if
+    
+    if (.not. lreflectivity) then
+
+      !* 3. Eddington (in temperature space)
+      call rttov_eddington(           &
+          opts_scatt%cc_threshold, &! in
+          nlevels,                 &! in
+          nchannels,               &! in
+          nprofiles,               &! in
+          chanprof,                &! in
+          angles,                  &! in
+          scatt_aux,               &! in
+          rad_cld,                 &! out
+          sfc_terms = sfc_terms)    ! inout, optional, Upward and downward radiance source terms, Total transmittances
+
+      ! Emissivity retrieval terms
+      if (present(emis_retrieval_terms)) then
+        call rttov_scatt_emis_terms(  &
+            opts_scatt%cc_threshold, &! in
+            chanprof,                &! in
+            coef_rttov,              &! in
+            scatt_aux,               &! in
+            emissivity,              &! in
+            transmission,            &! in
+            radiance2,               &! in
+            sfc_terms,               &! in
+            emis_retrieval_terms)     ! inout
+      end if
+
+      !* 4.  Combine clear and cloudy parts
+      do ichan = 1, nchannels
+        iprof = chanprof(ichan)%prof
+        
+        if (scatt_aux % cfrac (iprof) > opts_scatt % cc_threshold .and. .not. lpolarimetric(ichan)) then
+          radiance % total (ichan) = rad_cld (ichan) * scatt_aux % cfrac (iprof) &
+              + radiance % clear (ichan) * (1.0_JPRB - scatt_aux % cfrac (iprof))
+        else
+          radiance % total (ichan) = radiance % clear (ichan)
+        end if
+      end do
+      
+      ! Return the cloud fraction actually used - this is diagnostic output
+      ! only provided by the forward model.
+      if (present(cfrac)) then
+        cfrac(:) = scatt_aux % cfrac (:)
+      end if
+      
+    else
+      
+      reflectivity % zef(:,:)          = 0._JPRB
+      reflectivity % azef(:,:)         = 0._JPRB
+      radiance % geometric_height(:,:) = 0._JPRB
+      radiance % total (:)             = min_radiance_radar
+      radiance % clear (:)             = min_radiance_radar
+      
+      do ichan = 1, nchannels
+        
+        iprof            = chanprof(ichan)%prof
+        zlayers(nlevels) = profiles(iprof) % elevation
+        
+        do ilayer = nlevels, 1, -1
+          
+          if (ilayer < nlevels) zlayers(ilayer) = zlayers(ilayer+1) + scatt_aux%dz(iprof,ilayer+1)
+          
+          if (scatt_aux % zef (ichan,ilayer) > min_reflectivity) then
+            
+            reflectivity % zef (ilayer,ichan)  = scatt_aux % zef (ichan,ilayer)
+            
+            reflectivity % azef (ilayer,ichan) = scatt_aux % zef (ichan,ilayer) + &
+                2*10*log10( scatt_aux % int_tau (ichan,ilayer) )
+            
+          else
+            reflectivity % zef (ilayer,ichan)  = min_reflectivity
+            reflectivity % azef (ilayer,ichan) = min_reflectivity
+          end if
+          
+          ! Approximate altitude of the middle of the RTTOV-SCATT layer (corresponding to the IFS full level), back from km to m
+          radiance % geometric_height (ilayer,ichan) = 1000.0_JPRB * (zlayers(ilayer) + scatt_aux%dz(iprof,ilayer)/2.)
+        end do
+      end do
+
+    end if
+
+    lthermal = .true.
+    call rttov_calcbt(chanprof, coef_rttov%coef, lthermal, radiance)
+    
+  end subroutine tvs_rttovScatt
+  
 
 end module tovsNL_mod
