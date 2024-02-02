@@ -639,11 +639,11 @@ contains
     if ( applyVarqcOnNlJo ) call vqc_NlTl(obsSpaceData)
 
     ! Compute Jo components and print
-    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
-    if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
+    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt = beSilent)
+    if (mmpi_myid == 0 .and. .not. beSilent) write(*,'(a15,e25.15e3)') 'Total Jo = ', Jo
 
-    if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
-    if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
+    if (.not.beSilent) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
+    if (.not.beSilent) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
     if ( .not. beSilent ) then
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -884,7 +884,6 @@ contains
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt = anlVar(1))
-
     call vco_SetupFromFile(vco_trl, './trlm_01')
 
     write(*,*) 'inn_getHcoVcoFromTrlmFile: END'

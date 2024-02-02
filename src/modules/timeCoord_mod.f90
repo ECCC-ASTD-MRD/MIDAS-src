@@ -114,7 +114,8 @@ contains
     if (dstepobsinc > dwindowsize) then
       if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
-    end if 
+    end if
+     
     if (tim_referenceTime == 'middle') then
       tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
       tim_nstepobsinc = 2 * nint(((tim_windowsize - tim_dstepobsinc) / 2.d0) / tim_dstepobsinc) + 1

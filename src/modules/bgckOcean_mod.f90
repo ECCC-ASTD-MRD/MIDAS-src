@@ -600,7 +600,7 @@ module bgckOcean_mod
                                             ', year: '//str(yyyy)//', month: '//str(monthNumber)//&
                                             ', day: '//str(day)//', hour: '//str(hour))
       call gio_readFromFile(stateVector, './winds', ' ', ' ', stepIndex_opt = timeStepIndex, &
-                            containsFullField_opt=.true.)
+                            containsFullField_opt = .true.)
     end do
 
     call gsv_getField(stateVector, uu_ptr4d, 'UU')

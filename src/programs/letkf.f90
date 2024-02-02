@@ -181,6 +181,8 @@ program midas_letkf
   use innovation_mod
   use enkf_mod
   use ensPostProcess_mod
+  use message_mod
+  
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -531,14 +533,14 @@ program midas_letkf
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
+  
+    call msg('midas-letkf', 'Read a deterministic state for recentering the ensemble.')
     call gsv_allocate(stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
                       dateStamp_opt = tim_getDateStamp(),  &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
                       dataKind_opt = 4, allocHeightSfc_opt = .false., &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorRecenter)
-    
-    write(*,*) 'DEBUG: datestamp = ', tim_getDateStamp()
     
     call fln_ensTrlFileName(recenterFileName, './', tim_getDateStamp(), ocean_opt = ocean)
 
@@ -547,8 +549,11 @@ program midas_letkf
                             stepIndex_opt = stepIndex, containsFullField_opt = .true., &
                             readHeightSfc_opt = .false.)
     end do
+    
     call ens_recenter(ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt = 1.0d0)
     call gsv_deallocate(stateVectorRecenter)
+    call msg('midas-letkf', 'Recentering the ensemble completed.')
+    
   end if
   
   !- 2.13 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors

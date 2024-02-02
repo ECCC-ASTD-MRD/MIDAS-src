@@ -94,7 +94,6 @@ module gridStateVectorFileIO_mod
 
     write(*,*)
     write(*,*) 'gio_readFromFile: START reading file: ', trim(fileName)
-    write(*,*) 'gio_readFromFile: reading file: ', trim(fileName)
     write(*,*) 'gio_readFromFile: file format: ', trim(utl_fileType(trim(fileName)))
        
     call utl_tmg_start(160,'low-level--gsv_readFromFile')
@@ -104,10 +103,20 @@ module gridStateVectorFileIO_mod
     else
       stepIndex = statevector_out%anltime
     end if
-    
-    if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
-      write(*,*) 'stepIndex = ', stepIndex
-      call utl_abort('gio_readFromFile: invalid value for stepIndex')
+    write(*,*) 'gio_readFromFile: step index: ', stepIndex
+
+    if (trim(utl_fileType(trim(fileName))) == 'FST') then
+      if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
+        write(*,*) 'stepIndex = ', stepIndex
+        write(*,*) 'stateVector_out%numStep = ', stateVector_out%numStep
+        call utl_abort('gio_readFromFile: invalid value for stepIndex')
+      end if
+    else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
+      write(*,*) 'gio_readFromFile: time_counter(', stepIndex, &
+                 ') is being read from netCDF file.'
+    else
+      call utl_abort('gio_readFromFile: unknown input file type: '//&
+                     trim(utl_fileType(trim(fileName))))
     end if
 
     if (present(unitConversion_opt)) then
@@ -202,26 +211,33 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFromFile: doVertInterp = ', doVertInterp, ', doHorizInterp = ', doHorizInterp
 
     ! call appropriate subroutine to do actual work
-    if ((doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles') then
-      call readFromFileAndInterpToTiles(statevector_out, fileName,  &
-             vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField, statevectorRef_opt=statevectorRef_opt)
+    if ((doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution == 'Tiles') then
+
+      call readFromFileAndInterpToTiles(statevector_out, fileName, vco_file, hco_file,   &
+                                        etiket_in, typvar_in, stepIndex, unitConversion, &
+                                        readHeightSfc, containsFullField,                &
+                                        statevectorRef_opt = statevectorRef_opt)
+
     else if ((doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local) then
-      call readFromFileAndInterp1Proc(statevector_out, fileName,  &
-             vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField)
+
+      call readFromFileAndInterp1Proc(statevector_out, fileName, vco_file, hco_file,   &
+                                      etiket_in, typvar_in, stepIndex, unitConversion, &
+                                      readHeightSfc, containsFullField)
+
     else if (.not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local) then
-      call readFromFileAndTransposeToTiles(statevector_out, fileName,  &
-             etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField)
+
+      call readFromFileAndTransposeToTiles(statevector_out, fileName, etiket_in, &
+                                           typvar_in, stepIndex, unitConversion, &
+                                           readHeightSfc, containsFullField)
     else
-      call readFromFileOnly(statevector_out, fileName,  &
-                            etiket_in, typvar_in, stepIndex, unitConversion,  &
+
+      call readFromFileOnly(statevector_out, fileName, etiket_in, &
+                            typvar_in, stepIndex, unitConversion, &
                             readHeightSfc, containsFullField)
     end if
 
     call utl_tmg_stop(160)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
     write(*,*) 'gio_readFromFile: END'
 
   end subroutine gio_readFromFile
@@ -272,27 +288,27 @@ module gridStateVectorFileIO_mod
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
     ! initialize single precision 3D working copy of statevector for reading file
-    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex),    &
-                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',     &
-                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,          &
-                      varNames_opt=varNamesToRead,                               &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
+    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                 &
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex),   &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'VarsLevs',  &
+                      dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,       &
+                      varNames_opt = varNamesToRead,                              &
+                      hInterpolateDegree_opt = statevector_out%hInterpolateDegree,&
+                      hExtrapolateDegree_opt = statevector_out%hExtrapolateDegree )
 
     call gio_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readHeightSfc_opt=readHeightSfc)
+                      containsFullField, readHeightSfc_opt = readHeightSfc)
 
     !-- 2.0 Horizontal Interpolation
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
-    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file,  &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex),    &
-                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',     &
-                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,          &
-                      varNames_opt=varNamesToRead,                               &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
+    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file,   &
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex),   &
+                      mpi_local_opt = .true., mpi_distribution_opt='VarsLevs',    &
+                      dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,       &
+                      varNames_opt = varNamesToRead,                              &
+                      hInterpolateDegree_opt = statevector_out%hInterpolateDegree,&
+                      hExtrapolateDegree_opt = statevector_out%hExtrapolateDegree )
 
     call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
@@ -301,17 +317,17 @@ module gridStateVectorFileIO_mod
     !-- 3.0 Unit conversion
 
     if ( unitConversion ) then
-      call gio_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
+      call gio_fileUnitsToStateUnits(statevector_hinterp_r4, containsFullField)
     end if
 
     !-- 4.0 MPI communication from vars/levels to lat/lon tiles
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
-    call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file,    &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex), &
-                      mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
-                      dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
-                      varNames_opt=varNamesToRead )
+    call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file,     &
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex),&
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',  &
+                      dataKind_opt = 8, allocHeightSfc_opt = readHeightSfc,    &
+                      varNames_opt = varNamesToRead)
 
     call gsv_transposeVarsLevsToTiles(statevector_hinterp_r4, statevector_tiles)
 
@@ -321,12 +337,12 @@ module gridStateVectorFileIO_mod
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
     call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex), &
-                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8, &
-                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead )
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex), &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', dataKind_opt = 8, &
+                      allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead)
 
-    call int_vInterp_gsv( statevector_tiles, statevector_vinterp, & 
-                          statevectorRef_opt=statevectorRef_opt)
+    call int_vInterp_gsv(statevector_tiles, statevector_vinterp, & 
+                         statevectorRef_opt = statevectorRef_opt)
 
     call gsv_deallocate(statevector_tiles)
 
@@ -344,8 +360,9 @@ module gridStateVectorFileIO_mod
   ! readFromFileAndTransposeToTiles
   !--------------------------------------------------------------------------
   subroutine readFromFileAndTransposeToTiles(statevector_out, fileName,  &
-             etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField)
+                                             etiket_in, typvar_in, &
+                                             stepIndex, unitConversion,  &
+                                             readHeightSfc, containsFullField)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object. Wrapper subroutine that also proceed with
@@ -383,30 +400,30 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for reading file
     call gsv_allocate(statevector_file_r4, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex),           &
-                      mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',            &
-                      dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,                         &
-                      varNames_opt=varNamesToRead )
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'VarsLevs', &
+                      dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,      &
+                      varNames_opt = varNamesToRead)
 
-    call gio_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readHeightSfc_opt=readHeightSfc)
+    call gio_readFile(statevector_file_r4, fileName, etiket_in, typvar_in,  &
+                      containsFullField, readHeightSfc_opt = readHeightSfc)
 
     !-- 2.0 Unit conversion
-    if ( unitConversion ) then
-      call gio_fileUnitsToStateUnits( statevector_file_r4, containsFullField )
+    if (unitConversion) then
+      call gio_fileUnitsToStateUnits(statevector_file_r4, containsFullField)
     end if
 
     !-- 3.0 MPI communication from vars/levels to lat/lon tiles
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt=statevector_out%datestamplist(stepIndex), &
-                      mpi_local_opt=.true., mpi_distribution_opt='Tiles',     &
-                      dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
-                      varNames_opt=varNamesToRead)
+                      dateStamp_opt = statevector_out%datestamplist(stepIndex), &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',   &
+                      dataKind_opt = 8, allocHeightSfc_opt = readHeightSfc,     &
+                      varNames_opt = varNamesToRead)
 
     call gsv_transposeVarsLevsToTiles(statevector_file_r4, statevector_tiles)
 
     !-- 4.0 Copy result to output statevector
-    call gsv_copy(statevector_tiles, statevector_out, stepIndexOut_opt=stepIndex)
+    call gsv_copy(statevector_tiles, statevector_out, stepIndexOut_opt = stepIndex)
 
     call gsv_deallocate(statevector_tiles)
     call gsv_deallocate(statevector_file_r4)
@@ -458,25 +475,24 @@ module gridStateVectorFileIO_mod
     !-- 1.0 Read the file
 
     ! initialize single precision 3D working copy of statevector for reading file
-    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                    &
-                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),     &
-                      mpi_local_opt=.false., dataKind_opt=4,                         &
-                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead, &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
+    call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                       &
+                      dateStamp_opt = statevector_out_r4%datestamplist(stepIndex),      &
+                      mpi_local_opt = .false., dataKind_opt = 4,                        &
+                      allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead,&
+                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,     &
                       hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
-
-    call gio_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
-                      containsFullField, readHeightSfc_opt=readHeightSfc)
+    call gio_readFile(statevector_file_r4, filename, etiket_in, typvar_in,&
+                      containsFullField, readHeightSfc_opt = readHeightSfc)
 
     !-- 2.0 Horizontal Interpolation
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
-    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file,   &
-                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),     &
-                      mpi_local_opt=.false., dataKind_opt=4,                         &
-                      allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead, &
-                      hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
-                      hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
+    call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file,      &
+                      dateStamp_opt = statevector_out_r4%datestamplist(stepIndex),      &
+                      mpi_local_opt = .false., dataKind_opt=4,                          &
+                      allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead,&
+                      hInterpolateDegree_opt = statevector_out_r4%hInterpolateDegree,   &
+                      hExtrapolateDegree_opt = statevector_out_r4%hExtrapolateDegree)
 
     call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
@@ -485,7 +501,7 @@ module gridStateVectorFileIO_mod
     !-- 3.0 Unit conversion (must come before vertical interp to get Psfc in Pascals)
 
     if ( unitConversion ) then
-      call gio_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
+      call gio_fileUnitsToStateUnits(statevector_hinterp_r4, containsFullField)
     end if
 
     !-- 4.0 Vertical interpolation
@@ -535,7 +551,7 @@ module gridStateVectorFileIO_mod
     write(*,*) ''
     write(*,*) 'readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
 
-    call gio_readFile(statevector_out, filename, etiket_in, typvar_in,  &
+    call gio_readFile(statevector_out, fileName, etiket_in, typvar_in,  &
                       containsFullField, readHeightSfc_opt = readHeightSfc, &
                       stepIndex_opt = stepIndex)
 
@@ -550,7 +566,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_readFile
   !--------------------------------------------------------------------------
-  subroutine gio_readFile(statevector, filename, etiket_in, typvar_in, &
+  subroutine gio_readFile(stateVector, fileName, etiket_in, typvar_in, &
                           containsFullField, readHeightSfc_opt, stepIndex_opt, &
                           ignoreDate_opt)
     !
@@ -560,7 +576,7 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(inout) :: statevector       ! state vector structure
+    type(struct_gsv),  intent(inout) :: stateVector       ! state vector structure
     character(len=*),  intent(in)    :: fileName          ! file name
     character(len=*),  intent(in)    :: etiket_in         ! RPN standard file etiket
     character(len=*),  intent(in)    :: typvar_in         ! RPN standard file type of variable
@@ -570,14 +586,21 @@ module gridStateVectorFileIO_mod
     logical, optional, intent(in)    :: ignoreDate_opt    ! RPN standard file option
 
     if (trim(utl_fileType(trim(fileName))) == 'FST') then
-      call gio_readFileFst(statevector, filename, etiket_in, typvar_in, &
-                           containsFullField, readHeightSfc_opt, stepIndex_opt, &
-                           ignoreDate_opt)
+
+      call gio_readFileFst(stateVector, fileName, etiket_in, typvar_in, &
+                           containsFullField, readHeightSfc_opt, & 
+                           stepIndex_opt = stepIndex_opt, &
+                           ignoreDate_opt = ignoreDate_opt)
+
     else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
-      call gio_readFileNetCDF(statevector, filename, stepIndex_opt)
+
+      call gio_readFileNetCDF(stateVector, fileName)
+
     else
+    
       call utl_abort('gio_readFile: unknown file type: '//&
                      trim(utl_fileType(trim(fileName))))
+
     end if
     
   end subroutine gio_readFile
@@ -585,7 +608,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_readFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_readFileNetCDF(statevector, fileName, stepIndex_opt)
+  subroutine gio_readFileNetCDF(statevector, fileName)
     !
     ! :Purpose: Read a NetCDF file and put the contents into a stateVector
     !           object. Low level subroutine that does the actual file reading.
@@ -594,94 +617,137 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(inout) :: statevector   ! state vector structure
-    character(len=*),  intent(in)    :: fileName      ! input netCDF file name
-    integer, optional, intent(in)    :: stepIndex_opt ! step index defining in the time dimension of the input fields
+    type(struct_gsv), intent(inout) :: stateVector ! state vector structure
+    character(len=*), intent(in)    :: fileName    ! input netCDF file name
 
     ! Locals:
-    integer :: ncid, numLevVar
-    integer :: kIndex, stepIndex, stepIndexBeg, stepIndexEnd, ni, nj
+    integer :: ncid, numLevVar, indexTime
+    integer :: kIndex, ni, nj
     integer :: levIndex, varID
     character(len=4)  :: varName
     character(len=10) :: varNameNetCDF
-    real(8), allocatable :: fileField2D(:,:,:,:)
+    real(8), allocatable :: fileField2D(:,:,:,:), netCDFTimes(:)
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
+    integer :: dateStamp
+    integer :: imode, ierr, newdate, prntdate, prnttime
+    integer :: recordDimID, numberRecords, timeCounterID
+    character(len = nf90_max_name) :: recordDimName
+    integer, parameter  :: referenceDateORCA025 = 19500101 ! reference date for netCDF output files
+    integer :: refDateStamp, currentDateStamp
+    logical :: foundRequiredState
+    integer :: timeIndexToRead, stepIndex
 
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
-    if (statevector%mpi_distribution /= 'VarsLevs' .and. &
-        statevector%mpi_local ) then
+    if (stateVector%mpi_distribution /= 'VarsLevs' .and. &
+        stateVector%mpi_local) then
       call utl_abort('gio_readFileNetCDF: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
 
-    if (present(stepIndex_opt)) then
-      stepIndexBeg = stepIndex_opt
-      stepIndexEnd = stepIndex_opt
+    if (.not. associated(stateVector%dateStampList)) then
+      call utl_abort('gio_readFileNetCDF: dateStampList of statevector is not associated with a target!')
     else
-      stepIndexBeg = 1
-      stepIndexEnd = statevector%numStep
+      dateStamp = stateVector%dateStampList(1)
+      imode = -3 ! stamp to printable
+      call msg('gio_readFileNetCDF', 'Current datestamp /date: ')
+      ierr = newdate(dateStamp, prntdate, prnttime, imode)
+      write(*,*) dateStamp, prntdate, prnttime / 1000000, 'h' 
     end if
 
-    if ((stepIndexEnd - stepIndexBeg) > 0) then
-      call utl_abort('gio_readFileNetCDF: only single timestep per file supported')
-    end if
-
-    ni = statevector%hco%ni
-    nj = statevector%hco%nj
+    ni = stateVector%hco%ni
+    nj = stateVector%hco%nj
     allocate(fileField2D(ni, nj, 1, 1))
 
     ! Open the file
     call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
-    
-    ! Read all fields needed for this MPI task
-    call gsv_getField(statevector, field_r4_ptr)
-    
-    do stepIndex = stepIndexBeg, stepIndexEnd
-    
-      k_loop: do kIndex = statevector%mykBeg, statevector%mykEnd
-      
-        varName = gsv_getVarNameFromK(statevector, kIndex)
-        varNameNetCDF = vnl_varNameNetCDF(trim(varName), trim(fileName))
 
-        levIndex = gsv_getLevFromK(statevector, kIndex)
-        if (.not.gsv_varExist(statevector, varName)) cycle k_loop
+    ! Read time_counter variable to verify if the required stepIndex is in the file
+    ! Get ID of unlimited dimension
+    call utl_checkNetCDFstatus(nf90_inquire(ncid, unlimiteddimid = recordDimID))
+    ! What is the name of the unlimited dimension, how many records are there?
+    call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, recordDimID, &
+                                                      name = recordDimName, &
+                                                      len = numberRecords))
+    write(*,*)'gio_readFileNetCDF: unlimited dimension: ', trim(recordDimName), &
+              ' (', numberRecords, ' currently)'
 
-        numLevVar = gsv_getNumLevFromVarName(statevector, varName)
-        write(*,*) 'gio_readFileNetCDF: reading varName MIDAS, varName NEMO, levIndex, numLev: ', &
-                   trim(varName), ', ', trim(varNameNetCDF), ', ', levIndex, numLevVar
+    allocate(netCDFTimes(numberRecords))
+    call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'time_counter', timeCounterID))
+    call utl_checkNetCDFstatus(nf90_get_var(ncid, timeCounterID, netCDFTimes, &
+				            start = (/            1/), &
+                                            count = (/numberRecords/)))
+    imode = 3
+    ierr = newdate(refDateStamp, referenceDateORCA025, 0, imode)
+    write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateORCA025, refDateStamp
 
-        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(varNameNetCDF), varID), &
-                                   'gio_readFileNetCDF', 'nf90_inq_varid', 'varNameNetCDF')
-
-        ! Read a 2D field from file
-        call utl_checkNetCDFstatus(nf90_get_var(ncid, varID, fileField2D, &
-                                   start = (/ 1,  1, levIndex, stepIndex/), &
-                                   count = (/ni, nj,        1,         1/)), &
-                                   'gio_readFileNetCDF', 'nf90_get_var', 'fileField2D')
-
-        write(*,*) 'min/maxval = ', minval(fileField2D), maxval(fileField2D)
-        field_r4_ptr(:,:, kIndex, stepIndex) = fileField2D(:,:,1,1)
-
-      end do k_loop
-
+    foundRequiredState = .false.
+    do indexTime = 1, numberRecords    
+      call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(indexTime) / 3600.))
+      if (currentDateStamp == dateStamp) then
+        foundRequiredState = .true.
+        timeIndexToRead = indexTime
+        write(*,*) ''
+        call msg('gio_readFileNetCDF', 'Required state found in the netCDF file:')
+        write(*,*)'gio_readFileNetCDF: time_counter index/datestamp: ', timeIndexToRead, currentDateStamp
+        write(*,*) ''
+        exit
+      end if
     end do
 
+    if(.not. foundRequiredState) then
+      call msg('gio_readFileNetCDF', 'netCDF available dateStamps:')
+      do indexTime = 1, numberRecords 
+        call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(indexTime) / 3600.))
+        write(*,*) indexTime, currentDateStamp
+      end do
+      call utl_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
+    end if
+
+    deallocate(netCDFTimes)
+    
+    ! Read all fields needed for this MPI task
+    call gsv_getField(stateVector, field_r4_ptr)
+    
+    k_loop: do kIndex = stateVector%mykBeg, statevector%mykEnd
+    
+      varName = gsv_getVarNameFromK(stateVector, kIndex)
+      varNameNetCDF = vnl_varNameNetCDF(trim(varName), trim(fileName))
+
+      levIndex = gsv_getLevFromK(stateVector, kIndex)
+      if (.not.gsv_varExist(stateVector, varName)) cycle k_loop
+
+      numLevVar = gsv_getNumLevFromVarName(stateVector, varName)
+      write(*,*) 'gio_readFileNetCDF: reading varName MIDAS, varName NEMO, levIndex, numLev, stepIndex: ', &
+		 trim(varName), ', ', trim(varNameNetCDF), ', ', levIndex, numLevVar, timeIndexToRead
+
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(varNameNetCDF), varID))
+
+      ! Read a 2D field from file
+      call utl_checkNetCDFstatus(nf90_get_var(ncid, varID, fileField2D, &
+				              start = (/ 1,  1, levIndex, timeIndexToRead/),&
+				              count = (/ni, nj,        1,               1/)))
+
+      write(*,*) 'min/maxval = ', minval(fileField2D), maxval(fileField2D)
+      field_r4_ptr(:,:, kIndex, 1) = fileField2D(:,:,1,1)
+
+    end do k_loop
+
     ! Close the file
-    call utl_checkNetCDFstatus(nf90_close(ncid), 'gio_readFileNetCDF', 'nf90_close')
+    call utl_checkNetCDFstatus(nf90_close(ncid))
 
     deallocate(fileField2D)
 
-    call msg('gio_readFileNetCDF', 'Completed')
+    call msg('gio_readFileNetCDF', 'Completed for time step: '//str(timeIndexToRead))
 
   end subroutine gio_readFileNetCDF
 
   !--------------------------------------------------------------------------
   ! gio_readFileFst
   !--------------------------------------------------------------------------
-  subroutine gio_readFileFst(statevector, filename, etiket_in, typvar_in, &
-                             containsFullField, readHeightSfc_opt, stepIndex_opt, &
-                             ignoreDate_opt)
+  subroutine gio_readFileFst(stateVector, fileName, etiket_in, typvar_in, &
+                             containsFullField, readHeightSfc_opt,        &
+                             stepIndex_opt, ignoreDate_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object.  Low level subroutine that does the actual
@@ -690,7 +756,7 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(inout) :: statevector
+    type(struct_gsv),  intent(inout) :: stateVector
     character(len=*),  intent(in)    :: fileName
     character(len=*),  intent(in)    :: etiket_in
     character(len=*),  intent(in)    :: typvar_in
@@ -727,14 +793,14 @@ module gridStateVectorFileIO_mod
     logical :: foundVarNameInFile, ignoreDate
 
     write(*,*) 'gio_readFileFst: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
 
     call readNml()
 
-    vco_file => gsv_getVco(statevector)
+    vco_file => gsv_getVco(stateVector)
 
-    if ( statevector%mpi_distribution /= 'VarsLevs' .and. &
-         statevector%mpi_local ) then
+    if ( stateVector%mpi_distribution /= 'VarsLevs' .and. &
+         stateVector%mpi_local ) then
       call utl_abort('gio_readFileFst: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
@@ -753,10 +819,10 @@ module gridStateVectorFileIO_mod
       ignoreDate = .false.
     end if
 
-    if (.not. associated(statevector%dateStampList)) then
+    if (.not. associated(stateVector%dateStampList)) then
       call utl_abort('gio_readFileFst: dateStampList of statevector is not associated with a target!')
     else
-      dateStampList(:) = statevector%dateStampList(:)
+      dateStampList(:) = stateVector%dateStampList(:)
       if (ignoreDate) then
         write(*,*) 'gio_readFileFst: as requested, ignoring the date when reading fields'
         dateStampList(:) = -1
@@ -766,7 +832,7 @@ module gridStateVectorFileIO_mod
     !- Open input field
     nulfile = 0
     write(*,*) 'gio_readFileFst: file name = ', trim(fileName)
-    ierr = fnom(nulfile, trim(fileName),'RND+OLD+R/O', 0)
+    ierr = fnom(nulfile, trim(fileName), 'RND+OLD+R/O', 0)
 
     if (ierr >= 0) then
       ierr  =  fstouv(nulfile,'RND+OLD')
@@ -780,7 +846,7 @@ module gridStateVectorFileIO_mod
 
     ! Read surface height if requested
     if (present(readHeightSfc_opt)) then
-      if (readHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector)) then
+      if (readHeightSfc_opt .and. gsv_isAssocHeightSfc(stateVector)) then
         write(*,*) 'gio_readFileFst: reading the surface height'
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
@@ -803,7 +869,7 @@ module gridStateVectorFileIO_mod
           end if
         end if
 
-        if (ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj) then
+        if (ni_file /= stateVector%hco%ni .or. nj_file /= stateVector%hco%nj) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
           write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
           call utl_abort('gio_readFileFst: Dimensions of surface height not consistent')
@@ -859,7 +925,7 @@ module gridStateVectorFileIO_mod
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
         if (.not. foundVarNameInFile) then
           varname = 'P0'
-          if (vnl_varNamePresentInFile( varname, fileName_opt = trim(fileName))) &
+          if (vnl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
             foundVarNameInFile = .true.
         end if
 
@@ -881,7 +947,7 @@ module gridStateVectorFileIO_mod
             if (vnl_varNamePresentInFile(varName, fileName_opt = filename) .and. &
                .not. associated(statevector%hco_physics)) then
               write(*,*) 'gio_readFileFst: set up physics grid using the variable:', varName
-              call hco_SetupFromFile(statevector%hco_physics, filename, ' ', &
+              call hco_SetupFromFile(statevector%hco_physics, fileName, ' ', &
                                      'INPUTFILE', varName_opt = varName)
               exit var_loop
             end if
@@ -905,7 +971,7 @@ module gridStateVectorFileIO_mod
         varName = gsv_getVarNameFromK(statevector, kIndex)
         levIndex = gsv_getLevFromK(statevector, kIndex)
 
-        if (.not.gsv_varExist(statevector, varName)) cycle k_loop
+        if (.not. gsv_varExist(statevector, varName)) cycle k_loop
 
         ! Check that the wanted field is present in the file
         if (vnl_varNamePresentInFile(varName, fileUnit_opt = nulfile)) then
@@ -919,7 +985,8 @@ module gridStateVectorFileIO_mod
           case ('LPR')
             varNameToRead = 'PR'
           case default
-            call utl_abort('gio_readFileFst: variable '//trim(varName)//' was not found in '//trim(fileName))
+            call utl_abort('gio_readFileFst: variable '//trim(varName)//&
+                           ' was not found in '//trim(fileName))
           end select
         end if
 
@@ -963,7 +1030,8 @@ module gridStateVectorFileIO_mod
             write(*,*) 'gio_readFileFst: looking for datestamp = ', datestamplist(stepIndex)
             write(*,*) 'gio_readFileFst: etiket_in = ', etiket_in
             write(*,*) 'gio_readFileFst: typvar_in = ', typvar_in
-            call utl_abort('gio_readFileFst: cannot find field ' // trim(varNameToRead) // ' in file ' // trim(fileName))
+            call utl_abort('gio_readFileFst: cannot find field '// &
+                           trim(varNameToRead)//' in file '//trim(fileName))
           end if
         end if
 
@@ -1241,14 +1309,14 @@ module gridStateVectorFileIO_mod
       allocHeightSfc = (stateVectorTrialIn%vco%Vcode /= 0)
 
       ! Allocate single-precision statevector without Z/P to read trials
-      call gsv_allocate(stateVectorTrial, stateVectorTrialIn%numStep, &
-                        stateVectorTrialIn%hco, stateVectorTrialIn%vco, &
-                        dateStamp_opt = tim_getDateStamp(), &
-                        mpi_local_opt = stateVectorTrialIn%mpi_local, &
-                        mpi_distribution_opt = 'Tiles', dataKind_opt = 4,  &
-                        allocHeightSfc_opt = allocHeightSfc, &
+      call gsv_allocate(stateVectorTrial, stateVectorTrialIn%numStep,                   &
+                        stateVectorTrialIn%hco, stateVectorTrialIn%vco,                 &
+                        dateStamp_opt = tim_getDateStamp(),                             &
+                        mpi_local_opt = stateVectorTrialIn%mpi_local,                   &
+                        mpi_distribution_opt = 'Tiles', dataKind_opt = 4,               &
+                        allocHeightSfc_opt = allocHeightSfc,                            &
                         hInterpolateDegree_opt = stateVectorTrialIn%hInterpolateDegree, &
-                        allocHeight_opt = .false., allocPressure_opt = .false., &
+                        allocHeight_opt = .false., allocPressure_opt = .false.,         &
                         beSilent_opt = .false.)
       call gsv_zero(stateVectorTrial)
       stateVectorTrial_ptr => stateVectorTrial
@@ -1295,23 +1363,24 @@ module gridStateVectorFileIO_mod
       ! figure out which time step I will read, if any (-1 if none)
       stepIndexToRead = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
-        procToRead = nint( real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
-        if ( procToRead == mmpi_myid ) stepIndexToRead = stepIndex
-        if ( mmpi_myid == 0 ) write(*,*) 'gio_readTrials: stepIndex, procToRead = ', stepIndex, procToRead
+        procToRead = nint(real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / &
+                          real(stepIndexEnd - stepIndexBeg + 1))
+        if (procToRead == mmpi_myid) stepIndexToRead = stepIndex
+        if (mmpi_myid == 0) write(*,*) 'gio_readTrials: stepIndex, procToRead = ', stepIndex, procToRead
       end do
 
       ! loop over all times for which stateVector is allocated
-      if ( stepIndexToRead /= -1 ) then
+      if (stepIndexToRead /= -1) then
         dateStamp = stateVectorTrial_ptr%dateStampList(stepIndexToRead)
-        write(*,*) 'gio_readTrials: reading background for time step: ',stepIndexToRead, dateStamp
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        write(*,*) 'gio_readTrials: reading background for time step: ', stepIndexToRead, dateStamp
+        write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
 
         if (trim(utl_fileType('trlm_01')) == 'FST') then
           
 	  ! identify which trial file corresponds with current datestamp
           ikey = 0
           do trialIndex = 1, maxNumTrials
-            write(fileNumber,'(I2.2)') trialIndex
+            write(fileNumber, '(i2.2)') trialIndex
             fileName = 'trlm_' // trim(fileNumber)
             inquire(file = trim(fileName), exist = fileExists)
             if (.not. fileExists) exit
@@ -1340,10 +1409,11 @@ module gridStateVectorFileIO_mod
 
         ! allocate stateVector for storing just 1 time step
         if (batchIndex == 1) then
-          call gsv_allocate(stateVector_1step_r4, 1, stateVectorTrial_ptr%hco, stateVectorTrial_ptr%vco, &
-                            dateStamp_opt = dateStamp, mpi_local_opt = .false., dataKind_opt = 4,        &
-                            allocHeightSfc_opt=allocHeightSfc, varNames_opt = varNamesToRead,            &
-                            hInterpolateDegree_opt = stateVectorTrial_ptr%hInterpolateDegree,            &
+          call gsv_allocate(stateVector_1step_r4, 1, stateVectorTrial_ptr%hco,                &
+                            stateVectorTrial_ptr%vco, dateStamp_opt = dateStamp,              &
+                            mpi_local_opt = .false., dataKind_opt = 4,                        &
+                            allocHeightSfc_opt=allocHeightSfc, varNames_opt = varNamesToRead, &
+                            hInterpolateDegree_opt = stateVectorTrial_ptr%hInterpolateDegree, &
                             hExtrapolateDegree_opt = stateVectorTrial_ptr%hExtrapolateDegree)
           call gsv_zero(stateVector_1step_r4)
         else
@@ -1352,8 +1422,15 @@ module gridStateVectorFileIO_mod
 
         ! read the trial file for this timestep
         fileName = ram_fullWorkingPath(fileName)
-        call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P',  &
-                              readHeightSfc_opt=allocHeightSfc)
+
+        if (trim(utl_fileType(fileName)) == 'NetCDF') then
+          call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P', &
+                                readHeightSfc_opt = allocHeightSfc,       &
+                                stepIndex_opt = stepIndexToRead)
+        else if (trim(utl_fileType(fileName)) == 'FST') then
+          call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P', &
+                                readHeightSfc_opt = allocHeightSfc)
+        end if
 
         ! remove from ram disk to save some space
         ierr = ram_remove(fileName)
@@ -1382,7 +1459,7 @@ module gridStateVectorFileIO_mod
     end do BATCH
 
     if (.not. useInputStateVectorTrial) then
-      call gsv_copy( stateVectorTrial_ptr, stateVectorTrialIn, allowVarMismatch_opt=.true. )
+      call gsv_copy(stateVectorTrial_ptr, stateVectorTrialIn, allowVarMismatch_opt=.true.)
       call gsv_deallocate( stateVectorTrial )
     end if
 
@@ -1998,14 +2075,14 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_fileUnitsToStateUnits
   !--------------------------------------------------------------------------
-  subroutine gio_fileUnitsToStateUnits(statevector, containsFullField, stepIndex_opt)
+  subroutine gio_fileUnitsToStateUnits(stateVector, containsFullField, stepIndex_opt)
     !
-    ! :Purpose: Unit conversion needed after reading RPN standard file
+    ! :Purpose: Unit conversion needed after reading RPN standard file / netCDF file
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(inout)  :: statevector
+    type(struct_gsv),  intent(inout)  :: stateVector
     logical,           intent(in)     :: containsFullField
     integer, optional, intent(in)     :: stepIndex_opt
 
@@ -2024,16 +2101,18 @@ module gridStateVectorFileIO_mod
       stepIndexEnd = statevector%numStep
     end if
 
+    write(*,*) 'gio_fileUnitsToStateUnits: step index begin/end: ', stepIndexBeg, stepIndexEnd 
+
     if (statevector%dataKind == 4) then
-      call gsv_getField(statevector, field_r4_ptr)
+      call gsv_getField(stateVector, field_r4_ptr)
     else
-      call gsv_getField(statevector, field_r8_ptr)
+      call gsv_getField(stateVector, field_r8_ptr)
     end if
 
     step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
 
       ! Do unit conversion for all variables
-      KINDEXCYCLE: do kIndex = statevector%mykBeg, statevector%mykEnd
+      KINDEXCYCLE: do kIndex = stateVector%mykBeg, stateVector%mykEnd
         varName = gsv_getVarNameFromK(statevector, kIndex)
 
         if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
@@ -2077,15 +2156,29 @@ module gridStateVectorFileIO_mod
 
         if (trim(varName) == 'TM' .and. containsFullField) then
           if (statevector%dataKind == 4) then
-            where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
-              field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
-                                                          mpc_k_c_degree_offset_r8, 4)
-            end where
+            if (present(stepIndex_opt)) then
+              where (field_r4_ptr(:,:, kIndex, 1) < 100.0)
+                field_r4_ptr(:,:, kIndex, 1) = real(field_r4_ptr(:,:, kIndex, 1) + &
+                                                    mpc_k_c_degree_offset_r8, 4)
+              end where
+            else
+              where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
+                field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
+                                                            mpc_k_c_degree_offset_r8, 4)
+              end where
+            end if
           else
-            where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
-              field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
-                                                          mpc_k_c_degree_offset_r8, 8)
-            end where
+            if (present(stepIndex_opt)) then
+              where (field_r8_ptr(:,:, kIndex, 1) < 100.0)
+                field_r8_ptr(:,:, kIndex, 1) = real(field_r8_ptr(:,:, kIndex, 1) + &
+                                                    mpc_k_c_degree_offset_r8, 8)
+              end where
+            else
+              where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
+                field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
+                                                            mpc_k_c_degree_offset_r8, 8)
+              end where
+            end if
           end if
         end if
 
