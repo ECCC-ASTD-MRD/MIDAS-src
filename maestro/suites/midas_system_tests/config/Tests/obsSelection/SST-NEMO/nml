@@ -1,7 +1,8 @@
- &NAMTIME
-  DSTEPOBS    =  1.0d0
-  DSTEPOBSINC = 24.0d0
-  DWINDOWSIZE = 24.0d0
+ &namTime
+  dstepobs      =  1.0d0
+  dstepobsinc   = 24.0d0
+  dwindowsize   = 24.0d0
+  referenceTime = 'end'
 /
  &NAMSTATE
   ANLVAR(1) = 'TM'

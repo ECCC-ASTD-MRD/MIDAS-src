@@ -238,7 +238,7 @@ contains
   ! fln_ensTrlFileName
   !--------------------------------------------------------------------------
   subroutine fln_ensTrlFileName(ensFileName, ensPathName, dateStamp, memberIndex_opt, &
-                                ensFileNamePrefix_opt, ensFileNameSuffix_opt, ocean_opt)
+                                ensFileNamePrefix_opt, ensFileNameSuffix_opt)
     ! :Purpose: Return the filename for a trial state, including for
     !           ensemble members (by specifying memberIndex_opt). The member
     !           index extension is assumed to be 4 digits.
@@ -252,7 +252,6 @@ contains
     integer,          optional, intent(in)  :: memberIndex_opt
     character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
-    logical         , optional, intent(in)  :: ocean_opt
     
     ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl
@@ -261,16 +260,7 @@ contains
     character(len=10) :: dateStrTrl
 
     ! Compute the datestamp for the origin time of the trial forecasts
-    if (present(ocean_opt)) then
-      if (ocean_opt) then
-        write(*,*) 'fln_ensTrlFileName: ocean decentered analysis option detected'
-	call incdatr(dateStampTrl, dateStamp, -tim_windowsize / 2)
-      else
-        call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
-      end if
-    else    
-      call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
-    end if
+    call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
     write(*,*) 'fln_ensTrlFileName: trial dateStamp: ', dateStampTrl
      
     ! Set the printable date for trial related file names

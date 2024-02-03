@@ -202,7 +202,6 @@ contains
 
     allocate(oti%timeInterpWeight(headerIndexBeg:headerIndexEnd,numStep))
     oti%timeInterpWeight(:,:) = 0.0d0
-
     do headerIndex = headerIndexBeg, headerIndexEnd
 
       ! building floating point step index
@@ -218,8 +217,8 @@ contains
                                                headerIndex, stepObsIndex, &
                                                obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
                                                obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
-                                               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
-                                               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)  
+                                               obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                               obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)  
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
@@ -229,8 +228,8 @@ contains
           write(*,'(a,2i,2a,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
                                       obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
                                       obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
-                                      obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
-                                      obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)  
+                                      obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
+                                      obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)  
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
@@ -247,7 +246,7 @@ contains
               call oti_setTimeInterpWeight(oti, 1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
               call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
             end if
-          else if ( trim(interpType_opt) == 'NEAREST' ) then
+          else if (trim(interpType_opt) == 'NEAREST') then
             if (nint(stepObsIndex) > numStep) then
               write(*,*) 'stepObsIndex = ', stepObsIndex
               call utl_abort('oti_setup: stepObsIndex is too large!')
@@ -267,7 +266,7 @@ contains
 
     ! also setup MPI global version of weights, needed for s2c_nl
     call oti_setupMpiGlobal(oti)
-
+    if (mmpi_myid == 0) write(*,*) 'oti_setup: number of obs. outside time window: ', numWrites
     if (mmpi_myid == 0) write(*,*) ' '
     if (mmpi_myid == 0) write(*,*) '-------- End of oti_setup ---------'
     if (mmpi_myid == 0) write(*,*) ' '
@@ -398,7 +397,7 @@ contains
   end function oti_timeInterpWeightAllZero
 
 
-  subroutine oti_flagObsOutsideWindow( oti, obsSpaceData, headerIndexBeg, headerIndexEnd )
+  subroutine oti_flagObsOutsideWindow(oti, obsSpaceData, headerIndexBeg, headerIndexEnd)
     !
     implicit none
 

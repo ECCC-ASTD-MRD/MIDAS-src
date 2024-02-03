@@ -52,7 +52,7 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in, obsClean_opt )
+                          innovationMode_in, obsClean_opt)
     !
     !:Purpose: To initialize the observation parameters and constants
     !
@@ -118,7 +118,7 @@ contains
     !- Read the observations from files
     !
     call utl_tmg_start(11,'----ReadObsFiles')
-    call obsf_readFiles( obsSpaceData )
+    call obsf_readFiles(obsSpaceData)
     call utl_tmg_stop(11)
 
     !

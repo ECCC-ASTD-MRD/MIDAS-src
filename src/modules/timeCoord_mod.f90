@@ -8,6 +8,8 @@ module timeCoord_mod
   use midasMpi_mod
   use varNameList_mod
   use utilities_mod
+  use message_mod
+  
   implicit none
   save
   private
@@ -71,7 +73,7 @@ contains
     character(len=6) :: referenceTime  ! location of 'date' within the window: 'middle' or 'start'
     logical :: fullyUseExtremeTimeBins ! choose to use full-size bins at both ends of window (usually only half size)
 
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, referencetime, fullyUseExtremeTimeBins
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, referenceTime, fullyUseExtremeTimeBins
 
     if (.not.firstCall) then
       write(*,*) 'tim_readNml: already initialized, just return'
@@ -117,13 +119,20 @@ contains
     end if
      
     if (tim_referenceTime == 'middle') then
+
       tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
       tim_nstepobsinc = 2 * nint(((tim_windowsize - tim_dstepobsinc) / 2.d0) / tim_dstepobsinc) + 1
-    end if
 
-    if (trim(tim_referenceTime) == 'start') then
+    else if (trim(tim_referenceTime) == 'start') then
+
       tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs), 1)
       tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
+
+    else if (trim(tim_referenceTime) == 'end') then
+
+      tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs) + 1, 1)
+      tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
+
     end if
 
   end subroutine tim_readNml
@@ -429,19 +438,20 @@ contains
   end function tim_getDatestamp
 
 
-  subroutine tim_getStampList(datestamplist, numStep, referenceDateStamp)
+  subroutine tim_getStampList(dateStampList, numStep, referenceDateStamp)
     !
     ! :Purpose: Compute a list of STAMPS corresponding to stepobs time
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: numStep ! number of step obs
-    integer, intent(in)  :: referenceDateStamp ! Synoptic time
-    integer, intent(out) :: datestamplist(numStep) 
+    integer, intent(in)  :: numStep                ! number of step obs
+    integer, intent(in)  :: referenceDateStamp     ! Synoptic time
+    integer, intent(out) :: dateStampList(numStep) ! datestamp list 
 
     ! Locals:
     integer :: stepIndex
+    integer :: ierr, newdate, imode, prntdate, prnttime
     real(8) :: dldelt ! delta time in hours between middle time and each step
     real(8) :: dtstep ! delta time in hours between step obs
 
@@ -450,11 +460,12 @@ contains
     if (referenceDateStamp == -1) then
 
       if (mmpi_myid == 0) write(*,*) 'tim_getStampList: datestamp is not specified, keep as -1'
-      datestamplist(:) = -1
+      dateStampList(:) = -1
 
     else
 
       if (tim_referenceTime == 'middle') then
+
         if (numStep > 1) then
           dtstep = tim_windowsize / (real(numStep - 1, 8))
         else
@@ -463,22 +474,43 @@ contains
 
         do stepIndex = 1, numStep
           dldelt = (stepIndex - ((numStep - 1) / 2 + 1)) * dtstep
-          call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+          call incdatr(dateStampList(stepIndex), referenceDateStamp, dldelt)
         end do
-      end if
 
-      if (trim(tim_referencetime) == 'start') then
+      else if (trim(tim_referencetime) == 'start') then
      
         dtstep = tim_windowsize / (real(numStep, 8))
      
         do stepIndex = 1, numStep
           dldelt = (stepIndex - 1) * dtstep
-          call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+          call incdatr(dateStampList(stepIndex), referenceDateStamp, dldelt)
+        end do
+
+      else if (trim(tim_referencetime) == 'end') then
+     
+        if (numStep > 1) then
+          dtstep = tim_windowsize / (real(numStep - 1, 8))
+        else
+          dtstep = tim_windowsize
+        end if
+	
+        call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
+     
+        do stepIndex = 2, numStep
+          call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
         end do
 
       end if
 
     end if
+    
+    call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
+    imode = -3
+    do stepIndex = 1, numStep
+      ierr = newdate(dateStampList(stepIndex), prntdate, prnttime, imode)
+      write(*,*) stepIndex, dateStampList(stepIndex), prntdate, prnttime / 1000000, 'h'
+    end do
+    call msg('tim_getStampList', 'Completed')
 
   end subroutine tim_getStampList
 
@@ -514,19 +546,26 @@ contains
     call difdatr(istobs, referenceDateStamp, dlhours)
 
     if (numStep > 1) then
+    
       ! FGAT: more than 1 trial field in time window
       if (tim_referenceTime == 'middle') then
         dddt = tim_windowsize / (real(numStep - 1, 8))
-      else
+      else if (tim_referenceTime == 'start') then
         dddt = tim_windowsize / (real(numStep, 8))
+      else if (tim_referenceTime == 'end') then
+        dddt = tim_windowsize / (real(numStep - 1, 8))
       end if
+      
       dnstepobs = dlhours / dddt ! number of step obs from reference (e.g. synoptic)
+      
       if (tim_referenceTime == 'middle') then
         dnstepobs = dnstepobs + real((numStep + 1) / 2, 8)
-      end if
-      if (trim(tim_referencetime) == 'start') then
+      else if (trim(tim_referencetime) == 'start') then
         dnstepobs = dnstepobs + 1.d0
+      else if (trim(tim_referencetime) == 'end') then
+        dnstepobs = dnstepobs + real(numStep, 8)
       end if
+      
       if (dnstepobs < 0.5d0 .or. dnstepobs > (0.5d0 + real(numStep, 8))) dnstepobs = -1.0d0
 
     else
@@ -539,7 +578,7 @@ contains
           ! inside time window
           dnstepobs = 1.0d0
         end if
-      else
+      else if (tim_referenceTime == 'start') then
         dddt = tim_windowsize
         if (dlhours < -dddt / 2.0d0 .or. dlhours > tim_windowsize + dddt / 2.d0) then
           ! outside time window
@@ -548,8 +587,15 @@ contains
           ! inside time window
           dnstepobs = 1.0d0
         end if
+      else if (tim_referenceTime == 'end') then
+        if (dlhours < -tim_windowsize .or. dlhours > 0.0D0) then
+          ! outside time window
+          dnstepobs = -1.0d0
+        else
+          ! inside time window
+          dnstepobs = 1.0d0
+        end if
       endif
-      
     end if
 
   end subroutine tim_getStepObsIndex

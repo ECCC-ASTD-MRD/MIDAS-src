@@ -302,6 +302,10 @@ module bgckOcean_mod
                                 numberObsInsitu,' insitu obs. rejected'
       write(*,*) '***************************************************************************************'
       write(*,*)
+    else
+      write(*,*)
+      call msg('ocebg_bgCheckSST', 'WARNING: no data found.')
+      write(*,*)
     end if
 
     call gsv_deallocate(stateVectorFGE)
