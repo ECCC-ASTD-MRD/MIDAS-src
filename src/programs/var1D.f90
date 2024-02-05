@@ -185,9 +185,9 @@ program midas_var1D
   integer :: simObsSeed             ! Random seed used to generate observation perturbation sampling
   logical :: useSimObsErr           ! Simulate observation based on observation error that explicitly considers the surface emissivity error
   integer :: numSamplesHBHT         ! Number of realization used to estimate Sigma B in observation space
-  
+  real(8) :: inflateEmissErr        ! Option to inflate the emissivity error stdev in B-Matrix when simulating background in idealized framework
   NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr, numSamplesHBHT
-
+  NAMELIST /NAM1DVAR/ inflateEmissErr
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
   obsColumnMode = 'ALL'
@@ -223,6 +223,7 @@ program midas_var1D
   simObsSeed = 0
   useSimObsErr = .False.
   numSamplesHBHT = 0
+  inflateEmissErr = MPC_missingValue_R8
 
   ! Check if NAM1DVAR exist
   if (.not. utl_isNamelistPresent('NAM1DVAR','./flnml')) then
@@ -346,10 +347,10 @@ program midas_var1D
     
     ! Simulate Background state columnTrlOnTrlLev
     call var1Di_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
-                                                obsSpaceData, vco_anl, simBgSeed)
+                                        obsSpaceData, vco_anl, simBgSeed, inflateEmissErr)
                                           
     call var1Di_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
-                                           simObsSeed, useSimObsErr)
+                                    simObsSeed, useSimObsErr)
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -389,7 +390,7 @@ program midas_var1D
   call inc_writeAnalysis(stateVectorAnalysis)
 
   if (numSamplesHBHT > 0) then
-    call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs)
+    call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs, inflateEmissErr)
   end if
 
   ! Deallocate memory related to B matrices

@@ -73,6 +73,7 @@ module bMatrix1DVar_mod
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensembles
+  real(8)          :: inflateEmissErr
 
   ! Namelist variables
   integer          :: nEns                             ! ensemble size
@@ -94,11 +95,12 @@ module bMatrix1DVar_mod
   real(8) :: latMax                                    ! maximum latitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMin                                    ! minimum longitude of the Bmatrix latitude-longitude output box
   real(8) :: lonMax                                    ! maximum longitude of the Bmatrix latitude-longitude output box
+  integer :: landSeaMask                               ! Restrict B matrice to be output by their land_sea mask
   logical :: copyEmissBEnsFromBHi                      ! flag to enable copying the surface emissivity errors from static to ensemble B-Matrix
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorHITG, &
       scaleFactorENs, scaleFactorEnsHumidity, scaleFactorEnsTG, scaleFactorEnsTGCorrelation, &
       nEns, vLocalize, includeAnlVar, numIncludeAnlVar, &
-      dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, doAveraging, &
+      dumpBmatrixTofile, latMin, latMax, lonMin, lonMax, landSeaMask, doAveraging, &
       excludeVarScaling, numExcludeVarScaling, copyEmissBEnsFromBHi
 
 contains
@@ -147,6 +149,7 @@ contains
     latMax = 1000.d0
     lonMin = -1000.d0
     lonMax = 1000.d0
+    landSeaMask = MPC_missingValue_INT
 
     copyEmissBEnsFromBHi = .false.
     
@@ -935,7 +938,7 @@ contains
     integer :: columnIndex, headerIndex
     integer :: taskIndex, dumpedIndex
     integer :: tag, status
-    integer :: numstep, nkgdim
+    integer :: numstep, nkgdim, landSea
     integer, external ::  fnom, fclos, newdate
     integer              :: obsOffset(0:mmpi_nprocs-1)
     integer              :: countDumpedAllTasks(mmpi_nprocs)
@@ -948,17 +951,24 @@ contains
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     
     countDumped = 0
-    do columnIndex = 1, var1D_validHeaderCount 
+    COLUMN1: do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
       longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      landSea = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex)
+      
+      ! Only include B-Matrix with specfied land sea mask
+      if (landSeaMask /= MPC_missingValue_INT) then
+        if (landSea /= landSeaMask) cycle COLUMN1
+      end if
+      
       if (latitude  >= latMin .and. &
           latitude  <= latMax .and. &
           longitude >= lonMin .and. &
           longitude <= lonMax) then
         countDumped = countDumped + 1
       end if
-    end do
+    end do COLUMN1
     call rpn_comm_barrier('GRID', ierr)
     
     call rpn_comm_allgather(countDumped, 1, 'MPI_INTEGER', countDumpedAllTasks, 1,'MPI_INTEGER', 'GRID', ierr)
@@ -974,10 +984,17 @@ contains
       allocate(listColumnDumped(countDumpedMax))
       listColumnDumped(:) = -1
       countDumped = 0
-      do columnIndex = 1, var1D_validHeaderCount 
+      COLUMN2: do columnIndex = 1, var1D_validHeaderCount 
         headerIndex = var1D_validHeaderIndex(columnIndex)
         latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         longitude = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        landSea = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex)
+
+        ! Only include B-Matrix with specfied land sea mask
+        if (landSeaMask /= MPC_missingValue_INT) then
+          if (landSea /= landSeaMask) cycle COLUMN2
+        end if
+
         if (latitude  >= latMin .and. &
             latitude  <= latMax .and. &
             longitude >= lonMin .and. &
@@ -985,7 +1002,7 @@ contains
           countDumped = countDumped + 1
           listColumnDumped(countDumped) = columnIndex
         end if
-      end do
+      end do COLUMN2
       nkgdim = size(bEns, dim=2)
       if (mmpi_myId == 0) then
         nulmat = 0
@@ -1072,11 +1089,15 @@ contains
     type(struct_obs),        intent(in)    :: obsSpaceData
 
     ! Locals:
-    integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
-    real(8), pointer :: currentColumn(:)
-    real(8), allocatable ::  oneDProfile(:)
-    real(8) :: latitude
-    integer :: surfaceType, offset
+    integer                   :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
+    real(8), pointer          :: currentColumn(:)
+    real(8), allocatable      :: oneDProfile(:)
+    real(8)                   :: latitude
+    integer                   :: surfaceType, offset
+    real(8), allocatable      :: bMatSqrtLandTmp(:,:,:), bMatSqrtSeaTmp(:,:,:)
+    integer                   :: emissVarIndex
+    type(struct_vco), pointer :: vco_col
+    integer                   :: varListEmiss, nlevEmiss
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -1085,8 +1106,50 @@ contains
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: 1Dvar B matrix not initialized'
       return
     end if
-    allocate(oneDProfile(nkgdim))
 
+    allocate(bMatSqrtLandTmp(nLonLatPosLand, nkgdim, nkgdim))
+    allocate(bMatSqrtSeaTmp(nLonLatPosSea, nkgdim, nkgdim))
+
+    bMatSqrtLandTmp(:,:,:) = bMatSqrtLand(:,:,:)
+    bMatSqrtSeaTmp(:,:,:) = bMatSqrtSea(:,:,:)
+
+    ! Inflate Emissivity Error if specified
+    if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
+
+      ! Get number of levels in the surface emssivity analysis variable
+      vco_col => col_getvco(column)
+      varListEmiss = vnl_varListIndexOther('EMMW')
+      nlevEmiss = vco_col%nlev_Other(varListEmiss)
+
+      ! Determine the start varIndex for surface emissivity in the B-Matrix.
+      emissVarIndex = 0 
+      do varIndex = 1, size(bmat1D_includeAnlVar)
+        select case(bmat1D_includeAnlVar(varIndex))
+        case('TT')
+          emissVarIndex = emissVarIndex + vco_col%nLev_T
+        case('HU')
+          emissVarIndex = emissVarIndex + vco_col%nLev_T
+        case('UU','VV')
+          emissVarIndex = emissVarIndex + vco_col%nlev_M
+        case('TG')
+          emissVarIndex = emissVarIndex + 1
+        case('P0')
+          emissVarIndex = emissVarIndex + 1
+        case('EMMW')
+          emissVarIndex = emissVarIndex + 1
+        case default
+          call utl_abort('bmat1D_bSqrtHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
+        end select
+      end do
+
+      bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
+        bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+
+      bMatSqrtSeaTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
+        bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+    end if
+
+    allocate(oneDProfile(nkgdim))
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -1094,10 +1157,10 @@ contains
       surfaceType = tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
-        oneDProfile(:) = matmul(bMatSqrtSea(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+        oneDProfile(:) = matmul(bMatSqrtSeaTmp(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       else ! Land or Sea Ice
         latitudeBandIndex = minloc( abs( latitude - latLand(:)) )
-        oneDProfile(:) = matmul(bMatSqrtLand(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+        oneDProfile(:) = matmul(bMatSqrtLandTmp(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       end if
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
@@ -1112,6 +1175,8 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    deallocate(bMatSqrtLandTmp)
+    deallocate(bMatSqrtSeaTmp)
     deallocate(oneDProfile)
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
@@ -1198,17 +1263,58 @@ contains
     type(struct_columnData), intent(inout) :: column
 
     ! Locals:
-    integer :: headerIndex, varIndex, columnIndex
-    real(8), pointer :: currentColumn(:)
-    real(8), allocatable ::  oneDProfile(:)
-    integer :: offset
+    integer                   :: headerIndex, varIndex, columnIndex
+    real(8), pointer          :: currentColumn(:)
+    real(8), allocatable      :: oneDProfile(:)
+    integer                   :: offset
+    real(8), allocatable      :: bMatSqrtEnsTmp(:,:,:)
+    integer                   :: emissVarIndex
+    type(struct_vco), pointer :: vco_col
+    integer                   :: varListEmiss, nlevEmiss
+
+    allocate(bMatSqrtEnsTmp(var1D_validHeaderCount, nkgdim, nkgdim))
+
+    bMatSqrtEnsTmp(:,:,:) = bMatSqrtEns(:,:,:)
+ 
+    ! Inflate emissivity error if specified
+    if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
+
+      ! Get number of levels in the surface emssivity analysis variable
+      vco_col => col_getvco(column)
+      varListEmiss = vnl_varListIndexOther('EMMW')
+      nlevEmiss = vco_col%nlev_Other(varListEmiss)
+
+      ! Determine the start varIndex for surface emissivity in the B-Matrix.
+      emissVarIndex = 0 
+      do varIndex = 1, size(bmat1D_includeAnlVar)
+        select case(bmat1D_includeAnlVar(varIndex))
+        case('TT')
+          emissVarIndex = emissVarIndex + vco_col%nLev_T
+        case('HU')
+          emissVarIndex = emissVarIndex + vco_col%nLev_T
+        case('UU','VV')
+          emissVarIndex = emissVarIndex + vco_col%nlev_M
+        case('TG')
+          emissVarIndex = emissVarIndex + 1
+        case('P0')
+          emissVarIndex = emissVarIndex + 1
+        case('EMMW')
+          emissVarIndex = emissVarIndex + 1
+        case default
+          call utl_abort('bmat1D_bSqrtEns: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
+        end select
+      end do
+
+      bMatSqrtEnsTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
+        bMatSqrtEnsTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+    end if
 
     allocate(oneDProfile(nkgdim))
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      oneDProfile(:) = matmul(bMatSqrtEns(columnIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+      oneDProfile(:) = matmul(bMatSqrtEnsTmp(columnIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
@@ -1223,6 +1329,7 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
+    deallocate(bMatSqrtEnsTmp)
 
   end subroutine bmat1D_bSqrtEns
 
@@ -1283,7 +1390,7 @@ contains
   !--------------------------------------------------------------------------
   ! bmat1D_sqrtB
   !-------------------------------------------------------------------------- 
-  subroutine bmat1D_sqrtB(controlVector, cvdim, column, obsSpaceData)
+  subroutine bmat1D_sqrtB(controlVector, cvdim, column, obsSpaceData, inflateEmissErr_opt)
     !
     !:Purpose: To transform model state from control-vector space to grid-point
     !          space.    
@@ -1295,10 +1402,19 @@ contains
     real(8),                 intent(in)    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
     type(struct_obs),        intent(in)    :: obsSpaceData
+    real(8), optional,       intent(in)    :: inflateEmissErr_opt
 
     ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
+
+
+    if (present(inflateEmissErr_opt)) then
+      inflateEmissErr = inflateEmissErr_opt
+      write(*,*) 'inflateEmissErr_opt', inflateEmissErr_opt
+    else 
+      inflateEmissErr = MPC_missingValue_R8
+    end if
 
     !
     !- 1.  Compute the analysis increment
@@ -1316,7 +1432,7 @@ contains
         call utl_tmg_start(52, '----B_HI_TL')
         call bmat1D_bsqrtHi(subVector,   & ! IN
                             column,      & ! OUT
-                            obsspacedata ) ! IN
+                            obsspacedata) ! IN
         call utl_tmg_stop(52)
       case ('ENS')
         !- 1.2 Ensemble based

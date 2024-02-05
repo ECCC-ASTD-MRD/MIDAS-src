@@ -45,7 +45,7 @@ module var1DIdealize_mod
   ! var1Di_simulateBackgroundState
   !--------------------------------------------------------------------------
   subroutine var1Di_simulateBackgroundState(columnTruthOnTrlLev, columnSimTrlOnTrlLev, &
-                                                   obsSpaceData, vco_anl, seed)
+                                            obsSpaceData, vco_anl, seed, inflateEmissErr)
     !
     !:Purpose: Simulate the background state by adding a perturbation from the reference state (Truth)
     !
@@ -56,7 +56,8 @@ module var1DIdealize_mod
     type(struct_columnData), target, intent(out)   :: columnSimTrlOnTrlLev  ! Simulated background column
     type(struct_obs),                intent(in)    :: obsSpaceData          ! ObsSpacedata object
     type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
-    integer,                         intent(in)    :: seed                  ! Seed to random number generator 
+    integer,                         intent(in)    :: seed                  ! Seed to random number generator
+    real(8),                         intent(in)    :: inflateEmissErr       ! Emissvity error inflation scale factor
     
     ! Locals:
     type(struct_columnData)         :: columnPertOnAnLev
@@ -91,7 +92,15 @@ module var1DIdealize_mod
     ! Compute (B^1/2)*Pert (column)
     call col_setVco(columnPertOnAnLev, vco_anl)
     call col_allocate(columnPertOnAnLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
-    call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData)
+
+
+    write(*,*) 'ZQ_col_varExist', col_varExist(columnPertOnAnLev, 'EMMW'), inflateEmissErr /= MPC_missingValue_R8
+    if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
+      call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
+                        inflateEmissErr_opt = inflateEmissErr)
+    else
+      call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData)
+    end if
 
     call col_setVco(columnPertOnTrlLev, col_getVco(columnTruthOnTrlLev))
     call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
@@ -479,7 +488,7 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   ! var1Di_estSigmaBObsSpace
   !--------------------------------------------------------------------------
-  subroutine var1Di_estSigmaBObsSpace(columnTruthOnTrlLev, numSamplesHBHT, obsSpaceData, vco_anl, datestamp)
+  subroutine var1Di_estSigmaBObsSpace(columnTruthOnTrlLev, numSamplesHBHT, obsSpaceData, vco_anl, datestamp, inflateEmissErr)
     !
     ! :Purpose: Estimating background error STD in observations space
     !
@@ -491,6 +500,7 @@ module var1DIdealize_mod
     type(struct_obs),                intent(inout) :: obsSpaceData          ! ObsSpaceData object
     type(struct_vco), pointer,       intent(in)    :: vco_anl               ! Analysis vertical coordinate structure
     integer,                         intent(in)    :: datestamp             ! Date stamp
+    real(8),                         intent(in)    :: inflateEmissErr       ! Emissvity error inflation scale factor
 
     ! Locals:
     type(struct_columnData)         :: columnPertOnAnLev
@@ -559,7 +569,13 @@ module var1DIdealize_mod
       ! Compute (B^1/2)*Pert (column)
       call col_setVco(columnPertOnAnLev, vco_anl)
       call col_allocate(columnPertOnAnLev, obs_numheader(obsSpaceData), setToZero_opt=.true.)
-      call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData)
+      
+      if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
+        call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
+                        inflateEmissErr_opt = inflateEmissErr)
+      else
+        call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData)
+      end if
 
       call col_setVco(columnPertOnTrlLev, col_getVco(columnTruthOnTrlLev))
       call col_allocate(columnPertOnTrlLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)

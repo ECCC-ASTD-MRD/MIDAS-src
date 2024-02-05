@@ -184,11 +184,11 @@ contains
         else if(any(sfcEmissivityOriginal(:) >= 0.0d0) .and. any(sfcEmissivityUpdated(:) < 0.0d0)) then
           ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
           emissDiffTmp = minval(sfcEmissivityUpdated(:)) - 0.0d0
-          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp
+          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
         else if(any(sfcEmissivityOriginal(:) <= 1.0d0) .and. any(sfcEmissivityUpdated(:) > 1.0d0)) then
           ! Limit simulated emissivity to one
           emissDiffTmp = maxval(sfcEmissivityUpdated(:)) - 1.0d0
-          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp
+          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
         end if
         
 
@@ -721,22 +721,30 @@ contains
 
     do icol = 1, numCol
       if (present(columnRef_opt)) then
-        ! Fill missing value if ref column also have missing value or
-        ! Fill missing value if ref column have negative emissivity or
-        ! Fill missing value if simulated emissivity is less or equal to zero or
-        ! Fill missing value if simulated emissivity is greater or equal to one.
-        if (any(emissPtrRef(:, icol) == missingValue) .or. &
-            any(emissPtrRef(:, icol) < 0.0d0) .or. &
-            any(emissPtr(:, icol) <= 0.0d0) .or. &
-            any(emissPtr(:, icol) >= 1.0d0)) then
+       ! Fill missing value if ref column also have missing value
+        if (any(emissPtrRef(:, icol) == missingValue)) then
           emissPtr(:, icol) = missingValue
-        end if
+        ! Fill missing value if ref column have negative emissivity
+        else if(any(emissPtrRef(:, icol) < 0.0d0)) then
+          emissPtr(:, icol) = missingValue
+          ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
+          else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
+            emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
+            emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+          ! Limit simulated emissivity to one
+          else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
+            emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
+            emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+          end if
       else
-        ! Fill missing value if simulated emissivity is less or equal to zero or
-        ! Fill missing value if simulated emissivity is greater or equal to one.
-        if(any(emissPtr(:, icol) <= 0.0d0) .or. &
-           any(emissPtr(:, icol) >= 1.0d0)) then 
-          emissPtr(:, icol) = missingValue
+        ! Limit simulated emissivity to one
+        if(any(emissPtr(:, icol) < 0.0d0)) then 
+          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+        !  Limit simulated emissivity to zero
+        else if(any(emissPtr(:, icol) > 1.0d0)) then 
+          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
+         emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
         end if
       end if
     end do
