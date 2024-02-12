@@ -344,7 +344,6 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
     
     ! Locals:
-    integer :: allocStatus(10)
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
     integer :: tovsIndex, idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
@@ -364,18 +363,16 @@ contains
 
     write(*,*) 'tvs_setupAlloc: Starting' 
 
-    allocStatus(:) = 0
-    allocate(tvs_nchan(tvs_nsensors),                                  stat=allocStatus(1))
-    allocate(tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors),          stat=allocStatus(2))
-    allocate(tvs_lsensor(obs_numheader(obsSpaceData)),                 stat=allocStatus(3))
-    allocate(tvs_headerIndex (obs_numheader(obsSpaceData)),            stat=allocStatus(4))
-    allocate(tvs_tovsIndex(obs_numheader(obsSpaceData)),               stat=allocStatus(5))
-    allocate(tvs_isReallyPresent(tvs_nsensors),                        stat=allocStatus(6))
-    allocate(tvs_nchanMpiGlobal(tvs_nsensors),                         stat=allocStatus(7))
-    allocate(tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors), stat=allocStatus(8))
-    allocate(tvs_isReallyPresentMpiGlobal(tvs_nsensors),               stat=allocStatus(9))
-    allocate(sensorTotalNumberOfProfiles(tvs_nsensors),                stat=allocStatus(10))
-    call utl_checkAllocationStatus(allocStatus, ' tvs_setupAlloc')
+    allocate(tvs_nchan(tvs_nsensors))
+    allocate(tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors))
+    allocate(tvs_lsensor(obs_numheader(obsSpaceData)))
+    allocate(tvs_headerIndex (obs_numheader(obsSpaceData)))
+    allocate(tvs_tovsIndex(obs_numheader(obsSpaceData)))
+    allocate(tvs_isReallyPresent(tvs_nsensors))
+    allocate(tvs_nchanMpiGlobal(tvs_nsensors))
+    allocate(tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors))
+    allocate(tvs_isReallyPresentMpiGlobal(tvs_nsensors))
+    allocate(sensorTotalNumberOfProfiles(tvs_nsensors))
 
     tvs_nchan(:) = 0 
     tvs_ichan(:,:) = 0
@@ -445,7 +442,6 @@ contains
         if (bodyIndex < 0) exit BODY
         if (nosensor > 0) then
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
-            !sensorTotalNumberOfRadiances(nosensor) = sensorTotalNumberOfRadiances(nosensor) + 1
             call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex )
             if ( channelIndex == 0 ) then
@@ -469,11 +465,10 @@ contains
     !These arays are overdimensionned for convenience
     tvs_maxNumberOfRadiances = maxval(tvs_nchan(:) * sensorTotalNumberOfProfiles(:))
     deallocate(sensorTotalNumberOfProfiles)
-    allocate(tvs_bodyIndexFromBtIndex(tvs_nsensors,tvs_maxNumberOfRadiances),      stat=allocStatus(1))
-    allocate(tvs_bodyIndexFromBtIndexScatt(tvs_nsensors,tvs_maxNumberOfRadiances), stat=allocStatus(2))
-    allocate(tvs_chanProf(tvs_nsensors,tvs_maxNumberOfRadiances),                  stat=allocStatus(3))
-    allocate(tvs_chanProfScatt(tvs_nsensors,tvs_maxNumberOfRadiances),             stat=allocStatus(4))
-    call utl_checkAllocationStatus(allocStatus(1:4), ' tvs_setupAlloc: tvs_bodyIndexFromBtIndex* tvs_chanProf*')
+    allocate(tvs_bodyIndexFromBtIndex(tvs_nsensors,tvs_maxNumberOfRadiances))
+    allocate(tvs_bodyIndexFromBtIndexScatt(tvs_nsensors,tvs_maxNumberOfRadiances))
+    allocate(tvs_chanProf(tvs_nsensors,tvs_maxNumberOfRadiances))
+    allocate(tvs_chanProfScatt(tvs_nsensors,tvs_maxNumberOfRadiances))
     tvs_bodyIndexFromBtIndex(:,:) = -1
     tvs_bodyIndexFromBtIndexScatt(:,:) = -1
     tvs_chanProf(:,:) % chan = 0
@@ -529,7 +524,7 @@ contains
     end if
     
     do sensorIndex = 1, tvs_nsensors
-      call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      call rpn_comm_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
       if (mmpi_myid ==0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
         do taskIndex=1, mmpi_nprocs
@@ -559,14 +554,13 @@ contains
 
       write(*,'(//,10x,A)') '-rttov_setup: initializing the TOVS radiative transfer model'
 
-      allocate(tvs_coefs(tvs_nsensors),          stat=allocStatus(1))
-      allocate(tvs_listSensors(3,tvs_nsensors),  stat=allocStatus(2))
-      allocate(tvs_opts(tvs_nsensors),           stat=allocStatus(3))
+      allocate(tvs_coefs(tvs_nsensors))
+      allocate(tvs_listSensors(3,tvs_nsensors))
+      allocate(tvs_opts(tvs_nsensors))
       if (tvs_numMWInstrumUsingHydrometeors  > 0) then
-        allocate(tvs_opts_scatt(tvs_nsensors),  stat=allocStatus(4))
-        allocate(tvs_coef_scatt(tvs_nsensors),  stat=allocStatus(5))
+        allocate(tvs_opts_scatt(tvs_nsensors))
+        allocate(tvs_coef_scatt(tvs_nsensors))
       end if
-      call utl_checkAllocationStatus(allocStatus(1:5), ' tvs_setupAlloc before rttov initialization')
 
       do sensorIndex=1, tvs_nsensors
         tvs_listSensors(1,sensorIndex) = tvs_platforms  (sensorIndex)
@@ -681,17 +675,13 @@ contains
       !   4. Memory allocations for radiative tranfer model variables
 
       ! Radiance by profile
-      allocate(tvs_radiance(tvs_nobtov), stat=allocStatus(1))
-
-      call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_setupAlloc radiances 1')
-  
+      allocate(tvs_radiance(tvs_nobtov))
       do tovsIndex = 1, tvs_nobtov
         sensorIndex = tvs_lsensor(tovsIndex)
         if (sensorIndex > -1) then
           ! allocate BT equivalent to total direct, tl and ad radiance output
-          allocate(tvs_radiance(tovsIndex) % bt (tvs_nchan(sensorIndex)), stat=allocStatus(1))
+          allocate(tvs_radiance(tovsIndex) % bt (tvs_nchan(sensorIndex)))
           tvs_radiance(tovsIndex) % bt (:) = 0.d0
-          call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_setupAlloc radiances 2')
           nullify (tvs_radiance(tovsIndex) % clear)
         end if
       end do
@@ -746,19 +736,16 @@ contains
     integer, intent(in) :: nlevels 
 
     ! Locals:
-    integer :: allocStatus(2), jo, isens, nc
+    integer :: jo, isens, nc
 
-    allocStatus(:) = 0
-    allocate(tvs_transmission(tvs_nobtov), stat=allocStatus(1))
-    call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_allocTransmission')
+    allocate(tvs_transmission(tvs_nobtov))
 
     do jo = 1, tvs_nobtov
       isens = tvs_lsensor(jo)
       nc = tvs_nchan(isens)
       ! allocate transmittance from surface and from pressure levels
-      allocate(tvs_transmission(jo) % tau_total(nc)         , stat=allocStatus(1))
-      allocate(tvs_transmission(jo) % tau_levels(nlevels,nc), stat=allocStatus(2))
-      call utl_checkAllocationStatus(allocStatus, ' tvs_allocTransmission')
+      allocate(tvs_transmission(jo) % tau_total(nc))
+      allocate(tvs_transmission(jo) % tau_levels(nlevels,nc))
     end do
 
   end subroutine tvs_allocTransmission
@@ -873,7 +860,6 @@ contains
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
-    ! tvs_mwInstrumUsingHydrometeors_tl = mwInstrumUsingHydrometeors_tl ! uncomment to correct the bug present in 3.9.0
     tvs_regLimitExtrap = regLimitExtrap
     tvs_userDefinedDoAzimuthCorrection = userDefinedDoAzimuthCorrection
     tvs_userDefinedIsAzimuthValid = userDefinedIsAzimuthValid
@@ -1002,71 +988,58 @@ contains
     implicit none
 
     ! Locals:
-    integer :: allocStatus(12)
-    integer :: iSensor,iObs,nChans,nl
+    integer :: allocStatus
+    integer :: sensorIndex,obsIndex,nl
 
     write(*,*) 'tvs_cleanup: Starting'
-
-    allocStatus(:) = 0
 
     if ( radiativeTransferCode == 'RTTOV' ) then
 
       !___ radiance by profile
 
-      do iObs = 1, tvs_nobtov
-        iSensor = tvs_lsensor(iObs)
-        nchans = tvs_nchan(isensor)
+      do obsIndex = 1, tvs_nobtov
         ! deallocate BT equivalent to total direct, tl and ad radiance output
-        deallocate(tvs_radiance(iObs) % bt, stat=allocStatus(1))
-        call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_cleanup radiances 1',.false.)
+        deallocate(tvs_radiance(obsIndex) % bt)
       end do
-
-      deallocate(tvs_radiance, stat=allocStatus(1))
-      call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_cleanup radiances 2')
-
-      do iObs = 1, tvs_nobtov
-        iSensor = tvs_lsensor(iObs)
-        nl = tvs_coefs(iSensor) % coef % nlevels
+      deallocate(tvs_radiance)
+      do obsIndex = 1, tvs_nobtov
+        sensorIndex = tvs_lsensor(obsIndex)
+        nl = tvs_coefs(sensorIndex) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(allocStatus(1),1,tvs_profiles_nl(iObs),nl, &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(iSensor), asw=0,coefs=tvs_coefs(iSensor), init=.false. ) ! asw =0 deallocation
-        call rttov_alloc_prof(allocStatus(2),1,tvs_profiles_tlad(iObs),nl, &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(iSensor),asw=0,coefs=tvs_coefs(iSensor),init=.false. ) ! asw =0 deallocation
-        call utl_checkAllocationStatus(allocStatus(1:2), 'profiles deallocation in tvs_cleanup',.false.)
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(obsIndex),nl, &    ! 1 = nprofiles un profil a la fois
+            tvs_opts(sensorIndex), asw=0,coefs=tvs_coefs(sensorIndex), init=.false. ) ! asw =0 deallocation
+        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_nl')
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(obsIndex),nl, &    ! 1 = nprofiles un profil a la fois
+             tvs_opts(sensorIndex),asw=0,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =0 deallocation
+        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_tlad')
       end do
 
-      deallocate(tvs_profiles_nl,   stat=allocStatus(1) )
-      deallocate(tvs_profiles_tlad, stat=allocStatus(2) )
-      call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_setupAlloc tvs_profiles_nl/tlad')
+      deallocate(tvs_profiles_nl)
+      deallocate(tvs_profiles_tlad)
 
-      do iSensor = tvs_nsensors,1,-1
-        call rttov_dealloc_coefs(allocStatus(1),  tvs_coefs(iSensor) )
-        write(*,*) 'Deallocating coefficient structure for instrument', iSensor
-        call utl_checkAllocationStatus(allocStatus(1:1), ' rttov_dealloc_coefs in tvs_cleanup', .false.)
+      do sensorIndex = tvs_nsensors, 1, -1
+        call rttov_dealloc_coefs(allocStatus, tvs_coefs(sensorIndex))
+        write(*,*) 'Deallocating coefficient structure for instrument', sensorIndex
+        if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error in rttov_dealloc_coefs')
       end do
 
-      deallocate(tvs_coefs       ,stat=allocStatus(1))
-      deallocate(tvs_listSensors ,stat=allocStatus(2))
-      deallocate(tvs_opts        ,stat=allocStatus(3))
-
-      call utl_checkAllocationStatus(allocStatus(1:3), ' tvs_cleanup', .false.)
-
+      deallocate(tvs_coefs)
+      deallocate(tvs_listSensors)
+      deallocate(tvs_opts)
     end if
 
-    deallocate (tvs_nchan,                     stat=allocStatus(1))
-    deallocate (tvs_ichan,                     stat=allocStatus(2))
-    deallocate (tvs_lsensor,                   stat=allocStatus(3))
-    deallocate (tvs_headerIndex,               stat=allocStatus(4))
-    deallocate (tvs_tovsIndex,                 stat=allocStatus(5))
-    deallocate (tvs_isReallyPresent,           stat=allocStatus(6))
-    deallocate (tvs_nchanMpiGlobal,            stat=allocStatus(7))
-    deallocate (tvs_ichanMpiGlobal,            stat=allocStatus(8))
-    deallocate (tvs_chanProf,                  stat=allocStatus(9))
-    deallocate (tvs_chanProfScatt,             stat=allocStatus(10))
-    deallocate (tvs_bodyIndexFromBtIndex,      stat=allocStatus(11))
-    deallocate (tvs_bodyIndexFromBtIndexScatt, stat=allocStatus(12))
-
-    call utl_checkAllocationStatus(allocStatus, ' tvs_cleanup', .false.)
+    deallocate (tvs_nchan)
+    deallocate (tvs_ichan)
+    deallocate (tvs_lsensor)
+    deallocate (tvs_headerIndex)
+    deallocate (tvs_tovsIndex)
+    deallocate (tvs_isReallyPresent)
+    deallocate (tvs_nchanMpiGlobal)
+    deallocate (tvs_ichanMpiGlobal)
+    deallocate (tvs_chanProf)
+    deallocate (tvs_chanProfScatt)
+    deallocate (tvs_bodyIndexFromBtIndex)
+    deallocate (tvs_bodyIndexFromBtIndexScatt)
 
     write(*,*) 'tvs_cleanup: Finished'
 
@@ -1081,17 +1054,11 @@ contains
     !
     implicit none
 
-    ! Locals:
-    integer :: allocStatus(8)
-
     write(*,*) 'tvs_deallocateProfilesNlTlAd: Starting'
 
-    allocStatus(:) = 0
-
     if ( radiativeTransferCode == 'RTTOV' ) then
-      if ( allocated(tvs_profiles_nl) )   deallocate(tvs_profiles_nl, stat=allocStatus(1))
-      if ( allocated(tvs_profiles_tlad) ) deallocate(tvs_profiles_tlad, stat=allocStatus(2))
-      call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_profiles_nl tvs_profiles_tlad', .false.)
+      if (allocated(tvs_profiles_nl))   deallocate(tvs_profiles_nl)
+      if (allocated(tvs_profiles_tlad)) deallocate(tvs_profiles_tlad)
     end if
 
     write(*,*) 'tvs_deallocateProfilesNlTlAd: Finished'
@@ -2391,7 +2358,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(13)    
+    integer :: allocStatus    
     integer,external ::  newdate
     integer, allocatable :: sensorTovsIndexes(:)
     integer, allocatable :: sensorHeaderIndexes(:)  
@@ -2454,23 +2421,19 @@ contains
       end if
     end if
 
-    allocStatus(:) = 0
-
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(tvs_nobtov), stat=allocStatus(1))
+        allocate(tvs_profiles_nl(tvs_nobtov))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_nl(tvs_nobtov), stat=allocStatus(2))
+          allocate(tvs_cld_profiles_nl(tvs_nobtov))
         end if
-        call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_fillProfiles tvs_profiles_nl')
       end if
     else if ( profileType == 'tlad' ) then
       if ( .not. allocated(tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(tvs_nobtov), stat=allocStatus(1))
+        allocate(tvs_profiles_tlad(tvs_nobtov))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_tlad(tvs_nobtov), stat=allocStatus(2))
+          allocate(tvs_cld_profiles_tlad(tvs_nobtov))
         end if
-        call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_fillProfiles tvs_profiles_tlad')
       else
         return
       end if
@@ -2544,33 +2507,29 @@ contains
         zmax = zenmax
       end if
       
-      allocStatus(:) = 0
-      allocate(sensorTovsIndexes(profileCount),      stat=allocStatus(1))
-      allocate(sensorHeaderIndexes(profileCount),    stat=allocStatus(2))
-      allocate(latitudes(profileCount),              stat=allocStatus(3))
-      allocate(ozone(nlv_T,profileCount),            stat=allocStatus(4)) 
-      allocate(pressure(nlv_T,profileCount),         stat=allocStatus(5))
+      allocate(sensorTovsIndexes(profileCount))
+      allocate(sensorHeaderIndexes(profileCount))
+      allocate(latitudes(profileCount))
+      allocate(ozone(nlv_T,profileCount)) 
+      allocate(pressure(nlv_T,profileCount))
       if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
-        allocate(clw(nlv_T,profileCount), stat=allocStatus(6))
+        allocate(clw(nlv_T,profileCount))
         clw(:,:) = qlim_getMinValueCloud('LWCR')
       end if
       if (runObsOperatorWithHydrometeors) then
-        allocate(ciw          (nlv_T,profileCount), stat=allocStatus(7))
-        allocate(rainFlux     (nlv_T,profileCount), stat=allocStatus(8))
-        allocate(snowFlux     (nlv_T,profileCount), stat=allocStatus(9))
-        allocate(cloudFraction(nlv_T,profileCount), stat=allocStatus(10))
+        allocate(ciw          (nlv_T,profileCount))
+        allocate(rainFlux     (nlv_T,profileCount))
+        allocate(snowFlux     (nlv_T,profileCount))
+        allocate(cloudFraction(nlv_T,profileCount))
         ciw(:,:) = qlim_getMinValueCloud('IWCR')
         rainFlux(:,:) = qlim_getMinValueCloud('RF')
         snowFlux(:,:) = qlim_getMinValueCloud('SF')
         cloudFraction(:,:) = qlim_getMinValueCloud('CLDR')
       end if
-      allocate(surfTypeIsWater(profileCount), stat=allocStatus(11)) 
+      allocate(surfTypeIsWater(profileCount)) 
       surfTypeIsWater(:) = .false.
 
-      call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles')
-
       profileCount = 0
-
       ! second loop over all obs.
       bobs2: do tovsIndex = 1, NOBMAX
         if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle bobs2
@@ -2580,17 +2539,18 @@ contains
         sensorHeaderIndexes(profileCount) = headerIndex
 
         call rttov_alloc_prof(                 &
-             allocStatus(1),                   &
+             allocStatus,                      &
              1,                                & ! 1 = nprofiles un profil a la fois
              profiles(tovsIndex:tovsIndex),    &
              nlv_T,                            & 
              tvs_opts(sensorIndex),            &
              asw=1,                            & ! asw =1 allocation
              coefs=tvs_coefs(sensorIndex),     &
-             init=.true. )                       
+             init=.true. )
+        if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_prof')
         if (runObsOperatorWithHydrometeors) then
           call rttov_alloc_scatt_prof(            &   
-               allocstatus(2),                    &
+               allocstatus,                       &
                1,                                 &
                cld_profiles(tovsIndex:tovsIndex), &
                nlv_T,                             &
@@ -2600,8 +2560,8 @@ contains
                init=.true.,                       & ! initialize profiles to zero
                flux_conversion=[1,2,0,0,0] )        !flux_conversion  input units: 0 (default) => kg/kg,
                                                     ! 1,2 => kg/m2/s, optional for rain, snow
+          if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_scatt_prof')
         end if
-        call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_setupAlloc tvs_fillProfiles')
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
         profiles(tovsIndex) % skin % surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
@@ -2810,26 +2770,24 @@ contains
         end if  ! runObsOperatorWithClw
       end do ! profileIndex
 
-      deallocate(pressure,            stat=allocStatus(2))
-      deallocate(ozone,               stat=allocStatus(3))
-      deallocate(latitudes,           stat=allocStatus(4))
-      deallocate(sensorHeaderIndexes, stat=allocStatus(5))
-      deallocate(sensorTovsIndexes,   stat=allocStatus(6))
+      deallocate(pressure)
+      deallocate(ozone)
+      deallocate(latitudes)
+      deallocate(sensorHeaderIndexes)
+      deallocate(sensorTovsIndexes)
       if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. .not.tvs_useO3Climatology) then
-        deallocate(ozone,             stat=allocStatus(7))
+        deallocate(ozone)
       end if
       if (allocated(clw)) then
-        deallocate(clw,      stat=allocStatus(8))
+        deallocate(clw)
       end if
       if (allocated(ciw)) then
-        deallocate(ciw,           stat=allocStatus(9))
-        deallocate(rainFlux,      stat=allocStatus(10))
-        deallocate(snowFlux,      stat=allocStatus(11))
-        deallocate(cloudFraction, stat=allocStatus(12))
+        deallocate(ciw)
+        deallocate(rainFlux)
+        deallocate(snowFlux)
+        deallocate(cloudFraction)
       end if
-      deallocate(surfTypeIsWater, stat=allocStatus(13))
-
-      call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles', .false.)
+      deallocate(surfTypeIsWater)
      
     end do sensor_loop
 
@@ -2894,7 +2852,7 @@ contains
     integer :: nlv_T
     integer :: btCount
     integer :: btCountScatt
-    integer :: allocStatus(5)
+    integer :: allocStatus
     integer :: rttov_err_stat ! rttov error return code
     integer :: nthreads,max_nthreads
     integer :: sensorIndex, tovsIndex
@@ -2937,9 +2895,7 @@ contains
       SimSfcEmiss = .false.
     end if
 
-    allocStatus(:) = 0
-    allocate(sensorTovsIndexes(tvs_nobtov), stat=allocStatus(1))
-    call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
+    allocate(sensorTovsIndexes(tvs_nobtov))
     
     !   1.1   Read surface information
     if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
@@ -3009,7 +2965,7 @@ contains
 
       if ( btCount > 0) then
         call rttov_alloc_direct(         &
-            allocStatus(2),              &
+            allocStatus,                 &
             asw=1,                       &
             nprofiles=profileCount,      & ! (not used)
             nchanprof=btCount,           &
@@ -3021,9 +2977,10 @@ contains
             calcemis=calcemis,           &
             emissivity=emissivity_local, &
             init=.true.)
-        allocate(surfem1(btCount), stat=allocStatus(1))
+        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 1 in rttov_alloc_direct')
+        allocate(surfem1(btCount))
         if (useUofWIREmiss) then
-          allocate(uOfWLandWSurfaceEmissivity(btCount), stat=allocStatus(4))
+          allocate(uOfWLandWSurfaceEmissivity(btCount))
         end if
         if ( tvs_isInstrumHyperSpectral(instrum) ) then
           !     get Hyperspectral IR emissivities
@@ -3149,10 +3106,12 @@ contains
           write(*,*) 'for bgck IR: call rttov_parallel_direct for each profile...'
 
           ! allocate transmitance structure for 1 profile
-          call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T, &
+          call rttov_alloc_transmission(allocStatus, transmission1, nlevels=nlv_T, &
               nchanprof=tvs_nchan(sensorIndex), asw=1, init=.true.)
+          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error in rttov_alloc_transmission')
           ! allocate radiance structure for 1 profile
-          call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=1, init=.true.)
+          call rttov_alloc_rad (allocStatus, tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=1, init=.true.)
+          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error in rttov_alloc_rad')
           ! allocate chanprof for 1 profile
           allocate(chanprof1(tvs_nchan(sensorIndex)))
           do  channelIndex = 1, tvs_nchan(sensorIndex)
@@ -3197,11 +3156,12 @@ contains
           ! transmittance deallocation for 1 profile
           deallocate(chanprof1)
           ! transmittance deallocation for 1 profile
-          call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T,  &
-              nchanprof=tvs_nchan(sensorIndex), asw=0 )
+          call rttov_alloc_transmission(allocStatus, transmission1, nlevels=nlv_T,  &
+              nchanprof=tvs_nchan(sensorIndex), asw=0)
+          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error in rttov_alloc_transmission')
           ! radiance deallocation for 1 profile
-          call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=0)
-
+          call rttov_alloc_rad (allocStatus, tvs_nchan(sensorIndex), radiancedata_d1, nlv_T, asw=0)
+          if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error in rttov_alloc_rad')
         else
 
           ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData 
@@ -3270,11 +3230,9 @@ contains
 
           if ( bgckMode ) then
             if ( .not. associated(tvs_radiance(tovsIndex) % clear)) then 
-              allocStatus = 0
-              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex)  ), stat=allocStatus(1))
+              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex)))
               !  allocate overcast black cloud sky radiance output
-              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T - 1, tvs_nchan(sensorIndex) ), stat=allocStatus(2))
-              call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_rttov')
+              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T-1,tvs_nchan(sensorIndex)))
             end if
             tvs_radiance(tovsIndex) % clear(channelIndex) =  &
                 radiancedata_d % clear(btIndex)
@@ -3316,7 +3274,7 @@ contains
 
         !    Deallocate memory
         call rttov_alloc_direct(         &
-            allocStatus(1),              &
+            allocStatus,                 &
             asw=0,                       &
             nprofiles=profileCount,      & ! (not used)
             nchanprof=btCount,           &
@@ -3328,20 +3286,19 @@ contains
             calcemis=calcemis,           &
             emissivity=emissivity_local, &
             init=.true.)
-         
+        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error 1 in rttov_alloc_direct')
         if (useUofWIREmiss) then
-          deallocate(uOfWLandWSurfaceEmissivity, stat=allocStatus(2))
+          deallocate(uOfWLandWSurfaceEmissivity)
         end if
-        deallocate(surfem1, stat=allocStatus(3))
-        call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
+        deallocate(surfem1)
       end if
       
       if ( btCountScatt > 0) then
          
-        allocate(surfem1Scatt(btCountScatt), stat=allocStatus(2))
-        allocate(frequencies (btCountScatt), stat=allocStatus(3))
+        allocate(surfem1Scatt(btCountScatt))
+        allocate(frequencies (btCountScatt))
         call rttov_alloc_direct(             &
-            allocStatus(2),                  &
+            allocStatus,                     &
             asw=1,                           &
             nprofiles=profileCount,          & ! (not used)
             nchanprof=btCountScatt,          &
@@ -3352,7 +3309,8 @@ contains
             calcemis=calcemisScatt,          &
             emissivity=emissivity_localScatt,&
             init=.true.)
-        allocate (lchannel_subset(profileCount,tvs_nchan(sensorIndex)), stat=allocStatus(4))
+        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 2 in rttov_alloc_direct')
+        allocate (lchannel_subset(profileCount,tvs_nchan(sensorIndex)))
         call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, tvs_chanProfScatt(sensorIndex,1:btCountScatt), &
             lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndexScatt(sensorIndex,:), &
             channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount))
@@ -3449,11 +3407,9 @@ contains
 
           if ( bgckMode ) then
             if ( .not. associated(tvs_radiance(tovsIndex) % clear)) then 
-              allocStatus = 0
-              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex) ), stat=allocStatus(1))
+              allocate(tvs_radiance(tovsIndex) % clear(tvs_nchan(sensorIndex)))
               !  allocate overcast black cloud sky radiance output
-              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T - 1, tvs_nchan(sensorIndex) ), stat=allocStatus(2))
-              call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_rttov')
+              allocate(tvs_radiance(tovsIndex) % overcast(nlv_T-1,tvs_nchan(sensorIndex)))
             end if
             tvs_radiance(tovsIndex) % clear(channelIndex) =  &
                 radiancedata_dScatt % clear(btIndex)
@@ -3495,7 +3451,7 @@ contains
 
         !    Deallocate memory
         call rttov_alloc_direct(              &
-             allocStatus(1),                  &
+             allocStatus,                     &
              asw=0,                           &
              nprofiles=profileCount,          & ! (not used)
              nchanprof=btCountScatt,          &
@@ -3506,15 +3462,12 @@ contains
              calcemis=calcemisScatt,          &
              emissivity=emissivity_localScatt,&
              init=.true.)
-
-        deallocate(surfem1Scatt, stat=allocStatus(2))
-        deallocate(frequencies,  stat=allocStatus(3))
-        deallocate(transmission % tau_total,  stat=allocStatus(4))
-        deallocate(transmission % tau_levels, stat=allocStatus(5)) 
-        call utl_checkAllocationStatus(allocStatus, ' tvs_rttov', .false.)
-     
+        if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error 2 in rttov_alloc_direct')
+        deallocate(surfem1Scatt)
+        deallocate(frequencies)
+        deallocate(transmission % tau_total)
+        deallocate(transmission % tau_levels) 
       end if
-      
       
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
