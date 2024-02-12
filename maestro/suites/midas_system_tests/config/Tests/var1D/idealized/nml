@@ -8,7 +8,7 @@
   scaleFactorEnsHumidity=200*1.0,
   scaleFactorEnsTGCorrelation = 1.0d0, 
   nEns = 256,
-  vLocalize = 12.d0,
+  vLocalize = 3.d0,
   includeAnlVar(1)= 'UU',
   includeAnlVar(2)= 'VV',
   includeAnlVar(3)= 'TT',
@@ -17,10 +17,11 @@
   includeAnlVar(6)= 'TG',
   includeAnlVar(7)= 'EMMW',
   dumpBmatrixToFile=.true.,
-  lonMin=148.,
-  lonMax=162.,
-  latMin=10.0,
-  latMax=20.0,
+  lonMin=0.,
+  lonMax=360.,
+  latMin=-50,
+  latMax=60.0,
+  landSeaMask = 0
   doAveraging=.true.
   excludeVarScaling(1)= 'EMMW',
   copyEmissBEnsFromBHi=.true.
@@ -28,12 +29,13 @@
 &NAM1DVAR
   simBgAndObs = .True.,
   useSimObsErr =.False.
-  numSamplesHBHT = 100,
+  numSamplesHBHT = 200,
+  inflateEmissErr=1.0472,
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 350,
-   NSIMMAX  = 400,
+   NITERMAX = 400,
+   NSIMMAX  = 450,
    REPSG    = 1.0D-5,
    LGRTEST  = .TRUE.,
    LWRTHESS = .FALSE.,
@@ -120,11 +122,7 @@
    regLimitExtrap=.false.
    useMWEmissivityAtlas = .TRUE.,
    mWAtlasId = 2,
-   computeJacobian = .TRUE.,
-/
- &NAMSIMEMISS
-  simEmissSeed = 1,
-  maxSfcSenChan = 32,
+   computeJacobian = .True.,
 /
  &NAMCODTYP
 /
@@ -141,16 +139,9 @@
   itemUpdateBodyList(3)='OER',
   itemUpdateBodyList(4)='VAR',
   itemUpdateBodyList(5)='TRUO',
-<<<<<<< HEAD
-  itemUpdateBodyList(6)='OERI',
-  itemUpdateBodyList(7)='SSEM',
-  itemUpdateBodyList(8)='EMER',
-  itemUpdateBodyList(9)='SEM',
-  itemUpdateBodyList(10)='HPHT',
-  itemUpdateBodyList(11)='TRAN',
-=======
   itemUpdateBodyList(6)='SEM',
->>>>>>> a0060b1c8 (Issue #878: Enable the tangent linear and adjoint RTTOV model for surface emissivity.)
+  itemUpdateBodyList(7)='HPHT',
+  itemUpdateBodyList(8)='TRAN',
   itemUpdateHeaderList(1)='ELEV',
 /
 &NAMSQLINSERT
