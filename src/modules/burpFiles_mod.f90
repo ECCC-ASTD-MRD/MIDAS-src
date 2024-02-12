@@ -209,7 +209,7 @@ contains
       if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, missingValue )
       if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_TSEM)) call obs_bodySet_r(obsdat, OBS_TSEM, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, missingValue)
 

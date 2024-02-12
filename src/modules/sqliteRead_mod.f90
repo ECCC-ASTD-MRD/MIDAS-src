@@ -446,7 +446,7 @@ module sqliteRead_mod
       if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, bodyIndex, missingValue)
-      if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, bodyIndex, missingValue)
+      if (obs_columnActive_RB(obsdat, OBS_TSEM)) call obs_bodySet_r(obsdat, OBS_TSEM, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, bodyIndex, missingValue)
       if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, bodyIndex, missingValue)
 
@@ -809,7 +809,7 @@ module sqliteRead_mod
     if (obs_columnActive_RB(obsdat, OBS_BCOR)) call obs_bodySet_r(obsdat, OBS_BCOR, numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_TRUO)) call obs_bodySet_r(obsdat, OBS_TRUO, numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_EMER)) call obs_bodySet_r(obsdat, OBS_EMER, numberData, obs_missingValue_R)
-    if (obs_columnActive_RB(obsdat, OBS_SSEM)) call obs_bodySet_r(obsdat, OBS_SSEM, numberData, obs_missingValue_R)
+    if (obs_columnActive_RB(obsdat, OBS_TSEM)) call obs_bodySet_r(obsdat, OBS_TSEM, numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_OERI)) call obs_bodySet_r(obsdat, OBS_OERI, numberData, obs_missingValue_R)
     if (obs_columnActive_RB(obsdat, OBS_TRAN)) call obs_bodySet_r(obsdat, OBS_TRAN, numberData, obs_missingValue_R)
 
@@ -1002,12 +1002,14 @@ module sqliteRead_mod
         columnName = 'truth'
       case('OERI')
         columnName = 'obs_error_initial'
-      case('SSEM')
-        columnName = 'sim_surf_emiss'
+      case('TSEM')
+        columnName = 'true_surf_emiss'
       case('EMER')
         columnName = 'surf_emiss_error'
       case('TRAN')
         columnName = 'transmissivity'
+      case('ETRU')
+        columnName = 'truth_based_sim_emiss'
       case DEFAULT
         call utl_abort('sqlr_updateSqlite: invalid item ' // columnName // ' EXIT sqlr_updateSQL!!!')
       end select
@@ -1148,7 +1150,7 @@ module sqliteRead_mod
               call fSQL_bind_param(stmt, param_index = itemIndex + 1) ! sql null values
             else
               scaleFactor=1.0
-              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_SSEM) then 
+              if (updateBodyList(itemIndex) == OBS_SEM .or. updateBodyList(itemIndex) == OBS_TSEM) then 
                 scaleFactor=100.0
               end if
               call fSQL_bind_param(stmt, param_index = itemIndex + 1, real_var = romp*scaleFactor)

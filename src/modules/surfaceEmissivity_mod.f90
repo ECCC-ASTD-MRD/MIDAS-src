@@ -20,211 +20,66 @@ module surfaceEmissivity_mod
   private
 
   ! public procedures  
-  public :: sse_simulateEmissivity, sse_setupEmissivityfromState, sse_extractEmissivityCol
+  public :: sse_setupEmissivityfromState, sse_extractEmissivityCol
   public :: sse_updateBEnsMatEmissFromBHi, sse_emissivityRttovLimits
+  public :: sse_readEmissError, sse_readCEmissMatrixByFileName, sse_emissErrMatSqrt
+  public :: sse_emissFromObsSpace
 
 contains
 
   !--------------------------------------------------------------------------
-  ! sse_simulateEmissivity
+  ! sse_emissFromObsSpace
   !--------------------------------------------------------------------------
-  subroutine sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes, sfcEmissivity, sensorId, &
-                                    nSensor, sensorList, tovsHeaderIndexList, tovsIndexList, &
-                                    tovsChannelOffset, tovsIChan, tovsMaxChanneNum, instrumentName)
+  subroutine sse_emissFromObsSpace(obsSpaceData, updatedEmissivity, bodyIndexFromBtIndex, chanprof, sensorTovsIndexes, tovsHeaderIndexList)
     !
-    !:Purpose: Simulate surface emissivity (Only works for AMSU-A channel 1-5)
+    !:Purpose: Reading emissivity from ObsSpaceData
     !
     implicit none
 
-    ! Arguments:
-    type(struct_obs),        intent(inout) :: obsSpaceData           ! ObsSpaceData object
-    integer,                 intent(in)    :: sensorTovsIndexes(:)   ! Sensor TOVS Indexes
-    type (rttov_emissivity), intent(inout) :: sfcEmissivity(:)       ! Simulated Surf. Emissivity
-    integer,                 intent(in)    :: sensorId               ! Sensor ID
-    integer,                 intent(in)    :: nSensor                ! Number of individual sensors.(tvs_nsenors)
-    integer,                 intent(in)    :: sensorList(:)          ! Sensor number for each profile (tvs_lsensor)
-    integer,                 intent(in)    :: tovsHeaderIndexList(:) ! Observation position in obsSpaceData header for each profile (tvs_headerIndex)
-    integer,                 intent(in)    :: tovsIndexList(:)       ! Index in TOVS structures for each observation header in obsSpaceData (tvs_tovsIndex)
-    integer,                 intent(in)    :: tovsChannelOffset(:)   ! RTTOV channel mapping offset (tvs_channelOffset)
-    integer,                 intent(in)    :: tovsIChan(:,:)         ! List of channels per instrument (tvs_ichan)
-    integer,                 intent(in)    :: tovsMaxChanneNum       ! Max. value for channel number (tvs_maxChannelNumber)
-    character(len=15),       intent(in)    :: instrumentName(:)      ! Satellite name (tvs_instrumentName)
+    ! Arguemnts:
+    type(struct_obs),        intent(in)    :: obsSpaceData            ! ObsSpacedata object
+    type(rttov_emissivity),  intent(inout) :: updatedEmissivity(:)    ! Update emissivity 
+    integer,                 intent(in)    :: bodyIndexFromBtIndex(:) ! Provides the bodyIndex in ObsSpaceData based on btIndex
+    type(rttov_chanprof),    intent(in)    :: chanprof(:)             ! Profile and channel index object
+    integer,                 intent(in)    :: sensorTovsIndexes(:)    ! Sensor TOVS Indexes
+    integer,                 intent(in)    :: tovsHeaderIndexList(:)  ! Header index for each tovs structure index (tvs_headerIndex)
 
     ! Locals:
-    integer, allocatable :: emissChanList(:)
-    real, allocatable    :: emissStdErr(:)
-    integer              :: emissNumChan
-    integer              :: idata, idatend
-    real(8), allocatable :: pert(:), emissPert(:), list_EMER(:)
-    integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:), list_btIndex(:)
-    integer              :: headerIndex, bodyIndex, obsIndex, count, channelNumber, channelIndex, tovsIndex, matchChanIndex
-    real(8)              :: emissErrStdPerChan, emissDiffTmp
-    character (len=64)   :: filenameCorrEmiss
-    integer              :: btIndex, profileIndex, sensorIndex
-    real(8), allocatable :: emissErrCMat(:,:)
-    integer, allocatable :: chanListCMat(:)
-    integer              :: nchanCMat
-    integer              :: fnom, fclos, nulnam, ierr
-    real(8), allocatable :: sfcEmissivityOriginal(:), sfcEmissivityUpdated(:)
-    real(8), parameter   :: missingValueEmisAtlas = -1.0d0
+    integer :: btCount, profileCount
+    integer :: profileIndex, btIndex
+    integer :: bodyIndex, headerIndex, tovsIndex
+    real(8) :: emissObsSpace
+    integer :: sfcType
 
-    ! Namelist variables:
-    integer   :: simEmissSeed   ! Seed used to simulate surface emissivity
-    integer   :: maxSfcSenChan  ! Highest peaking AMSUA channels to be considered to simulate surface meissivity
+    write(*,*) 'sse_emissFromObsSpace: Use emissivity from obsSpaceData'
 
-    namelist /namSimEmiss/ simEmissSeed, maxSfcSenChan
-
-    ! Set default values of namelist variables
-    simEmissSeed = MPC_missingValue_INT
-    maxSfcSenChan = MPC_missingValue_INT
-
-    write(*,*) 'sse_simulateEmissivity: STARTING'
-
-    do sensorIndex = 1, nSensor
-      if (trim(instrumentName(sensorIndex)) /= 'AMSUA') then
-        write(*,*) 'Satellite Name: ', trim(instrumentName(sensorIndex))
-        call utl_abort('sse_simulateEmissivity: simulating surface emissivity can only be used for AMSUA instrument')
-      end if
-    end do
-
-    ! Read the namelist for directives
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml = namSimEmiss, iostat = ierr)
-    call utl_tmg_stop(181)
-    if (ierr /= 0) call utl_abort('sse_simulateEmissivity: Error reading namelist')
-    if (mmpi_myid == 0) write(*, nml = namSimEmiss)
-
-    if (simEmissSeed == MPC_missingValue_INT .or. maxSfcSenChan == MPC_missingValue_INT) then 
-      call utl_abort('sse_simulateEmissivity: namelist variable not set')
-    end if
-
-    ! Read Surface Emissivity Error Stdev
-    call sse_readEmissError(emissChanList, emissStdErr, emissNumChan, maxSfcSenChan)
-
-    filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
-
-    ! Read Surface Emissivity Error Correlation Matrix
-    call sse_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
+    btCount = size(updatedEmissivity)
+    profileCount = size(sensorTovsIndexes)
     
-    ! Initialize random number generation for simulating surface emissivity
-    call rng_setup(abs(simEmissSeed + (mmpi_myid * nSensor) + sensorId))
+    do profileIndex = 1, profileCount !loop on profiles
 
-    ! The count of btIndex follows the same logic in tvs_countRadiances
-    btIndex = 0
-
-    PROFILE: do profileIndex = 1, size(sensorTovsIndexes)
       tovsIndex = sensorTovsIndexes(profileIndex)
-      sensorIndex = sensorList(tovsIndex)
       headerIndex = tovsHeaderIndexList(tovsIndex)
-      if (headerIndex < 0) cycle PROFILE
 
-      idata = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
-      idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1
-      
-      allocate(pert(emissNumChan))
-      allocate(emissPert(emissNumChan))
-      allocate(list_EMER(emissNumChan))
-      allocate(list_chanNumber(emissNumChan))
-      allocate(list_chanIndex(emissNumChan))
-      allocate(list_bodyIndex(emissNumChan))
-      allocate(list_btIndex(emissNumChan))
+      do btIndex = 1, btCount !loop on channels
+        if (chanprof(btIndex)%prof == profileIndex) then
+          bodyIndex = bodyIndexFromBtIndex(btIndex)
+          emissObsSpace = obs_bodyElem_r(obsspacedata, OBS_SEM, bodyIndex)
+          sfcType = obs_headElem_i(obsspacedata, OBS_STYP, headerIndex)
 
-      count = 0
-      do bodyIndex = idata, idatend
-        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
-
-          btIndex = btIndex + 1
-
-          call sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                            channelNumber, channelIndex, tovsIndexList, &
-                                            sensorList, tovsMaxChanneNum, tovsChannelOffset, &
-                                            tovsIChan)
-
-          if (channelNumber + tovsChannelOffset(sensorIndex) <= maxSfcSenChan) then
-            count = count + 1
-
-            ! Match tvs_channelnumber with the channel index in emissivity error std file
-            matchChanIndex = FINDLOC(emissChanList, channelNumber + tovsChannelOffset(sensorIndex), dim=1)
-            if (matchChanIndex == 0) then
-              call utl_abort('sse_simulateEmissivity: Unable to find emissivity error for a channel')
-            end if
-            emissErrStdPerChan = emissStdErr(matchChanIndex)
-            list_EMER(count) = emissErrStdPerChan
-            list_bodyIndex(count) = bodyIndex
-            list_chanNumber(count) = channelNumber
-            list_chanIndex(count) = channelIndex
-            pert(count) = rng_gaussian()
-            list_btIndex(count) = btIndex
+          if (sfcType == 0 .and. emissObsSpace > 0.d0 .and. emissObsSpace <= 1.d0 ) then
+            updatedEmissivity(btIndex)%emis_in = emissObsSpace
           end if
         end if
       end do
+    end do
 
-      if (count > 0 .and. tovsIndex > 0) then 
-        ! Generate the emissivity errors
-        call sse_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
-                       emissErrCMat, chanListCMat, nchanCMat)
-
-        allocate(sfcEmissivityOriginal(count))
-        allocate(sfcEmissivityUpdated(count))
-
-        do obsIndex = 1, count
-          sfcEmissivityOriginal(obsIndex) = sfcEmissivity(list_btIndex(obsIndex))%emis_in
-
-          ! Generate the simulated emissivity
-          sfcEmissivityUpdated(obsIndex) = sfcEmissivityOriginal(obsIndex) + emissPert(obsIndex)
-        end do
-
-        ! QC check: Simulated surface emissivity can only be between 0 and 1 or missing value
-        if (any(sfcEmissivityOriginal(:) == missingValueEmisAtlas)) then
-          ! Fill missing value if ref column also have missing value
-          sfcEmissivityUpdated(:) = missingValueEmisAtlas
-        else if(any(sfcEmissivityOriginal(:) < 0.0d0)) then
-          ! Fill missing value if ref column have negative emissivity
-          sfcEmissivityUpdated(:) = missingValueEmisAtlas
-        else if(any(sfcEmissivityOriginal(:) >= 0.0d0) .and. any(sfcEmissivityUpdated(:) < 0.0d0)) then
-          ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-          emissDiffTmp = minval(sfcEmissivityUpdated(:)) - 0.0d0
-          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
-        else if(any(sfcEmissivityOriginal(:) <= 1.0d0) .and. any(sfcEmissivityUpdated(:) > 1.0d0)) then
-          ! Limit simulated emissivity to one
-          emissDiffTmp = maxval(sfcEmissivityUpdated(:)) - 1.0d0
-          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
-        end if
-        
-
-        do obsIndex = 1, count
-          sfcEmissivity(list_btIndex(obsIndex))%emis_in = sfcEmissivityUpdated(obsIndex)
-
-          !Store simulated emissivity error STDev. into ObsSpaceData
-          call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
-        end do
-
-        deallocate(sfcEmissivityOriginal)
-        deallocate(sfcEmissivityUpdated)
-      end if
-
-      deallocate(pert)
-      deallocate(emissPert)
-      deallocate(list_EMER)
-      deallocate(list_chanNumber)
-      deallocate(list_chanIndex)
-      deallocate(list_bodyIndex)
-      deallocate(list_btIndex)
-
-    end do PROFILE
-
-    deallocate(emissErrCMat)
-    deallocate(chanListCMat)
-    deallocate(emissChanList)
-    deallocate(emissStdErr)
-
-    write(*,*) 'sse_simulateEmissivity: FINISHED'
-  end subroutine sse_simulateEmissivity
+  end subroutine sse_emissFromObsSpace
 
   !--------------------------------------------------------------------------
   ! sse_readEmissError
   !--------------------------------------------------------------------------
-  subroutine sse_readEmissError(chanList, emissStdErr, numChan, maxSfcSenChan)
+  subroutine sse_readEmissError(chanList, emissStdErr, numChan)
     !
     !:Purpose: Reading emissivity error std for AMSU-A
     !
@@ -234,7 +89,6 @@ contains
     integer, allocatable, intent(out) :: chanList(:)    ! Channel List
     real, allocatable,    intent(out) :: emissStdErr(:) ! Surf. Emissivity Error Stdev.
     integer,              intent(out) :: numChan        ! Number of Channels
-    integer,              intent(in)  :: maxSfcSenChan  ! High peaking surface sensitive channel
 
     ! Locals:
     integer, external      :: fnom, fclos
@@ -271,12 +125,6 @@ contains
   
     ierr = fclos(iunit)
     if (ierr /= 0) call utl_abort ('sse_readEmissError')
-
-    if (maxSfcSenChan > maxval(chanList)) then
-      write(*,*) 'The selected highest peaking channel is not in the emissivity error std file'
-      call utl_abort('sse_readEmissError')
-    end if
-
   end subroutine sse_readEmissError
 
   !--------------------------------------------------------------------------
@@ -700,7 +548,7 @@ contains
     ! Locals:
     real(8), pointer     :: emissPtr(:,:), emissPtrRef(:,:)
     integer              :: numCol, numLev, numColRef, numLevRef
-    integer              :: icol, ilev
+    integer              :: icol
     real(8), parameter   :: missingValue = -1.0d0
     real(8)              :: emissDiffTmp
 

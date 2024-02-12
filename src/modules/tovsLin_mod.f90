@@ -356,19 +356,24 @@ contains
             obsSpaceData, surfem1)
        
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-        
+    
         if (sensorType == sensor_id_mw) then
           if (col_varExist(columnAnlInc, 'EMMW')) then
             ! Read surface emissivity from column when it's included as an analysis variable
-  
             ! Set the default surface emissivity values
             emissivity_local(:)%emis_in = surfem1(:)
-  
-            ! Setup the surface emissvity from column object to rttov emissivity_local
+
+            ! Setup the emissivity_tl from column object
             call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
                                               tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                               tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
                                               emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else if (tvs_useSfcEmissObsSpace) then
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+  
+            ! Setup the surface emissvity from obsSpaceData Object 
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
           else
             ! Read surface emissivity from emissivity atlas
             call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
@@ -376,47 +381,21 @@ contains
         else
           emissivity_local(:)%emis_in = surfem1(:)
         end if
-   
+  
         !  2.3  Compute tl radiance with rttov_tl
         
-        if (col_varExist(columnAnlInc, 'EMMW')) then
-          ! Setup the emissivity_tl from column object
-          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
-                                            tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                            tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
-                                            columProfTl_opt = columnAnlInc)
+        if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
+          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
+                                  tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, columnIn_opt = columnAnlInc)
         else
           emissivity_tl(:)%emis_in = 0.0d0
         end if
+
         errorStatus = errorStatus_success
 
         !  set nthreads to actual number of threads which will be used.
 
         nthreads = min(mmpi_numThread, profileCount)  
-
-        if (sensorType == sensor_id_mw) then
-          if (col_varExist(columnAnlInc, 'EMMW')) then
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
-                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
-                                        emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
-          else
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
-          end if
-        else
-          emissivity_local(:)%emis_in = surfem1(:)
-        end if
-  
-        !  2.3  Compute tl radiance with rttov_tl
-        
-        errorStatus = errorStatus_success
-        if (col_varExist(columnAnlInc, 'EMMW')) then
-          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
-                                  tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, columnIn_opt = columnAnlInc)
-        else
-          emissivity_tl(:)%emis_in = 0.0d0
-        end if
-        
         call rttov_parallel_tl(                             &
             errorStatus,                                    & ! out
             tvs_chanProf(sensorIndex,1:btCount),            & ! in
@@ -842,31 +821,36 @@ contains
             call utl_abort('tvslin_rttov_ad')
           end if
         end if
-        deallocate( lchannel_subset )
-        
+        deallocate(lchannel_subset)
         !     get non Hyperspectral IR emissivities
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-      
+
         if (sensorType == sensor_id_mw) then
           if (col_varExist(columnAnlInc, 'EMMW')) then
             ! Read surface emissivity from column when it's included as an analysis variable
-    
+
             ! Set the default surface emissivity values
             emissivity_local(:)%emis_in = surfem1(:)
-    
+
             ! Setup the surface emissvity from column object to rttov emissivity_local
             call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
-                                           tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                           tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
-                                           emissivityProfDt_opt = tvs_emissivityFromTrl)
+                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                        emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else if (tvs_useSfcEmissObsSpace) then
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+
+            ! Setup the surface emissvity from obsSpaceData Object 
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, sensorBodyIndexes, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
           else
             ! Read surface emissivity from emissivity atlas
             call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
-          end if 
+          end if
         else
-            emissivity_local(:) % emis_in = surfem1(:)
+          emissivity_local(:)%emis_in = surfem1(:)
         end if
-        
+               
         do btIndex = 1, btCount
           bodyIndex = tvs_bodyIndexFromBtIndex(sensorIndex,btIndex)
           radiancedata_ad % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
@@ -1097,7 +1081,7 @@ contains
         deallocate(cld_profiles_ad)
       end if
 
-      if (col_varExist(columnAnlInc, 'EMMW')) then
+      if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
         ! Setup emissivity in column object from emissivity_ad
         call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, sensorBodyIndexes, chanprof, sensorTovsIndexes, &
                                           tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &

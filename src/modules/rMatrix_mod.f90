@@ -563,7 +563,7 @@ module rMatrix_mod
 
             ! Compute the observation error based on difference between observation and truth
             obsErr = obs_bodyElem_r(obsspacedata, OBS_VAR, bodyIndex) - &
-                    obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
+                    obs_bodyElem_r(obsspacedata, OBS_ETRU, bodyIndex)
             vector(1, assimChan) = obsErr
 
             ! Compute the sum of observation sum(x)

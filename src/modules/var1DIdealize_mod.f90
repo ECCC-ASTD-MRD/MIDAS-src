@@ -93,8 +93,6 @@ module var1DIdealize_mod
     call col_setVco(columnPertOnAnLev, vco_anl)
     call col_allocate(columnPertOnAnLev, col_getNumCol(columnTruthOnTrlLev), setToZero_opt=.true.)
 
-
-    write(*,*) 'ZQ_col_varExist', col_varExist(columnPertOnAnLev, 'EMMW'), inflateEmissErr /= MPC_missingValue_R8
     if (col_varExist(columnPertOnAnLev, 'EMMW') .and. inflateEmissErr /= MPC_missingValue_R8) then
       call bmat1D_sqrtB(controlVector, cvm_nvadim, columnPertOnAnLev, obsSpaceData, &
                         inflateEmissErr_opt = inflateEmissErr)
@@ -320,7 +318,7 @@ module var1DIdealize_mod
   !--------------------------------------------------------------------------
   ! var1Di_simulateObservation
   !--------------------------------------------------------------------------
-  subroutine var1Di_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, seed, useSimObsErr)
+  subroutine var1Di_simulateObservation(columnTruthOnTrlLev, obsSpaceData, datestamp, simObsSeed, simEmissSeed, useSimObsErr)
     !
     !:Purpose: Simulate the observation (only TOVS obs) by adding a perturbation from the reference data
     !          Additional changes are needed to generalize for all observations (not just TOVS obs)
@@ -329,10 +327,11 @@ module var1DIdealize_mod
 
     ! Arguments:
     type(struct_columnData), intent(in)    :: columnTruthOnTrlLev ! True column state
-    type(struct_obs),        intent(inout) :: obsSpaceData           ! ObsSpacedata object
-    integer,                 intent(in)    :: datestamp              ! Date stamp
-    integer,                 intent(in)    :: seed                   ! Seed to random number generator 
-    logical,                 intent(in)    :: useSimObsErr           ! Simulate Observation Error Covariance
+    type(struct_obs),        intent(inout) :: obsSpaceData        ! ObsSpacedata object
+    integer,                 intent(in)    :: datestamp           ! Date stamp
+    integer,                 intent(in)    :: simObsSeed          ! Seed to random number to simulate observation
+    integer,                 intent(in)    :: simEmissSeed        ! Seed to random number to simulate emissivity
+    logical,                 intent(in)    :: useSimObsErr        ! Simulate Observation Error Covariance
 
     ! Locals:
     logical              :: bgckMode, beSilent
@@ -349,6 +348,10 @@ module var1DIdealize_mod
     
     ! Compute the Truth the observation space
     write(*,*) 'var1Di_simulateObservation: Computing the truth in Obs Space'
+
+    if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
+      allocate(tvs_emissivity(tvs_maxChannelNumber, tvs_nobtov))
+    end if
 
     ! Prepare atmospheric profiles for all tovs observation points for use in rttov
     call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
@@ -382,28 +385,21 @@ module var1DIdealize_mod
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
           call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+
+          if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
+            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
+          end if
         end if 
       end do
     end do HEADER
 
-    ! Generate Simulated Observations
-    write(*,*) 'var1Di_simulateObservation: Use simulated Obs and Emissivity Errors, useSimObsErr ', useSimObsErr
-    
-    if (useSimObsErr) then
-      ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
-
-      ! Compute radiance
-      call tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt = .True.)
-    end if
-
      ! loop over all header indices of the 'TO' family
     call obs_set_current_header_list(obsSpaceData,'TO')
 
-    if (seed == 0) then
+    if (simObsSeed == 0) then
       randomSeed = var1Di_randomSeed()
     else
-      randomSeed = seed + mmpi_myid
+      randomSeed = simObsSeed + mmpi_myid
     end if
 
     call rng_setup(abs(randomSeed))
@@ -469,7 +465,50 @@ module var1DIdealize_mod
       end if
     end do HEADER2
     
+    ! Compute R matrix based on the difference between simulate obseration and truth 
+    ! that is based on the true state and simulated emissivity
+    ! (H(x_true, emiss_true) + obs_error) - H(x_true, emiss_sim)
     if (useSimObsErr) then
+      ! Simulate emissivity
+      call var1Di_simulateEmissivity(obsSpaceData, simEmissSeed)
+      tvs_useSfcEmissObsSpace = .true.
+
+      ! Prepare atmospheric profiles for all tovs observation points for use in rttov
+      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
+
+      ! Compute radiance
+      call tvs_rttov(obsSpaceData, bgckMode, beSilent)
+
+      ! loop over all header indices of the 'TO' family
+      call obs_set_current_header_list(obsSpaceData,'TO')
+
+      ! Store the true state (Observation Space) into ObsSpaceData
+      HEADER3: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER3
+
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER3
+        end if
+
+        tovsIndex = tvs_tovsIndex(headerIndex)
+        if (tovsIndex == -1) cycle HEADER3
+
+        bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                  channelNumber, channelIndex)
+            call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+          end if 
+        end do
+      end do HEADER3
+
       ! Estimate and update R-Matrix.
       call rmat_updateRmat(obsSpaceData)
       call rmat_writeRCorrFile
@@ -484,6 +523,146 @@ module var1DIdealize_mod
 
     write(*,*) 'var1Di_simulateObservation: Finished '
   end subroutine var1Di_simulateObservation
+
+  !--------------------------------------------------------------------------
+  ! var1Di_simulateEmissivity
+  !--------------------------------------------------------------------------
+  subroutine var1Di_simulateEmissivity(obsSpaceData, simEmissSeed)
+    !
+    !:Purpose: Simulate surface emissivity (Only works for AMSU-A Observations)
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),        intent(inout) :: obsSpaceData  ! ObsSpaceData object
+    integer,                 intent(in)    :: simEmissSeed  ! Seed to random number to simulate emissivity
+
+    ! Locals:
+    integer, allocatable         :: emissChanList(:), chanListCMat(:)
+    real, allocatable            :: emissStdErr(:)
+    character(len=23), parameter :: filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
+    real(8), allocatable         :: emissErrCMat(:,:)
+    integer                      :: randomSeed, count, channelNumber, nchanCMat, emissNumChan
+    integer                      :: headerIndex, bodyIndex, tovsIndex, matchChanIndex, sensorIndex, obsIndex
+    integer                      :: bodyIndexBeg, bodyIndexEnd, idatyp
+    real(8), allocatable         :: pert(:), emissPert(:), list_EMER(:)
+    integer, allocatable         :: list_chanNumber(:), list_bodyIndex(:)
+    real(8)                      :: emissErrStdPerChan, emissDiffTmp
+    real(8), allocatable         :: sfcEmissivityOriginal(:), sfcEmissivityUpdated(:)
+    real(8), parameter           :: missingValueEmisAtlas = -1.0d0
+
+    ! Read Surface Emissivity Error Stdev
+    call sse_readEmissError(emissChanList, emissStdErr, emissNumChan)
+
+    ! Read Surface Emissivity Error Correlation Matrix
+    call sse_readCEmissMatrixByFileName(filenameCorrEmiss, emissErrCMat, chanListCMat, nchanCMat)
+    
+    ! Initialize random number generation for simulating surface emissivity
+    if (simEmissSeed == 0) then
+      randomSeed = var1Di_randomSeed()
+    else
+      randomSeed = simEmissSeed + mmpi_myid
+    end if
+
+    call rng_setup(abs(randomSeed))
+
+    ! loop over all header indices of the 'TO' family
+    call obs_set_current_header_list(obsSpaceData,'TO')
+
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! process only radiance data to be assimilated?
+      idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
+        write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+        cycle HEADER
+      end if
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      sensorIndex = tvs_lsensor(tovsIndex)
+      if (tovsIndex == -1) cycle HEADER
+
+      bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+
+      allocate(pert(emissNumChan))
+      allocate(emissPert(emissNumChan))
+      allocate(list_EMER(emissNumChan))
+      allocate(list_chanNumber(emissNumChan))
+      allocate(list_bodyIndex(emissNumChan))
+
+      count = 0
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+        if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+          count = count + 1
+          channelNumber = obs_bodyElem_r(obsspacedata, OBS_PPP, bodyIndex)
+
+          ! Match tvs_channelnumber with the channel index in emissivity error std file
+          matchChanIndex = FINDLOC(emissChanList, channelNumber, dim=1)
+          if (matchChanIndex == 0) then
+            call utl_abort('sse_simulateEmissivity: Unable to find emissivity error for a channel')
+          end if
+
+            emissErrStdPerChan = emissStdErr(matchChanIndex)
+            list_EMER(count) = emissErrStdPerChan
+            list_bodyIndex(count) = bodyIndex
+            list_chanNumber(count) = channelNumber - tvs_channelOffset(sensorIndex)
+            pert(count) = rng_gaussian()
+        end if 
+      end do
+
+      if (count > 0 .and. tovsIndex > 0) then 
+        ! Generate the emissivity errors
+        call sse_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
+                       emissErrCMat, chanListCMat, nchanCMat)
+
+        allocate(sfcEmissivityOriginal(count))
+        allocate(sfcEmissivityUpdated(count))
+
+        do obsIndex = 1, count
+          sfcEmissivityOriginal(obsIndex) = obs_bodyElem_r(obsspacedata, OBS_SEM, list_bodyIndex(obsIndex))
+
+          ! Generate the simulated emissivity
+          sfcEmissivityUpdated(obsIndex) = sfcEmissivityOriginal(obsIndex) + emissPert(obsIndex)
+        end do
+
+        ! QC check: Simulated surface emissivity can only be between 0 and 1 or missing value
+        if (any(sfcEmissivityOriginal(:) == missingValueEmisAtlas)) then
+          ! Fill missing value if ref column also have missing value
+          sfcEmissivityUpdated(:) = missingValueEmisAtlas
+        else if(any(sfcEmissivityOriginal(:) < 0.0d0)) then
+          ! Fill missing value if ref column have negative emissivity
+          sfcEmissivityUpdated(:) = missingValueEmisAtlas
+        else if(any(sfcEmissivityOriginal(:) >= 0.0d0) .and. any(sfcEmissivityUpdated(:) < 0.0d0)) then
+          ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
+          emissDiffTmp = minval(sfcEmissivityUpdated(:)) - 0.0d0
+          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
+        else if(any(sfcEmissivityOriginal(:) <= 1.0d0) .and. any(sfcEmissivityUpdated(:) > 1.0d0)) then
+          ! Limit simulated emissivity to one
+          emissDiffTmp = maxval(sfcEmissivityUpdated(:)) - 1.0d0
+          sfcEmissivityUpdated(:) = sfcEmissivityUpdated(:) - emissDiffTmp * 1.01
+        end if
+
+        do obsIndex = 1, count
+          call obs_bodySet_r(obsSpaceData, OBS_TSEM, list_bodyIndex(obsIndex), sfcEmissivityOriginal(obsIndex))
+          call obs_bodySet_r(obsSpaceData, OBS_SEM, list_bodyIndex(obsIndex), sfcEmissivityUpdated(obsIndex))
+          call obs_bodySet_r(obsSpaceData, OBS_EMER, list_bodyIndex(obsIndex), list_EMER(obsIndex))
+        end do
+
+        deallocate(sfcEmissivityOriginal)
+        deallocate(sfcEmissivityUpdated)
+
+      end if
+
+      deallocate(pert)
+      deallocate(emissPert)
+      deallocate(list_EMER)
+      deallocate(list_chanNumber)
+      deallocate(list_bodyIndex)
+    end do HEADER
+  end subroutine var1Di_simulateEmissivity
 
   !--------------------------------------------------------------------------
   ! var1Di_estSigmaBObsSpace

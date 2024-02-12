@@ -132,11 +132,15 @@ module tovsNL_mod
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
 <<<<<<< HEAD
+<<<<<<< HEAD
   public :: tvs_getHydrometeorsIndex
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii
 =======
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl
 >>>>>>> 401212956 (Issue #878: Enable the tangent linear and adjoint RTTOV model for surface emissivity.)
+=======
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl, tvs_useSfcEmissObsSpace
+>>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -190,6 +194,7 @@ module tovsNL_mod
   logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
   logical tvs_userDefinedDoAzimuthCorrection
   logical tvs_userDefinedIsAzimuthValid
+  logical tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -801,6 +806,9 @@ contains
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
     namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs, computeJacobian
 
+    ! Use MW surface emissivity from ObsSpaceData
+    tvs_useSfcEmissObsSpace = .false.
+
     ! return if the NAMTOV does not exist
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
       write(*,*)
@@ -874,7 +882,11 @@ contains
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
     tvs_computeJacobian = computeJacobian
+<<<<<<< HEAD
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
+=======
+
+>>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -2846,7 +2858,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, SimSfcEmiss_opt)
+  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent)
     !
     ! :Purpose: Interface for RTTOV non linear operator
     !           tvs_fillProfiles should be called before
@@ -2857,7 +2869,6 @@ contains
     type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
     logical,           intent(in)    :: beSilent        ! flag to control verbosity
-    logical, optional, intent(in)    :: SimSfcEmiss_opt ! Option to simulate surface emissivity based on mWAtlas
 
     ! Locals:
     integer :: nlv_T
@@ -2889,7 +2900,6 @@ contains
     real(8) :: clearMwRadiance
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
-    logical :: SimSfcEmiss
 
     if ( .not. beSilent ) write(*,*) 'tvs_rttov: Starting'
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2900,6 +2910,7 @@ contains
 
     max_nthreads = mmpi_numThread
 
+<<<<<<< HEAD
     if (present(SimSfcEmiss_opt)) then
       SimSfcEmiss = SimSfcEmiss_opt
     else
@@ -2907,6 +2918,11 @@ contains
     end if
 
     allocate(sensorTovsIndexes(tvs_nobtov))
+=======
+    allocStatus(:) = 0
+    allocate(sensorTovsIndexes(tvs_nobtov),stat=allocStatus(1))
+    call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
+>>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
     
     !   1.1   Read surface information
     if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
@@ -3098,49 +3114,32 @@ contains
             end do
           end do
 
-      else if (sensorType == sensor_id_mw) then
-<<<<<<< HEAD
+        else if (sensorType == sensor_id_mw) then
           if (allocated(tvs_emissivityFromTrl)) then
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), &
-                                       sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                       tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
-                                       emissivityTovsIndex_opt = tvs_emissivityFromTrl, originalEmissivity_opt = surfem1(1:btcount))
+            ! Read surface emissivity from column when it's included as an analysis variable
+
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+
+            ! Setup the surface emissvity from column object to rttov emissivity_local
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                              tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                              tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
+                                              emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else if (tvs_useSfcEmissObsSpatvs_isInstrumHyperSpectrale) then
+
+            ! Set the default surface emissivity values
+            emissivity_local(:)%emis_in = surfem1(:)
+
+            ! Setup the surface emissvity from obsSpaceData Object 
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)
           else
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), &
-                sensorTovsIndexes(1:profileCount))
-            if (SimSfcEmiss) then
-              call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorIndex, &
-                                          tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
-                                          tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
-            end if
-=======
-        if (allocated(tvs_emissivityFromTrl)) then
-          ! Read surface emissivity from column when it's included as an analysis variable
-
-          ! Set the default surface emissivity values
-          emissivity_local(:)%emis_in = surfem1(:)
-
-          ! Setup the surface emissvity from column object to rttov emissivity_local
-          call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, chanprof, sensorTovsIndexes, &
-                                            tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                            tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
-                                            emissivityProfDt_opt = tvs_emissivityFromTrl)
-        else
-          ! Read surface emissivity from emissivity atlas
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
-              sensorTovsIndexes(1:profileCount))
-
-          ! Simulate surface emissivity from emissivity atlas
-          if (SimSfcEmiss) then
-            call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_local, sensorId, &
-                                        tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, &
-                                        tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
->>>>>>> fba086a1a (Issue #878: Revised set limit for simulated surface emissivity.)
+            ! Read surface emissivity from emissivity atlas
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
           end if
+        else
+          emissivity_local(:)%emis_in = surfem1(:)
         end if
-      else
-        emissivity_local(:)%emis_in = surfem1(:)
-      end if
 
         rttov_err_stat = 0 
 
@@ -3264,6 +3263,7 @@ contains
         if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
         end if
+<<<<<<< HEAD
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(sensorIndex,btIndex) % prof
           channelIndex = tvs_chanProf(sensorIndex,btIndex) % chan
@@ -3509,6 +3509,35 @@ contains
         deallocate(frequencies)
         deallocate(transmission % tau_total)
         deallocate(transmission % tau_levels) 
+=======
+
+        if ( allocated(tvs_emissivity) ) then
+          tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex)%emis_out
+        end if
+          
+      end do
+
+      !    Deallocate memory
+      asw = 0 ! 0 to deallocate
+      call rttov_alloc_direct(         &
+           allocStatus(1),             &
+           asw,                        &
+           nprofiles=profileCount,     & ! (not used)
+           nchanprof=btCount,          &
+           nlevels=nlv_T,              &
+           chanprof=chanprof,          &
+           opts=tvs_opts(sensorId),    &
+           coefs=tvs_coefs(sensorId),  &
+           transmission=transmission,  &
+           radiance=radiancedata_d,    &
+           calcemis=calcemis,          &
+           emissivity=emissivity_local,&
+           init=.true.)
+
+ 
+      if (useUofWIREmiss) then
+        deallocate ( uOfWLandWSurfaceEmissivity  ,stat=allocStatus(2) )
+>>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
       end if
       
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     

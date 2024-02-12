@@ -183,10 +183,11 @@ program midas_var1D
   logical :: simBgAndObs            ! Simulate Background and Observation
   integer :: simBgSeed              ! Random seed used to generate background perturbation sampling
   integer :: simObsSeed             ! Random seed used to generate observation perturbation sampling
+  integer :: simEmissSeed           ! Random seed used to generate emissivity perturbation sampling
   logical :: useSimObsErr           ! Simulate observation based on observation error that explicitly considers the surface emissivity error
   integer :: numSamplesHBHT         ! Number of realization used to estimate Sigma B in observation space
   real(8) :: inflateEmissErr        ! Option to inflate the emissivity error stdev in B-Matrix when simulating background in idealized framework
-  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, useSimObsErr, numSamplesHBHT
+  NAMELIST /NAM1DVAR/ simBgAndObs, simBgSeed, simObsSeed, simEmissSeed, useSimObsErr, numSamplesHBHT
   NAMELIST /NAM1DVAR/ inflateEmissErr
   istamp = exdb('VAR1D', 'DEBUT', 'NON')
 
@@ -221,6 +222,7 @@ program midas_var1D
   simBgAndObs = .False.
   simBgSeed = 0
   simObsSeed = 0
+  simEmissSeed = 0
   useSimObsErr = .False.
   numSamplesHBHT = 0
   inflateEmissErr = MPC_missingValue_R8
@@ -341,16 +343,20 @@ program midas_var1D
     call col_setVco(columnTrlOnTrlLevTruth, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnTrlOnTrlLevTruth, col_getNumCol(columnTrlOnTrlLev), &
                       setToZero_opt=.true.)
+                      
     call col_copy(columnTrlOnTrlLev, columnTrlOnTrlLevTruth)
-
     call col_deallocate(columnTrlOnTrlLev)
     
+    if (numSamplesHBHT > 0) then
+      call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs, inflateEmissErr)
+    end if
+
     ! Simulate Background state columnTrlOnTrlLev
     call var1Di_simulateBackgroundState(columnTrlOnTrlLevTruth, columnTrlOnTrlLev, &
                                         obsSpaceData, vco_anl, simBgSeed, inflateEmissErr)
                                           
     call var1Di_simulateObservation(columnTrlOnTrlLevTruth, obsSpaceData, dateStampFromObs, &
-                                    simObsSeed, useSimObsErr)
+                                    simObsSeed, simEmissSeed, useSimObsErr)
   end if  
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -388,10 +394,6 @@ program midas_var1D
   if (mmpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 
   call inc_writeAnalysis(stateVectorAnalysis)
-
-  if (numSamplesHBHT > 0) then
-    call var1Di_estSigmaBObsSpace(columnTrlOnTrlLevTruth, numSamplesHBHT, obsSpaceData, vco_anl, dateStampFromObs, inflateEmissErr)
-  end if
 
   ! Deallocate memory related to B matrices
   call var1D_finalize()
