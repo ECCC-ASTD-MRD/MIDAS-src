@@ -20,7 +20,6 @@
 /
  &namEnsPostProcModule
    lwriteNetCDFInc     = .true.
-   referenceDateNetCDF = 19500101
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.

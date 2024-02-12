@@ -170,7 +170,6 @@ contains
     numMembersToRecenter     = -1     ! means all members recentered by default
     useOptionTableRecenter   = .false.
     lwriteNetCDFInc          = .false.
-    referenceDateNetCDF      = 19800101
 
     ! For the next 3 variables, the member number will be appended to this string
     ! for files '${trialdate}_006_${member}'
@@ -761,7 +760,6 @@ contains
 
           if (lwriteNetCDFInc) then
             call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                       referenceDateNetCDF, &
                                        containsFullField_opt = .false.)
           end if
 
@@ -780,8 +778,7 @@ contains
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
                                  containsFullField_opt = .false., &
                                  resetTimeParams_opt = .true., &
-                                 lwriteNetCDFInc_opt = lwriteNetCDFInc, &
-                                 referenceDateNetCDF_opt = referenceDateNetCDF)
+                                 lwriteNetCDFInc_opt = lwriteNetCDFInc)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             ! Also write the reference (analysis) surface pressure to increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns, &

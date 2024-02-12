@@ -635,7 +635,7 @@ module gridStateVectorFileIO_mod
     integer, parameter  :: referenceDateORCA025 = 19500101 ! reference date for netCDF output files
     integer :: refDateStamp, currentDateStamp
     logical :: foundRequiredState
-    integer :: timeIndexToRead, stepIndex
+    integer :: timeIndexToRead
 
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
@@ -2281,7 +2281,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, referenceDate, &
+  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, &
                                    stepIndex_opt, containsFullField_opt)
     !
     ! :Purpose: Write a statevector object to a netCDF file.
@@ -2291,7 +2291,6 @@ module gridStateVectorFileIO_mod
     ! Arguments:
     type(struct_gsv), target,   intent(in) :: stateVector_in   ! input stateVector object
     character(len=*),           intent(in) :: fileNameTemplate ! template for increment file name
-    integer                   , intent(in) :: referenceDate    ! reference date of NEMO
     integer,          optional, intent(in) :: stepIndex_opt    ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
 
@@ -2314,6 +2313,7 @@ module gridStateVectorFileIO_mod
     real(8) :: netCDFtimeEnd, netCDFtimeBeg
     integer(8) :: numberSecondsBeg, numberSecondsEnd
     character(len=100) :: fileName
+    integer, parameter :: referenceDate = 19500101 ! reference date of NEMO
     
     call msg('gio_writeToFileNetCDF', 'START')
     

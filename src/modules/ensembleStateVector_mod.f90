@@ -2710,8 +2710,7 @@ CONTAINS
                                etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
-                               resetTimeParams_opt, &
-			       lwriteNetCDFInc_opt, referenceDateNetCDF_opt)
+                               resetTimeParams_opt, lwriteNetCDFInc_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -2732,7 +2731,6 @@ CONTAINS
     logical, optional,          intent(in)    :: resetTimeParams_opt
     logical, optional,          intent(in)    :: lwriteNetCDFInc_opt ! save or not each ensemble member
                                                                      ! increment into a netCDF file
-    integer, optional,          intent(in)    :: referenceDateNetCDF_opt								     
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
     type(struct_hco), pointer :: hco_ens
@@ -2964,7 +2962,6 @@ CONTAINS
 	    if(lwriteNetCDFInc_opt) then
 	      outFileName = trim(ensFileName) // '.nc'
               call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
-	                                 referenceDateNetCDF_opt,  &
                                          containsFullField_opt = .false.)
 	    end if
 	  end if
