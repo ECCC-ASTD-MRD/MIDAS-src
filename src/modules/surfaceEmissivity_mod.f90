@@ -398,7 +398,7 @@ contains
    
     if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(nobtov, emissTrlNumChan))
 
-    do  profileIndex = 1 , profileCount 
+    do profileIndex = 1 , profileCount 
       tovsIndex = sensorTovsIndexes(profileIndex)
       headerIndex = sensorHeaderIndexes(profileIndex)
       emissivityFromTrl(tovsIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
@@ -554,12 +554,12 @@ contains
 
     numCol = col_getNumCol(column)
     numLev = col_getNumLev(column,'OT', varname_opt = 'EMMW')
-    emissPtr => col_getAllColumns(column,'EMMW')
+    emissPtr => col_getAllColumns(column, 'EMMW')
 
     if (present(columnRef_opt)) then
       numColRef = col_getNumCol(columnRef_opt)
-      numLevRef = col_getNumLev(columnRef_opt,'OT', varname_opt = 'EMMW')
-      emissPtrRef => col_getAllColumns(columnRef_opt,'EMMW')
+      numLevRef = col_getNumLev(columnRef_opt, 'OT', varname_opt = 'EMMW')
+      emissPtrRef => col_getAllColumns(columnRef_opt, 'EMMW')
 
       if (numCol /= numColRef .and. numLev /= numLevRef) then
         call utl_abort('sse_emissivityRttovLimits: number of column and &
@@ -569,30 +569,30 @@ contains
 
     do icol = 1, numCol
       if (present(columnRef_opt)) then
-       ! Fill missing value if ref column also have missing value
+        ! Fill missing value if ref column also have missing value
         if (any(emissPtrRef(:, icol) == missingValue)) then
           emissPtr(:, icol) = missingValue
-        ! Fill missing value if ref column have negative emissivity
+          ! Fill missing value if ref column have negative emissivity
         else if(any(emissPtrRef(:, icol) < 0.0d0)) then
           emissPtr(:, icol) = missingValue
           ! Limit simulated emissivity to zero if ref column emissivity is equal to zero or greater
-          else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
-            emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-            emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
-          ! Limit simulated emissivity to one
-          else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
-            emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-            emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
-          end if
+        else if(any(emissPtrRef(:, icol) >= 0.0d0) .and. any(emissPtr(:, icol) < 0.0d0)) then 
+          emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+        ! Limit simulated emissivity to one
+        else if(any(emissPtrRef(:, icol) <= 1.0d0) .and. any(emissPtr(:, icol) > 1.0d0)) then 
+          emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+        end if
       else
         ! Limit simulated emissivity to one
         if(any(emissPtr(:, icol) < 0.0d0)) then 
           emissDiffTmp = minval(emissPtr(:, icol)) - 0.0d0
-          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
-        !  Limit simulated emissivity to zero
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp * 1.01
+        ! Limit simulated emissivity to zero
         else if(any(emissPtr(:, icol) > 1.0d0)) then 
           emissDiffTmp = maxval(emissPtr(:, icol)) - 1.0d0
-         emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp*1.01
+          emissPtr(:, icol) = emissPtr(:, icol) - emissDiffTmp * 1.01
         end if
       end if
     end do

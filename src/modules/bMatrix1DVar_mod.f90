@@ -167,7 +167,7 @@ contains
       numIncludeAnlVar = numIncludeAnlVar + 1
     end do
     bmat1D_numIncludeAnlVar = numIncludeAnlVar
-    allocate( bmat1D_includeAnlVar(bmat1D_numIncludeAnlVar) )
+    allocate(bmat1D_includeAnlVar(bmat1D_numIncludeAnlVar))
     bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar) = includeAnlVar(1:numIncludeAnlVar)
 
     if (numExcludeVarScaling /= MPC_missingValue_INT) then
@@ -263,7 +263,7 @@ contains
     integer :: shiftLevel, varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat
     logical, save :: firstCall=.true.
-    real(8), allocatable ::  multFactor(:)
+    real(8), allocatable :: multFactor(:)
     integer :: varListEmiss, nlevEmiss
 
     if (.not. (gsv_varExist(varName='TT') .and.  &
@@ -1532,12 +1532,12 @@ contains
 
     if (initialized) then
        if (allocated(bMatSqrtLand)) then
-         deallocate( bMatSqrtLand )
-         deallocate( bMatSqrtSea )
-         deallocate( latLand, lonLand, latSea, lonSea )
+         deallocate(bMatSqrtLand)
+         deallocate(bMatSqrtSea)
+         deallocate(latLand, lonLand, latSea, lonSea)
        end if
        if (allocated(bMatSqrtEns)) then 
-        deallocate( bMatSqrtEns )
+        deallocate(bMatSqrtEns)
       end if
        call var1D_finalize()
     end if
