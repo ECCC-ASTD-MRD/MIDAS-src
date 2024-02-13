@@ -5749,122 +5749,86 @@ contains
     err = fclos(iunit)
   end subroutine tvs_writeJacobianAscii
 
-
   !--------------------------------------------------------------------------
   !  tvs_rttovScatt
   !--------------------------------------------------------------------------
-  subroutine tvs_rttovScatt(   &
-      errorstatus,       &! out
-      opts_scatt,        &! in
-      nlevels,           &! in
-      chanprof,          &! in
-      frequencies,       &! in
-      profiles,          &! in
-      cld_profiles,      &! in
-      coef_rttov,        &! in
-      coef_scatt,        &! in
-      calcemis,          &! in
-      emissivity,        &! inout
-      transmission,      &! inout
-      radiance,          &! inout 
-      cfrac,             &! out, optional
-      emis_retrieval_terms, & !
-      reflectivity)        ! inout, optional
+  subroutine tvs_rttovScatt(errorstatus, opts_scatt, nlevels, chanprof, frequencies, &
+      profiles, cld_profiles, coef_rttov, coef_scatt, calcemis, emissivity, transmission, &
+      radiance, cfrac, emis_retrieval_terms, reflectivity)
     !
     ! :Purpose: modified rttov_scatt subroutine with additional transmission argument
     !
-  
-    
     implicit none
 
+    ! Arguments:
+    integer(kind=jpim),                              intent(out)    :: errorstatus                   ! Error return flag
+    type(rttov_options_scatt),                       intent(in)     :: opts_scatt                    ! RTTOV-SCATT options
+    integer(kind=jpim),                              intent(in)     :: nlevels                       ! Number of levels
+    type(rttov_chanprof),                            intent(in)     :: chanprof(:)                   ! Channel and profile indices
+    integer(kind=jpim),                              intent(in)     :: frequencies (size(chanprof))  ! Frequency indices
+    type(rttov_profile),                             intent(in)     :: profiles(:)                   ! thermodynamic profiles
+    type(rttov_profile_cloud),                       intent(in)     :: cld_profiles (size(profiles)) ! Cloud profiles
+    type(rttov_coefs),                               intent(in)     :: coef_rttov                    ! RTTOV Coefficients
+    type(rttov_scatt_coef),                          intent(in)     :: coef_scatt                    ! RTTOV_SCATT Coefficients
+    logical(kind=jplm),                              intent(in)     :: calcemis   (size(chanprof))   ! Switch for emmissivity calculation
+    type(rttov_emissivity),                          intent(inout)  :: emissivity (size(chanprof))   ! Surface emissivity
+    type(rttov_transmission),                        intent(inout)  :: transmission                  ! Transmittances
+    type(rttov_radiance),                            intent(inout)  :: radiance                      ! Radiances
+    real(kind=jprb), optional,                       intent(out)    :: cfrac (size(profiles))        ! Cloud fraction (diagnostic)
+    type(rttov_scatt_emis_retrieval_type), optional, intent(inout)  :: emis_retrieval_terms          ! Optional for all-sky emis retrievals
+    type(rttov_reflectivity), optional,              intent(inout)  :: reflectivity                  ! Optional for radar
 
-    !* Subroutine arguments:
-    type(rttov_options_scatt), intent(in) :: opts_scatt  ! RTTOV-SCATT options
-    integer (kind=jpim), intent(in)       :: nlevels     ! Number of levels
-    type(rttov_chanprof), intent(in)      :: chanprof(:) ! Channel and profile indices
-    type(rttov_profile), intent(in)       :: profiles(:)
-    integer (kind=jpim), intent(in)       :: frequencies (size(chanprof)) ! Frequency indices
-    integer (kind=jpim), intent(out)      :: errorstatus                  ! Error return flag
-    
-    logical (kind=jplm),    intent(in)    :: calcemis   (size(chanprof))  ! Switch for emmissivity calculation
-    type(rttov_emissivity), intent(inout) :: emissivity (size(chanprof))  ! Surface emissivity
-    
-    type (rttov_coefs),         intent(in)    :: coef_rttov               ! RTTOV Coefficients
-    type (rttov_scatt_coef),    intent(in)    :: coef_scatt               ! RTTOV_SCATT Coefficients
-    type (rttov_profile_cloud), intent(in)    :: cld_profiles (size(profiles)) ! Cloud profiles
-    type (rttov_radiance),      intent(inout) :: radiance                 ! Radiances
-    type (rttov_transmission),  intent(inout) :: transmission             ! Transmittances
- 
-    real (kind=jprb), optional, intent (out)  :: cfrac (size(profiles))  ! Cloud fraction (diagnostic)
-
-    type (rttov_scatt_emis_retrieval_type), optional, intent (inout) :: emis_retrieval_terms ! Optional for all-sky emis retrievals
-    type (rttov_reflectivity), optional, intent (inout) :: reflectivity ! Optional for radar
-
-
-
-    integer (kind=jpim), target :: sa__mclayer (size(chanprof))
- 
-    real (kind=jprb), target :: sa__cfrac   (size(profiles))
-    real (kind=jprb), target :: sa__ems_bnd (size(chanprof))
-    real (kind=jprb), target :: sa__ref_bnd (size(chanprof))
-    real (kind=jprb), target :: sa__ems_cld (size(chanprof))
-    real (kind=jprb), target :: sa__ref_cld (size(chanprof))
-    
-    real (kind=jprb), target :: sa__tbd (size(chanprof),nlevels+1)
-    real (kind=jprb), target :: sa__tsfc (size(chanprof))
-    real (kind=jprb), target :: sa__tcosmic (size(chanprof))
-    
-    real (kind=jprb), target :: sa__delta  (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__tau    (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__int_tau(size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__ext    (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__ssa    (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__asm    (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__zef    (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__lambda (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__h      (size(chanprof),nlevels)
-  
-    real (kind=jprb), target :: sa__b0     (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__b1     (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__bn     (size(chanprof),nlevels)
-    real (kind=jprb), target :: sa__btop   (size(chanprof))
-    real (kind=jprb), target :: sa__bsfc   (size(chanprof))
-    real (kind=jprb), target :: sa__dz     (size(profiles),nlevels)
-    real (kind=jprb), target :: sa__hydro  (size(profiles),nlevels,cld_profiles(1)%nhydro)
-    
-    real (kind=jprb), target :: sf__t_down (size(chanprof))
-    real (kind=jprb), target :: sf__t_up   (size(chanprof))
-    real (kind=jprb), target :: sf__tau    (size(chanprof))
-    
-    real (kind=jprb), target :: sr__upclear(size(chanprof))
-    real (kind=jprb), target :: sr__dnclear(size(chanprof))
-    real (kind=jprb), target :: sr__refldnclear(size(chanprof))
-    real (kind=jprb), target :: sr__up  (nlevels-1, size(chanprof))
-    real (kind=jprb), target :: sr__down(nlevels-1, size(chanprof))
-    real (kind=jprb), target :: sr__surf(nlevels-1, size(chanprof))
-    
-    !* Local variables:
-    integer (kind=jpim) :: nprofiles, nchannels
-    Logical (kind=jplm) :: lpolarimetric(size(chanprof)), lthermal(size(chanprof))
-    integer (kind=jpim) :: iprof, ichan, ilayer
-    integer (kind=jpim) :: ichan_act
-    real    (kind=jprb) :: rad_cld     (size(chanprof))
-    real    (kind=jprb) :: zlayers(nlevels) !altitude from ground in km
-    Logical (kind=jplm) :: lreflectivity
+    ! Locals:
+    integer(kind=jpim), target :: sa__mclayer(size(chanprof))
+    real(kind=jprb), target :: sa__cfrac   (size(profiles))
+    real(kind=jprb), target :: sa__ems_bnd (size(chanprof))
+    real(kind=jprb), target :: sa__ref_bnd (size(chanprof))
+    real(kind=jprb), target :: sa__ems_cld (size(chanprof))
+    real(kind=jprb), target :: sa__ref_cld (size(chanprof))
+    real(kind=jprb), target :: sa__tbd (size(chanprof),nlevels+1)
+    real(kind=jprb), target :: sa__tsfc (size(chanprof))
+    real(kind=jprb), target :: sa__tcosmic (size(chanprof))
+    real(kind=jprb), target :: sa__delta  (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__tau    (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__int_tau(size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__ext    (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__ssa    (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__asm    (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__zef    (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__lambda (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__h      (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__b0     (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__b1     (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__bn     (size(chanprof),nlevels)
+    real(kind=jprb), target :: sa__btop   (size(chanprof))
+    real(kind=jprb), target :: sa__bsfc   (size(chanprof))
+    real(kind=jprb), target :: sa__dz     (size(profiles),nlevels)
+    real(kind=jprb), target :: sa__hydro  (size(profiles),nlevels,cld_profiles(1)%nhydro)
+    real(kind=jprb), target :: sf__t_down (size(chanprof))
+    real(kind=jprb), target :: sf__t_up   (size(chanprof))
+    real(kind=jprb), target :: sf__tau    (size(chanprof))
+    real(kind=jprb), target :: sr__upclear(size(chanprof))
+    real(kind=jprb), target :: sr__dnclear(size(chanprof))
+    real(kind=jprb), target :: sr__refldnclear(size(chanprof))
+    real(kind=jprb), target :: sr__up  (nlevels-1, size(chanprof))
+    real(kind=jprb), target :: sr__down(nlevels-1, size(chanprof))
+    real(kind=jprb), target :: sr__surf(nlevels-1, size(chanprof))
+    integer(kind=jpim) :: nprofiles, nchannels
+    logical(kind=jplm) :: lpolarimetric(size(chanprof)), lthermal(size(chanprof))
+    integer(kind=jpim) :: iprof, ichan, ilayer
+    integer(kind=jpim) :: ichan_act
+    real(kind=jprb)    :: rad_cld(size(chanprof))
+    real(kind=jprb)    :: zlayers(nlevels) !altitude from ground in km
+    logical(kind=jplm) :: lreflectivity
     
     ! Variables for emissivity calculations
     type (eddington_sfc_type) :: sfc_terms ! Downward radiance source terms, Upward radiance source terms, Total transmittancs
     type (rttov_radiance2)    :: radiance2               
-    
     type (rttov_geometry)          :: angles (size(profiles))
     type (rttov_profile_scatt_aux) :: scatt_aux  
-                         
     type(rttov_options)    :: opts
-
     character (len=80) :: errMessage
-    character (len=16) :: NameOfRoutine = 'tvs_rttov_scatt '
-  
-    !- End of header --------------------------------------------------------
+    character (len=15) :: NameOfRoutine = 'tvs_rttovScatt '
 
     lreflectivity = present(reflectivity)
 
@@ -5873,7 +5837,7 @@ contains
 
     errorstatus = errorstatus_success
   
-    !we want to be able to get trasmittance as an argument. It is no longer possible to use autonatic allocation
+    !we want to be able to get trasmittance as an argument. It is no longer possible to use automatic allocation
     allocate(transmission % tau_total(size(chanprof)))
     allocate(transmission % tau_levels(nlevels,size(chanprof))) 
  
@@ -5968,7 +5932,7 @@ contains
     opts % interpolation % reg_limit_extrap = opts_scatt % reg_limit_extrap
     opts % interpolation % lgradp           = opts_scatt % lgradp
 
-    call rttov_direct(              &!
+    call rttov_direct(          &!
         errorstatus,            &! out
         chanprof,               &! in
         opts,                   &! in
@@ -5990,7 +5954,7 @@ contains
     scatt_aux % ref_cld (:) = 1.0_JPRB - emissivity (:) % emis_in
 
     !* 2.   Initialisations for Eddington
-    call rttov_iniscatt(           &
+    call rttov_iniscatt(       &
         errorstatus,           &! out
         opts,                  &! in
         opts_scatt,            &! in
@@ -6019,7 +5983,7 @@ contains
     if (.not. lreflectivity) then
 
       !* 3. Eddington (in temperature space)
-      call rttov_eddington(           &
+      call rttov_eddington(        &
           opts_scatt%cc_threshold, &! in
           nlevels,                 &! in
           nchannels,               &! in
@@ -6032,7 +5996,7 @@ contains
 
       ! Emissivity retrieval terms
       if (present(emis_retrieval_terms)) then
-        call rttov_scatt_emis_terms(  &
+        call rttov_scatt_emis_terms( &
             opts_scatt%cc_threshold, &! in
             chanprof,                &! in
             coef_rttov,              &! in
@@ -6072,7 +6036,7 @@ contains
       
       do ichan = 1, nchannels
         
-        iprof            = chanprof(ichan)%prof
+        iprof            = chanprof(ichan) % prof
         zlayers(nlevels) = profiles(iprof) % elevation
         
         do ilayer = nlevels, 1, -1
@@ -6092,14 +6056,14 @@ contains
           end if
           
           ! Approximate altitude of the middle of the RTTOV-SCATT layer (corresponding to the IFS full level), back from km to m
-          radiance % geometric_height (ilayer,ichan) = 1000.0_JPRB * (zlayers(ilayer) + scatt_aux%dz(iprof,ilayer)/2.)
+          radiance % geometric_height (ilayer,ichan) = 1000.0_JPRB * (zlayers(ilayer) + scatt_aux % dz(iprof,ilayer)/2.)
         end do
       end do
 
     end if
 
     lthermal = .true.
-    call rttov_calcbt(chanprof, coef_rttov%coef, lthermal, radiance)
+    call rttov_calcbt(chanprof, coef_rttov % coef, lthermal, radiance)
     
   end subroutine tvs_rttovScatt
   
