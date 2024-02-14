@@ -270,13 +270,7 @@ contains
       end if
 
       timeInterp = timeInterpolation
-      if ( fieldDimension(varIndex) <= 2 ) then
-        if (timeInterp) then
-          timeInterp = .false.
-          write(*,*) 'WARNING from clm_readFields: Time interpolation reset to false'
-        end if
-      end if
-      
+
       do sourceIndex = 1, numFields(varIndex)
        
         ! Read climatology for specified field
@@ -309,42 +303,10 @@ contains
           
         else if ( fieldDimension(varIndex) <= 2) then
 
-          if (trim(fname) /= ozoneBaseline) then
-            varNameClim = trim(varName)
-          else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
-            varNameClim = 'O3'
-            etiket = ' '
-          end if
-          call utl_readFstField(trim(fname),varNameClim,-1,-1,imonth,etiket, &
-              ni,nj,nkeys,array2)
-		   
-          if (ni == 1) then
-            ! nj for latitudes and nkeys for levels
-            allocate(array1(ni,nj,nkeys))
-            array1(1,1:nj,1:nkeys) =  array2(1,1:nj,1:nkeys)
-          else if (nkeys == 1) then
-            if (nj == 1) then
-              nkeys = ni
-              ni = 1
-              allocate(array1(ni,nj,nkeys))
-              array1(1,1,1:nkeys) = array2(1:nkeys,1,1)
-            else
-              nkeys = nj
-              nj = ni
-              ni = 1
-              allocate(array1(ni,nj,nkeys))
-              if (trim(fname) == ozoneBaseline) then
-                ! Convert from ppmv to micrograms/kg
-                array1(1,1:nj,1:nkeys) = array2(1:nj,1:nkeys,1) * &
-                    1.0d3 * MPC_MOLAR_MASS_O3_R8 / MPC_MOLAR_MASS_DRY_AIR_R8 ! Same as above
-              else
-                array1(1,1:nj,1:nkeys) = array2(1:nj,1:nkeys,1)
-              end if
-            end if
-          end if
-          deallocate(array2)
-          
+          ! Read 1D or 2D climatology for specified month
+          call clm_readSub3DFields(imonth,array1)
+
+          ! Set lat and long
           allocate(xlong(ni),xlat(nj),lvls(nkeys))
           xlong(1) = 0.0d0
           if (nj > 1) then 
@@ -416,15 +378,24 @@ contains
 
           ! Following for interpolation as a function of days from mid-months.
           ! Assumes same grid and levels
-          
+
+         
           if (iday > 15) then
-            if (imonth == 12) then
-              call utl_readFstField(trim(fname),trim(varNameClim),-1,1,-1,etiket, &
-                  ni,nj,nkeys,array2)
-            else
-              call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth+1,-1, &
-                  etiket,ni,nj,nkeys,array2)
-            end if
+            if ( fieldDimension(varIndex) <= 2 ) then
+              if (imonth == 12) then
+                call clm_readSub3DFields(1,array2)
+              else
+                call clm_readSub3DFields(imonth+1,array2)
+              end if
+            else	  
+              if (imonth == 12) then
+                call utl_readFstField(trim(fname),trim(varNameClim),-1,1,-1,etiket, &
+                    ni,nj,nkeys,array2)
+              else
+                call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth+1,-1, &
+                    etiket,ni,nj,nkeys,array2)
+              end if
+	    end if
           
             ! Linearly interpolate in time 
             ! (approximation - assumes 30 day months)
@@ -433,14 +404,22 @@ contains
                 (array1(:,:,:)*(30.0-day) + array2(:,:,:)*day)/30.0
              
           else if (iday <= 15) then
-            if (imonth == 1) then
-              call utl_readFstField(trim(fname),trim(varNameClim),-1,12,-1,etiket, &
-                  ni,nj,nkeys,array2)
-            else
-              call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth-1,-1, &
-                  etiket,ni,nj,nkeys,array2)
-            end if
-            
+            if ( fieldDimension(varIndex) <= 2 ) then
+              if (imonth == 1) then
+                call clm_readSub3DFields(12,array2)
+              else
+                call clm_readSub3DFields(imonth-1,array2)
+              end if
+            else	  
+              if (imonth == 1) then
+                call utl_readFstField(trim(fname),trim(varNameClim),-1,12,-1,etiket, &
+                    ni,nj,nkeys,array2)
+              else
+                call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth-1,-1, &
+                    etiket,ni,nj,nkeys,array2)
+              end if
+	    end if
+	    
             ! Linearly interpolate in time 
             ! (approximation - applies 30 day months)
             
@@ -471,6 +450,62 @@ contains
     
     initialized = .true.
 
+    contains
+
+    !--------------------------------------------------------------------------
+    ! clm_readSub3DFields
+    !--------------------------------------------------------------------------
+    subroutine clm_readSub3DFields(month,outarray)
+      !
+      !:Purpose:  Read 1D or 2D climatology (reference) field
+      !
+      implicit none
+      
+      ! Arguments:
+      integer, intent(in)  :: month                        ! Month for input field
+      real(8), allocatable, intent(out) :: outarray(:,:,:) ! Final output field
+      
+      ! Locals:
+      real(8), allocatable :: inarray(:,:,:)               ! Input field
+
+      if (trim(fname) /= ozoneBaseline) then
+        varNameClim = trim(varName)
+      else if (trim(varName) == &
+        vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
+        varNameClim = 'O3'
+        etiket = ' '
+      end if
+      call utl_readFstField(trim(fname),varNameClim,-1,-1,month,etiket, &
+                            ni,nj,nkeys,inarray)
+		   
+      if (ni == 1) then
+        ! nj for latitudes and nkeys for levels
+        allocate(outarray(ni,nj,nkeys))
+        outarray(1,1:nj,1:nkeys) =  inarray(1,1:nj,1:nkeys)
+      else if (nkeys == 1) then
+        if (nj == 1) then
+          nkeys = ni
+          ni = 1
+          allocate(outarray(ni,nj,nkeys))
+          outarray(1,1,1:nkeys) = inarray(1:nkeys,1,1)
+        else
+          nkeys = nj
+          nj = ni
+          ni = 1
+          allocate(outarray(ni,nj,nkeys))
+          if (trim(fname) == ozoneBaseline) then
+            ! Convert from ppmv to micrograms/kg
+            outarray(1,1:nj,1:nkeys) = inarray(1:nj,1:nkeys,1) * &
+              1.0d3 * MPC_MOLAR_MASS_O3_R8 / MPC_MOLAR_MASS_DRY_AIR_R8 ! Same as above
+          else
+            outarray(1,1:nj,1:nkeys) = inarray(1:nj,1:nkeys,1)
+          end if
+        end if
+      end if
+      deallocate(inarray)
+          
+    end subroutine clm_readSub3DFields
+    
   end subroutine clm_readFields
 
   !--------------------------------------------------------------------------
