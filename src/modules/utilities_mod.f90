@@ -16,7 +16,7 @@ module utilities_mod
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_pseudo_inverse
-  public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
+  public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_printTime
   public :: utl_stopAndWait4Debug
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
@@ -1648,37 +1648,6 @@ contains
     ier=fclos(iun)  
 
   end subroutine utl_readFstField
-
-
-  subroutine utl_checkAllocationStatus(status, message, alloc_opt)
-    implicit none
-
-    ! Arguments:
-    character(len=*),  intent(in) :: message
-    integer,           intent(in) :: status(:)
-    logical, optional, intent(in) :: alloc_opt 
-
-    ! Locals:
-    logical :: flag
-
-    if ( present(alloc_opt) ) then
-       flag = alloc_opt
-    else
-       flag = .true.
-    end if
-
-    if (any(status /= 0)) then
-       if (flag) then
-          Write(6,'(A)') "Memory allocation failure !"
-       else
-          Write(6,'(A)') "Memory deallocation failure !"
-       end if
-       Write(6,'(64(i8,1x))') status
-       call utl_abort(message)
-    end if
-
-  end subroutine utl_checkAllocationStatus
-
 
   function utl_fileType(fileName_opt) result(fileType)
     !

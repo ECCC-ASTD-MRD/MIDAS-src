@@ -21,6 +21,7 @@ public
 #include "rttov_alloc_ad.interface"
 #include "rttov_alloc_k.interface"
 #include "rttov_print_profile.interface"
+#include "rttov_print_opts.interface"
 #include "rttov_get_emis.interface"
 #include "rttov_setup_emis_atlas.interface"
 #include "rttov_read_coefs.interface"
@@ -42,5 +43,10 @@ public
 #include "rttov_init_prof.interface"
 #include "rttov_init_transmission.interface"
 #include "rttov_init_rad.interface"
+#include "rttov_iniscatt.interface"
+#include "rttov_eddington.interface"
+#include "rttov_errorreport.interface"
+#include "rttov_calcbt.interface"
+#include "rttov_scatt_emis_terms.interface"
 
 end module rttovInterfaces_mod
