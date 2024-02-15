@@ -65,6 +65,7 @@ contains
     ! Locals:
     integer :: ierr
     logical, save :: firstCall = .true.
+    integer :: nulnam, fnom, fclos 
 
     ! Namelist variables:
     real(8) :: dstepobs      ! time step length for background state (in hours)

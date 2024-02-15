@@ -116,14 +116,12 @@ contains
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
                                    huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,   &
-                                   weightRecenter, weightRecenterLand, numMembersToRecenter,  &
-                                   useOptionTableRecenter,  &
-                                   etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
-                                   etiket_anlmeanpert, etiket_anlrmspert,  &
-                                   etiket_anlmean_raw, etiket_anlrms_raw,  &
-                                   etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask,  &
-                                   writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble
-                                   writeRawAnalStats, lwriteNetCDFInc
+                                   weightRecenter, weightRecenterLand, numMembersToRecenter,             &
+                                   useOptionTableRecenter, etiket_anl, etiket_inc, etiket_trl,           &
+                                   etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
+                                   etiket_anlmean_raw, etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, &
+                                   numBits, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
+                                   use4Drecentering3Densemble, lwriteNetCDFInc
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
