@@ -747,26 +747,39 @@ contains
         call utl_tmg_start(5,'--WriteEnsMeanRms')
         ! output ensemble mean increment
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt = 'inc')
-        call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
-        do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanInc, outFileName, etiket, &
-                               typvar_opt = 'R', writeHeightSfc_opt = .false., &
-                               numBits_opt = numBits, stepIndex_opt = stepIndex, &
-                               containsFullField_opt = .false.)
 
-          if (lwriteNetCDFInc) then
-            call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                       containsFullField_opt = .false.)
-          end if
+	if (gsv_isAllocated(stateVectorMeanAnl4D)) then
+	  call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
+          do stepIndex = 1, tim_nstepobs
+            call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket, &
+                                 typvar_opt = 'R', writeHeightSfc_opt = .false., &
+                                 numBits_opt = numBits, stepIndex_opt = stepIndex, &
+                                 containsFullField_opt = .false.)
+            if (gsv_isAllocated(stateVectorMeanAnlSfcPres4D)) then
+              call gio_writeToFile(stateVectorMeanAnlSfcPres4D, outFileName, etiket,  &
+                                   typvar_opt = 'A', writeHeightSfc_opt = .true., &
+                                   stepIndex_opt = stepIndex, containsFullField_opt = .true.)
+            end if
+          end do
+        else
+          call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
+          do stepIndex = 1, tim_nstepobsinc
+            call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
+                                 typvar_opt = 'R', writeHeightSfc_opt = .false., &
+                                 numBits_opt = numBits, stepIndex_opt = stepIndex,&
+                                 containsFullField_opt = .false.)
+            if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
+              call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+                                   typvar_opt = 'A', writeHeightSfc_opt = .true., &
+                                   stepIndex_opt = stepIndex, containsFullField_opt = .true.)
+            end if
+            if (lwriteNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+                                                            containsFullField_opt = .false.)
+          end do
+        end if
 
-          if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
-                                 typvar_opt = 'A', writeHeightSfc_opt = .true., &
-                                 stepIndex_opt = stepIndex, containsFullField_opt = .true.)
-          end if
-        end do
         call utl_tmg_stop(5)
 
         !- Output all ensemble member increments
