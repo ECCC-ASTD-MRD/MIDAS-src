@@ -881,7 +881,7 @@ contains
       call bmat1D_readBMatHi(oneDBmatHiLand, nkgdimHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
       call bmat1D_readBMatHi(oneDBmatHiSea, nkgdimHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
       call sse_updateBEnsMatEmissFromBHi(bMatLandHi, bMatSeaHi, bMatEns, latLandHi, latSeaHi, obsSpaceData, var1D_validHeaderIndex, &
-                                         var1D_validHeaderCount, bmat1D_includeAnlVar, vco_1DvarHi, vco_in)
+                                         var1D_validHeaderCount, bmat1D_includeAnlVar, meanColumn)
     end if
 
     if (dumpBmatrixTofile) then
@@ -1095,9 +1095,7 @@ contains
     real(8)                   :: latitude
     integer                   :: surfaceType, offset
     real(8), allocatable      :: bMatSqrtLandTmp(:,:,:), bMatSqrtSeaTmp(:,:,:)
-    integer                   :: emissVarIndex
-    type(struct_vco), pointer :: vco_col
-    integer                   :: varListEmiss, nlevEmiss
+    integer                   :: emissVarIndex, nlevEmiss
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -1117,36 +1115,21 @@ contains
     if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
 
       ! Get number of levels in the surface emssivity analysis variable
-      vco_col => col_getvco(column)
-      varListEmiss = vnl_varListIndexOther('EMMW')
-      nlevEmiss = vco_col%nlev_Other(varListEmiss)
+      nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
+
 
       ! Determine the start varIndex for surface emissivity in the B-Matrix.
       emissVarIndex = 0 
       do varIndex = 1, size(bmat1D_includeAnlVar)
-        select case(bmat1D_includeAnlVar(varIndex))
-        case('TT')
-          emissVarIndex = emissVarIndex + vco_col%nLev_T
-        case('HU')
-          emissVarIndex = emissVarIndex + vco_col%nLev_T
-        case('UU','VV')
-          emissVarIndex = emissVarIndex + vco_col%nlev_M
-        case('TG')
-          emissVarIndex = emissVarIndex + 1
-        case('P0')
-          emissVarIndex = emissVarIndex + 1
-        case('EMMW')
-          emissVarIndex = emissVarIndex + 1
-        case default
-          call utl_abort('bmat1D_bSqrtHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
-        end select
+        emissVarIndex = emissVarIndex + &
+          col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
       end do
 
-      bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
-        bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+      bMatSqrtLandTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = inflateEmissErr * &
+        bMatSqrtLandTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
 
-      bMatSqrtSeaTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
-        bMatSqrtLandTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+      bMatSqrtSeaTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = inflateEmissErr * &
+        bMatSqrtLandTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
     end if
 
     allocate(oneDProfile(nkgdim))
@@ -1268,9 +1251,7 @@ contains
     real(8), allocatable      :: oneDProfile(:)
     integer                   :: offset
     real(8), allocatable      :: bMatSqrtEnsTmp(:,:,:)
-    integer                   :: emissVarIndex
-    type(struct_vco), pointer :: vco_col
-    integer                   :: varListEmiss, nlevEmiss
+    integer                   :: emissVarIndex, nlevEmiss
 
     allocate(bMatSqrtEnsTmp(var1D_validHeaderCount, nkgdim, nkgdim))
 
@@ -1280,33 +1261,16 @@ contains
     if (inflateEmissErr /= MPC_missingValue_R8 .and. col_varExist(column, 'EMMW')) then
 
       ! Get number of levels in the surface emssivity analysis variable
-      vco_col => col_getvco(column)
-      varListEmiss = vnl_varListIndexOther('EMMW')
-      nlevEmiss = vco_col%nlev_Other(varListEmiss)
+      nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
 
       ! Determine the start varIndex for surface emissivity in the B-Matrix.
-      emissVarIndex = 0 
+      emissVarIndex = 0
       do varIndex = 1, size(bmat1D_includeAnlVar)
-        select case(bmat1D_includeAnlVar(varIndex))
-        case('TT')
-          emissVarIndex = emissVarIndex + vco_col%nLev_T
-        case('HU')
-          emissVarIndex = emissVarIndex + vco_col%nLev_T
-        case('UU','VV')
-          emissVarIndex = emissVarIndex + vco_col%nlev_M
-        case('TG')
-          emissVarIndex = emissVarIndex + 1
-        case('P0')
-          emissVarIndex = emissVarIndex + 1
-        case('EMMW')
-          emissVarIndex = emissVarIndex + 1
-        case default
-          call utl_abort('bmat1D_bSqrtEns: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
-        end select
+        emissVarIndex = emissVarIndex + &
+          col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
       end do
-
-      bMatSqrtEnsTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = inflateEmissErr * &
-        bMatSqrtEnsTmp(:,emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1)
+      bMatSqrtEnsTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = inflateEmissErr * &
+        bMatSqrtEnsTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
     end if
 
     allocate(oneDProfile(nkgdim))

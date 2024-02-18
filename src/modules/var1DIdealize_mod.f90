@@ -237,13 +237,13 @@ module var1DIdealize_mod
     do varIndex = 1, vnl_numvarmaxOther
       if (.not. varneed(vnl_varNameListOther(varIndex))) cycle
       if (.not. col_varExist(columnAnlLev, vnl_varNameListOther(varIndex))) cycle
-      if (col_getNumCol(columnAnlLev) > 0) then       
-        do columnIndex = 1, col_getNumCol(columnAnlLev)
-          columnTrlLev_ptr => col_getColumn(columnTrlLev, columnIndex, vnl_varNameListOther(varIndex))
-          columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameListOther(varIndex))
-          columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
-        end do
-      end if
+      if (col_getNumCol(columnAnlLev) <= 0) cycle
+           
+      do columnIndex = 1, col_getNumCol(columnAnlLev)
+        columnTrlLev_ptr => col_getColumn(columnTrlLev, columnIndex, vnl_varNameListOther(varIndex))
+        columnAnlLev_ptr => col_getColumn(columnAnlLev, columnIndex, vnl_varNameListOther(varIndex))
+        columnTrlLev_ptr(:) = columnAnlLev_ptr(:)
+      end do
     end do
 
     deallocate(pSfcRef)

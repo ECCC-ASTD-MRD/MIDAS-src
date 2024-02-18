@@ -36,7 +36,7 @@ contains
     !
     implicit none
 
-    ! Arguemnts:
+    ! Arguments:
     type(struct_obs),        intent(in)    :: obsSpaceData            ! ObsSpacedata object
     type(rttov_emissivity),  intent(inout) :: updatedEmissivity(:)    ! Update emissivity 
     integer,                 intent(in)    :: bodyIndexFromBtIndex(:) ! Provides the bodyIndex in ObsSpaceData based on btIndex
@@ -447,7 +447,7 @@ contains
   !  sse_extractEmissivityCol
   !--------------------------------------------------------------------------
   subroutine sse_updateBEnsMatEmissFromBHi(BmatHiLand, BmatHiSea, BmatEns, latLandHi, latSeaHi, obsSpaceData, & 
-                                           validHeaderIndex, validHeaderCount, bmat1D_includeAnlVar, vco_1DVarBmat, vco_1DVar)
+                                           validHeaderIndex, validHeaderCount, bmat1D_includeAnlVar, column)
     !
     !:Purpose: Extract surface emissivity elements in the static B-Matrix and 
     !          copy to the ensemble B-Matrix. It assumes that surface emissivity 
@@ -463,44 +463,27 @@ contains
     integer,                   intent(in)    :: validHeaderCount        ! Number of valid header
     integer,                   intent(in)    :: validHeaderIndex(:)     ! Valid header indexes
     character(len=4),          intent(in)    :: bmat1D_includeAnlVar(:) ! Analysis variables in B-Matrix
-    type(struct_vco), pointer, intent(in)    :: vco_1DVarBmat           ! Vertical coordinate object of B-Matrix
-    type(struct_vco), pointer, intent(in)    :: vco_1DVar               ! Vertical coordinate object of var1D
     real(4), allocatable,      intent(in)    :: latLandHi(:)            ! Latitude band for the B-Matrix over land
     real(4), allocatable,      intent(in)    :: latSeaHi(:)             ! Latitude band for the B-Matrix over sea
-    
+    type(struct_columnData),   intent(in)    :: column                  ! Column object
     ! Locals:
     integer :: columnIndex, headerIndex, varIndex, emissVarIndex
     real(8) :: latitude
     integer :: terrainType, landSea, surfaceType
-    integer :: varListEmiss, nlevEmiss, latitudeBandIndex(1)
+    integer :: nlevEmiss, latitudeBandIndex(1)
     
     if (.not. any(bmat1D_includeAnlVar(:) == 'EMMW')) then 
       call utl_abort('sse_updateBEnsMatEmissFromBHi: bmat1D_includeAnlVar does not include EMMW')
     end if
 
     ! Get number of levels in the surface emssivity analysis variable
-    varListEmiss = vnl_varListIndexOther('EMMW')
-    nlevEmiss = vco_1DVar%nlev_Other(varListEmiss)
+    nlevEmiss = col_getNumLev(column, 'OT', varname_opt = 'EMMW')
 
     ! Determine the start varIndex for surface emissivity in the B-Matrix.
     emissVarIndex = 0 
     do varIndex = 1, size(bmat1D_includeAnlVar)
-      select case(bmat1D_includeAnlVar(varIndex))
-      case('TT')
-        emissVarIndex = emissVarIndex + vco_1DVarBmat%nLev_T
-      case('HU')
-        emissVarIndex = emissVarIndex + vco_1DVarBmat%nLev_T
-      case('UU','VV')
-        emissVarIndex = emissVarIndex + vco_1DVarBmat%nlev_M
-      case('TG')
-        emissVarIndex = emissVarIndex + 1
-      case('P0')
-        emissVarIndex = emissVarIndex + 1
-      case('EMMW')
-        emissVarIndex = emissVarIndex + 1
-      case default
-        call utl_abort('sse_updateBEnsMatEmissFromBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
-      end select
+      emissVarIndex = emissVarIndex + &
+          col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
     end do
     
     ! Copy emissivity errors from static to ensemble B-Matrix
@@ -519,12 +502,12 @@ contains
 
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc(abs(latitude - latSeaHi(:)))
-        bMatEns(columnIndex, emissVarIndex:emissVarIndex + nlevEmiss - 1, emissVarIndex:emissVarIndex + nlevEmiss - 1) = &
-            BmatHiSea(latitudeBandIndex(1), emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1)
+        bMatEns(columnIndex,  emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = &
+            BmatHiSea(latitudeBandIndex(1), emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
       else
         latitudeBandIndex = minloc(abs(latitude - latLandHi(:)))
-        bMatEns(columnIndex, emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1) = &
-            BmatHiLand(latitudeBandIndex(1), emissVarIndex:emissVarIndex + nlevEmiss -1, emissVarIndex:emissVarIndex + nlevEmiss -1)
+        bMatEns(columnIndex,  emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = &
+            BmatHiLand(latitudeBandIndex(1), emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
       end if
     end do
 
