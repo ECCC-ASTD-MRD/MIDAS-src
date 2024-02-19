@@ -444,7 +444,7 @@ contains
   end subroutine sse_getChannelNumIndexFromPPP
 
   !--------------------------------------------------------------------------
-  !  sse_extractEmissivityCol
+  !  sse_updateBEnsMatEmissFromBHi
   !--------------------------------------------------------------------------
   subroutine sse_updateBEnsMatEmissFromBHi(BmatHiLand, BmatHiSea, BmatEns, latLandHi, latSeaHi, obsSpaceData, & 
                                            validHeaderIndex, validHeaderCount, bmat1D_includeAnlVar, column)
