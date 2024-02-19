@@ -131,16 +131,8 @@ module tovsNL_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
-<<<<<<< HEAD
-<<<<<<< HEAD
   public :: tvs_getHydrometeorsIndex
-  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii
-=======
-  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl
->>>>>>> 401212956 (Issue #878: Enable the tangent linear and adjoint RTTOV model for surface emissivity.)
-=======
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl, tvs_useSfcEmissObsSpace
->>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -882,11 +874,7 @@ contains
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
     tvs_computeJacobian = computeJacobian
-<<<<<<< HEAD
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
-=======
-
->>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
@@ -2910,19 +2898,7 @@ contains
 
     max_nthreads = mmpi_numThread
 
-<<<<<<< HEAD
-    if (present(SimSfcEmiss_opt)) then
-      SimSfcEmiss = SimSfcEmiss_opt
-    else
-      SimSfcEmiss = .false.
-    end if
-
     allocate(sensorTovsIndexes(tvs_nobtov))
-=======
-    allocStatus(:) = 0
-    allocate(sensorTovsIndexes(tvs_nobtov),stat=allocStatus(1))
-    call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_rttov sensorTovsIndexes')
->>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
     
     !   1.1   Read surface information
     if ( bgckMode ) call EMIS_READ_CLIMATOLOGY
@@ -3122,24 +3098,25 @@ contains
             emissivity_local(:)%emis_in = surfem1(:)
 
             ! Setup the surface emissvity from column object to rttov emissivity_local
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
                                               tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                               tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
                                               emissivityProfDt_opt = tvs_emissivityFromTrl)
-          else if (tvs_useSfcEmissObsSpatvs_isInstrumHyperSpectrale) then
+          else if (tvs_useSfcEmissObsSpace) then
 
             ! Set the default surface emissivity values
             emissivity_local(:)%emis_in = surfem1(:)
 
             ! Setup the surface emissvity from obsSpaceData Object 
-            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)
           else
             ! Read surface emissivity from emissivity atlas
             call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
           end if
         else
           emissivity_local(:)%emis_in = surfem1(:)
-        end if
+        end if        
+        !   2.3  Compute radiance with rttov_direct
 
         rttov_err_stat = 0 
 
@@ -3263,7 +3240,6 @@ contains
         if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
         end if
-<<<<<<< HEAD
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(sensorIndex,btIndex) % prof
           channelIndex = tvs_chanProf(sensorIndex,btIndex) % chan
@@ -3301,18 +3277,6 @@ contains
           end if
           
         end do
-
-        ! Append Simulated Surface Emissivity into ObsSpaceData
-        if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData,OBS_SSEM)) then
-          do btIndex = 1, btCount
-            bodyIndex = tvs_bodyIndexFromBtIndex(sensorIndex,btIndex)
-            if (bodyIndex > 0) then
-              if (obs_bodyElem_r(obsSpaceData,OBS_SSEM,bodyIndex) == MPC_missingValue_R8) then
-                call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_local(btIndex) % emis_out)
-              end if
-            end if
-          end do
-        end if
 
         !    Deallocate memory
         call rttov_alloc_direct(         &
@@ -3368,13 +3332,9 @@ contains
             lchannel_subset )                                 ! OPTIONAL array of logical flags to indicate a subset of channels
         deallocate(lchannel_subset)
         call tvs_getOtherEmissivities(tvs_chanProfScatt(sensorIndex,1:btCountScatt), sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
+        
         call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, tvs_chanProfScatt(sensorIndex,1:btCountScatt), &
-            sensorTovsIndexes(1:profileCount))
-        if (SimSfcEmiss) then
-          call sse_simulateEmissivity(obsSpaceData, sensorTovsIndexes(1:profileCount), emissivity_localScatt, sensorIndex, &
-                                      tvs_nsensors, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex,                        &
-                                      tvs_channelOffset, tvs_ichan, tvs_maxChannelNumber, tvs_instrumentName)
-        end if
+                                          sensorTovsIndexes(1:profileCount))
       
         !   2.3  Compute radiance with rttov_direct
 
@@ -3477,20 +3437,6 @@ contains
           end if
         end do
 
-        ! Append Surface Emissivity, Surface-Satellite Transmissivity into ObsSpaceData
-        do btIndex = 1, btCountScatt
-          bodyIndex = tvs_bodyIndexFromBtIndexScatt(sensorIndex,btIndex)
-          if (bodyIndex > 0) then
-            if (obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-              call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_localScatt(btIndex) % emis_out)
-            end if
-
-            if (SimSfcEmiss .and. obs_columnActive_RB(obsSpaceData, OBS_SSEM)) then
-              call obs_bodySet_r(obsSpaceData, OBS_SSEM, bodyIndex, emissivity_localScatt(btIndex) % emis_out)
-            end if
-          end if
-        end do
-
         !    Deallocate memory
         call rttov_alloc_direct(              &
              allocStatus,                     &
@@ -3509,37 +3455,8 @@ contains
         deallocate(frequencies)
         deallocate(transmission % tau_total)
         deallocate(transmission % tau_levels) 
-=======
-
-        if ( allocated(tvs_emissivity) ) then
-          tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex)%emis_out
-        end if
-          
-      end do
-
-      !    Deallocate memory
-      asw = 0 ! 0 to deallocate
-      call rttov_alloc_direct(         &
-           allocStatus(1),             &
-           asw,                        &
-           nprofiles=profileCount,     & ! (not used)
-           nchanprof=btCount,          &
-           nlevels=nlv_T,              &
-           chanprof=chanprof,          &
-           opts=tvs_opts(sensorId),    &
-           coefs=tvs_coefs(sensorId),  &
-           transmission=transmission,  &
-           radiance=radiancedata_d,    &
-           calcemis=calcemis,          &
-           emissivity=emissivity_local,&
-           init=.true.)
-
- 
-      if (useUofWIREmiss) then
-        deallocate ( uOfWLandWSurfaceEmissivity  ,stat=allocStatus(2) )
->>>>>>> 035466fb2 (Issue #878: Revised simulation of emissivity.)
       end if
-      
+
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
     end do sensor_loop
