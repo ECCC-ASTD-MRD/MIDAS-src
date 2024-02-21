@@ -3098,17 +3098,17 @@ contains
             ! Read surface emissivity from column when it's included as an analysis variable
 
             ! Set the default surface emissivity values
-            emissivity_local(:)%emis_in = surfem1(:)
+            emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from column object to rttov emissivity_local
             call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
                                               tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                              tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:)%skin%surftype, &
+                                              tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:) % skin % surftype, &
                                               emissivityProfDt_opt = tvs_emissivityFromTrl)
           else if (tvs_useSfcEmissObsSpace) then
 
             ! Set the default surface emissivity values
-            emissivity_local(:)%emis_in = surfem1(:)
+            emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from obsSpaceData Object 
             call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)
@@ -3117,7 +3117,7 @@ contains
             call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
           end if
         else
-          emissivity_local(:)%emis_in = surfem1(:)
+          emissivity_local(:) % emis_in = surfem1(:)
         end if        
         !   2.3  Compute radiance with rttov_direct
 
