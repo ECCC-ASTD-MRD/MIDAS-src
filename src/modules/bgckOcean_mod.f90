@@ -651,7 +651,7 @@ module bgckOcean_mod
 
     if (utl_fileType('./analysisgrid') == 'NetCDF') then
       call msg('ocebg_bgCheckSST', 'Ocean ORCA025 grid requires ocean mask...')
-      call ocm_readMaskFromFile(oceanMask, hco, vco, 'templateGrid.fst')
+      call ocm_readMaskFromFile(oceanMask, hco, vco, 'analysisGrid_fst')
     end if
     call ocm_deallocate(oceanMask)
     
