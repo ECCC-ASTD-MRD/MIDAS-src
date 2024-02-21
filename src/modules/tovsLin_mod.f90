@@ -195,6 +195,10 @@ contains
       end if
       btCount = btCount - btCountScatt
       if ( btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
+      if (btCount > 0 .and. btCountScatt > 0 .and. &
+         (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+        call utl_abort('tvslin_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
+      end if
    
       allocate(sensorHeaderIndexes(profileCount))
       allocate(profilesdata_tl(profileCount))
@@ -733,6 +737,10 @@ contains
       btCount = btCount - btCountScatt
       
       if (btCount == 0 .and. btCountScatt == 0) cycle sensor_loop
+      if (btCount > 0 .and. btCountScatt > 0 .and. &
+         (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+          call utl_abort('tvslin_rttov_ad: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
+      end if
      
       allocate(sensorHeaderIndexes(profileCount))
       allocate(tt_ad(nlv_T,profileCount))
@@ -858,16 +866,6 @@ contains
           call utl_abort('tvslin_rttov_ad')
         end if
 
-        ! WARNING: TEMPORARY SOLUTION -ZQ 
-        if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
-          ! Setup emissivity in column object from emissivity_ad
-          call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), & 
-                                            tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
-                                            tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
-                                            tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
-                                            columProfAd_opt = columnAnlInc)
-        end if
-
         call rttov_alloc_ad(                 &
             allocStatus,                     &
             asw=0,                           &
@@ -881,13 +879,13 @@ contains
             radiance=radiancedata_d,         &
             radiance_ad=radiancedata_ad,     &
             calcemis=calcemis,               &
-            emissivity=emissivity_local,     &
-            emissivity_ad=emissivity_ad )
+            emissivity=emissivity_local)
         if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
         deallocate(surfem1)
       end if
 
       if (btCountScatt > 0) then
+
         call rttov_alloc_ad(                   &
             allocStatus,                       &
             asw=1,                             &
@@ -1043,7 +1041,28 @@ contains
           ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
         end if
       end do
+
+      ! Store surface emissivity adjoint into column object
+      if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
+        ! Setup emissivity in column object from emissivity_ad
+        call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), & 
+                                          tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                          tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                          tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:)%skin%surftype, &
+                                          columProfAd_opt = columnAnlInc)
+      end if
     
+      call rttov_alloc_ad(                   &
+            allocStatus,                     &
+            asw=0,                           &
+            nprofiles=profileCount,          &
+            nchanprof=btCount,               &
+            nlevels=nlv_T,                   &
+            opts=tvs_opts(sensorIndex),      &
+            coefs=tvs_coefs(sensorIndex),    &
+            emissivity_ad=emissivity_ad )
+      if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
+
       call rttov_alloc_prof(            &
           allocStatus,                  &
           nprofiles=profileCount,       &
