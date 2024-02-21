@@ -107,13 +107,11 @@ if [ "${fasttmp}" = yes ]; then
     for file in ${files}; do
         bfile=${file##*/}
         filetype=$(${rfiletype} ${bfile}) || filetypestatus=$?
-        # remove leading/trailing whitespace
-        filetype=$(echo ${filetype} | sed 's/^[ \t]*//;s/[ \t]*$//')
         if [ "${filetypestatus}" = 6 ]; then
             filetype=BURP
-        elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${bfile}: SQLite 3.x database"* ]]; then
+        elif [ "${filetypestatus}" = 41 ]; then
             filetype=SQLite
-        elif [[ "${filetypestatus}" = 41 && "${filetype}" = "File type is SQLite 3 database" ]]; then
+        elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${bfile}: SQLite 3.x database"* ]]; then
             filetype=SQLite
         else
             echo "The filetype cannot be determined for file '${PWD}/${bfile}'!!!"
@@ -134,14 +132,12 @@ else
     for file in ${files}; do
         bfile=${file##*/}
         filetype=$(${rfiletype} ${file}) || filetypestatus=$?
-        # remove leading/trailing whitespace
-        filetype=$(echo ${filetype} | sed 's/^[ \t]*//;s/[ \t]*$//')
         if [ "${filetypestatus}" = 6 ]; then
             filetype=BURP
+        elif [ "${filetypestatus}" = 41 ]; then
+            filetype=SQLite            
         elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${file}: SQLite 3.x database"* ]]; then
             filetype=SQLite
-        elif [[ "${filetypestatus}" = 41 && "${filetype}" = "File type is SQLite 3 database" ]]; then
-            filetype=SQLite            
         else
             echo "The filetype cannot be determined for file '${PWD}/${file}'!!!"
             exit 1
