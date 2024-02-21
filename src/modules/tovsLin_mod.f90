@@ -194,9 +194,8 @@ contains
         btCountScatt = 0
       end if
       btCount = btCount - btCountScatt
-      if ( btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
-      if (btCount > 0 .and. btCountScatt > 0 .and. &
-         (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+      if (btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
+      if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
         call utl_abort('tvslin_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
       end if
    
@@ -737,8 +736,7 @@ contains
       btCount = btCount - btCountScatt
       
       if (btCount == 0 .and. btCountScatt == 0) cycle sensor_loop
-      if (btCount > 0 .and. btCountScatt > 0 .and. &
-         (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+      if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
           call utl_abort('tvslin_rttov_ad: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
       end if
      

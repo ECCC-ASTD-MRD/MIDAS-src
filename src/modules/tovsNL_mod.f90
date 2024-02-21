@@ -2964,9 +2964,8 @@ contains
         btCount = btCount - btCountScatt 
       end if
 
-      if ( btCount == 0 .and. btCountScatt==0) cycle sensor_loop
-      if (btCount > 0 .and. btCountScatt > 0 .and. &
-         (tvs_useSfcEmissObsSpace .or. allocated(tvs_emissivityFromTrl))) then 
+      if (btCount == 0 .and. btCountScatt==0) cycle sensor_loop
+      if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. allocated(tvs_emissivityFromTrl))) then 
         call utl_abort('tvslin_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
       end if
 
