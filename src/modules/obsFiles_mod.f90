@@ -876,34 +876,25 @@ contains
     character(len=*), intent(in)  :: fileName
 
     ! Locals:
-    integer           :: ierr, unitFile
+    integer           :: filetypeStatus, unitFile
     integer           :: fnom, fclos, wkoffit
     character(len=20) :: fileStart
     character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
-   
-    ierr = wkoffit(trim(fileName))
+    
+    filetypeStatus = wkoffit(trim(fileName))
 
-    if (ierr.eq.6) then
+    if (filetypeStatus == 6) then
       obsFiletype = 'BURP'
-    else
-
-      unitFile = 0
-      ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
-      read(unitFile,'(A)') fileStart
-      ierr = fclos(unitFile)
-
-      if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-        if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
-          obsFileType = 'OBSDB'
-        else
-          obsFileType = 'SQLITE'
-        end if
+    else if (filetypeStatus == 41) then
+      if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
+        obsFileType = 'OBSDB'
       else
-        call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+        obsFileType = 'SQLITE'
       end if
-
+    else
+      call utl_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType
