@@ -2710,7 +2710,7 @@ CONTAINS
                                etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
-                               resetTimeParams_opt, lwriteNetCDFInc_opt)
+                               resetTimeParams_opt, writeNetCDF_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -2729,8 +2729,8 @@ CONTAINS
     logical, optional,          intent(in)    :: etiketAppendMemberNumber_opt
     logical, optional,          intent(in)    :: containsFullField_opt
     logical, optional,          intent(in)    :: resetTimeParams_opt
-    logical, optional,          intent(in)    :: lwriteNetCDFInc_opt ! save or not each ensemble member
-                                                                     ! increment into a netCDF file
+    logical, optional,          intent(in)    :: writeNetCDF_opt ! to save outputs in a netCDF file
+
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
     type(struct_hco), pointer :: hco_ens
@@ -2752,7 +2752,7 @@ CONTAINS
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
-    logical :: containsFullField
+    logical :: containsFullField, writeNetCDF
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2775,6 +2775,12 @@ CONTAINS
       ip3 = ip3_opt
     else
       ip3 = 0
+    end if
+
+    if (present(writeNetCDF_opt)) then
+      writeNetCDF = writeNetCDF_opt
+    else
+      writeNetCDF = .false.
     end if
 
     if (present(resetTimeParams_opt)) then
@@ -2958,12 +2964,10 @@ CONTAINS
                                typvar_opt = typvar, numBits_opt = numBits_opt,  &
                                containsFullField_opt = containsFullField)
           
-	  if (present(lwriteNetCDFInc_opt)) then
-	    if(lwriteNetCDFInc_opt) then
-	      outFileName = trim(ensFileName) // '.nc'
-              call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
-                                         containsFullField_opt = .false.)
-	    end if
+          if (writeNetCDF) then
+	    outFileName = trim(ensFileName) // '.nc'
+            call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
+                                       containsFullField_opt = .false.)
 	  end if
 	  
         end if ! locally written one member

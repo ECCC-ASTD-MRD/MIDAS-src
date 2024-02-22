@@ -29,7 +29,8 @@ module oceanMask_mod
   public :: ocm_copyMask, ocm_communicateMask
   public :: ocm_farFromLand
   public :: ocm_copyToInt, ocm_copyFromInt
-
+  public :: ocm_computeMinGridSpacing
+  
   type struct_ocm
     ! This is the derived type of the ocean mask object
     integer                   :: nLev
@@ -49,7 +50,6 @@ module oceanMask_mod
     !
     ! :Purpose: Check if any mask fields exist for surface or ocean depth levels.
     !
-    !
     implicit none
 
     ! Arguments:
@@ -64,12 +64,6 @@ module oceanMask_mod
     integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui, fstprm
     integer, allocatable :: mask(:,:)
     integer :: maxkeys
-    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute waterMinGridSpacing 
-    integer :: latIndex, lonIndex
-    real(8) :: minDeltaLat, minDeltaLon 
-    real(8) :: deltaLon, deltaLon1, deltaLon2, deltaLon3
-    real(8) :: deltaLat, deltaLat1, deltaLat2, deltaLat3
-    real(8) :: minGridSpacing ! in meter 
     character(len=1) :: grtyp
     integer :: dateo, deet, npas, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -111,7 +105,7 @@ module oceanMask_mod
                       -1, ' ', ip1, -1, -1, '@@', ' ')    
 
         if (ikey < 0) then
-          call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: '//str(ip1))
+          call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: ' // str(ip1))
           call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
 	
@@ -189,77 +183,6 @@ module oceanMask_mod
     ierr = fclos(nulfile)        
 
     if (allocated(mask)) deallocate(mask)    
-    
-    !- Compute waterMinGridSpacing 
-     
-    ORCA025: if (trim(grtyp) == 'Y') then
-
-      call msg  ('ocm_readMaskFromFile', 'hco%minGridSpacing computed within hco_setupFromFile: '//str(hco%minGridSpacing)//' m')
-      call msg  ('ocm_readMaskFromFile', 'As hco%minGridSpacing cannot be computed correctly for the ORCA025 grid'//&
-                                         'due to its numerical pole on land, in Canada around (107W, 66N),'//&
-                                         'minGridSpacing will be updated here.')
-    
-      minDeltaLat = 1.0d6
-      do lonIndex = 1, hco%ni - 1
-        do latIndex = 1, hco%nj - 1
-        
-	  if (oceanMask%mask(lonIndex, latIndex, 1)) then
-
-            deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
-            deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
-            deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
-
-            deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
-            if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
-	  
-          end if
-
-        end do      
-      end do
-
-      minDeltaLon = 1.0d6
-      do lonIndex = 1, hco%ni - 1
-        do latIndex = 1, hco%nj - 1
-
-          if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
-
- 	    if (oceanMask%mask(lonIndex, latIndex, 1)) then
-	  
-              deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
-              deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
-              deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
-
-              if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
-              deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
-              if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
-              deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
-              if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
-              deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
-
-              deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
-              if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
-         
-            end if
-	  
-          end if
-
-        end do
-      end do
-
-      minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
-
-      if (minGridSpacing /= hco%minGridSpacing) then
-        hco%minGridSpacing = minGridSpacing
-        call msg('ocm_readMaskFromFile', 'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
-        call msg('ocm_readMaskFromFile', 'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
-        call msg('ocm_readMaskFromFile', 'Updated ocean water points hco%minGridSpacing: '//str(hco%minGridSpacing)//' m')
-      end if
-
-      if (minGridSpacing > 1.0d6) then
-        call utl_abort('ocm_readMaskFromFile: minGridSpacing is greater than 1000 km.')
-      end if
-
-    end if ORCA025
 
   end subroutine ocm_readMaskFromFile
 
@@ -523,4 +446,95 @@ module oceanMask_mod
     
   end subroutine ocm_copyFromInt
 
+  !--------------------------------------------------------------------------
+  ! ocm_computeMinGridSpacing
+  !--------------------------------------------------------------------------
+  subroutine ocm_computeMinGridSpacing(oceanMask, hco, minGridSpacing)
+    !
+    ! :Purpose: Compute minGridSpacing taking into account ocean mask.
+    !           hco_setupFromFile compute it for all points, land and ocean resulting in
+    !           minGridSpacing = 0, as the ORCA025 grid has the numerical pole on land
+    !           in Canada around (107W, 66N).
+    !  
+    implicit none
+    
+    ! Arguments:
+    type(struct_ocm),          intent(inout) :: oceanMask
+    type(struct_hco), pointer, intent(in)    :: hco
+    real(8)                  , intent(out)   :: minGridSpacing ! horisontal min grid spacing in meters
+    
+    ! Locals:
+    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute waterMinGridSpacing 
+    real(8) :: minDeltaLat, minDeltaLon 
+    real(8) :: deltaLon, deltaLon1, deltaLon2, deltaLon3
+    real(8) :: deltaLat, deltaLat1, deltaLat2, deltaLat3
+    integer :: latIndex, lonIndex
+    
+    call msg('ocm_readMaskFromFile', 'Computing minGridSpacing using ocean-land mask')
+  
+    minDeltaLat = 1.0d6
+    do lonIndex = 1, hco%ni - 1
+      do latIndex = 1, hco%nj - 1
+      
+        if (oceanMask%mask(lonIndex, latIndex, 1)) then
+
+	  deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
+	  deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
+	  deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
+
+	  deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
+	  if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
+        
+	end if
+
+      end do	  
+    end do
+
+    minDeltaLon = 1.0d6
+    do lonIndex = 1, hco%ni - 1
+      do latIndex = 1, hco%nj - 1
+
+	if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
+
+          if (oceanMask%mask(lonIndex, latIndex, 1)) then
+        
+	    deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
+	    deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
+	    deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
+
+	    if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+	    deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
+	    if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+	    deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
+	    if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+	    deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+
+	    deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+	    if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
+       
+	  end if
+        
+	end if
+
+      end do
+    end do
+
+    minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
+
+    if (minGridSpacing /= hco%minGridSpacing) then
+      hco%minGridSpacing = minGridSpacing
+      call msg('ocm_computeMinGridSpacing', &
+               'minDeltaLat= '//str(minDeltaLat * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+      call msg('ocm_computeMinGridSpacing', &
+               'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
+      call msg('ocm_computeMinGridSpacing', &
+               'Updated ocean water points minGridSpacing: '//str(hco%minGridSpacing)//' m')
+    end if
+
+    if (minGridSpacing > 1.0d6) then
+      call utl_abort('ocm_computeMinGridSpacing: minGridSpacing is greater than 1000 km.')
+    end if
+    
+  end subroutine ocm_computeMinGridSpacing
+  
 end module oceanMask_mod

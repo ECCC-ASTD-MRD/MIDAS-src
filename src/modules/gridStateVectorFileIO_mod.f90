@@ -2449,6 +2449,9 @@ module gridStateVectorFileIO_mod
             varID = varIDs%VVW
 	  case('SSH')
             varID = varIDs%SSH
+          case default
+            call utl_abort('gio_writeToFileNetCDF: requested vnl_varNameList does not exist '//&
+                            trim(vnl_varNameList(varIndex)))
         end select
         write(*,*) 'gio_writeToFileNetCDF: varID: ', varID , vnl_varNameList(varIndex)  
 	

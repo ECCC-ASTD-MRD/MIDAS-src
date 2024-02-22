@@ -111,7 +111,7 @@ contains
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
-    logical  :: lwriteNetCDFInc       ! to write LETKF increments into a netCDF file
+    logical  :: writeNetCDFInc        ! to write LETKF increments into a netCDF file
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -121,7 +121,7 @@ contains
                                    etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
                                    etiket_anlmean_raw, etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, &
                                    numBits, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
-                                   use4Drecentering3Densemble, lwriteNetCDFInc
+                                   use4Drecentering3Densemble, writeNetCDFInc
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -167,7 +167,7 @@ contains
     weightRecenterLand       = -1.0D0 ! means same recentering for land as other variables
     numMembersToRecenter     = -1     ! means all members recentered by default
     useOptionTableRecenter   = .false.
-    lwriteNetCDFInc          = .false.
+    writeNetCDFInc           = .false.
 
     ! For the next 3 variables, the member number will be appended to this string
     ! for files '${trialdate}_006_${member}'
@@ -775,8 +775,8 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
-            if (lwriteNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                                            containsFullField_opt = .false.)
+            if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+                                                           containsFullField_opt = .false.)
           end do
         end if
 
@@ -789,7 +789,7 @@ contains
                                  numBits_opt = 16, etiketAppendMemberNumber_opt = .true., &
                                  containsFullField_opt = .false., &
                                  resetTimeParams_opt = .true., &
-                                 lwriteNetCDFInc_opt = lwriteNetCDFInc)
+                                 writeNetCDF_opt = writeNetCDFInc)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             ! Also write the reference (analysis) surface pressure to increment files
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb, nEns, &

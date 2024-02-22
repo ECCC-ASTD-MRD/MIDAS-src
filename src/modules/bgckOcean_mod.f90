@@ -19,7 +19,6 @@ module bgckOcean_mod
   use timeCoord_mod
   use message_mod
   use bMatrixDiff_mod
-  use oceanMask_mod
 
   implicit none
 
@@ -72,7 +71,7 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   ! ocebg_bgCheckSST
   !----------------------------------------------------------------------------------------
-  subroutine ocebg_bgCheckSST(obsData, dateStamp, columnTrlOnTrlLev, hco, vco)
+  subroutine ocebg_bgCheckSST(obsData, dateStamp, columnTrlOnTrlLev, hco)
     !
     ! :Purpose: to compute SST data background Check
     !
@@ -84,7 +83,6 @@ module bgckOcean_mod
     integer                ,   intent(in)    :: dateStamp         ! date stamp
     type(struct_columnData),   intent(inout) :: columnTrlOnTrlLev ! column data on trl levels
     type(struct_hco), pointer, intent(in)    :: hco               ! horizontal trl grid
-    type(struct_vco), pointer, intent(in)    :: vco               ! vertical trl grid
 
     ! Locals:
     type(struct_gsv)            :: stateVectorFGE        ! state vector containing std B estimation field
@@ -196,7 +194,7 @@ module bgckOcean_mod
       call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
       stateVectorAmplFactor_ptr(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1) = 1.0d0
 
-      call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco, vco)
+      call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
       
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
@@ -542,7 +540,7 @@ module bgckOcean_mod
   !--------------------------------------------------------------------------
   ! ocebg_getFGEamplification
   !--------------------------------------------------------------------------
-  subroutine ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco, vco)
+  subroutine ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
     !
     ! :Purpose: Read wind speed fields for the last four days.
     !           In the operations: 
@@ -560,7 +558,6 @@ module bgckOcean_mod
     type(struct_gsv),          intent(inout) :: stateVectorAmplFactor ! state vector to save amplification factor
     integer         ,          intent(in)    :: dateStamp             ! date stamp
     type(struct_hco), pointer, intent(in)    :: hco                   ! horizontal trl grid
-    type(struct_vco), pointer, intent(in)    :: vco                   ! vertical trl grid
 
     ! Locals:
     type(struct_gsv)          :: stateVector         ! state vector for surface winds
@@ -575,7 +572,6 @@ module bgckOcean_mod
     integer                   :: lonIndex, latIndex, monthIndex
     real(4)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
     real(8)                   :: amplFactor
-    type(struct_ocm)          :: oceanMask
     
     nullify(vco_winds)
     
@@ -649,12 +645,6 @@ module bgckOcean_mod
 
     call gsv_deallocate(stateVector)
 
-    if (utl_fileType('./analysisgrid') == 'NetCDF') then
-      call msg('ocebg_bgCheckSST', 'Ocean ORCA025 grid requires ocean mask...')
-      call ocm_readMaskFromFile(oceanMask, hco, vco, 'analysisGrid_fst')
-    end if
-    call ocm_deallocate(oceanMask)
-    
     call gio_writeToFile(stateVectorAmplFactor, './amplification', 'ORIG')      
     call gsv_smoothHorizontal(stateVectorAmplFactor, smoothLenghtScale)
     call gio_writeToFile(stateVectorAmplFactor, './amplification', 'SMOOTH')        

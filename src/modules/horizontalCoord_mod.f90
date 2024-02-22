@@ -115,10 +115,21 @@ contains
 
     ! Define template file where to look for variables:
     if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
-      ! templateGrid.fst has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
-      fileName = 'templateGrid.fst'
+      ! analysis grid RPN standard file has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
+      fileName = trim(templateFile) // '_fst'    
     else
       fileName = trim(templateFile)
+    end if
+
+    ! Check if file exists
+    inquire(file = trim(fileName), exist = fileExist)
+    if (.not. fileExist) then
+      write(*,*)
+      if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
+	call msg('hco_SetupFromFile', 'RPN standard file containing the same horizontal '//&
+                                      'grid definition as the netCDF file must exist!')
+      end if
+      call utl_abort('hco_SetupFromFile: template grid file does not exist: '//trim(fileName))
     end if
 
     !
@@ -164,13 +175,6 @@ contains
     end if
 
     call msg('hco_SetupFromFile', 'Defining hco by varname: '// trim(varName))
-
-    ! Check if file exists
-    inquire(file = trim(fileName), exist = fileExist)
-    if (.not. fileExist) then
-      write(*,*)
-      call utl_abort('hco_SetupFromFile: template grid file DOES NOT EXIST for: '//trim(fileName))
-    end if
 
     !
     !- 1.2  Open/Check template file

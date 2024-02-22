@@ -19,7 +19,7 @@
    mpiDistribution     = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
-   lwriteNetCDFInc     = .true.
+   writeNetCDFInc = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
