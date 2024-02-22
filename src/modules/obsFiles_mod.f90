@@ -46,7 +46,7 @@ module obsFiles_mod
 
   integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
-  integer, parameter :: fileTypeLen = 10
+  integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
@@ -226,7 +226,8 @@ contains
     integer           :: status, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
-    character(len=10) :: obsFileType, sfFileName
+    character(len=fileTypeLen) :: obsFileType
+    character(len=10) :: sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
 
@@ -884,6 +885,7 @@ contains
     
     obsFileType = trim(utl_fileType(fileName))
     if (.not. (trim(obsFileType) == 'BURP' .or. trim(obsFileType) == 'sqliteOrObsdb')) then
+      write(*,*) 'obsf_determineSplitFileType: obsFileType=', obsFileType
       call utl_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
