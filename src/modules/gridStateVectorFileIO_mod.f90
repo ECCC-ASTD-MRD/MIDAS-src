@@ -556,7 +556,7 @@ module gridStateVectorFileIO_mod
                       stepIndex_opt = stepIndex)
 
     if (unitConversion) then
-      call gio_fileUnitsToStateUnits(statevector_out, containsFullField, stepIndex_opt = stepIndex)
+      call gio_fileUnitsToStateUnits(statevector_out, containsFullField)
     end if
 
     write(*,*) 'readFromFileOnly: END'
@@ -2075,7 +2075,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_fileUnitsToStateUnits
   !--------------------------------------------------------------------------
-  subroutine gio_fileUnitsToStateUnits(stateVector, containsFullField, stepIndex_opt)
+  subroutine gio_fileUnitsToStateUnits(stateVector, containsFullField)
     !
     ! :Purpose: Unit conversion needed after reading RPN standard file / netCDF file
     !
@@ -2084,7 +2084,6 @@ module gridStateVectorFileIO_mod
     ! Arguments:
     type(struct_gsv),  intent(inout)  :: stateVector
     logical,           intent(in)     :: containsFullField
-    integer, optional, intent(in)     :: stepIndex_opt
 
     ! Locals:
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
@@ -2093,13 +2092,8 @@ module gridStateVectorFileIO_mod
     real(8)          :: multFactor
     character(len=4) :: varName
 
-    if (present(stepIndex_opt)) then
-      stepIndexBeg = stepIndex_opt
-      stepIndexEnd = stepIndex_opt
-    else
-      stepIndexBeg = 1
-      stepIndexEnd = statevector%numStep
-    end if
+    stepIndexBeg = 1
+    stepIndexEnd = statevector%numStep
 
     write(*,*) 'gio_fileUnitsToStateUnits: step index begin/end: ', stepIndexBeg, stepIndexEnd 
 
@@ -2156,31 +2150,17 @@ module gridStateVectorFileIO_mod
 
         if (trim(varName) == 'TM' .and. containsFullField) then
           if (statevector%dataKind == 4) then
-            if (present(stepIndex_opt)) then
-              where (field_r4_ptr(:,:, kIndex, 1) < 100.0)
-                field_r4_ptr(:,:, kIndex, 1) = real(field_r4_ptr(:,:, kIndex, 1) + &
-                                                    mpc_k_c_degree_offset_r8, 4)
-              end where
-            else
-              where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
-                field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
-                                                            mpc_k_c_degree_offset_r8, 4)
-              end where
-            end if
+	    where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
+	      field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
+							  mpc_k_c_degree_offset_r8, 4)
+	    end where
           else
-            if (present(stepIndex_opt)) then
-              where (field_r8_ptr(:,:, kIndex, 1) < 100.0)
-                field_r8_ptr(:,:, kIndex, 1) = real(field_r8_ptr(:,:, kIndex, 1) + &
-                                                    mpc_k_c_degree_offset_r8, 8)
-              end where
-            else
-              where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
-                field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
-                                                            mpc_k_c_degree_offset_r8, 8)
-              end where
-            end if
-          end if
-        end if
+	    where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
+	      field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
+							  mpc_k_c_degree_offset_r8, 8)
+	    end where
+	  end if
+	end if
 
         if (trim(varName) == 'VIS' .and. containsFullField) then
           if (statevector%dataKind == 4) then
