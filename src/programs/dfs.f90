@@ -1,4 +1,4 @@
-program midas_diagHBHt
+program midas_dfs
   !
   !:Purpose: Main program for computing a single random realization of
   !          background error in observation space, stored in ``obs_hbht``. This
@@ -154,7 +154,6 @@ program midas_diagHBHt
   use gridStateVectorFileIO_mod
   use controlVector_mod
   use obsFiles_mod
-  use randomNumber_mod
   use obsTimeInterp_mod
   use stateToColumn_mod
   use innovation_mod
@@ -162,6 +161,8 @@ program midas_diagHBHt
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod
+  use tovsNL_mod
+  
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -181,9 +182,9 @@ program midas_diagHBHt
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
 
-  istamp = exdb('diagHBHt','DEBUT','NON')
+  istamp = exdb('dfs','DEBUT','NON')
 
-  call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
+  call ver_printNameAndVersion('dfs','Dfs computation')
 
   ! MPI initilization
   call mmpi_initialize 
@@ -210,18 +211,21 @@ program midas_diagHBHt
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                     beSilent_opt=.false. )
+  call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                    mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                    allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                    beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
 
   ! Horizontally interpolate trials to trial columns
-  call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
+  call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                  stateVectorTrialHighRes )
 
+  !Is it the right place to do that ?
+  call obs_expandToMpiGlobal(obsSpaceData)
+  
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
@@ -394,84 +398,98 @@ contains
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
-    type(struct_gsv)        :: statevector
+    type(struct_gsv)        :: stateVector
     type(struct_vco), pointer :: vco_anl
-    real(8) ,allocatable :: random_vector(:)
-    real(8) ,allocatable :: local_random_vector(:)
-    integer :: index_body, local_dimension, jj, ierr, dateprnt, timeprnt, nrandseed, istat
-    integer ,external :: newdate, get_max_rss
-    real(8) ,external :: gasdev
+    integer :: headerIndex, bodyIndex1, bodyIndex2, obsIndex, taskIndex
+    integer :: istart, iend
+    integer :: nObs
+    integer,allocatable :: mpiTaskList(:), obsHeaderList(:)
+    integer :: localDimension
+    logical :: first
+    integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
+    integer, external :: get_max_rss
+    real(8), allocatable :: perturbation_vector(:)
 
     !
     !- 1.  Initialization
 
     write(*,*)
-    write(*,*) 'Computing perturbations for randomized HBHT evaluation START'
+    write(*,*) 'Computing HBHT from selected observations start'
 
+    
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
-    !- 1.3 Create a gridstatevector to store the perturbations
-    call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl, &
-                      dataKind_opt=pre_incrReal,mpi_local_opt=.true.)
+    !- 1.3 Create a gridstateVector to store the perturbations
+    call gsv_allocate(stateVector, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dataKind_opt=pre_incrReal, mpi_local_opt=.false.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
-    call col_setVco(columnAnlInc,vco_anl)
-    call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev))
+    call col_setVco(columnAnlInc, vco_anl)
+    call col_allocate(columnAnlInc, col_getNumCol(columnTrlOnAnlIncLev))
 
     !- 1.6
-    call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
+    call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
+    
+    localDimension = cvm_nvadim
+    allocate(perturbation_vector(localDimension))
+    call col_zero(columnAnlInc)
+    
+    !allocate(mpiTaskList(mmpi_nprocs))
+    nObs = 1
+    allocate(obsHeaderList(nObs))
+    obsHeaderList(:) = 1
+    !do taskIndex = 1, mmpi_nprocs
+    !  mpiTaskList(taskIndex) = taskIndex
+    !end do
+    first = .true.
+    
 
-    !
-    !- 2.  Compute the perturbations
-    !
+    !We might need to initialize the full OBS_WORK column to zero 
+    !do bodyIndex1 = 1, 
+    !  call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 0.d0)
+    !end do
 
-    !- 2.1 Random perturbations
-    write(*,*)
-    write(*,*) 'Generating random perturbation:'
+    
+    do obsIndex = 1, nObs
+      headerIndex = obsHeaderList(obsIndex)
+      !taskIndex = mpiTaskList(obsIndex)
+      
+      istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+      BODY1:do bodyIndex1 = istart, iend
+        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS,bodyIndex1) /= obs_assimilated ) cycle BODY1
+        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex1, &
+                                           channelNumber1, channelIndex1)
+        call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
+        call oop_Had(columnAnlInc, & !output
+            columnTrlOnAnlIncLev,  &
+            obsSpaceData,          & ! input
+            initializeLinearization_opt=first)
+        first = .false.
+        call s2c_ad(stateVector,  & ! output
+            columnAnlInc,         & ! input
+            columnTrlOnAnlIncLev, &
+            obsSpaceData)
+        call bmat_sqrtB(perturbation_vector, localDimension, stateVector)
+        call bmat_sqrtBT(perturbation_vector, localDimension, stateVector)
+        call s2c_tl(stateVector, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
+        call oop_Htl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
+            min_nsim=1, initializeLinearization_opt=.false.)
+        BODY2:do bodyIndex2 = istart, iend
+          if ( obs_bodyElem_i(obsSpaceData, OBS_ASS,bodyIndex1) /= obs_assimilated ) cycle BODY2
+          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex2, &
+                                           channelNumber2, channelIndex2)
+          write(*,'(A4,1x,4(i12,1x),e14.6)') "HBHt", obsIndex, headerIndex, channelNumber1, channelNumber2, obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
+        end do BODY2
+        call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 0.d0)
 
-    !- Global vector (same for each processors)
-    allocate(random_vector(cvm_nvadim_mpiglobal),stat =istat )
-    allocate(local_random_vector(cvm_nvadim),stat =istat )
-
-    !- Initialize random number generator
-    ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
-    nrandseed=100*dateprnt + int(timeprnt/100.0) 
-    write(*,*) 'diagHBHt: Random seed set to ',nrandseed
-    call rng_setup(nrandseed)
-    ! Generate a random vector from N(0,1)
-    do jj = 1, cvm_nvadim_mpiglobal
-      random_vector(jj) = rng_gaussian()
-    enddo
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    !- Extract only the subvector for this processor
-    call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
-         random_vector)      ! IN
-    local_dimension = size(local_random_vector)
-    !- Transform to control variables in physical space
-    call bmat_sqrtB(local_random_vector,local_dimension,statevector)
-    !- 2.2 Interpolation to the observation horizontal locations
-
-    call s2c_tl( statevector,                        & ! IN
-                 columnAnlInc,                       & ! OUT (H_horiz EnsPert)
-                 columnTrlOnAnlIncLev, obsSpaceData )  ! IN
-    !- 2.3 Interpolation to observation space
-    call oop_Htl(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,min_nsim=1)
-
-    !- Copy from OBS_WORK to OBS_HPHT
-
-    do index_body = 1, obs_numBody(obsSpaceData)
-      call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, &
-                         obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body) )
+      end do BODY1
     end do
-    !
-    !- 3.  Ending/Deallocation
-    !
-    deallocate(random_vector, stat=istat)
-    deallocate(local_random_vector, stat=istat)
+    deallocate(perturbation_vector)
     call col_deallocate(columnAnlInc)
-    call gsv_deallocate(statevector)
+    call gsv_deallocate(stateVector)
     write(*,*)
-    write(*,*) 'Computing perturbations for randomized HBHT evaluation END'
+    write(*,*) 'Computing HBHT from selected observations end'
 
   end subroutine diagHBHt
 
-end program midas_diagHBHt
+end program midas_dfs

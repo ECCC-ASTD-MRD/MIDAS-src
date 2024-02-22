@@ -21,6 +21,11 @@ diagHBHt.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
+dfs.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
+		rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
+		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+
+#--------------------------------------
 ensembleH.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 		rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main $(HDF5_LIBS) burp_module\
 		$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
