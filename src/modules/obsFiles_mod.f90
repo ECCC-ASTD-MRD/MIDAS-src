@@ -877,8 +877,6 @@ contains
     character(len=*), intent(in)  :: fileName
 
     ! Locals:
-    integer           :: unitFile, fnom, fclos
-    character(len=20) :: fileStart
     character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
