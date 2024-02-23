@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !796)
  * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)
    ** New namelist NAMCOMPUTEBHILATBANDS and new possible output files hCorrelFit.txt and vCorrelFit.txt. 
