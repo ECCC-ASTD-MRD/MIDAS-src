@@ -102,6 +102,7 @@ module tovsNL_mod
   ! public variables (parameters)
   public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
   ! public variables (non-parameters)
+  public :: tvs_maxNumberOfRadiances
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
   public :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
   public :: tvs_isReallyPresent,tvs_listSensors
@@ -110,13 +111,11 @@ module tovsNL_mod
   public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_coef_scatt, tvs_opts_scatt
-  public :: tvs_chanProf, tvs_chanProfScatt
   public :: tvs_radiance, tvs_surfaceParameters
   public :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
   public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
   public :: tvs_mwAllskyAssim, tvs_computeJacobian
   public :: tvs_channelsUsingHydrometeors
-  public :: tvs_bodyIndexFromBtIndex, tvs_bodyIndexFromBtIndexScatt
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
@@ -2115,7 +2114,7 @@ contains
       excludeChannelsFromList = excludeChannelsFromList_opt
     end if
     
-    if (present( lchannel_subset_opt )) lchannel_subset_opt(:,:) = .false.
+    if (present(lchannel_subset_opt)) lchannel_subset_opt(:,:) = .false.
          
     do profileIndex = 1, size(sensorTovsIndexes)
       iobs = sensorTovsIndexes(profileIndex)
@@ -2127,7 +2126,7 @@ contains
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                 channelNumber, channelIndex )
-            if (channelIndex >0) then
+            if (channelIndex > 0) then
               isChannelInList = .true.
               if (present(channelList_opt) ) then
                 isChannelInList = (utl_findloc(channelList_opt, channelNumber) > 0 )
@@ -3459,7 +3458,7 @@ contains
         deallocate(transmission % tau_total)
         deallocate(transmission % tau_levels) 
       end if
-
+      
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
     end do sensor_loop
