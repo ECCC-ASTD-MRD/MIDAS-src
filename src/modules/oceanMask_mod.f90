@@ -74,7 +74,7 @@ module oceanMask_mod
     character(len=2 ) :: typvar
     
     ! Check if any mask is present in file, return if not
-    if ( .not. vnl_varNamePresentInFile(' ', fileName_opt = trim(fileName), typvar_opt='@@')) then
+    if ( .not. vnl_varNamePresentInFile(' ', fileName = trim(fileName), typvar_opt='@@')) then
       return
     end if
 

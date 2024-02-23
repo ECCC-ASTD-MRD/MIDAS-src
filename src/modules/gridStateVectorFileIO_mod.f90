@@ -157,44 +157,27 @@ module gridStateVectorFileIO_mod
       if (.not. gsv_varExist(statevector_out, varName)) cycle
 
       ! make sure variable is in the file
-      if (trim(utl_fileType(trim(fileName))) == 'FST') then
-        if (.not. vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) cycle
-      else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
-	varNameNetCDF = vnl_varNameNetCDF(varName, templateFile_opt = trim(fileName))
-	if (varName == 'notFound') cycle
-      else
-        call utl_abort('gio_readFromFile: wrong input format file: '//trim(utl_fileType(trim(fileName))))
-      end if
+      if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) cycle
 
       ! adopt a variable on the full/dynamic LAM grid
       if (.not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
 
-      if (trim(utl_fileType(trim(fileName))) == 'FST') then
-        foundVarNameInFile = .true.
-      else
-        if (varNameNetCDF /= 'notFound') then
-          foundVarNameInFile = .true.
-          write(*,*) 'gio_readFromFile: variable: ', varName, ' found in FST file: ', trim(fileName)
-          write(*,*) 'gio_readFromFile: corresponding netCDF variable name: ', trim(varNameNetCDF)
-        end if	  
-      end if
-
+      foundVarNameInFile = .true.
       exit
-
     end do
 
     ! special case when only TM (Surface Temperature) is in the standard file:
     if (.not. foundVarNameInFile) then
       varName = 'TM'
       if (gsv_varExist(statevector_out, varName) .and. &
-          vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) &
+          vnl_varNamePresentInFile(varName, fileName = trim(fileName))) &
         foundVarNameInFile = .true.
     end if 
 
     ! to be safe for situations where, e.g. someone wants to only read MG from a file
     if (.not. foundVarNameInFile) then
       varname = 'P0'
-      if (vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) &
+      if (vnl_varNamePresentInFile(varName, fileName = trim(fileName))) &
         foundVarNameInFile = .true.
     end if
 
@@ -206,32 +189,32 @@ module gridStateVectorFileIO_mod
                            gridName_opt = 'FILEGRID', varName_opt = varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
-    doVertInterp = .not.vco_equal(vco_file,statevector_out%vco)
-    doHorizInterp = .not.hco_equal(hco_file,statevector_out%hco)
+    doVertInterp = .not.vco_equal(vco_file, statevector_out%vco)
+    doHorizInterp = .not.hco_equal(hco_file, statevector_out%hco)
     write(*,*) 'gio_readFromFile: doVertInterp = ', doVertInterp, ', doHorizInterp = ', doHorizInterp
 
     ! call appropriate subroutine to do actual work
     if ((doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution == 'Tiles') then
 
-      call readFromFileAndInterpToTiles(statevector_out, fileName, vco_file, hco_file,   &
+      call readFromFileAndInterpToTiles(statevector_out, trim(fileName), vco_file, hco_file,   &
                                         etiket_in, typvar_in, stepIndex, unitConversion, &
                                         readHeightSfc, containsFullField,                &
                                         statevectorRef_opt = statevectorRef_opt)
 
     else if ((doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local) then
-
-      call readFromFileAndInterp1Proc(statevector_out, fileName, vco_file, hco_file,   &
+    
+      call readFromFileAndInterp1Proc(statevector_out, trim(fileName), vco_file, hco_file,   &
                                       etiket_in, typvar_in, stepIndex, unitConversion, &
                                       readHeightSfc, containsFullField)
 
     else if (.not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local) then
 
-      call readFromFileAndTransposeToTiles(statevector_out, fileName, etiket_in, &
+      call readFromFileAndTransposeToTiles(statevector_out, trim(fileName), etiket_in, &
                                            typvar_in, stepIndex, unitConversion, &
                                            readHeightSfc, containsFullField)
     else
 
-      call readFromFileOnly(statevector_out, fileName, etiket_in, &
+      call readFromFileOnly(statevector_out, trim(fileName), etiket_in, &
                             typvar_in, stepIndex, unitConversion, &
                             readHeightSfc, containsFullField)
     end if
@@ -904,7 +887,7 @@ module gridStateVectorFileIO_mod
           if (.not. gsv_varExist(statevector, varName)) cycle
 
           ! make sure variable is in the file
-          if (.not. vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) cycle
+          if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) cycle
 
           ! adopt a variable on the full/dynamic LAM grid
           if ((trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
@@ -918,20 +901,20 @@ module gridStateVectorFileIO_mod
         if (.not. foundVarNameInFile) then
           varname = 'TM'
           if (gsv_varExist( statevector, varname ) .and. &
-              vnl_varNamePresentInFile( varname, fileName_opt = trim(fileName))) &
+              vnl_varNamePresentInFile( varname, fileName = trim(fileName))) &
             foundVarNameInFile = .true.
         end if   
 
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
         if (.not. foundVarNameInFile) then
           varname = 'P0'
-          if (vnl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
+          if (vnl_varNamePresentInFile(varname, fileName = trim(fileName))) &
             foundVarNameInFile = .true.
         end if
 
         if (.not. foundVarNameInFile) call utl_abort('gio_readFileFst: NO variable is in the file')
 
-        call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt = varName)
+        call hco_setupFromFile(hco_file, trim(fileName), ' ', 'INPUTFILE', varName_opt = varName)
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
@@ -944,10 +927,10 @@ module gridStateVectorFileIO_mod
             if (.not. gsv_varExist(statevector, varName)) cycle var_loop
             if (.not. vnl_isPhysicsVar(varName)) cycle var_loop
 
-            if (vnl_varNamePresentInFile(varName, fileName_opt = filename) .and. &
+            if (vnl_varNamePresentInFile(varName, fileName = trim(fileName)) .and. &
                .not. associated(statevector%hco_physics)) then
               write(*,*) 'gio_readFileFst: set up physics grid using the variable:', varName
-              call hco_SetupFromFile(statevector%hco_physics, fileName, ' ', &
+              call hco_SetupFromFile(statevector%hco_physics, trim(fileName), ' ', &
                                      'INPUTFILE', varName_opt = varName)
               exit var_loop
             end if
@@ -974,7 +957,7 @@ module gridStateVectorFileIO_mod
         if (.not. gsv_varExist(statevector, varName)) cycle k_loop
 
         ! Check that the wanted field is present in the file
-        if (vnl_varNamePresentInFile(varName, fileUnit_opt = nulfile)) then
+        if (vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
           varNameToRead = varName
         else
           select case (trim(varName))

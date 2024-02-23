@@ -145,12 +145,12 @@ contains
       ! First try to use P0
       varName = 'P0'
 
-      if (.not. vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) then
+      if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
 
         ! P0 not present, try 'nav_lat' for ocean files
         varName = 'nav_lat'
 
-        if (.not. vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) then
+        if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
 
           ! Also not present, look for another suitable variable in the file
 
@@ -159,7 +159,7 @@ contains
             varName = vnl_varNameList(varIndex)
 
             ! check if variable is in the file
-            if (.not. vnl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) cycle
+            if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) cycle
 
             foundVarNameInFile = .true.
             exit

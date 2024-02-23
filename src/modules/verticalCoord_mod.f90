@@ -143,7 +143,7 @@ contains
     ! First priority, check if vgrid descriptor record present - if so, atmospheric fields
     atmFieldFound = .false.
     if(.not. netCdfFormat) then
-      atmFieldFound = vnl_varNamePresentInFile('!!', fileName_opt = trim(templateFile))
+      atmFieldFound = vnl_varNamePresentInFile('!!', fileName = trim(templateFile))
     end if
 
     ! If not atmospheric field and not NetCDF file, examine data records in template file

@@ -805,7 +805,7 @@ module varNameList_mod
     !-----------------------------------------------------------------------
     ! vnl_varNamePresentInFile
     !----------------------------------------------------------------------
-    function vnl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+    function vnl_varNamePresentInFile(varName, fileName, typvar_opt) result(found)
       !
       !:Purpose: Determine if a given variable name is present within a file.
       !          This function supports both "standard" files and NetCDF files.
@@ -813,58 +813,58 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      character(len=*), intent(in)           :: varName      ! variable name
-      character(len=*), intent(in), optional :: fileName_opt ! file name
-      integer         , intent(in), optional :: fileUnit_opt ! file unit
-      character(len=*), intent(in), optional :: typvar_opt   ! typvar used for RPN standard files
+      character(len=*), intent(in)           :: varName    ! variable name
+      character(len=*), intent(in)           :: fileName   ! file name
+      character(len=*), intent(in), optional :: typvar_opt ! typvar used for RPN standard files
 
       ! Result:
-      logical                                :: found        ! true if variable name is found, false, the converse
+      logical                                :: found      ! true if variable name is found, false, the converse
 
       ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
       integer :: unit
-      character(len=128) :: fileName
       character(len=2)   :: typvar
-      logical            :: openFile
       logical, parameter :: beSilent = .true.
+      character(len=10)  :: varNameNetCDF
 
-      if (present(fileUnit_opt)) then
-        unit = fileUnit_opt
-        openFile = .false.
-      else
-        unit = 0
-        openFile = .true.
-        if (present(fileName_opt)) then
-          fileName = fileName_opt
-        else
-          call utl_abort('vnl_varNamePresentInFile: please provide and file name or unit')
-        end if
-      end if
-
+      unit = 0
+      
       if (present(typvar_opt)) then
         typvar = trim(typvar_opt)
       else
         typvar = ' '
       end if
 
-      if (openFile) then
-	ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
-	ierr = fstouv(unit, 'RND+OLD')
-      end if
+      if (trim(utl_fileType(trim(fileName))) == 'FST') then
 
-      key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+        ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
+        ierr = fstouv(unit, 'RND+OLD')
+      
+        key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
   
-      if (key > 0)  then
-	found = .true.
-      else
-	found = .false.
-      end if
+        if (key > 0)  then
+	  found = .true.
+        else
+	  found = .false.
+        end if
 
-      if (openFile) then
-	ierr =  fstfrm(unit)
-	ierr =  fclos (unit)
+        ierr =  fstfrm(unit)
+        ierr =  fclos (unit)
+
+      else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
+
+	varNameNetCDF = vnl_varNameNetCDF(varName, templateFile_opt = trim(fileName))
+	if (varNameNetCDF == 'notFound') then
+          found = .false.
+        else
+          found = .true.
+        end if
+
+      else
+
+        call utl_abort('vnl_varNamePresentInFile: unknown input file type: '//&
+                       trim(utl_fileType(trim(fileName))))
       end if
 
     end function vnl_varNamePresentInFile
