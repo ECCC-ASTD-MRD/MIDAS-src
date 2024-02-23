@@ -1733,7 +1733,7 @@ contains
         end if
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
-        if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
+        if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM) .and. .not. tvs_useSfcEmissObsSpace) then
           call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
         end if
 

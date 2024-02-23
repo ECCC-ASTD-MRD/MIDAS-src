@@ -631,12 +631,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
    integer, parameter, public :: OBS_TRUO= OBS_LOCI+1 ! Truth in Observation Space 
    integer, parameter, public :: OBS_EMER= OBS_TRUO+1 ! simulate surface emssivity STDev error
-   integer, parameter, public :: OBS_SSEM= OBS_EMER+1 ! simulate surface emissivity
-   integer, parameter, public :: OBS_OERI= OBS_SSEM+1 ! Initial sigma(obs)
+   integer, parameter, public :: OBS_TSEM= OBS_EMER+1 ! true surface emissivity
+   integer, parameter, public :: OBS_OERI= OBS_TSEM+1 ! Initial sigma(obs)
    integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
-   
+   integer, parameter, public :: OBS_ETRU= OBS_TRAN+1 ! Truth based on true state and simulated emissivity
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_TRAN
+   integer, parameter :: NBDY_REAL_END = OBS_ETRU
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -645,7 +645,7 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','SSEM','OERI','TRAN'  /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','TSEM','OERI','TRAN','ETRU'  /)
 end module ObsColumnNames_mod
 
 
@@ -1633,7 +1633,7 @@ module ObsSpaceData_mod
    public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
    public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
-   public :: OBS_EMER, OBS_SSEM, OBS_OERI, OBS_TRAN
+   public :: OBS_EMER, OBS_TSEM, OBS_OERI, OBS_TRAN, OBS_ETRU
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

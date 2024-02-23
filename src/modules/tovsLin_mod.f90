@@ -30,6 +30,8 @@ module tovsLin_mod
   use obsSpaceData_mod
   use columnData_mod
   use midasMpi_mod
+  use varNameList_mod
+  use surfaceEmissivity_mod
  
   implicit none
   save
@@ -192,7 +194,10 @@ contains
         btCountScatt = 0
       end if
       btCount = btCount - btCountScatt
-      if ( btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
+      if (btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
+      if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+        call utl_abort('tvslin_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
+      end if
    
       allocate(sensorHeaderIndexes(profileCount))
       allocate(profilesdata_tl(profileCount))
@@ -354,14 +359,43 @@ contains
             obsSpaceData, surfem1)
        
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
-        
+    
         if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btcount), sensorTovsIndexes(1:profileCount))
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            ! Read surface emissivity from column when it's included as an analysis variable
+            ! Set the default surface emissivity values
+            emissivity_local(:) % emis_in = surfem1(:)
+
+            ! Setup the emissivity_tl from column object
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                              tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                              tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
+                                              emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else if (tvs_useSfcEmissObsSpace) then
+            ! Set the default surface emissivity values
+            emissivity_local(:) % emis_in = surfem1(:)
+  
+            ! Setup the surface emissvity from obsSpaceData Object 
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
+          else
+            ! Read surface emissivity from emissivity atlas
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
         end if
+  
+        !  2.3  Compute tl radiance with rttov_tl
+        
+        if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
+          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
+                                  tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, columProfTl_opt  = columnAnlInc)
+        else
+          emissivity_tl(:) % emis_in = 0.0d0
+        end if
+
         errorStatus = errorStatus_success
-        emissivity_tl(:) % emis_in = 0.0d0
+
         !  set nthreads to actual number of threads which will be used.
 
         nthreads = min(mmpi_numThread, profileCount)  
@@ -590,7 +624,7 @@ contains
     integer :: btCount, btCountScatt
     integer :: instrum
     integer :: btIndex, bodyIndex
-    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)    
+    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)  
     integer :: errorStatus
     real(8), allocatable :: surfem1(:)
     real(8), allocatable :: surfem1Scatt(:)
@@ -702,6 +736,9 @@ contains
       btCount = btCount - btCountScatt
       
       if (btCount == 0 .and. btCountScatt == 0) cycle sensor_loop
+      if (btCountScatt > 0 .and. (tvs_useSfcEmissObsSpace .or. col_varExist(columnAnlInc, 'EMMW'))) then 
+          call utl_abort('tvslin_rttov_ad: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
+      end if
      
       allocate(sensorHeaderIndexes(profileCount))
       allocate(tt_ad(nlv_T,profileCount))
@@ -766,19 +803,39 @@ contains
             init=.true.)
         if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory allocation error 1 in rttov_alloc_ad')
         allocate(surfem1(btCount))
-      
+
         !  get Hyperspectral IR emissivities
         if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), obsSpaceData, surfem1)
-        
+
         !     get non Hyperspectral IR emissivities
         call tvs_getOtherEmissivities(tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
 
         if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          if (col_varExist(columnAnlInc, 'EMMW')) then
+            ! Read surface emissivity from column when it's included as an analysis variable
+
+            ! Set the default surface emissivity values
+            emissivity_local(:) % emis_in = surfem1(:)
+
+            ! Setup the surface emissvity from column object to rttov emissivity_local
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                        tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
+                                        emissivityProfDt_opt = tvs_emissivityFromTrl)
+          else if (tvs_useSfcEmissObsSpace) then
+            ! Set the default surface emissivity values
+            emissivity_local(:) % emis_in = surfem1(:)
+
+            ! Setup the surface emissvity from obsSpaceData Object 
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(sensorIndex,:), tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
+          else
+            ! Read surface emissivity from emissivity atlas
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes(1:profileCount))
+          end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
         end if
-        
+               
         do btIndex = 1, btCount
           bodyIndex = tvs_bodyIndexFromBtIndex(sensorIndex,btIndex)
           radiancedata_ad % bt( btIndex ) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
@@ -820,13 +877,13 @@ contains
             radiance=radiancedata_d,         &
             radiance_ad=radiancedata_ad,     &
             calcemis=calcemis,               &
-            emissivity=emissivity_local,     &
-            emissivity_ad=emissivity_ad )
+            emissivity=emissivity_local)
         if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
         deallocate(surfem1)
       end if
 
       if (btCountScatt > 0) then
+
         call rttov_alloc_ad(                   &
             allocStatus,                       &
             asw=1,                             &
@@ -982,7 +1039,28 @@ contains
           ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
         end if
       end do
+
+      ! Store surface emissivity adjoint into column object
+      if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
+        ! Setup emissivity in column object from emissivity_ad
+        call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, tvs_bodyIndexFromBtIndex(sensorIndex,:), & 
+                                          tvs_chanProf(sensorIndex,1:btCount), sensorTovsIndexes, &
+                                          tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                          tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
+                                          columProfAd_opt = columnAnlInc)
+      end if
     
+      call rttov_alloc_ad(                   &
+            allocStatus,                     &
+            asw=0,                           &
+            nprofiles=profileCount,          &
+            nchanprof=btCount,               &
+            nlevels=nlv_T,                   &
+            opts=tvs_opts(sensorIndex),      &
+            coefs=tvs_coefs(sensorIndex),    &
+            emissivity_ad=emissivity_ad )
+      if (allocStatus /= 0) call utl_abort('tvslin_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
+
       call rttov_alloc_prof(            &
           allocStatus,                  &
           nprofiles=profileCount,       &
