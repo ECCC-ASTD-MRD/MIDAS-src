@@ -1678,6 +1678,8 @@ contains
       fileType = 'BURP'
     case (38)
       fileType = 'NetCDF'
+    case (41)
+      fileType = 'sqliteOrObsdb'
     case default
       ! check if filename contain '.nc' in case it is a new netCDF version
       if (index(trim(fileName_opt),'.nc') /= 0) then

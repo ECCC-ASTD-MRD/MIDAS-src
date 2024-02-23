@@ -109,6 +109,8 @@ if [ "${fasttmp}" = yes ]; then
         filetype=$(${rfiletype} ${bfile}) || filetypestatus=$?
         if [ "${filetypestatus}" = 6 ]; then
             filetype=BURP
+        elif [ "${filetypestatus}" = 41 ]; then
+            filetype=SQLite
         elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${bfile}: SQLite 3.x database"* ]]; then
             filetype=SQLite
         else
@@ -132,6 +134,8 @@ else
         filetype=$(${rfiletype} ${file}) || filetypestatus=$?
         if [ "${filetypestatus}" = 6 ]; then
             filetype=BURP
+        elif [ "${filetypestatus}" = 41 ]; then
+            filetype=SQLite            
         elif [[ "${filetypestatus}" = 255 && "${filetype}" = "${file}: SQLite 3.x database"* ]]; then
             filetype=SQLite
         else

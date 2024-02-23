@@ -46,7 +46,7 @@ module obsFiles_mod
 
   integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
-  integer, parameter :: fileTypeLen = 10
+  integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
@@ -226,7 +226,8 @@ contains
     integer           :: status, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
-    character(len=10) :: obsFileType, sfFileName
+    character(len=fileTypeLen) :: obsFileType
+    character(len=10) :: sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
 
@@ -876,34 +877,22 @@ contains
     character(len=*), intent(in)  :: fileName
 
     ! Locals:
-    integer           :: ierr, unitFile
-    integer           :: fnom, fclos, wkoffit
-    character(len=20) :: fileStart
     character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
-   
-    ierr = wkoffit(trim(fileName))
+    
+    obsFileType = trim(utl_fileType(fileName))
+    if (.not. (trim(obsFileType) == 'BURP' .or. trim(obsFileType) == 'sqliteOrObsdb')) then
+      write(*,*) 'obsf_determineSplitFileType: obsFileType=', obsFileType
+      call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+    end if
 
-    if (ierr.eq.6) then
-      obsFiletype = 'BURP'
-    else
-
-      unitFile = 0
-      ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
-      read(unitFile,'(A)') fileStart
-      ierr = fclos(unitFile)
-
-      if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-        if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
-          obsFileType = 'OBSDB'
-        else
-          obsFileType = 'SQLITE'
-        end if
+    if (trim(obsFileType) == 'sqliteOrObsdb') then
+      if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
+        obsFileType = 'OBSDB'
       else
-        call utl_abort('obsf_determineSplitFileType: unknown obs file type')
+        obsFileType = 'SQLITE'
       end if
-
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType
