@@ -493,53 +493,58 @@ CONTAINS
     end if
     call vco_mpiBcast(bEns(instanceIndex)%vco_file)
 
-    !- Do we need to read all the vertical levels from the ensemble?
-    useAnlLevelsOnly = vco_subsetOrNot(bEns(instanceIndex)%vco_anl, bEns(instanceIndex)%vco_file)
-    if ( useAnlLevelsOnly ) then
-      write(*,*)
-      write(*,*) 'ben_setupOneInstance: only the analysis levels will be read in the ensemble '
+    if (bEns(instanceIndex)%vco_file%vCode == 21001 .or. bEns(instanceIndex)%vco_anl%vCode == 21001) then
       bEns(instanceIndex)%vco_ens  => bEns(instanceIndex)%vco_anl ! the ensemble target grid is the analysis grid
-      call vco_deallocate(bEns(instanceIndex)%vco_file)
-      bEns(instanceIndex)%vco_file => bEns(instanceIndex)%vco_anl ! only the analysis levels will be read in the ensemble
-      EnsTopMatchesAnlTop = .true.
     else
-      write(*,*)
-      write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
-      if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
-        pSurfRef = 101000.D0
-        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
-                               profM_opt=vertLocationInc)
-        call czp_fetch1DLevels(bEns(instanceIndex)%vco_file, pSurfRef, &
-                               profM_opt=vertLocationFile)
-      
-        do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
-          vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
-        end do
-        do levIndex = 1, bEns(instanceIndex)%vco_file%nLev_M
-          vertLocationFile(levIndex) = log(vertLocationFile(levIndex))
-        end do
-
-        EnsTopMatchesAnlTop = abs( vertLocationFile(1) - vertLocationInc(1) ) < 0.1d0
-        write(*,*) 'ben_setupOneInstance: EnsTopMatchesAnlTop, presEns, presInc = ', &
-             EnsTopMatchesAnlTop, vertLocationFile(1), vertLocationInc(1)
-        deallocate(vertLocationFile)
-        deallocate(vertLocationInc)
-      else
-        ! not sure what this mean when no MM levels
-        write(*,*) 'ben_setupOneInstance: nLev_M       = ', bEns(instanceIndex)%vco_anl%nLev_M
-        write(*,*) 'ben_setupOneInstance: vgridPresent = ', bEns(instanceIndex)%vco_anl%vgridPresent
+      !- (JFC: Legacy approach that should be removed)
+      !- Do we need to read all the vertical levels from the ensemble?
+      useAnlLevelsOnly = vco_subsetOrNot(bEns(instanceIndex)%vco_anl, bEns(instanceIndex)%vco_file)
+      if ( useAnlLevelsOnly ) then
+        write(*,*)
+        write(*,*) 'ben_setupOneInstance: only the analysis levels will be read in the ensemble '
+        bEns(instanceIndex)%vco_ens  => bEns(instanceIndex)%vco_anl ! the ensemble target grid is the analysis grid
+        call vco_deallocate(bEns(instanceIndex)%vco_file)
+        bEns(instanceIndex)%vco_file => bEns(instanceIndex)%vco_anl ! only the analysis levels will be read in the ensemble
         EnsTopMatchesAnlTop = .true.
-      end if
-
-      if ( EnsTopMatchesAnlTop ) then
-        if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid match'
-        bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_anl  ! IMPORTANT: top levels DO match, therefore safe
-        ! to force members to be on analysis vertical levels
       else
-        if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid are different, therefore'
-        if ( mmpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
-        bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_file ! IMPORTANT: top levels do not match, therefore must
-        ! assume file is already on correct vertical levels
+        write(*,*)
+        write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
+        if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
+          pSurfRef = 101000.D0
+          call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                                 profM_opt=vertLocationInc)
+          call czp_fetch1DLevels(bEns(instanceIndex)%vco_file, pSurfRef, &
+                                 profM_opt=vertLocationFile)
+      
+          do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
+            vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
+          end do
+          do levIndex = 1, bEns(instanceIndex)%vco_file%nLev_M
+            vertLocationFile(levIndex) = log(vertLocationFile(levIndex))
+          end do
+
+          EnsTopMatchesAnlTop = abs( vertLocationFile(1) - vertLocationInc(1) ) < 0.1d0
+          write(*,*) 'ben_setupOneInstance: EnsTopMatchesAnlTop, presEns, presInc = ', &
+               EnsTopMatchesAnlTop, vertLocationFile(1), vertLocationInc(1)
+          deallocate(vertLocationFile)
+          deallocate(vertLocationInc)
+        else
+          ! not sure what this mean when no MM levels
+          write(*,*) 'ben_setupOneInstance: nLev_M       = ', bEns(instanceIndex)%vco_anl%nLev_M
+          write(*,*) 'ben_setupOneInstance: vgridPresent = ', bEns(instanceIndex)%vco_anl%vgridPresent
+          EnsTopMatchesAnlTop = .true.
+        end if
+
+        if ( EnsTopMatchesAnlTop ) then
+          if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid match'
+          bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_anl  ! IMPORTANT: top levels DO match, therefore safe
+                                                                      ! to force members to be on analysis vertical levels
+        else
+          if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid are different, therefore'
+          if ( mmpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
+          bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_file ! IMPORTANT: top levels do not match, therefore must
+                                                                      ! assume file is already on correct vertical levels
+        end if
       end if
     end if
     
@@ -1040,9 +1045,9 @@ CONTAINS
       case('ensPertAnlInc')
         if (mmpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
 
-        if (.not. EnsTopMatchesAnlTop) then
-          call utl_abort('ben_setupOneInstance: for advectTypeAssimWindow=ensPertAnlInc, ensTop and anlTop must match!')
-        end if
+        !if (.not. EnsTopMatchesAnlTop) then
+        !  call utl_abort('ben_setupOneInstance: for advectTypeAssimWindow=ensPertAnlInc, ensTop and anlTop must match!')
+        !end if
 
         bEns(instanceIndex)%advectEnsPertAnlInc         = .true.
         bEns(instanceIndex)%amp3dStepIndexAssimWindow   = 1

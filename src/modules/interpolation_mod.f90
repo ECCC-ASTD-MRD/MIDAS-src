@@ -123,7 +123,7 @@ contains
     character(len=4), pointer :: varNamesToInterpolate(:)
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
-
+    
     call msg('int_interp_gsv', 'START', verb_opt=2)
 
     !
@@ -175,7 +175,7 @@ contains
 
     call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
     call gsv_deallocate(statevector_in_varsLevs_hInterp)
-
+    
     !- Vertical interpolation
     
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
@@ -532,7 +532,11 @@ contains
           call logP_r8(hLikeT_out)
           call logP_r8(hLikeM_in)
           call logP_r8(hLikeT_in)
-
+          hLikeT_in(:,:,:,:)  = -1.d0 * hLikeT_in(:,:,:,:)  ! To get increasing values when level decrease
+          hLikeM_in(:,:,:,:)  = -1.d0 * hLikeM_in(:,:,:,:)
+          hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
+          hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
+          
           ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
@@ -552,6 +556,13 @@ contains
                                               PMin_r8_opt=tmpCoord_M, &
                                               ZTout_r8_opt=hLikeT_in, &
                                               ZMout_r8_opt=hLikeM_in)
+            write(6,*) 'min/max for hLikeT_in ', minval(hLikeT_in), maxval(hLikeT_in)
+            write(6,*) 'min/max for hLikeT_out', minval(hLikeT_out), maxval(hLikeT_out)
+            flush(6)
+            !hLikeT_in(:,:,:,:)  = -1.d0 * hLikeT_in(:,:,:,:)
+            !hLikeM_in(:,:,:,:)  = -1.d0 * hLikeM_in(:,:,:,:)
+            !hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
+            !hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
           end if
         end if
         deallocate(tmpCoord_T)
@@ -617,7 +628,7 @@ contains
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
               do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
+                        .lt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
@@ -842,7 +853,11 @@ contains
           call logP_r4(hLikeT_out)
           call logP_r4(hLikeM_in)
           call logP_r4(hLikeT_in)
-
+          hLikeT_in(:,:,:,:)  = -1.0 * hLikeT_in(:,:,:,:)  ! To get increasing values when level decrease
+          hLikeM_in(:,:,:,:)  = -1.0 * hLikeM_in(:,:,:,:)
+          hLikeT_out(:,:,:,:) = -1.0 * hLikeT_out(:,:,:,:)
+          hLikeM_out(:,:,:,:) = -1.0 * hLikeM_out(:,:,:,:)
+          
           ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
@@ -927,7 +942,7 @@ contains
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
               do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
+                        .lt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do

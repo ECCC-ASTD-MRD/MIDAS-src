@@ -107,6 +107,9 @@ module calcHeightAndPressure_mod
   real(8), allocatable :: coeff_T_P0_delP1_col(:),   coeff_T_P0_dP_delPT_col(:)
   real(8), allocatable :: coeff_T_P0_dP_delP0_col(:)
 
+  real(8), parameter :: lowestLandAltitudeOnEearth_r8 = -420.d0 ! Dead Sea altitude 
+  real(8), parameter :: lowestLandAltitudeOnEearth_r4 = -420.0
+
 contains
   !---------------------------------------------------------------------
   ! subroutines operating on struct_gsv
@@ -473,9 +476,9 @@ contains
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
-    if ( .not. gsv_varExist(statevector,'Z_*')) then
-      call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
-    end if
+    !if ( .not. gsv_varExist(statevector,'Z_*')) then
+    !  call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
+    !end if
 
     allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd))
@@ -1877,7 +1880,7 @@ contains
       call gsv_getField(statevector,hu_ptr_r4,'HU')
       call gsv_getField(statevector,tt_ptr_r4,'TT')
       call gsv_getField(statevector,P0_ptr_r4,'P0')
-
+      
       ! initialize the pressure pointer to zero
       P_M_ptr_r4(:,:,:,:) = 0.0
       P_T_ptr_r4(:,:,:,:) = 0.0
@@ -1896,7 +1899,7 @@ contains
       call gsv_getField(statevector,hu_ptr_r8,'HU')
       call gsv_getField(statevector,tt_ptr_r8,'TT')
       call gsv_getField(statevector,P0_ptr_r8,'P0')
-
+      
       ! initialize the pressure pointer to zero
       P_M_ptr_r8(:,:,:,:) = 0.0d0
       P_T_ptr_r8(:,:,:,:) = 0.0d0
@@ -3804,9 +3807,13 @@ contains
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) <=0 ) then
+    if ( minval(sfcFld) < 0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch3DLevels_r8','WARNING negative surface height reference')
+        if ( minval(sfcFld) >= lowestLandAltitudeOnEearth_r8 ) then
+          call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
+        else
+          call utl_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
+        end if
       else
           call utl_abort('fetch3DLevels_r8: negative surface reference')
       end if
@@ -3871,11 +3878,15 @@ contains
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) <=0 ) then
+    if ( minval(sfcFld) < 0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch3DLevels_r4','WARNING negative surface height reference')
+        if ( minval(sfcFld) >= lowestLandAltitudeOnEearth_r4 ) then
+          call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
+        else
+          call utl_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
+        end if
       else
-          call utl_abort('fetch3DLevels_r4: negative surface reference')
+        call utl_abort('fetch3DLevels_r4: negative surface reference')
       end if
     end if
 
@@ -3937,9 +3948,13 @@ contains
     ! Locals:
     integer :: status
 
-    if ( sfcValue <=0 ) then
+    if ( sfcValue < 0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch1DLevels_r8','WARNING negative surface height reference')
+        if ( sfcValue >= lowestLandAltitudeOnEearth_r8 ) then
+          call msg('fetch1DLevels_r8','WARNING negative surface height referencem : '//str(sfcValue))
+        else
+          call utl_abort('fetch1DLevels_r8: unrealistic negative surface height reference : '//str(sfcValue))
+        end if
       else
         call utl_abort('fetch1DLevels_r8: negative surface reference')
       end if
@@ -3984,9 +3999,13 @@ contains
     ! Locals:
     integer :: status
 
-    if ( sfcValue <=0 ) then
+    if ( sfcValue < 0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch1DdPdPs_r8','WARNING negative surface height reference')
+        if ( sfcValue >= lowestLandAltitudeOnEearth_r8 ) then
+          call msg('fetch1DdPdPs_r8','WARNING negative surface height referencem : '//str(sfcValue))
+        else
+          call utl_abort('fetch1DdPdPs_r8: unrealistic negative surface height reference : '//str(sfcValue))
+        end if
       else
         call utl_abort('fetch1DdPdPs_r8: negative surface reference')
       end if
@@ -4572,7 +4591,7 @@ contains
     real(8), parameter   :: e =-0.765D-8
     real(8)         :: x,tc,pt,tc2,x2
 
-    if ( t <= 0 ) call utl_abort('gpscompressibility: t <= 0')
+    if ( t <= 0 ) call utl_abort('gpscompressibility: Temperature <= 0K')
 
     x  = gps_p_wa * q / (1.D0 + gps_p_wb * q)
     ! Estimate, from CIPM, Picard (2008)

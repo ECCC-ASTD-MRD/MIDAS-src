@@ -37,7 +37,8 @@ module ensembleStateVector_mod
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
-
+  public :: ens_copyHeightSfc
+  
   integer,external   :: get_max_rss
 
   type :: struct_oneLev_r4
@@ -92,7 +93,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_allocate(ens, numMembers, numStep, hco_comp, vco_ens, &
                           dateStampList, hco_core_opt, varNames_opt, dataKind_opt, &
-                          hInterpolateDegree_opt, fileMemberIndex1_opt)
+                          hInterpolateDegree_opt, fileMemberIndex1_opt, allocHeightSfc_opt)
     !
     !:Purpose: Allocate an ensembleStateVector object
     !
@@ -110,10 +111,12 @@ CONTAINS
     integer,                   optional, intent(in)    :: dataKind_opt
     integer,                   optional, intent(in)    :: fileMemberIndex1_opt
     character(len=*),          optional, intent(in)    :: hInterpolateDegree_opt
+    logical,                   optional, intent(in)    :: allocHeightSfc_opt
 
     ! Locals:
     integer :: varLevIndex, lon1, lon2, lat1, lat2, k1, k2
     character(len=4), pointer :: varNames(:)
+    logical :: allocHeightSfc
 
     if ( ens%allocated ) then
       write(*,*) 'ens_allocate: this object is already allocated, deallocating first.'
@@ -139,11 +142,18 @@ CONTAINS
       call gsv_varNamesList(varNames)
     end if
 
-    call gsv_allocate( ens%statevector_work, &
-                       numStep, hco_comp, vco_ens,  &
+    if (present(allocHeightSfc_opt)) then
+      allocHeightSfc = allocHeightSfc_opt
+    else
+      allocHeightSfc = .false.
+    end if
+
+    call gsv_allocate( ens%statevector_work,                                  &
+                       numStep, hco_comp, vco_ens,                            &
                        datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                       varNames_opt=varNames, dataKind_opt=ens%dataKind, &
-                       hInterpolateDegree_opt = hInterpolateDegree_opt)
+                       varNames_opt=varNames, dataKind_opt=ens%dataKind,      &
+                       hInterpolateDegree_opt = hInterpolateDegree_opt,       &
+                       allocHeightSfc_opt = allocHeightSfc)
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -1336,6 +1346,24 @@ CONTAINS
   end subroutine ens_copyMaskToGsv
 
   !--------------------------------------------------------------------------
+  ! ens_copyHeightSfc
+  !--------------------------------------------------------------------------
+  subroutine ens_copyHeightSfc(ens,statevector)
+    !
+    !:Purpose: Copy the instance of sfc height from a statevector to the
+    !          stateVector into the ens object.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ens
+    type(struct_gsv), intent(in)    :: statevector
+
+    call gsv_copyHeightSfc(statevector,ens%statevector_work)
+
+  end subroutine ens_copyHeightSfc
+  
+  !--------------------------------------------------------------------------
   ! ens_varExist
   !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
@@ -2240,7 +2268,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, &
                               vco_file_opt, varNames_opt, checkModelTop_opt, &
-                              containsFullField_opt, ignoreDate_opt)
+                              containsFullField_opt, ignoreDate_opt, readHeightSfc_opt)
     !
     !:Purpose: Read the ensemble from disk in parallel and do mpi communication
     !          so that all members for a given lat-lon tile are present on each
@@ -2257,6 +2285,7 @@ CONTAINS
     logical, optional,                   intent(in)    :: checkModelTop_opt
     logical, optional,                   intent(in)    :: containsFullField_opt
     logical, optional,                   intent(in)    :: ignoreDate_opt
+    logical, optional,                   intent(in)    :: readHeightSfc_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -2280,7 +2309,7 @@ CONTAINS
     character(len=4), pointer :: anlVar(:)
     logical :: thisProcIsAsender(mmpi_nprocs), doMpiCommunication
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
-    logical :: checkModelTop, containsFullField, ignoreDate
+    logical :: checkModelTop, containsFullField, ignoreDate, allocHeightSfc, readHeightSfc
     character(len=4), pointer :: varNames(:)
     integer, parameter :: numLevelsToSend = 10
 
@@ -2405,6 +2434,17 @@ CONTAINS
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
     verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
 
+    if (present(readHeightSfc_opt)) then
+      readHeightSfc  = readHeightSfc_opt
+      allocHeightSfc = readHeightSfc
+    else if (verticalInterpNeeded .and. vco_file%vCode == 21001) then
+      allocHeightSfc = .true.
+      readHeightSfc  = .true.
+    else
+      allocHeightSfc = .false.
+      readHeightSfc  = .false.
+    end if
+
     ! More efficient handling of common case where input is on Z grid, analysis in on G grid
     if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
       if ( hco_file%ni == (hco_ens%ni+1) ) then
@@ -2474,21 +2514,24 @@ CONTAINS
         if (mmpi_myid == readFilePE(memberStepIndex)) then
 
           ! allocate the needed statevector objects
-          call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                            varNames_opt = varNames, dataKind_opt = 4,  &
-                            hInterpolateDegree_opt = ens%hInterpolateDegree)
+          call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,                          &
+                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false.,   &
+                            varNames_opt = varNames, dataKind_opt = 4,                           &
+                            hInterpolateDegree_opt = ens%hInterpolateDegree,                     &
+                            allocHeightSfc_opt= allocHeightSfc)
           if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
-            call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+            call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                        &
                               datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                              varNames_opt = varNames, dataKind_opt = 4,  &
-                              hInterpolateDegree_opt = ens%hInterpolateDegree)
+                              varNames_opt = varNames, dataKind_opt = 4,                         &
+                              hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
+                              allocHeightSfc_opt= allocHeightSfc)
           end if
           if (verticalInterpNeeded) then
-            call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+            call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,                         &
                               datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                              varNames_opt = varNames, dataKind_opt = 4, &
-                              hInterpolateDegree_opt = ens%hInterpolateDegree)
+                              varNames_opt = varNames, dataKind_opt = 4,                         &
+                              hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
+                              allocHeightSfc_opt= allocHeightSfc)
           end if
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -2501,10 +2544,14 @@ CONTAINS
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
             call gio_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
-                              containsFullField, ignoreDate_opt=ignoreDate)
+                              containsFullField, ignoreDate_opt=ignoreDate,       &
+                              readHeightSfc_opt=readHeightSfc)
+            call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
           else
             call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
-                              containsFullField, ignoreDate_opt=ignoreDate)
+                              containsFullField, ignoreDate_opt=ignoreDate,     &
+                              readHeightSfc_opt=readHeightSfc)
+            call gio_fileUnitsToStateUnits(statevector_file_r4, containsFullField)
           end if
 
           ! Remove file from ram disk if no longer needed
@@ -2518,7 +2565,7 @@ CONTAINS
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call int_hInterp_gsv(statevector_file_r4, statevector_hint_r4)
             call int_vInterp_gsv( statevector_hint_r4, statevector_member_r4,         &
-                                  Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
+                                  Ps_in_hPa_opt=.false.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call int_hInterp_gsv(statevector_file_r4, statevector_member_r4)
@@ -2530,15 +2577,12 @@ CONTAINS
               call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
             call int_vInterp_gsv( statevector_hint_r4, statevector_member_r4,         &
-                                  Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
+                                  Ps_in_hPa_opt=.false.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalPaddingNeeded) then
             call gsv_hPad(statevector_file_r4, statevector_member_r4)
           end if
-
-          ! unit conversion
-          call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
-
+          
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
             call gsv_getField(statevector_member_r4,ptr3d_r4)
@@ -2706,11 +2750,12 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_writeEnsemble
   !--------------------------------------------------------------------------
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, &
-                               etiket, typvar, &
-                               etiketAppendMemberNumber_opt, varNames_opt, &
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix,         &
+                               etiket, typvar,                              &
+                               etiketAppendMemberNumber_opt, varNames_opt,  &
                                ip3_opt, containsFullField_opt, numBits_opt, &
-                               resetTimeParams_opt, writeNetCDF_opt)
+                               resetTimeParams_opt, writeNetCDF_opt,        &
+                               writeHeightSfc_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -2730,9 +2775,11 @@ CONTAINS
     logical, optional,          intent(in)    :: containsFullField_opt
     logical, optional,          intent(in)    :: resetTimeParams_opt
     logical, optional,          intent(in)    :: writeNetCDF_opt ! to save outputs in a netCDF file
+    logical, optional,          intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
+    type(struct_gsv) :: statevectorHeightSfc
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
@@ -2752,7 +2799,7 @@ CONTAINS
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
-    logical :: containsFullField, writeNetCDF
+    logical :: containsFullField, writeNetCDF, writeHeightSfc
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2781,6 +2828,12 @@ CONTAINS
       writeNetCDF = writeNetCDF_opt
     else
       writeNetCDF = .false.
+    end if
+    
+    if (present(writeHeightSfc_opt)) then
+      writeHeightSfc = writeHeightSfc_opt
+    else
+      writeHeightSfc = .false.
     end if
 
     if (present(resetTimeParams_opt)) then
@@ -2823,6 +2876,14 @@ CONTAINS
       write(*,*)
     end if
 
+    if (writeHeightSfc) then
+      call gsv_allocate(statevectorHeightSfc, 1, hco_ens, vco_ens,  &
+                        mpi_local_opt=.false.,                      &
+                        varNames_opt=(/'P0'/), dataKind_opt=4,      & 
+                        allocHeightSfc_opt=.true.)
+      call gsv_transposeHeightSfcTilesToMpiGlobal(statevectorHeightSfc,ens%statevector_work)
+    end if
+
     !
     !- 2.  Ensemble forecasts writing loop
     !
@@ -2833,9 +2894,10 @@ CONTAINS
       write(*,*) 'ens_writeEnsemble: starting to write time level ', stepIndex
 
       ! allocate the needed statevector objects
-      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,                    &
                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                        varNames_opt=varNamesInEns, dataKind_opt=4)
+                        varNames_opt=varNamesInEns, dataKind_opt=4,                    & 
+                        allocHeightSfc_opt=writeHeightSfc)
 
       ! copy over some time related parameters
       statevector_member_r4%deet              = ens%statevector_work%deet
@@ -2844,7 +2906,11 @@ CONTAINS
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
       ! if it exists, copy over mask from work statevector to member being written
       call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
-
+      ! copy over height surface to member being written
+      if (writeHeightSfc) then
+        call gsv_copyHeightSfc(statevectorHeightSfc,stateVector_member_r4)
+      end if
+      
       do memberIndex = 1, ens%numMembers
 
         !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
@@ -2901,10 +2967,9 @@ CONTAINS
             !$OMP END PARALLEL DO
 
           end do ! kIndexBeg
-
+          
         end if ! MPI communication
-
-
+        
         ! Write statevector to file
         if (mmpi_myid == writeFilePE(memberIndex)) then
 
@@ -2952,7 +3017,7 @@ CONTAINS
               end if
             end if
           end if
-
+          
           ! The routine 'gio_writeToFile' ignores the supplied
           ! argument for the etiket, here 'etiketStr', if
           ! 'statevector_member_r4%etiket' is different from
@@ -2961,15 +3026,16 @@ CONTAINS
           statevector_member_r4%etiket = etiketStr
 
           call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
-                               typvar_opt = typvar, numBits_opt = numBits_opt,  &
-                               containsFullField_opt = containsFullField)
+                               typvar_opt = typvar, numBits_opt = numBits_opt,               &
+                               containsFullField_opt = containsFullField,                    &
+                               writeHeightSfc_opt = writeHeightSfc)
           
           if (writeNetCDF) then
 	    outFileName = trim(ensFileName) // '.nc'
             call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
                                        containsFullField_opt = containsFullField)
 	  end if
-	  
+
         end if ! locally written one member
 
       end do ! memberIndex
@@ -2979,6 +3045,9 @@ CONTAINS
 
     end do ! time
 
+    if (writeHeightSfc) then
+      call gsv_deallocate(statevectorHeightSfc)
+    end if
     deallocate(varNamesInEns)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)

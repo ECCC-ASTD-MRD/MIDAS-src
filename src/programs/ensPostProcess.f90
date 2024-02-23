@@ -171,9 +171,10 @@ program midas_ensPostProcess
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
   logical :: readAnlEnsemble  ! activate reading of analysis ensemble
   logical :: writeTrlEnsemble ! activate writing of the trial ensemble (useful when it's interpolated)
+  logical :: writeHeightSfc   ! activate writing of GZ at the surface
   character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
   NAMELIST /namEnsPostProc/nEns, readTrlEnsemble, readAnlEnsemble, &
-                           writeTrlEnsemble, hInterpolationDegree
+                           writeTrlEnsemble, hInterpolationDegree, writeHeightSfc
 
   call ver_printNameAndVersion('ensPostProcess','Program for post-processing of LETKF analysis ensemble')
 
@@ -202,7 +203,8 @@ program midas_ensPostProcess
   readAnlEnsemble  = .true.
   writeTrlEnsemble = .false.
   hInterpolationDegree = 'LINEAR' ! or 'CUBIC' or 'NEAREST'
-
+  writeHeightSfc = .false.
+  
   !- Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
@@ -295,7 +297,8 @@ program midas_ensPostProcess
   if (readTrlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
-                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
+                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree, &
+                      allocHeightSfc_opt=writeHeightSfc)
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
 
   end if
@@ -316,14 +319,14 @@ program midas_ensPostProcess
     do stepIndex = 1, tim_nstepobs
       call gio_readFromFile( stateVectorCtrlTrl4D, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                             readHeightSfc_opt=.false. )
+                             readHeightSfc_opt=.false.)
     end do
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call epp_postProcess(ensembleTrl, ensembleAnl, &
                        stateVectorHeightSfc, stateVectorCtrlTrl4D, &
-                       writeTrlEnsemble)
+                       writeTrlEnsemble, writeHeightSfc_opt=writeHeightSfc)
 
   !
   !- 5. MPI, tmg finalize

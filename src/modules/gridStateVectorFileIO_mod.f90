@@ -209,6 +209,7 @@ module gridStateVectorFileIO_mod
       call readFromFileOnly(statevector_out, trim(fileName), etiket_in, &
                             typvar_in, stepIndex, unitConversion, &
                             readHeightSfc, containsFullField)
+
     end if
 
     call utl_tmg_stop(160)

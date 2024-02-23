@@ -1,45 +1,42 @@
  &NAMBHI
    NTRUNC  = 270,
-   SCALEFACTOR = 100*1.0D0
+   SCALEFACTOR = 100*0.0D0
+   READWRITE_SQRT = .true.
 /
  &NAMBEN
-/
- &NAMS2C
-  SLANTPATH_TO_NL   = .FALSE.,
-  SLANTPATH_TO_TLAD = .FALSE.,
-  SLANTPATH_RO_NL   = .FALSE.,
-  calcHeightPressIncrOnColumn = .FALSE.
-/
- &NAMSLP
-  TOLERANCEHEIGHTDIFF= 10.0,
-  MAXNUMITERATION = 1,
-/
- &NAMCFN
-   sensorNameList(1) = 'amsua'
-   channelNumberList(:,1) = 4,6,8,9,10,12,11
-   sensorNameList(2) = 'AMSUA  ' ! sensor/channel pairs can be prescribed on multiple lines with extra spacing in sensor name
-   channelNumberList(:,2) = 7,13,14,5
+   NTRUNC  = 80,
+   NENS = 24
+   SCALEFACTOR=0.01D0,0.04D0,0.09D0,0.16D0,0.50D0,100*1.0D0
+   ENSPATHNAME='./ensemble/'
+   huMinValue = 2.5D-6
+   !ensDiagnostic = .true.
 /
  &NAMMIN
    NVAMAJ = 25,
-   NITERMAX = 10,
-   NSIMMAX  = 100,
+   NITERMAX = 20,
+   NSIMMAX  = 35,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
    LWRTHESS = .FALSE.,
    LVARQC=.TRUE.,
    NWOQCV=5
 /
+ &NAMINN
+   timeInterpType_nl = 'LINEAR'
+/
  &NAMINC
-   etiket_rebm ='XXXXXX'
+   hInterpolationDegree = 'CUBIC'
+   etiket_rehm = '${EXP_ETIKET}' ! for the files 'rehm_???m' in the 'var' working directory
+   etiket_rebm = '${EXP_ETIKET}' ! for the file 'analdate_inc_lo'
+   etiket_anlm = '${EXP_ETIKET}' ! for the file 'analdate_recentering_analysis'
 /
  &NAMDIMO
    NMXOBS=100000,
    NDATAMX=8000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
-  DSTEPOBSINC = 6.0d0
+  DSTEPOBS = 1.0d0
+  DSTEPOBSINC = 1.0d0
 /
  &NAMFILT
   NLIST(1)=10004,
@@ -61,19 +58,12 @@
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
-  list_topoFilt(3) = 'AI'
-  list_topoFilt(4) = 'SW'
-  list_topoFilt(5) = 'PR'
-  list_topoFilt(6) = 'TO'
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
-   addHeightSfcOffset = .true.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
@@ -81,6 +71,7 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   abortOnMpiImbalance = .false.
 /
  &NAMTOV   
    CSATID(1)        = 'AQUA',
@@ -169,6 +160,7 @@
    CINSTRUMENTID(42) = 'IASI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   regLimitExtrap = .true.
 /
  &NAMCODTYP
    cnames(1)='crisfsr',
@@ -197,7 +189,7 @@
 /
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
-  LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035
+  LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035,40026
 /
  &NAMBURP_FILTER_CONV
   UA_HIGH_PRECISION_TT_ES=.true.,
@@ -208,7 +200,7 @@
   BLISTELEMENTS=12163
 /
  &NAMPHY
-  saturationCurve='Tetens_2018a'
+  saturationCurve='Tetens_2018'
 /
  &NAMOER
   NEW_OER_SW=.true.
@@ -221,7 +213,4 @@
   BITEMLIST(2)='OMP',
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
-/
- &NAMMSG
-  verbosity = 2
 /
