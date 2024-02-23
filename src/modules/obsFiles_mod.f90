@@ -46,7 +46,7 @@ module obsFiles_mod
 
   integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
-  integer, parameter :: fileTypeLen = 10
+  integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
@@ -226,7 +226,8 @@ contains
     integer           :: status, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
     character(len=256):: obsDirectory
-    character(len=10) :: obsFileType, sfFileName
+    character(len=fileTypeLen) :: obsFileType
+    character(len=10) :: sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
 
@@ -883,13 +884,16 @@ contains
     character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
-   
+
     ierr = wkoffit(trim(fileName))
 
     if (ierr.eq.6) then
       obsFiletype = 'BURP'
-    else
+    else if (ierr.eq.41) then
+      ! 41 means this an SQLite file
+      obsFileType = 'SQLITE'
 
+      ! Then we determine if it is a 'OBSDB' or 'SQLITE'
       unitFile = 0
       ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
       read(unitFile,'(A)') fileStart
@@ -904,7 +908,8 @@ contains
       else
         call utl_abort('obsf_determineSplitFileType: unknown obs file type')
       end if
-
+    else
+      call utl_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType

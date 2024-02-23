@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+* Updating `rpn/libs` and `rpn/utils` to 20231219 (#1022 and !925)
+  * Adapting scripts and fortran code for the new file type code for SQLite files.
 
 ### Fixed
 
