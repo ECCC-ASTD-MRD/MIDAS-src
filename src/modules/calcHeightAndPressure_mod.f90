@@ -1625,7 +1625,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl(statevector, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl(statevector)
     !
     ! :Purpose: Pressure computation, values stored in statevector.
     !
@@ -1633,7 +1633,6 @@ contains
 
     ! Arguments:
     type(struct_gsv),  intent(inout) :: statevector
-    logical, optional, intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals:
     integer :: Vcode
@@ -1651,14 +1650,12 @@ contains
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
         call calcPressure_gsv_nl_vcode5xxx_r4(statevector, &
-                                              ptr_PT_r4, ptr_PM_r4, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
+                                              ptr_PT_r4, ptr_PM_r4)
       else
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
         call calcPressure_gsv_nl_vcode5xxx_r8(statevector, &
-                                              ptr_PT_r8, ptr_PM_r8, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
+                                              ptr_PT_r8, ptr_PM_r8)
       end if
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
@@ -1713,8 +1710,7 @@ contains
                                             ZTin_r4_opt, ZMin_r4_opt, &
                                             ZTin_r8_opt, ZMin_r8_opt, &
                                             PTout_r4_opt, PMout_r4_opt, & 
-                                            PTout_r8_opt, PMout_r8_opt, &
-                                            Ps_in_hPa_opt)
+                                            PTout_r8_opt, PMout_r8_opt)
     !
     ! :Purpose: Compute or retrieve pressures and return values in pointer arguments.
     !           Proceeds to vcode dispatching.
@@ -1731,7 +1727,6 @@ contains
     real(4), optional, pointer, intent(inout) :: PMout_r4_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PTout_r8_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PMout_r8_opt(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals:
     integer :: Vcode
@@ -1745,14 +1740,12 @@ contains
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode5xxx_r4(statevector, PTout_r4_opt, PMout_r4_opt, &
-                                              Ps_in_hPa_opt)
+        call calcPressure_gsv_nl_vcode5xxx_r4(statevector, PTout_r4_opt, PMout_r4_opt)
       else
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode5xxx_r8(statevector, PTout_r8_opt, PMout_r8_opt, &
-                                              Ps_in_hPa_opt)
+        call calcPressure_gsv_nl_vcode5xxx_r8(statevector, PTout_r8_opt, PMout_r8_opt)
       end if
     else if (Vcode == 21001) then
       if ( gsv_getDataKind(statevector) == 4 ) then
@@ -2035,7 +2028,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode5xxx_r8
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode5xxx_r8(statevector, P_T, P_M, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl_vcode5xxx_r8(statevector, P_T, P_M)
     !
     ! :Purpose: Pressure retrieval for GEM-P real(8) statevector, values
     !           values returned in pointers.
@@ -2046,7 +2039,6 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(8),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals:
     real(kind=8), allocatable   :: Psfc(:,:), PsfcLS(:,:)
@@ -2072,15 +2064,9 @@ contains
 
     do stepIndex = 1, numStep
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
-      end if
 
       if (Vcode == 5100) then
         PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
-        if ( present(Ps_in_hPa_opt) ) then
-          if ( Ps_in_hPa_opt ) PsfcLS = PsfcLS * mpc_pa_per_mbar_r8
-        end if
         call fetch3DLevels_r8(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, &
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       else
@@ -2102,7 +2088,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode5xxx_r4
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode5xxx_r4(statevector, P_T, P_M, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl_vcode5xxx_r4(statevector, P_T, P_M)
     !
     ! :Purpose: Pressure retrieval for GEM-P real(4) statevector, values
     !           values returned in pointers.
@@ -2113,7 +2099,6 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(4),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals:
     real(kind=4), allocatable   :: Psfc(:,:), PsfcLS(:,:)
@@ -2139,16 +2124,9 @@ contains
 
     do stepIndex = 1, numStep
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
-      end if
 
       if (Vcode == 5100) then
         PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
-        if ( present(Ps_in_hPa_opt) ) then
-          if ( Ps_in_hPa_opt ) PsfcLS = PsfcLS * mpc_pa_per_mbar_r4
-        end if
-
         call fetch3DLevels_r4(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, & 
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       else

@@ -322,7 +322,7 @@ contains
   ! int_vInterp_gsv
   !--------------------------------------------------------------------------
   subroutine int_vInterp_gsv(statevector_in,statevector_out,statevectorRef_opt, &
-                             Ps_in_hPa_opt,checkModelTop_opt)
+                             checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation.
     !           Interpolation coordinates are either height or log(P)
@@ -339,7 +339,6 @@ contains
     type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
     type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with target horiz/vert grids and result
     type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
-    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure is in hPa, not Pa
     logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     call msg('int_vInterp_gsv', 'START', verb_opt=2)
@@ -350,11 +349,11 @@ contains
     if ( gsv_getDataKind(statevector_in) == 8 & 
          .and. gsv_getDataKind(statevector_out) == 8 ) then 
       call vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
-                          Ps_in_hPa_opt,checkModelTop_opt)
+                          checkModelTop_opt)
     else if ( gsv_getDataKind(statevector_in) == 4 &
          .and. gsv_getDataKind(statevector_out) == 4 ) then 
       call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
-                          Ps_in_hPa_opt,checkModelTop_opt)
+                          checkModelTop_opt)
     else
       call utl_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
     end if
@@ -367,7 +366,7 @@ contains
   ! vInterp_gsv_r8
   !--------------------------------------------------------------------------
   subroutine vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
-                            Ps_in_hPa_opt,checkModelTop_opt)
+                            checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation, ``real(8)`` version.
     !
@@ -377,7 +376,6 @@ contains
     type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
     type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with target horiz/vert grids and result
     type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
-    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure is in hPa, not Pa
     logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     ! Locals:
@@ -504,26 +502,23 @@ contains
 
         ! output grid GEM-P interpolation in log-pressure
         if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
-                                              PTout_r8_opt=hLikeT_out, &
-                                              PMout_r8_opt=hLikeM_out, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
-
+          call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
+                                             PTout_r8_opt=hLikeT_out, &
+                                             PMout_r8_opt=hLikeM_out)
+          
           if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                PTout_r8_opt=hLikeT_in, &
-                                                PMout_r8_opt=hLikeM_in, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               PTout_r8_opt=hLikeT_in, &
+                                               PMout_r8_opt=hLikeM_in)
           else if ( vcode_in==21001 ) then
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              ZTout_r8_opt=tmpCoord_T, &
-                                              ZMout_r8_opt=tmpCoord_M)
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                ZTin_r8_opt=tmpCoord_T, &
-                                                ZMin_r8_opt=tmpCoord_M, &
-                                                PTout_r8_opt=hLikeT_in, &
-                                                PMout_r8_opt=hLikeM_in, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             ZTout_r8_opt=tmpCoord_T, &
+                                             ZMout_r8_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               ZTin_r8_opt=tmpCoord_T, &
+                                               ZMin_r8_opt=tmpCoord_M, &
+                                               PTout_r8_opt=hLikeT_in, &
+                                               PMout_r8_opt=hLikeM_in)
           end if
 
           call msg('vInterp_gsv_r8','converting pressure coordinates to height-like, '&
@@ -539,30 +534,26 @@ contains
           
           ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
-                                            ZTout_r8_opt=hLikeT_out, &
-                                            ZMout_r8_opt=hLikeM_out)
+          call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
+                                           ZTout_r8_opt=hLikeT_out, &
+                                           ZMout_r8_opt=hLikeM_out)
           if ( vcode_in==21001 ) then
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              ZTout_r8_opt=hLikeT_in, &
-                                              ZMout_r8_opt=hLikeM_in)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             ZTout_r8_opt=hLikeT_in, &
+                                             ZMout_r8_opt=hLikeM_in)
           else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                PTout_r8_opt=tmpCoord_T, &
-                                                PMout_r8_opt=tmpCoord_M, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              PTin_r8_opt=tmpCoord_T, &
-                                              PMin_r8_opt=tmpCoord_M, &
-                                              ZTout_r8_opt=hLikeT_in, &
-                                              ZMout_r8_opt=hLikeM_in)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               PTout_r8_opt=tmpCoord_T, &
+                                               PMout_r8_opt=tmpCoord_M)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             PTin_r8_opt=tmpCoord_T, &
+                                             PMin_r8_opt=tmpCoord_M, &
+                                             ZTout_r8_opt=hLikeT_in, &
+                                             ZMout_r8_opt=hLikeM_in)
+            ! JFC
             write(6,*) 'min/max for hLikeT_in ', minval(hLikeT_in), maxval(hLikeT_in)
             write(6,*) 'min/max for hLikeT_out', minval(hLikeT_out), maxval(hLikeT_out)
             flush(6)
-            !hLikeT_in(:,:,:,:)  = -1.d0 * hLikeT_in(:,:,:,:)
-            !hLikeM_in(:,:,:,:)  = -1.d0 * hLikeM_in(:,:,:,:)
-            !hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
-            !hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
           end if
         end if
         deallocate(tmpCoord_T)
@@ -684,7 +675,7 @@ contains
   ! vInterp_gsv_r4
   !--------------------------------------------------------------------------
   subroutine vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
-                            Ps_in_hPa_opt,checkModelTop_opt)
+                            checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation, ``real(4)`` version.
     !
@@ -695,7 +686,6 @@ contains
     type(struct_gsv),           target, intent(in)    :: statevector_in     ! Statevector input
     type(struct_gsv),                   intent(inout) :: statevector_out    ! Statevector with the target horiz/vert grids and result
     type(struct_gsv), optional, target, intent(in)    :: statevectorRef_opt ! Reference statevector with P0, TT and HU
-    logical,          optional,         intent(in)    :: Ps_in_hPa_opt      ! If true, surface pressure in in hPa, not Pa
     logical,          optional,         intent(in)    :: checkModelTop_opt  ! Model top consistency will be checked
 
     ! Locals:
@@ -825,26 +815,23 @@ contains
 
         ! output grid GEM-P interpolation in log-pressure
         if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
-                                              PTout_r4_opt=hLikeT_out, &
-                                              PMout_r4_opt=hLikeM_out, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
+          call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
+                                             PTout_r4_opt=hLikeT_out, &
+                                             PMout_r4_opt=hLikeM_out)
 
           if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                PTout_r4_opt=hLikeT_in, &
-                                                PMout_r4_opt=hLikeM_in, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               PTout_r4_opt=hLikeT_in, &
+                                               PMout_r4_opt=hLikeM_in)
           else if ( vcode_in==21001 ) then
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              ZTout_r4_opt=tmpCoord_T, &
-                                              ZMout_r4_opt=tmpCoord_M)
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                ZTin_r4_opt=tmpCoord_T, &
-                                                ZMin_r4_opt=tmpCoord_M, &
-                                                PTout_r4_opt=hLikeT_in, &
-                                                PMout_r4_opt=hLikeM_in, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             ZTout_r4_opt=tmpCoord_T, &
+                                             ZMout_r4_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               ZTin_r4_opt=tmpCoord_T, &
+                                               ZMin_r4_opt=tmpCoord_M, &
+                                               PTout_r4_opt=hLikeT_in, &
+                                               PMout_r4_opt=hLikeM_in)
           end if
 
           call msg('vInterp_gsv_r4','converting pressure coordinates to height-like, '&
@@ -860,23 +847,22 @@ contains
           
           ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
-                                            ZTout_r4_opt=hLikeT_out, &
-                                            ZMout_r4_opt=hLikeM_out)
+          call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
+                                           ZTout_r4_opt=hLikeT_out, &
+                                           ZMout_r4_opt=hLikeM_out)
           if ( vcode_in==21001 ) then
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              ZTout_r4_opt=hLikeT_in, &
-                                              ZMout_r4_opt=hLikeM_in)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             ZTout_r4_opt=hLikeT_in, &
+                                             ZMout_r4_opt=hLikeM_in)
           else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
-            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                                PTout_r4_opt=tmpCoord_T, &
-                                                PMout_r4_opt=tmpCoord_M, &
-                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
-            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                              PTin_r4_opt=tmpCoord_T, &
-                                              PMin_r4_opt=tmpCoord_M, &
-                                              ZTout_r4_opt=hLikeT_in, &
-                                              ZMout_r4_opt=hLikeM_in)
+            call czp_calcReturnPressure_gsv_nl(statevectorRef, &
+                                               PTout_r4_opt=tmpCoord_T, &
+                                               PMout_r4_opt=tmpCoord_M)
+            call czp_calcReturnHeight_gsv_nl(statevectorRef, &
+                                             PTin_r4_opt=tmpCoord_T, &
+                                             PMin_r4_opt=tmpCoord_M, &
+                                             ZTout_r4_opt=hLikeT_in, &
+                                             ZMout_r4_opt=hLikeM_in)
           end if
         end if
         deallocate(tmpCoord_T)
