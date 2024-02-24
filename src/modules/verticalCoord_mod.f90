@@ -141,10 +141,7 @@ contains
     netCdfFormat = (trim(utl_fileType(trim(templateFile))) == 'NetCDF')
 
     ! First priority, check if vgrid descriptor record present - if so, atmospheric fields
-    atmFieldFound = .false.
-    if(.not. netCdfFormat) then
-      atmFieldFound = vnl_varNamePresentInFile('!!', fileName = trim(templateFile))
-    end if
+    atmFieldFound = vnl_varNamePresentInFile('!!', fileName = trim(templateFile))
 
     ! If not atmospheric field and not NetCDF file, examine data records in template file
     if (.not. atmFieldFound .and. .not. netCdfFormat) then

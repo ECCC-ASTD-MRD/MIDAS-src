@@ -2892,7 +2892,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_inquireNEMOTemperature
   !--------------------------------------------------------------------------
-  subroutine utl_inquireNEMOTemperature(templateFile, beSilent, variableFound)
+  subroutine utl_inquireNEMOTemperature(fileName, variableFound)
     !
     ! :Purpose: to assess the content of NEMO netCDF file.
     !           In NEMO, the 3D ocean temperature filed variable is 'toce',
@@ -2903,8 +2903,7 @@ contains
     implicit none
  
     ! Arguments:
-    character(len=*), intent(in)  :: templateFile     ! NEMO template file
-    logical         , intent(in)  :: beSilent
+    character(len=*), intent(in)  :: fileName         ! NEMO trial file
     logical         , intent(out) :: variableFound(3) ! logical switches:
                                                       !   1. found depth,
                                                       !   2. found 3D ocean temperature, 
@@ -2917,20 +2916,20 @@ contains
     variableFound(:) = .false.
     
     ! Open the template file
-    call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
+    call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
 
     do varIndex = 1, size(variableFound)
     
       ierr = nf90_inq_varid(ncid, trim(varNameList(varIndex)), varID)
       if (ierr == nf90_noerr) then
-        if (.not. beSilent) write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
-                                       trim(varNameList(varIndex)), ' is found in file: ', &
-                                       trim(templateFile)
+        write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+                   trim(varNameList(varIndex)), ' is found in file: ', &
+                   trim(fileName)
         variableFound(varIndex) = .true.
       else
-        if (.not. beSilent) write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
-                                       trim(varNameList(varIndex)), ' is missing from file: ', &
-                                       trim(templateFile)        
+        write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+                   trim(varNameList(varIndex)), ' is missing from file: ', &
+                   trim(fileName)        
       end if
 
     end do

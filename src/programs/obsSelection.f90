@@ -208,6 +208,7 @@ program midas_obsSelection
   use sstBias_mod
   use message_mod
   use oceanMask_mod
+  use getGridPosition_mod
   
   implicit none
 
@@ -307,8 +308,7 @@ program midas_obsSelection
   !
   !- Compute correct value of minGridSpacing for ORCA025 analysis grid
   !
-  if (utl_fileType('./analysisgrid') == 'NetCDF' .and. hco_anl%grtyp == 'Y') then
-
+  if (gpos_gridIsOrca(hco_anl%ni, hco_anl%nj, real(hco_anl%lat2d_4,8), real(hco_anl%lon2d_4,8))) then
     if (mmpi_myid == 0) then
       write(*,*)
       call msg('midas_obsSelection', 'Warning: analysis grid is the ORCA025 grid.')
@@ -379,8 +379,10 @@ program midas_obsSelection
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
 
-  ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid
-  if (utl_fileType('./trlm_01') == 'NetCDF' .and. hco_trl%grtyp == 'Y') then
+  ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
+  if (utl_fileType('./trlm_01') == 'NetCDF' .and. &
+      gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
+      
     if (mmpi_myid == 0) then
       write(*,*)
       call msg('midas_obsSelection', 'Warning: trial grid is the ORCA025 grid.')

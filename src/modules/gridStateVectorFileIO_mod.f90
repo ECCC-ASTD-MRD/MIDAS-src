@@ -86,7 +86,7 @@ module gridStateVectorFileIO_mod
     logical           :: readHeightSfc, containsFullField
     logical           :: foundVarNameInFile 
     integer           :: stepIndex, varIndex
-    character(len=10) :: varName, varNameNetCDF
+    character(len=10) :: varName
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
     
@@ -539,7 +539,8 @@ module gridStateVectorFileIO_mod
                       stepIndex_opt = stepIndex)
 
     if (unitConversion) then
-      call gio_fileUnitsToStateUnits(statevector_out, containsFullField)
+      call gio_fileUnitsToStateUnits(statevector_out, containsFullField, &
+                                     stepIndex_opt = stepIndex)
     end if
 
     write(*,*) 'readFromFileOnly: END'
@@ -1406,14 +1407,8 @@ module gridStateVectorFileIO_mod
         ! read the trial file for this timestep
         fileName = ram_fullWorkingPath(fileName)
 
-        if (trim(utl_fileType(fileName)) == 'NetCDF') then
-          call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P', &
-                                readHeightSfc_opt = allocHeightSfc,       &
-                                stepIndex_opt = stepIndexToRead)
-        else if (trim(utl_fileType(fileName)) == 'FST') then
-          call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P', &
-                                readHeightSfc_opt = allocHeightSfc)
-        end if
+        call gio_readFromFile(stateVector_1step_r4, fileName, ' ', 'P', &
+                              readHeightSfc_opt = allocHeightSfc)
 
         ! remove from ram disk to save some space
         ierr = ram_remove(fileName)
@@ -2058,16 +2053,16 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_fileUnitsToStateUnits
   !--------------------------------------------------------------------------
-  subroutine gio_fileUnitsToStateUnits(stateVector, containsFullField)
+  subroutine gio_fileUnitsToStateUnits(stateVector, containsFullField, stepIndex_opt)
     !
     ! :Purpose: Unit conversion needed after reading RPN standard file / netCDF file
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(inout)  :: stateVector
-    logical,           intent(in)     :: containsFullField
-
+    type(struct_gsv), intent(inout)           :: stateVector
+    logical         , intent(in)              :: containsFullField
+    integer         , intent(in)   , optional :: stepIndex_opt
     ! Locals:
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
     real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
@@ -2075,8 +2070,13 @@ module gridStateVectorFileIO_mod
     real(8)          :: multFactor
     character(len=4) :: varName
 
-    stepIndexBeg = 1
-    stepIndexEnd = statevector%numStep
+    if (present(stepIndex_opt)) then
+      stepIndexBeg = stepIndex_opt
+      stepIndexEnd = stepIndex_opt
+    else
+      stepIndexBeg = 1
+      stepIndexEnd = statevector%numStep
+    end if
 
     write(*,*) 'gio_fileUnitsToStateUnits: step index begin/end: ', stepIndexBeg, stepIndexEnd 
 

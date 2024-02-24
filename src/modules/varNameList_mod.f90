@@ -104,7 +104,7 @@ module varNameList_mod
                                  'LD',  'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
 
   character(len=4), parameter :: vnl_varNameListCloud(vnl_numvarmaxCloud) = (/ &
-                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)                                 
+                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
 
@@ -823,7 +823,7 @@ module varNameList_mod
       ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
-      integer :: unit
+      integer :: unit, ncid, varID
       character(len=2)   :: typvar
       logical, parameter :: beSilent = .true.
       character(len=10)  :: varNameNetCDF
@@ -854,13 +854,25 @@ module varNameList_mod
 
       else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
 
-	varNameNetCDF = vnl_varNameNetCDF(varName, templateFile_opt = trim(fileName))
-	if (varNameNetCDF == 'notFound') then
-          found = .false.
-        else
-          found = .true.
-        end if
+	varNameNetCDF = vnl_varNameNetCDF(varName, trim(fileName))
 
+	if (varNameNetCDF == 'notFound') then
+	
+          found = .false.
+	  
+        else
+	
+          call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
+          ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)      
+          if (ierr == nf90_noerr) then
+            found = .true.
+          else
+            found = .false.
+          end if
+          call utl_checkNetCDFstatus(nf90_close(ncid))
+
+        end if
+	  
       else
 
         call utl_abort('vnl_varNamePresentInFile: unknown input file type: '//&
@@ -872,25 +884,24 @@ module varNameList_mod
     !-----------------------------------------------------------------------
     ! vnl_varNameNetCDF
     !----------------------------------------------------------------------
-    function vnl_varNameNetCDF(varName, templateFile_opt) result(varNameNetCDF)
+    function vnl_varNameNetCDF(varName, fileName) result(varNameNetCDF)
       !
       ! :Purpose: Return the equivalent variable name used for netCDF files
       !           in use by the NEMO ocean model.
       implicit none
   
       ! Arguments:
-      character(len=*), intent(in)           :: varName          ! input MIDAS variable name
-      character(len=*), intent(in), optional :: templateFile_opt ! template NEMO file   
+      character(len=*), intent(in) :: varName  ! input MIDAS variable name
+      character(len=*), intent(in) :: fileName ! NEMO trial file   
           
       ! Result:
-      character(len=20)                      :: varNameNetCDF    ! variable name used in NEMO netCDF
+      character(len=20) :: varNameNetCDF ! variable name used in NEMO netCDF
 
       ! Locals:
       logical :: varFound(3) ! logical switches:
                              !   1. found depth,
                              !   2. found 3D ocean temperature, 
                              !   3. found SST.
-      logical, parameter :: beSilent = .true.
 
       select case(trim(varName))
       case('SSH')
@@ -898,19 +909,14 @@ module varNameList_mod
       case('TM')    
         ! special case for TM which is currently a variable used for SST as well as 
 	! for 3D ocean temperature field
-        if (present(templateFile_opt)) then
-          call utl_inquireNEMOTemperature(templateFile_opt, beSilent, varFound(:))
-          if (varFound(2)) then
-            varNameNetCDF = 'toce'
-          else if (varFound(3)) then
-            varNameNetCDF = 'tos'
-          else
-            write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
-                       trim(templateFile_opt), ' for varName = ', trim(varName)
-          end if
-	else
-	  ! 3D ocean temperature field
-          varNameNetCDF = 'toce'
+        call utl_inquireNEMOTemperature(fileName, varFound(:))
+        if (varFound(2)) then
+          varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field
+        else if (varFound(3)) then
+          varNameNetCDF = 'tos'     ! NEMO 2D SST field
+        else
+          write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
+                     trim(fileName), ' for varName = ', trim(varName)
         end if
       case('SALW')
         varNameNetCDF = 'soce'
