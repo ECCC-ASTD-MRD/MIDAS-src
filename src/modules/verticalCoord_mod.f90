@@ -606,7 +606,7 @@ contains
     vco%Vcode  = 0
     vco%initialized = .true.
 
-    call utl_inquireNEMOTemperature(templateFile, beSilent, varFound(:))
+    call utl_inquireNEMOTemperature(templateFile, varFound(:))
 
     NODEPTHT: if (.not.varFound(1)) then
 
