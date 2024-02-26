@@ -476,12 +476,8 @@ contains
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
-    !if ( .not. gsv_varExist(statevector,'Z_*')) then
-    !  call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
-    !end if
-
-    allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
-                    statevector%myLatBeg:statevector%myLatEnd))
+    allocate(Hsfc4(statevector%myLonBeg:statevector%myLonEnd, &
+                   statevector%myLatBeg:statevector%myLatEnd))
     Hsfc => gsv_getHeightSfc(statevector)
     Hsfc4 = real(Hsfc,4)
 
@@ -491,11 +487,12 @@ contains
 
       call fetch3DLevels_r4(statevector%vco, Hsfc4, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
-      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out)
-      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out)
+      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out, skipDiagLevel=.true.)
+      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out, skipDiagLevel=.true.)
       deallocate(GZHeightM_out, GZHeightT_out)
 
     end do
+
     deallocate(Hsfc4)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
@@ -504,9 +501,9 @@ contains
   !---------------------------------------------------------
   ! gz2alt_r4
   !---------------------------------------------------------
-  function gz2alt_r4(statevector, gzHeight) result(alt)
+  function gz2alt_r4(statevector, gzHeight, skipDiagLevel) result(alt)
     !
-    ! :Purpose: Iterative conversion of geopotential height to geometric
+    ! :Purpose: Conversion of geopotential height to geometric
     !           altitude.  (solution proposed by J. Aparicio)
     !           real(4) version.
     !
@@ -515,6 +512,7 @@ contains
     ! Arguments:
     type(struct_gsv),      intent(in)   :: statevector
     real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
+    logical,               intent(in)   :: skipDiagLevel
     ! Result:
     real(kind=4), allocatable           :: alt(:,:,:)
 
@@ -523,8 +521,8 @@ contains
     type(struct_hco), pointer           :: hco
     real(kind=4)                        :: latitude
     real(kind=4)                        :: gzH, b1, b2, A2, A3
-    integer                             :: lonIndex, latIndex, lvlIndex
-
+    integer                             :: lonIndex, latIndex, levIndex, levEnd
+    
     ! gzHeight comes from external `vgd_levels` which does not know the
     ! mpi shifted indexes
     nLon = ubound(gzHeight, 1)
@@ -534,20 +532,28 @@ contains
 
     hco => gsv_getHco(statevector)
 
+    if (skipDiagLevel) then
+      ! To mimic the legacy approach in calcHeight_gsv_nl_vcode5xxx
+      alt(:,:,nLev) = gzHeight(:,:,nLev)
+      levEnd = nLev -1
+    else
+      levEnd = nLev
+    end if
+
     do lonIndex = 1, nLon
       do latIndex = 1, nLat
-        do lvlIndex = 1, nLev
+        do levIndex = 1, levEnd
           ! explicit shift of indexes
           latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
                                   latIndex+statevector%myLatBeg-1)
-          gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+          gzH = gzHeight(lonIndex, latIndex, levIndex)
           ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
           b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
           b2 = 3.0/ec_wgs_a**2
           ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
           A2 = -b1/2.0
           A3 = b1**2/2.0 - b2/3.0
-          alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
+          alt(lonIndex, latIndex, levIndex) = gzH + A2*gzH**2 + A3*gzH**3
         end do
       end do
     end do
@@ -583,9 +589,10 @@ contains
 
       call fetch3DLevels_r8(statevector%vco, Hsfc, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
-      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out)
-      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out)
+      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out, skipDiagLevel=.true.)
+      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out, skipDiagLevel=.true.)
       deallocate(GZHeightM_out, GZHeightT_out)
+
     end do
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
@@ -594,9 +601,9 @@ contains
   !---------------------------------------------------------
   ! gz2alt_r8
   !---------------------------------------------------------
-  function gz2alt_r8(statevector, gzHeight) result(alt)
+  function gz2alt_r8(statevector, gzHeight, skipDiagLevel) result(alt)
     !
-    ! :Purpose: Iterative conversion of geopotential height to geometric
+    ! :Purpose: Conversion of geopotential height to geometric
     !           altitude.  (solution proposed by J. Aparicio)
     !           real(8) version.
     !
@@ -605,6 +612,7 @@ contains
     ! Arguments:
     type(struct_gsv),      intent(in)   :: statevector
     real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
+    logical, optional, intent(in)       :: skipDiagLevel
     ! Result:
     real(kind=8), allocatable           :: alt(:,:,:)
 
@@ -613,7 +621,7 @@ contains
     type(struct_hco), pointer           :: hco
     real(kind=8)                        :: latitude
     real(kind=8)                        :: gzH, b1, b2, A2, A3
-    integer                             :: lonIndex, latIndex, lvlIndex
+    integer                             :: lonIndex, latIndex, levIndex, levEnd
 
     ! gzHeight comes from external `vgd_levels` which does not know the
     ! mpi shifted indexes
@@ -624,20 +632,28 @@ contains
 
     hco => gsv_getHco(statevector)
 
+    if (skipDiagLevel) then
+      ! To mimic the legacy approach in calcHeight_gsv_nl_vcode5xxx
+      alt(:,:,nLev) = gzHeight(:,:,nLev)
+      levEnd = nLev -1
+    else
+      levEnd = nLev
+    end if
+    
     do lonIndex = 1, nLon
       do latIndex = 1, nLat
-        do lvlIndex = 1, nLev
+        do levIndex = 1, levEnd
           ! explicit shift of indexes
           latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
                                   latIndex+statevector%myLatBeg-1)
-          gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+          gzH = gzHeight(lonIndex, latIndex, levIndex)
           ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
           b1 = -2.0D0/ec_wgs_a*(1.0D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
           b2 = 3.0D0/ec_wgs_a**2
           ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
           A2 = -b1/2.0D0
           A3 = b1**2/2.0D0 - b2/3.0D0
-          alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
+          alt(lonIndex, latIndex, levIndex) = gzH + A2*gzH**2 + A3*gzH**3
         end do
       end do
     end do
@@ -1847,12 +1863,8 @@ contains
          'height offset for near-sfc momentum level is:'//str(heightSfcOffset_M_r4)//' meters'&
          //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
          verb_opt=2, mpiAll_opt=.false.)
-    if ( .not.statevector%addHeightSfcOffset ) then
-      call msg('calcPressure_gsv_nl_vcode2100x (czp)', new_line('') &
-             //'--------------------------------------------------------------------------'//new_line('')&
-             //'BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'//new_line('')&
-             //'--------------------------------------------------------------------------', &
-             verb_opt=2, mpiAll_opt=.false.)
+    if (.not. statevector%addHeightSfcOffset) then
+      call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): addHeightSfcOffset cannot be .false. for vcode2100x')
     end if
 
     allocate(pressure_T(nlev_T))
@@ -3407,9 +3419,9 @@ contains
       call msg('calcPressure_col_nl_vcode2100x (czp)', &
            'Column index '//str(colIndex) //': lat='//str(lat)&
            //'   Surface: height='//str(rMT)//', P0='//str(P0) &
-           //'   TH_diag_lvl ('//str(nLev_T)//'): height='//str(Z_T)&
+           //'   TH_diag_lev ('//str(nLev_T)//'): height='//str(Z_T)&
                                   //', P_T='//str(P_T(nlev_T, colIndex)) &
-           //'   MM_diag_lvl ('//str(nLev_M)//'): height='//str(Z_M)&
+           //'   MM_diag_lev ('//str(nLev_M)//'): height='//str(Z_M)&
                                   //', P_M='//str(P_M(nlev_M, colIndex)), &
            verb_opt=6)
 
@@ -4028,12 +4040,12 @@ contains
     ! locals:
     integer :: nAbove, numLevSource, numLevDest
     real(8) :: sourceModelTop
-    real(8)           :: pSfc(1,1), pSfcLS(1,1)
-    real(8), pointer  :: sourcePressureLevels(:,:,:)
-    real(8), pointer  :: destPressureLevels(:,:,:)
+    real(8)           :: refSfc(1,1), refSfcLS(1,1)
+    real(8), pointer  :: sourceLevels(:,:,:)
+    real(8), pointer  :: destLevels(:,:,:)
 
-    nullify(sourcePressureLevels)
-    nullify(destPressureLevels)
+    nullify(sourceLevels)
+    nullify(destLevels)
 
     numLevSource = vco_getNumLev(vco_sourceGrid,'MM')
     numLevDest   = vco_getNumLev(vco_destGrid,'MM')
@@ -4042,43 +4054,80 @@ contains
       return
     end if
 
-    ! dummy pressure value
-    pSfc(1,1) = 100.0D3 !100 kPa
-    pSfcLS(1,1) = 100.0D3 !100 kPa
+    if ( vco_sourceGrid%vCode == 21001 ) then
+      if ( vco_destGrid%vCode /= 21001 ) then
+        call utl_abort('czp_ensureCompatibleTops: destGrid not on vCode = 21001')
+      end if
 
-    ! pressure on momentum levels of source grid
-    if (vco_sourceGrid%vcode == 5100) then
-      call fetch3DLevels_r8(vco_sourceGrid, pSfc, sfcFldLS_opt=pSfcLS, &
-                            fldM_opt=sourcePressureLevels)
+      ! dummy height value
+      refSfc(1,1) = 0.D0
+      
+      ! height on momentum levels of source grid
+      call fetch3DLevels_r8(vco_sourceGrid, refSfc, &
+                            fldM_opt=sourceLevels)
+      ! height on momentum levels of destination grid
+      call fetch3DLevels_r8(vco_destGrid, refSfc, &
+                            fldM_opt=destLevels)
+
+      ! count number of levels where output grid is higher than input grid
+      sourceModelTop = sourceLevels(1,1,1)
+      nAbove=0
+      do while (sourceModelTop < destLevels(1,1,nAbove+1))
+        nAbove = nAbove + 1
+      end do
+
+      ! Destination grid has "nAbove" levels above source grid;  tolerate one
+      if ( nAbove > 1 ) then
+        write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest  = ', numLevSource, numLevDest
+        write(*,*) 'czp_ensureCompatibleTops: sourceHeightLevels = ', sourceLevels(1,1,:)
+        write(*,*) 'czp_ensureCompatibleTops: destHeightLevels   = ', destLevels(1,1,:)
+        call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
+      end if
+      
     else
-      call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+      if ( vco_sourceGrid%vCode == 21001 ) then
+        call utl_abort('czp_ensureCompatibleTops: sourceGrid is on vCode = 21001')
+      end if
+      
+      ! dummy pressure value
+      refSfc(1,1)   = 100.0D3 !100 kPa
+      refSfcLS(1,1) = 100.0D3 !100 kPa
+
+      ! pressure on momentum levels of source grid
+      if (vco_sourceGrid%vcode == 5100) then
+        call fetch3DLevels_r8(vco_sourceGrid, refSfc, sfcFldLS_opt=refSfcLS, &
+                              fldM_opt=sourceLevels)
+      else
+        call fetch3DLevels_r8(vco_sourceGrid, refSfc, fldM_opt=sourceLevels)
+      end if
+      ! pressure on momentum levels of destination grid
+      if (vco_destGrid%vcode == 5100) then
+        call fetch3DLevels_r8(vco_destGrid, refSfc, sfcFldLS_opt=refSfcLS, &
+                              fldM_opt=destLevels)
+      else
+        call fetch3DLevels_r8(vco_destGrid, refSfc, fldM_opt=destLevels)
+      end if
+
+      ! count number of levels where output grid is higher than input grid
+      sourceModelTop = sourceLevels(1,1,1)
+      nAbove=0
+      do while (sourceModelTop > destLevels(1,1,nAbove+1))
+        nAbove = nAbove + 1
+      end do
+
+      ! Destination grid has "nAbove" levels above source grid;  tolerate one
+      if ( nAbove > 1 ) then
+        write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
+        write(*,*) 'czp_ensureCompatibleTops: sourcePressureLevels = ', sourceLevels(1,1,:)
+        write(*,*) 'czp_ensureCompatibleTops: destPressureLevels   = ', destLevels(1,1,:)
+        call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
+      end if
+
     end if
-    ! pressure on momentum levels of destination grid
-    if (vco_destGrid%vcode == 5100) then
-      call fetch3DLevels_r8(vco_destGrid, pSfc, sfcFldLS_opt=pSfcLS, &
-                            fldM_opt=destPressureLevels)
-    else
-      call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
-    end if
 
-    ! count number of levels where output grid is higher than input grid
-    sourceModelTop = sourcePressureLevels(1,1,1)
-    nAbove=0
-    do while (sourceModelTop > destPressureLevels(1,1,nAbove+1))
-      nAbove = nAbove + 1
-    end do
-
-    ! Destination grid has "nAbove" levels above source grid;  tolerate one
-    if ( nAbove > 1 ) then
-      write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
-      write(*,*) 'czp_ensureCompatibleTops: sourcePressureLevels = ', sourcePressureLevels(1,1,:)
-      write(*,*) 'czp_ensureCompatibleTops: destPressureLevels   = ', destPressureLevels(1,1,:)
-      call utl_abort('czp_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
-    end if
-
-    deallocate(sourcePressureLevels)
-    deallocate(destPressureLevels)
-
+    deallocate(sourceLevels)
+    deallocate(destLevels)
+    
   end subroutine czp_ensureCompatibleTops
 
   !---------------------------------------------------------------------

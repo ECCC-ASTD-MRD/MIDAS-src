@@ -392,7 +392,7 @@ contains
     real(8), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
-
+    
     call msg('vInterp_gsv_r8', 'START', verb_opt=4)
 
     vco_in  => gsv_getVco(statevector_in)
@@ -440,11 +440,9 @@ contains
     end if
     if (checkModelTop) then
       call msg('vInterp_gsv_r8', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
-      if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
-        call msg('vInterp_gsv_r8', 'bypassing top check, '&
-             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        ! Development notes (@mad001)
-        !   we should consider having a new criterion that works for GEM-H as well
+      if ( (vcode_in == 21001 .and. vcode_out /= 21001) .or. (vcode_in /= 21001 .and. vcode_out == 21001) ) then
+        call msg('vInterp_gsv_r8', 'bypassing top check when interpolating between GEM-P and GEM-H, '&
+                 //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
       else
         call czp_ensureCompatibleTops(vco_in, vco_out)
       end if
@@ -550,10 +548,6 @@ contains
                                              PMin_r8_opt=tmpCoord_M, &
                                              ZTout_r8_opt=hLikeT_in, &
                                              ZMout_r8_opt=hLikeM_in)
-            ! JFC
-            write(6,*) 'min/max for hLikeT_in ', minval(hLikeT_in), maxval(hLikeT_in)
-            write(6,*) 'min/max for hLikeT_out', minval(hLikeT_out), maxval(hLikeT_out)
-            flush(6)
           end if
         end if
         deallocate(tmpCoord_T)
