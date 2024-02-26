@@ -30,7 +30,7 @@ program midas_obsSelection
   !============================================== ==============================================================
   ! ``flnml``                                      In - Main namelist file with parameters that user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
-  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``trlm_$NN`` (e.g. ``trlm_01``) or ``trlm``    In - Background state (a.k.a. trial) files for each timestep, ``trlm`` file contains all time steps
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
   ! ``obserr``                                     In - Observation error statistics
@@ -227,7 +227,9 @@ program midas_obsSelection
   logical :: allocHeightSfc
   integer :: get_max_rss
   real(8) :: minGridSpacing
-  
+  logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
+  character(len=12) :: trialFileName
+    
   ! Namelist variables
   logical                        :: doThinning  ! Control whether or not thinning is done
 
@@ -271,11 +273,22 @@ program midas_obsSelection
   !- Initialize observation file names, but don't use datestamp
   !
   call obsf_setup(dateStampFromObs, 'bgck')
-
+  
+  !
+  !- Check if trial fields are stored in separate files for each time step or not.
+  !
+  inquire(file = './trlm', exist = allTrialTimeStepsInOneFile)
+  if (allTrialTimeStepsInOneFile) then
+    trialFileName = './trlm'
+  else
+    trialFileName = './trlm_01'
+  end if 
+   
   !
   !- Initialize the Temporal grid and dateStamp from trial file
   !
-  call tim_setup(fileNameForDate_opt = './trlm_01')
+
+  call tim_setup(fileNameForDate_opt = trim(trialFileName))
 
   !
   !- Initialize constants
@@ -377,10 +390,10 @@ program midas_obsSelection
   if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
     
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, allTrialTimeStepsInOneFile)
 
   ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
-  if (utl_fileType('./trlm_01') == 'NetCDF' .and. &
+  if (utl_fileType(trim(trialFileName)) == 'NetCDF' .and. &
       gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
       
     if (mmpi_myid == 0) then
@@ -394,8 +407,8 @@ program midas_obsSelection
     
     if (.not. hco_equal(hco_anl, hco_trl)) then
       call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
-      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')
-      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, './trlm_01_fst')
+      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
+      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName)//'_fst')
       call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
       call ocm_deallocate(oceanMask)    
       hco_trl%minGridSpacing = minGridSpacing

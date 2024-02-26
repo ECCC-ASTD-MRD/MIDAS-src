@@ -1274,6 +1274,8 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), target  :: stateVectorTrial
     type(struct_gsv), pointer :: stateVectorTrial_ptr 
     type(struct_gsv)          :: stateVector_1step_r4
+    logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
+    character(len=12) :: trialFileName
 
     call utl_tmg_start(1,'--ReadTrials')
 
@@ -1282,6 +1284,16 @@ module gridStateVectorFileIO_mod
       write(*,*) 'gio_readTrials: START'
       write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
     end if
+ 
+    !
+    !- Check if trial fields are stored in separate files for each time step or not.
+    !
+    inquire(file = './trlm', exist = allTrialTimeStepsInOneFile)
+    if (allTrialTimeStepsInOneFile) then
+      trialFileName = './trlm'
+    else
+      trialFileName = './trlm_01'
+    end if 
 
     if (gsv_varExist(stateVectorTrialIn,'Z_T') .or. &
         gsv_varExist(stateVectorTrialIn,'Z_M') .or. &
@@ -1359,13 +1371,19 @@ module gridStateVectorFileIO_mod
         write(*,*) 'gio_readTrials: reading background for time step: ', stepIndexToRead, dateStamp
         write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
 
-        if (trim(utl_fileType('trlm_01')) == 'FST') then
-          
+        if (trim(utl_fileType(trim(trialFileName))) == 'FST') then
+            
 	  ! identify which trial file corresponds with current datestamp
           ikey = 0
           do trialIndex = 1, maxNumTrials
             write(fileNumber, '(i2.2)') trialIndex
-            fileName = 'trlm_' // trim(fileNumber)
+
+            if (allTrialTimeStepsInOneFile) then
+              fileName = trim(trialFileName)
+            else
+              fileName = 'trlm_' // trim(fileNumber)
+            end if
+
             inquire(file = trim(fileName), exist = fileExists)
             if (.not. fileExists) exit
             nulTrial = 0
@@ -1383,11 +1401,11 @@ module gridStateVectorFileIO_mod
             call utl_abort('gio_readTrials: trial file not found for this increment timestep')
           end if
 
-	else if (trim(utl_fileType('trlm_01')) == 'NetCDF') then
+	else if (trim(utl_fileType(trim(trialFileName))) == 'NetCDF') then
  	
-	  fileName = 'trlm_01'
+	  fileName = trim(trialFileName)
 	  call msg('gio_readTrials', 'All NEMO trial fields are stored in one netCDF file: '//&
-                                     str(trim(fileName))) 
+                                     trim(fileName)) 
 	  
 	end if
 
