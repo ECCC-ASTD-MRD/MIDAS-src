@@ -763,6 +763,9 @@ contains
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
           end do
+	  if (writeNetCDFInc) then
+            call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+          end if
         else
           call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
           do stepIndex = 1, tim_nstepobsinc
@@ -775,9 +778,10 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
-            if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                                           containsFullField_opt = .false.)
           end do
+          
+	  if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+                                                         containsFullField_opt = .false.)
         end if
 
         call utl_tmg_stop(5)

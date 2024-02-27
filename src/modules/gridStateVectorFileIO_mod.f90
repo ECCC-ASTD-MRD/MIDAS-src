@@ -105,18 +105,10 @@ module gridStateVectorFileIO_mod
     end if
     write(*,*) 'gio_readFromFile: step index: ', stepIndex
 
-    if (trim(utl_fileType(trim(fileName))) == 'FST') then
-      if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
-        write(*,*) 'stepIndex = ', stepIndex
-        write(*,*) 'stateVector_out%numStep = ', stateVector_out%numStep
-        call utl_abort('gio_readFromFile: invalid value for stepIndex')
-      end if
-    else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
-      write(*,*) 'gio_readFromFile: time_counter(', stepIndex, &
-                 ') is being read from netCDF file.'
-    else
-      call utl_abort('gio_readFromFile: unknown input file type: '//&
-                     trim(utl_fileType(trim(fileName))))
+    if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
+      write(*,*) 'stepIndex = ', stepIndex
+      write(*,*) 'stateVector_out%numStep = ', stateVector_out%numStep
+      call utl_abort('gio_readFromFile: invalid value for stepIndex')
     end if
 
     if (present(unitConversion_opt)) then
@@ -605,7 +597,7 @@ module gridStateVectorFileIO_mod
     character(len=*), intent(in)    :: fileName    ! input netCDF file name
 
     ! Locals:
-    integer :: ncid, numLevVar, indexTime
+    integer :: ncid, numLevVar, timeIndex
     integer :: kIndex, ni, nj
     integer :: levIndex, varID
     character(len=4)  :: varName
@@ -622,6 +614,10 @@ module gridStateVectorFileIO_mod
     integer :: timeIndexToRead
 
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
+
+    if (stateVector%numStep > 1) then
+      call utl_abort('gio_readFileNetCDF: Not compatible with stateVector containing multiple time steps.')
+    end if
 
     if (stateVector%mpi_distribution /= 'VarsLevs' .and. &
         stateVector%mpi_local) then
@@ -666,11 +662,11 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateORCA025, refDateStamp
 
     foundRequiredState = .false.
-    do indexTime = 1, numberRecords    
-      call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(indexTime) / 3600.))
+    do timeIndex = 1, numberRecords    
+      call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
       if (currentDateStamp == dateStamp) then
         foundRequiredState = .true.
-        timeIndexToRead = indexTime
+        timeIndexToRead = timeIndex
         write(*,*) ''
         call msg('gio_readFileNetCDF', 'Required state found in the netCDF file:')
         write(*,*)'gio_readFileNetCDF: time_counter index/datestamp: ', timeIndexToRead, currentDateStamp
@@ -681,9 +677,9 @@ module gridStateVectorFileIO_mod
 
     if(.not. foundRequiredState) then
       call msg('gio_readFileNetCDF', 'netCDF available dateStamps:')
-      do indexTime = 1, numberRecords 
-        call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(indexTime) / 3600.))
-        write(*,*) indexTime, currentDateStamp
+      do timeIndex = 1, numberRecords 
+        call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
+        write(*,*) timeIndex, currentDateStamp
       end do
       call utl_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
     end if
@@ -1370,19 +1366,19 @@ module gridStateVectorFileIO_mod
         dateStamp = stateVectorTrial_ptr%dateStampList(stepIndexToRead)
         write(*,*) 'gio_readTrials: reading background for time step: ', stepIndexToRead, dateStamp
         write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
-
-        if (trim(utl_fileType(trim(trialFileName))) == 'FST') then
-            
+       
+        if (allTrialTimeStepsInOneFile) then
+          fileName = trim(trialFileName)
+        else
+  	  if (trim(utl_fileType(trim(trialFileName))) == 'NetCDF') then
+	    call utl_abort('gio_readTrials: All NEMO trial fields must be stored in one netCDF file.')
+	  end if
+          
 	  ! identify which trial file corresponds with current datestamp
           ikey = 0
           do trialIndex = 1, maxNumTrials
             write(fileNumber, '(i2.2)') trialIndex
-
-            if (allTrialTimeStepsInOneFile) then
-              fileName = trim(trialFileName)
-            else
-              fileName = 'trlm_' // trim(fileNumber)
-            end if
+            fileName = 'trlm_' // trim(fileNumber)
 
             inquire(file = trim(fileName), exist = fileExists)
             if (.not. fileExists) exit
@@ -1400,13 +1396,6 @@ module gridStateVectorFileIO_mod
             write(*,*) 'stepIndexToRead, dateStamp = ', stepIndexToRead, dateStamp
             call utl_abort('gio_readTrials: trial file not found for this increment timestep')
           end if
-
-	else if (trim(utl_fileType(trim(trialFileName))) == 'NetCDF') then
- 	
-	  fileName = trim(trialFileName)
-	  call msg('gio_readTrials', 'All NEMO trial fields are stored in one netCDF file: '//&
-                                     trim(fileName)) 
-	  
 	end if
 
         ! allocate stateVector for storing just 1 time step

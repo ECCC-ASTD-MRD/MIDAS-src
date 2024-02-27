@@ -300,7 +300,7 @@ program midas_var1D
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
   call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,            &

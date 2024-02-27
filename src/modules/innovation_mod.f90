@@ -858,20 +858,19 @@ contains
   !--------------------------------------------------------------------------
   ! inn_getHcoVcoFromTrlmFile
   !--------------------------------------------------------------------------
-  subroutine inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, allTrialsInOneFile_opt)
+  subroutine inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trialFileName)
     !
     !:Purpose: Get hco/vco of the trials
     !
     implicit none
 
     ! Arguments:
-    type(struct_hco), pointer, intent(inout)           :: hco_trl
-    type(struct_vco), pointer, intent(inout)           :: vco_trl
-    logical                  , intent(in)   , optional :: allTrialsInOneFile_opt ! to determine if all trial fields are in the same file or each time step is stored in a seaprate file
+    type(struct_hco), pointer, intent(inout) :: hco_trl
+    type(struct_vco), pointer, intent(inout) :: vco_trl
+    character(len=*)         , intent(in)    :: trialFileName ! trial fields file name
 
     ! Locals:
     character(len=4), pointer :: anlVar(:)
-    character(len=12) :: trialFileName
 
     write(*,*) 'inn_getHcoVcoFromTrlmFile: START'
     nullify(hco_trl,vco_trl)
@@ -886,16 +885,6 @@ contains
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
     
-    if (present(allTrialsInOneFile_opt)) then
-      if(allTrialsInOneFile_opt) then
-        trialFileName = './trlm'
-      else
-        trialFileName = './trlm_01'
-      end if
-    else
-      trialFileName = './trlm_01'
-    end if
-
     call hco_SetupFromFile(hco_trl, trim(trialFileName), ' ', 'Trial', varName_opt = anlVar(1))
     call vco_SetupFromFile(vco_trl, trim(trialFileName))
 

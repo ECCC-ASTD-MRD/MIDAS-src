@@ -390,7 +390,7 @@ program midas_obsSelection
   if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
     
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, allTrialTimeStepsInOneFile)
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
 
   ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
   if (utl_fileType(trim(trialFileName)) == 'NetCDF' .and. &

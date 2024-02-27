@@ -424,10 +424,10 @@ program midas_var
   call msg_memUsage('var')
 
   !- Memory allocation for background column data
-  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt=useTovsUtil) ! IN
+  call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt = useTovsUtil) ! IN
 
   ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
   if (useTovsUtil) call filt_suprep(obsSpaceData)
@@ -438,15 +438,15 @@ program midas_var
   call msg_memUsage('var')
 
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
-  allocHeightSfc = ( vco_trl%Vcode /= 0 )
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
+  allocHeightSfc = (vco_trl%Vcode /= 0)
 
-  call gsv_allocate( stateVectorUpdateHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,  &
-                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR')
-  call gsv_zero( stateVectorUpdateHighRes )
-  call gio_readTrials( stateVectorUpdateHighRes )
+  call gsv_allocate(stateVectorUpdateHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                    mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,  &
+                    allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR')
+  call gsv_zero(stateVectorUpdateHighRes)
+  call gio_readTrials(stateVectorUpdateHighRes)
   call msg_memUsage('var')
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)

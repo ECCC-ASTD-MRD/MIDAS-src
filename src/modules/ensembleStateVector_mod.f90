@@ -2967,7 +2967,7 @@ CONTAINS
           if (writeNetCDF) then
 	    outFileName = trim(ensFileName) // '.nc'
             call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
-                                       containsFullField_opt = .false.)
+                                       containsFullField_opt = containsFullField)
 	  end if
 	  
         end if ! locally written one member
