@@ -763,7 +763,7 @@ contains
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
           end do
-	  if (writeNetCDFInc) then
+          if (writeNetCDFInc) then
             call utl_abort('epp_postProcess: output netCDF file requested but not required.')
           end if
         else
