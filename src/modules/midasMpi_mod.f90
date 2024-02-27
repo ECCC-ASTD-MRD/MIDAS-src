@@ -3,7 +3,7 @@ module midasMpi_mod
   !
   ! MODULE midasMpi_mod (prefix='mmpi' category='8. Low-level utilities and constants')
   !
-  !:Purpose:  Subroutine and public variables related to general aspects of mpi.
+  !:Purpose:  Subroutines/functions and public variables related to general aspects of mpi.
   !           Also, subroutine and public variables related to the mpi decomposition
   !           specific to the MIDAS code.
   !
@@ -18,6 +18,7 @@ module midasMpi_mod
   public :: mmpi_numthread, mmpi_nodeMasters
   public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
   public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  public :: mmpi_maxTagValue
   ! public procedures
   public :: mmpi_initialize,mmpi_getptopo
   public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
@@ -40,6 +41,7 @@ module midasMpi_mod
 
   integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
   integer :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  integer :: mmpi_maxTagValue
 
   integer, allocatable :: mmpi_nodeMasters(:)
 
@@ -47,7 +49,14 @@ module midasMpi_mod
 
   contains
 
+  !--------------------------------------------------------------------------
+  ! mmpi_initialize
+  !--------------------------------------------------------------------------
   subroutine mmpi_initialize()
+    !
+    !:Purpose: Initialize MPI, including special communicators and
+    !          several useful public variables.
+    !
     implicit none
 
     ! Locals:
@@ -55,6 +64,7 @@ module midasMpi_mod
     integer :: ierr, numNodeMasters
     integer :: rpn_comm_comm, rpn_comm_datyp
     integer, allocatable :: allMyidHost(:)
+    logical :: flag
 
     ! Namelist variables
     integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
@@ -117,6 +127,14 @@ module midasMpi_mod
     mmpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
     mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
 
+    ! get some other useful values
+    call mpi_comm_get_attr(mpi_comm_world, mpi_tag_ub, mmpi_maxTagValue, flag, ierr)
+    if (flag) then
+      if (mmpi_myid == 0) write(*,*) 'mmpi_initialize: Maximum mpi tag value = ', mmpi_maxTagValue
+    else
+      call utl_abort('mmpi_initialize: Could not obtain maximum tag value')
+    end if
+
     write(*,*) ' '
     if(mmpi_doBarrier) then
       write(*,*) 'mmpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
@@ -127,9 +145,14 @@ module midasMpi_mod
 
   end subroutine mmpi_initialize
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_getptopo
+  !--------------------------------------------------------------------------
   subroutine mmpi_getptopo( npex, npey )
-
+    !
+    !:Purpose: Subroutine called by the rpn_comm MPI initializing
+    !          subroutine rpn_comm_init.
+    !
     implicit none
 
     ! Arguments:
@@ -156,9 +179,14 @@ module midasMpi_mod
 
   end subroutine mmpi_getptopo 
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_allreduce_sumreal8scalar
+  !--------------------------------------------------------------------------
   subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm )
-
+    !
+    !:Purpose: Version of mpi_allReduce that always performs sum in
+    !          the same order.
+    !
     implicit none
 
     ! Arguments:
@@ -196,10 +224,13 @@ module midasMpi_mod
 
   end subroutine mmpi_allreduce_sumreal8scalar
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_allReduce_sumR8_1d
+  !--------------------------------------------------------------------------
   subroutine mmpi_allreduce_sumR8_1d( sendRecvVector, comm )
     !
-    ! :Purpose: Perform sum of 1d array over all MPI tasks.
+    ! :Purpose: Perform sum of 1d array over all MPI tasks, guaranteed to
+    !           always be in the same order.
     !
     implicit none
 
@@ -243,10 +274,13 @@ module midasMpi_mod
 
   end subroutine mmpi_allreduce_sumR8_1d
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_allreduce_sumR8_2d
+  !--------------------------------------------------------------------------
   subroutine mmpi_allreduce_sumR8_2d( sendRecvVector, comm )
     !
-    ! :Purpose: Perform sum of 2d array over all MPI tasks.
+    ! :Purpose: Perform sum of 2d array over all MPI tasks guaranteed
+    !           to always be in the same order.
     !
     implicit none
 
@@ -290,11 +324,14 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_allreduce_sumR8_2d
- 
-  
+   
+  !--------------------------------------------------------------------------
+  ! mmpi_reduce_sumR8_1d
+  !--------------------------------------------------------------------------
   subroutine mmpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
     !
-    ! :Purpose: Perform sum of 1d array over all MPI tasks.
+    ! :Purpose: Perform sum of 1d array over all MPI tasks guaranteed to
+    !           always be in the same order.
     !
     implicit none
 
@@ -340,11 +377,14 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_1d
- 
-  
+   
+  !--------------------------------------------------------------------------
+  ! mmpi_reduce_sumR8_2d
+  !--------------------------------------------------------------------------
   subroutine mmpi_reduce_sumR8_2d( sendVector, recvVector, root, comm )
     !
-    ! :Purpose: Perform sum of 2d array over all MPI tasks.
+    ! :Purpose: Perform sum of 2d array over all MPI tasks guaranteed to
+    !           always be in the same order.
     !
     implicit none
 
@@ -392,10 +432,13 @@ module midasMpi_mod
 
   end subroutine mmpi_reduce_sumR8_2d
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_reduce_sumR8_3d
+  !--------------------------------------------------------------------------
   subroutine mmpi_reduce_sumR8_3d( sendVector, recvVector, root, comm )
     !
-    ! :Purpose: Perform sum of 3d array over all MPI tasks.
+    ! :Purpose: Perform sum of 3d array over all MPI tasks guaranteed to
+    !           always be in the same order.
     !
     implicit none
 
@@ -443,8 +486,10 @@ module midasMpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mmpi_reduce_sumR8_3d
-
   
+  !--------------------------------------------------------------------------
+  ! mmpi_allgather_string
+  !--------------------------------------------------------------------------
   subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
@@ -488,11 +533,15 @@ module midasMpi_mod
 
   end subroutine mmpi_allgather_string
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_latbands
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
                                  myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
+    !
     implicit none
 
     ! Arguments:
@@ -545,10 +594,14 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_latbands
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_myidYfromLat
+  !--------------------------------------------------------------------------
   function mmpi_myidYfromLat(latIndex, nj) result(IP_y)
-    ! :Purpose: use same logic as setup_latbands to compute myidy
+    !
+    !:Purpose: Use same logic as setup_latbands to compute myidy
     !          corresponding to a latitude grid index
+    !
     implicit none
 
     ! Arguments:
@@ -562,10 +615,14 @@ module midasMpi_mod
 
   end function mmpi_myidYfromLat
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_lonbands
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          longitudes over tasks in X direction (npex)
+    !
     implicit none
 
     ! Arguments:
@@ -602,10 +659,14 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_lonbands
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_myidXfromLon
+  !--------------------------------------------------------------------------
   function mmpi_myidXfromLon(lonIndex, ni) result(IP_x)
-    ! :Purpose: use same logic as setup_lonbands to compute myidx
+    !
+    !:Purpose: Use same logic as setup_lonbands to compute myidx
     !          corresponding to a longitude grid index
+    !
     implicit none
 
     ! Arguments:
@@ -619,10 +680,14 @@ module midasMpi_mod
 
   end function mmpi_myidXfromLon
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_m
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          wavenumber m over tasks in Y direction (npey)
+    !
     implicit none
 
     ! Arguments:
@@ -647,10 +712,14 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_m
 
- 
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_n
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          wavenumber n over tasks in X direction (npex)
+    !
     implicit none
 
     ! Arguments:
@@ -675,10 +744,14 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_n
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_levels
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_levels(numlevels, myLevBeg, myLevEnd, myLevCount)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          levels over tasks in X direction (npex)
+    !
     implicit none
 
     ! Arguments:
@@ -731,10 +804,14 @@ module midasMpi_mod
 
   end subroutine mmpi_setup_levels
 
-
+  !--------------------------------------------------------------------------
+  ! mmpi_setup_varslevels
+  !--------------------------------------------------------------------------
   subroutine mmpi_setup_varslevels(numk, mykBeg, mykEnd, mykCount)
-    ! :Purpose: compute parameters that define the mpi distribution of
+    !
+    !:Purpose: Compute parameters that define the mpi distribution of
     !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
+    !
     implicit none
 
     ! Arguments:

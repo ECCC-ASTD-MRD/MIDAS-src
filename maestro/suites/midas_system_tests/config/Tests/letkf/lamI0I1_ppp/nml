@@ -12,7 +12,7 @@
    rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
    obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'TILES'
+   mpiDistribution       = 'MASTERWORKER'
 /
  &namEnsPostProcModule
    alphaRTPP             = 0.00D0

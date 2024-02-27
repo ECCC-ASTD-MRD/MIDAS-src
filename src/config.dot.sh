@@ -22,6 +22,7 @@ MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME:-midasCompilation}
 MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING:-false}
 MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
+MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 
 ###########################################################
 ##  SSM Packaging configuration 
@@ -159,6 +160,14 @@ echo "... loading makedepf90"
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
 OPTF="-qmkl ${OPTF} -warn noexternal"
+
+# add compiler option to produce reports on code optimization and deactivate cleaning
+if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
+    OPTF="${OPTF} -qopt-report=5"
+    echo "... > !WARNING! Compiler optimization reports will be produced in the compile directory."
+    echo "... >           To be able to see them, we ensure cleaning is not activated."
+    MIDAS_COMPILE_CLEAN=false
+fi
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
