@@ -38,9 +38,7 @@ module tovsLin_mod
   private
 
   public :: tvslin_rttov_tl, tvslin_rttov_ad, tvslin_rttov_k
-  public :: tvslin_chanProf, tvslin_bodyIndexFromBtIndex
-  public :: tvslin_chanProfScatt, tvslin_bodyIndexFromBtIndexScatt
-
+  
   integer, allocatable :: tvslin_bodyIndexFromBtIndex(:,:)
   integer, allocatable :: tvslin_bodyIndexFromBtIndexScatt(:,:)
   type(rttov_chanprof), allocatable :: tvslin_chanProf(:,:)
