@@ -58,14 +58,13 @@ contains
   !----------------------------------------------------------------------
   ! enkf_LETKFanalyses
   !----------------------------------------------------------------------
-  subroutine enkf_LETKFanalyses(algorithm, numSubEns, mpiDistribution, &
-                                randomShuffleSubEns,  &
+  subroutine enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                                 ensembleAnl, ensembleTrl, &
                                 ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                numRetainedEigen, myNumLatLonSendFactor)
+                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -89,7 +88,6 @@ contains
     ! Arguments:
     character(len=*),            intent(in)    :: algorithm
     integer         ,            intent(in)    :: numSubEns
-    character(len=*),            intent(in)    :: mpiDistribution
     logical         ,            intent(in)    :: randomShuffleSubEns
     type(struct_ens), pointer,   intent(inout) :: ensembleTrl
     type(struct_ens),            intent(inout) :: ensembleAnl
@@ -101,6 +99,7 @@ contains
     real(8),                     intent(in)    :: hLocalize(:)
     real(8),                     intent(in)    :: hLocalizePressure(:)
     real(8),                     intent(in)    :: vLocalize
+    character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
     integer,                     intent(in)    :: myNumLatLonSendFactor
 
@@ -808,7 +807,6 @@ contains
 
     real(8), allocatable, target, save :: YbTinvRYb_pert(:,:)
     real(8), allocatable, target, save :: YbTinvRCopy_pert(:,:)
-    real(4), allocatable, save         :: YbGainCopy_r4(:,:)
  
     integer, allocatable, save :: localBodyIndices(:)
     integer, allocatable, save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
@@ -823,7 +821,6 @@ contains
     real(8), allocatable, target, save :: PaInv_pert(:,:), Pa_pert(:,:)
     real(8), allocatable, target, save :: YbTinvR_pert(:,:)
     real(8), allocatable, target, save :: eigenValues_pert(:), eigenVectors_pert(:,:)
-    real(4), allocatable, save         :: YbCopy_r4(:,:)
 
     real(8), allocatable, save :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
     real(8), allocatable, save :: eigenValues_CV(:), eigenVectors_CV(:,:)
@@ -844,7 +841,6 @@ contains
     if (firstCall) then
       allocate(YbTinvRYb_pert(nEnsGain,nEnsGain))
       allocate(YbTinvRCopy_pert(maxNumLocalObs,nEnsGain))
-      allocate(YbGainCopy_r4(maxNumLocalObs,nEnsGain))
     end if
 
     ! Quantities needed for CVLETKF and CVLETKF-PERTOBS and CVLETKF-ME
@@ -976,7 +972,6 @@ contains
       if ( trim(algorithm) == 'CVLETKF-ME' .or. &
            trim(algorithm) == 'LETKF-Gain-ME' ) then
         allocate(YbTinvRYb_mod(nEnsGain,nEns))
-        allocate(YbCopy_r4(maxNumLocalObs,nEns))
       end if
       allocate(eigenValues_pert(nEnsGain))
       allocate(eigenVectors_pert(nEnsGain,nEnsGain))
@@ -1074,7 +1069,6 @@ contains
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
       do memberIndex2 = 1, nEnsGain
-        YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
         YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
       end do
     end do
@@ -1092,37 +1086,22 @@ contains
     call utl_tmg_stop(137)
 
     call utl_tmg_start(138,'--------YbTinvRYb1')
-    call enkf_calcYbTinvRYb_pert(nEnsGain, nEnsGain, maxNumLocalObs, numLocalObs, &
-                                 YbTinvRYb_pert, YbTinvRCopy_pert, YbGainCopy_r4,  &
-                                 YbTinvRYb_mean, YbTinvRCopy_mean)
+    call enkf_calcYbTinvRYb(nEnsGain, nEnsGain, maxNumLocalObs, numLocalObs, &
+                            YbTinvRYb_pert, YbTinvRCopy_pert, &
+                            ensObsGain_mpiglobal, localBodyIndices, &
+                            YbTinvRYb_mean, YbTinvRCopy_mean)
     call utl_tmg_stop(138)
 
     ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
-      ! make copy of ensObs_mpiglobal%Yb_r4
-      call utl_tmg_start(137,'--------YbArraysCopy')
-      YbCopy_r4(:,:) = 0.0
-      do localObsIndex = 1, numLocalObs
-        bodyIndex = localBodyIndices(localObsIndex)
-        do memberIndex2 = 1, nEns
-          YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-        end do
-      end do
-      call utl_tmg_stop(137)
 
-      YbTinvRYb_mod(:,:) = 0.0D0
       call utl_tmg_start(139,'--------YbTinvRYb2')
-      !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-      do memberIndex2 = 1, nEns
-        do memberIndex1 = 1, nEnsGain
-          YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
-               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))
-        end do
-      end do
-      !$OMP END PARALLEL DO
+      call enkf_calcYbTinvRYb(nEnsGain, nEns, maxNumLocalObs, numLocalObs, &
+                              YbTinvRYb_mod, YbTinvRCopy_pert, &
+                              ensObs_mpiglobal, localBodyIndices)
       call utl_tmg_stop(139)
+
     end if !CVLETKF-ME or LETKF-GAIN-ME
 
     call utl_tmg_stop(136)
@@ -1805,79 +1784,135 @@ contains
   end subroutine enkf_LETKFcomputeWeights
 
   !----------------------------------------------------------------------
-  ! enkf_calcYbTinvRYb_pert (private subroutine)
+  ! enkf_calcYbTinvRYb (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_calcYbTinvRYb_pert(nEns1, nEns2, maxNumLocalObs, numLocalObs, &
-                                     YbTinvRYb_pert, YbTinvRCopy_pert, YbGainCopy_r4, &
-                                     YbTinvRYb_mean, YbTinvRCopy_mean)
+  subroutine enkf_calcYbTinvRYb(nEns1, nEns2, maxNumLocalObs, numLocalObs, &
+                                YbTinvRYb_pert, YbTinvRCopy_pert, &
+                                ensObs_mpiglobal, localBodyIndices,  &
+                                YbTinvRYb_mean, YbTinvRCopy_mean)
     !
     !:Purpose: Compute the background covariance in ensemble space
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: nEns1
-    integer, intent(in)  :: nEns2
-    integer, intent(in)  :: maxNumLocalObs
-    integer, intent(in)  :: numLocalObs
-    real(8), intent(out) :: YbTinvRYb_pert(nEns1,nEns2)
-    real(8), intent(in)  :: YbTinvRCopy_pert(maxNumLocalObs,nEns1)
-    real(4), intent(in)  :: YbGainCopy_r4(maxNumLocalObs,nEns2)
-    real(8), intent(out) :: YbTinvRYb_mean(nEns1,nEns2)
-    real(8), intent(in)  :: YbTinvRCopy_mean(maxNumLocalObs,nEns1)
+    integer, intent(in)            :: nEns1
+    integer, intent(in)            :: nEns2
+    integer, intent(in)            :: maxNumLocalObs
+    integer, intent(in)            :: numLocalObs
+    type(struct_eob), intent(in)   :: ensObs_mpiglobal
+    integer, intent(in)            :: localBodyIndices(maxNumLocalObs)
+    real(8), intent(out)           :: YbTinvRYb_pert(nEns1,nEns2)
+    real(8), intent(in)            :: YbTinvRCopy_pert(maxNumLocalObs,nEns1)
+    real(8), intent(out), optional :: YbTinvRYb_mean(nEns1,nEns2)
+    real(8), intent(in),  optional :: YbTinvRCopy_mean(maxNumLocalObs,nEns1)
 
     ! Locals:
     integer :: threadIndex, omp_get_thread_num
-    integer :: memberIndex1, memberIndex2
-    real(4) :: YbGainCopy2_r4(numLocalObs,mmpi_numThread)
+    integer :: memberIndex1, memberIndex2, localObsIndex, bodyIndex
+    real(4), allocatable :: YbCopy2_r4(:,:)
+    real(4), allocatable :: YbCopy_r4(:,:)
 
-    !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
-    threadIndex = 1 + omp_get_thread_num()
-    !$OMP DO
-    do memberIndex2 = 1, nEns2
-      YbGainCopy2_r4(:,threadIndex) = YbGainCopy_r4(1:numLocalObs,memberIndex2)
-      do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
-        YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
-        YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-             YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-             sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy2_r4(1:numLocalObs,threadIndex))             
-      end do
-    end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    allocate(YbCopy_r4(maxNumLocalObs,nEns2))
+    allocate(YbCopy2_r4(numLocalObs,mmpi_numThread))
 
-    ! copy upper triangle to lower triangle (symmetric matrix)
-
-    !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-    do memberIndex2 = 1, nEns2
-      do memberIndex1 = memberIndex2+1, nEns1
-        YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-             YbTinvRYb_pert(memberIndex2,memberIndex1)
+    call utl_tmg_start(137,'--------YbArraysCopy')
+    !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex2)
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex2 = 1, nEns2
+        YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
       end do
     end do
     !$OMP END PARALLEL DO
+    call utl_tmg_stop(137)
 
-    if (eob_simObsAssim) then     
-      YbTinvRYb_mean(:,:) = 0.0D0
+    if (nEns1 == nEns2) then
+      ! When nEns1 equals nEns2 we assume matrix is symmetric
+
+      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
+      threadIndex = 1 + omp_get_thread_num()
+      !$OMP DO
+      do memberIndex2 = 1, nEns2
+        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
+        do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
+          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
+          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))             
+        end do
+      end do
+      !$OMP END DO
+      !$OMP END PARALLEL
+
+      ! copy upper triangle to lower triangle (symmetric matrix)
+
       !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
       do memberIndex2 = 1, nEns2
-        do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
-          YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
-               sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
+        do memberIndex1 = memberIndex2+1, nEns1
+          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+               YbTinvRYb_pert(memberIndex2,memberIndex1)
         end do
       end do
       !$OMP END PARALLEL DO
-      ! copy upper triangle to lower triangle (symmetric matrix)
+
+      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then     
+        YbTinvRYb_mean(:,:) = 0.0D0
+        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+        do memberIndex2 = 1, nEns2
+          do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
+            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                 YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
+                 sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))              
+          end do
+        end do
+        !$OMP END PARALLEL DO
+        ! copy upper triangle to lower triangle (symmetric matrix)
+        do memberIndex2 = 1, nEns2
+          do memberIndex1 = memberIndex2+1, nEns1
+            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                 YbTinvRYb_mean(memberIndex2,memberIndex1)
+          end do
+        end do
+      end if
+
+    else
+      ! When nEns1 different from nEns2 we cannot assume matrix is symmetric
+
+      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
+      threadIndex = 1 + omp_get_thread_num()
+      !$OMP DO
       do memberIndex2 = 1, nEns2
-        do memberIndex1 = memberIndex2+1, nEns1
-          YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_mean(memberIndex2,memberIndex1)
+        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
+        do memberIndex1 = 1, nEns1
+          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
+          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))             
         end do
       end do
+      !$OMP END DO
+      !$OMP END PARALLEL
+
+      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then     
+        YbTinvRYb_mean(:,:) = 0.0D0
+        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+        do memberIndex2 = 1, nEns2
+          do memberIndex1 = 1, nEns1
+            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                 YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
+                 sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))              
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+
     end if
 
-  end subroutine enkf_calcYbTinvRYb_pert
+    deallocate(YbCopy_r4)
+    deallocate(YbCopy2_r4)
+
+  end subroutine enkf_calcYbTinvRYb
 
   !----------------------------------------------------------------------
   ! enkf_computeVertLocation (private subroutine)

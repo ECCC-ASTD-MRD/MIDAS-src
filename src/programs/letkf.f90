@@ -772,14 +772,13 @@ program midas_letkf
   !
 
   !- 5.1 Call to perform LETKF
-  call enkf_LETKFanalyses(algorithm, numSubEns, mpiDistribution, &
-                          randomShuffleSubEns,  &
+  call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, &
                           ensObs_mpiglobal, ensObsGain_mpiglobal, &
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          numRetainedEigen, myNumLatLonSendFactor)
+                          mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
