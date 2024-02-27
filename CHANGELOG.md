@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
- * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !796)
+ * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)
  * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)
    ** New namelist NAMCOMPUTEBHILATBANDS and new possible output files hCorrelFit.txt and vCorrelFit.txt. 
  * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Introduction of a major bug fix to correct a problem introduced in merge request !797 (merged) (#909 and !817) 
+ * Introduction of a major bug fix to correct a problem introduced in merge request !797 (#909 and !817) 
  * Removed the possibility of zero-valued pressures from routine `phf_convertZtoPressure` (#892 and !800)
  * Ensure to clean ObsDb tables after thinning in ObsSelction (#846 and !755)
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
