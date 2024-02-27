@@ -780,7 +780,7 @@ contains
             end if
           end do
           
-	  if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+          if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
                                                          containsFullField_opt = .false.)
         end if
 
