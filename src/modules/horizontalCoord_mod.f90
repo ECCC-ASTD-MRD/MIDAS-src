@@ -201,8 +201,10 @@ contains
                  grtyp, ig1, ig2, ig3,                           & ! OUT
                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3) ! OUT
 
-    write(*,*) 'fstprm ier = ', ier
-    write(*,*) 'ni, nj, grtyp, ig1, ig2, ig3, ig4 =', ni, nj, grtyp, ig1, ig2, ig3, ig4
+    if (mmpi_myid == 0) then
+      write(*,*) 'hco_setupFromFile: ier, ni, nj, grtyp, ig1, ig2, ig3, ig4 =', &
+                                     ier, ni, nj, grtyp, ig1, ig2, ig3, ig4
+    end if
 
     if (trim(grtyp) == 'G' .and. ig2 == 1) then
       call utl_abort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
@@ -232,8 +234,6 @@ contains
     xlon2_yan_4 = MPC_missingValue_R4
 
     grtypTicTac = 'X'
-
-    if (mmpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj, EZscintID = ', grtyp, ni, nj, EZscintID
 
     !- 2.2 Rotated lat-lon grid
     if (trim(grtyp) == 'Z') then
