@@ -329,7 +329,7 @@ program midas_obsSelection
       write(*,*)
     end if    
     
-    call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid_fst')
+    call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid')
     call ocm_computeMinGridSpacing(oceanMask, hco_anl, minGridSpacing)
     call ocm_deallocate(oceanMask)
     hco_anl%minGridSpacing = minGridSpacing      
@@ -393,8 +393,8 @@ program midas_obsSelection
   call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
 
   ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
-  if (utl_fileType(trim(trialFileName)) == 'NetCDF' .and. &
-      gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
+  if (gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, &
+                      real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
       
     if (mmpi_myid == 0) then
       write(*,*)
@@ -408,7 +408,7 @@ program midas_obsSelection
     if (.not. hco_equal(hco_anl, hco_trl)) then
       call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
       call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
-      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName)//'_fst')
+      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName))
       call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
       call ocm_deallocate(oceanMask)    
       hco_trl%minGridSpacing = minGridSpacing
