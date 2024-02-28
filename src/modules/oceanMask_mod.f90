@@ -61,17 +61,10 @@ module oceanMask_mod
     ! Locals:
     integer :: nulfile, ierr, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
-    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui, fstprm
+    integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui
     integer, allocatable :: mask(:,:)
     integer :: maxkeys
-    character(len=1) :: grtyp
-    integer :: dateo, deet, npas, nbits, datyp
-    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
-    integer :: extra1, extra2, extra3
-    integer :: ig1, ig2, ig3, ig4
-    character(len=20) :: varName
-    character(len=12) :: etiket
-    character(len=2 ) :: typvar
+    integer :: ip1
     logical :: fileExist
     character(len=100) :: fileName
     
@@ -121,12 +114,6 @@ module oceanMask_mod
           call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
 	
-        ! get grid type (grtyp) from the mask file
-        ierr = fstprm(ikey,                                                & ! IN
-		      dateo, deet, npas, ni_file, nj_file, nk_file, nbits, & ! OUT
-		      datyp, ip1, ip2, ip3, typvar, varName, etiket,       & ! OUT
-		      grtyp, ig1, ig2, ig3,                                & ! OUT
-		      ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)      ! OUT
 
         do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
           ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
