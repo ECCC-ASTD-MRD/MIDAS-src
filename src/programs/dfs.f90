@@ -222,16 +222,13 @@ program midas_dfs
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                  stateVectorTrialHighRes )
-
-  !Is it the right place to do that ?
-  call obs_expandToMpiGlobal(obsSpaceData)
   
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
-
+  
   ! Compute perturbed
   call diagHBHt(columnTrlOnAnlIncLev,obsSpaceData)
 
@@ -401,14 +398,21 @@ contains
     type(struct_gsv)        :: stateVector
     type(struct_vco), pointer :: vco_anl
     integer :: headerIndex, bodyIndex1, bodyIndex2, obsIndex, taskIndex
-    integer :: istart, iend
-    integer :: nObs
-    integer,allocatable :: mpiTaskList(:), obsHeaderList(:)
+    integer :: istart, iend, ierr
+    integer :: procIndex
+    integer, allocatable :: headerIndexList(:), channelList(:,:)
+    integer, allocatable :: headerIndexListMpi(:,:), channelListMpi(:,:,:)
+    integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
+    integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
     integer :: localDimension
-    logical :: first
+    logical :: first, llok
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
+    integer :: numHeader, numHeaderMaxMpi
+    integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
     integer, external :: get_max_rss
     real(8), allocatable :: perturbation_vector(:)
+    character(len=2) :: familyType
+    integer :: nChannelsDfs = 103
 
     !
     !- 1.  Initialization
@@ -429,61 +433,183 @@ contains
     !- 1.6
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
     
-    localDimension = cvm_nvadim
-    allocate(perturbation_vector(localDimension))
+   
     call col_zero(columnAnlInc)
     
-    !allocate(mpiTaskList(mmpi_nprocs))
-    nObs = 1
-    allocate(obsHeaderList(nObs))
-    obsHeaderList(:) = 1
-    !do taskIndex = 1, mmpi_nprocs
-    !  mpiTaskList(taskIndex) = taskIndex
-    !end do
-    first = .true.
-    
-
     !We might need to initialize the full OBS_WORK column to zero 
     !do bodyIndex1 = 1, 
     !  call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 0.d0)
     !end do
+    numHeader = obs_numHeader(obsSpaceData)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
+    allocate(headerIndexList(numHeaderMaxMpi))
+    allocate(mpiTaskList(numHeaderMaxMpi))
+    allocate(channelList(numHeaderMaxMpi,nChannelsDfs))
+    allocate(bodyIndexList(numHeaderMaxMpi,nChannelsDfs))
     
-    do obsIndex = 1, nObs
-      headerIndex = obsHeaderList(obsIndex)
-      !taskIndex = mpiTaskList(obsIndex)
-      
+    headerIndexList(:) = -1
+    mpiTaskList(:) = -1
+    channelList(:,:) = -1
+    bodyIndexList(:,:) = -1
+    !First step count the number of selected observation for each MPI task
+    countObs = 0
+    familyType = 'TO'
+    first = .true.
+    call obs_set_current_header_list(obsSpaceData,trim(familyType))
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER1
       istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+      countChannel = 0
       BODY1:do bodyIndex1 = istart, iend
-        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS,bodyIndex1) /= obs_assimilated ) cycle BODY1
-        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex1, &
-                                           channelNumber1, channelIndex1)
-        call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-        call oop_Had(columnAnlInc, & !output
-            columnTrlOnAnlIncLev,  &
-            obsSpaceData,          & ! input
-            initializeLinearization_opt=first)
-        first = .false.
-        call s2c_ad(stateVector,  & ! output
-            columnAnlInc,         & ! input
-            columnTrlOnAnlIncLev, &
-            obsSpaceData)
-        call bmat_sqrtB(perturbation_vector, localDimension, stateVector)
-        call bmat_sqrtBT(perturbation_vector, localDimension, stateVector)
-        call s2c_tl(stateVector, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
-        call oop_Htl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, &
-            min_nsim=1, initializeLinearization_opt=.false.)
-        BODY2:do bodyIndex2 = istart, iend
-          if ( obs_bodyElem_i(obsSpaceData, OBS_ASS,bodyIndex1) /= obs_assimilated ) cycle BODY2
-          call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex2, &
-                                           channelNumber2, channelIndex2)
-          write(*,'(A4,1x,4(i12,1x),e14.6)') "HBHt", obsIndex, headerIndex, channelNumber1, channelNumber2, obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
-        end do BODY2
-        call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 0.d0)
-
+        llok = (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex1) == obs_assimilated)
+        if (llok) then
+          countChannel = countChannel + 1
+        end if
       end do BODY1
+      if (countChannel == nChannelsDfs) then
+        write(*,*) "found one observation with ", nchannelsDfs, "levels/channels available ", headerIndex
+        countObs = countObs + 1
+        headerIndexList(countObs) = headerIndex
+        mpiTaskList(countObs) = mmpi_myid
+        countChannel = 0
+        BODY2:do bodyIndex1 = istart, iend
+          llok = (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex1) == obs_assimilated)
+          if (llok) then
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex1, &
+                channelNumber1, channelIndex1)
+            countChannel = countChannel + 1
+            channelList(countObs, countChannel) = channelNumber1
+            bodyIndexList(countObs, countChannel) = bodyIndex1
+          end if
+        end do BODY2
+      end if
+    end do HEADER1
+
+    call rpn_comm_barrier('GRID', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_barrier 1')
+    end if
+    
+    call rpn_comm_allReduce(countObs, sumCountObsMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 1')
+    end if
+    call rpn_comm_allReduce(countObs, maxCountObsMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 2')
+    end if
+    call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 3')
+    end if
+
+    allocate(mpiTaskListMpi(maxCountObsMpi, mmpi_nprocs))
+    allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
+    allocate(channelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+    allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+    mpiTaskListMpi(:,:) = -1
+    headerIndexListMpi(:,:) = -1
+    channelListMpi(:,:,:) = -1
+    bodyIndexListMpi(:,:,:) = -1
+    call rpn_comm_allgather(mpiTaskList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
+                            mpiTaskListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for mpiTaskList')
+    end if
+    call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
+                            headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for headerIndexList')
+    end if
+    call rpn_comm_allgather(channelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+        maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
+        channelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for channelList')
+    end if
+    call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+        maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
+        bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for bodyIndexList')
+    end if
+
+    call rpn_comm_barrier('GRID', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_barrier 2')
+    end if
+
+    deallocate(bodyIndexList)
+    deallocate(channelList)
+    deallocate(mpiTaskList)
+    deallocate(headerIndexList)
+    
+    localDimension = cvm_nvadim
+    allocate(perturbation_vector(localDimension))
+    do procIndex = 1, mmpi_nprocs
+      do obsIndex = 1, maxCountObsMpi
+        headerIndex = headerIndexListMpi(obsIndex,procIndex)
+        taskIndex = mpiTaskListMpi(obsIndex,procIndex)
+        if (headerIndex /= -1 .and. taskIndex /= -1) then
+          do channelIndex1 = 1, maxCountChannelMpi
+            bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
+            channelNumber1 = channelListMpi(obsIndex,channelIndex1,procIndex)
+            if (bodyIndex1 /= -1) then
+              
+              if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
+              
+              call oop_Had(columnAnlInc, & !output
+                  columnTrlOnAnlIncLev,  &
+                  obsSpaceData,          & ! input
+                  initializeLinearization_opt=first)
+              
+              first = .false.
+              
+              call s2c_ad(stateVector,  & ! output
+                  columnAnlInc,         & ! input
+                  columnTrlOnAnlIncLev, &
+                  obsSpaceData)
+              
+              call bmat_sqrtBT(perturbation_vector, & ! output
+                  localDimension, &  
+                  stateVector)                        ! input
+              
+              call bmat_sqrtB(perturbation_vector, & !input
+                  localDimension,                  &
+                  stateVector)                       ! output
+              
+              call s2c_tl(stateVector,  & !input
+                  columnAnlInc,         & ! output
+                  columnTrlOnAnlIncLev, & 
+                  obsSpaceData)
+              
+              call oop_Htl(columnAnlInc, & ! input
+                  columnTrlOnAnlIncLev,  &
+                  obsSpaceData,          & !output
+                  min_nsim=1, initializeLinearization_opt=.false.)
+              
+              do channelIndex2 = 1, maxCountChannelMpi
+                bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
+                channelNumber2 = channelListMpi(obsIndex,channelIndex2,procIndex)
+                if (mmpi_myId == taskIndex .and. bodyIndex2 /= -1) then
+                  write(*,'(A4,1x,6(i12,1x),e14.6)') 'HBHt', obsIndex, headerIndex, channelNumber1, &
+                      channelNumber2, bodyIndex1, bodyIndex2, obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
+                end if
+              end do
+            end if
+          end do
+        end if
+      end do
     end do
+
+    deallocate(bodyIndexListMpi)
+    deallocate(channelListMpi)
+    deallocate(headerIndexListMpi)
+    deallocate(mpiTaskListMpi)
+    
     deallocate(perturbation_vector)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
