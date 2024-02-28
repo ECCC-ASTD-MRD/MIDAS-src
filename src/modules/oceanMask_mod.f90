@@ -16,7 +16,6 @@ module oceanMask_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use message_mod
-  use getGridPosition_mod
   
   implicit none
   save
@@ -74,13 +73,9 @@ module oceanMask_mod
     character(len=12) :: etiket
     character(len=2 ) :: typvar
     logical :: fileExist
-    character(100) ::fileName
+    character(len=100) :: fileName
     
-    if (gpos_gridIsOrca(hco%ni, hco%nj, &
-                        real(hco%lat2d_4,8), &
-                        real(hco%lon2d_4,8)) .and. &
-        trim(utl_fileType(inputFileName)) == 'NetCDF') then
-
+    if (trim(utl_fileType(inputFileName)) == 'NetCDF') then
       fileName = trim(inputFileName)//'_fst'
       inquire(file = trim(fileName), exist = fileExist)
       if (.not. fileExist) then
@@ -88,7 +83,7 @@ module oceanMask_mod
                        trim(fileName))
       end if
     else
-      fileName =  trim(inputFileName)   
+      fileName = trim(inputFileName)   
     end if 
     call msg('ocm_readMaskFromFile', 'File name = '//trim(fileName))
 
