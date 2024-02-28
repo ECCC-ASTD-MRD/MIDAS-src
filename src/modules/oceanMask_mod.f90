@@ -76,8 +76,6 @@ module oceanMask_mod
     logical :: fileExist
     character(100) ::fileName
     
-    write(*,*) 'DEBUG: input file name: ', fileName
-  
     if (gpos_gridIsOrca(hco%ni, hco%nj, &
                         real(hco%lat2d_4,8), &
                         real(hco%lon2d_4,8)) .and. &
