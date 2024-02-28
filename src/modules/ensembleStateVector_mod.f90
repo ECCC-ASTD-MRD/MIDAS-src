@@ -2710,7 +2710,7 @@ CONTAINS
                                etiket, typvar, &
                                etiketAppendMemberNumber_opt, varNames_opt, &
                                ip3_opt, containsFullField_opt, numBits_opt, &
-                               resetTimeParams_opt)
+                               resetTimeParams_opt, writeNetCDF_opt)
     !
     !:Purpose: Write the ensemble to disk by doing mpi transpose so that
     !          each mpi task can write a single member in parallel.
@@ -2729,6 +2729,7 @@ CONTAINS
     logical, optional,          intent(in)    :: etiketAppendMemberNumber_opt
     logical, optional,          intent(in)    :: containsFullField_opt
     logical, optional,          intent(in)    :: resetTimeParams_opt
+    logical, optional,          intent(in)    :: writeNetCDF_opt ! to save outputs in a netCDF file
 
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
@@ -2745,13 +2746,13 @@ CONTAINS
     integer :: numK, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, kIndexBeg, kIndexEnd, kCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
-    character(len=256) :: ensFileName
+    character(len=256) :: ensFileName, outFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
     character(len=10) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
-    logical :: containsFullField
+    logical :: containsFullField, writeNetCDF
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2774,6 +2775,12 @@ CONTAINS
       ip3 = ip3_opt
     else
       ip3 = 0
+    end if
+
+    if (present(writeNetCDF_opt)) then
+      writeNetCDF = writeNetCDF_opt
+    else
+      writeNetCDF = .false.
     end if
 
     if (present(resetTimeParams_opt)) then
@@ -2905,21 +2912,22 @@ CONTAINS
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
             if ( typvar == 'R' ) then
-              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), &
-                                       memberIndex_opt=memberIndex,  &
-                                       ensFileNamePrefix_opt=ensFileNamePrefix, &
-                                       ensFileNameSuffix_opt='inc' )
+              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                      memberIndex_opt = memberIndex,  &
+                                      ensFileNamePrefix_opt = ensFileNamePrefix, &
+                                      ensFileNameSuffix_opt = 'inc')
             else
-              call fln_ensAnlFileName( ensFileName, ensPathName, tim_getDateStamp(), &
-                                       memberIndex_opt=memberIndex,  &
-                                       ensFileNamePrefix_opt=ensFileNamePrefix )
+              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                      memberIndex_opt = memberIndex,  &
+                                      ensFileNamePrefix_opt = ensFileNamePrefix)
             end if
             ensFileExtLength = 4
           else
-            call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, &
-                                  ensFileNamePrefix_opt=ensFileNamePrefix, &
-                                  shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength, &
-                                  fileMemberIndex1_opt=ens%fileMemberIndex1 )
+            call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
+                                 ensFileNamePrefix_opt = ensFileNamePrefix, &
+                                 shouldExist_opt = .false., &
+				 ensembleFileExtLength_opt = ensFileExtLength, &
+                                 fileMemberIndex1_opt = ens%fileMemberIndex1)
           end if
 
           ! Determine if ensemble is full fields (if yes, will be converted from K to C)
@@ -2937,7 +2945,7 @@ CONTAINS
               write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
               ! 12 is the maximum length of an etiket for RPN fstd files
               maximumBaseEtiketLength = 12 - ensFileExtLength
-              if ( len(trim(etiketStr)) >= maximumBaseEtiketLength ) then
+              if (len(trim(etiketStr)) >= maximumBaseEtiketLength) then
                 etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
               else
                 etiketStr = trim(etiketStr) // trim(memberIndexStr)
@@ -2952,10 +2960,16 @@ CONTAINS
           ! 'statevector_member_r4'.
           statevector_member_r4%etiket = etiketStr
 
-          call gio_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
-                                typvar_opt = typvar, numBits_opt = numBits_opt,  &
-                                containsFullField_opt = containsFullField )
-
+          call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
+                               typvar_opt = typvar, numBits_opt = numBits_opt,  &
+                               containsFullField_opt = containsFullField)
+          
+          if (writeNetCDF) then
+	    outFileName = trim(ensFileName) // '.nc'
+            call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
+                                       containsFullField_opt = containsFullField)
+	  end if
+	  
         end if ! locally written one member
 
       end do ! memberIndex

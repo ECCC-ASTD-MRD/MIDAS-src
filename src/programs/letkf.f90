@@ -181,6 +181,8 @@ program midas_letkf
   use innovation_mod
   use enkf_mod
   use ensPostProcess_mod
+  use message_mod
+  
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -254,7 +256,7 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  
+ 
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -402,9 +404,9 @@ program midas_letkf
                    'Increments can be either 3D or have same number of time steps as trials')
   end if
   allocate(dateStampList(tim_nstepobs))
-  call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
+  call tim_getStampList(dateStampList, tim_nstepobs, tim_getDatestamp())
   allocate(dateStampListInc(tim_nstepobsinc))
-  call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
+  call tim_getStampList(dateStampListInc, tim_nstepobsinc, tim_getDatestamp())
 
   write(*,*) 'midas-letkf: analysis dateStamp = ',tim_getDatestamp()
 
@@ -415,7 +417,7 @@ program midas_letkf
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = 1, &
-                       copyToRamDisk_opt = .false. )
+                       copyToRamDisk_opt = .false.)
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
@@ -529,6 +531,8 @@ program midas_letkf
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
+  
+    call msg('midas-letkf', 'Read a deterministic state for recentering the ensemble.')
     call gsv_allocate(stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
                       dateStamp_opt = tim_getDateStamp(),  &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
@@ -543,8 +547,11 @@ program midas_letkf
                             stepIndex_opt = stepIndex, containsFullField_opt = .true., &
                             readHeightSfc_opt = .false.)
     end do
+    
     call ens_recenter(ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt = 1.0d0)
     call gsv_deallocate(stateVectorRecenter)
+    call msg('midas-letkf', 'Recentering the ensemble completed.')
+    
   end if
   
   !- 2.13 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors

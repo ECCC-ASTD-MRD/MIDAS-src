@@ -55,12 +55,12 @@ contains
     character(len=4),   save :: fileMemberIndex1Str
     character(len=200), save :: ensFileBaseName
 
-    if ( present(resetFileInfo_opt) ) then
+    if (present(resetFileInfo_opt)) then
       if (resetFileInfo_opt) firstTime = .true.
       return
     end if
 
-    if ( present(shouldExist_opt) ) then
+    if (present(shouldExist_opt)) then
       shouldExist = shouldExist_opt
     else
       shouldExist = .true.
@@ -90,14 +90,14 @@ contains
 
       ensFileName = trim(fileList(1))
       totalLength = len_trim(ensFileName)
-      if ( totalLength == 0 ) then
+      if (totalLength == 0) then
         call utl_abort('fln_ensFileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
       end if
 
       ! find number of digits used to identify ensemble member index
       ensembleFileExtLength = 0
       do
-        if ( ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_' ) exit
+        if (ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_') exit
         ensembleFileExtLength = ensembleFileExtLength + 1
       end do
 
@@ -108,8 +108,8 @@ contains
       ! find the last '/' in the file name to get the basename of the file
       ensembleBaseFileNameLength = 0
       do
-        if ( totalLength == ensembleBaseFileNameLength ) exit
-        if ( ensFileName((totalLength-ensembleBaseFileNameLength):(totalLength-ensembleBaseFileNameLength)) == '/' ) exit
+        if (totalLength == ensembleBaseFileNameLength) exit
+        if (ensFileName((totalLength-ensembleBaseFileNameLength):(totalLength-ensembleBaseFileNameLength)) == '/') exit
         ensembleBaseFileNameLength = ensembleBaseFileNameLength + 1
       end do
 
@@ -128,30 +128,32 @@ contains
       firstTime = .false.
     end if
 
-    if (present(memberIndex_opt)) then
+    MEMBERINDEX: if (present(memberIndex_opt)) then
+      
       write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
       write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') &
           memberIndex_opt + fileMemberIndex1 - 1
-    end if
 
-    if (present(memberIndex_opt)) then
       if (present(ensFileNamePrefix_opt)) then
         ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) //  &
                       trim(ensFileBaseName) // '_' // trim(ensNumber)
       else
         ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
       end if
+      
     else
+    
       if (present(ensFileNamePrefix_opt)) then
         ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName)
       else
         ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName)
       end if
-    end if
+      
+    end if MEMBERINDEX
 
     write(*,*) 'fln_ensFileName: ensFileName = ', trim(ensFileName)
 
-    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName, copyToRamDisk_opt=copyToRamDisk_opt)
+    if (shouldExist) ensFileName = ram_fullWorkingPath(ensFileName, copyToRamDisk_opt=copyToRamDisk_opt)
 
     if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
     if (present(ensembleFileExtLength_opt)) ensembleFileExtLength_opt = ensembleFileExtLength
@@ -235,8 +237,8 @@ contains
   !--------------------------------------------------------------------------
   ! fln_ensTrlFileName
   !--------------------------------------------------------------------------
-  subroutine fln_ensTrlFileName( ensFileName, ensPathName, dateStamp,  &
-                                 memberIndex_opt, ensFileNamePrefix_opt, ensFileNameSuffix_opt )
+  subroutine fln_ensTrlFileName(ensFileName, ensPathName, dateStamp, memberIndex_opt, &
+                                ensFileNamePrefix_opt, ensFileNameSuffix_opt)
     ! :Purpose: Return the filename for a trial state, including for
     !           ensemble members (by specifying memberIndex_opt). The member
     !           index extension is assumed to be 4 digits.
@@ -250,7 +252,7 @@ contains
     integer,          optional, intent(in)  :: memberIndex_opt
     character(len=*), optional, intent(in)  :: ensFileNamePrefix_opt
     character(len=*), optional, intent(in)  :: ensFileNameSuffix_opt
-
+    
     ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl
     character(len=4)  :: ensNumber
@@ -259,7 +261,8 @@ contains
 
     ! Compute the datestamp for the origin time of the trial forecasts
     call incdatr(dateStampTrl, dateStamp, -tim_windowsize)
-    
+    write(*,*) 'fln_ensTrlFileName: trial dateStamp: ', dateStampTrl
+     
     ! Set the printable date for trial related file names
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStampTrl, prntdate, prnttime, imode)

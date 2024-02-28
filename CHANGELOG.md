@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)
  * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)

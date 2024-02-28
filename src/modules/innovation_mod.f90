@@ -52,7 +52,7 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in, obsClean_opt )
+                          innovationMode_in, obsClean_opt)
     !
     !:Purpose: To initialize the observation parameters and constants
     !
@@ -118,7 +118,7 @@ contains
     !- Read the observations from files
     !
     call utl_tmg_start(11,'----ReadObsFiles')
-    call obsf_readFiles( obsSpaceData )
+    call obsf_readFiles(obsSpaceData)
     call utl_tmg_stop(11)
 
     !
@@ -639,11 +639,11 @@ contains
     if ( applyVarqcOnNlJo ) call vqc_NlTl(obsSpaceData)
 
     ! Compute Jo components and print
-    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
-    if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
+    call cfn_sumJo(obsSpaceData, Jo, beSilent_opt = beSilent)
+    if (mmpi_myid == 0 .and. .not. beSilent) write(*,'(a15,e25.15e3)') 'Total Jo = ', Jo
 
-    if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
-    if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
+    if (.not.beSilent) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
+    if (.not.beSilent) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
     if ( .not. beSilent ) then
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -858,7 +858,7 @@ contains
   !--------------------------------------------------------------------------
   ! inn_getHcoVcoFromTrlmFile
   !--------------------------------------------------------------------------
-  subroutine inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  subroutine inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trialFileName)
     !
     !:Purpose: Get hco/vco of the trials
     !
@@ -867,6 +867,7 @@ contains
     ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco_trl
     type(struct_vco), pointer, intent(inout) :: vco_trl
+    character(len=*)         , intent(in)    :: trialFileName ! trial fields file name
 
     ! Locals:
     character(len=4), pointer :: anlVar(:)
@@ -883,9 +884,9 @@ contains
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
-    call hco_SetupFromFile(hco_trl, './trlm_01', ' ', 'Trial', varName_opt=anlVar(1))
-
-    call vco_SetupFromFile(vco_trl, './trlm_01')
+    
+    call hco_SetupFromFile(hco_trl, trim(trialFileName), ' ', 'Trial', varName_opt = anlVar(1))
+    call vco_SetupFromFile(vco_trl, trim(trialFileName))
 
     write(*,*) 'inn_getHcoVcoFromTrlmFile: END'
 

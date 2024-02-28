@@ -126,7 +126,7 @@ contains
   !--------------------------------------------------------------------------
   ! obsf_readFiles
   !--------------------------------------------------------------------------
-  subroutine obsf_readFiles( obsSpaceData )
+  subroutine obsf_readFiles(obsSpaceData)
     implicit none
 
     ! Arguments:
@@ -181,10 +181,10 @@ contains
           numBodyRead = numBodies - numBodyBefore
         end if
         if ( obsFileType == 'SQLITE' ) then
-          call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+          call sqlf_readFile(obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal)
         end if
         if ( obsFileType == 'OBSDB' ) then
-          call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+          call odbf_readFile(obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal)
         end if
       else
         numHeaderRead = 0

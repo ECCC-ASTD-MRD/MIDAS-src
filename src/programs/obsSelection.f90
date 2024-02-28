@@ -30,7 +30,7 @@ program midas_obsSelection
   !============================================== ==============================================================
   ! ``flnml``                                      In - Main namelist file with parameters that user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
-  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``trlm_$NN`` (e.g. ``trlm_01``) or ``trlm``    In - Background state (a.k.a. trial) files for each timestep, ``trlm`` file contains all time steps
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
   ! ``obserr``                                     In - Observation error statistics
@@ -206,7 +206,10 @@ program midas_obsSelection
   use bgckCSR_mod
   use bgckOcean_mod 
   use sstBias_mod
-   
+  use message_mod
+  use oceanMask_mod
+  use getGridPosition_mod
+  
   implicit none
 
   integer :: dateStampFromObs, headerIndex, ierr
@@ -219,10 +222,14 @@ program midas_obsSelection
   type(struct_hco),      pointer :: hco_trl => null()
   type(struct_vco),      pointer :: vco_trl => null()
   type(struct_hco),      pointer :: hco_core => null()
+  type(struct_ocm)               :: oceanMask
 
   logical :: allocHeightSfc
   integer :: get_max_rss
-
+  real(8) :: minGridSpacing
+  logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
+  character(len=12) :: trialFileName
+    
   ! Namelist variables
   logical                        :: doThinning  ! Control whether or not thinning is done
 
@@ -266,11 +273,22 @@ program midas_obsSelection
   !- Initialize observation file names, but don't use datestamp
   !
   call obsf_setup(dateStampFromObs, 'bgck')
-
+  
+  !
+  !- Check if trial fields are stored in separate files for each time step or not.
+  !
+  inquire(file = './trlm', exist = allTrialTimeStepsInOneFile)
+  if (allTrialTimeStepsInOneFile) then
+    trialFileName = './trlm'
+  else
+    trialFileName = './trlm_01'
+  end if 
+   
   !
   !- Initialize the Temporal grid and dateStamp from trial file
   !
-  call tim_setup(fileNameForDate_opt = './trlm_01')
+
+  call tim_setup(fileNameForDate_opt = trim(trialFileName))
 
   !
   !- Initialize constants
@@ -284,21 +302,40 @@ program midas_obsSelection
   !- Initialize the Analysis grid
   !
   if(mmpi_myid == 0) write(*,*)
-  if(mmpi_myid == 0) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
-  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-
-  if ( hco_anl % global ) then
+  if(mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for analysis grid')
+  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis') ! IN
+  
+  if (hco_anl % global) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if( mmpi_myid == 0) write(*,*) 'midas-obsSelection: Set hco parameters for core grid'
-    call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+    if (mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for core grid')
+    call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
   end if
 
   !     
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
   !
   call vco_SetupFromFile(vco_anl, './analysisgrid')
+
+  !
+  !- Compute correct value of minGridSpacing for ORCA025 analysis grid
+  !
+  if (gpos_gridIsOrca(hco_anl%ni, hco_anl%nj, real(hco_anl%lat2d_4,8), real(hco_anl%lon2d_4,8))) then
+    if (mmpi_myid == 0) then
+      write(*,*)
+      call msg('midas_obsSelection', 'Warning: analysis grid is the ORCA025 grid.')
+      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed using ocean mask.')
+      write(*,*)
+    end if    
+    
+    call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid')
+    call ocm_computeMinGridSpacing(oceanMask, hco_anl, minGridSpacing)
+    call ocm_deallocate(oceanMask)
+    hco_anl%minGridSpacing = minGridSpacing      
+    call msg('midas_obsSelection', 'Updated hco_anl%minGridSpacing: '//&
+                                   str(hco_anl%minGridSpacing)//' m')
+  end if
 
   call col_setVco(columnTrlOnAnlIncLev, vco_anl)
   write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
@@ -353,7 +390,36 @@ program midas_obsSelection
   if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
     
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
+
+  ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
+  if (gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, &
+                      real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
+      
+    if (mmpi_myid == 0) then
+      write(*,*)
+      call msg('midas_obsSelection', 'Warning: trial grid is the ORCA025 grid.')
+      call msg('midas_obsSelection', 'hco_trl%minGridSpacing = '//str(hco_trl%minGridSpacing))
+      call msg('midas_obsSelection', &
+               'hco_trl%minGridSpacing will be replaced by the value computed using ocean mask.')
+      write(*,*)
+    end if  
+    
+    if (.not. hco_equal(hco_anl, hco_trl)) then
+      call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
+      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
+      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName))
+      call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
+      call ocm_deallocate(oceanMask)    
+      hco_trl%minGridSpacing = minGridSpacing
+    else
+      call msg('midas_obsSelection', 'Horizontal analysis and trial grids are equal.')
+      hco_trl%minGridSpacing = hco_anl%minGridSpacing
+    end if      
+    call msg('midas_obsSelection', 'Updated hco_trl%minGridSpacing: '//&
+                                   str(hco_trl%minGridSpacing)//' m')
+  end if
+  
   allocHeightSfc = (vco_trl%Vcode /= 0)
 
   call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &

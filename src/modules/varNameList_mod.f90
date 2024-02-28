@@ -104,7 +104,7 @@ module varNameList_mod
                                  'LD',  'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
 
   character(len=4), parameter :: vnl_varNameListCloud(vnl_numvarmaxCloud) = (/ &
-                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)                                 
+                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
 
@@ -805,7 +805,7 @@ module varNameList_mod
     !-----------------------------------------------------------------------
     ! vnl_varNamePresentInFile
     !----------------------------------------------------------------------
-    function vnl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+    function vnl_varNamePresentInFile(varName, fileName, typvar_opt) result(found)
       !
       !:Purpose: Determine if a given variable name is present within a file.
       !          This function supports both "standard" files and NetCDF files.
@@ -813,78 +813,70 @@ module varNameList_mod
       implicit none
 
       ! Arguments:
-      character(len=*), intent(in)           :: varName      ! variable name
-      character(len=*), intent(in), optional :: fileName_opt ! file name
-      integer         , intent(in), optional :: fileUnit_opt ! file unit
-      character(len=*), intent(in), optional :: typvar_opt   ! typvar used for RPN standard files
+      character(len=*), intent(in)           :: varName    ! variable name
+      character(len=*), intent(in)           :: fileName   ! file name
+      character(len=*), intent(in), optional :: typvar_opt ! typvar used for RPN standard files
 
       ! Result:
-      logical                                :: found        ! true if variable name is found, false, the converse
+      logical                                :: found      ! true if variable name is found, false, the converse
 
       ! Locals:
       integer :: fnom, fstouv, fstfrm, fclos, fstinf
       integer :: ni, nj, nk, key, ierr
-      integer :: unit, varID
-      character(len=128) :: fileName
+      integer :: unit, ncid, varID
       character(len=2)   :: typvar
-      logical            :: openFile
+      logical, parameter :: beSilent = .true.
+      character(len=10)  :: varNameNetCDF
 
-      if (present(fileUnit_opt)) then
-        unit = fileUnit_opt
-        openFile = .false.
-      else
-        unit = 0
-        openFile = .true.
-        if (present(fileName_opt)) then
-          fileName = fileName_opt
-        else
-          call utl_abort('vnl_varNamePresentInFile: please provide and file name or unit')
-        end if
-      end if
-
+      unit = 0
+      
       if (present(typvar_opt)) then
         typvar = trim(typvar_opt)
       else
         typvar = ' '
       end if
 
-      if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
+      if (trim(utl_fileType(trim(fileName))) == 'FST') then
 
-        if (openFile) then
-          ierr = nf90_open(fileName, nf90_nowrite, unit)
-        end if
-
-        ierr = nf90_inq_varid(unit, trim(vnl_varNameNetCDF(varName)), varID)
-        if (ierr == nf90_noerr) then
-          found = .true.
-        else
-          found = .false.
-        end if
-
-        if (openFile) then
-          ierr = nf90_close(unit)
-        end if
-
-      else ! assume standard file
-
-        if (openFile) then
-          ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
-          ierr = fstouv(unit, 'RND+OLD')
-        end if
-
+        ierr = fnom(unit, fileName, 'RND+OLD+R/O', 0)
+        ierr = fstouv(unit, 'RND+OLD')
+      
         key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
-    
+  
         if (key > 0)  then
-          found = .true.
+	  found = .true.
         else
+	  found = .false.
+        end if
+
+        ierr =  fstfrm(unit)
+        ierr =  fclos (unit)
+
+      else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
+
+	varNameNetCDF = vnl_varNameNetCDF(varName, trim(fileName))
+
+	if (varNameNetCDF == 'notFound') then
+	
           found = .false.
-        end if
+	  
+        else
+	
+          call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
+          ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)      
+          if (ierr == nf90_noerr) then
+            found = .true.
+          else
+            found = .false.
+          end if
+          call utl_checkNetCDFstatus(nf90_close(ncid))
 
-        if (openFile) then
-          ierr =  fstfrm(unit)
-          ierr =  fclos (unit)
         end if
+	  
+      else
 
+        call utl_abort('vnl_varNamePresentInFile: unknown input file type: '//&
+                       trim(utl_fileType(trim(fileName))))
       end if
 
     end function vnl_varNamePresentInFile
@@ -892,23 +884,40 @@ module varNameList_mod
     !-----------------------------------------------------------------------
     ! vnl_varNameNetCDF
     !----------------------------------------------------------------------
-    function vnl_varNameNetCDF(varName) result(varNameNetCDF)
+    function vnl_varNameNetCDF(varName, fileName) result(varNameNetCDF)
       !
       ! :Purpose: Return the equivalent variable name used for netCDF files
       !           in use by the NEMO ocean model.
       implicit none
   
       ! Arguments:
-      character(len=*), intent(in) :: varName       ! input MIDAS variable name
-      
+      character(len=*), intent(in) :: varName  ! input MIDAS variable name
+      character(len=*), intent(in) :: fileName ! NEMO trial file   
+          
       ! Result:
-      character(len=20)            :: varNameNetCDF ! variable name used for NEMO netCDF files
+      character(len=20) :: varNameNetCDF ! variable name used in NEMO netCDF
+
+      ! Locals:
+      logical :: varFound(3) ! logical switches:
+                             !   1. found depth,
+                             !   2. found 3D ocean temperature, 
+                             !   3. found SST.
 
       select case(trim(varName))
       case('SSH')
         varNameNetCDF = 'zos'
-      case('TM')
-        varNameNetCDF = 'toce'
+      case('TM')    
+        ! special case for TM which is currently a variable used for SST as well as 
+	! for 3D ocean temperature field
+        call utl_inquireNEMOTemperature(fileName, varFound(:))
+        if (varFound(2)) then
+          varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field
+        else if (varFound(3)) then
+          varNameNetCDF = 'tos'     ! NEMO 2D SST field
+        else
+          write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
+                     trim(fileName), ' for varName = ', trim(varName)
+        end if
       case('SALW')
         varNameNetCDF = 'soce'
       case('UUW')
@@ -916,10 +925,10 @@ module varNameList_mod
       case('VVW')
         varNameNetCDF = 'vo'
       case default
-        varNameNetCDF = trim(varName)
+        varNameNetCDF = 'notFound'
         write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
       end select
-  
+
     end function vnl_varNameNetCDF
 
 end module varNameList_mod

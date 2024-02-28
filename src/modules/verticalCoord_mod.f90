@@ -76,7 +76,7 @@ contains
   !--------------------------------------------------------------------------
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_SetupFromFile(vco, templatefile, etiket_opt, beSilent_opt)
+  subroutine vco_SetupFromFile(vco, templateFile, etiket_opt, beSilent_opt)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a standard file.
@@ -85,7 +85,7 @@ contains
 
     ! Arguments:
     type(struct_vco),pointer,   intent(inout) :: vco          ! Vertical coordinate object 
-    character(len=*),           intent(in)    :: templatefile ! Template file
+    character(len=*),           intent(in)    :: templateFile ! Template file
     character(len=*), optional, intent(in)    :: etiket_opt   ! Optional argument etiket
     logical,          optional, intent(in)    :: beSilent_opt ! Optional argument beSilent
 
@@ -93,7 +93,7 @@ contains
     logical           :: beSilent
     character(len=12) :: etiket
     integer :: nultemplate,ierr
-    integer, parameter :: maxNumRecords = 1000
+    integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     integer :: ip1_sfc
@@ -129,11 +129,11 @@ contains
 
     ! Check if template file exists
     if (mmpi_myid == 0 .and. .not. beSilent) then
-      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templateFile)
     end if
     inquire(file=templatefile,exist=fileExists)
     if ( .not. fileExists )then
-      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templateFile)
       call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     end if
 
@@ -141,27 +141,28 @@ contains
     netCdfFormat = (trim(utl_fileType(trim(templateFile))) == 'NetCDF')
 
     ! First priority, check if vgrid descriptor record present - if so, atmospheric fields
-    atmFieldFound = vnl_varNamePresentInFile('!!',fileName_opt=trim(templatefile))
+    atmFieldFound = vnl_varNamePresentInFile('!!', fileName = trim(templateFile))
 
     ! If not atmospheric field and not NetCDF file, examine data records in template file
     if (.not. atmFieldFound .and. .not. netCdfFormat) then
 
       if (.not. beSilent) then
-        write(*,*) 'vco_setupFromFile: No vgrid descriptor found, examine data records in template file'
+        write(*,*) 'vco_setupFromFile: No vgrid descriptor found.'
+        write(*,*) '                   Examine data records in template file: ', trim(templateFile)
       end if
 
       ! open the template file
       nultemplate=0
-      ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-      if ( ierr == 0 ) then
-        ierr =  fstouv(nultemplate,'RND+OLD')
+      ierr=fnom(nultemplate, templateFile, 'RND+OLD+R/O', 0)
+      if (ierr == 0) then
+        ierr =  fstouv(nultemplate, 'RND+OLD')
       else
-        write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
+        write(*,*) 'vco_setupFromFile: Template File = ', trim(templateFile)
         call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
       end if
 
-      ierr = fstinl(nultemplate,ini,inj,ink,-1,etiket,-1,-1,-1,' ', &
-                    ' ',ikeys,numRecords,maxNumRecords)
+      ierr = fstinl(nultemplate, ini, inj, ink, -1, etiket, -1, -1, -1, ' ', &
+                    ' ', ikeys, numRecords, maxNumRecords)
       if (ikeys(1) <= 0) then
         call utl_abort('vco_setupFromFile: Could not find any records in the supplied file')
       end if
@@ -203,24 +204,28 @@ contains
 
       end do record_loop
 
-      ierr =  fstfrm(nultemplate)
-      ierr =  fclos (nultemplate)
+      ierr = fstfrm(nultemplate)
+      ierr = fclos (nultemplate)
 
     end if
 
     ! call appropriate setup routine based on what was found in template file
     if (netCdfFormat) then
       ! currently, assume NetCDF files only used for depth-level ocean fields
-      call vco_setupOceanFromNetCdfFile(vco, templatefile, beSilent)
+      call vco_setupOceanFromNetCdfFile(vco, templateFile, beSilent)
     else if (atmFieldFound) then
-      call vco_setupAtmFromFile(vco, templatefile, etiket, beSilent)
+      call vco_setupAtmFromFile(vco, templateFile, etiket, beSilent)
     else if (oceanFieldFound) then
-      call vco_setupOceanFromFile(vco, templatefile, etiket, beSilent)
+      call vco_setupOceanFromFile(vco, templateFile, etiket, beSilent)
     else if (sfcFieldFound) then
       call vco_setupSfcFromFile(vco, beSilent)
     else
       call utl_abort('vco_setupFromFile: could not setup vco from template file')
     end if
+
+    write(*,*) ''
+    write(*,*) 'vco_setupFromFile: completed'
+    write(*,*) ''
 
   end subroutine vco_setupFromFile
 
@@ -459,7 +464,7 @@ contains
   !--------------------------------------------------------------------------
   ! vco_setupOceanFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_setupOceanFromFile(vco,templatefile,etiket,beSilent)
+  subroutine vco_setupOceanFromFile(vco, templateFile, etiket, beSilent)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a standard file. For Ocean fields on depth levels.
@@ -468,13 +473,13 @@ contains
 
     ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
-    character(len=*),          intent(in)    :: templatefile ! Template file
+    character(len=*),          intent(in)    :: templateFile ! Template file
     character(len=*),          intent(in)    :: etiket
     logical,                   intent(in)    :: beSilent
 
     ! Locals:
     integer :: nultemplate, ierr
-    integer, parameter :: maxNumRecords = 500
+    integer, parameter :: maxNumRecords = 5000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
     character(len=10) :: blk_S
@@ -490,7 +495,8 @@ contains
     character(len=4)  :: nomvar
     character(len=1)  :: grtyp
 
-    if (.not. beSilent) write(*,*) 'vco_setupOceanFromFile: found ocean fields'
+    if (.not. beSilent) &
+    write(*,*) 'vco_setupOceanFromFile: found ocean fields in file: ', trim(templateFile)
 
     ! initialize some components of vco
     vco%vgridPresent = .false.
@@ -501,23 +507,23 @@ contains
 
     ! open the template file
     nultemplate = 0
-    ierr = fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-    if ( ierr == 0 ) then
-      ierr =  fstouv(nultemplate,'RND+OLD')
+    ierr = fnom(nultemplate, templatefile, 'RND+OLD+R/O',0)
+    if (ierr == 0) then
+      ierr = fstouv(nultemplate, 'RND+OLD')
     else
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupOceanFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
-    ierr = fstinl(nultemplate,ini,inj,ink,-1,etiket,-1,-1,-1,' ', &
-                  ' ',ikeys,numRecords,maxNumRecords)
-    if ( ikeys(1) <= 0 ) then
+    ierr = fstinl(nultemplate, ini, inj, ink, -1, etiket, -1, -1, -1, ' ', &
+                  ' ', ikeys, numRecords, maxNumRecords)
+    if (ikeys(1) <= 0) then
       call utl_abort('vco_setupOceanFromFile: Could not find any records ' //  &
                      'in the supplied file')
     end if
     record_loop: do recordIndex = 1, numRecords
-      ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, ini, inj, &
-                    ink, inbits, idatyp, ip1, ip2, ip3, &
+      ierr = fstprm(ikeys(recordIndex), dateStamp_origin, ideet, inpas, &
+                    ini, inj, ink, inbits, idatyp, ip1, ip2, ip3, &
                     typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
 
@@ -526,11 +532,11 @@ contains
 
       ! check for record with ocean data on depth levels
       call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
-      if ( Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
-           vnl_varKindFromVarname(trim(nomvar)) == 'OC' .and. &
-           vnl_varLevelFromVarname(trim(nomvar)) == 'DP' ) then
+      if (Ip1Kind == 0 .and. vertCoordValue >= 0.0 .and. &
+          vnl_varKindFromVarname(trim(nomvar)) == 'OC' .and. &
+          vnl_varLevelFromVarname(trim(nomvar)) == 'DP') then
         ! check if we've NOT already recorded this depth level
-        if ( .not. any(vertCoordValue == depths(1:vco%nLev_depth)) ) then
+        if (.not. any(vertCoordValue == depths(1:vco%nLev_depth))) then
           vco%nLev_depth = vco%nLev_depth + 1
           depths(vco%nLev_depth) = vertCoordValue
           ip1_depth(vco%nLev_depth) = ip1
@@ -545,8 +551,8 @@ contains
 
     end do record_loop
 
-    ierr =  fstfrm(nultemplate)
-    ierr =  fclos (nultemplate)
+    ierr = fstfrm(nultemplate)
+    ierr = fclos (nultemplate)
 
     ! Allocate object arrays and copy in depth information
     allocate(vco%depths(vco%nLev_depth))
@@ -555,8 +561,8 @@ contains
     vco%ip1_depth(:) = ip1_depth(1:vco%nLev_depth)
 
     ! Check if ocean depth levels are in correct order (ascending in value)
-    if ( vco%nLev_depth > 1 ) then
-      if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
+    if (vco%nLev_depth > 1) then
+      if (any(vco%depths(2:vco%nLev_depth) - vco%depths(1:(vco%nLev_depth-1)) < 0.0)) then
         call utl_abort('vco_setupOceanFromFile: some depth levels not in ascending order')
       end if
     end if
@@ -566,7 +572,7 @@ contains
   !--------------------------------------------------------------------------
   ! vco_setupOceanFromNetCdfFile
   !--------------------------------------------------------------------------
-  subroutine vco_setupOceanFromNetCdfFile(vco,templatefile,beSilent)
+  subroutine vco_setupOceanFromNetCdfFile(vco, templateFile, beSilent)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a NetCDF file. Only used for Ocean fields on depth levels.
@@ -575,18 +581,23 @@ contains
 
     ! arguments:
     type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
-    character(len=*),          intent(in)    :: templatefile ! Template file
+    character(len=*),          intent(in)    :: templateFile ! Template file
     logical,                   intent(in)    :: beSilent
 
     ! locals:
-    integer :: nultemplate, ierr
+    integer :: ncid
     integer :: levIndex, varID, xtype, nDims, dimIndex, nAtts, ip1Value
-    integer :: dimids(NF90_MAX_VAR_DIMS), dimLength(NF90_MAX_VAR_DIMS)
-    character(len=NF90_MAX_NAME) :: dimName
-    character(len=20) :: nomvar
+    integer :: dimids(nf90_max_var_dims), dimLength(nf90_max_var_dims)
+    character(len=nf90_max_name) :: dimName
+    character(len=20) :: varName
     character(len=10) :: blk_S
-
-    if (.not. beSilent) write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file'
+    logical :: varFound(3)   ! logical switches:
+                             !   1. found depth,
+                             !   2. found 3D ocean temperature, 
+                             !   3. found SST.
+    
+    if (.not. beSilent) &
+    write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file', trim(templateFile)
 
     ! initialize some components of vco
     vco%vgridPresent = .false.
@@ -595,65 +606,106 @@ contains
     vco%Vcode  = 0
     vco%initialized = .true.
 
-    ! Open the template file
-    ierr = nf90_open(templateFile, NF90_NOWRITE, nultemplate)
+    call utl_inquireNEMOTemperature(templateFile, varFound(:))
 
-    ! Get numLev from variable 'deptht'
-    ierr = nf90_inq_varid(nultemplate, 'deptht', varID)
-    if (ierr /= nf90_NoErr) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: could not find "deptht" variable in template file')
-    end if
+    NODEPTHT: if (.not.varFound(1)) then
 
-    ! Get the number of levels, i.e. length of 'deptht' dimension
-    ierr = nf90_inquire_variable(nultemplate, varID, nomvar, xtype, nDims, dimids, nAtts)
-    vco%nLev_depth = -1
-    do dimIndex = 1, nDims
-      ierr = nf90_inquire_dimension(nultemplate, dimids(dimIndex), dimName, dimLength(dimIndex))
-      if (trim(dimName) == 'deptht') vco%nLev_depth = dimLength(dimIndex)
-    enddo
-    if (vco%nLev_depth < 0) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: not able to find deptht dimension in NetCDF file')
-    end if
+      if (.not. beSilent) &
+      write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: NEMO deptht is missing from file: ', &
+	         trim(templateFile)
 
-    allocate(vco%depths(vco%nLev_depth))
-    allocate(vco%ip1_depth(vco%nLev_depth))
+      if (varFound(3)) then     
+        if (.not. beSilent) &
+	  write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
+      else
+        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST found in file: '//trim(templateFile)) 
+      end if	
 
-    ! Read 1D vector of depth values (in meters)
-    ierr = nf90_inq_varid(nultemplate, 'deptht', varID)
-    if (ierr /= nf90_NoErr) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: Could not find depths in "deptht"')
-    end if
-    ierr = nf90_get_var(nultemplate, varID, vco%depths)
+      if (.not. beSilent) &
+      write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: vertical coordinate object is not required for SST.'
+      
+      vco%nLev_depth = 1
+      allocate(vco%depths(vco%nLev_depth))
+      allocate(vco%ip1_depth(vco%nLev_depth))
+	
+      ! setting ocean surface depth to 0m
+      vco%depths(1) = 0
+	
+      ! Set ip1 value for 0m depth
+      call convip(ip1Value, real(vco%depths(1), 4), 0, 2, blk_s, .false.) 
+      vco%ip1_depth(1) = ip1Value
 
-    ! Set ip1 values from depths
-    do levIndex = 1, vco%nLev_depth
-      call convip(ip1Value, real(vco%depths(levIndex),4), 0, 2, blk_s, .false.) 
-      vco%ip1_depth(levIndex) = ip1Value
-    end do
-
-    if (.not. beSilent) then
-      do levIndex = 1, vco%nLev_depth
-        write(*,*) 'vco_setupOceanFromNetCdfFile: depth level, ip1 value = ',  &
-                   levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
-      end do
-    end if
-
-    ! Close the file
-    ierr = nf90_close(nultemplate)
-
-    ! Check if ocean depth levels are in correct order (ascending in value)
-    if ( vco%nLev_depth > 1 ) then
-      if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
-        call utl_abort('vco_setupOceanFromNetCdfFile: some depth levels not in ascending order')
+      if (.not. beSilent) then
+        do levIndex = 1, vco%nLev_depth
+          write(*,*) 'vco_setupOceanFromNetCdfFile: index, depth, ip1: ',  &
+                     levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
+        end do
       end if
-    end if
+ 
+    else
+
+      ! Open the template file
+      write(*,*) 'vco_setupOceanFromNetCdfFile: reading deptht from file: ', trim(templateFile) 
+      call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
+    
+      ! Get the number of levels, i.e. length of 'deptht' dimension
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'deptht', varID))
+      call utl_checkNetCDFstatus(nf90_inquire_variable(ncid, varID, varName, &
+                                                       xtype, nDims, dimids, nAtts))
+      vco%nLev_depth = -1
+      do dimIndex = 1, nDims
+
+        call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimids(dimIndex), &
+                                                          dimName, dimLength(dimIndex)))
+
+        if (trim(dimName) == 'deptht') vco%nLev_depth = dimLength(dimIndex)
+
+      enddo
+      
+      if (vco%nLev_depth < 0) then
+        call utl_abort('vco_setupOceanFromNetCdfFile: not able to find deptht dimension in NetCDF file')
+      end if
+
+      allocate(vco%depths(vco%nLev_depth))
+      allocate(vco%ip1_depth(vco%nLev_depth))
+
+      ! Read 1D vector of depth values (in meters) and put it into vco%depths
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'deptht', varID))
+      call utl_checkNetCDFstatus(nf90_get_var(ncid, varID, vco%depths))
+
+      ! Close the file
+      call utl_checkNetCDFstatus(nf90_close(ncid))
+
+      ! Set ip1 values from depths
+      do levIndex = 1, vco%nLev_depth
+        call convip(ip1Value, real(vco%depths(levIndex),4), 0, 2, blk_s, .false.) 
+        vco%ip1_depth(levIndex) = ip1Value
+      end do
+
+      if (.not. beSilent) then
+        do levIndex = 1, vco%nLev_depth
+          write(*,*) 'vco_setupOceanFromNetCdfFile: depth level, ip1 value = ',  &
+                     levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
+        end do
+      end if
+
+      ! Check if ocean depth levels are in correct order (ascending in value)
+      if ( vco%nLev_depth > 1 ) then
+        if ( any(vco%depths(2:vco%nLev_depth)-vco%depths(1:(vco%nLev_depth-1)) < 0.0) ) then
+          call utl_abort('vco_setupOceanFromNetCdfFile: some depth levels not in ascending order')
+        end if
+      end if
+
+    end if NODEPTHT
+
+    write(*,*) 'vco_setupOceanFromNetCdfFile: completed'
     
   end subroutine vco_setupOceanFromNetCdfFile
 
   !--------------------------------------------------------------------------
   ! vco_setupSfcFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_setupSfcFromFile(vco,beSilent)
+  subroutine vco_setupSfcFromFile(vco, beSilent)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a standard file. For surface only fields.

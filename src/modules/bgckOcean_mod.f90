@@ -19,7 +19,7 @@ module bgckOcean_mod
   use timeCoord_mod
   use message_mod
   use bMatrixDiff_mod
-  
+
   implicit none
 
   save
@@ -97,13 +97,13 @@ module bgckOcean_mod
     real(4), pointer            :: stateVectorFGE_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
-
+    
     call msg('ocebg_bgCheckSST', 'performing background check for the SST data...')
 
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
     call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    
+
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
       if (mmpi_myid == 0) then
@@ -299,6 +299,10 @@ module bgckOcean_mod
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
                                 numberObsInsitu,' insitu obs. rejected'
       write(*,*) '***************************************************************************************'
+      write(*,*)
+    else
+      write(*,*)
+      call msg('ocebg_bgCheckSST', 'WARNING: no data found.')
       write(*,*)
     end if
 
@@ -568,7 +572,7 @@ module bgckOcean_mod
     integer                   :: lonIndex, latIndex, monthIndex
     real(4)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
     real(8)                   :: amplFactor
-
+    
     nullify(vco_winds)
     
     ! looking for the earliest valid time:
@@ -581,19 +585,22 @@ module bgckOcean_mod
       call incdatr(dataStampList(timeStepIndex), dataStampList(timeStepIndex - 1), deltaT)
     end do
 
-    call vco_SetupFromFile(vco_winds,'./winds')
+    call vco_SetupFromFile(vco_winds, './winds')
     call gsv_allocate(stateVector, ndaysWinds * 24 / timeStepWinds, hco, vco_winds, &
                       dateStampList_opt = dataStampList, dataKind_opt = 4, &
                       varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
-                      hInterpolateDegree_opt='LINEAR')
+                      hInterpolateDegree_opt = 'LINEAR')
       
     call msg('ocebg_getFGEamplification', 'reading wind speed fields...')
     do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
       call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
                                      ndays, yyyy, verbose_opt = .False.)
-      call msg('ocebg_getFGEamplification', ' '//str(timeStepIndex)//str(dataStampList(timeStepIndex))//str(yyyy)//str(monthNumber)//str(day)//str(hour))
+      call msg('ocebg_getFGEamplification', 'Time step index: '//str(timeStepIndex)//&
+                                            ', data stamp: '//str(dataStampList(timeStepIndex))//&
+                                            ', year: '//str(yyyy)//', month: '//str(monthNumber)//&
+                                            ', day: '//str(day)//', hour: '//str(hour))
       call gio_readFromFile(stateVector, './winds', ' ', ' ', stepIndex_opt = timeStepIndex, &
-                            containsFullField_opt=.true.)
+                            containsFullField_opt = .true.)
     end do
 
     call gsv_getField(stateVector, uu_ptr4d, 'UU')

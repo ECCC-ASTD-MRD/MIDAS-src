@@ -1,37 +1,42 @@
  &NAMLETKF
-   algorithm             = 'LETKF'
-   ensPostProcessing     = .true.
-   recenterInputEns      = .true.
-   NENS                  = 80
-   maxNumLocalObs        = 5000
-   weightLatLonStep      = 4
-   hLocalize             = 200.0D0
-   vLocalize             = 15.0D0
-   minDistanceToLand     = 75.0D0
-   modifyAmsubObsError   = .false.
-   backgroundCheck       = .false.
-   huberize              = .false.
-   rejectHighLatIR       = .false.
-   rejectRadNearSfc      = .false.
-   ignoreEnsDate         = .true.
-   outputOnlyEnsMean     = .true.
-   obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'ROUNDROBIN'
+   algorithm           = 'LETKF'
+   ensPostProcessing   = .true.
+   recenterInputEns    = .true.
+   NENS                = 20
+   maxNumLocalObs      = 5000
+   weightLatLonStep    = 4
+   hLocalize           = 200.0D0
+   vLocalize           = 15.0D0
+   minDistanceToLand   = 75.0D0
+   modifyAmsubObsError = .false.
+   backgroundCheck     = .false.
+   huberize            = .false.
+   rejectHighLatIR     = .false.
+   rejectRadNearSfc    = .false.
+   ignoreEnsDate       = .false.
+   outputOnlyEnsMean   = .true.
+   obsTimeInterpType   = 'LINEAR'
+   mpiDistribution     = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
+   writeNetCDFInc = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
    onlyAssimObs    = .true.
-/
- &NAMTIME
-  DSTEPOBS    = 24.0d0
-  DSTEPOBSINC = 24.0d0
-  DWINDOWSIZE = 24.0d0
+/ 
+ &namTime
+  dstepobs      =  3.0d0
+  dstepobsinc   = 24.0d0
+  dwindowsize   = 24.0d0
+  referenceTime = 'end'
 /
  &NAMSTATE
-   ANLVAR(1)   = 'TM'
-   ANLVAR(2)   = 'SALW'
+   anlvar(1) = 'TM'
+   anlvar(2) = 'SALW'
+   anlvar(3) = 'UUW'
+   anlvar(4) = 'VVW'
+   anlvar(5) = 'SSH'
 /
  &NAMDIMO
    NMXOBS  = 1500000
