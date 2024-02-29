@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Introduction of  climatologies_mod.f90 which replaces and generalizes ozoneClim_mod.f90. Minor impact on results (#202 and !772)
+ * Add climatologies_mod which replaces and generalizes ozoneClim_mod (#202 and !772)
+   * WARNING: Minor impact on results when using ozone sensitive radiances
  * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)
@@ -20,6 +21,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added the ability to update header-level SQLite columns (#871 and !779)
    * WARNING: NAMSQLUPDATE namelist variable itemUpdateList renamed as itemUpdateBodyList
    * WARNING: values used for itemUpdateBodyList must now match column names in obsSpaceData_mod
+=======
+
+>>>>>>> b06439d2d... Issue #202: rephrasing in CHANGELOG.md
  * Added option to simulate observation and surface emissivity in var1D program (#865 and !775)
  * Added ability to read netCDF files (#770 and !776)
  * Added option to simulate background in var1D program (#856 and !768)
