@@ -413,6 +413,7 @@ contains
     real(8), allocatable :: perturbation_vector(:)
     character(len=2) :: familyType
     integer :: nChannelsDfs = 103
+    integer :: nObsMax = 2, nTaskMax = 2
 
     !
     !- 1.  Initialization
@@ -424,7 +425,7 @@ contains
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
     call gsv_allocate(stateVector, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=pre_incrReal, mpi_local_opt=.false.)
+                      dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(columnAnlInc, vco_anl)
@@ -433,25 +434,21 @@ contains
     !- 1.6
     call oti_timeBinning(obsSpaceData, tim_nstepobsinc)
     
-   
-    call col_zero(columnAnlInc)
-    
-    !We might need to initialize the full OBS_WORK column to zero 
-    !do bodyIndex1 = 1, 
-    !  call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 0.d0)
-    !end do
-    numHeader = obs_numHeader(obsSpaceData)
+    !numHeader = obs_numHeader(obsSpaceData)
+    ! this is a temporary trick to be able to finish the run in reasonable time as it is SSSSLLLLOOOWWWWW
+    ! some optimization or MPI topology change may help later
+    numHeader = nObsMax
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
     allocate(headerIndexList(numHeaderMaxMpi))
     allocate(mpiTaskList(numHeaderMaxMpi))
     allocate(channelList(numHeaderMaxMpi,nChannelsDfs))
     allocate(bodyIndexList(numHeaderMaxMpi,nChannelsDfs))
-    
     headerIndexList(:) = -1
     mpiTaskList(:) = -1
     channelList(:,:) = -1
     bodyIndexList(:,:) = -1
+    
     !First step count the number of selected observation for each MPI task
     countObs = 0
     familyType = 'TO'
@@ -460,6 +457,7 @@ contains
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
+      if (countObs == nObsMax) exit HEADER1
       istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
       countChannel = 0
@@ -549,43 +547,63 @@ contains
     
     localDimension = cvm_nvadim
     allocate(perturbation_vector(localDimension))
-    do procIndex = 1, mmpi_nprocs
+    !do procIndex = 1, mmpi_nprocs
+    do procIndex = 1, nTaskMax 
       do obsIndex = 1, maxCountObsMpi
         headerIndex = headerIndexListMpi(obsIndex,procIndex)
         taskIndex = mpiTaskListMpi(obsIndex,procIndex)
+        write(*,*) "ICI HEADER", procIndex, obsIndex, headerIndex, taskIndex
         if (headerIndex /= -1 .and. taskIndex /= -1) then
           do channelIndex1 = 1, maxCountChannelMpi
             bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
             channelNumber1 = channelListMpi(obsIndex,channelIndex1,procIndex)
             if (bodyIndex1 /= -1) then
-              
+              write(*,*) "ICI body", procIndex, obsIndex, headerIndex, taskIndex, BODYiNDEX1, cHANNELnUMBER1
+              !We need to initialize the full OBS_WORK column to zero 
+              do bodyIndex2 = 1, obs_numBody(obsSpaceData)
+                call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
+              end do
               if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-              
+              write(*,*) "before oop_Had"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              call col_zero(columnAnlInc)
               call oop_Had(columnAnlInc, & !output
                   columnTrlOnAnlIncLev,  &
                   obsSpaceData,          & ! input
                   initializeLinearization_opt=first)
               
               first = .false.
-              
+              write(*,*) "before s2c_ad"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              call gsv_zero(stateVector)
               call s2c_ad(stateVector,  & ! output
                   columnAnlInc,         & ! input
                   columnTrlOnAnlIncLev, &
                   obsSpaceData)
-              
+              write(*,*) "before bmat_sqrtBT"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              perturbation_vector(:) = 0.d0
               call bmat_sqrtBT(perturbation_vector, & ! output
                   localDimension, &  
                   stateVector)                        ! input
-              
+              write(*,*) "before bmat_sqrtB"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              call gsv_zero(stateVector)
               call bmat_sqrtB(perturbation_vector, & !input
                   localDimension,                  &
                   stateVector)                       ! output
-              
+              write(*,*) "before s2c_tl"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              call col_zero(columnAnlInc)
               call s2c_tl(stateVector,  & !input
                   columnAnlInc,         & ! output
                   columnTrlOnAnlIncLev, & 
                   obsSpaceData)
-              
+              write(*,*) "before oop_Htl"
+              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+              do bodyIndex2 = 1, obs_numBody(obsSpaceData)
+                call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
+              end do
               call oop_Htl(columnAnlInc, & ! input
                   columnTrlOnAnlIncLev,  &
                   obsSpaceData,          & !output
@@ -613,6 +631,7 @@ contains
     deallocate(perturbation_vector)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*)
     write(*,*) 'Computing HBHT from selected observations end'
 
