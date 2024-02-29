@@ -47,7 +47,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Bug fix for uninitialized module variable `tvs_mwInstrumUsingHydrometeors_tl` with minor impact on results (#889 and !813)
+ * Bug fix for uninitialized module variable `tvs_mwInstrumUsingHydrometeors_tl` (#889 and !813)
+   * WARNING: minor impact on results when assimilating all-sky radiances (i.e. IC4 config of GDPS)
  * Introduction of a major bug fix to correct a problem introduced in merge request !797 (#909 and !817)
  * Removed the possibility of zero-valued pressures from routine `phf_convertZtoPressure` (#892 and !800)
  * Ensure to clean ObsDb tables after thinning in ObsSelction (#846 and !755)
