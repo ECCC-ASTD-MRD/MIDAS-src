@@ -550,7 +550,7 @@ contains
     if (.not.present(climatProfileSet_opt) .and. .not.present(climatProfile_opt)) then
       call utl_abort('clm_setColumn: Missing output array argument.')
     end if
-	
+
     if (.not.allocated(climatFields)) then
       call utl_abort('clm_setColumn: Climatologies not set.')
     end if
@@ -607,12 +607,12 @@ contains
         where (pressrefin < modelHeightLevs(numModelLevs))
           pressrefin = modelHeightLevs(numModelLevs)
         end where
-        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
+        pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
             climatFields(constituentId,1)%nlev,numModelLevs, &
             obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
       else if (climatFields(constituentId,1)%ivkind == 4) then
         pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
-        pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
+        pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
             climatFields(constituentId,1)%nlev,numModelLevs, &
             obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
       else if (climatFields(constituentId,1)%ivkind == 1) then
@@ -660,16 +660,16 @@ contains
                 
         if ( present(hu_opt) .and. present(tt_opt) ) then
           if (all(hu_opt >= 0.0D0)) then
-            tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs, &
+            tropo_press = phf_calcTropopause(numModelLevs,modelPressLevs, &
                 tt_opt,modelHeightLevs,hu_opt=hu_opt)
           else
-            tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs, &
+            tropo_press = phf_calcTropopause(numModelLevs,modelPressLevs, &
                 tt_opt,modelHeightLevs)
           end if
         else
-          tropo_press = phf_get_tropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
+          tropo_press = phf_calcTropopause(numModelLevs,modelPressLevs,tt_opt,modelHeightLevs)
         end if
-	
+
         if (tropo_press <= 0) then
           call utl_abort('clm_setColumn: Invalid tropopause level')
         end if
@@ -690,13 +690,13 @@ contains
           where (pressrefin < modelHeightLevs(numModelLevs))
             pressrefin = modelHeightLevs(numModelLevs)
           end where
-          pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
+          pressrefin(:) = phf_convertZtoPressure(pressrefin, &
               modelHeightLevs,modelPressLevs, &
               climatFields(constituentId,2)%nlev,numModelLevs, &
               obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
         else if (climatFields(constituentId,2)%ivkind == 4) then
           pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
-          pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
+          pressrefin(:) = phf_convertZtoPressure(pressrefin, &
               modelHeightLevs,modelPressLevs, &
               climatFields(constituentId,2)%nlev,numModelLevs, &
               obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
