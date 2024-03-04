@@ -294,95 +294,95 @@ module varNameList_mod
       
       varName = '    '
       select case (varNumber)
-      case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )
-        varName='UU'
-      case( BUFR_NEVV, BUFR_NEVS )
-        varName='VV'
-      case( BUFR_NETT, BUFR_NETS )
-        varName='TT'
-      case( BUFR_NEDZ, BUFR_NEGZ )
-        varName='Z_T'
-      case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
-        varName='HU'
-      case( BUFR_NEPS, BUFR_NEPN )
-        varName='P0'
-      case ( BUFR_NERF, BUFR_NEBD, BUFR_NEZD )
-        varName='TT'   ! temporarily associate refractivity and ZTD with temperature
-      case ( BUFR_NEDW )
-        varName='DW'
-      case ( BUFR_SST )
-        varname='TG'
-      case ( BUFR_ICEC, BUFR_ICEP, BUFR_ICEV, BUFR_ICES )
-        varname='GL'
-      case ( bufr_vis )
-        varname='VIS'
-      case ( bufr_logVis )
-        varname='LVIS'
-      case ( bufr_radarPrecip )
-        varname='PR'
-      case ( bufr_logRadarPrecip )
-        varname='LPR'
-      case ( bufr_gust )
-        varname='WGE'
-      case ( bufr_riverFlow )
-        varname='QO1'
-      case ( BUFR_NEFS, bufr_radvel) 
-        varname='UV'
-      case default
-        !
-        ! Search for constituents. Identification depends on value and presence of second parameter.
-        !
-        if (present(varNumberChm_opt)) then 
-           select case (varNumberChm_opt)
+        case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )
+          varName='UU'
+        case( BUFR_NEVV, BUFR_NEVS )
+          varName='VV'
+        case( BUFR_NETT, BUFR_NETS )
+          varName='TT'
+        case( BUFR_NEDZ, BUFR_NEGZ )
+          varName='Z_T'
+        case( BUFR_NEHU, BUFR_NEHS, BUFR_NEES, BUFR_NESS )
+          varName='HU'
+        case( BUFR_NEPS, BUFR_NEPN )
+          varName='P0'
+        case ( BUFR_NERF, BUFR_NEBD, BUFR_NEZD )
+          varName='TT'   ! temporarily associate refractivity and ZTD with temperature
+        case ( BUFR_NEDW )
+          varName='DW'
+        case ( BUFR_SST )
+          varname='TG'
+        case ( BUFR_ICEC, BUFR_ICEP, BUFR_ICEV, BUFR_ICES )
+          varname='GL'
+        case ( bufr_vis )
+          varname='VIS'
+        case ( bufr_logVis )
+          varname='LVIS'
+        case ( bufr_radarPrecip )
+          varname='PR'
+        case ( bufr_logRadarPrecip )
+          varname='LPR'
+        case ( bufr_gust )
+          varname='WGE'
+        case ( bufr_riverFlow )
+          varname='QO1'
+        case ( BUFR_NEFS, bufr_radvel) 
+          varname='UV'
+        case default
+          !
+          ! Search for constituents. Identification depends on value and presence of second parameter.
+          !
+          if (present(varNumberChm_opt)) then 
+            select case (varNumberChm_opt)
               case(BUFR_NECH_O3)
-                 varname='TO3' 
+                varname='TO3' 
               case(BUFR_NECH_H2O)
-                 varname='HU'
+                varname='HU'
               case(BUFR_NECH_CH4)
-                 varname='TCH4'
+                varname='TCH4'
               case(BUFR_NECH_CO2)
-                 varname='TCO2'
+                varname='TCO2'
               case(BUFR_NECH_CO)
-                 varname='TCO'
+                varname='TCO'
               case(BUFR_NECH_NO2)
-                 varname='TNO2'
+                varname='TNO2'
               case(BUFR_NECH_N2O)
-                 varname='TN2O' 
+                varname='TN2O' 
               case(BUFR_NECH_NO)
-                 varname='TNO'
+                varname='TNO'
               case(BUFR_NECH_HCHO)
-                 varname='THCH'
+                varname='THCH'
               case(BUFR_NECH_SO2)
-                 varname='TSO2'
+                varname='TSO2'
               case(BUFR_NECH_NH3)
-                 varname='TNH3'
+                varname='TNH3'
               case(BUFR_NECH_PM25)
-                 varname='AF'
+                varname='AF'
               case(BUFR_NECH_PM10)
-                 varname='AC'
+                varname='AC'
               case default
-                 call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
-                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
-           end select
-           if (trim(modelName) == 'GEM') then
-             select case (varNumberChm_opt)
-             case(BUFR_NECH_O3)
-               varname='O3L'  
-             case(BUFR_NECH_CH4)
-               varname='CH4L'
-             case(BUFR_NECH_N2O)
-               varname='N2OL'
-             case default
-               call utl_abort('vnl_varnameFromVarnum: Unknown variable number ! ' // &
-                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
-             end select
-           else
-             call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
-           end if
-         else
-           call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // utl_str(varNumber))
-         end if
-       end select
+                call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                    utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+            end select
+            if (trim(modelName) == 'GEM') then
+              select case (varNumberChm_opt)
+                case(BUFR_NECH_O3)
+                  varname='O3L'  
+                case(BUFR_NECH_CH4)
+                  varname='CH4L'
+                case(BUFR_NECH_N2O)
+                  varname='N2OL'
+                case default
+                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number ! ' // &
+                      utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+              end select
+            else
+              call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
+            end if
+          else
+            call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // utl_str(varNumber))
+          end if
+      end select
 
     end function vnl_varnameFromVarnum
 
