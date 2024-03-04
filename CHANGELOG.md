@@ -21,9 +21,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added the ability to update header-level SQLite columns (#871 and !779)
    * WARNING: NAMSQLUPDATE namelist variable itemUpdateList renamed as itemUpdateBodyList
    * WARNING: values used for itemUpdateBodyList must now match column names in obsSpaceData_mod
-=======
-
->>>>>>> b06439d2d... Issue #202: rephrasing in CHANGELOG.md
  * Added option to simulate observation and surface emissivity in var1D program (#865 and !775)
  * Added ability to read netCDF files (#770 and !776)
  * Added option to simulate background in var1D program (#856 and !768)

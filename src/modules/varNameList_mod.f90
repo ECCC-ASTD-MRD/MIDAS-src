@@ -272,7 +272,7 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     ! vnl_varnameFromVarnum
     !--------------------------------------------------------------------------
-    function vnl_varnameFromVarnum( varNumber, varNumberChm_opt, modelName_opt ) result(varName)
+    function vnl_varnameFromVarnum(varNumber, varNumberChm_opt, modelName_opt) result(varName)
       !
       ! :Purpose: To get the variable name from the variable number
       !
@@ -284,8 +284,15 @@ module varNameList_mod
       character(len=*), optional, intent(in) :: modelName_opt
       ! Result:
       character(len=4)    :: varName
+      character(len=3)    :: modelName
 
-      varName='    '
+      if (present(modelName_opt)) then
+        modelName = trim(modelName_opt)
+      else
+        modelName = 'GEM'
+      end if
+      
+      varName = '    '
       select case (varNumber)
       case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )
         varName='UU'
@@ -354,29 +361,28 @@ module varNameList_mod
               case(BUFR_NECH_PM10)
                  varname='AC'
               case default
-                 call utl_abort( 'vnl_varnameFromVarnum: Unknown variable number! ' // &
-                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt) )
+                 call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
            end select
-           if (present(modelName_opt)) then
-             if (trim(modelName_opt) == 'GEM') then
-               select case (varNumberChm_opt)
-                 case(BUFR_NECH_O3)
-                   varname='O3L'  
-                 case(BUFR_NECH_CH4)
-                   varname='CH4L'
-                 case(BUFR_NECH_N2O)
-                   varname='N2OL'
-                 case default
-                   call utl_abort( 'vnl_varnameFromVarnum: Unknown variable number or model! ' // &
-                      utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt) // ', ' // trim(modelName_opt) )
-               end select
-             end if
-           end if      
-        else
-           write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-           call utl_abort('vnl_varnameFromVarnum')
-        end if 
-      end select
+           if (trim(modelName) == 'GEM') then
+             select case (varNumberChm_opt)
+             case(BUFR_NECH_O3)
+               varname='O3L'  
+             case(BUFR_NECH_CH4)
+               varname='CH4L'
+             case(BUFR_NECH_N2O)
+               varname='N2OL'
+             case default
+               call utl_abort('vnl_varnameFromVarnum: Unknown variable number ! ' // &
+                   utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+             end select
+           else
+             call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
+           end if
+         else
+           call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // utl_str(varNumber))
+         end if
+       end select
 
     end function vnl_varnameFromVarnum
 

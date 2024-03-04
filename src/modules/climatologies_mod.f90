@@ -23,7 +23,7 @@ module climatologies_mod
   public :: clm_readFields, clm_setColumn, clm_getColumn
 
   ! public structures
-  public :: struct_clm_field
+  public :: struct_clm
 
   !------------------------------------------------------------------------- 
   ! Declaration of structures and parameters
@@ -31,36 +31,30 @@ module climatologies_mod
   ! Arrays containing input climatology/reference fields and fields 
   ! interpolated to obs locations
   
-  type :: struct_clm_field
+  type :: struct_clm
 
     !  Structure for storing reference (climatological) fields)
-    !     
-    !  Variable               Description
-    !  --------               -----------
-    !  field                  Gridded 3D field (lon,lat,vlev) or 2D field (1,lat,vlev)
-    !  nlat                   number of latitudes
-    !  nlon                   number of longitudes
-    !  nlev                   number of vertical levels
-    !  lat,lon                lat,lon grid in radians
-    !  vlev                   vertical levels
-    !  ivkind                 Index of vertical coordinate type. Defintion may vary according to source.
-    !                         For fields read from RPN files and use of convip:
-    !                             0: P is in height [m] (metres) with respect to sea level 
-    !                             1: P is in stddev [sg] (0.0 -111.0) 
-    !                             2: P is in pressure [mb] (millibars) 
-    !                             3: P is in an arbitrary code 
-    !                             4: P is in height [M] (metres) with respect to ground level 
-    !                             5: P is in hybrid coordinates [hy] 
-    !                             6: P is in theta [th] 
-    !                         For use with obs                      
-    
-    real(8), allocatable :: field(:,:,:),lat(:),lon(:),vlev(:)
-    integer :: nlev,nlon,nlat,ivkind
-  
-  end type struct_clm_field
+    real(8), allocatable :: field(:,:,:) ! Gridded 3D field (lon,lat,vlev) or 2D field (1,lat,vlev)
+    real(8), allocatable :: lat(:)       ! lat grid in radians
+    real(8), allocatable :: lon(:)       ! lon grid in radians
+    real(8), allocatable :: vlev(:)      ! vertical levels
+    integer              :: nlev         ! number of vertical levels
+    integer              :: nlon         ! number of longitudes
+    integer              :: nlat         ! number of latitudes
+    integer              :: vertCoordKind! Index of vertical coordinate type. Defintion may vary according to source.
+                                         ! For fields read from RPN files and use of convip:
+                                         !     0: P is in height [m] (metres) with respect to sea level 
+                                         !     1: P is in stddev [sg] (0.0 -111.0) 
+                                         !     2: P is in pressure [mb] (millibars) 
+                                         !     3: P is in an arbitrary code 
+                                         !     4: P is in height [M] (metres) with respect to ground level 
+                                         !     5: P is in hybrid coordinates [hy] 
+                                         !     6: P is in theta [th] 
+                                         ! For use with obs         
+  end type struct_clm
 
   ! clm_readFields climatology fields and parameters needed externally to clm_readFields
-  type(struct_clm_field), allocatable :: climatFields(:,:) ! First dimension will be 0:maxNumConstituents
+  type(struct_clm), allocatable :: climatFields(:,:) ! First dimension will be 0:maxNumConstituents
   integer :: maxNumTypes  ! Max of climatFields second dimension
   integer :: maxNumFields ! Number of variables with climatologies
   integer, parameter :: maxNumConstituents = BUFR_NECH_maxValue
@@ -88,7 +82,7 @@ contains
     character(len=*), intent(in), optional :: modelName_opt ! Model name 
 
     ! Locals:
-    character(len=256) :: fname, modelName
+    character(len=256) :: fname
     character(len=4) :: varName, varNameClim
     character(len=12) :: etiket
     character(len=12), parameter :: climFields = 'climatFields'
@@ -100,11 +94,9 @@ contains
     integer, external :: newdate
     logical :: initialized = .false.       
     logical :: timeInterp    
-    ! File reading work parameters and arrays 
-    integer, external :: fnom, fclos
-    integer :: ierr, nulnam
+    integer :: ierr
     logical :: fileExists
-    integer :: ni, nj, nkeys, kind, loopIndex
+    integer :: ni, nj, nkeys, vertCoordKind, loopIndex
     real(8), allocatable :: array1(:,:,:), array2(:,:,:), lvls(:), xlat(:), xlong(:) 
     integer, parameter :: baselineLevelNum = 28
     real(8) :: climatLevelsDefault(baselineLevelNum)  !  Fortuin-Kelder 1998 pressure levels 
@@ -157,11 +149,10 @@ contains
       write(*,*) 'clm_readFields: Namelist block NAMCLIMATOLOGY is missing. Using defaults'
       write(*,*)
     else
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam, nml=namclimatology, iostat=ierr)
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namclimatology, iostat=ierr)
       if (ierr /= 0) call utl_abort('clm_readFields: Error reading namelist NAMCLIMATOLOGY')
-      ierr = fclos(nulnam)      	
+      call utl_tmg_stop(181)
     end if
     if (mmpi_myid == 0) write(*,nml=namclimatology)
 
@@ -211,15 +202,8 @@ contains
     else
       day = day + 15.0
     end if
-    
-    if (present(modelName_opt)) then
-      modelName = modelName_opt
-    else
-      modelName = 'GEM'
-    end if
         
     ! Get needed fields for each varIndex
-
     do varIndex = 1, maxNumFields
       ! Identify input file
       if (trim(climatSourceFiles(varIndex)) /= '') then
@@ -292,7 +276,7 @@ contains
           
           varNameClim = varName
           allocate(array1(1,1,1),lvls(1),xlat(1),xlong(1))
-          kind = 2	      
+          vertCoordKind = 2	      
           ni = 1
           nj = 1
           nkeys = 1
@@ -322,11 +306,11 @@ contains
               any(climatLevels(varIndex,1:nkeys) < 0.0) ) then
             ! Default pressure levels
             lvls(1:nkeys) = climatLevelsDefault(1:nkeys) ! Store in hPa for consistency with kind=2
-            kind = 2
+            vertCoordKind = 2
           else
             if (all(climatLevels(varIndex,1:nkeys) > 0.0)) then
               lvls(1:nkeys) = climatLevels(varIndex,1:nkeys)
-              kind = 2
+              vertCoordKind = 2
             else  
               call utl_abort('clm_readFields: Missing set up for levels')
             end if
@@ -336,13 +320,13 @@ contains
           if (trim(fname) /= climFields) then
             varNameClim = trim(varName)
           else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
+              vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
             varNameClim = 'O3CE'
           else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=02,modelName_opt=modelName)) then
+              vnl_varnameFromVarnum(0,varNumberChm_opt=02,modelName_opt=modelName_opt)) then
             varNameClim = 'CH4C'
           else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName)) then
+              vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName_opt)) then
             varNameClim = 'N2OC'
           else if (trim(varName) /= 'TCO2') then
             call utl_abort('clm_readFields: 3D climatology not found for ' &
@@ -351,13 +335,14 @@ contains
           
           call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth,-1,etiket, &
               ni,nj,nkeys,array1,xlat_opt=xlat,xlong_opt=xlong,         &
-              lvls_opt=lvls,kind_opt=kind)
+              lvls_opt=lvls,kind_opt=vertCoordKind)
 
         end if
+        
         climatFields(constituentId,sourceIndex)%nlon=ni
         climatFields(constituentId,sourceIndex)%nlat=nj
         climatFields(constituentId,sourceIndex)%nlev=nkeys
-        climatFields(constituentId,sourceIndex)%ivkind=kind   
+        climatFields(constituentId,sourceIndex)%vertCoordKind=vertCoordKind   
                          
         allocate(climatFields(constituentId,sourceIndex)%field(ni,nj,nkeys))
         allocate(climatFields(constituentId,sourceIndex)%vlev(nkeys))
@@ -377,9 +362,7 @@ contains
         else
 
           ! Following for interpolation as a function of days from mid-months.
-          ! Assumes same grid and levels
-
-         
+          ! Assumes same grid and level
           if (iday > 15) then
             if ( fieldDimension(varIndex) <= 2 ) then
               if (imonth == 12) then
@@ -395,7 +378,7 @@ contains
                 call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth+1,-1, &
                     etiket,ni,nj,nkeys,array2)
               end if
-	    end if
+            end if
           
             ! Linearly interpolate in time 
             ! (approximation - assumes 30 day months)
@@ -418,7 +401,7 @@ contains
                 call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth-1,-1, &
                     etiket,ni,nj,nkeys,array2)
               end if
-	    end if
+            end if
 	    
             ! Linearly interpolate in time 
             ! (approximation - applies 30 day months)
@@ -471,7 +454,7 @@ contains
       if (trim(fname) /= ozoneBaseline) then
         varNameClim = trim(varName)
       else if (trim(varName) == &
-        vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName)) then
+        vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
         varNameClim = 'O3'
         etiket = ' '
       end if
@@ -601,25 +584,25 @@ contains
       allocate(success(climatFields(constituentId,1)%nlev))
       success(:) = .true.
       
-      if (climatFields(constituentId,1)%ivkind == 2) then
+      if (climatFields(constituentId,1)%vertCoordKind == 2) then
         pressrefin(:) = pressrefin(:) * MPC_PA_PER_MBAR_R8
-      else if (climatFields(constituentId,1)%ivkind == 0) then
+      else if (climatFields(constituentId,1)%vertCoordKind == 0) then
         where (pressrefin < modelHeightLevs(numModelLevs))
           pressrefin = modelHeightLevs(numModelLevs)
         end where
         pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
             climatFields(constituentId,1)%nlev,numModelLevs, &
             obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
-      else if (climatFields(constituentId,1)%ivkind == 4) then
+      else if (climatFields(constituentId,1)%vertCoordKind == 4) then
         pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
         pressrefin(:) = phf_convertZtoPressure(pressrefin,modelHeightLevs,modelPressLevs, &
             climatFields(constituentId,1)%nlev,numModelLevs, &
             obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
-      else if (climatFields(constituentId,1)%ivkind == 1) then
+      else if (climatFields(constituentId,1)%vertCoordKind == 1) then
         pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
       else
         call utl_abort('clm_setColumn: Cannot handle vertical coordinate of kind ' &
-            // trim(utl_str(climatFields(constituentId,1)%ivkind)))
+            // trim(utl_str(climatFields(constituentId,1)%vertCoordKind)))
       end if
           
       ! Interpolate to obs lat/long (or lat) location and model level
@@ -684,9 +667,9 @@ contains
         allocate(success(climatFields(constituentId,2)%nlev))
         success(:) = .true.
 
-        if (climatFields(constituentId,2)%ivkind == 2) then
+        if (climatFields(constituentId,2)%vertCoordKind == 2) then
           pressrefin(:) = pressrefin(:)*100. ! Conversion from hPa to Pa.
-        else if (climatFields(constituentId,2)%ivkind == 0) then
+        else if (climatFields(constituentId,2)%vertCoordKind == 0) then
           where (pressrefin < modelHeightLevs(numModelLevs))
             pressrefin = modelHeightLevs(numModelLevs)
           end where
@@ -694,17 +677,17 @@ contains
               modelHeightLevs,modelPressLevs, &
               climatFields(constituentId,2)%nlev,numModelLevs, &
               obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
-        else if (climatFields(constituentId,2)%ivkind == 4) then
+        else if (climatFields(constituentId,2)%vertCoordKind == 4) then
           pressrefin(:) = pressrefin(:) + modelHeightLevs(numModelLevs)
           pressrefin(:) = phf_convertZtoPressure(pressrefin, &
               modelHeightLevs,modelPressLevs, &
               climatFields(constituentId,2)%nlev,numModelLevs, &
               obsLat*MPC_RADIANS_PER_DEGREE_R8,success)
-        else if (climatFields(constituentId,2)%ivkind == 1) then
+        else if (climatFields(constituentId,2)%vertCoordKind == 1) then
           pressrefin(:) = pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
         else
           call utl_abort('clm_setColumn: Cannot handle vertical ' // &
-              'coordinate of kind ' // trim(utl_str(climatFields(constituentId,2)%ivkind)))
+              'coordinate of kind ' // trim(utl_str(climatFields(constituentId,2)%vertCoordKind)))
         end if
           
         ! Interpolate to obs lat/long (or lat) and model levels
