@@ -162,6 +162,7 @@ program midas_dfs
   use gridVariableTransforms_mod
   use obsOperators_mod
   use tovsNL_mod
+  use rMatrix_mod
   
   implicit none
 
@@ -404,11 +405,16 @@ contains
     integer, allocatable :: headerIndexListMpi(:,:), channelListMpi(:,:,:)
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
     integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
+    real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
+    real(8), allocatable :: HBHtMatrix(:,:,:), DMatrix(:,:), inverse(:,:),hk(:,:)
+    real(8), pointer :: Rsub(:,:)
+    real(8) :: dfs
     integer :: localDimension
     logical :: first, llok
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
     integer :: numHeader, numHeaderMaxMpi
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
+    integer :: sensorIndex
     integer, external :: get_max_rss
     real(8), allocatable :: perturbation_vector(:)
     character(len=2) :: familyType
@@ -444,11 +450,13 @@ contains
     allocate(mpiTaskList(numHeaderMaxMpi))
     allocate(channelList(numHeaderMaxMpi,nChannelsDfs))
     allocate(bodyIndexList(numHeaderMaxMpi,nChannelsDfs))
-    headerIndexList(:) = -1
-    mpiTaskList(:) = -1
-    channelList(:,:) = -1
-    bodyIndexList(:,:) = -1
-    
+    allocate(stdDevList(numHeaderMaxMpi,nChannelsDfs))
+
+    headerIndexList(:) = MPC_missingValue_INT
+    mpiTaskList(:) = MPC_missingValue_INT
+    channelList(:,:) = MPC_missingValue_INT
+    bodyIndexList(:,:) = MPC_missingValue_INT
+    stdDevList(:,:) = MPC_missingValue_R8
     !First step count the number of selected observation for each MPI task
     countObs = 0
     familyType = 'TO'
@@ -481,6 +489,7 @@ contains
             countChannel = countChannel + 1
             channelList(countObs, countChannel) = channelNumber1
             bodyIndexList(countObs, countChannel) = bodyIndex1
+            stdDevList(countObs, countChannel) = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex1)
           end if
         end do BODY2
       end if
@@ -508,10 +517,14 @@ contains
     allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
     allocate(channelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
     allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
-    mpiTaskListMpi(:,:) = -1
-    headerIndexListMpi(:,:) = -1
-    channelListMpi(:,:,:) = -1
-    bodyIndexListMpi(:,:,:) = -1
+    allocate(stdDevListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+    
+    mpiTaskListMpi(:,:) = MPC_missingValue_INT
+    headerIndexListMpi(:,:) = MPC_missingValue_INT
+    channelListMpi(:,:,:) = MPC_missingValue_INT
+    bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
+    stdDevListMpi(:,:,:) = MPC_missingValue_R8
+    
     call rpn_comm_allgather(mpiTaskList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
                             mpiTaskListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
     if (ierr /= 0) then
@@ -534,7 +547,12 @@ contains
     if (ierr /= 0) then
       call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for bodyIndexList')
     end if
-
+    call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+        maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
+        stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
+    if (ierr /= 0) then
+      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for stdDevList')
+    end if
     call rpn_comm_barrier('GRID', ierr)
     if (ierr /= 0) then
       call utl_abort('diagHBHt: Error in call to rpn_comm_barrier 2')
@@ -544,20 +562,25 @@ contains
     deallocate(channelList)
     deallocate(mpiTaskList)
     deallocate(headerIndexList)
+    deallocate(stdDevList)
     
     localDimension = cvm_nvadim
     allocate(perturbation_vector(localDimension))
+    allocate(HBHtMatrix(maxCountObsMpi,nChannelsDfs,nChannelsDfs))
+    allocate(DMatrix(nChannelsDfs,nChannelsDfs))
+    allocate(inverse(nChannelsDfs,nChannelsDfs))
+    allocate(hk(nChannelsDfs,nChannelsDfs))
     !do procIndex = 1, mmpi_nprocs
     do procIndex = 1, nTaskMax 
       do obsIndex = 1, maxCountObsMpi
         headerIndex = headerIndexListMpi(obsIndex,procIndex)
         taskIndex = mpiTaskListMpi(obsIndex,procIndex)
         write(*,*) "ICI HEADER", procIndex, obsIndex, headerIndex, taskIndex
-        if (headerIndex /= -1 .and. taskIndex /= -1) then
+        if (headerIndex /= MPC_missingValue_INT .and. taskIndex /= MPC_missingValue_INT) then
           do channelIndex1 = 1, maxCountChannelMpi
             bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
             channelNumber1 = channelListMpi(obsIndex,channelIndex1,procIndex)
-            if (bodyIndex1 /= -1) then
+            if (bodyIndex1 /= MPC_missingValue_INT) then
               write(*,*) "ICI body", procIndex, obsIndex, headerIndex, taskIndex, BODYiNDEX1, cHANNELnUMBER1
               !We need to initialize the full OBS_WORK column to zero 
               do bodyIndex2 = 1, obs_numBody(obsSpaceData)
@@ -612,13 +635,35 @@ contains
               do channelIndex2 = 1, maxCountChannelMpi
                 bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
                 channelNumber2 = channelListMpi(obsIndex,channelIndex2,procIndex)
-                if (mmpi_myId == taskIndex .and. bodyIndex2 /= -1) then
+                if (mmpi_myId == taskIndex .and. bodyIndex2 /= MPC_missingValue_INT) then
+                  HBHtMatrix(obsIndex,channelIndex1,channelIndex2) = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
                   write(*,'(A4,1x,6(i12,1x),e14.6)') 'HBHt', obsIndex, headerIndex, channelNumber1, &
                       channelNumber2, bodyIndex1, bodyIndex2, obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
                 end if
               end do
             end if
           end do
+          if (mmpi_myId == taskIndex) then
+            !call rmat_getRmatrix(sensor_id, list_sub, list_oer, Rsub)
+            !call utl_pseudo_inverse(inputMatrix, pseudoInverse, threshold_opt)
+            ! call utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt, &
+            !                  eigenValueRelThreshold_opt)
+            sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
+            call rmat_getRmatrix(sensorIndex, &
+                channelListMpi(obsIndex,:,procIndex), &
+                stdDevListMpi(obsIndex,:,procIndex), &
+                Rsub)
+            dMatrix(:,:) =  HBHtMatrix(obsIndex,:,:) + Rsub(:,:)
+            call utl_pseudo_inverse(dMatrix, inverse)
+            !inverse = np.linalg.inv(hbht + matr_r)
+            hk = matmul(HBHtMatrix(obsIndex,:,:),inverse)
+            dfs = 0.d0
+            do channelIndex2 = 1, maxCountChannelMpi
+              dfs = dfs + hk(channelIndex2,channelIndex2)
+            end do
+            !tr_dfs = np.trace(np.dot(hbht, inverse))
+            write(*,*) "dfs = ", dfs
+          end if
         end if
       end do
     end do
@@ -627,6 +672,12 @@ contains
     deallocate(channelListMpi)
     deallocate(headerIndexListMpi)
     deallocate(mpiTaskListMpi)
+    deallocate(stdDevListMpi)
+    if (allocated(hk)) deallocate(hk)
+    if (allocated(inverse)) deallocate(inverse)
+    if (associated(Rsub)) deallocate(Rsub)
+    if (allocated(DMatrix)) deallocate(Dmatrix)
+    if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
     
     deallocate(perturbation_vector)
     call col_deallocate(columnAnlInc)
