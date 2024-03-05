@@ -7,6 +7,7 @@ module presProfileOperators_mod
   !           (widely spaced) RTTOV pressure levels.
   !
   use utilities_mod
+  use mathPhysConstants_mod
 
   implicit none
   save
@@ -15,7 +16,7 @@ module presProfileOperators_mod
   ! public procedures
   
   ! Linear interpolation routine
-  public :: ppo_lintv
+  public :: ppo_getColumn
   
   ! Stand-alone interpolator calling routine providing interpolation weights 
   ! For weights W(:,:) and initial vector X(:), the interpolated vector would be W*X
@@ -44,123 +45,266 @@ module presProfileOperators_mod
   contains
 
   !--------------------------------------------------------------------------
-  ! PPO_LINTV
+  ! ppo_getColumn
   !--------------------------------------------------------------------------
-  SUBROUTINE PPO_LINTV (PVLEV,PVI,KNI, KNPROF,KNO,PPO,PVO)
-      !
-      !:Purpose: To perform the vertical interpolation in log of pressure and
-      !          constant-value extrapolation of one-dimensional vectors. Input
-      !          pressure levels can vary for each profile.
-      !
-      implicit none
+  subroutine ppo_getColumn(field,nlong,nlat,nlev,xlong,xlat, &
+                           vlev,plong,plat,nlevout,vlevout,  &
+			   nearestNeighbourInterp,vprof)
+    !
+    !:Purpose: Horizontal nearest-neighbour or bilinear and vertical linear 
+    !          ln(p) interpolation from 1D to 3D fields to a profile at (plong,plat).
+    !
+    !          This version can be used with fields that are not part of 
+    !          the background state. It does not depend on column_data and 
+    !          gridstatevector modules. Input pressures, lat and
+    !          long are assumed to be ordered in increasing values.
+    !
+    !:Comments:
+    !
+    !   Input latitudes must be in degrees to ensure backward compatibility of TO family
+    !   results given ozone Fortuin-Kelder climatology. (see "xlat(1) < -89.999d0" below)
+    ! 
+    implicit none
 
-      ! Arguments:
-      real(8) ,intent(in)  :: pvlev(kni,knprof) ! Vertical levels, pressure (source)
-      real(8) ,intent(in)  :: pvi(kni,knprof)   ! Vector to be interpolated (source)
-      integer ,intent(in)  :: kni               ! Number of input levels (source)
-      integer ,intent(in)  :: knprof            ! Number of profiles
-      integer ,intent(in)  :: kno               ! Number of output levels (destination)
-      real(8) ,intent(in)  :: ppo(kno,knprof)   ! Vertical levels, pressure (destination)
-      real(8) ,intent(out) :: pvo(kno,knprof)   ! Interpolated profiles (destination)
+    ! Arguments:
+    integer,  intent(in) :: nlong            ! number or longitudes
+    integer,  intent(in) :: nlat             ! number or latitudes
+    integer,  intent(in) :: nlev             ! number of vertical levels
+    integer,  intent(in) :: nlevout          ! number of target vertical levels
+    real(8),  intent(in) :: field(nlong,nlat,nlev) ! 3D field
+    real(8),  intent(in) :: vlev(nlev)       ! vertical levels of input field (in pressure)
+    real(8),  intent(in) :: xlong(nlong)     ! longitudes (radians)
+    real(8),  intent(in) :: xlat(nlat)       ! latitudes (degrees or radians)
+    real(8),  intent(in) :: plong            ! target longitude (radians)
+    real(8),  intent(in) :: plat             ! target latitude (degrees or radians)
+    real(8),  intent(in) :: vlevout(nlevout) ! target vertical levels (in pressure)
+    logical,  intent(in) :: nearestNeighbourInterp ! .true. if lat/long near-neighbour interp   
+    real(8), intent(out) :: vprof(nlevout)   ! profile at (plong,plat)
+    
+    ! Locals:
+    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
+    integer :: ilev,lonIndex,latIndex,i,j
+    real(8) :: dldx, dldy, dldp, dlw1, dlw2, dlw3, dlw4
 
-      ! Locals:
-      INTEGER  JI, JK, JO, profileIndex, IK, IORDER
-      REAL(8)     ZPI (0:KNI+1,KNPROF)
-      REAL(8)     ZPVI(0:KNI+1,KNPROF)
-      INTEGER  IL  (KNO    ,KNPROF)      
-      REAL(8) ZW1, ZW2
-      REAL(8) ZP, XI, ZRT, ZP1, ZP2
+    ! Find near lat/long grid points
 
-      !
-      !**   1. Initialization for vertical extrapolation (extra dummy levels)
-      !     .  --------------------------------------------------------------
-      !
+    if (nearestNeighbourInterp) then
       
-      ZPI(0,:)=2000.D0
-      ZPI(KNI+1,:)=2000.D0
+      if (nlong == 1) then
+        lonIndex=1
+      else
+        plong2 = plong
+        if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
+        if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
+	    plong2 < 2.0d0*xlong(1)-xlong(2)) then
+           call utl_abort('ppo_getColumn: Outside longitude range')
+        end if	  
+	if ( plong2 < 0.5d0*(xlong(1)+xlong(2)) ) then
+	  lonIndex=1
+	else if ( plong2 >= 0.5d0*(xlong(nlong)+xlong(nlong-1)) ) then
+	  lonIndex=nlong
+	else  
+	  dldx=abs(xlong(1)-plong2)
+	  do lonIndex=2,nlong
+	    dlw1=abs(xlong(lonIndex)-plong2)
+	    if (dlw1>dldx) exit
+	    dldx=dlw1
+          end do
+	  lonIndex=lonIndex-1
+	end if
+      end if
       
-      !
-      !**      1.1 Determine if input pressure levels are in ascending or
-      !     .      descending order.
-      !     .     -------------------------------------------------------
-      !
-      IF ( PVLEV(1,1)  <  PVLEV(KNI,1) ) THEN
-         IORDER = 1
-      ELSE
-         IORDER = -1
-      END IF
-      !
-      !**   2. Compute pressure levels pressure
-      !     .  ------------------------------------------------
-      !
+      if (nlat == 1) then
+        latIndex=1
+      else 
 
-      !
-      !**   2.1 Source levels
-      !     .   -------------
-      !
+        if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
+	    plat < 2.0d0*xlat(1)-xlat(2)) then
+           call utl_abort('ppo_getColumn: Outside latitude range')
+        end if	  
+	if ( plat < 0.5d0*(xlat(1)+xlat(2)) ) then
+	  latIndex=1
+	else if ( plat >= 0.5d0*(xlat(nlat)+xlat(nlat-1)) ) then
+	  latIndex=nlat
+	else 
+	  if ( xlat(1) < -89.999d0  .and. &
+	       abs(0.5d0*(xlat(1)+xlat(3))/xlat(2)-1.0d0)  < 5.0d0*epsilon(1.0d0) ) then
+	    ! Following done to ensure backward compatibility with Fortuin-Kelder
+	    ! ozone setup. Otherwise, some lat indices could differ from earlier results due
+	    ! to numerical precison (when plat is in the middle of two successive latitudes)
+	    ! Assume equidistant with ends at poles and latitudes in degrees
+
+            !latIndex = nint( (plat+90.0d0) / (180.0d0/real(nlat-1,8)) ) + 1
+	    !if ( abs(plat+35.0d0) < 2*35.0d0*epsilon(1.0d0) .and. nlat == 19 .and. &
+	    !     latIndex == 6 ) latIndex = 7   ! Select -30 degrees instead of -40 degrees.
+            latIndex = nint( (1.0d0+epsilon(1.0d0))*(plat+90.0d0) / (180.0d0/real(nlat-1,8)) ) + 1
+	  else  
+	    dldy=abs(xlat(1)-plat)
+	    do latIndex=1,nlat
+	      dlw1=abs(xlat(latIndex)-plat)
+	      if (dlw1>dldy) exit
+	      dldy=dlw1
+            end do
+	    latIndex=latIndex-1
+	  endif	  	 		 
+	end if 
+      end if
+      
+    else   
+      
+      if ( nlong > 1 ) then
+        plong2 = plong
+        if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
+        if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
+	    plong2 < 2.0d0*xlong(1)-xlong(2)) then
+           call utl_abort('ppo_getColumn: Outside longitude range')
+        end if	  
+        do lonIndex = 2, nlong
+          if  (xlong(lonIndex-1) < xlong(lonIndex)) then
+            if (plong2 >= xlong(lonIndex-1) .and. plong2 <= xlong(lonIndex)) exit
+          else 
+            ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+          end if
+        end do
+        lonIndex = lonIndex-1
+	if (lonIndex >= nlong) lonIndex=nlong-1
+      else
+        lonIndex=0
+      end if
+
+      if ( nlat > 1) then
+        if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
+	    plat < 2.0d0*xlat(1)-xlat(2)) then
+           call utl_abort('ppo_getColumn: Outside latitude range')
+        end if	  
+        do latIndex = 2, nlat
+          if (plat <= xlat(latIndex)) exit
+        end do
+        latIndex = latIndex-1
+	if (latIndex >= nlat) latIndex=nlat-1
+      else 
+        latIndex=0
+      end if
+
+    end if
+
+    if ( latIndex == 0 .or. nearestNeighbourInterp ) then
+    
+      ! Assumes longitudinally independent as well. 
+
+      ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+
+      lnvlevout(:) = log(vlevout(:))    
+      lnvlev(:) = log(vlev(:))    
+
+      ilev = 1
+      do i = 1, nlevout
+        do j = ilev, nlev          
+          if (lnvlevout(i) < lnvlev(j)) exit ! assumes lnvlevout and lnvlev increase with index
+        end do
+        ilev = j-1
+        if (ilev <= 1) then
+          ilev = 1
+	  dldp=1.0d0
+        else if (ilev >= nlev) then
+          ilev = nlev-1
+	  dldp=0.0d0
+	else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+        end if
+
+         
+	if (.not.nearestNeighbourInterp) then
+          vprof(i) = dldp * field(1,1,ilev) & 
+            + (1.d0-dldp) * field(1,1,ilev+1)
+	else
+          vprof(i) = dldp * field(lonIndex,latIndex,ilev) & 
+            + (1.d0-dldp) * field(lonIndex,latIndex,ilev+1)
+	end if
+	
+      end do
+
+    else if ( lonIndex == 0 .and. latIndex > 0 ) then
+    
+      ! Set lat interpolation weights
+
+      dldy = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
+
+      dlw1 = (1.d0-dldy)
+      dlw2 = dldy
+
+      ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+
+      lnvlevout(:) = log(vlevout(:))    
+      lnvlev(:) = log(vlev(:))    
+
+      ilev = 1
+      do i = 1, nlevout
+        do j = ilev, nlev          
+          if (lnvlevout(i) < lnvlev(j)) exit ! assumes lnvlevout and lnvlev increase with index
+        end do
+        ilev = j-1
+        if (ilev <= 1) then
+          ilev = 1
+	  dldp=1.0d0
+        else if (ilev >= nlev) then
+          ilev = nlev-1
+	  dldp=0.0d0
+	else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+        end if
+
+        vprof(i) = dldp* (dlw1 * field(1,latIndex,ilev)      &
+                        + dlw2 * field(1,latIndex+1,ilev))   & 
+          + (1.d0-dldp)* (dlw1 * field(1,latIndex,ilev+1)    &
+                        + dlw2 * field(1,latIndex+1,ilev+1))  
+      end do
+
+    else
+    
+      ! Set lat/long interpolation weights
+
+      dldx = (plong - xlong(lonIndex))/(xlong(lonIndex+1)-xlong(lonIndex))
+      dldy = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
+
+      dlw1 = (1.0d0-dldx) * (1.0d0-dldy)
+      dlw2 =        dldx  * (1.0d0-dldy)
+      dlw3 = (1.0d0-dldx) *        dldy
+      dlw4 =        dldx  *        dldy
+
+      ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+
+      lnvlevout(:) = log(vlevout(:))    
+      lnvlev(:) = log(vlev(:))    
+
+      ilev = 1
+      do i = 1, nlevout
+        do j = ilev, nlev          
+          if (lnvlevout(i) < lnvlev(j)) exit ! assumes lnvlevout and lnvlev increase with index
+        end do
+        ilev = j-1
+        if (ilev < 1) then
+          ilev = 1
+	  dldp=1.0d0
+        else if (ilev >= nlev) then
+          ilev = nlev-1
+	  dldp=0.0
+	else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+        end if
           
-      ZPI(1:KNI,:) = PVLEV(1:KNI,:)
+        vprof(i) = dldp* (dlw1 * field(lonIndex,latIndex,ilev)      &
+                        + dlw2 * field(lonIndex+1,latIndex,ilev)    &
+                        + dlw3 * field(lonIndex,latIndex+1,ilev)    &
+                        + dlw4 * field(lonIndex+1,latIndex+1,ilev)) &
+          +(1.0d0-dldp)* (dlw1 * field(lonIndex,latIndex,ilev+1)    &
+                        + dlw2 * field(lonIndex+1,latIndex,ilev+1)  &
+                        + dlw3 * field(lonIndex,latIndex+1,ilev+1)  &
+                        + dlw4 * field(lonIndex+1,latIndex+1,ilev+1))                               
+      end do
+    end if
 
-      !
-      !
-      !*    3.  Interpolate in log of pressure or extrapolate with constant value
-      !*    .   for each destination pressure level
-      !     .   -----------------------------------------------------------------
-      !
-
-      !
-      !
-      !*    .  3.1  Find the adjacent level below
-      !     .       -----------------------------
-      !
-      !
-      
-      IL(:,:)=0
-      !
-      DO JI=1,KNI
-         DO profileIndex = 1, KNPROF
-            DO JO=1,KNO
-              ZRT = PPO(JO,profileIndex)
-               ZP = ZPI(JI,profileIndex)
-               XI = SIGN(1.0D0,IORDER*(ZRT-ZP))
-               IL(JO,profileIndex) = IL(JO,profileIndex) + MAX(0.0D0,XI)
-            END DO
-         END DO
-      END DO
-      !
-      !
-      !*    .  3.2  Fill extra levels, for constant value extrapolation
-      !     .       ---------------------------------------------------
-      !
-      
-      DO profileIndex = 1, KNPROF
-         DO JK = 1, KNI
-            ZPVI(JK,profileIndex) = PVI(JK,profileIndex)
-         END DO
-      END DO
-      DO profileIndex = 1, KNPROF
-         ZPVI(0    ,profileIndex) = PVI(1  ,profileIndex)
-         ZPVI(KNI+1,profileIndex) = PVI(KNI,profileIndex)
-      END DO
-      !
-      !
-      !*    .  3.3  Interpolation/extrapolation
-      !     .       ---------------------------
-      !
-      
-      DO profileIndex = 1, KNPROF
-        DO JO=1,KNO
-          ZP = PPO(JO,profileIndex)
-          IK = IL(JO,profileIndex)
-          ZP1 = ZPI(IK  ,profileIndex)
-          ZP2 = ZPI(IK+1,profileIndex)
-          ZW1 = LOG(ZP/ZP2)/LOG(ZP1/ZP2)
-          ZW2 = 1.D0 - ZW1
-          PVO(JO,profileIndex) = ZW1*ZPVI(IK,profileIndex) +  ZW2*ZPVI(IK+1,profileIndex)
-        END DO
-      END DO
-           
-  END SUBROUTINE PPO_LINTV
+  end subroutine ppo_getColumn
 
   !==========================================================================
   !---- Stand-alone interpolation routine providing interpolation weights ---
@@ -283,7 +427,8 @@ module presProfileOperators_mod
         end if
       end do
 
-    else if ( trim(method) == 'wgtAvg' .and. numTargetLevs > 1) then
+    else if ( (trim(method) == 'wgtAvg' .or. trim(method) == 'genOperInterp') &
+              .and. numTargetLevs > 1) then
     
       ! Piecewise weighted averaging according to distance 
       ! Involves all model levels within the profile range

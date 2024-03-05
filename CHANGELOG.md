@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * Add climatologies_mod which replaces and generalizes ozoneClim_mod (#202 and !772)
+   * WARNING: Minor impact on results when using ozone sensitive radiances
  * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)

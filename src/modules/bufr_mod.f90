@@ -92,7 +92,8 @@ module bufr_mod
  integer, parameter :: BUFR_NECH_NH3   =9  
  integer, parameter :: BUFR_NECH_NO    =11
  integer, parameter :: BUFR_NECH_PM25  =26 
- integer, parameter :: BUFR_NECH_PM10  =27  
+ integer, parameter :: BUFR_NECH_PM10  =27 
+ integer, parameter :: BUFR_NECH_maxValue=27  ! BUFR_NECH_* constituantID max value
 
  ! Table B elements associated to constituents/chemistry
  ! -----------------------------------------------------
