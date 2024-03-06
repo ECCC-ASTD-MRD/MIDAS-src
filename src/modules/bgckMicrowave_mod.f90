@@ -36,6 +36,7 @@ module bgckMicrowave_mod
   logical :: mwbg_resetQc                      ! reset Qc flags
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical :: mwbg_avoidSiObsRejectTempChan     ! prevent scattering index from obs to reject temperature channels
+  logical :: mwbg_avoidSiObsEcmwfRejectTempChan! prevent scattering index from obs (ecmwf formula) to reject temperature channels
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -91,6 +92,7 @@ module bgckMicrowave_mod
   logical            :: resetQc                       ! reset Qc flags option
   logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical            :: avoidSiObsRejectTempChan      ! prevent scattering index from obs to reject temperature channels
+  logical            :: avoidSiObsEcmwfRejectTempChan ! prevent scattering index from obs (ecmwf formula) to reject temperature channels
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -99,7 +101,8 @@ module bgckMicrowave_mod
                     cloudyClwThresholdBcorr, modLSQ, &
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
-                    avoidSiObsRejectTempChan, skipTestArr
+                    avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
+                    skipTestArr
                     
 
 contains
@@ -114,18 +117,19 @@ contains
     integer :: ierr
 
     ! Default values for namelist variables
-    debug                    = .false.
-    clwQcThreshold           = 0.3 
-    useUnbiasedObsForClw     = .false.
-    cloudyClwThresholdBcorr  = 0.05
-    minSiOverWaterThreshold  = -10.0
-    maxSiOverWaterThreshold  = 30.0
-    cloudySiThresholdBcorr   = 5.0
-    rejectWhenSiMissing      = .false.
-    resetQc                  = .false.
-    modLSQ                   = .false.
-    avoidSiObsRejectTempChan = .false.
-    skipTestArr(:)           = .false.
+    debug                         = .false.
+    clwQcThreshold                = 0.3 
+    useUnbiasedObsForClw          = .false.
+    cloudyClwThresholdBcorr       = 0.05
+    minSiOverWaterThreshold       = -10.0
+    maxSiOverWaterThreshold       = 30.0
+    cloudySiThresholdBcorr        = 5.0
+    rejectWhenSiMissing           = .false.
+    resetQc                       = .false.
+    modLSQ                        = .false.
+    avoidSiObsRejectTempChan      = .false.
+    avoidSiObsEcmwfRejectTempChan = .false.
+    skipTestArr(:)                = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
@@ -144,6 +148,7 @@ contains
     mwbg_resetQc = resetQc
     mwbg_calcLandQualifierTerrainType = modLSQ
     mwbg_avoidSiObsRejectTempChan = avoidSiObsRejectTempChan
+    mwbg_avoidSiObsEcmwfRejectTempChan = avoidSiObsEcmwfRejectTempChan
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -6023,7 +6028,7 @@ contains
               scatwObsFGaveraged < mwbg_minSiOverWaterThreshold) then
             lflagchn(16:22) = .true.
           end if
-          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej .and. .not. mwbg_avoidSiObsRejectTempChan) then
+          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej .and. .not. mwbg_avoidSiObsEcmwfRejectTempChan) then
             lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           end if
         else
