@@ -37,6 +37,10 @@ Their default values (in parentheses), **should be good for most users**.
   compiled object will keep the impact of the debug options and may result
   in inconsistencies.
 * `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code coverage diagnostics files
+* `MIDAS_COMPILE_OPTIMIZE_REPORT` : if `yes`, the compiler will
+  produce optimization reports.  This will produce files with the
+  `.optrpt` extension in the compilation directory with lots of
+  information about compiler code optimization.
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
