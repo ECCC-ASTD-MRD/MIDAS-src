@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
  * Add climatologies_mod which replaces and generalizes ozoneClim_mod (#202 and !772)
    * WARNING: Minor impact on results when using ozone sensitive radiances
  * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)

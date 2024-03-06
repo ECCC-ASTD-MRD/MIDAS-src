@@ -521,8 +521,8 @@ contains
          write(*,*) '*****************************************************'
          write(*,*) ' '
        end if
-222    format(2x,a29,16(2x,i5))
-223    format(2x,a29,16(2x,f5.0))
+222    format(2x,a29,16(2x,i10))
+223    format(2x,a29,16(2x,f10.0))
 
     end do FAMILY
 

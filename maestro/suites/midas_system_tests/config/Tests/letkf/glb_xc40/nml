@@ -13,7 +13,7 @@
    rejectHighLatIR          = .false.
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
-   mpiDistribution          = 'ROUNDROBIN'
+   mpiDistribution          = 'MASTERWORKER'
 /
  &namEnsPostProcModule
    alphaRTPP                = 0.00D0

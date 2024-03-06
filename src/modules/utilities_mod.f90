@@ -2798,7 +2798,7 @@ contains
     allocate(realRandomArray(arraySize))
     allocate(intArrayOut(arraySize))
 
-    call rng_setup(randomSeed)
+    call rng_setup(randomSeed, beSilent_opt=.true.)
     do arrayIndex = 1, arraySize
       realRandomArray(arrayIndex) = rng_uniform()
     end do

@@ -239,6 +239,7 @@ program midas_letkf
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
+  integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
   logical  :: backgroundCheck      ! apply additional background check using ensemble spread
   logical  :: huberize             ! apply huber norm quality control procedure
@@ -265,7 +266,7 @@ program midas_letkf
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug
+                     numRetainedEigen, myNumLatLonSendFactor, debug
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -325,8 +326,9 @@ program midas_letkf
   readEnsObsFromFile       = .false.
   writeLocalEnsObsToFile   = .false.
   numRetainedEigen         = 0
+  myNumLatLonSendFactor    = 10
   debug                    = .false.
-  
+
   !- 1.2 Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namletkf, iostat=ierr)
@@ -615,12 +617,12 @@ program midas_letkf
         end if
 
         ! modulate the member with eigenvectors of vertical localization matrix
-        call enkf_getModulatedState(stateVector4D, stateVectorMeanTrl4D, &
-                                    vLocalize, numRetainedEigen, nEns, &
-                                    eigenVectorIndex, stateVector4Dmod, &
-                                    beSilent=.true. )
-        if (debug) then
-          call gsv_getField(stateVector4Dmod,field_Psfc, 'P0')
+        call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
+                                     vLocalize, numRetainedEigen, nEns, &
+                                     eigenVectorIndex, stateVector4Dmod, &
+                                     beSilent=.true. )
+        if ( debug ) then
+          call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
           write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
                     ', min(Psfc)=', minval(field_Psfc)
         end if
@@ -788,7 +790,7 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen)
+                          mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if (outputEnsObs) then
