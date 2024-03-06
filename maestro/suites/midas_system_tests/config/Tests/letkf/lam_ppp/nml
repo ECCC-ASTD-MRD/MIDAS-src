@@ -13,7 +13,7 @@
    rejectRadNearSfc      = .false.
    outputEnsObs          = .true.
    obsTimeInterpType     = 'LINEAR'
-   mpiDistribution       = 'TILES'
+   mpiDistribution       = 'MASTERWORKER'
 /
  &namEnsPostProcModule
    alphaRTPP             = 0.40D0

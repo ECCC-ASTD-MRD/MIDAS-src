@@ -25,21 +25,29 @@ contains
   !--------------------------------------------------------------------------
   ! rng_Setup
   !--------------------------------------------------------------------------
-  subroutine rng_setup(seed)
+  subroutine rng_setup(seed, beSilent_opt)
     !
     !:Purpose: Initialize the random number generator with a supplied seed.
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)   :: seed
+    integer,           intent(in) :: seed
+    logical, optional, intent(in) :: beSilent_opt
 
     ! Locals:
     integer, dimension(1) :: seeds
-    type(RANDOM_STREAM) :: null_stream
+    type(RANDOM_STREAM)   :: null_stream
+    logical               :: beSilent
 
-    if (initialized) then
-       write(*,*) 'rng_setup: WARNING: you are re-initializing the module!!!'
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if (initialized .and. .not.beSilent) then
+      write(*,*) 'rng_setup: WARNING: you are re-initializing the module!!!'
     end if
 
     seeds(1) = seed
