@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Updating `midas.splitobs.Abs` to `rpn/libs/20231219` (#908 and !822)
  * Updating rpn/libs and rpn/utils to 20231219 (#906 and !815)
    ** Adapting scripts/fortran for the new file type code for sqlite files.
  * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
