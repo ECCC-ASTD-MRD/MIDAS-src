@@ -45,7 +45,7 @@ module gridStateVector_mod
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_applyMaskLAM, gsv_containsNonZeroValues
   public :: gsv_isAllocated
-  public :: gsv_transposesteptovarslevs, gsv_transposeHeightSfcTilesToMpiGlobal
+  public :: gsv_transposesteptovarslevs
 
   ! public module variables
   public :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
@@ -5300,82 +5300,6 @@ module gridStateVector_mod
     call msg('gsv_transposeTilesToMpiGlobal', 'END', verb_opt=2)
 
   end subroutine gsv_transposeTilesToMpiGlobal
-
-  !--------------------------------------------------------------------------
-  ! gsv_transposeHeightSfcTilesToMpiGlobal
-  !--------------------------------------------------------------------------
-  subroutine gsv_transposeHeightSfcTilesToMpiGlobal(stateVector_mpiGlobal, stateVector_tiles)
-    !
-    !:Purpose: Does height surface only MPI transpose (allGather) from `mpi_distribution='Tiles'` 
-    !          (4D lat-lon tiles) to global 4D stateVector on each MPI task 
-    !          where it is allocated.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout)  :: stateVector_mpiGlobal
-    type(struct_gsv), intent(in)     :: stateVector_tiles
-
-    ! Locals:
-    integer :: ierr, yourid, youridx, youridy, nsize
-    real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
-
-    if (stateVector_tiles%mpi_distribution /= 'Tiles') then
-      call utl_abort('gsv_transposeHeightSfcTilesToMpiGlobal: input statevector must have Tiles mpi distribution')
-    end if
-    if (.not. associated(statevector_tiles%HeightSfc)) then
-      call utl_abort('gsv_transposeHeightSfcTilesToMpiGlobal: HeightSfc in input stateVector_in not allocated')
-    end if
-    
-    if (stateVector_mpiGlobal%allocated) then
-      if (.not. associated(statevector_mpiGlobal%HeightSfc)) then
-        call utl_abort('gsv_gsv_transposeHeightSfcTilesToMpiGlobal: HeightSfc in output stateVector_out not allocated')
-      end if
-    end if
-
-    call rpn_comm_barrier('GRID',ierr)
-    call msg('gsv_transposeHeightSfcTilesToMpiGlobal', 'START', verb_opt=2)
-
-    ! size of each message
-    nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
-
-    ! gather the same HeightSfc onto each task that is a receiver
-    allocate(gd_send_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax))
-    gd_send_r8(:,:) = 0.0d0
-    allocate(gd_recv_r8(stateVector_tiles%lonPerPEmax,stateVector_tiles%latPerPEmax,mmpi_nprocs))
-    gd_recv_r8(:,:,:) = 0.0d0
-
-    ! prepare tile to send on each task
-    gd_send_r8(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) = &
-         stateVector_tiles%HeightSfc(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,    &
-         stateVector_tiles%myLatBeg:stateVector_tiles%myLatEnd)
-
-    call rpn_comm_allGather(gd_send_r8, nsize, 'mpi_real8',  &
-                            gd_recv_r8, nsize, 'mpi_real8', 'grid', ierr)
-
-    if (stateVector_mpiGlobal%allocated) then
-
-      !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mmpi_npey-1)
-        do youridx = 0, (mmpi_npex-1)
-          yourid = youridx + youridy*mmpi_npex
-          stateVector_mpiGlobal%HeightSfc(&
-               stateVector_tiles%allLonBeg(youridx+1):stateVector_tiles%allLonEnd(youridx+1), &
-               stateVector_tiles%allLatBeg(youridy+1):stateVector_tiles%allLatEnd(youridy+1)) = &
-               gd_recv_r8(1:stateVector_tiles%allLonPerPE(youridx+1),  &
-                          1:stateVector_tiles%allLatPerPE(youridy+1), yourid+1)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-
-    end if
-
-    deallocate(gd_recv_r8)
-    deallocate(gd_send_r8)
-
-    call msg('gsv_transposeHeightSfcTilesToMpiGlobal', 'END', verb_opt=2)
-
-  end subroutine gsv_transposeHeightSfcTilesToMpiGlobal
 
   !--------------------------------------------------------------------------
   ! gsv_varKindExist

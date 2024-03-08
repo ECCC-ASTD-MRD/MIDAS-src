@@ -2779,7 +2779,7 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevector_member_r4
-    type(struct_gsv) :: statevectorHeightSfc
+    type(struct_gsv) :: statevectorHeightSfc, statevectorHeightSfc_tiles
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
@@ -2881,7 +2881,13 @@ CONTAINS
                         mpi_local_opt=.false.,                      &
                         varNames_opt=(/'P0'/), dataKind_opt=4,      & 
                         allocHeightSfc_opt=.true.)
-      call gsv_transposeHeightSfcTilesToMpiGlobal(statevectorHeightSfc,ens%statevector_work)
+      call gsv_allocate(statevectorHeightSfc_tiles, 1, hco_ens, vco_ens,  &
+                        mpi_local_opt=.true.,                             &
+                        varNames_opt=(/'P0'/), dataKind_opt=4,            & 
+                        allocHeightSfc_opt=.true.)
+      call gsv_copyHeightSfc(ens%statevector_work,statevectorHeightSfc_tiles)
+      call gsv_transposeTilesToMpiGlobal(statevectorHeightSfc,statevectorHeightSfc_Tiles)
+      call gsv_deallocate(statevectorHeightSfc_tiles)
     end if
 
     !

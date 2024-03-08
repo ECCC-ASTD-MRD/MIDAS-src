@@ -107,8 +107,8 @@ module calcHeightAndPressure_mod
   real(8), allocatable :: coeff_T_P0_delP1_col(:),   coeff_T_P0_dP_delPT_col(:)
   real(8), allocatable :: coeff_T_P0_dP_delP0_col(:)
 
-  real(8), parameter :: lowestLandAltitudeOnEearth_r8 = -420.d0 ! Dead Sea altitude 
-  real(8), parameter :: lowestLandAltitudeOnEearth_r4 = -420.0
+  real(8), parameter :: lowestLandAltitudeOnEarth_r8 = -420.d0 ! Dead Sea altitude 
+  real(8), parameter :: lowestLandAltitudeOnEarth_r4 = -420.0
 
 contains
   !---------------------------------------------------------------------
@@ -3799,7 +3799,7 @@ contains
 
     if ( minval(sfcFld) < 0 ) then
       if ( vco%vcode == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEearth_r8 ) then
+        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -3870,7 +3870,7 @@ contains
 
     if ( minval(sfcFld) < 0 ) then
       if ( vco%vcode == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEearth_r4 ) then
+        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r4 ) then
           call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -3940,7 +3940,7 @@ contains
 
     if ( sfcValue < 0 ) then
       if ( vco%vcode == 21001 ) then
-        if ( sfcValue >= lowestLandAltitudeOnEearth_r8 ) then
+        if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DLevels_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
           call utl_abort('fetch1DLevels_r8: unrealistic negative surface height reference : '//str(sfcValue))
@@ -3991,7 +3991,7 @@ contains
 
     if ( sfcValue < 0 ) then
       if ( vco%vcode == 21001 ) then
-        if ( sfcValue >= lowestLandAltitudeOnEearth_r8 ) then
+        if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DdPdPs_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
           call utl_abort('fetch1DdPdPs_r8: unrealistic negative surface height reference : '//str(sfcValue))

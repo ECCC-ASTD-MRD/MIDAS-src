@@ -36,7 +36,7 @@ contains
   !----------------------------------------------------------------------
   ! epp_postProcess
   !----------------------------------------------------------------------
- subroutine epp_postProcess(ensembleTrl, ensembleAnl,                   &
+  subroutine epp_postProcess(ensembleTrl, ensembleAnl,                   &
                              stateVectorHeightSfc, stateVectorCtrlTrl4D, &
                              writeTrlEnsemble, outputOnlyEnsMean_opt,    &
                              writeHeightSfc_opt)
@@ -640,21 +640,19 @@ contains
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
-      if (writeTrlEnsemble) then
-        call utl_tmg_start(3,'--WriteEnsemble') ! JFC: Why this is outside the 'if' statement below?
-        if (.not. outputOnlyEnsMean) then
-          if (present(writeHeightSfc_opt)) then
-            writeHeightSfc = writeHeightSfc_opt
-          else
-            writeHeightSfc = .false.
-          end if
-          if (writeHeightSfc) then
-            call ens_copyHeightSfc(ensembleTrl,stateVectorHeightSfc)
-          end if
-          call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.true., writeHeightSfc_opt = writeHeightSfc)
+      if (writeTrlEnsemble .and. .not. outputOnlyEnsMean) then
+        call utl_tmg_start(3,'--WriteEnsemble')
+        if (present(writeHeightSfc_opt)) then
+          writeHeightSfc = writeHeightSfc_opt
+        else
+          writeHeightSfc = .false.
         end if
+        if (writeHeightSfc) then
+          call ens_copyHeightSfc(ensembleTrl,stateVectorHeightSfc)
+        end if
+        call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
+                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
+                               containsFullField_opt=.true., writeHeightSfc_opt = writeHeightSfc)
         call utl_tmg_stop(3)
       end if
     end if

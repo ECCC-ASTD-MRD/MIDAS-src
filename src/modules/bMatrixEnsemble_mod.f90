@@ -495,6 +495,7 @@ CONTAINS
 
     if (bEns(instanceIndex)%vco_file%vCode == 21001 .or. bEns(instanceIndex)%vco_anl%vCode == 21001) then
       bEns(instanceIndex)%vco_ens  => bEns(instanceIndex)%vco_anl ! the ensemble target grid is the analysis grid
+                                                                  ! as it should always be the case
     else
       !- (JFC: Legacy approach that should be removed)
       !- Do we need to read all the vertical levels from the ensemble?
@@ -1044,10 +1045,6 @@ CONTAINS
 
       case('ensPertAnlInc')
         if (mmpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
-
-        !if (.not. EnsTopMatchesAnlTop) then
-        !  call utl_abort('ben_setupOneInstance: for advectTypeAssimWindow=ensPertAnlInc, ensTop and anlTop must match!')
-        !end if
 
         bEns(instanceIndex)%advectEnsPertAnlInc         = .true.
         bEns(instanceIndex)%amp3dStepIndexAssimWindow   = 1
