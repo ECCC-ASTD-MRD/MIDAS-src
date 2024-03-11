@@ -2225,9 +2225,6 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)    :: statevector_in
     type(struct_gsv), intent(inout) :: statevector_out
 
-    if ( .not. hco_equal(gsv_getHco(statevector_in), gsv_getHco(statevector_out))) then
-      call utl_abort('gsv_copyHeightSfc: inconsistent horizontal structure')
-    end if
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
     end if
@@ -2235,6 +2232,10 @@ module gridStateVector_mod
       call utl_abort('gsv_copyHeightSfc: gridStateVector_out not yet allocated')
     end if
 
+    if ( .not. hco_equal(gsv_getHco(statevector_in), gsv_getHco(statevector_out))) then
+      call utl_abort('gsv_copyHeightSfc: inconsistent horizontal structure')
+    end if
+    
     if (.not. associated(statevector_in%HeightSfc)) then
       call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_in not allocated')
     end if
@@ -2242,6 +2243,10 @@ module gridStateVector_mod
       call utl_abort('gsv_copyHeightSfc: HeightSfc in gridStateVector_out not allocated')
     end if
 
+    if (statevector_out%mpi_distribution /= statevector_in%mpi_distribution) then
+      call utl_abort('gsv_copyHeightSfc: inconsistent mpi_distribution')
+    end if
+    
     statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
 
   end subroutine gsv_copyHeightSfc

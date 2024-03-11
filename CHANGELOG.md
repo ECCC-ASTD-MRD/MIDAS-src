@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * Added the capability to compute EnVar analysis increments on GEM-P levels using a background and ensembles on GEM-H levels (#850 and !820)
+   * WARNING: minor impact on results when vertically interpolating the ensembles
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
  * Add climatologies_mod which replaces and generalizes ozoneClim_mod (#202 and !772)
    * WARNING: Minor impact on results when using ozone sensitive radiances

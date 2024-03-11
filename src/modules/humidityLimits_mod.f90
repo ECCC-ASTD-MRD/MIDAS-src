@@ -14,6 +14,7 @@ module humidityLimits_mod
   use ensembleStateVector_mod
   use calcHeightAndPressure_mod
   use columnData_mod
+  use message_mod
   implicit none
   save
   private
@@ -141,17 +142,18 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:), psfcLS_ptr_r8(:,:,:,:)
-    real(8), pointer :: pressure(:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:)
+    real(8), pointer :: pressure4D_T_r8(:,:,:,:), pressure4D_M_r8(:,:,:,:)
+    real(4), pointer :: pressure4D_T_r4(:,:,:,:), pressure4D_M_r4(:,:,:,:)
+    real(8), pointer :: height4D_T_r8(:,:,:,:), height4D_M_r8(:,:,:,:)
+    real(4), pointer :: height4D_T_r4(:,:,:,:), height4D_M_r4(:,:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
-    real(8), allocatable :: psfc(:,:), psfcLS(:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
 
-    if( .not. gsv_varExist(statevector,'HU') ) then
+    if (.not. gsv_varExist(statevector,'HU')) then
       if( mmpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
            'contain humidity ... doing nothing'
       return
@@ -162,86 +164,130 @@ contains
       call gsv_getField(statevector,hu_ptr_r8,'HU')
       call gsv_getField(statevector,tt_ptr_r8,'TT')
     else
-      call gsv_getField(statevector,hu_ptr_r4,'HU')
-      call gsv_getField(statevector,tt_ptr_r4,'TT')
+     call gsv_getField(statevector,hu_ptr_r4,'HU')
+     call gsv_getField(statevector,tt_ptr_r4,'TT')
     end if
+    
+    !
+    !- Compute pressure (4D)
+    !
+    if (stateVector%dataKind == 8) then
+      
+      allocate(pressure4D_T_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'TH'), statevector%numStep))
+      allocate(pressure4D_M_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'MM'), statevector%numStep))
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+        call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                           PTout_r8_opt=pressure4D_T_r8, &
+                                           PMout_r8_opt=pressure4D_M_r8)
+      else if (vco_ptr%vcode == 21001) then
+        allocate(height4D_T_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'TH'), statevector%numStep))
+        allocate(height4D_M_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'MM'), statevector%numStep))
+        call czp_calcReturnHeight_gsv_nl(statevector,                &
+                                         ZTout_r8_opt=height4D_T_r8, &
+                                         ZMout_r8_opt=height4D_M_r8)
+        call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                           ZTin_r8_opt=height4D_T_r8,    &
+                                           ZMin_r8_opt=height4D_M_r8,    &
+                                           PTout_r8_opt=pressure4D_T_r8, &
+                                           PMout_r8_opt=pressure4D_M_r8)
+        deallocate(height4D_M_r8)
+        deallocate(height4D_T_r8)
+      else
+        call utl_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
+      end if
+      deallocate(pressure4D_M_r8)
 
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    lev1 = 1
-    lev2 = gsv_getNumLev(statevector,'TH')
+    else ! real 4
+ 
+      allocate(pressure4D_T_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'TH'), statevector%numStep))
+      allocate(pressure4D_M_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'MM'), statevector%numStep))
+      allocate(pressure4D_T_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                               statevector%myLatBeg:statevector%myLatEnd, &
+                               gsv_getNumLev(statevector,'TH'), statevector%numStep))
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+        call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                           PTout_r4_opt=pressure4D_T_r4, &
+                                           PMout_r4_opt=pressure4D_M_r4)
+      else if (vco_ptr%vcode == 21001) then
+        allocate(height4D_T_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                                 statevector%myLatBeg:statevector%myLatEnd, &
+                                 gsv_getNumLev(statevector,'TH'), statevector%numStep))
+        allocate(height4D_M_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                                 statevector%myLatBeg:statevector%myLatEnd, &
+                                 gsv_getNumLev(statevector,'MM'), statevector%numStep))
+        call czp_calcReturnHeight_gsv_nl(statevector,                &
+                                         ZTout_r4_opt=height4D_T_r4, &
+                                         ZMout_r4_opt=height4D_M_r4)
+        call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                           ZTin_r4_opt=height4D_T_r4,    &
+                                           ZMin_r4_opt=height4D_M_r4,    &
+                                           PTout_r4_opt=pressure4D_T_r4, &
+                                           PMout_r4_opt=pressure4D_M_r4)
+        deallocate(height4D_M_r4)
+        deallocate(height4D_T_r4)
+      else
+        call utl_abort('qlim_saturationLimit_gsv: Not compatible with this vCode: '//str(vco_ptr%vcode))
+      end if
+      pressure4D_T_r8(:,:,:,:) = real(pressure4D_T_r4(:,:,:,:),8)
+      deallocate(pressure4D_M_r4)
+      deallocate(pressure4D_T_r4)
 
-    allocate(psfc(lon2-lon1+1,lat2-lat1+1))
-    if (vco_ptr%vcode == 5100) allocate(psfcLS(lon2-lon1+1,lat2-lat1+1))
+    end if ! stateVector%dataKind
+
+    !
+    !- Cap specific humidity (HU) one time step at a time
+    !
     do stepIndex = 1, statevector%numStep
-      if (stateVector%dataKind == 8) then
-        call gsv_getField(statevector,psfc_ptr_r8,'P0')
-        psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
-        if (vco_ptr%vcode == 5100) then
-          call gsv_getField(statevector,psfcLS_ptr_r8,'P0LS')
-          psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
-        end if
-      else
-        call gsv_getField(statevector,psfc_ptr_r4,'P0')
-        psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
-        if (vco_ptr%vcode == 5100) then
-          call gsv_getField(statevector,psfcLS_ptr_r4,'P0LS')
-          psfcLS(:,:) = psfcLS_ptr_r4(:,:,1,stepIndex)
-        end if
-      end if
-      if (vco_ptr%vcode == 5100) then
-        call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
-      else
-        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
-      end if
+
       if (stateVector%dataKind == 8) then
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
-        do levIndex = lev1, lev2
-          do latIndex = lat1, lat2
-            do lonIndex = lon1, lon2
+        do levIndex = 1, gsv_getNumLev(statevector,'TH')
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               hu = hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
               tt = tt_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
-
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
-
+              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex) )              
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
-
             end do ! lonIndex
           end do ! latIndex
         end do ! levIndex
         !$OMP END PARALLEL DO
       else
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
-        do levIndex = lev1, lev2
-          do latIndex = lat1, lat2
-            do lonIndex = lon1, lon2
+        do levIndex = 1, gsv_getNumLev(statevector,'TH')
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
               hu = hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
               tt = tt_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
-
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
-
+              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex) )
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
-
             end do ! lonIndex
           end do ! latIndex
         end do ! levIndex
         !$OMP END PARALLEL DO
       end if
 
-      deallocate(pressure)
-
     end do ! stepIndex
 
-    deallocate(psfc)
-    if (allocated(psfcLS)) deallocate(psfcLS)
+    deallocate(pressure4D_T_r8)
 
   end subroutine qlim_saturationLimit_gsv
 
@@ -279,6 +325,11 @@ contains
     end if
 
     vco_ptr => ens_getVco(ensemble)
+
+    if (vco_ptr%vcode == 21001) then
+      call utl_abort('qlim_saturationLimit_ens: Not compatible yet with vCode = 21001 ')
+    end if
+
     numLev = ens_getNumLev(ensemble,'TH')
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
     allocate(psfc(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
