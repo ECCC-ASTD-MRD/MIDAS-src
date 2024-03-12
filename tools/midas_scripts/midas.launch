@@ -558,7 +558,7 @@ if [ "${midas_reunir_obs}" != no -a "${updatedObsFilesNeeded}" != yes ]; then
     exit 1
 fi
 
-if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
+if [ "${midas_reunir_obs}" != no ]; then
     if [ "${splitobs_mode}" = no ]; then
         mkdir obsfiles_final
         for obsfile in obsfiles/obs*; do

@@ -92,12 +92,10 @@ if [ "${fasttmp}" = yes ]; then
     [ -d "${MIDAS_RAMDISKDIR}" ] && ${rm_cmd} -rf ${MIDAS_RAMDISKDIR}
     ${mkdir_cmd} -p ${MIDAS_RAMDISKDIR}
 
-    if [ -n "${observations}" ]; then
-        ## Create observations directory on RAMDisk to be used later
-        ${mkdir_cmd} ${MIDAS_RAMDISKDIR}/obs ${MIDAS_RAMDISKDIR}/obs.splitobs
-        OBS_DIRECTORY=${MIDAS_RAMDISKDIR}/obs
-    fi
-elif [ -n "${observations}" ]; then ## this preparation is needed only if we have observations
+    ## Create observations directory on RAMDisk to be used later
+    ${mkdir_cmd} ${MIDAS_RAMDISKDIR}/obs ${MIDAS_RAMDISKDIR}/obs.splitobs
+    OBS_DIRECTORY=${MIDAS_RAMDISKDIR}/obs
+else
     OBS_DIRECTORY=obs
     if [ "${splitobs_mode}" != no ]; then
        [ "${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} ${OBS_DIRECTORY} obs.splitobs
@@ -105,21 +103,24 @@ elif [ -n "${observations}" ]; then ## this preparation is needed only if we hav
            ${sleep_cmd} 1
        done
 
-       if [ "${MP_CHILD}" -eq 0 ]; then
-           ${cp_cmd} ${observations} obs.splitobs
-       else
-           all_files_found=false
-           while [ "${all_files_found}" != true ]; do
-               ${sleep_cmd} 5
-               all_files_found=true
-               for file in ${observations}; do
-                    if [ ! -f obs.splitobs/${file##*/} ]; then
-                        all_files_found=false
-                        break
-                    fi
+
+       if [ -n "${observations}" ]; then
+           if [ "${MP_CHILD}" -eq 0 ]; then
+               ${cp_cmd} ${observations} obs.splitobs
+           else
+               all_files_found=false
+               while [ "${all_files_found}" != true ]; do
+                   ${sleep_cmd} 5
+                   all_files_found=true
+                   for file in ${observations}; do
+                       if [ ! -f obs.splitobs/${file##*/} ]; then
+                           all_files_found=false
+                           break
+                       fi
+                   done
                done
-           done
-       fi
+           fi ## End of 'else' associated to 'if [ "${MP_CHILD}" -eq 0 ]'
+       fi ## End of 'if [ -n "${observations}" ]'
     else
         [ "${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} ${OBS_DIRECTORY}
         while [ ! -d ${OBS_DIRECTORY} ]; do
@@ -132,20 +133,20 @@ ELAPSED_TIME=${SECONDS}
 ${echo_cmd} ending preparation at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} preparation took ${SECONDS}
 
-if [ -n "${observations}" ]; then
-    ## set variable 'MIDAS_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
-    MIDAS_OBS_MPI_ORDERING=${MIDAS_OBS_MPI_ORDERING:-regular}
-    if [ "${MIDAS_OBS_MPI_ORDERING}" = inverse ]; then
-        obsfile_y=$(print_number $((npey-MP_CHILD/npex)) ${splitobs_ndigits})
-        obsfile_x=$(print_number $((MP_CHILD+1-npex*(MP_CHILD/npex))) ${splitobs_ndigits})
-    elif [ "${MIDAS_OBS_MPI_ORDERING}" = regular ]; then
-        obsfile_y=$(print_number $((MP_CHILD/npex+1)) ${splitobs_ndigits})
-        obsfile_x=$(print_number $((MP_CHILD%npex+1)) ${splitobs_ndigits})
-    else
-        ${echo_cmd} "The variable 'MIDAS_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${MIDAS_OBS_MPI_ORDERING}'"
-        exit 1
-    fi
+## set variable 'MIDAS_OBS_MPI_ORDERING' to the default value of 'regular' if not already set
+MIDAS_OBS_MPI_ORDERING=${MIDAS_OBS_MPI_ORDERING:-regular}
+if [ "${MIDAS_OBS_MPI_ORDERING}" = inverse ]; then
+    obsfile_y=$(print_number $((npey-MP_CHILD/npex)) ${splitobs_ndigits})
+    obsfile_x=$(print_number $((MP_CHILD+1-npex*(MP_CHILD/npex))) ${splitobs_ndigits})
+elif [ "${MIDAS_OBS_MPI_ORDERING}" = regular ]; then
+    obsfile_y=$(print_number $((MP_CHILD/npex+1)) ${splitobs_ndigits})
+    obsfile_x=$(print_number $((MP_CHILD%npex+1)) ${splitobs_ndigits})
+else
+    ${echo_cmd} "The variable 'MIDAS_OBS_MPI_ORDERING' should be 'regular' or 'inverse' and not '${MIDAS_OBS_MPI_ORDERING}'"
+    exit 1
+fi
 
+if [ -n "${observations}" ]; then
     function extractFamily {
         set -ex
         __extractFamily_obsfile__=$1
@@ -352,7 +353,7 @@ if [ "${updatedObsFilesNeeded}" != yes ]; then
     ${echo_cmd} "WARNING: there will not be any updated obsFiles in working directory"
 fi
 
-if [ -n "${observations}" -a "${updatedObsFilesNeeded}" = yes ]; then
+if [ "${updatedObsFilesNeeded}" = yes ]; then
     SECONDS=0
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then
@@ -377,8 +378,21 @@ if [ -n "${observations}" -a "${updatedObsFilesNeeded}" = yes ]; then
                 ## fam='to_amsua'
                 filename=${file##*/}
                 #########################################################
-                ${mv_cmd} ${file} ${prefix}files_${fam}.updated/${filename}
-                [ -f obsBeforeThinning/${filename} ] && ${mv_cmd} obsBeforeThinning/${filename} obsfiles_${fam}.beforeThinning
+                obs_updated_directory=${prefix}files_${fam}.updated
+                [ "${MP_CHILD}" -eq 0 -a ! -d "${obs_updated_directory}" ] && ${mkdir_cmd} ${obs_updated_directory}
+                while [ ! -d "${obs_updated_directory}" ]; do
+                    ${sleep_cmd} 1
+                done
+
+                ${mv_cmd} ${file} ${obs_updated_directory}/${filename}
+
+                if [ -f obsBeforeThinning/${filename} ]; then
+                    [ "${MP_CHILD}" -eq 0 -a ! -d obsfiles_${fam}.beforeThinning ] && ${mkdir_cmd} obsfiles_${fam}.beforeThinning
+                    while [ ! -d obsfiles_${fam}.beforeThinning ]; do
+                        ${sleep_cmd} 1
+                    done
+                    ${mv_cmd} obsBeforeThinning/${filename} obsfiles_${fam}.beforeThinning
+                fi
             fi
         done
     fi
