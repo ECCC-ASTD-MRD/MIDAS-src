@@ -558,43 +558,46 @@ if [ "${midas_reunir_obs}" != no -a "${updatedObsFilesNeeded}" != yes ]; then
     exit 1
 fi
 
-if [ "${midas_reunir_obs}" != no ]; then
-    if [ "${splitobs_mode}" = no ]; then
+if [ "${splitobs_mode}" = no ]; then
+    observations_files=$(ls obsfiles/obs* || true)
+    if [ -n "${observations_files}" ]; then
         mkdir obsfiles_final
         for obsfile in obsfiles/obs*; do
             mv $(basename ${obsfile}) obsfiles_final
         done
-    else
-
+    fi
+elif [ "${midas_reunir_obs}" != no ]; then
+    updated_observations_files=$(ls -d obs*.updated || true)
+    if [ -n "${updated_observations_files}" ]; then
         dirext2process=.updated
         if [ "${doThinning}" -ne 0 ]; then
             dirext2process="${dirext2process} .beforeThinning"
         fi
 
-        ${midas_reunir_obs} -midas_reunir_obs_mpi ${midas_reunir_obs_mpi} \
-            -obsin            ${PWD}                                      \
-            -obsout           ${PWD}/obsfiles_final                       \
-            -dirext2process   ${dirext2process}                           \
-            -reunir_obs       ${reunir_obs}                               \
-            -reunir_obs_fam   ${reunir_obs_fam}                           \
-            -splitobs_mode    ${splitobs_mode}                            \
-            -npex             ${npex}                                     \
-            -npey             ${npey}                                     \
-            -editbrp          ${editbrp}                                  \
-            -reflex           ${reflex}                                   \
-            -rfiletype        ${rfiletype_cmd}                            \
-            -midas_mpirun     ${midas_mpirun}                             \
-            -run_in_parallel  ${run_in_parallel}                          \
-            -mpi_ssm          ${mpi_ssm}                                  \
-            -omp_stacksize    ${omp_stacksize}                            \
-            -ramdiskpath      ${ramdiskpath}                              \
-            -fasttmp          ${fasttmp}                                  \
-            -tmpfsdir         ${TMPFSDIR[@]}                              \
-            -mpchild2slots    ${mpchild2getObservations[@]}               \
-            -nodelogger       ${nodelogger}
+        ${midas_reunir_obs} -midas_reunir_obs_mpi ${midas_reunir_obs_mpi}   \
+                            -obsin            ${PWD}                        \
+                            -obsout           ${PWD}/obsfiles_final         \
+                            -dirext2process   ${dirext2process}             \
+                            -reunir_obs       ${reunir_obs}                 \
+                            -reunir_obs_fam   ${reunir_obs_fam}             \
+                            -splitobs_mode    ${splitobs_mode}              \
+                            -npex             ${npex}                       \
+                            -npey             ${npey}                       \
+                            -editbrp          ${editbrp}                    \
+                            -reflex           ${reflex}                     \
+                            -rfiletype        ${rfiletype_cmd}              \
+                            -midas_mpirun     ${midas_mpirun}               \
+                            -run_in_parallel  ${run_in_parallel}            \
+                            -mpi_ssm          ${mpi_ssm}                    \
+                            -omp_stacksize    ${omp_stacksize}              \
+                            -ramdiskpath      ${ramdiskpath}                \
+                            -fasttmp          ${fasttmp}                    \
+                            -tmpfsdir         ${TMPFSDIR[@]}                \
+                            -mpchild2slots    ${mpchild2getObservations[@]} \
+                            -nodelogger       ${nodelogger}
 
-    fi ## Fin du 'else' relie au 'if [ "${splitobs_mode}" = no ]'
-fi  ## End of 'if [ -n "${observations}" ]'
+    fi ## Fin du 'if [ -n "${updated_observations_files}" ]'
+fi ## Fin du 'else' relie au 'if [ "${splitobs_mode}" = no ]'
 
 if [ -x "${tail_script}" ]; then
     . ${tail_script}

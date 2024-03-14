@@ -358,10 +358,13 @@ if [ "${updatedObsFilesNeeded}" = yes ]; then
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then
             if [ "${fasttmp}" = yes ]; then
-                ${cp_cmd} ${MIDAS_RAMDISKDIR}/obs/* .
+                obs_updated_directory=${MIDAS_RAMDISKDIR}
             else
-                ${cp_cmd} ./obs/* .
+                obs_updated_directory=. ## local directory
             fi
+            for file in ${obs_updated_directory}/obs/*; do
+                [ -f "${file}" ] && ${cp_cmd} ${file} .
+            done
         fi
     else
         for file in ${OBS_DIRECTORY}/*_${obsfile_x}_${obsfile_y}; do
