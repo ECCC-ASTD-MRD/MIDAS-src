@@ -492,7 +492,7 @@ for eachhost in ${hostnames}; do
 done
 
 declare -a mpchild2getObservations
-for mp_child in $(seq 0 $((SEQ_NPEX*SEQ_NPEY-1))); do
+for mp_child in $(seq 0 $((npex*npey-1))); do
     thishost=$(printf "${child_hostnames}" | awk "/^${mp_child} / {print \$2}")
     # mpchild2getObservations[${mp_child}]=${master_for_each_hostname[${thishost}]}
     mpchild2getObservations[${mp_child}]=$(printf "${master_for_each_hostname}" | awk "/^${thishost} / {print \$2}")
