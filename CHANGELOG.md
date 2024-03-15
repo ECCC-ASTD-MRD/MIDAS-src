@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * The MIDAS scripts have been generalized to support programs that
+   only have observation files as output (#913 and !823)
 
 ### Changed
 
