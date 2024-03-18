@@ -1,24 +1,3 @@
-# Breaking change!
-
-If you compile MIDAS code after tag `v_3.7.2` on HPCR-U2, then you
-must update your login profile to version `1.19.0`:
-```bash
-ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.19.0 ~/.profile_1.19.0
-rm -v ~/.profile && ln -svi .profile_1.19.0 ~/.profile
-```
-
-This change is backward compatible for your suites but you absolutely
-need to update your profile to compile any MIDAS code after version
-`v_3.7.2`.
-
-To know if your code is after `v_3.7.2`, you can execute:
-```bash
-git describe
-```
-
-Also, to run the system tests for versions that include the latest
-update to `rpn/utils`, you must update your login profile to
-version `1.28.0` or later.
 
 # MIDAS Fortran coding standards:
 
