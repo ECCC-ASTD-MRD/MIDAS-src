@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.0.0]
+
+### Added
+
  * The MIDAS scripts have been generalized to support programs that
    only have observation files as output (#913 and !823)
  * Added the capability to compute EnVar analysis increments on GEM-P levels using a background and ensembles on GEM-H levels (#850 and !820)
@@ -63,10 +82,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.9.1]
 
@@ -1204,7 +1219,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...HEAD
+[3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_4.0.0
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
