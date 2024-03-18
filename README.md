@@ -1,4 +1,15 @@
 
+# Contributing
+
+We strongly suggest anyone considering to contribute to the MIDAS
+ project, to follow the workflow documented in the [contributing
+ guide](CONTRIBUTING.md).
+
+# MIDAS Fortran coding standards:
+
+* [List of standards](docs/codingStandards.md)
+* [Automatic documentation standards](docs/documentationStandards.md)
+
 # MIDAS releases general and code documentations:
 
 The documentation for officially supported branches is available:
@@ -17,17 +28,6 @@ The documentation for officially supported branches is available:
 * `v_3.7` branch: related to IC-3 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
-
-# Contributing
-
-We strongly suggest anyone considering to contribute to the MIDAS
- project, to follow the workflow documented in the [contributing
- guide](CONTRIBUTING.md).
-
-# MIDAS Fortran coding standards:
-
-* [List of standards](docs/codingStandards.md)
-* [Automatic documentation standards](docs/documentationStandards.md)
 
 # Getting a local copy of the code
 
