@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Update documentation for release `v_4.0.0` (#913 and !824)
+ * Update documentation for release `v_4.0.0` (#916 and !824)
  * The MIDAS scripts have been generalized to support programs that
    only have observation files as output (#913 and !823)
  * Added the capability to compute EnVar analysis increments on GEM-P levels using a background and ensembles on GEM-H levels (#850 and !820)
