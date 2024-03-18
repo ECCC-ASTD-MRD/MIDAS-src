@@ -37,14 +37,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
  * Introduction of NAMTOV section namelist variable channelsUsingHydrometeors to control which channels are simulated using RttovScatt. Minor or no impact on results depending on settings (#882 and !797)
- * Added latband formulation options in calcStatsGlb_mod.f90 and also generalized variable specification except with the legacy formulation (#861 and !790)
-   ** New namelist NAMCOMPUTEBHILATBANDS and new possible output files hCorrelFit.txt and vCorrelFit.txt. 
+ * Added latband formulation options in `calcStatsGlb_mod.f90` and also generalized variable specification except with the legacy formulation (#861 and !790)
+   * New namelist `NAMCOMPUTEBHILATBANDS` and new possible output files `hCorrelFit.txt` and `vCorrelFit.txt`
  * Added the ability to output the Jacobian for radiance observations (#877 and !786) 
  * Option to estimate background error stddev in observation space in Idealized var1D (#874 and !784)
  * All-sky assimilation for ATMS humidity channels (#875 and !787)
  * Added the ability to update header-level SQLite columns (#871 and !779)
-   * WARNING: NAMSQLUPDATE namelist variable itemUpdateList renamed as itemUpdateBodyList
-   * WARNING: values used for itemUpdateBodyList must now match column names in obsSpaceData_mod
+   * WARNING: `NAMSQLUPDATE` namelist variable `itemUpdateList` renamed as `itemUpdateBodyList`
+   * WARNING: values used for `itemUpdateBodyList` must now match column names in `obsSpaceData_mod`
  * Added option to simulate observation and surface emissivity in var1D program (#865 and !775)
  * Added ability to read netCDF files (#770 and !776)
  * Added option to simulate background in var1D program (#856 and !768)
@@ -68,8 +68,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Updating `midas.splitobs.Abs` to `rpn/libs/20231219` (#908 and !822)
- * Updating rpn/libs and rpn/utils to 20231219 (#906 and !815)
-   ** Adapting scripts/fortran for the new file type code for sqlite files.
+ * Updating `rpn/libs` and `rpn/utils` to `20231219` (#906 and !815)
+   * Adapting scripts/fortran for the new file type code for sqlite files.
  * Use shared memory for some arrays for `ensembleObservations_mod` (#896 and !807)
  * Read namelists from strings instead of files for improved efficiency (#886 and !794)
 
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * WARNING: minor impact on results when assimilating all-sky radiances (i.e. IC4 config of GDPS)
  * Introduction of a major bug fix to correct a problem introduced in merge request !797 (#909 and !817)
  * Removed the possibility of zero-valued pressures from routine `phf_convertZtoPressure` (#892 and !800)
- * Ensure to clean ObsDb tables after thinning in ObsSelction (#846 and !755)
+ * Ensure to clean ObsDB tables after thinning in `midas-obsSelection` (#846 and !755)
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
