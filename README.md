@@ -1,24 +1,9 @@
-# Breaking change!
 
-If you compile MIDAS code after tag `v_3.7.2` on HPCR-U2, then you
-must update your login profile to version `1.19.0`:
-```bash
-ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.19.0 ~/.profile_1.19.0
-rm -v ~/.profile && ln -svi .profile_1.19.0 ~/.profile
-```
+# Contributing
 
-This change is backward compatible for your suites but you absolutely
-need to update your profile to compile any MIDAS code after version
-`v_3.7.2`.
-
-To know if your code is after `v_3.7.2`, you can execute:
-```bash
-git describe
-```
-
-Also, to run the system tests for versions that include the latest
-update to `rpn/utils`, you must update your login profile to
-version `1.28.0` or later.
+We strongly suggest anyone considering to contribute to the MIDAS
+ project, to follow the workflow documented in the [contributing
+ guide](CONTRIBUTING.md).
 
 # MIDAS Fortran coding standards:
 
@@ -31,21 +16,18 @@ The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
-* `v_3.9` branch
+* `v_4.0.0` release: includes non-backward compatible changes with respect to `v_3.9`
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_4.0.0/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_4.0.0)
+* `v_3.9` branch: related to IC-4 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 * `v_3.9-RandD` branch: The code in this branch validates with `v_3.9` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9-RandD/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
-* `v_3.7` branch
+* `v_3.7` branch: related to IC-3 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
-
-# Contributing
-
-We strongly suggest anyone considering to contribute to the MIDAS
- project, to follow the workflow documented in the [contributing
- guide](CONTRIBUTING.md).
 
 # Getting a local copy of the code
 
@@ -59,6 +41,20 @@ or if one is interested in the latest version of the `main` branch
 ```bash
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
+
+To use this version, it is necessary to load LibRMN 20 utilities
+starting from version `rpn/utils/20231219`.
+
+## Getting the code for tag `v_4.0.0`
+
+The code related to the `v_4.0.0` release is available with the command:
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+clone_projet --no-central -c v_4.0.0 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-4.0.0
+```
+
+To use this version, it is necessary to load LibRMN 20 utilities
+starting from version `rpn/utils/20231219`.
 
 ## Getting code related to IC-4 implementation
 

@@ -12,7 +12,7 @@ if [ $# -eq 1 ]; then
     abbrev=${1}
 fi
 
-command="git describe --abbrev=${abbrev} --always --dirty=_M"
+command="git describe --first-parent --abbrev=${abbrev} --always --dirty=_M"
 
 status=0
 ${command} || status=1

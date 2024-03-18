@@ -17,7 +17,7 @@ PROGRAM = splitobs
 SRC = splitobs.c fstdlib.c
 
 VERSION_SHA1 ?= $(shell git rev-parse HEAD)
-VERSION ?= $(shell git describe)
+VERSION ?= $(shell git describe --first-parent)
 
 DEBUG_OPTIONS = -debug -optc =-w3 =-fp-speculation=safe
 DEBUG_OPTIONS =
