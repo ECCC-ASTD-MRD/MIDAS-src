@@ -5,6 +5,9 @@ The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+* `v_4.0` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_4.0/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_4.0)
 * `v_3.9` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
@@ -38,6 +41,17 @@ or if one is interested in the latest version of the `main` branch
 ```bash
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
+
+## Getting the code for branch `v_4.0`
+
+The code related to the `v_4.0` release is available with the command:
+```bash
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
+clone_projet --no-central -c v_4.0 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-4.0
+```
+
+To use this version, it is necessary to load LibRMN 20 utilities
+starting from version `rpn/utils/20231219`.
 
 ## Getting code related to IC-4 implementation
 
