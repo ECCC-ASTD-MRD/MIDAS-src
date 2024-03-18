@@ -1,9 +1,4 @@
 
-# MIDAS Fortran coding standards:
-
-* [List of standards](docs/codingStandards.md)
-* [Automatic documentation standards](docs/documentationStandards.md)
-
 # MIDAS releases general and code documentations:
 
 The documentation for officially supported branches is available:
@@ -25,6 +20,11 @@ The documentation for officially supported branches is available:
 We strongly suggest anyone considering to contribute to the MIDAS
  project, to follow the workflow documented in the [contributing
  guide](CONTRIBUTING.md).
+
+# MIDAS Fortran coding standards:
+
+* [List of standards](docs/codingStandards.md)
+* [Automatic documentation standards](docs/documentationStandards.md)
 
 # Getting a local copy of the code
 
