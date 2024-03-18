@@ -1211,7 +1211,7 @@ This is the initial version delivered in final cycles for the GDPS 6.1 project i
 - Using `cmda/libs/16.2-6`
 - Reduce memory usage for IR bgck by a factor of 5
 
-## [2.2.0] - 2016-09
+## 2.2.0 - 2016-09
 
 This is the first version published and use on the HPCR platforms
 `ubuntu-14.04-amd64-64` and `sles-11-amd64-64` on the `science.gc.ca`
@@ -1221,7 +1221,7 @@ Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...HEAD
-[3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_4.0.0
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
