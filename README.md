@@ -42,6 +42,9 @@ or if one is interested in the latest version of the `main` branch
 clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
 
+To use this version, it is necessary to load LibRMN 20 utilities
+starting from version `rpn/utils/20231219`.
+
 ## Getting the code for branch `v_4.0`
 
 The code related to the `v_4.0` release is available with the command:
