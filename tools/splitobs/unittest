@@ -23,7 +23,7 @@ if [ "${TESTS2RUN}" != burp -a "${TESTS2RUN}" != rdb -a "${TESTS2RUN}" != all ];
     exit 1
 fi
 
-VERSION=${VERSION:-$(git describe --dirty)}
+VERSION=${VERSION:-$(git describe --first-parent --dirty)}
 SPLITOBS=${SPLITOBS:-${PWD}/splitobs_${ORDENV_PLAT}}
 INPUTS=${INPUTS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/inputs}
 REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/results}
