@@ -5,16 +5,16 @@ The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
-* `v_4.0` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_4.0/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_4.0)
-* `v_3.9` branch
+* `v_4.0.0` release: includes non-backward compatible changes with respect to `v_3.9`
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_4.0.0/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_4.0.0)
+* `v_3.9` branch: related to IC-4 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9)
 * `v_3.9-RandD` branch: The code in this branch validates with `v_3.9` but contains new features for testing using IC-4 final cycles as the reference.
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.9-RandD/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.9-RandD)
-* `v_3.7` branch
+* `v_3.7` branch: related to IC-3 release
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
   * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
 
@@ -45,12 +45,12 @@ clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assi
 To use this version, it is necessary to load LibRMN 20 utilities
 starting from version `rpn/utils/20231219`.
 
-## Getting the code for branch `v_4.0`
+## Getting the code for tag `v_4.0.0`
 
-The code related to the `v_4.0` release is available with the command:
+The code related to the `v_4.0.0` release is available with the command:
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
-clone_projet --no-central -c v_4.0 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-4.0
+clone_projet --no-central -c v_4.0.0 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-4.0.0
 ```
 
 To use this version, it is necessary to load LibRMN 20 utilities
