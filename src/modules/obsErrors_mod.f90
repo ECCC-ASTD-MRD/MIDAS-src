@@ -55,7 +55,12 @@ module obsErrors_mod
   real(8) :: inflateErrAllskyTtCoeff(tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyHuCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  integer :: instrumentIdsInflateErrAllskyTt(tvs_maxNumberOfSensors)
+  integer :: instrumentIdsInflateErrAllskyHu(tvs_maxNumberOfSensors)
+  integer :: numInstrumInflateErrAllskyTt, numInstrumInflateErrAllskyHu
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  character(len=15) :: instrumentNamesInflateErrAllskyTt(tvs_maxNumberOfSensors)
+  character(len=15) :: instrumentNamesInflateErrAllskyHu(tvs_maxNumberOfSensors)
 
   ! SST data 
   type SSTdataParamsType
@@ -216,6 +221,7 @@ contains
     namelist /namoer/ amsuaClearCldPredThresh, amsuaInflateErrAllskyCoeff
     namelist /namoer/ minRetrievableClwValue, maxRetrievableClwValue
     namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
+    namelist /namoer/ instrumentNamesInflateErrAllskyTt, instrumentNamesInflateErrAllskyHu
     namelist /namoer/ readOldSymmetricObsErrFile
     integer :: ierr
 
@@ -247,6 +253,8 @@ contains
     maxRetrievableClwValue = 3.0d0
     minRetrievableSiValue = -10.0d0
     maxRetrievableSiValue = 30.0d0
+    instrumentNamesInflateErrAllskyTt(:) = '***UNDEFINED***'
+    instrumentNamesInflateErrAllskyHu(:) = '***UNDEFINED***'
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
@@ -267,6 +275,7 @@ contains
     !- 2.1 Radiance data
     if (obs_famexist(obsSpaceData,'TO')) then
       call oer_readObsErrorsTOVS
+      call oer_getInstrumIdsInflateErrAllsky
     else 
       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
     end if
@@ -808,6 +817,55 @@ contains
     end function countWordsInLine
 
   end subroutine oer_readObsErrorsTOVS
+
+  !--------------------------------------------------------------------------
+  ! oer_getInstrumIdsInflateErrAllsky
+  !--------------------------------------------------------------------------
+  subroutine oer_getInstrumIdsInflateErrAllsky
+    !
+    ! :Purpose: to get instrument IDs that all-sky error inflation is requested.
+    !
+    implicit none
+
+    ! Locals:
+    integer :: sensorIndex 
+    
+    instrumentIdsInflateErrAllskyTt(:) = -1
+    do sensorIndex = 1, tvs_nsensors
+      instrumentIdsInflateErrAllskyTt(sensorIndex) = tvs_getInstrumentId(instrumentNamesInflateErrAllskyTt(sensorIndex))
+      if (instrumentNamesInflateErrAllskyTt(sensorIndex) /= '***UNDEFINED***') then
+        if (instrumentIdsInflateErrAllskyTt(sensorIndex) == -1) then
+          write(*,*) sensorIndex, instrumentNamesInflateErrAllskyTt(sensorIndex)
+          call utl_abort('oer_getInstrumIdsInflateErrAllsky: Unknown instrument name to inflate error for all-sky TT')
+        end if
+      else
+        numInstrumInflateErrAllskyTt = sensorIndex - 1
+        exit
+      end if
+    end do
+
+    instrumentIdsInflateErrAllskyHu(:) = -1
+    do sensorIndex = 1, tvs_nsensors
+      instrumentIdsInflateErrAllskyHu(sensorIndex) = tvs_getInstrumentId(instrumentNamesInflateErrAllskyHu(sensorIndex))
+      if (instrumentNamesInflateErrAllskyHu(sensorIndex) /= '***UNDEFINED***') then
+        if (instrumentIdsInflateErrAllskyHu(sensorIndex) == -1) then
+          write(*,*) sensorIndex, instrumentNamesInflateErrAllskyHu(sensorIndex)
+          call utl_abort('oer_getInstrumIdsInflateErrAllsky: Unknown instrument name to inflate error for all-sky Hu')
+        end if
+      else
+        numInstrumInflateErrAllskyHu = sensorIndex - 1
+        exit
+      end if
+    end do
+
+    if (mmpi_myid == 0) then
+      write(*,*) 'oer_getInstrumIdsInflateErrAllsky: Instrument IDs to inflate error for all-sky TT: ', &
+                  instrumentIdsInflateErrAllskyTt(1:numInstrumInflateErrAllskyTt)
+      write(*,*) 'oer_getInstrumIdsInflateErrAllsky: Instrument IDs to inflate error for all-sky HU: ', &
+                  instrumentIdsInflateErrAllskyHu(1:numInstrumInflateErrAllskyHu)
+    end if
+    
+  end subroutine oer_getInstrumIdsInflateErrAllsky
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsCONV
@@ -1815,7 +1873,7 @@ contains
     integer :: headerIndex
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex
+    integer :: tovsIndex, sensorIndex, instrumId
     logical :: surfTypeIsWater 
     real(8) :: clwObs
     real(8) :: clwFG
@@ -1848,8 +1906,11 @@ contains
     call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
     if (chanIsAllskyTt) then
+      instrumId = tvs_getInstrumentId(instrumentNamesInflateErrAllskyTt(sensorIndex))
+
       if (.not. surfTypeIsWater .or. &
-          (.not. mwAllskyTtInflateByOmp .and. .not. mwAllskyTtInflateByClwDiff)) then
+          (.not. mwAllskyTtInflateByOmp .and. .not. mwAllskyTtInflateByClwDiff) .or. &
+          .not. ifInstrumInflationErrAllskyTt(instrumId)) then
         return
       end if
 
@@ -1887,8 +1948,11 @@ contains
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
     else if (chanIsAllskyHu) then
+      instrumId = tvs_getInstrumentId(instrumentNamesInflateErrAllskyHu(sensorIndex))
+
       if (.not. surfTypeIsWater .or. &
-          (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff)) then
+          (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff) .or. &
+          .not. ifInstrumInflationErrAllskyHu(instrumId)) then
         return
       end if
 
@@ -1940,6 +2004,60 @@ contains
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
   end subroutine oer_inflateErrAllsky
+
+  !--------------------------------------------------------------------------
+  ! ifInstrumInflationErrAllskyTt
+  !--------------------------------------------------------------------------
+  function ifInstrumInflationErrAllskyTt(instrumId) result(inflateErrAllsky)
+    !
+    ! :Purpose: if for a given instrument ID inflate error for all-sky TT.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: instrumId     ! Rttov instrument ID
+    ! Result:
+    logical             :: inflateErrAllsky
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    inflateErrAllsky = .false.
+    do instrumentIndex = 1, numInstrumInflateErrAllskyTt
+      if (instrumId == instrumentIdsInflateErrAllskyTt(instrumentIndex)) then
+        inflateErrAllsky = .true.
+        exit
+      end if
+    end do
+
+  end function ifInstrumInflationErrAllskyTt
+
+  !--------------------------------------------------------------------------
+  ! ifInstrumInflationErrAllskyHu
+  !--------------------------------------------------------------------------
+  function ifInstrumInflationErrAllskyHu(instrumId) result(inflateErrAllsky)
+    !
+    ! :Purpose: if for a given instrument ID inflate error for all-sky HU.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: instrumId     ! Rttov instrument ID
+    ! Result:
+    logical             :: inflateErrAllsky
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    inflateErrAllsky = .false.
+    do instrumentIndex = 1, numInstrumInflateErrAllskyHu
+      if (instrumId == instrumentIdsInflateErrAllskyHu(instrumentIndex)) then
+        inflateErrAllsky = .true.
+        exit
+      end if
+    end do
+
+  end function ifInstrumInflationErrAllskyHu
 
   !--------------------------------------------------------------------------
   ! oer_chanIsAllsky
