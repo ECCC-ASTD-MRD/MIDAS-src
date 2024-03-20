@@ -1896,6 +1896,7 @@ contains
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                         channelNumber, channelIndex)
@@ -1906,8 +1907,6 @@ contains
     call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
 
     if (chanIsAllskyTt) then
-      instrumId = tvs_getInstrumentId(instrumentNamesInflateErrAllskyTt(sensorIndex))
-
       if (.not. surfTypeIsWater .or. &
           (.not. mwAllskyTtInflateByOmp .and. .not. mwAllskyTtInflateByClwDiff) .or. &
           .not. ifInstrumInflationErrAllskyTt(instrumId)) then
@@ -1924,6 +1923,7 @@ contains
         write(*,*) 'oer_inflateErrAllsky: chanIsAllskyTt', &
                           ', headerIndex=', headerIndex, &
                           ', sensorIndex=', sensorIndex, &
+                          ', instrumId=', instrumId, &
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
         write(*,*) 'oer_inflateErrAllsky: clwObs=', clwObs, &
@@ -1948,8 +1948,6 @@ contains
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
     else if (chanIsAllskyHu) then
-      instrumId = tvs_getInstrumentId(instrumentNamesInflateErrAllskyHu(sensorIndex))
-
       if (.not. surfTypeIsWater .or. &
           (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff) .or. &
           .not. ifInstrumInflationErrAllskyHu(instrumId)) then
@@ -1966,6 +1964,7 @@ contains
         write(*,*) 'oer_inflateErrAllsky: chanIsAllskyHu', &
                           ', headerIndex=', headerIndex, &
                           ', sensorIndex=', sensorIndex, &
+                          ', instrumId=', instrumId, &
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
         write(*,*) 'oer_inflateErrAllsky: siObs=', siObs, &
