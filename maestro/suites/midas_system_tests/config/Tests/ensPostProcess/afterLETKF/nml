@@ -4,6 +4,7 @@
  &namEnsPostProcModule
    writeSubSample           = .true.
    writeSubSampleUnPert     = .true.
+   recenterSubSample        = .true.
    alphaRTPP                = 0.00D0
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.26D0
