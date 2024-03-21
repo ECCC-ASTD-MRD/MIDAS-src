@@ -408,6 +408,8 @@ contains
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
     real(8), allocatable :: HBHtMatrix(:,:,:), DMatrix(:,:), inverse(:,:),hk(:,:)
     real(8), pointer :: Rsub(:,:)
+    real(8), pointer :: all_dfs(:)
+    integer, pointer :: order(:)
     real(8) :: dfs
     integer :: localDimension
     logical :: first, llok
@@ -653,16 +655,21 @@ contains
                 channelListMpi(obsIndex,:,procIndex), &
                 stdDevListMpi(obsIndex,:,procIndex), &
                 Rsub)
-            dMatrix(:,:) =  HBHtMatrix(obsIndex,:,:) + Rsub(:,:)
-            call utl_pseudo_inverse(dMatrix, inverse)
-            !inverse = np.linalg.inv(hbht + matr_r)
-            hk = matmul(HBHtMatrix(obsIndex,:,:),inverse)
-            dfs = 0.d0
-            do channelIndex2 = 1, maxCountChannelMpi
-              dfs = dfs + hk(channelIndex2,channelIndex2)
-            end do
-            !tr_dfs = np.trace(np.dot(hbht, inverse))
+            dfs = dfsCalcul(HBHtMatrix(obsIndex,:,:), Rsub)
             write(*,*) "dfs = ", dfs
+            call selectionChannels(HBHtMatrix(obsIndex,:,:), Rsub, nChannelsDfs, all_dfs, order)
+            write(*,*) 'all_dfs= ',all_dfs(:)
+            write(*,*) 'order= ',order(:)
+            !dMatrix(:,:) =  HBHtMatrix(obsIndex,:,:) + Rsub(:,:)
+            !call utl_pseudo_inverse(dMatrix, inverse)
+            !inverse = np.linalg.inv(hbht + matr_r)
+            !hk = matmul(HBHtMatrix(obsIndex,:,:),inverse)
+            !dfs = 0.d0
+            !do channelIndex2 = 1, maxCountChannelMpi
+            !  dfs = dfs + hk(channelIndex2,channelIndex2)
+            !end do
+            !tr_dfs = np.trace(np.dot(hbht, inverse))
+            
           end if
         end if
       end do
@@ -688,4 +695,109 @@ contains
 
   end subroutine diagHBHt
 
+  subroutine subsetMatrix( matriceInput, order, matriceOutput)
+
+    real(8), intent(in) :: matriceInput(:,:)
+    integer, intent(in) :: order(:)
+    real(8), intent(out) :: matriceOutput(size(order), size(order))
+    integer :: i, j
+
+    do j = 1, size(order)
+        do i = 1, size(order)
+            matriceOutput(i, j) = matriceInput(order(i), order(j))
+        end do
+    end do
+  end subroutine subsetMatrix
+  
+  function dfsCalcul(HBHt, R) result(dfs)
+    implicit none
+    ! Arguments
+    real(8), intent(in) :: HBHt(:,:)
+    real(8), intent(in) :: R(:,:)
+    real(8)             :: dfs
+    ! Local variables
+    integer :: nbChannels, channelIndex
+    real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
+
+    nbChannels = size(R, dim=1)
+    allocate(dMatrix(nbChannels,nbChannels))
+    allocate(inverse(nbChannels,nbChannels))
+    allocate(hk(nbChannels,nbChannels))
+    dMatrix(:,:) =  HBHt(:,:) + R(:,:)
+    call utl_pseudo_inverse(dMatrix, inverse)
+            
+    hk = matmul(HBHt, inverse)
+    dfs = 0.d0
+    do channelIndex = 1, nbChannels
+       dfs = dfs + hk(channelIndex,channelIndex)
+    end do
+    deallocate(hk, inverse, dMatrix)
+  end function dfsCalcul
+
+
+  subroutine selectionChannels(HBHt, R, nChannelsDfs, all_dfs, order)
+    implicit none
+    ! Arguments
+    real(8), intent(in) :: HBHt(:,:)
+    real(8), intent(in) :: R(:,:)
+    integer, intent(in) :: nChannelsDfs
+    real(8), pointer, intent(inout):: all_dfs(:)
+    integer, pointer, intent(inout):: order(:)
+    ! Locals
+    integer, allocatable :: orderTemp(:), free(:), oldfree(:)
+    real(8) :: dfsOpt, dfsTest
+    !real(8), dimension(:), allocatable :: all_dfs
+    integer :: i, j, opt, size_free
+    real(8), allocatable :: R_subset(:,:), HBHt_subset(:,:)
+
+
+    allocate(free(nChannelsDfs))
+    do i = 1, nChannelsDfs
+       free(i) = i
+    end do
+
+    allocate(order(nChannelsDfs))
+    order(:) = -1
+    allocate(orderTemp(nChannelsDfs))
+    allocate(all_dfs(nChannelsDfs))
+    all_dfs(:) = MPC_missingValue_R8
+    do i = 1, nChannelsDfs
+       opt = 0
+       dfsOpt = 0.0
+       allocate(R_subset(i,i), HBHt_subset(i,i))
+       do j = 1, size(free)
+          orderTemp(:) = -1
+          orderTemp(1:i-1) = order(1:i-1)
+          orderTemp(i) = free(j)
+          
+
+          call subsetMatrix(R, orderTemp(1:i), R_subset)
+          call subsetMatrix(HBHt, orderTemp(1:i), HBHt_subset)
+          !calculer le DFS
+          dfsTest = dfsCalcul(HBHt_subset, R_subset)
+	 
+          if (dfsTest > dfsOpt) then
+             opt =free(j)
+             dfsOpt = dfsTest
+          end if
+
+       end do
+       deallocate(R_subset, HBHt_subset)
+       all_dfs(i) = dfsOpt
+       order(i) = opt
+       size_free = size(free)
+       allocate(oldfree(size_free))
+       oldfree(:) = free(:)
+       deallocate(free)
+       allocate(free(size_free-1))
+       free = pack(oldfree, oldfree /= opt)
+       deallocate(oldfree)
+    end do
+    !deallocate(order)
+    !deallocate(all_dfs)
+    deallocate(free)
+    deallocate(orderTemp)
+
+  end subroutine selectionChannels
+    
 end program midas_dfs
