@@ -463,11 +463,10 @@ contains
                                  useMemberAsHuRefState)
         end if
 
-        ! Compute analysis mean of sub-sampled ensemble
-        call ens_computeMean(ensembleAnlSubSample)
-
-        ! Shift members to have same mean as full ensemble
         if (recenterSubSample) then
+          ! Compute analysis mean of sub-sampled members and
+          ! shift members to have same mean as full ensemble
+          call ens_computeMean(ensembleAnlSubSample)
           call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
                             recenteringCoeffScalar_opt=1.0D0)
         end if
@@ -475,17 +474,12 @@ contains
       end if ! writeSubsample
 
       !- If SubSample requested, do remaining processing and output of sub-sampled members
-      if (writeSubSampleUnPert) then
-
-        ! Compute analysis mean of sub-sampled ensemble
+      if ((writeSubSampleUnPert) .and. (recenterSubSampleUnPert)) then
+        ! Compute analysis mean of sub-sampled members and
+        ! shift members to have same mean as full ensemble 
         call ens_computeMean(ensembleAnlSubSampleUnPert)
-
-        ! Shift members to have same mean as full ensemble
-        if (recenterSubSampleUnPert) then
-          call ens_recenter(ensembleAnlSubSampleUnPert, stateVectorMeanAnl,  &
-                            recenteringCoeffScalar_opt=1.0D0)
-        end if
-
+        call ens_recenter(ensembleAnlSubSampleUnPert, stateVectorMeanAnl,  &
+                          recenteringCoeffScalar_opt=1.0D0)
       end if
 
     end if ! ens_isAllocated(ensembleAnl)
