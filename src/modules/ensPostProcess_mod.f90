@@ -87,6 +87,8 @@ contains
     logical  :: includeYearInSeed    ! switch for choosing to include year in default random seed
     logical  :: writeSubSample       ! write sub-sample members for initializing medium-range fcsts
     logical  :: writeSubSampleUnPert ! write unperturbed sub-sample members for medium-range fcsts
+    logical  :: recenterSubSample    ! recenter sub-sample members for initializing medium-range fcsts
+    logical  :: recenterSubSampleUnPert ! recenter unperturbed sub-sample members for initializing medium-range fcsts
     real(8)  :: alphaRTPS            ! RTPS coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRTPP            ! RTPP coefficient (between 0 and 1; 0 means no relaxation)
     real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
@@ -117,8 +119,9 @@ contains
     logical  :: writeNetCDFInc        ! to write LETKF increments into a netCDF file
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
-                                   alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
-                                   huLimitsBeforeRecenter, imposeSaturationLimit, imposeRttovHuLimits,   &
+                                   recenterSubSample, recenterSubSampleUnPert, alphaRTPS, alphaRTPP,     &
+                                   alphaRandomPert, alphaRandomPertSubSample, huLimitsBeforeRecenter,    &
+                                   imposeSaturationLimit, imposeRttovHuLimits, weightRecenter,           &
                                    weightRecenter, weightRecenterLand, numMembersToRecenter,             &
                                    useOptionTableRecenter, etiket_anl, etiket_inc, etiket_trl,           &
                                    etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
@@ -159,6 +162,8 @@ contains
     includeYearInSeed        = .false.
     writeSubSample           = .false.
     writeSubSampleUnPert     = .false.
+    recenterSubSample        = .true.
+    recenterSubSampleUnPert  = .true.
     alphaRTPS                =  0.0D0
     alphaRTPP                =  0.0D0
     alphaRandomPert          =  0.0D0
@@ -458,25 +463,23 @@ contains
                                  useMemberAsHuRefState)
         end if
 
-        ! Compute analysis mean of sub-sampled ensemble
-        call ens_computeMean(ensembleAnlSubSample)
-
-        ! Shift members to have same mean as full ensemble
-        call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
-                          recenteringCoeffScalar_opt=1.0D0)
+        if (recenterSubSample) then
+          ! Compute analysis mean of sub-sampled members and
+          ! shift members to have same mean as full ensemble
+          call ens_computeMean(ensembleAnlSubSample)
+          call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
+                            recenteringCoeffScalar_opt=1.0D0)
+        end if
 
       end if ! writeSubsample
 
       !- If SubSample requested, do remaining processing and output of sub-sampled members
-      if (writeSubSampleUnPert) then
-
-        ! Compute analysis mean of sub-sampled ensemble
+      if ((writeSubSampleUnPert) .and. (recenterSubSampleUnPert)) then
+        ! Compute analysis mean of sub-sampled members and
+        ! shift members to have same mean as full ensemble 
         call ens_computeMean(ensembleAnlSubSampleUnPert)
-
-        ! Shift members to have same mean as full ensemble
         call ens_recenter(ensembleAnlSubSampleUnPert, stateVectorMeanAnl,  &
                           recenteringCoeffScalar_opt=1.0D0)
-
       end if
 
     end if ! ens_isAllocated(ensembleAnl)
