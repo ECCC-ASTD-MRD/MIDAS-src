@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Option to not recenter sub-sample used to initialize medium-range forecasts (#918 and !826)
+   * New namelist variables `recenterSubSample` and `recenterSubSampleUnPert`
  * Update documentation for release `v_4.0.0` (#916 and !824)
  * The MIDAS scripts have been generalized to support programs that
    only have observation files as output (#913 and !823)
