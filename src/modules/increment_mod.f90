@@ -357,8 +357,6 @@ CONTAINS
     type(struct_hco), pointer :: hco_trl => null()
     character(len=4), allocatable :: varNamesPsfc(:)
 
-    real(pre_incrReal), pointer :: oceanIce_ptr(:,:,:,:)
-
     logical  :: allocHeightSfc
 
     call msg('inc_analPostProcessing', 'START', verb_opt=2)
@@ -417,9 +415,7 @@ CONTAINS
 
     if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
-      call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
-      oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
-      oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
+      call gvt_transform(stateVectorAnal, 'iceLimits')
     end if
 
     if (applyLiebmann) then
