@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * The MIDAS scripts have been generalized to support programs that
-   only have observation files as output (#913 and !823)
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
  * Added new namelist variables to allow deactivating extra thinning in `prepcma` (#870 and !809)
  * Added the branch v_3.9-RandD in the official documentation and activate the automatic tests for that branche (#888 and !808)
@@ -29,6 +27,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.2]
+
+### Added
+
+ * The MIDAS scripts have been generalized to support programs that
+   only have observation files as output (#913 and !823)
 
 ## [3.9.1]
 
@@ -1166,7 +1171,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...HEAD
+[3.9.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_3.9.2
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
