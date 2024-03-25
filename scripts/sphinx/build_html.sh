@@ -351,7 +351,7 @@ echo "Building dependency tree"
 echo "Sourcing config"
 cd ${toplevel}/src
 source ./config.dot.sh
-GITDESC=$(git describe --abbrev=7 --dirty=_M)
+GITDESC=$(cd ${toplevel}; ./midas.version.sh)
 OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
 make depend
 
