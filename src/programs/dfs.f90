@@ -231,7 +231,7 @@ program midas_dfs
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
   
   ! Compute perturbed
-  call diagHBHt(columnTrlOnAnlIncLev,obsSpaceData)
+  call diagDFS(columnTrlOnAnlIncLev,obsSpaceData)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
@@ -382,9 +382,9 @@ contains
   end subroutine var_setup
 
   !--------------------------------------------------------------------------
-  ! diagHBHt
+  ! diagDFS
   !--------------------------------------------------------------------------
-  subroutine diagHBHt(columnTrlOnAnlIncLev, obsSpaceData)
+  subroutine diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
     !
     !:Purpose: Main calculations of HBHt
     !
@@ -406,7 +406,7 @@ contains
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
     integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
-    real(8), allocatable :: HBHtMatrix(:,:,:), DMatrix(:,:), inverse(:,:),hk(:,:)
+    real(8), allocatable :: HBHtMatrix(:,:,:)
     real(8), pointer :: Rsub(:,:)
     real(8), pointer :: all_dfs(:)
     integer, pointer :: order(:)
@@ -459,6 +459,7 @@ contains
     channelList(:,:) = MPC_missingValue_INT
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
+    
     !First step count the number of selected observation for each MPI task
     countObs = 0
     familyType = 'TO'
@@ -499,20 +500,20 @@ contains
 
     call rpn_comm_barrier('GRID', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_barrier 1')
+      call utl_abort('diagDFS: Error in call to rpn_comm_barrier 1')
     end if
     
     call rpn_comm_allReduce(countObs, sumCountObsMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 1')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allReduce 1')
     end if
     call rpn_comm_allReduce(countObs, maxCountObsMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 2')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allReduce 2')
     end if
     call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allReduce 3')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allReduce 3')
     end if
 
     allocate(mpiTaskListMpi(maxCountObsMpi, mmpi_nprocs))
@@ -530,34 +531,34 @@ contains
     call rpn_comm_allgather(mpiTaskList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
                             mpiTaskListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for mpiTaskList')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allGather for mpiTaskList')
     end if
     call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
                             headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for headerIndexList')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allGather for headerIndexList')
     end if
     call rpn_comm_allgather(channelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
         maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
         channelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for channelList')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allGather for channelList')
     end if
     call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
         maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
         bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for bodyIndexList')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allGather for bodyIndexList')
     end if
     call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
         maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
         stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_allGather for stdDevList')
+      call utl_abort('diagDFS: Error in call to rpn_comm_allGather for stdDevList')
     end if
     call rpn_comm_barrier('GRID', ierr)
     if (ierr /= 0) then
-      call utl_abort('diagHBHt: Error in call to rpn_comm_barrier 2')
+      call utl_abort('diagDFS: Error in call to rpn_comm_barrier 2')
     end if
 
     deallocate(bodyIndexList)
@@ -569,9 +570,7 @@ contains
     localDimension = cvm_nvadim
     allocate(perturbation_vector(localDimension))
     allocate(HBHtMatrix(maxCountObsMpi,nChannelsDfs,nChannelsDfs))
-    allocate(DMatrix(nChannelsDfs,nChannelsDfs))
-    allocate(inverse(nChannelsDfs,nChannelsDfs))
-    allocate(hk(nChannelsDfs,nChannelsDfs))
+
     !do procIndex = 1, mmpi_nprocs
     do procIndex = 1, nTaskMax 
       do obsIndex = 1, maxCountObsMpi
@@ -646,30 +645,17 @@ contains
             end if
           end do
           if (mmpi_myId == taskIndex) then
-            !call rmat_getRmatrix(sensor_id, list_sub, list_oer, Rsub)
-            !call utl_pseudo_inverse(inputMatrix, pseudoInverse, threshold_opt)
-            ! call utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt, &
-            !                  eigenValueRelThreshold_opt)
+            
             sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
             call rmat_getRmatrix(sensorIndex, &
                 channelListMpi(obsIndex,:,procIndex), &
                 stdDevListMpi(obsIndex,:,procIndex), &
                 Rsub)
-            dfs = dfsCalcul(HBHtMatrix(obsIndex,:,:), Rsub)
+            dfs = computeDfs(HBHtMatrix(obsIndex,:,:), Rsub)
             write(*,*) "dfs = ", dfs
-            call selectionChannels(HBHtMatrix(obsIndex,:,:), Rsub, nChannelsDfs, all_dfs, order)
+            call selectChannels(HBHtMatrix(obsIndex,:,:), Rsub, all_dfs, order)
             write(*,*) 'all_dfs= ',all_dfs(:)
             write(*,*) 'order= ',order(:)
-            !dMatrix(:,:) =  HBHtMatrix(obsIndex,:,:) + Rsub(:,:)
-            !call utl_pseudo_inverse(dMatrix, inverse)
-            !inverse = np.linalg.inv(hbht + matr_r)
-            !hk = matmul(HBHtMatrix(obsIndex,:,:),inverse)
-            !dfs = 0.d0
-            !do channelIndex2 = 1, maxCountChannelMpi
-            !  dfs = dfs + hk(channelIndex2,channelIndex2)
-            !end do
-            !tr_dfs = np.trace(np.dot(hbht, inverse))
-            
           end if
         end if
       end do
@@ -680,41 +666,56 @@ contains
     deallocate(headerIndexListMpi)
     deallocate(mpiTaskListMpi)
     deallocate(stdDevListMpi)
-    if (allocated(hk)) deallocate(hk)
-    if (allocated(inverse)) deallocate(inverse)
+
     if (associated(Rsub)) deallocate(Rsub)
-    if (allocated(DMatrix)) deallocate(Dmatrix)
     if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
     
     deallocate(perturbation_vector)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     write(*,*)
-    write(*,*) 'Computing HBHT from selected observations end'
+    write(*,*) 'Computing DFS from selected observations end'
 
-  end subroutine diagHBHt
+  end subroutine diagDFS
 
-  subroutine subsetMatrix( matriceInput, order, matriceOutput)
-
-    real(8), intent(in) :: matriceInput(:,:)
+  !--------------------------------------------------------------------------
+  ! subsetMatrix
+  !--------------------------------------------------------------------------
+  subroutine subsetMatrix(matrixInput, order, matrixOutput)
+    !
+    !:Purpose: extract sub-Matrix for a subset of channels/levels
+    !
+    implicit none
+    
+    ! Arguments:
+    real(8), intent(in) :: matrixInput(:,:)
     integer, intent(in) :: order(:)
-    real(8), intent(out) :: matriceOutput(size(order), size(order))
+    real(8), intent(out) :: matrixOutput(size(order), size(order))
+    ! Locals:
     integer :: i, j
 
     do j = 1, size(order)
         do i = 1, size(order)
-            matriceOutput(i, j) = matriceInput(order(i), order(j))
+            matrixOutput(i, j) = matrixInput(order(i), order(j))
         end do
     end do
   end subroutine subsetMatrix
   
-  function dfsCalcul(HBHt, R) result(dfs)
+  !--------------------------------------------------------------------------
+  ! computeDfs
+  !--------------------------------------------------------------------------
+  function computeDfs(HBHt, R) result(dfs)
+    !
+    !:Purpose: compute DFS from HBHt and R matrices
+    !
     implicit none
+    
     ! Arguments
     real(8), intent(in) :: HBHt(:,:)
     real(8), intent(in) :: R(:,:)
     real(8)             :: dfs
+    
     ! Local variables
     integer :: nbChannels, channelIndex
     real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
@@ -725,43 +726,57 @@ contains
     allocate(hk(nbChannels,nbChannels))
     dMatrix(:,:) =  HBHt(:,:) + R(:,:)
     call utl_pseudo_inverse(dMatrix, inverse)
-            
+    ! call utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt, &
+    !                  eigenValueRelThreshold_opt)
+    
     hk = matmul(HBHt, inverse)
     dfs = 0.d0
     do channelIndex = 1, nbChannels
        dfs = dfs + hk(channelIndex,channelIndex)
     end do
     deallocate(hk, inverse, dMatrix)
-  end function dfsCalcul
-
-
-  subroutine selectionChannels(HBHt, R, nChannelsDfs, all_dfs, order)
+  end function computeDfs
+  
+  !--------------------------------------------------------------------------
+  ! selectChannels
+  !--------------------------------------------------------------------------
+  subroutine selectChannels(HBHt, R, all_dfs, order, nChannelsOut_opt)
+    !
+    !:Purpose: perform DFS-based channel selection
+    !
     implicit none
     ! Arguments
     real(8), intent(in) :: HBHt(:,:)
     real(8), intent(in) :: R(:,:)
-    integer, intent(in) :: nChannelsDfs
     real(8), pointer, intent(inout):: all_dfs(:)
     integer, pointer, intent(inout):: order(:)
+    integer, optional,  intent(in) :: nChannelsOut_opt
     ! Locals
     integer, allocatable :: orderTemp(:), free(:), oldfree(:)
     real(8) :: dfsOpt, dfsTest
-    !real(8), dimension(:), allocatable :: all_dfs
     integer :: i, j, opt, size_free
     real(8), allocatable :: R_subset(:,:), HBHt_subset(:,:)
+    integer :: nChannelsIn, nChannelsOut
 
-
-    allocate(free(nChannelsDfs))
-    do i = 1, nChannelsDfs
+    nChannelsIn = size(R, dim=1)
+   
+    if (present (nChannelsOut_opt)) then
+       nChannelsOut = nChannelsOut_opt
+    else
+       nChannelsOut = nChannelsIn
+    end if
+    
+    allocate(free(nChannelsIn))
+    do i = 1, nChannelsIn
        free(i) = i
     end do
 
-    allocate(order(nChannelsDfs))
+    allocate(order(nChannelsOut))
     order(:) = -1
-    allocate(orderTemp(nChannelsDfs))
-    allocate(all_dfs(nChannelsDfs))
+    allocate(orderTemp(nChannelsOut))
+    allocate(all_dfs(nChannelsOut))
     all_dfs(:) = MPC_missingValue_R8
-    do i = 1, nChannelsDfs
+    do i = 1, nChannelsOut
        opt = 0
        dfsOpt = 0.0
        allocate(R_subset(i,i), HBHt_subset(i,i))
@@ -770,17 +785,14 @@ contains
           orderTemp(1:i-1) = order(1:i-1)
           orderTemp(i) = free(j)
           
-
           call subsetMatrix(R, orderTemp(1:i), R_subset)
           call subsetMatrix(HBHt, orderTemp(1:i), HBHt_subset)
-          !calculer le DFS
-          dfsTest = dfsCalcul(HBHt_subset, R_subset)
-	 
+
+          dfsTest = computeDfs(HBHt_subset, R_subset)
           if (dfsTest > dfsOpt) then
              opt =free(j)
              dfsOpt = dfsTest
           end if
-
        end do
        deallocate(R_subset, HBHt_subset)
        all_dfs(i) = dfsOpt
@@ -793,11 +805,10 @@ contains
        free = pack(oldfree, oldfree /= opt)
        deallocate(oldfree)
     end do
-    !deallocate(order)
-    !deallocate(all_dfs)
+
     deallocate(free)
     deallocate(orderTemp)
 
-  end subroutine selectionChannels
+  end subroutine selectChannels
     
 end program midas_dfs
