@@ -166,8 +166,8 @@ program midas_dfs
   
   implicit none
 
-  integer :: istamp,exdb,exfin
-  integer :: ierr
+  integer, external :: exdb, exfin
+  integer :: ierr, istamp
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -183,16 +183,16 @@ program midas_dfs
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
 
-  istamp = exdb('dfs','DEBUT','NON')
+  istamp = exdb('dfs', 'DEBUT', 'NON')
 
-  call ver_printNameAndVersion('dfs','Dfs computation')
+  call ver_printNameAndVersion('dfs', 'Dfs computation')
 
   ! MPI initilization
   call mmpi_initialize 
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'Main')
+  call utl_tmg_start(0, 'Main')
   call utl_printTime()
 
   varMode='analysis'
@@ -204,34 +204,32 @@ program midas_dfs
 
   ! Do initial set up
 
-  obsMpiStrategy = 'LIKESPLITFILES'
-
   call var_setup('VAR') ! obsColumnMode
 
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
   call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                     mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                    beSilent_opt=.false. )
-  call gsv_zero( stateVectorTrialHighRes )
-  call gio_readTrials( stateVectorTrialHighRes )
+                    beSilent_opt=.false.)
+  call gsv_zero(stateVectorTrialHighRes)
+  call gio_readTrials(stateVectorTrialHighRes)
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                  stateVectorTrialHighRes )
   
   ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
+  call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
   
   ! Compute perturbed
-  call diagDFS(columnTrlOnAnlIncLev,obsSpaceData)
+  call diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
 
   ! Deallocate memory related to B matrices
   call bmat_finalize()
@@ -243,17 +241,16 @@ program midas_dfs
     if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
   else
     ! redistribute obs data to how it was just after reading the files
-    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    call obs_MpiRedistribute(obsSpaceData, OBS_IPF)
     call obsf_writeFiles(obsSpaceData)
   end if
-
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
   ! 3. Job termination
 
-  istamp = exfin('diagHBHt','FIN','NON')
+  istamp = exfin('dfs', 'FIN', 'NON')
 
   call utl_tmg_stop(0)
   call utl_printTime()
@@ -278,8 +275,8 @@ contains
 
     ! Locals:
     integer :: dateStampFromObs
-    type(struct_vco),pointer :: vco_anl => null()
-    integer :: get_max_rss
+    type(struct_vco), pointer :: vco_anl => null()
+    integer, external :: get_max_rss
 
     write(*,*)
     write(*,*) '-----------------------------------'
@@ -315,69 +312,69 @@ contains
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     !- Initialize the Analysis grid
     !
-    if(mmpi_myid.eq.0) write(*,*)''
-    if(mmpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+    if (mmpi_myid == 0) write(*,*) ''
+    if (mmpi_myid == 0) write(*,*) ' preproc: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
-    if ( hco_anl % global ) then
+    if (hco_anl % global) then
       hco_core => hco_anl
     else
-      !- Iniatilized the core (Non-Exteded) analysis grid
-      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      !- Initialized the core (Non-Exteded) analysis grid
+      call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
     end if
 
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    call vco_SetupFromFile( vco_anl,        & ! OUT
-                            './analysisgrid') ! IN
+    call vco_SetupFromFile(vco_anl, './analysisgrid') ! IN
 
-    call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call col_setVco(columnTrlOnAnlIncLev, vco_anl)
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     !- Setup and read observations
     !
+    obsMpiStrategy = 'LIKESPLITFILES'
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     !- Basic setup of columnData module
     !
     call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData))
+    call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
     !
     !- Initialize the observation error covariances
     !
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    call bmat_setup(hco_anl,hco_core,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call bmat_setup(hco_anl, hco_core, vco_anl)
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !
     ! - Initialize the gridded variable transform module
     !
    
-    call gvt_setup(hco_anl,hco_core,vco_anl)
+    call gvt_setup(hco_anl, hco_core, vco_anl)
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
     
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine var_setup
 
@@ -386,7 +383,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
     !
-    !:Purpose: Main calculations of HBHt
+    !:Purpose: Main DFS computation
     !
     implicit none
 
@@ -418,7 +415,7 @@ contains
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
     integer :: sensorIndex
     integer, external :: get_max_rss
-    real(8), allocatable :: perturbation_vector(:)
+    real(8), allocatable :: perturbationVector(:)
     character(len=2) :: familyType
     integer :: nChannelsDfs = 103
     integer :: nObsMax = 2, nTaskMax = 2
@@ -568,7 +565,7 @@ contains
     deallocate(stdDevList)
     
     localDimension = cvm_nvadim
-    allocate(perturbation_vector(localDimension))
+    allocate(perturbationVector(localDimension))
     allocate(HBHtMatrix(maxCountObsMpi,nChannelsDfs,nChannelsDfs))
 
     !do procIndex = 1, mmpi_nprocs
@@ -583,7 +580,7 @@ contains
             channelNumber1 = channelListMpi(obsIndex,channelIndex1,procIndex)
             if (bodyIndex1 /= MPC_missingValue_INT) then
               write(*,*) "ICI body", procIndex, obsIndex, headerIndex, taskIndex, BODYiNDEX1, cHANNELnUMBER1
-              !We need to initialize the full OBS_WORK column to zero 
+              ! We need to initialize the full OBS_WORK column to zero 
               do bodyIndex2 = 1, obs_numBody(obsSpaceData)
                 call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
               end do
@@ -595,7 +592,6 @@ contains
                   columnTrlOnAnlIncLev,  &
                   obsSpaceData,          & ! input
                   initializeLinearization_opt=first)
-              
               first = .false.
               write(*,*) "before s2c_ad"
               write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -606,28 +602,24 @@ contains
                   obsSpaceData)
               write(*,*) "before bmat_sqrtBT"
               write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-              perturbation_vector(:) = 0.d0
-              call bmat_sqrtBT(perturbation_vector, & ! output
-                  localDimension, &  
+              perturbationVector(:) = 0.d0
+              call bmat_sqrtBT(perturbationVector, & ! output
+                  localDimension,                  &  
                   stateVector)                        ! input
               write(*,*) "before bmat_sqrtB"
               write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
               call gsv_zero(stateVector)
-              call bmat_sqrtB(perturbation_vector, & !input
-                  localDimension,                  &
+              call bmat_sqrtB(perturbationVector, & !input
+                  localDimension,                 &
                   stateVector)                       ! output
               write(*,*) "before s2c_tl"
-              write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-              call col_zero(columnAnlInc)
+              write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
               call s2c_tl(stateVector,  & !input
                   columnAnlInc,         & ! output
                   columnTrlOnAnlIncLev, & 
                   obsSpaceData)
               write(*,*) "before oop_Htl"
               write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-              do bodyIndex2 = 1, obs_numBody(obsSpaceData)
-                call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
-              end do
               call oop_Htl(columnAnlInc, & ! input
                   columnTrlOnAnlIncLev,  &
                   obsSpaceData,          & !output
@@ -645,11 +637,10 @@ contains
             end if
           end do
           if (mmpi_myId == taskIndex) then
-            
             sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
-            call rmat_getRmatrix(sensorIndex, &
+            call rmat_getRmatrix(sensorIndex,         &
                 channelListMpi(obsIndex,:,procIndex), &
-                stdDevListMpi(obsIndex,:,procIndex), &
+                stdDevListMpi(obsIndex,:,procIndex),  &
                 Rsub)
             dfs = computeDfs(HBHtMatrix(obsIndex,:,:), Rsub)
             write(*,*) "dfs = ", dfs
@@ -670,9 +661,10 @@ contains
     if (associated(Rsub)) deallocate(Rsub)
     if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
     
-    deallocate(perturbation_vector)
+    deallocate(perturbationVector)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
+    
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     write(*,*)
     write(*,*) 'Computing DFS from selected observations end'
@@ -689,17 +681,12 @@ contains
     implicit none
     
     ! Arguments:
-    real(8), intent(in) :: matrixInput(:,:)
-    integer, intent(in) :: order(:)
+    real(8), intent(in)  :: matrixInput(:,:)
+    integer, intent(in)  :: order(:)
     real(8), intent(out) :: matrixOutput(size(order), size(order))
-    ! Locals:
-    integer :: i, j
 
-    do j = 1, size(order)
-        do i = 1, size(order)
-            matrixOutput(i, j) = matrixInput(order(i), order(j))
-        end do
-    end do
+    matrixOutput(:, :) = matrixInput(order(:), order(:))
+ 
   end subroutine subsetMatrix
   
   !--------------------------------------------------------------------------
@@ -740,74 +727,76 @@ contains
   !--------------------------------------------------------------------------
   ! selectChannels
   !--------------------------------------------------------------------------
-  subroutine selectChannels(HBHt, R, all_dfs, order, nChannelsOut_opt)
+  subroutine selectChannels(HBHt, R, orderedDfs, orderedChannelIndexes, nChannelsOut_opt)
     !
     !:Purpose: perform DFS-based channel selection
     !
+    
     implicit none
     ! Arguments
     real(8), intent(in) :: HBHt(:,:)
     real(8), intent(in) :: R(:,:)
-    real(8), pointer, intent(inout):: all_dfs(:)
-    integer, pointer, intent(inout):: order(:)
+    real(8), pointer, intent(inout):: orderedDfs(:)
+    integer, pointer, intent(inout):: orderedChannelIndexes(:)
     integer, optional,  intent(in) :: nChannelsOut_opt
     ! Locals
-    integer, allocatable :: orderTemp(:), free(:), oldfree(:)
-    real(8) :: dfsOpt, dfsTest
-    integer :: i, j, opt, size_free
-    real(8), allocatable :: R_subset(:,:), HBHt_subset(:,:)
+    integer, allocatable :: tmpOrder(:), freeIndexList(:), tmpFree(:)
+    real(8) :: optimalDfs, dfsTest
+    integer :: channelIndex1, channelIndex2, optimalIndex, numberOfFreeChannels
+    real(8), allocatable :: RSubset(:,:), HBHtSubset(:,:)
     integer :: nChannelsIn, nChannelsOut
 
     nChannelsIn = size(R, dim=1)
    
     if (present (nChannelsOut_opt)) then
-       nChannelsOut = nChannelsOut_opt
+      if (nChannelsOut_opt > nChannelsIn) then
+        write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
+        call utl_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input matrices.')
+      end if
+      nChannelsOut = nChannelsOut_opt
     else
-       nChannelsOut = nChannelsIn
+      nChannelsOut = nChannelsIn
     end if
     
-    allocate(free(nChannelsIn))
-    do i = 1, nChannelsIn
-       free(i) = i
+    allocate(freeIndexList(nChannelsIn))
+    do channelIndex1 = 1, nChannelsIn
+      freeIndexList(channelIndex1) = channelIndex1
     end do
-
-    allocate(order(nChannelsOut))
-    order(:) = -1
-    allocate(orderTemp(nChannelsOut))
-    allocate(all_dfs(nChannelsOut))
-    all_dfs(:) = MPC_missingValue_R8
-    do i = 1, nChannelsOut
-       opt = 0
-       dfsOpt = 0.0
-       allocate(R_subset(i,i), HBHt_subset(i,i))
-       do j = 1, size(free)
-          orderTemp(:) = -1
-          orderTemp(1:i-1) = order(1:i-1)
-          orderTemp(i) = free(j)
-          
-          call subsetMatrix(R, orderTemp(1:i), R_subset)
-          call subsetMatrix(HBHt, orderTemp(1:i), HBHt_subset)
-
-          dfsTest = computeDfs(HBHt_subset, R_subset)
-          if (dfsTest > dfsOpt) then
-             opt =free(j)
-             dfsOpt = dfsTest
-          end if
-       end do
-       deallocate(R_subset, HBHt_subset)
-       all_dfs(i) = dfsOpt
-       order(i) = opt
-       size_free = size(free)
-       allocate(oldfree(size_free))
-       oldfree(:) = free(:)
-       deallocate(free)
-       allocate(free(size_free-1))
-       free = pack(oldfree, oldfree /= opt)
-       deallocate(oldfree)
+    
+    allocate(orderedChannelIndexes(nChannelsOut))
+    orderedChannelIndexes(:) = -1
+    allocate(tmpOrder(nChannelsOut))
+    allocate(orderedDfs(nChannelsOut))
+    do channelIndex1 = 1, nChannelsOut
+      optimalIndex = 0
+      optimalDfs = 0.0
+      allocate(RSubset(channelIndex1,channelIndex1), HBHtSubset(channelIndex1,channelIndex1))
+      numberOfFreeChannels = nChannelsIn - channelIndex1 + 1
+      do channelIndex2 = 1, numberOfFreeChannels
+        tmpOrder(1:channelIndex1-1) = orderedChannelIndexes(1:channelIndex1-1)
+        tmpOrder(channelIndex1) = freeIndexList(channelIndex2)
+        call subsetMatrix(R, tmpOrder(1:channelIndex1), RSubset)
+        call subsetMatrix(HBHt, tmpOrder(1:channelIndex1), HBHtSubset)
+        dfsTest = computeDfs(HBHtSubset, RSubset)
+        if (dfsTest > optimalDfs) then
+          optimalIndex =freeIndexList(channelIndex2)
+          optimalDfs = dfsTest
+        end if
+      end do
+      deallocate(RSubset, HBHtSubset)
+      orderedDfs(channelIndex1) = optimalDfs
+      orderedChannelIndexes(channelIndex1) = optimalIndex
+      allocate(tmpFree(numberOfFreeChannels))
+      !https://stackoverflow.com/questions/42140832/automatic-array-allocation-upon-assignment-in-fortran could help to simplify a bit this 
+      !but it is needed to get rif of the (:)
+      tmpFree(:) = freeIndexList(:)
+      call utl_reAllocate(freeIndexList, numberOfFreeChannels - 1)
+      freeIndexList(:) = pack(tmpFree, tmpFree /= optimalIndex)
+      deallocate(tmpFree)
     end do
-
-    deallocate(free)
-    deallocate(orderTemp)
+    
+    deallocate(freeIndexList)
+    deallocate(tmpOrder)
 
   end subroutine selectChannels
     
