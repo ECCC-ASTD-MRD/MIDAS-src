@@ -12,6 +12,7 @@ module bgckMicrowave_mod
   use tovsNL_mod
   use obsErrors_mod
   use codtyp_mod
+  use rttov_const, only : surftype_seaice
 
   implicit none
   save
@@ -5945,7 +5946,7 @@ contains
     integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, scatwObsFGaveraged
-    logical :: instrumentIsAllskyTt, instrumentIsAllskyHu
+    logical :: instrumentIsAllskyTt, instrumentIsAllskyHu, surfTypeIsIce
     logical, allocatable :: lflagchn(:)
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
@@ -5979,6 +5980,9 @@ contains
         lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.      ! AMSU-A 1-6
         lflagchn(16:19) = .true.                                  ! AMSU-B (like 1,2,5)
         if (iwvreject) lflagchn(20:22) = .true.                 ! AMSU-B (like 4,3)
+
+        surfTypeIsIce = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_seaice)
+        if (instrumentIsAllskyHu .and. surfTypeIsIce) lflagchn(20:22) = .true.
 
         ! Dryness index (for AMSU-B channels 19-22 assimilated over land/sea-ice)
         ! Channel AMSUB-3 (ATMS channel 22) is rejected for a dryness index >    0.
