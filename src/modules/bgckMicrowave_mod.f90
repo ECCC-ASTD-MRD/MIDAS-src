@@ -76,6 +76,7 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForClw(:)             ! channels to reject because of CLW
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
   integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
+  real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -88,6 +89,7 @@ module bgckMicrowave_mod
   real(4)            :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real(4)            :: cloudySiThresholdBcorr        !
+  real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
   logical            :: resetQc                       ! reset Qc flags option
@@ -103,7 +105,7 @@ module bgckMicrowave_mod
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
-                    skipTestArr
+                    atmsRogueFactor, skipTestArr
                     
 
 contains
@@ -130,6 +132,7 @@ contains
     modLSQ                        = .false.
     avoidSiObsRejectTempChan      = .false.
     avoidSiObsEcmwfRejectTempChan = .false.
+    atmsRogueFactor(:)            = -1.0
     skipTestArr(:)                = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
@@ -145,6 +148,7 @@ contains
     mwbg_minSiOverWaterThreshold = real(minSiOverWaterThreshold,8)
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
+    mwbg_atmsRogueFactor(:) = atmsRogueFactor(:)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
     mwbg_calcLandQualifierTerrainType = modLSQ
@@ -3512,7 +3516,7 @@ contains
                                          !  ilsmOpt = 2 --> use value at central mesh point (obs location)
                                          !  ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
-    integer :: iRej, iNumSeaIce, JI, actualNumChannel
+    integer :: iRej, iNumSeaIce, JI, actualNumChannel, channelIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     logical :: waterobs, grossrej, reportHasMissingTb
     logical :: cloudobs, iwvreject, precipobs
@@ -3544,7 +3548,16 @@ contains
                               4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, &
                               2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
       if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 3.0
+      if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        do channelIndex = 1, actualNumChannel+tvs_channelOffset(sensorIndex)
+          if (mwbg_atmsRogueFactor(channelIndex) /= -1.0) then
+            mwbg_rogueFactor(channelIndex) = real(mwbg_atmsRogueFactor(channelIndex),8)
+          end if
+        end do
+      end if
 
+      write(*,*) 'mwbg_tovCheckAtms: mwbg_rogueFactor(:)=', mwbg_rogueFactor(:)
+      
       allocate(mwbg_qcIndicator(actualNumChannel))
 
       allocate(mwbg_bit7(actualNumChannel))
