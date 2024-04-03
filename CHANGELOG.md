@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix the documentation generation to use the correct build directory name (#920 and !828)
 
 ### Removed
 
