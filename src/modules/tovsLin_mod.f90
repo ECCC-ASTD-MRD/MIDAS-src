@@ -672,7 +672,7 @@ contains
     real(8), allocatable :: pressure_ad(:,:)  
     real(8), allocatable :: ozone_ad(:,:)
     character(len=4) :: ozoneVarName
-    real(8), allocatable :: clw_ad(:,:)
+    real(8), allocatable :: clw_ad(:,:),clwScatt_ad(:,:)
     real(8), allocatable :: ciw_ad(:,:), rf_ad(:,:), sf_ad(:,:)
     logical, allocatable :: surfTypeIsWater(:)
     logical, pointer :: lChannelSubset(:,:)
@@ -772,16 +772,15 @@ contains
           allocate(ozone_ad(nlv_T,profileCount))
         end if
       end if
-      if (runObsOperatorWithClw_ad .or. runObsOperatorWithHydrometeors_ad) then
-        allocate(clw_ad(nlv_T,profileCount))
+      if (runObsOperatorWithClw_ad) allocate(clw_ad(nlv_T,profileCount))
+      if (runObsOperatorWithHydrometeors_ad) then
+        allocate(clwScatt_ad(nlv_T,profileCount))
+        allocate(ciw_ad(nlv_T,profileCount))
+        allocate(rf_ad(nlv_T,profileCount))
+        allocate(sf_ad(nlv_T,profileCount))
       end if
       allocate(surfTypeIsWater(profileCount))
       surfTypeIsWater(:) = .false.
-      if (runObsOperatorWithHydrometeors_ad) then
-        allocate (ciw_ad(nlv_T,profileCount))
-        allocate (rf_ad(nlv_T,profileCount))
-        allocate (sf_ad(nlv_T,profileCount))
-      end if
 
       profileCount = 0       
       ! loop over all obs.
@@ -1012,8 +1011,9 @@ contains
       if (.not. tvs_useO3Climatology) then
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) ozone_ad(:,:) = 0.d0
       end if
-      if (runObsOperatorWithClw_ad .or. runObsOperatorWithHydrometeors_ad) clw_ad(:,:) = 0.d0
+      if (runObsOperatorWithClw_ad) clw_ad(:,:) = 0.d0
       if (runObsOperatorWithHydrometeors_ad) then
+        clwScatt_ad(:,:) = 0.d0
         ciw_ad(:,:) = 0.d0
         rf_ad(:,:) = 0.d0
         sf_ad(:,:) = 0.d0
@@ -1055,7 +1055,7 @@ contains
         if (runObsOperatorWithHydrometeors_ad .and. btCountScatt > 0) then
           rf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,1)
           sf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,2)
-          clw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,4)
+          clwScatt_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,4)
           ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
         end if
       end do
@@ -1170,7 +1170,7 @@ contains
             clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'LWCR')
             ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'IWCR')
             do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-              clw_column(levelIndex) = clw_column(levelIndex) + clw_ad(levelIndex,profileIndex)
+              clw_column(levelIndex) = clw_column(levelIndex) + clwScatt_ad(levelIndex,profileIndex)
               ciw_column(levelIndex) = ciw_column(levelIndex) + ciw_ad(levelIndex,profileIndex)
             end do
           end if ! surfTypeIsWater
@@ -1186,11 +1186,10 @@ contains
           deallocate(ozone_ad)
         end if
       end if
-      if ( allocated(clw_ad) ) then
-        deallocate(clw_ad)
-      end if
+      if (allocated(clw_ad)) deallocate(clw_ad)
+      if (allocated(clwScatt_ad)) deallocate(clwScatt_ad)
       deallocate(surfTypeIsWater)
-      if ( allocated(ciw_ad) ) then
+      if (allocated(ciw_ad)) then
         deallocate(ciw_ad)
         deallocate(rf_ad)
         deallocate(sf_ad)

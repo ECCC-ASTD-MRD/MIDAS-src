@@ -2491,8 +2491,6 @@ contains
       runObsOperatorWithHydrometeors = (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
-      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) runObsOperatorWithClw = .false.
-
       ! first loop over all obs.
       profileCount = 0
       bobs1: do tovsIndex = 1, tvs_nobtov
@@ -2753,9 +2751,8 @@ contains
         call validateRttovProfile(profiles(tovsIndex) % q, 'water vapor', qmin, qmax, obsSpaceData, headerIndex)
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
-        if (runObsOperatorWithClw) then
-          profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
-        else if (runObsOperatorWithHydrometeors) then
+        if (runObsOperatorWithClw) profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
+        if (runObsOperatorWithHydrometeors) then
           cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
@@ -2778,7 +2775,7 @@ contains
             end if
 
           end do ! levelIndex
-        end if  ! runObsOperatorWithClw
+        end if  ! runObsOperatorWithHydrometeors
       end do ! profileIndex
 
       ! Extract emissivity from background column object to be used in the computation
