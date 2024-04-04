@@ -187,11 +187,12 @@ program midas_dfs
   !Namelist variables:
   character(len=2) :: familyType                 ! familyType to consider (TO, UA, AI, RO, etc... one at a time)
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
+  integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
   logical :: outputHBHt                          ! flag to output HBHt
   integer :: nDfsMax                             ! maximum number of DFS computations
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, outputHBHt, nDfsMax, vCoordList
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -218,6 +219,7 @@ program midas_dfs
   ! setting default values
   familyType = 'TO'
   doChannelSelection = .true.
+  maxSelect = MPC_missingValue_INT
   outputHBHt = .true.
   nDfsMax = 4
   vCoordList(:) = MPC_missingValue_INT
@@ -278,7 +280,7 @@ program midas_dfs
   ! Deallocate memory related to B matrices
   call bmat_finalize()
 
-  ! The following lines of code are no longer necessary unless it is decided to put some the computed outputs in BURP or SQLITE observation files
+  ! The following lines of code are no longer necessary unless it is decided to put some of the computed outputs in BURP or SQLITE observation files
   ! to be discussed with Mark
   
   ! Now write out the observation data files
@@ -711,7 +713,7 @@ contains
             end if
             dfs = computeDfs(HBHtMatrix, Rsub)
             if (doChannelSelection) then
-              call selectChannels(HBHtMatrix, Rsub, all_dfs, order)
+              call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
             end if
             deallocate(Rsub)
           else
@@ -874,9 +876,13 @@ contains
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
         write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
-        call utl_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input matrices.')
+        call utl_abort('selectChannels: nChannelsOut_opt should be lower or equal than the dimension of input R and HBHt matrices.')
       end if
-      nChannelsOut = nChannelsOut_opt
+      if (nChannelsOut_opt < 1) then
+        nChannelsOut = nChannelsIn
+      else
+        nChannelsOut = nChannelsOut_opt
+      end if
     else
       nChannelsOut = nChannelsIn
     end if
