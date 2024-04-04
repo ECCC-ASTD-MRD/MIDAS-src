@@ -152,10 +152,14 @@ contains
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
       if (gsv_varExist(statevector, 'Z_*')) then
-          call calcHeight_gsv_nl(statevector)
+        call calcHeight_gsv_nl(statevector)
         if (gsv_varExist(statevector, 'P_*')) then
           call calcPressure_gsv_nl(statevector)
+        else
+          call utl_abort('calcZandP_gsv_nl (czp): Pressure is not allocated in stateVector')
         end if
+      else
+        call utl_abort('calcZandP_gsv_nl (czp): Height is not allocated in stateVector')
       end if
     end if
 
