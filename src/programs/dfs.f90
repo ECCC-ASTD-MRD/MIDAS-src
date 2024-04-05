@@ -274,7 +274,7 @@ program midas_dfs
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
   
-  ! Compute perturbed
+  ! Compute HBHt, dfs and perform channel selection
   call diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
 
   ! Deallocate memory related to B matrices
@@ -331,7 +331,8 @@ contains
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
     write(*,*) '-----------------------------------'
-
+    call utl_printTime()
+    
     !
     !- Initialize the Temporal grid and set dateStamp from env variable
     !
@@ -424,7 +425,9 @@ contains
     call gvt_setupRefFromTrialFiles('height')
     
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
+    write(*,*) 'var_setup: exiting...'
+    call utl_printTime()
+    
   end subroutine var_setup
 
   !--------------------------------------------------------------------------
@@ -474,7 +477,7 @@ contains
 
     write(*,*)
     write(*,*) 'Computing HBHT from selected observations start'
-
+    call utl_printTime()
     
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
@@ -683,6 +686,9 @@ contains
                 end if
               end do
             end if
+            write(*,*) 'diagDfs: computed column ', channelIndex1, &
+                'of HBHt '
+            call utl_printTime()
           end do
           dfsCount = dfsCount + 1
           if (mmpi_myId == taskIndex) then
