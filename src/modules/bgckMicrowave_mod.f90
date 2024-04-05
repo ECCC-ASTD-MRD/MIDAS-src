@@ -38,6 +38,7 @@ module bgckMicrowave_mod
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical :: mwbg_avoidSiObsRejectTempChan     ! prevent scattering index from obs to reject temperature channels
   logical :: mwbg_avoidSiObsEcmwfRejectTempChan! prevent scattering index from obs (ecmwf formula) to reject temperature channels
+  logical :: mwbg_skipUpperHuChanRejectByCh17Omp ! prevent ch.17 omp to reject ch 20-22 for atms
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -96,6 +97,7 @@ module bgckMicrowave_mod
   logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical            :: avoidSiObsRejectTempChan      ! prevent scattering index from obs to reject temperature channels
   logical            :: avoidSiObsEcmwfRejectTempChan ! prevent scattering index from obs (ecmwf formula) to reject temperature channels
+  logical            :: skipUpperHuChanRejectByCh17Omp! prevent ch.17 omp to reject ch 20-22 for atms
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -105,7 +107,8 @@ module bgckMicrowave_mod
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
-                    atmsRogueFactor, skipTestArr
+                    skipUpperHuChanRejectByCh17Omp, atmsRogueFactor, &
+                    skipTestArr
                     
 
 contains
@@ -132,6 +135,7 @@ contains
     modLSQ                        = .false.
     avoidSiObsRejectTempChan      = .false.
     avoidSiObsEcmwfRejectTempChan = .false.
+    skipUpperHuChanRejectByCh17Omp= .false.
     atmsRogueFactor(:)            = -1.0
     skipTestArr(:)                = .false.
 
@@ -154,6 +158,7 @@ contains
     mwbg_calcLandQualifierTerrainType = modLSQ
     mwbg_avoidSiObsRejectTempChan = avoidSiObsRejectTempChan
     mwbg_avoidSiObsEcmwfRejectTempChan = avoidSiObsEcmwfRejectTempChan
+    mwbg_skipUpperHuChanRejectByCh17Omp = skipUpperHuChanRejectByCh17Omp
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -3563,8 +3568,13 @@ contains
       allocate(mwbg_bit7(actualNumChannel))
     
       !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
-      allocate(mwbg_chanRejectForChan2Omp(6))
-      mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
+      if (mwbg_skipUpperHuChanRejectByCh17Omp) then
+        allocate(mwbg_chanRejectForChan2Omp(3))
+        mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19/)
+      else
+        allocate(mwbg_chanRejectForChan2Omp(6))
+        mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
+      end if
       
       ! Channel sets for rejection in test 9 
       ! These LT channels are rejected if O-P fails rogue check for window ch. 1, 2, or 3
