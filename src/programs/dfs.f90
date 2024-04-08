@@ -509,6 +509,7 @@ contains
     !First step count the number of selected observation for each MPI task
     countObs = 0
     first = .true.
+    countChannel = 0 ! necessary in the case where no obs in the file
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -687,7 +688,7 @@ contains
               end do
             end if
             write(*,*) 'diagDfs: computed column ', channelIndex1, &
-                'of HBHt '
+                'of HBHt'
             call utl_printTime()
           end do
           dfsCount = dfsCount + 1
