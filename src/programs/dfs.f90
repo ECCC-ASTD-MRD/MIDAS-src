@@ -878,8 +878,10 @@ contains
     real(8), allocatable :: RSubset(:,:), HBHtSubset(:,:)
     integer :: nChannelsIn, nChannelsOut
 
+    write(*,*) 'selectChannels: start'
+    call utl_printTime()
     nChannelsIn = size(R, dim=1)
-   
+    
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
         write(*,*) 'selectChannels: nChannelsIn, nChannelsOut_opt', nChannelsIn, nChannelsOut_opt
@@ -908,6 +910,8 @@ contains
       optimalDfs = 0.0
       allocate(RSubset(channelIndex1,channelIndex1), HBHtSubset(channelIndex1,channelIndex1))
       numberOfFreeChannels = nChannelsIn - channelIndex1 + 1
+      write(*,*) 'selectChannels: step ', channelIndex1
+      call utl_printTime()
       do channelIndex2 = 1, numberOfFreeChannels
         tmpOrder(1:channelIndex1-1) = orderedChannelIndexes(1:channelIndex1-1)
         tmpOrder(channelIndex1) = freeIndexList(channelIndex2)
