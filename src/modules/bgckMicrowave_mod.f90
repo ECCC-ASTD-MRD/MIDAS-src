@@ -78,6 +78,7 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
   integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
   real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)
+  real(8) :: mwbg_atmsCh17OmpThreshRogueCheck
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -91,6 +92,7 @@ module bgckMicrowave_mod
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real(4)            :: cloudySiThresholdBcorr        !
   real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
+  real(4)            :: atmsCh17OmpThreshRogueCheck   ! threshold for atms ch.17 omp in rogue check test
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
   logical            :: resetQc                       ! reset Qc flags option
@@ -108,7 +110,7 @@ module bgckMicrowave_mod
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
                     skipUpperHuChanRejectByCh17Omp, atmsRogueFactor, &
-                    skipTestArr
+                    atmsCh17OmpThreshRogueCheck, skipTestArr
                     
 
 contains
@@ -137,6 +139,7 @@ contains
     avoidSiObsEcmwfRejectTempChan = .false.
     skipUpperHuChanRejectByCh17Omp= .false.
     atmsRogueFactor(:)            = -1.0
+    atmsCh17OmpThreshRogueCheck   = 5.0
     skipTestArr(:)                = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
@@ -153,6 +156,7 @@ contains
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
     mwbg_atmsRogueFactor(:) = atmsRogueFactor(:)
+    mwbg_atmsCh17OmpThreshRogueCheck = real(atmsCh17OmpThreshRogueCheck,8)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
     mwbg_calcLandQualifierTerrainType = modLSQ
@@ -3124,7 +3128,7 @@ contains
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged, scatwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
+    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu
     character(len=9) :: stnId
     logical, save :: firstCall = .true.
 
@@ -3151,7 +3155,6 @@ contains
 
     SFCREJCT = .FALSE.
     CH2OMPREJCT = .FALSE.
-    ch2OmpRejectInAllsky = .false.
 
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
@@ -3212,8 +3215,6 @@ contains
 
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
 
-        ch2OmpRejectInAllSky = (chanIsAllskyHu .and. obsChanNumWithOffset == 17)
-
         if ( mwbg_debug ) then
           write(*,*) stnId(2:9),'ROGUE CHECK REJECT.NO.', &
                      ' CHANNEL= ',obsChanNumWithOffset, &
@@ -3230,7 +3231,7 @@ contains
 
       if (obsChanNumWithOffset == 17 .and. ompTb /= mwbg_realMissing) then
         if (chanIsAllskyHu) then
-          if (ch2OmpRejectInAllSky) CH2OMPREJCT = .TRUE.
+          if (abs(ompTb) > mwbg_atmsCh17OmpThreshRogueCheck) CH2OMPREJCT = .TRUE.
         else
           if (abs(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
         end if
