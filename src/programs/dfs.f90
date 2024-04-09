@@ -703,10 +703,8 @@ contains
             if (familyType == 'TO')  then
               write(headerObs2,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
             end if
-            
-            sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
-            
             if (familyType == 'TO') then
+              sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
               call rmat_getRmatrix(sensorIndex,        &
                   levelListMpi(obsIndex,:,procIndex),  &
                   stdDevListMpi(obsIndex,:,procIndex), &
@@ -845,12 +843,13 @@ contains
     allocate(hk(nbLevels,nbLevels))
     
     dMatrix(:,:) =  HBHt(:,:) + R(:,:)
-    call utl_pseudo_inverse(dMatrix, inverse)
+    !call utl_pseudo_inverse(dMatrix, inverse)
+    call utl_fastInverse(dMatrix, inverse)
     hk = matmul(HBHt, inverse)
     dfs = 0.d0
     do levelIndex = 1, nbLevels
-       dfs = dfs + hk(levelIndex,levelIndex)
-     end do
+      dfs = dfs + hk(levelIndex,levelIndex)
+    end do
      
     deallocate(hk, inverse, dMatrix)
     
