@@ -1,6 +1,6 @@
  &NAMLETKF
    algorithm                = 'LETKF'
-   ensPostProcessing        = .false.
+   ensPostProcessing        = .true.
    NENS                     = 24
    numSubEns                = 1
    MAXNUMLOCALOBS           = 1000
@@ -14,6 +14,14 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'MASTERWORKER'
+/
+ &namEnsPostProcModule
+   alphaRTPP                = 0.00D0
+   alphaRTPS                = 0.00D0
+   alphaRandomPert          = 0.33D0
+   alphaRandomPertSubSample = 0.66D0
+   imposeSaturationLimit    = .true.
+   imposeRttovHuLimits      = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
