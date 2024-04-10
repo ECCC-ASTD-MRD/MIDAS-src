@@ -754,11 +754,11 @@ contains
           call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs1), dfs
           if (doChannelSelection) then
-            call rpn_comm_bcast(all_dfs, nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-            call rpn_comm_bcast(order, nLevelsDfs, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(all_dfs, size(all_dfs), 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(order, size(order), 'MPI_INTEGER', taskIndex, 'GRID', ierr)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs1)
-              do channelIndex1 = 1, nLevelsDfs
+              do channelIndex1 = 1, size(order)
                 write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
                     levelListMpi(obsIndex,order(channelIndex1),procIndex), all_dfs(channelIndex1)
               end do
