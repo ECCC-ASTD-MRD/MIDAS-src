@@ -177,11 +177,12 @@ program midas_dfs
   type(struct_vco),       pointer :: vco_trl => null()
 
   logical           :: allocHeightSfc
-
+  logical           :: selectSpecificObservationsFromList
   character(len=48) :: obsMpiStrategy, varMode
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_hco), pointer :: hco_core => null()
+  integer, parameter :: nObsMax=10
 
   integer :: nLevelsDfs, levelIndex
   !Namelist variables:
@@ -192,7 +193,13 @@ program midas_dfs
   integer :: nDfsMax                             ! maximum number of DFS computations
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList
+  real(8) :: latList(nObsMax)                    ! list of latitudes to select specific observations
+  real(8) :: lonList(nObsMax)                    ! list of latitudes to select specific observations
+  integer :: dayList(nObsMax)                    ! list of dates (yyyymmdd) to select specific observations
+  integer :: timeList(nObsMax)                   ! list of hours (HHMM) to select specific observations
+  real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
+ 
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -223,6 +230,12 @@ program midas_dfs
   outputHBHt = .true.
   nDfsMax = 4
   vCoordList(:) = MPC_missingValue_INT
+  latList(:) = MPC_missingValue_R8
+  lonList(:) = MPC_missingValue_R8
+  dayList(:) = MPC_missingValue_INT
+  timeList(:) = MPC_missingValue_INT
+  satZenList(:) = MPC_missingValue_R8
+  
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
     write(*,*)
@@ -249,7 +262,13 @@ program midas_dfs
   if (doChannelSelection .and. familyType /= 'TO') then
     call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
-  
+
+
+  selectSpecificObservationsFromList = .not. all( latList(:) == MPC_missingValue_R8 .and. &
+                                                  lonList(:) == MPC_missingValue_R8 .and. &
+                                                  dayList(:) == MPC_missingValue_INT   .and. &
+                                                  timeList(:) == MPC_missingValue_INT  .and. &
+                                                  satZenList(:) == MPC_missingValue_R8 )
   call var_setup('VAR') ! obsColumnMode
 
   ! Reading trials
@@ -514,6 +533,7 @@ contains
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
+      if (.not. isSelected(headerIndex)) cycle HEADER1
       istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
       countChannel = 0
@@ -695,8 +715,8 @@ contains
           if (mmpi_myId == taskIndex) then
             write(headerObs1,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)") &
                 obs_elem_c(obsSpaceData, 'STID' ,headerIndex), &
-                obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex), &
-                obs_headElem_r(obsSpaceData, OBS_LON, headerIndex), &
+                obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+                obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
                 obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex), &
                 obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
             headerObs2 = ''
@@ -938,5 +958,74 @@ contains
     deallocate(tmpOrder)
 
   end subroutine selectChannels
+
+  !--------------------------------------------------------------------------
+  ! isSelected
+  !--------------------------------------------------------------------------
+  function isSelected(headerIndex) result(selected)
+    !
+    !:Purpose: is the observation in the list of specifically selected observations ?
+    !          if empty list it is always
+    !
+
+    ! Arguments
+    integer, intent(in) :: headerIndex
+    logical             :: selected
+    
+    ! Local variables
+    integer :: obsIndex
+    real(8) :: latitude, longitude, satelliteZenithAngle
+    integer :: date, hour
+    real(8), parameter :: epsilon=0.01d0
+    integer :: definedConditions, satisfiedConditions
+    
+    if (selectSpecificObservationsFromList) then
+      selected = .false.
+      latitude = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+      date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
+      hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+      do obsIndex = 1, nObsMax
+        definedConditions = 0
+        satisfiedConditions = 0        
+        if (latList(obsindex) /= MPC_missingValue_R8) then
+          definedConditions =  definedConditions + 1
+          if (abs(latList(obsIndex)-latitude) < epsilon) &
+              satisfiedConditions = satisfiedConditions + 1
+        end if
+        if (lonList(obsindex) /= MPC_missingValue_R8) then
+          definedConditions =  definedConditions + 1
+          if (abs(lonList(obsIndex)-longitude) < epsilon) &
+              satisfiedConditions = satisfiedConditions + 1
+        end if
+        if (satZenList(obsindex) /= MPC_missingValue_R8) then
+          definedConditions =  definedConditions + 1
+          if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
+              satisfiedConditions = satisfiedConditions + 1
+        end if
+        if (dayList(obsindex) /= MPC_missingValue_INT) then
+          definedConditions =  definedConditions + 1
+          if (dayList(obsIndex) == date) &
+              satisfiedConditions = satisfiedConditions + 1
+        end if
+        if (timeList(obsindex) /= MPC_missingValue_INT) then
+          definedConditions =  definedConditions + 1
+          if (timeList(obsIndex) == hour) &
+              satisfiedConditions = satisfiedConditions + 1
+        end if
+        
+        if (satisfiedConditions > 0 .and. definedConditions== satisfiedConditions) then
+          selected = .true.
+          return
+        end if
+
+      end do
+      
+    else
+      selected = .true.
+    end if
+    
+  end function isSelected
     
 end program midas_dfs
