@@ -313,7 +313,7 @@ contains
     real(8), pointer :: pressureEns(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     integer          :: lon1, lon2, lat1, lat2, numLev, numStep, numMember
-    real(8), allocatable :: psfc(:,:), psfcLS(:,:), pressure(:,:)
+    real(8), allocatable :: psfc(:,:), psfcLS(:,:), pressure(:,:,:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
@@ -335,9 +335,9 @@ contains
     numMember = ens_getNumMembers(ensemble)
     numStep = ens_getNumStep(ensemble)
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
-    allocate(psfc(1,numStep))
-    allocate(pressure(numStep,numLev))
-    if (vco_ptr%vcode == 5100) allocate(psfcLS(1,numStep))
+    allocate(psfc(lon1:lon2,lat1:lat2))
+    allocate(pressure(lon1:lon2,lat1:lat2,numLev,numStep))
+    if (vco_ptr%vcode == 5100) allocate(psfcLS(lon1:lon2,lat1:lat2))
 
     call gsv_allocate(stateVector, numStep,  &
                       hco_ptr, vco_ptr,  &
@@ -349,40 +349,42 @@ contains
     do memberIndex = 1, numMember
 
       if (vco_ptr%vcode == 21001) then
+
         call ens_copyMember(ensemble, stateVector, memberIndex)
         call czp_calcZandP_nl(stateVector)
         call gsv_getField(stateVector,pressure_ptr_r4,'P_T')
+        pressure(:,:,:,:) = real(pressure_ptr_r4(:,:,:,:), 8)
+
+      else
+
+        varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
+        psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+        if (vco_ptr%vcode == 5100) then
+          varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
+          psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+        end if
+
+        do stepIndex = 1, numStep
+          psfc(:,:) = psfc_ptr_r4(memberIndex,stepIndex,:,:)
+          nullify(pressureEns)
+          if (vco_ptr%vcode == 5100) then
+            psfcLS(:,:) = psfcLS_ptr_r4(memberIndex,stepIndex,:,:)
+            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressureEns)
+          else if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
+            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressureEns)
+          else
+            write(*,*) 'vcode = ', vco_ptr%vcode
+            call utl_abort('qlim_saturationLimit_ens: Unknown vcode value')
+          end if
+          pressure(:,:,:,stepIndex) = pressureEns(:,:,:)
+          deallocate(pressureEns)
+        end do ! stepIndex
+
       end if
 
+      !$OMP PARALLEL DO PRIVATE (latIndex, lonIndex, levIndex, varLevIndex, hu_ptr_r4, tt_ptr_r4, stepIndex, hu, tt, husat, hu_modified)
       do latIndex = lat1, lat2
         do lonIndex = lon1, lon2
-
-          ! compute pressure for all members and steps
-          if (vco_ptr%vcode == 21001) then
-            do levIndex = 1, numLev
-              do stepIndex = 1, numStep
-                pressure(stepIndex,levIndex) = real(pressure_ptr_r4(lonIndex,latIndex,levIndex,stepIndex), 8)
-              end do
-            end do
-          else
-            varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
-            psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-            psfc(1,:) = psfc_ptr_r4(memberIndex,:,lonIndex,latIndex)
-            if (vco_ptr%vcode == 5100) then
-              varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
-              psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-              psfcLS(1,:) = psfcLS_ptr_r4(memberIndex,:,lonIndex,latIndex)
-              call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressureEns)
-            else if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
-              call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressureEns)
-            end if
-            do levIndex = 1, numLev
-              do stepIndex = 1, numStep
-                pressure(stepIndex,levIndex) = pressureEns(1,stepIndex,levIndex)
-              end do
-            end do
-            deallocate(pressureEns)
-          end if
 
           do levIndex = 1, numLev
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
@@ -390,25 +392,24 @@ contains
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'TT')
             tt_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-            !$OMP PARALLEL DO PRIVATE (stepIndex, hu, tt, husat, hu_modified)
             do stepIndex = 1, numStep
               hu = hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
               tt = tt_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
 
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure(stepIndex,levIndex))
+              husat = phf_foqst8(tt, pressure(lonIndex,latIndex,levIndex,stepIndex))
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = hu_modified
 
             end do ! stepIndex
-            !$OMP END PARALLEL DO
 
           end do ! levIndex
 
         end do ! lonIndex
       end do ! latIndex
+      !$OMP END PARALLEL DO
 
     end do ! memberIndex
 

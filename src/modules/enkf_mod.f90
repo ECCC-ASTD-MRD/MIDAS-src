@@ -1970,7 +1970,7 @@ contains
       if (mmpi_myid == 0) then
         call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
         vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
-        write(*,*) 'vertLocation      min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
+        write(*,*) 'enkf_computeVertLocation: vertLocation min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
       end if
       nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
       call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)
