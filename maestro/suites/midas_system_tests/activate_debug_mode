@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -euo pipefail
+
+## * ask the user to create a new branch before doing the changes
+##   * we will propose the default name of `debug` to the user if it is does not exist but the user can change it to another name
+## * execute the `find ... | xargs sed -i ...` command above
+## * commit the changes with an explicit commit message
+## * remind the user to set `export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes` before compiling
+
+typeset -r scriptName=activateDebugMode
+
+function say {
+    printf "${scriptName}: ${*}\n"
+} ## End of 'function say'
+
+function die {
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## First check if the working repository is clean and contain to uncommited changes
+typeset -r nonCommitedChanges=$(git status --porcelain)
+if [ -n "${nonCommitedChanges}" ]; then
+    die "This repository contains uncommited changes and we could overwrite!  Please commit and try again.\nHere are the files\n${nonCommitedChanges}"
+fi
+
+## This function suggests a branch name to commit on
+## It tries 'debug' and if it does exist, try 'debug1' and then 'debug2', ...
+function findDefaultBranchName {
+    typeset __findDefaultBranchName_branchName__=debug
+    typeset __findDefaultBranchName_iteration__=1
+
+    while git rev-parse --quiet --verify ${__findDefaultBranchName_branchName__} 1>/dev/null; do
+        if [ "${__findDefaultBranchName_iteration__}" -gt 1000 ]; then
+            die "${scriptName}.findDefaultBranchName: all the branches between 'debug', 'debug1', ..., 'debug1000' !"
+        fi
+        __findDefaultBranchName_branchName__=debug${__findDefaultBranchName_iteration__}
+        let __findDefaultBranchName_iteration__=__findDefaultBranchName_iteration__+1
+    done
+    echo ${__findDefaultBranchName_branchName__}
+
+    unset __findDefaultBranchName_branchName__ __findDefaultBranchName_iteration__
+} ## End of 'function findDefaultBranchName'
+
+typeset -r defaultBranchName=$(findDefaultBranchName)
+
+say "This script is changing the resources of each instances of 'check' and 'clean' task from the 'UnitTest' module"
+say "First, we suggest to create a new branch called '${defaultBranchName}'"
+say "If you agree, just press 'Enter' or you can suggest a another branch name"
+read answer
+typeset -r branchName=${answer:-${defaultBranchName}}
+unset answer
+
+if git rev-parse --quiet --verify ${branchName} 1>/dev/null; then
+    die "The branch you suggested '${branchName}' already exists!  Please choose another name"
+fi
+
+git checkout --quiet -b ${branchName}
+typeset -r toplevel=$(git rev-parse --show-toplevel)
+cd ${toplevel}
+
+find maestro/suites/midas_system_tests/resources -name check.xml -o -name clean.xml | xargs sed -i 's/catchup="[0-8]"/catchup="9"/'
+git add maestro/suites/midas_system_tests/resources
+git commit --quiet --file=- <<EOF
+Deactivate 'check' and 'clean' tasks from module 'UnitTest'
+
+Since we want to run programs compiled using different compilation
+options and this affects the results produced, we are only interested
+in running the programs themselves and not check their results.  So we
+put 'catchup="9"' for all tasks 'check' 'clean' from module
+'UnitTest'.
+EOF
+
+say "All the tasks 'check' and 'clean' tasks from module 'UnitTest' have been deactivated (see version $(./midas.version.sh))"
+say "You can now compile the programs with\n\texport MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes\nor\n\texport MIDAS_COMPILE_CODECOVERAGE_DATAPATH='an absolute path where the code coverage data can be saved'\nand launch all the tests!"
