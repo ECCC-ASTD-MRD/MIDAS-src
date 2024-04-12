@@ -1955,7 +1955,7 @@ contains
       call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
                          stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/) )
       call gsv_zero(stateVectorMeanTrlPressure)
       call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
       call gvt_transform(stateVectorMeanTrlPressure,'ZandP_nl')
@@ -1963,13 +1963,14 @@ contains
         call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
                            stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.false., &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T'/) )
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/) )
       end if
       call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
       call gsv_deallocate(stateVectorMeanTrlPressure)
       if (mmpi_myid == 0) then
         call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
         vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
+        write(*,*) 'enkf_computeVertLocation: vertLocation min/max = ', minval(vertLocation_r4), maxval(vertLocation_r4)
       end if
       nsize = stateVectorMeanTrlPressure%ni * stateVectorMeanTrlPressure%nj * nLev_M
       call rpn_comm_bcast(vertLocation_r4, nsize, 'mpi_real4', 0, 'GRID', ierr)

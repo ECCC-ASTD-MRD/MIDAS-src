@@ -1120,7 +1120,7 @@ contains
   !--------------------------------------------------------------------------
   ! epp_addRandomPert
   !--------------------------------------------------------------------------
-  subroutine epp_addRandomPert(ensembleAnl, stateVectorRefState, alphaRandomPert, &
+  subroutine epp_addRandomPert(ensembleAnl, stateVectorRefStateIn, alphaRandomPert, &
                                randomSeed, useMemberAsHuRefState)
     ! :Purpose: Apply additive inflation using random perturbations from sampling
     !           the B matrix as defined by the regular namelist block NAMBHI, NAMBEN, etc.
@@ -1131,7 +1131,7 @@ contains
 
     ! Arguments:
     type(struct_ens), intent(inout) :: ensembleAnl
-    type(struct_gsv), intent(in)    :: stateVectorRefState
+    type(struct_gsv), intent(in)    :: stateVectorRefStateIn
     real(8)         , intent(in)    :: alphaRandomPert
     integer         , intent(in)    :: randomSeed
     logical         , intent(in)    :: useMemberAsHuRefState
@@ -1139,8 +1139,8 @@ contains
     ! Locals:
     type(struct_gsv)         :: stateVectorPerturbation
     type(struct_gsv)         :: stateVectorPerturbationInterp
-    type(struct_gsv)         :: stateVectorHuRefState
-    type(struct_gsv)         :: stateVectorHuRefStateInterp
+    type(struct_gsv)         :: stateVectorRefState
+    type(struct_gsv)         :: stateVectorRefStateInterp
     type(struct_gsv)         :: stateVectorP0Ref
     type(struct_vco), pointer :: vco_randomPert, vco_ens
     type(struct_hco), pointer :: hco_randomPert, hco_ens, hco_core
@@ -1239,24 +1239,23 @@ contains
     call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
     PsfcRef(:,:,:,:) = 100000.0D0
 
-
-    ! prepare the reference state HU field for transforming LQ to HU perturbations
+    ! prepare the reference state for interpolation and for transforming LQ to HU perturbations
     if (ens_varExist(ensembleAnl,'HU')) then
-      call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
+      call gsv_allocate(stateVectorRefState, 1, hco_ens, vco_ens,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         hExtrapolateDegree_opt='MINIMUM', &
-                        varNames_opt=(/'HU','P0'/) )
+                        varNames_opt=(/'HU','TT','P0'/) )
       if (.not. useMemberAsHuRefState) then
         ! use the single provided state as the reference state and interpolate to perturbation grid
-        call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
-        call gsv_allocate(stateVectorHuRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
+        call gsv_copy(stateVectorRefStateIn, stateVectorRefState, allowVarMismatch_opt=.true.)
+        call gsv_allocate(stateVectorRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           hExtrapolateDegree_opt='MINIMUM', &
-                          varNames_opt=(/'HU','P0'/) )
-        call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterp)
-        call gsv_deallocate(stateVectorHuRefState)
+                          varNames_opt=(/'HU','TT','P0'/) )
+        call int_interp_gsv(stateVectorRefState, stateVectorRefStateInterp)
+        call gsv_deallocate(stateVectorRefState)
       end if
     end if
 
@@ -1278,7 +1277,7 @@ contains
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
-                        stateVectorRef_opt=stateVectorHuRefStateInterp) ! IN
+                        stateVectorRef_opt=stateVectorRefStateInterp) ! IN
       else
         ! No conversion from LQ to HU done in bmat_sqrtB
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
@@ -1286,15 +1285,20 @@ contains
       end if
       call utl_tmg_start(4,'--AddEnsRandomPert')
 
-      call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
-                          statevectorRef_opt=statevectorP0Ref)
+      if (vco_ens%vcode == 21001) then
+        call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
+                            statevectorRef_opt=stateVectorRefStateInterp)
+      else
+        call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
+                            statevectorRef_opt=stateVectorP0Ref)
+      end if
 
       ! If desired, use member itself as reference state for LQ to HU conversion
       if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then
-        call ens_copyMember(ensembleAnl, stateVectorHuRefState, memberIndex)
+        call ens_copyMember(ensembleAnl, stateVectorRefState, memberIndex)
         call gvt_transform( stateVectorPerturbationInterp,  &          ! INOUT
                             'LQtoHU_tlm', &                            ! IN
-                            stateVectorRef_opt=stateVectorHuRefState ) ! IN
+                            stateVectorRef_opt=stateVectorRefState ) ! IN
       end if
 
       ! scale the perturbation by the specified factor
@@ -1348,8 +1352,8 @@ contains
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
     call gsv_deallocate(stateVectorP0Ref)
-    if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
-      call gsv_deallocate(stateVectorHuRefStateInterp)
+    if (gsv_isAllocated(stateVectorRefStateInterp)) then
+      call gsv_deallocate(stateVectorRefStateInterp)
     end if
 
     call utl_tmg_stop(4)
@@ -1634,12 +1638,12 @@ contains
     character(len=4), allocatable :: nomvar_v(:)
     character(len=4)              :: varLevel
     real(8), allocatable          :: scaleFactor(:)
-    real(4), allocatable          :: pressureOrDepth(:)
+    real(4), allocatable          :: pressureOrHeightOrDepth(:)
     integer :: ierr, latIndex, lonIndex, nulFile
     integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
-    real(8)                       :: pSfc(1,1)
-    real(8), pointer              :: pressures_T(:,:,:), pressures_M(:,:,:)
+    real(8)                       :: pzSfc(1,1)
+    real(8), pointer              :: pressureOrHeight_T(:,:,:), pressureOrHeight_M(:,:,:)
     integer, external             :: fnom, fclos
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
@@ -1649,7 +1653,7 @@ contains
 
     numK = gsv_getNumK(stateVectorStdDev)
     allocate(nomvar_v(numK))
-    allocate(pressureOrDepth(numK))
+    allocate(pressureOrHeightOrDepth(numK))
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
 
@@ -1678,10 +1682,21 @@ contains
     end do
 
     if (vco%vgridPresent) then
-      ! compute pressure for a column where Psfc=1000hPa
-      pSfc(1,1) = 1000.0D2 !1000 hPa
-      ! pressure levels
-      call czp_fetch3DLevels(vco, pSfc, fldM_opt=pressures_M, fldT_opt=pressures_T)
+
+      if (vco%vcode == 5002 .or. vco%vcode == 5005) then
+        ! compute pressure for a column where Psfc=1000hPa
+        pzSfc(1,1) = 1000.0D2 !1000 hPa
+        ! pressure levels
+        call czp_fetch3DLevels(vco, pzSfc, fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
+      else if (vco%vcode == 21001) then
+        ! compute height for a column where HeightSfc=0m
+        pzSfc(1,1) = 0.0D0
+        ! height levels
+        call czp_fetch3DLevels(vco, pzSfc, fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
+      else
+        write(*,*) 'vCode = ', vco%vcode
+        call utl_abort('epp_printRmsStats: Unknown vCode')
+      end if
 
       ! set the variable name and pressure for each element of column
       do kIndex = 1, numK
@@ -1689,15 +1704,19 @@ contains
         nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
         varLevel = vnl_varLevelFromVarname(nomvar_v(kIndex))
         if (varLevel == 'MM') then
-          pressureOrDepth(kIndex) = pressures_M(1,1,levIndex)/Psfc(1,1)
+          pressureOrHeightOrDepth(kIndex) = pressureOrHeight_M(1,1,levIndex)/max(pzSfc(1,1),maxval(pressureOrHeight_M))
         else if (varLevel == 'TH') then
-          pressureOrDepth(kIndex) = pressures_T(1,1,levIndex)/Psfc(1,1)
+          pressureOrHeightOrDepth(kIndex) = pressureOrHeight_T(1,1,levIndex)/max(pzSfc(1,1),maxval(pressureOrHeight_T))
         else
-          pressureOrDepth(kIndex) = 1.0
+          if (vco%vcode == 5002 .or. vco%vcode == 5005) then
+            pressureOrHeightOrDepth(kIndex) = 1.0
+          else
+            pressureOrHeightOrDepth(kIndex) = 0.0
+          end if
         end if
       end do
-      deallocate(pressures_M)
-      deallocate(pressures_T)
+      deallocate(pressureOrHeight_M)
+      deallocate(pressureOrHeight_T)
 
     else if (vco%nLev_depth > 0) then
 
@@ -1705,10 +1724,10 @@ contains
       do kIndex = 1, numK
         nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
         if (vnl_varLevelFromVarName(nomvar_v(kIndex)) == 'SS') then
-          pressureOrDepth(kIndex) = 0.0
+          pressureOrHeightOrDepth(kIndex) = 0.0
         else
           levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)
-          pressureOrDepth(kIndex) = vco%depths(levIndex)
+          pressureOrHeightOrDepth(kIndex) = vco%depths(levIndex)
         end if
       end do
 
@@ -1746,14 +1765,14 @@ contains
           kIndexUU = levIndex
           kIndexVV = levIndex + nLev_M
           write(nulFile,100) &
-               elapsed,ftype,nEns,nomvar_v(kIndexUU),pressureOrDepth(kIndexUU),rmsvalue(kIndexUU)
+               elapsed,ftype,nEns,nomvar_v(kIndexUU),pressureOrHeightOrDepth(kIndexUU),rmsvalue(kIndexUU)
           write(nulFile,100) &
-               elapsed,ftype,nEns,nomvar_v(kIndexVV),pressureOrDepth(kIndexVV),rmsvalue(kIndexVV)
+               elapsed,ftype,nEns,nomvar_v(kIndexVV),pressureOrHeightOrDepth(kIndexVV),rmsvalue(kIndexVV)
         end do
       end if
       do kIndex = kIndexCount+1, numK
         write(nulFile,100) &
-             elapsed,ftype,nEns,nomvar_v(kIndex),pressureOrDepth(kIndex),rmsvalue(kIndex)   
+             elapsed,ftype,nEns,nomvar_v(kIndex),pressureOrHeightOrDepth(kIndex),rmsvalue(kIndex)   
       end do
       ierr = fclos(nulFile)
     end if
@@ -1761,7 +1780,7 @@ contains
 100 format(f7.2,1x,A1,1x,I5,1x,A4,1x,f12.7,1x,(2E12.5))
 
     deallocate(nomvar_v)
-    deallocate(pressureOrDepth)
+    deallocate(pressureOrHeightOrDepth)
     deallocate(scaleFactor)
     deallocate(rmsvalue)
 

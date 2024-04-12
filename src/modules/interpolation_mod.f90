@@ -498,8 +498,8 @@ contains
                             statevector_in%myLatBeg:statevector_in%myLatEnd, &
                             gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-        ! output grid GEM-P interpolation in log-pressure
         if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
+          ! output grid GEM-P interpolation in log-pressure
           call czp_calcReturnPressure_gsv_nl(statevectorRef_out, &
                                              PTout_r8_opt=hLikeT_out, &
                                              PMout_r8_opt=hLikeM_out)
@@ -530,8 +530,8 @@ contains
           hLikeT_out(:,:,:,:) = -1.d0 * hLikeT_out(:,:,:,:)
           hLikeM_out(:,:,:,:) = -1.d0 * hLikeM_out(:,:,:,:)
           
-          ! output grid GEM-H interpolation in height
         else if ( vcode_out==21001 ) then
+          ! output grid GEM-H interpolation in height
           call czp_calcReturnHeight_gsv_nl(statevectorRef_out, &
                                            ZTout_r8_opt=hLikeT_out, &
                                            ZMout_r8_opt=hLikeM_out)

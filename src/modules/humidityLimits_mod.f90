@@ -10,6 +10,7 @@ module humidityLimits_mod
   use varNameList_mod
   use physicsFunctions_mod
   use verticalCoord_mod
+  use horizontalCoord_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
   use calcHeightAndPressure_mod
@@ -304,12 +305,15 @@ contains
     type(struct_ens), intent(inout) :: ensemble
 
     ! Locals:
+    type(struct_gsv)          :: stateVector
     type(struct_vco), pointer :: vco_ptr
+    type(struct_hco), pointer :: hco_ptr
     real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
-    real(8), pointer :: pressure(:,:,:)
+    real(4), pointer :: pressure_ptr_r4(:,:,:,:)
+    real(8), pointer :: pressureEns(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
-    integer          :: lon1, lon2, lat1, lat2, numLev
-    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
+    integer          :: lon1, lon2, lat1, lat2, numLev, numStep, numMember
+    real(8), allocatable :: psfc(:,:), psfcLS(:,:), pressure(:,:,:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
@@ -325,60 +329,89 @@ contains
     end if
 
     vco_ptr => ens_getVco(ensemble)
-
-    if (vco_ptr%vcode == 21001) then
-      call utl_abort('qlim_saturationLimit_ens: Not compatible yet with vCode = 21001 ')
-    end if
+    hco_ptr => ens_getHco(ensemble)
 
     numLev = ens_getNumLev(ensemble,'TH')
+    numMember = ens_getNumMembers(ensemble)
+    numStep = ens_getNumStep(ensemble)
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
-    allocate(psfc(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
-    if (vco_ptr%vcode == 5100) allocate(psfcLS(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
+    allocate(psfc(lon1:lon2,lat1:lat2))
+    allocate(pressure(lon1:lon2,lat1:lat2,numLev,numStep))
+    if (vco_ptr%vcode == 5100) allocate(psfcLS(lon1:lon2,lat1:lat2))
 
-    do latIndex = lat1, lat2
-      do lonIndex = lon1, lon2
+    call gsv_allocate(stateVector, numStep,  &
+                      hco_ptr, vco_ptr,  &
+                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                      dataKind_opt=4, allocHeightSfc_opt=.true.,  &
+                      varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/))
+    call gsv_zero(stateVector)
 
-        ! compute pressure for all members and steps
+    do memberIndex = 1, numMember
+
+      if (vco_ptr%vcode == 21001) then
+
+        call ens_copyMember(ensemble, stateVector, memberIndex)
+        call czp_calcZandP_nl(stateVector)
+        call gsv_getField(stateVector,pressure_ptr_r4,'P_T')
+        pressure(:,:,:,:) = real(pressure_ptr_r4(:,:,:,:), 8)
+
+      else
+
         varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
         psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-        psfc(:,:) = psfc_ptr_r4(:,:,lonIndex,latIndex)
         if (vco_ptr%vcode == 5100) then
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
           psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          psfcLS(:,:) = psfcLS_ptr_r4(:,:,lonIndex,latIndex)
-          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
-        else
-          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
         end if
 
-        do levIndex = 1, numLev
-          varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
-          hu_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'TT')
-          tt_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+        do stepIndex = 1, numStep
+          psfc(:,:) = psfc_ptr_r4(memberIndex,stepIndex,:,:)
+          nullify(pressureEns)
+          if (vco_ptr%vcode == 5100) then
+            psfcLS(:,:) = psfcLS_ptr_r4(memberIndex,stepIndex,:,:)
+            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressureEns)
+          else if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
+            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressureEns)
+          else
+            write(*,*) 'vcode = ', vco_ptr%vcode
+            call utl_abort('qlim_saturationLimit_ens: Unknown vcode value')
+          end if
+          pressure(:,:,:,stepIndex) = pressureEns(:,:,:)
+          deallocate(pressureEns)
+        end do ! stepIndex
 
-          !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, hu, tt, husat, hu_modified)
-          do stepIndex = 1, ens_getNumStep(ensemble)
-            do memberIndex = 1, ens_getNumMembers(ensemble)
+      end if
+
+      !$OMP PARALLEL DO PRIVATE (latIndex, lonIndex, levIndex, varLevIndex, hu_ptr_r4, tt_ptr_r4, stepIndex, hu, tt, husat, hu_modified)
+      do latIndex = lat1, lat2
+        do lonIndex = lon1, lon2
+
+          do levIndex = 1, numLev
+            varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
+            hu_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+            varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'TT')
+            tt_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+
+            do stepIndex = 1, numStep
               hu = hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
               tt = tt_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
 
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure(memberIndex,stepIndex,levIndex) )
+              husat = phf_foqst8(tt, pressure(lonIndex,latIndex,levIndex,stepIndex))
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = hu_modified
 
-            end do ! memberIndex
-          end do ! stepIndex
-          !$OMP END PARALLEL DO
+            end do ! stepIndex
 
-        end do ! levIndex
-        deallocate(pressure)
+          end do ! levIndex
 
-      end do ! lonIndex
-    end do ! latIndex
+        end do ! lonIndex
+      end do ! latIndex
+      !$OMP END PARALLEL DO
+
+    end do ! memberIndex
 
     deallocate(psfc)
     if (allocated(psfcLS)) deallocate(psfcLS)
