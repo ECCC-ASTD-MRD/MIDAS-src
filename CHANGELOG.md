@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Modifications to support GEM-H (without SLEVE) for `letkf` and `ensPostProcess` (#915 and !829)
 
 ### Fixed
 
