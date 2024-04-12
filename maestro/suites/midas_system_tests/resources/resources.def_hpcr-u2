@@ -15,3 +15,7 @@ SEQ_DEFAULT_MACHINE=ppp6
 SEQ_CONTAINER_METHOD=immediate
 
 SEQ_JOBNAME_PREFIX=midas-
+
+## Set this variable to '9' if you want to avoid running the 'check'
+## task for each test
+CHECK_RESULTS_CATCHUP=2
