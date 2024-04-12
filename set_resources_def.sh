@@ -27,5 +27,5 @@ echo "Setting symbolic link: resources.def ===> ${resources_file}"
 echo
 cd ${resourcesDir}
 rm -f resources.def
-ln -s ${resources_file} resources.def
+cp ${resources_file} resources.def
 cd -
