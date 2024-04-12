@@ -31,12 +31,16 @@ Their default values (in parentheses), **should be good for most users**.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
   compilation if set to `yes`.
   Note that enabling debug options **may subtly alter the results and
-  therefore cause some unit tests to fail**.
+  therefore cause some unit tests to fail**.  So, to avoid that, we set
+  `CHECK_RESULTS_CATCHUP` and `CLEAN_UNITTEST_CATCHUP` to `9` in the
+  resources file which prevent the `check` and `clean` tasks to fail.
   Also, make sure to **`make clean` before recompiling when you change that
   variable value** if `MIDAS_COMPILE_CLEAN=false`.  Otherwise, some already
   compiled object will keep the impact of the debug options and may result
   in inconsistencies.
-* `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code coverage diagnostics files
+* `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code coverage diagnostics files.
+   Same as for the debug options, this may subtly alter the results.  So,
+   we avoid running the tasks `check` and `clean` for each test.
 * `MIDAS_COMPILE_OPTIMIZE_REPORT` : if `yes`, the compiler will
   produce optimization reports.  This will produce files with the
   `.optrpt` extension in the compilation directory with lots of
