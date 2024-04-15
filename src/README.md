@@ -66,6 +66,14 @@ naming convention**, please consult
 [this section](#new-environment-variable-convention) if you used to define 
 compilation variable in your profile.  
 
+Note also that the values of `CHECK_RESULTS_CATCHUP` and
+`CLEAN_UNITTEST_CATCHUP` in
+`maestro/suites/midas_system_tests/resources/resources.def` are set
+according to the values of `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` and
+`MIDAS_COMPILE_CODECOVERAGE_DATAPATH` because we want to avoid running
+the task `check` and `clean` from the `UnitTest` module since it is
+expected that activating any of these features will change the results
+of the programs.
 
 ### Building all
 

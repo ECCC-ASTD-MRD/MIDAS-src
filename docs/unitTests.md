@@ -202,6 +202,14 @@ options enabled by using:
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
 ```
 
+Note that the values of `CHECK_RESULTS_CATCHUP` and
+`CLEAN_UNITTEST_CATCHUP` in
+`maestro/suites/midas_system_tests/resources/resources.def` are set
+according to the values of `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` because
+we want to avoid running the task `check` and `clean` from the
+`UnitTest` module since it is expected that activating the debug
+options will change the results of the programs.
+
 ### Preparing interactive mode without changing any configuration (advanced)
 
 You can prepare the interactive mode by using this command:
@@ -248,6 +256,14 @@ coverage report using [`codecov.sh`](src/codecov.sh):
 A [code coverage report has been generated for version
 `v_3.8.1-516-g746c074` if you want to have a
 look](http://goc-dx.science.gc.ca/~erv000/midas/codecoverage-v_3.8.1-516-g746c074/CODE_COVERAGE.HTML)
+
+Note that the values of `CHECK_RESULTS_CATCHUP` and
+`CLEAN_UNITTEST_CATCHUP` in
+`maestro/suites/midas_system_tests/resources/resources.def` are set
+according to the values of `MIDAS_COMPILE_CODECOVERAGE_DATAPATH`
+because we want to avoid running the task `check` and `clean` from the
+`UnitTest` module since it is expected that activating the coverage
+report options will change the results of the programs.
 
 ## Updating Test Results
 
