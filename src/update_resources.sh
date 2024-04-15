@@ -27,10 +27,9 @@ fi
 
 typeset -r resources_file=${toplevel}/maestro/suites/midas_system_tests/resources/resources.def
 ## If the resources file does not exist, then the user has not yet
-## run 'maestro/suites/midas_system_tests/install_suite.sh' so we
-## just cannot proceed furter here.
+## run 'set_resources_def.sh' so we will call it from here
 if [ ! -f "${resources_file}" ]; then
-    exit
+    ${toplevel}/set_resources_def.sh
 fi
 
 ## First, check if there is one and only one definition of the
