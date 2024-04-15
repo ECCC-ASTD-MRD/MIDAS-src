@@ -263,11 +263,10 @@ program midas_dfs
     call utl_abort('midas-dfs: DFS-based channel selection does not make sense for families other than TO !')
   end if
 
-
-  selectSpecificObservationsFromList = .not. all( latList(:) == MPC_missingValue_R8 .and. &
-                                                  lonList(:) == MPC_missingValue_R8 .and. &
-                                                  dayList(:) == MPC_missingValue_INT   .and. &
-                                                  timeList(:) == MPC_missingValue_INT  .and. &
+  selectSpecificObservationsFromList = .not. all( latList(:) == MPC_missingValue_R8   .and. &
+                                                  lonList(:) == MPC_missingValue_R8   .and. &
+                                                  dayList(:) == MPC_missingValue_INT  .and. &
+                                                  timeList(:) == MPC_missingValue_INT .and. &
                                                   satZenList(:) == MPC_missingValue_R8 )
   call var_setup('VAR') ! obsColumnMode
 
@@ -487,7 +486,7 @@ contains
     integer :: sensorIndex
     integer, external :: get_max_rss
     real(8), allocatable :: perturbationVector(:)
-    integer :: dfsCount
+    integer :: dfsCount, sizeSelect
     integer :: nulDfs, nulSelec, nulHBHt
     character(len=128) :: headerObs1
     character(len=16) :: headerObs2
@@ -743,8 +742,12 @@ contains
             deallocate(Rsub)
           else
             if (doChannelSelection) then
-              allocate(all_dfs(nLevelsDfs))
-              allocate(order(nLevelsDfs))
+              sizeSelect = nLevelsDfs
+              if (maxSelect > 0) then
+                sizeSelect = maxSelect
+              end if
+              allocate(all_dfs(sizeSelect))
+              allocate(order(sizeSelect))
             end if
           end if
           
@@ -947,7 +950,7 @@ contains
       orderedChannelIndexes(channelIndex1) = optimalIndex
       allocate(tmpFree(numberOfFreeChannels))
       !https://stackoverflow.com/questions/42140832/automatic-array-allocation-upon-assignment-in-fortran could help to simplify a bit this 
-      !but it is needed to get rid of the (:)
+      !but it is needed to get rid of the (:) which in contradiction with our coding style
       tmpFree(:) = freeIndexList(:)
       call utl_reAllocate(freeIndexList, numberOfFreeChannels - 1)
       freeIndexList(:) = pack(tmpFree, tmpFree /= optimalIndex)
@@ -1015,7 +1018,7 @@ contains
               satisfiedConditions = satisfiedConditions + 1
         end if
         
-        if (satisfiedConditions > 0 .and. definedConditions== satisfiedConditions) then
+        if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
           selected = .true.
           return
         end if
