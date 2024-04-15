@@ -70,7 +70,7 @@ contains
     !:Purpose:  To read climatrology (reference) fields as directed by input
     !
     !:Comments:
-    !      - Fields are provided in RPN/fst files 
+    !      - Fields are provided in RPN/fst files
     !      - Fields set/assumed to be of the same units as those of the
     !        corresponding input trial fields (micrograms/kg in most cases)
     !      - Case sourceIndex=2 for numFields=2 to combine separate strato
@@ -78,12 +78,12 @@ contains
     !
     implicit none
 
-    ! Arguments:    
-    character(len=*), intent(in), optional :: modelName_opt ! Model name 
+    ! Arguments:
+    character(len=*), intent(in), optional :: modelName_opt ! Model name
 
     ! Locals:
     character(len=256) :: fname
-    character(len=4) :: varName, varNameClim
+    character(len=4) :: varName, climVarName
     character(len=12) :: etiket
     character(len=12), parameter :: climFields = 'climatFields'
     character(len=11), parameter :: ozoneBaseline = 'ozoneclim98'
@@ -92,8 +92,8 @@ contains
     real(8) :: day, scaleFactor
     integer :: datestamp
     integer, external :: newdate
-    logical :: initialized = .false.       
-    logical :: timeInterp    
+    logical :: initialized = .false.
+    logical :: timeInterp
     integer :: ierr
     logical :: fileExists
     integer :: ni, nj, nkeys, vertCoordKind, loopIndex
@@ -108,6 +108,7 @@ contains
 
     ! Namelist variables (local):
     character(len=4) :: requiredConstituents(maxNumConstituents+1) ! List of constituent NOMVARs for which climatology fields are required
+    character(len=4) :: inputClimVarNames(maxNumConstituents+1)    ! List of input climatology NOMVARs associated to requiredConstituents
     character(len=256) :: climatSourceFileDefault                  ! Default climatology source file
     character(len=256) :: climatSourceFiles(maxNumConstituents+1)  ! Climatology source file names
     integer :: fieldDimension(maxNumConstituents+1)                ! Dimension of input field
@@ -118,19 +119,21 @@ contains
 
     ! NAMCLIMATOLOGY namelist parameters
     namelist /NAMCLIMATOLOGY/ climatSourceFileDefault
-    namelist /NAMCLIMATOLOGY/ climatSourceFiles     
-    namelist /NAMCLIMATOLOGY/ requiredConstituents  
-    namelist /NAMCLIMATOLOGY/ nearNeighbourInterp  
-    namelist /NAMCLIMATOLOGY/ numFields        
-    namelist /NAMCLIMATOLOGY/ timeInterpolation 
-    namelist /NAMCLIMATOLOGY/ fieldDimension   
-    namelist /NAMCLIMATOLOGY/ climatLevels      
+    namelist /NAMCLIMATOLOGY/ climatSourceFiles
+    namelist /NAMCLIMATOLOGY/ requiredConstituents
+    namelist /NAMCLIMATOLOGY/ inputClimVarNames
+    namelist /NAMCLIMATOLOGY/ nearNeighbourInterp
+    namelist /NAMCLIMATOLOGY/ numFields
+    namelist /NAMCLIMATOLOGY/ timeInterpolation
+    namelist /NAMCLIMATOLOGY/ fieldDimension
+    namelist /NAMCLIMATOLOGY/ climatLevels
 
     if (initialized) return
 
     ! Set defaults
     requiredConstituents(:) = ''
-    requiredConstituents(1) = 'O3L' 
+    requiredConstituents(1) = 'O3L'
+    inputClimVarNames(:) = ''
     climatSourceFileDefault = climFields
     climatSourceFiles(:) = ''
     climatSourceFiles(1) = ozoneBaseline
@@ -142,7 +145,7 @@ contains
     nearNeighbourInterp(1) = .true.
     timeInterpolation = .false.
     climatLevels(:,:) = -1.0
-    
+
     ! Check for presence or read NAMCLIMATOLOGY
     if ( .not. utl_isNamelistPresent('NAMCLIMATOLOGY','./flnml') ) then
       write(*,*)
@@ -159,7 +162,7 @@ contains
     ! Set dimensions
     maxNumFields = 1
     maxNumTypes = 1
-    do while (trim(requiredConstituents(maxNumFields)) /= '')     
+    do while (trim(requiredConstituents(maxNumFields)) /= '')
       if (vnl_varListIndex3d(trim(requiredConstituents(maxNumFields)))) then
         if (numFields(maxNumFields) < 1) then
           numFields(maxNumFields) = 1
@@ -174,11 +177,11 @@ contains
     end do
     maxNumFields = maxNumFields - 1
 
-    if ( maxNumTypes > 2 ) then       
+    if ( maxNumTypes > 2 ) then
       call utl_abort('clm_readFields: Allowed max number of fields per constituent is 2')
     end if
-   
-    allocate(climatFields(0:maxNumConstituents,maxNumTypes)) 
+
+    allocate(climatFields(0:maxNumConstituents,maxNumTypes))
 
     ! Initialize dimensions
     
@@ -202,20 +205,20 @@ contains
     else
       day = day + 15.0
     end if
-        
+
     ! Get needed fields for each varIndex
     do varIndex = 1, maxNumFields
       ! Identify input file
       if (trim(climatSourceFiles(varIndex)) /= '') then
         inquire(file=trim(climatSourceFiles(varIndex)),exist=fileExists)
-        if (fileExists) then	   
+        if (fileExists) then
           fname = trim(climatSourceFiles(varIndex))
         else
           write(*,*)
           write(*,*) 'clm_readFields: Climatologies file does not exist. Filename ', &
               trim(climatSourceFiles(varIndex))
           write(*,*) 'Specifying file ',trim(climatSourceFileDefault)
-          write(*,*)	     
+          write(*,*)
           fname = trim(climatSourceFileDefault)
           inquire(file=trim(fname),exist=fileExists)
           if (.not.fileExists) then
@@ -226,7 +229,7 @@ contains
         write(*,*)
         write(*,*) 'clm_readFields: Climatologies file name not set.'
         write(*,*) 'Specifying file ', trim(climatSourceFileDefault)
-        write(*,*)	           
+        write(*,*)
         fname = trim(climatSourceFileDefault)
         inquire(file=trim(fname),exist=fileExists)
         if (.not.fileExists) then
@@ -234,13 +237,41 @@ contains
         end if
       end if
 
-      if ( trim(fname) == climFields ) then
-        fieldDimension(varIndex) = 3
-      else if ( trim(fname) == ozoneBaseline ) then
-        fieldDimension(varIndex) = 2
+      varName = trim(requiredConstituents(varIndex))
+      if (trim(fname) == ozoneBaseline) then
+        if (trim(varName) == &
+            vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
+          climVarName = 'O3'
+          if (fieldDimension(varIndex) /= 2) then
+            call utl_abort('clm_readFields: Invalid field dimension for ' // trim(varName) // &
+	                 ' in ' // trim(fname))
+          end if
+	else
+          call utl_abort('clm_readFields: Invalid climatology file ' // trim(fname) // &
+	                 ' for ' // trim(varName))
+	end if
+      else
+        climVarName = trim(inputClimVarNames(varIndex))
+	if (trim(fname) == climFields) then
+          if (trim(varName) == &
+              vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
+            if (trim(climVarName) == '') climVarName = 'O3CE'
+          else if (trim(varName) == &
+              vnl_varnameFromVarnum(0,varNumberChm_opt=02,modelName_opt=modelName_opt)) then
+            if (trim(climVarName) == '') climVarName = 'CH4C'
+          else if (trim(varName) == &
+              vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName_opt)) then
+            if (trim(climVarName) == '') climVarName = 'N2OC'
+	  else
+	    if (trim(climVarName) == '') climVarName = varName
+	  end if
+	  if (trim(climVarName) == 'O3CE' .or. trim(climVarName) == 'CH4C' .or. &
+	      trim(climVarName) == 'N2OC') fieldDimension(varIndex) = 3
+        else
+	  if (trim(climVarName) == '') climVarName = varName
+        end if
       end if
 
-      varName = trim(requiredConstituents(varIndex))
       constituentId = vnl_varnumFromVarName(varName,'CH')
       if (constituentId /=0 .and. numFields(varIndex) > 1) then
         call utl_abort('clm_readFields: numFields > 1 only allowed for ozone currently')
@@ -256,27 +287,27 @@ contains
       timeInterp = timeInterpolation
 
       do sourceIndex = 1, numFields(varIndex)
-       
+
         ! Read climatology for specified field
 
         if ( sourceIndex == 2 ) then
           ! Not currently applied. Standin for eventual use.
-          etiket = '            '	           
+          etiket = '            '
           call utl_abort('clm_readFields: numFields=2 case tbc')
-        else 
-          etiket = '            '	           
+        else
+          etiket = '            '
         end if
-	
+
         if ( fieldDimension(varIndex) == 0 ) then
 
           ! Mixing ratio set later by the constant in climatScaling
-          ! Currently assumed to be relavant only for GHGs
+          ! Currently assumed to be relevant only for GHGs
 
           if ( .not.clm_isGHG(trim(varName)) ) call utl_abort('clm_readFields: Needs to be a GHG')
-          
-          varNameClim = varName
+
+          if (trim(climVarName) == '') climVarName = varName
           allocate(array1(1,1,1),lvls(1),xlat(1),xlong(1))
-          vertCoordKind = 2	      
+          vertCoordKind = 2
           ni = 1
           nj = 1
           nkeys = 1
@@ -284,7 +315,8 @@ contains
           xlong(1) = 0.0
           lvls(1) = 0.0d0
           array1(1:ni,1:nj,1:nkeys) = 1.0
-          
+          timeInterp =  .false.
+
         else if ( fieldDimension(varIndex) <= 2) then
 
           ! Read 1D or 2D climatology for specified month
@@ -300,7 +332,7 @@ contains
           else
             xlat(1) = 0.0d0
           end if
-	  
+
           ! Set pressures (hPa)
           if (nkeys == baselineLevelNum .and. &
               any(climatLevels(varIndex,1:nkeys) < 0.0) ) then
@@ -311,29 +343,14 @@ contains
             if (all(climatLevels(varIndex,1:nkeys) > 0.0)) then
               lvls(1:nkeys) = climatLevels(varIndex,1:nkeys)
               vertCoordKind = 2
-            else  
+            else
               call utl_abort('clm_readFields: Missing set up for levels')
             end if
           end if
-	    
+
         else
-          if (trim(fname) /= climFields) then
-            varNameClim = trim(varName)
-          else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
-            varNameClim = 'O3CE'
-          else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=02,modelName_opt=modelName_opt)) then
-            varNameClim = 'CH4C'
-          else if (trim(varName) == &
-              vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName_opt)) then
-            varNameClim = 'N2OC'
-          else if (trim(varName) /= 'TCO2') then
-            call utl_abort('clm_readFields: 3D climatology not found for ' &
-                // trim(varName) ) 	    
-          end if
-          
-          call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth,-1,etiket, &
+
+          call utl_readFstField(trim(fname),trim(climVarName),-1,imonth,-1,etiket, &
               ni,nj,nkeys,array1,xlat_opt=xlat,xlong_opt=xlong,         &
               lvls_opt=lvls,kind_opt=vertCoordKind)
 
@@ -348,7 +365,7 @@ contains
         allocate(climatFields(constituentId,sourceIndex)%vlev(nkeys))
         allocate(climatFields(constituentId,sourceIndex)%lon(ni))
         allocate(climatFields(constituentId,sourceIndex)%lat(nj))
-              
+
         climatFields(constituentId,sourceIndex)%lat(1:nj) = xlat(1:nj)
         climatFields(constituentId,sourceIndex)%lon(1:ni) = xlong(1:ni) 
         where (climatFields(constituentId,sourceIndex)%lon(1:ni) < 0.0) 
@@ -370,22 +387,22 @@ contains
               else
                 call clm_readSub3DFields(imonth+1,array2)
               end if
-            else	  
+            else
               if (imonth == 12) then
-                call utl_readFstField(trim(fname),trim(varNameClim),-1,1,-1,etiket, &
+                call utl_readFstField(trim(fname),trim(climVarName),-1,1,-1,etiket, &
                     ni,nj,nkeys,array2)
               else
-                call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth+1,-1, &
+                call utl_readFstField(trim(fname),trim(climVarName),-1,imonth+1,-1, &
                     etiket,ni,nj,nkeys,array2)
               end if
             end if
-          
-            ! Linearly interpolate in time 
+
+            ! Linearly interpolate in time
             ! (approximation - assumes 30 day months)
 
             climatFields(constituentId,sourceIndex)%field(:,:,:) = &
                 (array1(:,:,:)*(30.0-day) + array2(:,:,:)*day)/30.0
-             
+
           else if (iday <= 15) then
             if ( fieldDimension(varIndex) <= 2 ) then
               if (imonth == 1) then
@@ -393,25 +410,25 @@ contains
               else
                 call clm_readSub3DFields(imonth-1,array2)
               end if
-            else	  
+            else
               if (imonth == 1) then
-                call utl_readFstField(trim(fname),trim(varNameClim),-1,12,-1,etiket, &
+                call utl_readFstField(trim(fname),trim(climVarName),-1,12,-1,etiket, &
                     ni,nj,nkeys,array2)
               else
-                call utl_readFstField(trim(fname),trim(varNameClim),-1,imonth-1,-1, &
+                call utl_readFstField(trim(fname),trim(climVarName),-1,imonth-1,-1, &
                     etiket,ni,nj,nkeys,array2)
               end if
             end if
-	    
-            ! Linearly interpolate in time 
+
+            ! Linearly interpolate in time
             ! (approximation - applies 30 day months)
-            
+
             climatFields(constituentId,sourceIndex)%field(:,:,:) = &
-                (array2(:,:,:)*(30.0-day)+array1(:,:,:)*day)/30.0             
+                (array2(:,:,:)*(30.0-day)+array1(:,:,:)*day)/30.0
           end if
         end if
 
-        if (clm_isGHG(trim(varName)) ) then         
+        if (clm_isGHG(trim(varName)) ) then
           ! Apply units scaling factor to convert from volumetric units (e.g. ppmv or ppbv)
           ! to micrograms/kg as needed. Assumes in micrograms/kg otherwise.
           scaleFactor = clm_getUnitsScaling(varName,iyear)
@@ -419,14 +436,14 @@ contains
               climatFields(constituentId,sourceIndex)%field(:,:,:) &
               *scaleFactor*vnl_varMassFromVarName(trim(varName)) &
               /MPC_MOLAR_MASS_DRY_AIR_R8
-        else if (trim(varNameClim) == 'O3CE') then  
+        else if (trim(climVarName) == 'O3CE') then
           ! Convert kg/kg to ug/kg for ozone
           climatFields(constituentId,sourceIndex)%field(:,:,:)= 1.0D9 &
-              *climatFields(constituentId,sourceIndex)%field(:,:,:)           
+              *climatFields(constituentId,sourceIndex)%field(:,:,:)
         end if
  
         if (allocated(array1)) deallocate(array1,lvls,xlat,xlong)
-        if (allocated(array2)) deallocate(array2)   
+        if (allocated(array2)) deallocate(array2)
         
       end do
     end do
@@ -443,24 +460,17 @@ contains
       !:Purpose:  Read 1D or 2D climatology (reference) field
       !
       implicit none
-      
+
       ! Arguments:
       integer, intent(in)  :: month                        ! Month for input field
       real(8), allocatable, intent(out) :: outarray(:,:,:) ! Final output field
-      
+
       ! Locals:
       real(8), allocatable :: inarray(:,:,:)               ! Input field
 
-      if (trim(fname) /= ozoneBaseline) then
-        varNameClim = trim(varName)
-      else if (trim(varName) == &
-        vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
-        varNameClim = 'O3'
-        etiket = ' '
-      end if
-      call utl_readFstField(trim(fname),varNameClim,-1,-1,month,etiket, &
+      call utl_readFstField(trim(fname),climVarName,-1,-1,month,etiket, &
                             ni,nj,nkeys,inarray)
-		   
+
       if (ni == 1) then
         ! nj for latitudes and nkeys for levels
         allocate(outarray(ni,nj,nkeys))
@@ -486,9 +496,9 @@ contains
         end if
       end if
       deallocate(inarray)
-          
+
     end subroutine clm_readSub3DFields
-    
+
   end subroutine clm_readFields
 
   !--------------------------------------------------------------------------

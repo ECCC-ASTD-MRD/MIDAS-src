@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added `NAMCLIMATOLOGY` namelist variable `inputClimVarNames` to generalize specification of the input climatology file NOMVARs (#921 and !831)
 
 ### Changed
 

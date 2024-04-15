@@ -97,9 +97,11 @@
    diagn_stnid(1,3)='78538700'   
 /
  &NAMCLIMATOLOGY
-   climatSourceFiles(1)='climatFields' 
+   climatSourceFiles(1)='climatFile'
    nearNeighbourInterp(1)=.false.
    timeInterpolation=.true.
+   fieldDimension(1)=3
+   inputClimVarNames(1)='O3CE'
 /
  &NAMCHEM
   MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
