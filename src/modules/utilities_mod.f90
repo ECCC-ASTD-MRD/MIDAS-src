@@ -7,7 +7,7 @@ module utilities_mod
   use clibInterfaces_mod
   use randomNumber_mod
   use netcdf
-  
+
   implicit none
   save
   private
@@ -1532,7 +1532,7 @@ contains
     integer :: dateo, deet, npas, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
-    integer :: ig1, ig2, ig3, ig4 
+    integer :: ig1, ig2, ig3, ig4
     character*1 clgrtyp
     character*2 cltypvar
     character*4 nomvar
@@ -1540,29 +1540,30 @@ contains
     real(4), allocatable :: buffer(:,:)
     real(4), allocatable :: buffer3D(:,:,:)
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
-    
+
     ! Open file
     iun = 0
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
-      write(*,*) 'File missing=',fname
-      call utl_abort('utl_read_fst_field: did not find file.')
+      call utl_abort('utl_readFstField: Did not find file ' // trim(fname))
     else
       ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
       ier=fstouv(iun,'RND+OLD')
     end if
 
     ! Find reports in file for specified varName and iip*.
-    ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
+    ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys)
 
     if(ier.lt.0.or.nkeys.eq.0) then
-      write(*,*) 'Search field missing ',varName, ' from file ',fname
-      call utl_abort('utl_read_fst_field: did not find field.')
+      call utl_abort('utl_readFstField: Search field missing ' // trim(varName) // &
+                     ' from file ' // trim(fname) // '. IPs and etiket: ' // &
+                     utl_str(iip1) // ', ' // utl_str(iip2) // ', ' // utl_str(iip3) // &
+                     ',  ' // trim(etiketi) // '.')
     else if (nk.gt.1) then
       if (nkeys > 1 .or. present(kind_opt) .or. present(lvls_opt) ) then
-        write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
-        call utl_abort('utl_read_fst_field') 
-      end if             
+        call utl_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
+                       ' for ' // trim(varName) // ' of file ' // trim(fname))
+      end if
     end if
 
     if (present(xlat_opt).and.present(xlong_opt)) then
@@ -1574,19 +1575,19 @@ contains
        xlat_opt(:)=-999.
        xlong_opt(:)=-999.
 
-       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &         
+       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &
                     datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
                     clgrtyp, ig1, ig2, ig3,                           &
-                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
 
-       if (trim(clgrtyp) /= 'B') then    
+       if (trim(clgrtyp) /= 'B') then
          if (ni.gt.1) then
            ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
-           if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1) 
+           if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1)
          end if
          if (nj.gt.1) then
             ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
-            if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)     
+            if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)
          end if
          deallocate(buffer)
        end if
@@ -1594,7 +1595,7 @@ contains
        if ( trim(clgrtyp) == 'Z' ) then
 
          ! Check for rotated grid
-	 
+
          ier = fstprm(ier,                                         & ! IN
                  dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
                  datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
@@ -1607,11 +1608,11 @@ contains
 
          if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
            call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
-       
+
        else if (trim(clgrtyp) == 'B') then
-       
+
          ! Set B type lat-long grid
-	 
+
          dincr=360.0d0/(ni-1)
          do i=1,ni
 	   xlong_opt(i) = (i-1)*dincr
@@ -1648,39 +1649,39 @@ contains
 	     do i=1,nj
 	       xlat_opt(i) = -90.0 + (i-1)*dincr
 	     end do
-	   else 
+	   else
 	     do i=1,nj
 	       xlat_opt(i) = 0 - (i-1)*dincr
 	     end do
 	   end if
 	 end if
-	  
+
        else if (trim(clgrtyp) /= 'G') then
 
          call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
 
        end if
-       
-    end if 
-    
+
+    end if
+
     ! Get vertical coordinate
-    
+
     if (present(lvls_opt)) then
        if (allocated(lvls_opt)) deallocate(lvls_opt)
        allocate(lvls_opt(nkeys))
 
        do i=1,nkeys
-          ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &         
+          ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &
                     datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
                     clgrtyp, ig1, ig2, ig3,                           &
-                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
           call convip(ip1,lvl_r4,kindi,-1,string,.false.)
           lvls_opt(i)=lvl_r4
        end do
     end if
-     
+
     if (present(kind_opt)) then
-        if (present(lvls_opt)) then         
+        if (present(lvls_opt)) then
             kind_opt=kindi
         else
             kind_opt=-1
@@ -1688,26 +1689,26 @@ contains
     end if
 
     ! Get field
-    
-    if ( nk == 1 ) then 
+
+    if ( nk == 1 ) then
       if (allocated(buffer)) deallocate(buffer)
-      allocate(array(ni,nj,nkeys),buffer(ni,nj))    
+      allocate(array(ni,nj,nkeys),buffer(ni,nj))
       do i=1,nkeys
         ier=fstluk(buffer,keys(i),ni,nj,nk)
         array(:,:,i)=buffer(:,:)
-      end do    
+      end do
       deallocate(buffer)
     else
       if (allocated(buffer3D)) deallocate(buffer3D)
-      allocate(array(ni,nj,nk),buffer3D(ni,nj,nk))    
+      allocate(array(ni,nj,nk),buffer3D(ni,nj,nk))
       ier=fstluk(buffer,keys(1),ni,nj,nk)
       array(:,:,:)=buffer3D(:,:,:)
       deallocate(buffer3D)
       nkeys=nk
     end if
-    
-    ier=fstfrm(iun)  
-    ier=fclos(iun)  
+
+    ier=fstfrm(iun)
+    ier=fclos(iun)
 
   end subroutine utl_readFstField
 
