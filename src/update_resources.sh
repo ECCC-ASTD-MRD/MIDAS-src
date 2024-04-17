@@ -15,7 +15,7 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-}" = yes -o -n "${MIDAS_COMPILE_CODECOV
     typeset -r check_result_catchup_expected_value=9
     typeset -r clean_unittest_catchup_expected_value=9
 else
-    ## If any of these environment variables above is NOT set, we want
+    ## If neither of these environment variable above are set, we want
     ## to run the 'check' and 'clean' tasks in the 'UnitTest' module
     ## so we set 'CHECK_RESULTS_CATCHUP' and 'CHECK_RESULTS_CATCHUP'
     ## to '2' in
