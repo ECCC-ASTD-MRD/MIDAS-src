@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-typeset -r toplevel=$(git rev-parse --show-toplevel)
+typeset -r toplevel=${1:-$(git rev-parse --show-toplevel)}
 
 ## Check if any of 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS' or
 ## 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH' is set.

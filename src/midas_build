@@ -383,7 +383,7 @@ then
         echo
 
         echo "Update resources according to environment variables (called from 'midas_build')"
-	${__toplevel}/src/update_resources.sh
+	${__toplevel}/src/update_resources.sh ${__toplevel}
 
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then

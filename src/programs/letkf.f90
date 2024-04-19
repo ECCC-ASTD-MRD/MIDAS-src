@@ -564,7 +564,7 @@ program midas_letkf
   else
     call gsv_copy(stateVectorMeanTrl4D, stateVectorMeanAnl)
   end if
-  
+
   !
   !- 3. Compute HX values with results in ensObs/ensObsGain
   !
