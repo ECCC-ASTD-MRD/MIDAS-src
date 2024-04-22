@@ -21,11 +21,15 @@ else
     exit
 fi
 
-# set symbolic link
-echo
-echo "Setting symbolic link: resources.def ===> ${resources_file}"
-echo
-cd ${resourcesDir}
-rm -f resources.def
-ln -s ${resources_file} resources.def
-cd -
+if [ -f ${resourcesDir}/resources.def ]; then
+    echo
+    echo "The file 'resources.def' already exists"
+    echo
+else
+    echo
+    echo "Creating 'resources.def' from '${resources_file}'"
+    echo
+    cd ${resourcesDir}
+    cp ${resources_file} resources.def
+    cd -
+fi

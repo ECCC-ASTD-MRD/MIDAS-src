@@ -108,9 +108,9 @@ function abs_path {
     abs_name=${1}
     platform=${2}
     if [[ "${__abs_external}" == *"${abs_name}"* ]]; then
-      typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas.
     else
-      typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
+        typeset __abs_prfx=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}/midas-
     fi
     echo ${__abs_prfx}${abs_name}_${platform}-${__revstring}.Abs
 }
@@ -381,6 +381,10 @@ then
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
+
+        echo "Update resources according to environment variables (called from 'midas_build')"
+	${__toplevel}/src/update_resources.sh ${__toplevel}
+
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then
             echo
@@ -417,4 +421,5 @@ fi
 [ "${__keep_jobsubmit_ofile}" = false ] && rm -rf ${__listing_frontend}.o
 
 rm -rf .compile_job
+
 printFooter

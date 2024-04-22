@@ -453,6 +453,8 @@ info:	#> print build configuration
 	@echo
 
 install: $(ABS_INSTALL)			#> install compiled programs
+	@echo Update resources according to environment variables called from make install
+	@echo $(shell $(SRC_ROOT)/update_resources.sh $(SRC_ROOT)/../)
 ifeq ($(sort $(ABS_COMPILED)), $(sort $(ABS)))
 	@echo
 	@echo All absolutes have been installed in $(ABS_INSTALL_DIR) from $(CURDIR)
