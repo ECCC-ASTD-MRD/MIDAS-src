@@ -187,11 +187,11 @@ CONTAINS
   subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
                                stateVectorRef_opt, varName_opt, &
                                allowOverWrite_opt, maxBoxSize_opt, subgrid_opt )
-    ! 
+    !
     ! :Purpose: Top-level switch routine for transformations on the grid.
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_gsv),           intent(inout) :: statevector ! statevector operand of the transformation
     character(len=*),           intent(in)    :: transform ! string identifying the requested transformation
@@ -2295,12 +2295,27 @@ CONTAINS
     integer              :: numPointsAccept
     integer              :: lonIndex, latIndex, xIndex, yIndex, lakeIndex
     integer              :: lonIndexVec(stateVector%ni*stateVector%nj), latIndexVec(stateVector%ni*stateVector%nj)
-    logical              :: lake(stateVector%ni,stateVector%nj)
+    logical              :: aLakePoint(stateVector%ni,stateVector%nj)
     type(struct_gsv)     :: stateVector_1step
     real(8), pointer     :: field_ptr(:,:,:,:)
     real(8)              :: excess
     character(len=2), parameter :: variableName = 'GL'
-    integer, parameter   :: maxLakeSize = 2000
+    real(8), parameter   :: maxLakeArea = 32000.0d0
+    real(8)              :: lakeArea
+    real(4)              :: area(stateVector%ni,stateVector%nj)
+    integer              :: lake(stateVector%ni,stateVector%nj)
+
+    ! Variables and functions required to write to RPN Standard files.
+    integer  :: nmax
+    integer  :: std_unit, ierr, ikey
+    integer  :: nii, njj, nkk
+    integer  :: dateo
+    integer  :: ip1, ip2, ip3
+    character(len=1) :: grtyp
+    character(len=12) :: etiket
+
+    integer  :: fnom,fstouv,fstfrm,fclos
+    external :: fnom,fstouv,fstfrm,fclos
 
     call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
 
@@ -2327,6 +2342,26 @@ CONTAINS
 
       call gsv_getField(stateVector_1step, field_ptr, variableName)
 
+      ierr = fnom(std_unit, './modelgrid', 'RND+R/O', 0)
+      nmax = fstouv(std_unit, 'RND')
+
+      ! FST record parameters.
+      dateo = -1
+      etiket = ''
+      ip1 = -1
+      ip2 = -1
+      ip3 = -1
+      grtyp = ' '
+      ikey = utl_fstlir_r4( area, std_unit, nii, njj, nkk, dateo, etiket, ip1, ip2, ip3, grtyp, 'AREA')
+      if (ikey <= 0) then
+         call utl_abort('gvt_iceLimits: field AREA not found in file RPN file modelgrid')
+      end if
+
+      ierr = fstfrm(std_unit)
+      ierr = fclos(std_unit)
+
+      lake(:,:) = -1
+
       ! Scan the grid for ice concentration values outside [0,1]
       do latIndex = 1, stateVector%hco%nj
         do lonIndex = 1, stateVector%hco%ni
@@ -2343,17 +2378,29 @@ CONTAINS
             cycle
           end if
 
+          if (lake(lonIndex,latIndex) == 0) then
+
+            if (field_ptr(lonIndex, latIndex, 1, 1) < 0.0d0) then
+              field_ptr(lonIndex, latIndex, 1, 1) = 0.0d0
+            else
+              field_ptr(lonIndex, latIndex, 1, 1) = 1.0d0
+            end if
+            cycle
+
+          end if
+
           ! Check if this is a lake, as a small enclosed body of water
 
-          lake(:,:) = .false.
-          lake(lonIndex,latIndex) = .true.
+          aLakePoint(:,:) = .false.
+          aLakePoint(lonIndex,latIndex) = .true.
           gridptCount = 1
           lonIndexVec(gridptCount) = lonIndex
           latIndexVec(gridptCount) = latIndex
 
           lakeCount = 0
+          lakeArea = area(lonIndex, latIndex)
 
-          do while(lakeCount /= gridptCount .and. gridptCount < maxLakeSize)
+          do while(lakeCount /= gridptCount .and. lakeArea < maxLakeArea)
 
             do lakeIndex = lakeCount+1, gridptCount
 
@@ -2361,9 +2408,10 @@ CONTAINS
 
               do yIndex = max(1,latIndexVec(lakeIndex)-1), min(latIndexVec(lakeIndex)+1,statevector%nj)
                 do xIndex = max(1,lonIndexVec(lakeIndex)-1), min(lonIndexVec(lakeIndex)+1,statevector%ni)
-                  if (stateVector%oceanMask%mask(xIndex,yIndex,1) .and. .not. lake(xIndex,yIndex)) then
-                    lake(xIndex,yIndex) = .true.
+                  if (stateVector%oceanMask%mask(xIndex,yIndex,1) .and. .not. aLakePoint(xIndex,yIndex)) then
+                    aLakePoint(xIndex,yIndex) = .true.
                     gridptCount = gridptCount + 1
+                    lakeArea = lakeArea + area(xIndex, yIndex)
                     lonIndexVec(gridptCount) = xIndex
                     latIndexVec(gridptCount) = yIndex
                   end if
@@ -2374,12 +2422,20 @@ CONTAINS
 
           end do
 
-          if (gridptCount < maxLakeSize) then ! Assuming it is a lake
+          do lakeIndex = 1, lakeCount
 
-            call msg('gvt_iceLimits', 'ice concentration = '//str(field_ptr(lonIndex, latIndex, 1, 1)))
-            call msg('gvt_iceLimits', 'Number of grid points found = '//str(gridptCount))
-            call msg('gvt_iceLimits', 'lonIndex = '//str(lonIndex))
-            call msg('gvt_iceLimits', 'latIndex = '//str(latIndex))
+            xIndex = lonIndexVec(lakeIndex)
+            yIndex = latIndexVec(lakeIndex)
+
+            if (lakeArea < maxLakeArea) then ! Assuming it is a lake
+              lake(xIndex,yIndex) = 1
+            else
+              lake(xIndex,yIndex) = 0
+            end if
+
+          end do
+
+          if (lakeArea < maxLakeArea) then ! Assuming it is a lake
 
             excess = -1.0d0
             iter = 0
@@ -2443,7 +2499,6 @@ CONTAINS
 
               iter = iter + 1
               if (iter > 100) then
-                call msg('gvt_iceLimits', 'iter = '//str(iter))
                 call utl_abort('gvt_iceLimits: Too many iterations.')
               end if
 
@@ -2461,10 +2516,6 @@ CONTAINS
 
         end do
       end do
-
-      call msg('gvt_iceLimits', 'Field min value = '//str(minval(field_ptr(:, :, 1, 1))))
-      write(*,*) 'minloc = ', minloc(field_ptr(:, :, 1, 1))
-      call msg('gvt_iceLimits', 'Field max value = '//str(maxval(field_ptr(:, :, 1, 1))))
 
     end if
 
