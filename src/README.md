@@ -27,7 +27,8 @@ Their default values (in parentheses), **should be good for most users**.
   Each git version will have its build directory 
   `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables 
   **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
-  version included in the absolute name.
+  version included in the absolute name.  If `${MIDAS_COMPILE_DIR_MAIN}` is empty
+  then this variable is set to the `compiledir` directory at the root of the Git repository.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
   compilation if set to `yes`.
   Note that enabling debug options **may subtly alter the results and
@@ -216,7 +217,7 @@ produced first thing when `make` (or `midas_build`) is called for any target
 Most probably they are already there in the build directory (at least on the
 frontend):
 `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version.sh)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
-(`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `../compiledir`).
+(`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `${HOME}/data_maestro/ords/midas-bld`).
 If they aren't, you can either launch `midas_build` or faster:
 ```sh
 source config.dot.sh && make depend
