@@ -311,11 +311,11 @@ module gridStateVector_mod
     ! :Purpose: Lists all variables present in the statevector 
     !
     implicit none
-    
+
     ! Arguments:
     character(len=4), pointer,  intent(inout) :: varNames(:)
     type(struct_gsv), optional, intent(in)    :: statevector_opt
-    
+
     ! Locals:
     integer :: varLevIndex, varNumberIndex, varIndex, numFound
     character(len=4) :: varName
@@ -323,7 +323,7 @@ module gridStateVector_mod
     if (associated(varNames)) then
       call utl_abort('gsv_varNamesList: varNames must be NULL pointer on input')
     end if
- 
+
     !
     !- 1. How many variables do we have?
     !
