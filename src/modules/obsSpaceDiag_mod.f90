@@ -689,9 +689,9 @@ contains
     diagn_varno(:,:)=0
     diagn_unilev(:,:)=.false.
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namosd,iostat=ierr)
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namosd, iostat=ierr)
+    call utl_tmg_stop(181)
     if(ierr /= 0) then
       write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping some diagnostics'
       nmlExists = .false.
@@ -701,7 +701,6 @@ contains
       nmlExists = .true.
     endif
     if(mmpi_myid == 0) write(*,nml=namosd)
-    ierr = fclos(nulnam)
     if (numFamily /= MPC_missingValue_INT) then
       call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
     end if
