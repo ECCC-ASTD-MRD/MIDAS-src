@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added support for an empty value of the environment variable `MIDAS_COMPILE_DIR_MAIN` (#923 and !)
  * All-sky assimilation in letkf (#880 and !833)
  * When compiling with debug or code coverage options, we avoid
    running `check` and `clean` tasks in the system tests (#900 and !830)
