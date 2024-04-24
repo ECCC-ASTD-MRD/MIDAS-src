@@ -51,7 +51,7 @@ __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
     echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
-    mkdir ${__compiledir_link}
+    [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
     MIDAS_COMPILE_DIR_MAIN=${__compiledir_link}
 else
     ##  linking the build directory where it used to be
