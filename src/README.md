@@ -22,13 +22,15 @@ You can either modify and export them in your shell or add them to your profile.
 
 Their default values (in parentheses), **should be good for most users**.
 
-* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)` : 
-  directory where build directories and the executables directory will be.
-  Each git version will have its build directory 
-  `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables 
-  **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
-  version included in the absolute name.  If `${MIDAS_COMPILE_DIR_MAIN}` is empty
-  then this variable is set to the `compiledir` directory at the root of the Git repository.
+* `MIDAS_COMPILE_DIR_MAIN (${HOME}/data_maestro/ords/midas-bld)` :
+  directory where build directories and the executables directory will
+  be.  Each git version will have its build directory
+  `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but executables
+  **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`
+  with the version included in the absolute name.  If
+  `${MIDAS_COMPILE_DIR_MAIN}` is equal to
+  `build_directory_local_to_the_repository` then this variable is set
+  to the `compiledir` directory at the root of the Git repository.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
   compilation if set to `yes`.
   Note that enabling debug options **may subtly alter the results and

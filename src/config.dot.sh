@@ -14,7 +14,7 @@ set -x
 ## The variable 'MIDAS_COMPILE_DIR_MAIN' can be defined as empty and so
 ## the build directory will be in '${__toplevel}/compiledir'
 ##    (see variable '${__compiledir_link}' below
-MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN-${HOME}/data_maestro/ords/midas-bld}
+MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
@@ -49,17 +49,17 @@ MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
 __install_always_midas=true
 
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
-if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
+    echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
+    mkdir ${__compiledir_link}
+    MIDAS_COMPILE_DIR_MAIN=${__compiledir_link}
+else
     ##  linking the build directory where it used to be
     if [ -d  "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
         echo "${__compiledir_link}  already exists: not creating link."
     else
         ln -s ${MIDAS_COMPILE_DIR_MAIN} ${__compiledir_link}
     fi
-else
-    echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
-    mkdir ${__compiledir_link}
-    MIDAS_COMPILE_DIR_MAIN=${__compiledir_link}
 fi
 
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
