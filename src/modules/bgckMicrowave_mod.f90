@@ -39,6 +39,7 @@ module bgckMicrowave_mod
   logical :: mwbg_avoidSiObsRejectTempChan     ! prevent scattering index from obs to reject temperature channels
   logical :: mwbg_avoidSiObsEcmwfRejectTempChan! prevent scattering index from obs (ecmwf formula) to reject temperature channels
   logical :: mwbg_skipUpperHuChanRejectByCh17Omp ! prevent ch.17 omp to reject ch 20-22 for atms
+  logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -93,6 +94,7 @@ module bgckMicrowave_mod
   real(4)            :: cloudySiThresholdBcorr        !
   real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
   real(4)            :: atmsCh17OmpThreshRogueCheck   ! threshold for atms ch.17 omp in rogue check test
+  logical            :: useAtmsCh17OmpThreshRogueCheck! use ch.17 omp in rogue check for other ATMS humidity channels
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
   logical            :: resetQc                       ! reset Qc flags option
@@ -110,7 +112,7 @@ module bgckMicrowave_mod
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
                     skipUpperHuChanRejectByCh17Omp, atmsRogueFactor, &
-                    atmsCh17OmpThreshRogueCheck, skipTestArr
+                    useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     
 
 contains
@@ -138,6 +140,7 @@ contains
     avoidSiObsRejectTempChan      = .false.
     avoidSiObsEcmwfRejectTempChan = .false.
     skipUpperHuChanRejectByCh17Omp= .false.
+    useAtmsCh17OmpThreshRogueCheck= .false.
     atmsRogueFactor(:)            = -1.0
     atmsCh17OmpThreshRogueCheck   = 5.0
     skipTestArr(:)                = .false.
@@ -162,6 +165,7 @@ contains
     mwbg_calcLandQualifierTerrainType = modLSQ
     mwbg_avoidSiObsRejectTempChan = avoidSiObsRejectTempChan
     mwbg_avoidSiObsEcmwfRejectTempChan = avoidSiObsEcmwfRejectTempChan
+    mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_skipUpperHuChanRejectByCh17Omp = skipUpperHuChanRejectByCh17Omp
 
     ! Allocation
@@ -3128,7 +3132,7 @@ contains
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged, scatwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu
+    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
     character(len=9) :: stnId
     logical, save :: firstCall = .true.
 
@@ -3155,6 +3159,7 @@ contains
 
     SFCREJCT = .FALSE.
     CH2OMPREJCT = .FALSE.
+    ch2OmpRejectInAllsky = .false.
 
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
@@ -3215,6 +3220,8 @@ contains
 
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
 
+        ch2OmpRejectInAllSky = (chanIsAllskyHu .and. obsChanNumWithOffset == 17)
+
         if ( mwbg_debug ) then
           write(*,*) stnId(2:9),'ROGUE CHECK REJECT.NO.', &
                      ' CHANNEL= ',obsChanNumWithOffset, &
@@ -3231,7 +3238,11 @@ contains
 
       if (obsChanNumWithOffset == 17 .and. ompTb /= mwbg_realMissing) then
         if (chanIsAllskyHu) then
-          if (abs(ompTb) > mwbg_atmsCh17OmpThreshRogueCheck) CH2OMPREJCT = .TRUE.
+          if (mwbg_useAtmsCh17OmpThreshRogueCheck) then
+            if (abs(ompTb) > mwbg_atmsCh17OmpThreshRogueCheck) CH2OMPREJCT = .TRUE.
+          else
+            if (ch2OmpRejectInAllSky) CH2OMPREJCT = .TRUE.
+          end if
         else
           if (abs(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
         end if
