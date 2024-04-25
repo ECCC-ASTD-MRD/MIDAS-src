@@ -11,9 +11,9 @@ set -x
 ##  USER CONFIGURATION
 ##
 ###########################################################
-## The variable 'MIDAS_COMPILE_DIR_MAIN' can be defined as empty and so
-## the build directory will be in '${__toplevel}/compiledir'
-##    (see variable '${__compiledir_link}' below
+## The variable 'MIDAS_COMPILE_DIR_MAIN' can be defined as
+## 'build_directory_local_to_the_repository' and so the build
+## directory will be in '${__toplevel}/compiledir' (see variable '${__compiledir_link}' below)
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
@@ -49,6 +49,10 @@ MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
 __install_always_midas=true
 
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
+
+## If 'MIDAS_COMPILE_DIR_MAIN' is equal to the special value
+## 'build_directory_local_to_the_repository', then we keep the build
+## directory local to the Git repository.
 if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
     echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
     [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
