@@ -1634,6 +1634,7 @@ contains
     real(pre_obsReal) :: zdtb, obsPRM
     integer :: idatyp, channelNumber
     integer :: headerIndex, bodyIndex
+    logical, save :: firstCall = .true.
 
     if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
@@ -1742,7 +1743,9 @@ contains
         end if
         
         ! inflate OBS_OER for all-sky assimilation
-        call oer_inflateErrAllsky(obsSpaceData, bodyIndex, destObs, beSilent_opt=.true.)
+        if (firstCall) then
+          call oer_inflateErrAllsky(obsSpaceData, bodyIndex, destObs, beSilent_opt=.true.)
+        end if
 
       end do BODY
 
@@ -1755,6 +1758,7 @@ contains
     end if
     if ( beSilent ) llprint = .false.
     if ( llprint ) call tvs_printDetailledOmfStatistics(obsSpaceData)
+    firstCall = .false.
 
   end subroutine oop_tovs_nl
 

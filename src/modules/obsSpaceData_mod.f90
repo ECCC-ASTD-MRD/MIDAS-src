@@ -1041,8 +1041,9 @@ contains
 
          hdr_real_column_list= &
             (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
-              OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
-              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
+              OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_CLWO, &
+              OBS_CLWB, OBS_SIO , OBS_SIB , OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, &
+              (0,ii=22,100)/)
 
          bdy_int_column_list= &
             (/OBS_VNM , OBS_FLG , OBS_ASS , OBS_HIND, OBS_VCO , OBS_LYR , OBS_XTR , &
@@ -1051,8 +1052,8 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER , &
               OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
-              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, &
-              (0,ii=21,100) /)
+              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, OBS_BTCL, &
+              (0,ii=22,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)

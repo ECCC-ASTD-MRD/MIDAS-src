@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * All-sky assimilation in letkf (#880 and !833)
  * When compiling with debug or code coverage options, we avoid
    running `check` and `clean` tasks in the system tests (#900 and !830)
  * Added `NAMCLIMATOLOGY` namelist variable `inputClimVarNames` to generalize specification of the input climatology file NOMVARs (#921 and !831)
