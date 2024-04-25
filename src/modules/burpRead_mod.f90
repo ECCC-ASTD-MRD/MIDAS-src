@@ -1948,11 +1948,20 @@ contains
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
-    
+    integer                :: scanPosEle
+
+    !Exception CrIS
+    !The field of regard (5045) contains 9 field of views (5043) and rotates by 45 degrees along the scan
+    ! we always take number 5 which is the central one
+    if (index(brp_file,'cris') > 0) then
+      scanPosEle = 5045
+    else
+      scanPosEle = 5043
+    end if
     
     LISTE_INFO(1:31) = (/ &
         1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
-        2022,33060,33062,33039,10035,10036,08046,5043, 013209,clwFgElementId, &
+        2022,33060,33062,33039,10035,10036,08046, scanPosEle, 013209,clwFgElementId, &
         1033,2011,4197,siFgElementId,13208,5040,33078,33079,33080,020029, &
         25174 /)
 
@@ -3871,7 +3880,7 @@ contains
           ELSE
             INSTRUMENT = NINT(RINSTRUMENT)
           END IF
-        CASE( 5043)
+        CASE( 5043, 5045) !5045 for CriS, 5043 for the other instruments. Both elements should never be in liste_info
           RFOV = INFOV
           if (RFOV == MPC_missingValue_R4 ) THEN
             IFOV = 0

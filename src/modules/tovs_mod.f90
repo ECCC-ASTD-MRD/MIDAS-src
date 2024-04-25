@@ -2891,7 +2891,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent)
+  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, genCoeffMode_opt)
     !
     ! :Purpose: Interface for RTTOV non linear operator
     !           tvs_fillProfiles should be called before
@@ -2902,6 +2902,7 @@ contains
     type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
     logical,           intent(in)    :: beSilent        ! verbosity flag
+    logical, optional, intent(in)    :: genCoeffMode_opt! option to transfer transmittance
 
     ! Locals:
     integer :: nlv_T
@@ -2933,6 +2934,7 @@ contains
     real(8) :: clearMwRadiance
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
+    logical :: genCoeffMode
 
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
     
@@ -2944,6 +2946,12 @@ contains
     max_nthreads = mmpi_numThread
 
     allocate(sensorTovsIndexes(tvs_nobtov))
+    if (present(genCoeffMode_opt)) then
+      genCoeffMode = genCoeffMode_opt
+    else
+      genCoeffMode = .false.
+    end if
+
     
     !   1.1   Read surface information
     if (bgckMode) call EMIS_READ_CLIMATOLOGY
@@ -3354,8 +3362,17 @@ contains
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
-          end do
 
+            if (genCoeffMode .and. .not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+   
+            if ( allocated( tvs_transmission) ) then
+              do levelIndex = 1, nlv_T
+                tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                    transmission % tau_levels(levelIndex,btIndex)
+              end do
+            end if
+          end do
+          
           ! restore the cloud profiles in ...
           call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
                                              nlv_T,                             &

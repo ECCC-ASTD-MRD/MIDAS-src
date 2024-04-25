@@ -78,7 +78,7 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 14
+  integer, parameter    :: NumPredictors = 16
   integer, parameter    :: NumPredictorsBcif = 13
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
@@ -92,12 +92,13 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialHeight50m200(:)
   real(8), allocatable  :: trialHeight1m10(:)
   real(8), allocatable  :: trialHeight5m50(:)
-  real(8), allocatable  :: trialTotalWaterContent(:)
+  real(8), allocatable  :: trialTotalWaterVaporContent(:)
+  real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos
-  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -115,7 +116,7 @@ module biasCorrectionSat_mod
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
-  integer          :: nbscan(maxNumInst)  ! the number of scan positions are necessary
+  integer          :: nbscan(maxNumInst)  ! the number of scan positions
   integer          :: passiveChannelList(maxNumInst, maxPassiveChannels)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
@@ -320,6 +321,10 @@ contains
                 kpred = 13
               case('SA')
                 kpred = 14
+              case('R1')
+                kpred = 15
+              case('R2')
+                kpred = 16
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1431,7 +1436,9 @@ contains
     type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer  :: headerIndex, idatyp, iobs
+    integer :: headerIndex, idatyp, iobs, channelIndex, bodyIndex
+    integer :: channelNumber
+    integer :: sensorIndex, tovsIndex, bcifChannelIndex, maxChans
     real(8)  :: height1, height2
 
     if (tvs_nobtov > 0) then
@@ -1442,7 +1449,12 @@ contains
       allocate(trialHeight5m50(tvs_nobtov))
       allocate(trialHeight1m10(tvs_nobtov))
       allocate(trialTG(tvs_nobtov))
-      allocate(trialTotalWaterContent(tvs_nobtov))
+      allocate(trialTotalWaterVaporContent(tvs_nobtov))
+      maxChans = 0
+      do sensorIndex = 1, tvs_nsensors
+        if (size(bias(sensorIndex)%chans) > maxChans) maxChans = size(bias(sensorIndex)%chans)
+      end do
+      allocate(trialConvolutedLapseRate(tvs_nobtov, maxChans))
       allocate(RadiosondeWeight(tvs_nobtov))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
@@ -1453,15 +1465,19 @@ contains
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
 
-    HEADER2: do
+    HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER2
+      if (headerIndex < 0) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not.  tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'bcs_getTrialPredictors: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-        cycle HEADER2
+        cycle HEADER
       end if
       iobs = iobs + 1
+
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      if (tovsIndex < 0) cycle HEADER
+      sensorIndex =  tvs_lsensor(tovsIndex)
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
@@ -1493,11 +1509,26 @@ contains
 
       trialTG(iobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
 
-      trialTotalWaterContent(iobs) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
-      !write(*,*) "SYLTWCSYL", obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-      !    obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8 , trialTotalWaterContent(iobs)
+      trialTotalWaterVaporContent(iobs) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
 
-    end do HEADER2
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        ! Only consider if flagged for assimilation ?
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY
+        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+            channelNumber, channelIndex )
+        call bcs_getChannelIndex(obsSpaceData, sensorIndex, bcifChannelIndex, bodyIndex)
+        if (channelIndex > 0 .and. bcifChannelIndex > 0) then
+          trialConvolutedLapseRate(iobs,bcifChannelIndex) = &
+              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(tovsIndex) % tau_levels(:,channelIndex))
+          
+        end if
+      end do BODY
+     
+    end do HEADER
 
     if (trialTG(1) > 150.0d0) then
       write(*,*) 'bcs_getTrialPredictors: converting TG from Kelvin to deg_C'
@@ -1510,8 +1541,8 @@ contains
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
     trialHeight1m10(:) = 0.1d0 *  trialHeight1m10(:)
-    trialTotalWaterContent(:) = 10.d0 * trialTotalWaterContent(:) !scaling factor chosen to get the predictor approximately in the range [0;1.0]
-
+    trialTotalWaterVaporContent(:) = 10.d0 * trialTotalWaterVaporContent(:) !scaling factor chosen to get the predictor approximately in the range [0;1.0]
+    
     write(*,*) 'bcs_getTrialPredictors: end'
 
   contains
@@ -1548,34 +1579,93 @@ contains
    
     end function logInterpHeight
 
+    function convolutedLapseRate(column, headerIndex, transmittance) result(lapseRate)
+      implicit none
+      
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: column
+      integer,                 intent(in)    :: headerIndex
+      real(8),                 intent(in)    :: transmittance(:)
+      ! Result:
+      real(8) :: lapseRate
+      ! Locals:
+      integer :: nlev, levelIndex
+      real(8), pointer :: temperature(:)
+      
+      nlev = col_getNumLev(column, 'TH')
+      temperature => col_getColumn(column, headerIndex, 'TT')
+
+      lapseRate = 0.d0
+      do levelIndex = 2, nlev - 1
+        lapseRate = lapseRate + (transmittance(levelIndex+1) - transmittance(levelIndex)) * &
+            (temperature(levelIndex-1) - temperature(levelIndex+1))
+        ! computed exactly as in "An alternative bias correction scheme for CrIS Data Assimilation in a regional model"
+        ! MWR vol 147 Issue 3 pp 809-839 formula 2
+      end do
+      
+    end function convolutedLapseRate
+
+
     function integrateWaterVapor(columnTrlOnTrlLev, headerIndex) result(totalWaterContent)
       implicit none
-
+      
       ! Arguments:
       type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
       integer,                 intent(in)    :: headerIndex
       ! Result:
       real(8) :: totalWaterContent
+      
+      totalWaterContent = integrateProfile(columnTrlOnTrlLev, headerIndex, 'HU', &
+          conversionFactor_opt = 1.d0/ (ec_wgs_GammaM * MPC_DENSITY_WATER_R8))
+
+    end function integrateWaterVapor
+
+
+    function integrateProfile(column, headerIndex, varName, weight_opt, conversionFactor_opt) result(integral)
+      implicit none
+
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: column
+      integer,                 intent(in)    :: headerIndex
+      character(len=*),        intent(in)    :: varName
+      real(8), optional, intent(in)          :: weight_opt(:)
+      real(8), optional, intent(in)          :: conversionFactor_opt
+      ! Result:
+      real(8) :: integral
 
       ! Locals:
       integer :: levelIndex, nlev
-      real(8) :: topPressure, bottomPressure
-      real(8) :: topWaterVapor, bottomWaterVapor
-      real(8), pointer :: waterVaporProfile(:)
+      real(8) :: topPressure, bottomPressure, conversionFactor
+      real(8) :: topProfile, bottomProfile
+      real(8), pointer :: profile(:)
+      real(8),allocatable :: weight(:)
+      
+      if (present(conversionFactor_opt)) then
+        conversionFactor = conversionFactor_opt
+      else
+        conversionFactor = 1.d0
+      end if
 
-      totalWaterContent = 0.d0
-      waterVaporProfile => col_getColumn(columnTrlOnTrlLev, headerIndex, 'HU')
- 
-      nlev = col_getNumLev(columnTrlOnTrlLev, 'TH')
+      nlev = col_getNumLev(column, 'TH')
+      
+      if (present(weight_opt)) then
+        weight = weight_opt
+      else
+        allocate(weight(nlev))
+        weight = 1.d0
+      end if
+      
+      integral = 0.d0
+      profile => col_getColumn(column, headerIndex, varname)     
       do levelIndex = 1, nlev - 1
-        topPressure = col_getPressure(columnTrlOnTrlLev, levelIndex, headerIndex, 'TH')
-        bottomPressure = col_getPressure(columnTrlOnTrlLev, levelIndex+1, headerIndex, 'TH')
-        topWaterVapor = waterVaporProfile(levelIndex)
-        bottomWaterVapor = waterVaporProfile(levelIndex+1)
-        totalWaterContent = totalWaterContent + 0.5d0 * (bottomPressure - topPressure) * (topWaterVapor + bottomWaterVapor)
+        topPressure = col_getPressure(column, levelIndex, headerIndex, 'TH')
+        bottomPressure = col_getPressure(column, levelIndex+1, headerIndex, 'TH')
+        topProfile = profile(levelIndex) * weight(levelIndex)
+        bottomProfile = profile(levelIndex+1) * weight(levelIndex+1)
+        integral = integral + 0.5d0 * (bottomPressure - topPressure) * (topProfile + bottomProfile)
       end do
-      totalWaterContent = totalWaterContent / (ec_wgs_GammaM * MPC_DENSITY_WATER_R8)
-    end function integrateWaterVapor
+      integral = integral * conversionFactor
+    end function integrateProfile
     
 
   end subroutine bcs_getTrialPredictors
@@ -1671,7 +1761,7 @@ contains
     real(8),          intent(out)   :: predictor(NumPredictors)
     integer,          intent(in)    :: headerIndex
     integer,          intent(in)    :: obsIndex
-    integer,          intent(in)    :: chanindx
+    integer,          intent(in)    :: chanindx ! channel index wrt bcif
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
@@ -1682,7 +1772,7 @@ contains
 
     sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
     
-    !computation of scan bias position normalized to[-1;1]
+    !computation of scan bias position normalized to [-1;1]
     normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
     
     do iPredictor = 1, NumPredictors
@@ -1717,7 +1807,7 @@ contains
         predictor(iPredictor) = trialHeight300m850(obsIndex) / 1000.0d0
       else if (iPredictor == 10) then
         ! Total Water Vapor Content (aka precipitable water)
-        predictor(iPredictor) = trialTotalWaterContent(obsIndex)
+        predictor(iPredictor) = trialTotalWaterVaporContent(obsIndex)
       else if (iPredictor == 11) then
         ! first order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = normalizedScanPosition
@@ -1730,11 +1820,14 @@ contains
       else if (iPredictor == 14) then
         ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
         predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
+      else if (iPredictor == 15) then
+        ! channel convoluted lapse rate (R1)
+        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)
+      else if (iPredictor == 16) then
+        ! channel convoluted lapse rate squared (R2)
+        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)**2
       end if
     end do
-
-    !if (sensorIndex == 26) write(*,'(A9,1x,3e14.6)') "SYLLEGSYL", predictor(11:13)
-    !write(*,'(A9,1x,i2,1x,e14.6)') "SYLSUNSYL", sensorIndex, predictor(14)
 
     do  iPredictor = 1, bias(sensorIndex)%chans(chanIndx)%numActivePredictors
       jPredictor = bias(sensorIndex)%chans(chanIndx)%predictorIndex(iPredictor)
@@ -2277,6 +2370,7 @@ contains
     integer            :: iuncoef, numPred, ierr
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
+    character(len=3)   :: cnum
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
 
     if (mmpi_myId == 0) then
@@ -2301,10 +2395,13 @@ contains
             numPred = bias(sensorIndex)%chans(jChan)%numActivePredictors 
           
             write(iuncoef,'(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
-                 satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, bias(sensorIndex)%chans(jChan)%coeff_nobs, numPred - 1, nfov
-            write(iuncoef,'(A7,6(1X,A2))') 'PTYPES:',  (predtab(bias(sensorIndex)%chans(jChan)%predictorIndex(kPred)), kPred = 2, numPred)
-            write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff_fov(kFov), kFov = 1, nfov)
-            write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff(kPred), kPred = 1, numPred)
+                satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, bias(sensorIndex)%chans(jChan)%coeff_nobs, numPred - 1, nfov
+            write(cnum,'(i2)')  numPred - 2 + 1
+            write(iuncoef,'(A7,'//trim(cnum)//'(1X,A2))') 'PTYPES:',  (predtab(bias(sensorIndex)%chans(jChan)%predictorIndex(kPred)), kPred = 2, numPred)
+            write(cnum,'(i3)')  nfov
+            write(iuncoef,'('//trim(cnum)//'(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff_fov(kFov), kFov = 1, nfov)
+            write(cnum,'(i2)')  numpred
+            write(iuncoef,'('//trim(cnum)//'(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff(kPred), kPred = 1, numPred)
           end if
         end do
 
@@ -2316,11 +2413,11 @@ contains
           do jChan = 1, nchans
             if (bias(sensorIndex)%chans(jChan)%coeff_nobs > 0) then
               numPred = bias(sensorIndex)%chans(jChan)%numActivePredictors 
-          
+              write(cnum,'(i2)')  numPred  
               write(iuncoef,'(A38,A8,1X,A7,1X,I6,1X,I2)') 'SATELLITE, INSTRUMENT, CHANNEL, NPRED: ',  &
                    satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, numPred
               do kpred =1, numPred
-                write(iuncoef,'(10e14.6)') bias(sensorIndex)%chans(jChan)%coeffCov(kpred, :)
+                write(iuncoef,'(' // trim(cnum) // 'e14.6)') bias(sensorIndex)%chans(jChan)%coeffCov(kpred, :)
               end do
             end if
           end do
@@ -3306,7 +3403,7 @@ contains
     if (allocated(trialHeight1m10)) deallocate(trialHeight1m10)
     if (allocated(trialHeight5m50)) deallocate(trialHeight5m50)
     if (allocated(trialTG)) deallocate(trialTG)
-    if (allocated(trialTotalWaterContent)) deallocate(trialTotalWaterContent)
+    if (allocated(trialTotalWaterVaporContent)) deallocate(trialTotalWaterVaporContent)
     if (allocated(RadiosondeWeight)) deallocate(RadiosondeWeight)
 
     do iSensor = 1, tvs_nSensors
@@ -3487,15 +3584,15 @@ contains
     do while(line(1:3)== 'DEF')
       read(line(8:), *, iostat=ier) par1, par2
       if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFile))
-      xpred(0) = line(5:6)
-      select case(xpred(0))
+      xpred(1) = line(5:6)
+      select case(xpred(1))
       case('T1')
         bottomPressureT1 = par1
         topPressureT1 = par2
       case default
-        call utl_abort('read_bcif: predictor redefinition not supported for ' // xpred(0))
+        call utl_abort('read_bcif: predictor redefinition not supported for ' // xpred(1))
       end select
-      write(*,*) 'read_bcif: Warning redefining predictor ' // xpred(0)
+      write(*,*) 'read_bcif: Warning redefining predictor ' // xpred(1)
       write(*,*) 'read_bcif: new bottom and top pressure :', par1, par2
       read(iun,'(A64)') line
     end do
@@ -3668,6 +3765,7 @@ contains
     ! Locals:
     character(len=8)               :: sat
     character(len=120)             :: line
+    character(len=2)               :: cnum
     integer                        :: chan
     integer                        :: nbfov, nbpred, i, j, k, ier, istat, ii, nobs
     logical                        :: newsat, fileExists
@@ -3769,7 +3867,8 @@ contains
           call utl_abort('read_coeff: ERROR - list of predictors is missing in coeff file!')
         end if
         if (nbpred > 0) then
-          read(line,'(T8,6(1X,A2))', iostat = istat) (ptypes(ii,j,k), k = 1, nbpred)
+          write(cnum,'(i2)') nbpred
+          read(line,'(T8,'// trim(cnum) //'(1X,A2))', iostat = istat) (ptypes(ii,j,k), k = 1, nbpred)
           if (istat /= 0) then
             call utl_abort('read_coeff: ERROR - reading predictor types from PTYPES line in coeff file!')
           end if
@@ -3814,7 +3913,8 @@ contains
       do j = 1, nchan(i)
         write(*,*) i, chans(i, j)
         if (npred(i, j) > 0) then
-          write(*,'(6(1X,A2))') (ptypes(i,j,k), k = 1, npred(i,j))
+          write(cnum,'(i2)') npred(i,j)
+          write(*,'('// trim(cnum) //'(1X,A2))') (ptypes(i,j,k), k = 1, npred(i,j))
         else
           write(*,'(A)') 'read_coeff: No predictors'
         end if
@@ -3831,7 +3931,7 @@ contains
   !-----------------------------------------
   ! bcs_getChannelIndex
   !-----------------------------------------
-  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody)
+  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody,channelNumber_opt)
     !
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
@@ -3842,6 +3942,7 @@ contains
     integer,          intent(in)    :: indexBody
     integer,          intent(out)   :: chanIndx
     type(struct_obs), intent(inout) :: obsSpaceData
+    integer, optional, intent(out)  :: channelNumber_opt
 
     ! Locals:
     logical, save :: first =.true.
@@ -3867,7 +3968,7 @@ contains
     ichan = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, indexBody))
     ichan = max(0, min(ichan, tvs_maxChannelNumber + 1))
     ichan = ichan - tvs_channelOffset(idsat)
-    
+    if (present(channelNumber_opt)) channelNumber_opt = ichan
     chanIndx = Index(idsat,ichan)
 
   end subroutine bcs_getChannelIndex

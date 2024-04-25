@@ -1603,8 +1603,9 @@ contains
   !--------------------------------------------------------------------------
   ! oop_tovs_nl
   !--------------------------------------------------------------------------
-  subroutine oop_tovs_nl( columnTrl, obsSpaceData, datestamp, beSilent,  &
-                          bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
+  subroutine oop_tovs_nl(columnTrl, obsSpaceData, datestamp, beSilent,  &
+                         bgckMode_opt, option_opt, sourceObs_opt, destObs_opt, &
+                         genCoeffMode_opt)
     ! :Purpose: Computation of the residuals to the tovs observations
     !           option_opt: defines input state:
     !              - 'HR': High Resolution background state,
@@ -1621,6 +1622,7 @@ contains
     character(len=*), optional, intent(in)    :: option_opt       ! only valid value is HR
     integer,          optional, intent(in)    :: sourceObs_opt ! usually set to OBS_VAR
     integer,          optional, intent(in)    :: destObs_opt   ! usually set to OBS_OMP
+    logical,          optional, intent(in)    :: genCoeffMode_opt
 
     ! Locals:
     integer :: jdata, sourceObs, destObs
@@ -1631,6 +1633,7 @@ contains
     integer :: idatyp, channelNumber
     integer :: headerIndex, bodyIndex
     logical, save :: firstCall = .true.
+    logical :: genCoeffMode
 
     if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
 
@@ -1667,6 +1670,11 @@ contains
     if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
       call tvs_allocateEmissivity(tvs_maxChannelNumber)
     end if
+    if (present(genCoeffMode_opt)) then
+      genCoeffMode =  genCoeffMode_opt
+    else
+      genCoeffMode = .false.
+    end if
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
@@ -1676,7 +1684,7 @@ contains
 
     ! 2.   Compute radiance
     ! .    ----------------
-    call tvs_rttov(obsSpaceData,bgckMode,beSilent)
+    call tvs_rttov(obsSpaceData,bgckMode,beSilent,genCoeffMode_opt=genCoeffMode)
     if ( .not.beSilent ) call msg_memUsage('oop_tovs_nl')
 
     ! 3.   Compute the residuals

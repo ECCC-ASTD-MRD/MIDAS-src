@@ -178,7 +178,7 @@ program midas_genCoeff
   call msg_memUsage('midas-genCoeff')
 
   ! Compute observation innovations
-  call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
+  call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData,genCoeffMode_opt=.true.)
   
   call utl_tmg_start(110,'--BiasCorrection')
 
@@ -195,15 +195,6 @@ program midas_genCoeff
   ! output O-F statistics befor bias correction
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
-  ! fill OBS_BCOR with computed bias correction
-  call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
-
-  ! output  O-F statistics after bias coorection
-  call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
-
-  ! if requested, dump the thinned predictors and coefficients to sqlite
-  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
-
   if ( .not. obsf_filesSplit() ) then 
     call msg('genCoeff','reading/writing global observation files')
     call obs_expandToMpiGlobal(obsSpaceData)
@@ -215,6 +206,15 @@ program midas_genCoeff
     call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
         addFSOdiag=.false.)
   end if
+
+  ! fill OBS_BCOR with computed bias correction
+  call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
+
+  ! output  O-F statistics after bias coorection
+  call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
+
+  ! if requested, dump the thinned predictors and coefficients to sqlite
+  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
 
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
@@ -239,7 +239,7 @@ contains
 
   subroutine gencoeff_setup(obsColumnMode)
     !
-    ! :Purpose:  Control of the preprocessing of bais correction coefficient computation
+    ! :Purpose:  Control of the preprocessing of bias correction coefficient computation
     !
     implicit none
 
