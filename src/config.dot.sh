@@ -13,10 +13,9 @@ set -x
 ###########################################################
 ## The variable 'MIDAS_COMPILE_DIR_MAIN' can be defined as
 ## 'build_directory_local_to_the_repository' and so the build
-## directory will be in '${__toplevel}/compiledir' (see variable '${__compiledir_link}' below)
+## directory will be in '${__toplevel}/compiledir' (see variable '${__compiledir_link}' below).
 ## If it is not defined, we will use a default which appends the
-## basename of the toplevel directory to
-## '${HOME}/data_maestro/ords/midas-bld'
+## basename of the toplevel directory to '${HOME}/data_maestro/ords/midas-bld'.
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
