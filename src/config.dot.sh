@@ -70,6 +70,9 @@ else
     ## '${HOME}/data_maestro/ords/midas-bld'.
     __toplevel_leaf=$(basename ${__toplevel})
     MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}}
+    if [ ! -d "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+        mkdir -p ${MIDAS_COMPILE_DIR_MAIN}
+    fi
     ##  linking the build directory where it used to be
     if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
         echo "${__compiledir_link} already exists: not creating link."
