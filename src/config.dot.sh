@@ -61,14 +61,19 @@ if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; th
     [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
     MIDAS_COMPILE_DIR_MAIN=${__compiledir_link}
 else
+    if [[ -n "${MIDAS_COMPILE_DIR_MAIN}" && "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
+        echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path"
+        echo "   MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} was given"
+        exit 1
+    fi
     ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
     ## we add the leaf part of the toplevel directory to
     ## '${HOME}/data_maestro/ords/midas-bld'.
     __toplevel_leaf=$(basename ${__toplevel})
     MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}}
     ##  linking the build directory where it used to be
-    if [ -d  "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
-        echo "${__compiledir_link}  already exists: not creating link."
+    if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
+        echo "${__compiledir_link} already exists: not creating link."
     else
         ln -s ${MIDAS_COMPILE_DIR_MAIN} ${__compiledir_link}
     fi
