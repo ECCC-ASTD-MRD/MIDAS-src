@@ -60,16 +60,20 @@ if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; th
     [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
     MIDAS_COMPILE_DIR_MAIN=${__compiledir_link}
 else
-    if [[ -n "${MIDAS_COMPILE_DIR_MAIN}" && "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
-        echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path"
-        echo "   MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} was given"
-        exit 1
+    if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+        if [[ "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
+            echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path" >&2
+            echo "   MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} was given" >&2
+            exit 1
+        fi
+    else
+        ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
+        ## we add the leaf part of the toplevel directory to
+        ## '${HOME}/data_maestro/ords/midas-bld'.
+        __toplevel_leaf=$(basename ${__toplevel})
+        MIDAS_COMPILE_DIR_MAIN=${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}
     fi
-    ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
-    ## we add the leaf part of the toplevel directory to
-    ## '${HOME}/data_maestro/ords/midas-bld'.
-    __toplevel_leaf=$(basename ${__toplevel})
-    MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}}
+
     if [ ! -d "${MIDAS_COMPILE_DIR_MAIN}" ]; then
         mkdir -p ${MIDAS_COMPILE_DIR_MAIN}
     fi
