@@ -40,83 +40,6 @@ MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
 MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
 MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 
-
-###########################################################
-##  LESS-USER-FRIENDLY CONFIGURATION
-##
-##  these should not be changed unless you know what you're doing
-##  it can impact the maestro testing suite or the cleaning targets
-##  in unwated ways
-MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
-MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
-__install_always_midas=true
-
-__compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
-
-## If 'MIDAS_COMPILE_DIR_MAIN' is equal to the special value
-## 'build_directory_local_to_the_repository', then we keep the build
-## directory local to the Git repository.
-if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
-    echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
-    [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
-    __midas_compile_dir_main=${__compiledir_link}
-else
-    if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
-        if [[ "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
-            __midas_compile_dir_main=${MIDAS_COMPILE_DIR_MAIN}
-            __midas_compile_dir_main_var_name=MIDAS_COMPILE_DIR_MAIN
-            echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path" >&2
-            echo "   ${__midas_compile_dir_main_var_name}=${__midas_compile_dir_main} was given" >&2
-            exit 1
-        fi
-        __midas_compile_dir_main=${MIDAS_COMPILE_DIR_MAIN}
-    else
-        ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
-        ## we add the leaf part of the toplevel directory to
-        ## '${HOME}/data_maestro/ords/midas-bld'.
-        __toplevel_leaf=$(basename ${__toplevel})
-        __midas_compile_dir_main=${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}
-    fi
-
-    if [ ! -d "${__midas_compile_dir_main}" ]; then
-        mkdir -p ${__midas_compile_dir_main}
-    fi
-    ##  linking the build directory where it used to be
-    if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
-        echo "${__compiledir_link} already exists: not creating link."
-    else
-        ln -s ${__midas_compile_dir_main} ${__compiledir_link}
-    fi
-fi
-MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
-
-__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
-__keep_jobsubmit_ofile=false
-__ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
-
-###########################################################
-##  compilation and SSM needed for compilation
-##
-## -- should not change that
-set +x
-
-# User-specified compilation options
-#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
-#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
-if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
-     echo "..."
-     echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
-     echo "..."
-fi
-
-# Set the optimization level
-if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-    FOPTMIZ=4
-else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    return 1
-fi
-
 ## https://stackoverflow.com/a/4025065
 ## if $1 = $2, returns '='
 ## if $1 < $2, returns '<'
@@ -167,6 +90,83 @@ check_ec_atomic_profile_version () {
     fi
 }
 
+set +x
+__compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
+
+## If 'MIDAS_COMPILE_DIR_MAIN' is equal to the special value
+## 'build_directory_local_to_the_repository', then we keep the build
+## directory local to the Git repository.
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
+    echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
+    [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
+    __midas_compile_dir_main=${__compiledir_link}
+else
+    if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+        if [[ "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
+            __midas_compile_dir_main_var_name=MIDAS_COMPILE_DIR_MAIN
+            echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path"
+            echo "   ${__midas_compile_dir_main_var_name}=${MIDAS_COMPILE_DIR_MAIN}"
+            echo "was given"
+            return 1
+        fi
+        __midas_compile_dir_main=${MIDAS_COMPILE_DIR_MAIN}
+    else
+        ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
+        ## we add the leaf part of the toplevel directory to
+        ## '${HOME}/data_maestro/ords/midas-bld'.
+        __toplevel_leaf=$(basename ${__toplevel})
+        __midas_compile_dir_main=${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}
+    fi
+
+    if [ ! -d "${__midas_compile_dir_main}" ]; then
+        mkdir -p ${__midas_compile_dir_main}
+    fi
+    ##  linking the build directory where it used to be
+    if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
+        echo "${__compiledir_link} already exists: not creating link."
+    else
+        ln -s ${__midas_compile_dir_main} ${__compiledir_link}
+    fi
+fi
+set -x
+MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
+
+###########################################################
+##  LESS-USER-FRIENDLY CONFIGURATION
+##
+##  these should not be changed unless you know what you're doing
+##  it can impact the maestro testing suite or the cleaning targets
+##  in unwated ways
+MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
+MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
+__install_always_midas=true
+
+__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+__keep_jobsubmit_ofile=false
+__ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
+
+###########################################################
+##  compilation and SSM needed for compilation
+##
+## -- should not change that
+set +x
+
+# User-specified compilation options
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
+if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
+     echo "..."
+     echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
+     echo "..."
+fi
+
+# Set the optimization level
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
+    FOPTMIZ=4
+else
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
+    return 1
+fi
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
