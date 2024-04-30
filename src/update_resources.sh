@@ -53,10 +53,10 @@ typeset -r check_result_catchup=$(awk -F= '/^CHECK_RESULTS_CATCHUP=/ {print $2}'
 typeset -r clean_unittest_catchup=$(awk -F= '/^CLEAN_UNITTEST_CATCHUP=/ {print $2}' ${resources_file})
 if [ "${check_result_catchup}"   -eq "${check_result_catchup_expected_value}" -a \
      "${clean_unittest_catchup}" -eq "${clean_unittest_catchup_expected_value}" ]; then
-    echo "Both variables 'CHECK_RESULTS_CATCHUP' and 'CLEAN_UNITTEST_CATCHUP' are already set"
-    echo "to ${check_result_catchup_expected_value} and ${clean_unittest_catchup_expected_value}"
-    echo "respectively in '${resources_file}'."
-    echo "We will not modify the resources file"
+    ## echo "Both variables 'CHECK_RESULTS_CATCHUP' and 'CLEAN_UNITTEST_CATCHUP' are already set"
+    ## echo "to ${check_result_catchup_expected_value} and ${clean_unittest_catchup_expected_value}"
+    ## echo "respectively in '${resources_file}'."
+    ## echo "We will not modify the resources file"
     exit
 fi
 
