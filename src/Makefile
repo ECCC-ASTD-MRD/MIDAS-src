@@ -109,7 +109,7 @@ VERSION := $(shell $(VERSION_SCRIPT))
 endif
 __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
 ifndef MIDAS_COMPILE_DIR_MAIN
-MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
+MIDAS_COMPILE_DIR_MAIN := $(shell git rev-parse --show-toplevel)/compiledir
 endif
 ifndef MIDAS_ABS_LEAFDIR
 MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | sed $(__sed_env_extr))
@@ -120,7 +120,7 @@ endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst cleaninst
+.PHONY: clean cleanall cleanabs cleanobj cleandep cleanlst cleaninst
 
 
 clean:	#> delete current build directory (keep installed programs) 
