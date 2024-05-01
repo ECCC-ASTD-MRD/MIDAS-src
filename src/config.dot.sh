@@ -129,7 +129,7 @@ else
     fi
 fi
 set -x
-MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
+export MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
 
 ###########################################################
 ##  LESS-USER-FRIENDLY CONFIGURATION
