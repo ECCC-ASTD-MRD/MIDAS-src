@@ -381,8 +381,8 @@ then
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
 
-        echo "Update resources according to environment variables (called from 'midas_build')"
 	${__toplevel}/src/update_resources.sh ${__toplevel}
+        ${__toplevel}/maestro/suites/midas_system_tests/update_abs.dot.sh ${__toplevel}
 
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then
