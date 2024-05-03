@@ -109,7 +109,7 @@ VERSION := $(shell $(VERSION_SCRIPT))
 endif
 __sed_env_extr='s/^.*=$${.*:-\(.*\)}/\1/'
 ifndef MIDAS_COMPILE_DIR_MAIN
-MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN= | sed $(__sed_env_extr))
+$(error MIDAS_COMPILE_DIR_MAIN is not set, source $(FILE_CFG))
 endif
 ifndef MIDAS_ABS_LEAFDIR
 MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | sed $(__sed_env_extr))
@@ -120,7 +120,7 @@ endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst cleaninst
+.PHONY: clean cleanall cleanabs cleanobj cleandep cleanlst cleaninst
 
 
 clean:	#> delete current build directory (keep installed programs) 
@@ -455,6 +455,7 @@ info:	#> print build configuration
 install: $(ABS_INSTALL)			#> install compiled programs
 	@echo Update resources according to environment variables called from make install
 	@echo $(shell $(SRC_ROOT)/update_resources.sh $(SRC_ROOT)/../)
+	@echo $(shell $(SRC_ROOT)/../maestro/suites/midas_system_tests/update_abs.dot.sh $(SRC_ROOT)/../)
 ifeq ($(sort $(ABS_COMPILED)), $(sort $(ABS)))
 	@echo
 	@echo All absolutes have been installed in $(ABS_INSTALL_DIR) from $(CURDIR)
