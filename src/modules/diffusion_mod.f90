@@ -117,8 +117,7 @@ contains
     logical  :: rewrit, file_exist
     real     :: dumwrk(1)
 
-    integer  :: fnom,fstouv,fstecr,fstfrm,fclos
-    external :: fnom,fstouv,fstecr,fstfrm,fclos
+    integer, external :: fnom,fstouv,fstecr,fstfrm,fclos
 
     integer  :: diffID
 
