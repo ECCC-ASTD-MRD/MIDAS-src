@@ -1073,6 +1073,8 @@ contains
     character(len=1) :: grtyp
     character(len=*), parameter :: fileName = 'grid_weight.bin'
 
+    call utl_tmg_start(186,'low-level--hco_weight')
+
     deg2rad= MPC_RADIANS_PER_DEGREE_R8 
     sindx  = 6
 
@@ -1202,6 +1204,7 @@ contains
       ierr = fclos(gridWeightFileUnit)
     end if
 
+    call utl_tmg_stop(186)
   end subroutine hco_weight
 
   !--------------------------------------------------------------------------

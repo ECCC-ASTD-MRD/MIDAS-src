@@ -1678,8 +1678,10 @@ module gridStateVectorFileIO_mod
                                     statevector%myLatBeg:statevector%myLatEnd),4)
         if ((mmpi_nprocs > 1) .and. statevector%mpi_local) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
-          call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+          call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
+          call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4', &
                                gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
+          call utl_tmg_stop(183)
         else
           ! just copy when either nprocs is 1 or data is global
           gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -1710,9 +1712,11 @@ module gridStateVectorFileIO_mod
           work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
           !- Writing to file
+          call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
           ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                         nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                         ig1, ig2, ig3, ig4, datyp, .false.)
+          call utl_tmg_stop(184)
         end if ! iDoWriting
 
       end if
@@ -1742,8 +1746,10 @@ module gridStateVectorFileIO_mod
 
           nsize = statevector%lonPerPEmax*statevector%latPerPEmax
           if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
+            call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
             call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
                                  gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+            call utl_tmg_stop(183)
           else
             ! just copy when either nprocs is 1 or data is global
             gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -1861,29 +1867,35 @@ module gridStateVectorFileIO_mod
                                        interpDegree='NEAREST', extrapDegree_opt='NEUTRAL')
 
               !- Writing to file
+              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
                             statevector%hco_physics%ni, statevector%hco_physics%nj, &
                             nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                             statevector%hco_physics%ig1, statevector%hco_physics%ig2, &
                             statevector%hco_physics%ig3, statevector%hco_physics%ig4, &
                             datyp, .false.)
+              call utl_tmg_stop(184)
               deallocate(work2dFile_r4)
 
             else
 
               !- Writing to file
+              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
               ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, datyp, .false.)
+              call utl_tmg_stop(184)
 
             end if
 
             if (statevector%oceanMask%maskPresent) then
               if (.not.allocated(mask)) allocate(mask(ni,nj))
               call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
+              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
               ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, 2, .false.)
+              call utl_tmg_stop(184)
             end if
 
           end if ! iDoWriting

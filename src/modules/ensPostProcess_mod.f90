@@ -1648,6 +1648,8 @@ contains
     real(8), save, allocatable    :: weight(:,:)
     logical, save                 :: firstCall = .true.
 
+    call utl_tmg_start(185,'--PrintRmsStats')
+
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
 
@@ -1784,6 +1786,7 @@ contains
     deallocate(scaleFactor)
     deallocate(rmsvalue)
 
+    call utl_tmg_stop(185)
   end subroutine epp_printRmsStats
 
 end module ensPostProcess_mod
