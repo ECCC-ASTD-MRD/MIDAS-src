@@ -96,7 +96,7 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFromFile: START reading file: ', trim(fileName)
     write(*,*) 'gio_readFromFile: file format: ', trim(utl_fileType(trim(fileName)))
        
-    call utl_tmg_start(160,'low-level--gsv_readFromFile')
+    call utl_tmg_start(160,'low-level--gio_readFromFile')
 
     if (present(stepIndex_opt)) then
       stepIndex = stepIndex_opt
@@ -1508,7 +1508,7 @@ module gridStateVectorFileIO_mod
 
     call msg('gio_writeToFile', 'START')
 
-    call utl_tmg_start(161,'low-level--gsv_writeToFile')
+    call utl_tmg_start(161,'low-level--gio_writeToFile')
 
     call readNml()
 
