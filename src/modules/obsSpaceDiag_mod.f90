@@ -658,7 +658,7 @@ contains
     ! Locals:
     integer :: nulnam,ierr,fnom,fclos
     integer :: familyIndex, elementIndex
-    
+
     namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
         numFamily,familyList,numElement,elementList,lrandom, &
         diagn_save,diagn_all,diagn_num,diagn_stnid,diagn_varno,diagn_unilev,     &
@@ -1549,7 +1549,7 @@ contains
     character(len=256), optional, intent(in)    :: label_opt
 
     ! Locals:
-    integer, external :: fnom, fclos
+    integer, external :: fclos
     real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
     real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
     real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0

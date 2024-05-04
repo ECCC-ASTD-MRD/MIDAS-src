@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * New treatment of lake ice activated with namelist variable `spreadIceIncOverLakes` (#914 and !834)
 
 ### Changed
 
