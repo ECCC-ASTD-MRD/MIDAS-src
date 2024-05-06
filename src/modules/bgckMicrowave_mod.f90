@@ -36,9 +36,9 @@ module bgckMicrowave_mod
   logical :: mwbg_useUnbiasedObsForClw 
   logical :: mwbg_resetQc                      ! reset Qc flags
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
-  logical :: mwbg_avoidSiObsRejectTempChan     ! prevent scattering index from obs to reject temperature channels
-  logical :: mwbg_avoidSiObsEcmwfRejectTempChan! prevent scattering index from obs (ecmwf formula) to reject temperature channels
-  logical :: mwbg_skipUpperHuChanRejectByCh17Omp ! prevent ch.17 omp to reject ch 20-22 for atms
+  logical :: mwbg_siObsRejectTempChan          ! scattering index from obs can reject temperature channels
+  logical :: mwbg_siObsEcmwfRejectTempChan     ! scattering index from obs (ecmwf formula) can reject temperature channels
+  logical :: mwbg_ch17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
 
@@ -101,9 +101,9 @@ module bgckMicrowave_mod
   logical            :: useUnbiasedObsForClw          !
   logical            :: resetQc                       ! reset Qc flags option
   logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
-  logical            :: avoidSiObsRejectTempChan      ! prevent scattering index from obs to reject temperature channels
-  logical            :: avoidSiObsEcmwfRejectTempChan ! prevent scattering index from obs (ecmwf formula) to reject temperature channels
-  logical            :: skipUpperHuChanRejectByCh17Omp! prevent ch.17 omp to reject ch 20-22 for atms
+  logical            :: siObsRejectTempChan           ! scattering index from obs can reject temperature channels
+  logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
+  logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -112,8 +112,8 @@ module bgckMicrowave_mod
                     cloudyClwThresholdBcorr, modLSQ, &
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
-                    avoidSiObsRejectTempChan, avoidSiObsEcmwfRejectTempChan, &
-                    skipUpperHuChanRejectByCh17Omp, atmsRogueFactor, &
+                    siObsRejectTempChan, siObsEcmwfRejectTempChan, &
+                    ch17OmpRejectUpperHuChan, atmsRogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, skipTestArr
                     
@@ -140,9 +140,9 @@ contains
     rejectWhenSiMissing           = .false.
     resetQc                       = .false.
     modLSQ                        = .false.
-    avoidSiObsRejectTempChan      = .false.
-    avoidSiObsEcmwfRejectTempChan = .false.
-    skipUpperHuChanRejectByCh17Omp= .false.
+    siObsRejectTempChan           = .true.
+    siObsEcmwfRejectTempChan      = .true.
+    ch17OmpRejectUpperHuChan      = .true.
     useAtmsCh17OmpThreshRogueCheck= .false.
     useScatIndexOverWaterObsClearsky = .false.
     atmsRogueFactor(:)            = -1.0
@@ -167,11 +167,11 @@ contains
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
     mwbg_calcLandQualifierTerrainType = modLSQ
-    mwbg_avoidSiObsRejectTempChan = avoidSiObsRejectTempChan
-    mwbg_avoidSiObsEcmwfRejectTempChan = avoidSiObsEcmwfRejectTempChan
+    mwbg_siObsRejectTempChan = siObsRejectTempChan
+    mwbg_siObsEcmwfRejectTempChan = siObsEcmwfRejectTempChan
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
-    mwbg_skipUpperHuChanRejectByCh17Omp = skipUpperHuChanRejectByCh17Omp
+    mwbg_ch17OmpRejectUpperHuChan = ch17OmpRejectUpperHuChan
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -3584,13 +3584,13 @@ contains
 
       allocate(mwbg_bit7(actualNumChannel))
     
-      !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only    
-      if (mwbg_skipUpperHuChanRejectByCh17Omp) then
-        allocate(mwbg_chanRejectForChan2Omp(3))
-        mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19/)
-      else
+      !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only
+      if (mwbg_ch17OmpRejectUpperHuChan) then
         allocate(mwbg_chanRejectForChan2Omp(6))
         mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
+      else
+        allocate(mwbg_chanRejectForChan2Omp(3))
+        mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19/)
       end if
       
       ! Channel sets for rejection in test 9 
@@ -6096,7 +6096,7 @@ contains
             lflagchn(16:22) = .true.
           end if
 
-          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej .and. .not. mwbg_avoidSiObsEcmwfRejectTempChan) then
+          if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_LTrej .and. mwbg_siObsEcmwfRejectTempChan) then
             lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           end if
         else
@@ -6107,7 +6107,7 @@ contains
         end if
 
         if (scatIndexOverWaterObsEcmwf > scatec_atms_nrl_UTrej) lflagchn(7:9) = .true.
-        if (scatIndexOverWaterObsUsed > scatbg_atms_nrl_LTrej .and. .not. mwbg_avoidSiObsRejectTempChan) then
+        if (scatIndexOverWaterObsUsed > scatbg_atms_nrl_LTrej .and. mwbg_siObsRejectTempChan) then
           lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
         end if
         if (scatIndexOverWaterObsUsed > scatbg_atms_nrl_UTrej) lflagchn(7:9) = .true.
