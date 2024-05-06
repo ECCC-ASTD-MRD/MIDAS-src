@@ -6085,9 +6085,10 @@ contains
           if (.not. instrumentIsAllskyHu) lflagchn(21:22) = .true.
         end if
 
-        scatIndexOverWaterObsUsed = scatIndexOverWaterObs
         if (instrumentIsAllskyHu .and. mwbg_useScatIndexOverWaterObsClearsky) then
           scatIndexOverWaterObsUsed = scatIndexOverWaterObsClearsky
+        else
+          scatIndexOverWaterObsUsed = scatIndexOverWaterObs
         end if
         if (instrumentIsAllskyHu) then
           scatwObsFGaveraged = 0.5d0 * (scatIndexOverWaterObs + scatIndexOverWaterFG)

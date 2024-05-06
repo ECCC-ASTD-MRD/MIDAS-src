@@ -275,7 +275,7 @@ contains
     !- 2.1 Radiance data
     if (obs_famexist(obsSpaceData,'TO')) then
       call oer_readObsErrorsTOVS
-      call oer_getInstrumIdsInflateErrAllsky
+      call oer_setInstrumIdArrInflateErrAllsky
     else 
       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
     end if
@@ -819,11 +819,11 @@ contains
   end subroutine oer_readObsErrorsTOVS
 
   !--------------------------------------------------------------------------
-  ! oer_getInstrumIdsInflateErrAllsky
+  ! oer_setInstrumIdArrInflateErrAllsky
   !--------------------------------------------------------------------------
-  subroutine oer_getInstrumIdsInflateErrAllsky
+  subroutine oer_setInstrumIdArrInflateErrAllsky
     !
-    ! :Purpose: to get instrument IDs that all-sky error inflation is requested.
+    ! :Purpose: set arrays of instrument IDs for which the error inflation is requested in all-sky TT/HU.
     !
     implicit none
 
@@ -836,7 +836,7 @@ contains
       if (instrumentNamesInflateErrAllskyTt(sensorIndex) /= '***UNDEFINED***') then
         if (instrumentIdsInflateErrAllskyTt(sensorIndex) == -1) then
           write(*,*) sensorIndex, instrumentNamesInflateErrAllskyTt(sensorIndex)
-          call utl_abort('oer_getInstrumIdsInflateErrAllsky: Unknown instrument name to inflate error for all-sky TT')
+          call utl_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky TT')
         end if
       else
         numInstrumInflateErrAllskyTt = sensorIndex - 1
@@ -850,7 +850,7 @@ contains
       if (instrumentNamesInflateErrAllskyHu(sensorIndex) /= '***UNDEFINED***') then
         if (instrumentIdsInflateErrAllskyHu(sensorIndex) == -1) then
           write(*,*) sensorIndex, instrumentNamesInflateErrAllskyHu(sensorIndex)
-          call utl_abort('oer_getInstrumIdsInflateErrAllsky: Unknown instrument name to inflate error for all-sky Hu')
+          call utl_abort('oer_setInstrumIdArrInflateErrAllsky: Unknown instrument name to inflate error for all-sky Hu')
         end if
       else
         numInstrumInflateErrAllskyHu = sensorIndex - 1
@@ -859,13 +859,13 @@ contains
     end do
 
     if (mmpi_myid == 0) then
-      write(*,*) 'oer_getInstrumIdsInflateErrAllsky: Instrument IDs to inflate error for all-sky TT: ', &
+      write(*,*) 'oer_setInstrumIdArrInflateErrAllsky: Instrument IDs to inflate error for all-sky TT: ', &
                   instrumentIdsInflateErrAllskyTt(1:numInstrumInflateErrAllskyTt)
-      write(*,*) 'oer_getInstrumIdsInflateErrAllsky: Instrument IDs to inflate error for all-sky HU: ', &
+      write(*,*) 'oer_setInstrumIdArrInflateErrAllsky: Instrument IDs to inflate error for all-sky HU: ', &
                   instrumentIdsInflateErrAllskyHu(1:numInstrumInflateErrAllskyHu)
     end if
     
-  end subroutine oer_getInstrumIdsInflateErrAllsky
+  end subroutine oer_setInstrumIdArrInflateErrAllsky
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsCONV
