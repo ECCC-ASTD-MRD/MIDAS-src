@@ -3541,7 +3541,7 @@ contains
     integer :: iRej, iNumSeaIce, JI, actualNumChannel, channelIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     logical :: waterobs, grossrej, reportHasMissingTb
-    logical :: cloudobs, iwvreject, precipobs, terrainTypeIndiceIsReset
+    logical :: cloudobs, iwvreject, precipobs
     real(8) :: zdi, scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, SeaIce, riwv
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: firstCall = .true.
@@ -3668,7 +3668,7 @@ contains
     !###############################################################################
     call mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                             scatIndexOverWaterObsClearsky,scatIndexOverWaterObsEcmwf, &
-                            terrainTypeIndiceIsReset, iNumSeaIce, iRej, SeaIce, &
+                            iNumSeaIce, iRej, SeaIce, &
                             headerIndex, sensorIndex, obsSpaceData)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -3697,7 +3697,7 @@ contains
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, precipobs, &
                                              scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                             terrainTypeIndiceIsReset, iwvreject, riwv, &
+                                             iwvreject, riwv, &
                                              zdi, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                              headerIndex, sensorIndex, obsSpaceData)
@@ -5163,7 +5163,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                 scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                terrainTypeIndiceIsReset, iNumSeaIce, iRej, SeaIce, &
+                                iNumSeaIce, iRej, SeaIce, &
                                 headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 5 ATMS channels:
@@ -5194,7 +5194,6 @@ contains
     integer,          intent(out)   :: iRej           ! counter for number locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej       ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs       ! .true. if open water point (away from coasts and sea-ice)
-    logical,          intent(out)   :: terrainTypeIndiceIsReset ! .true. if terrain type is set to 0 when ice>=0.55.
     real(8),          intent(out)   :: scatIndexOverWaterObsClearsky ! clear-sky scattering index from tb89 & tb165 from obs over water
     real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165 from obs over water
     real(8),          intent(out)   :: SeaIce         ! computed sea-ice fraction from tb23 & tb50
@@ -5216,7 +5215,6 @@ contains
 
     iNumSeaIce = 0
     iRej = 0
-    terrainTypeIndiceIsReset = .false.
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -5350,7 +5348,6 @@ contains
           calcTerrainTypeIndice = 0
 
           if (instrumentIsAllskyHu) then
-            terrainTypeIndiceIsReset = .true.
             call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice)
           end if
         end if
@@ -5952,7 +5949,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, precipobs, &
                                                  scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                                 terrainTypeIndiceIsReset, iwvreject, riwv, &
+                                                 iwvreject, riwv, &
                                                  zdi, drycnt, landcnt, &
                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                  headerIndex, sensorIndex, obsSpaceData)
@@ -5971,7 +5968,6 @@ contains
     logical,          intent(in)    :: qcRejectLogic(:)              ! .true. if channel is rejected
     real(8),          intent(in)    :: scatIndexOverWaterObsClearsky ! clear-sky scattering index from tb89 & tb165 from obs over water
     real(8),          intent(in)    :: scatIndexOverWaterObsEcmwf    ! ECMWF scattering index from tb89 & tb165
-    logical,          intent(in)    :: terrainTypeIndiceIsReset      ! .true. if terrain type is set to 0 when ice>=0.55.
     logical,          intent(in)    :: grossrej  ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(in)    :: waterobs  ! if obs over open-water
     logical,          intent(in)    :: iwvreject ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
@@ -6031,7 +6027,7 @@ contains
         if (iwvreject) lflagchn(20:22) = .true.                 ! AMSU-B (like 4,3)
 
         surfTypeIsIce = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_seaice)
-        if (instrumentIsAllskyHu .and. surfTypeIsIce .and. terrainTypeIndiceIsReset) lflagchn(20:22) = .true.
+        if (instrumentIsAllskyHu .and. surfTypeIsIce) lflagchn(20:22) = .true.
 
         ! Dryness index (for AMSU-B channels 19-22 assimilated over land/sea-ice)
         ! Channel AMSUB-3 (ATMS channel 22) is rejected for a dryness index >    0.
