@@ -138,8 +138,6 @@
 
 /
  &NAMOER
-  mwAllskyTtInflateByOmp = .true.,
-  mwAllskyTtInflateByClwDiff = .true.,
 /
  &NAMCSR
   burpSatName(1)  = '^GOES11',

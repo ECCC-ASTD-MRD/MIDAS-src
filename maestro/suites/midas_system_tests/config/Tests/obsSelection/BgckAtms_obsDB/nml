@@ -134,7 +134,5 @@
     cglobal(14)="OUI"
 /
  &NAMOER
-  mwAllskyTtInflateByOmp = .false.,
-  mwAllskyTtInflateByClwDiff = .false.,
   readOldSymmetricObsErrFile = .false.,
 /

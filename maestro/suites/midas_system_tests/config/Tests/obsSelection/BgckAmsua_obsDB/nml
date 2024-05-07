@@ -151,7 +151,5 @@
     cglobal(14)="OUI"
 /
 &NAMOER
-  mwAllskyTtInflateByOmp = .true.,
-  mwAllskyTtInflateByClwDiff = .true.,
 /
 
