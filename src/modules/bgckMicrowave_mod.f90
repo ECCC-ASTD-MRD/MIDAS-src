@@ -5718,9 +5718,10 @@ contains
     scatIndexOverWaterObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
 
     instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
-    scatIndexOverWaterObsUsed = scatIndexOverWaterObs
     if (instrumentIsAllskyHu .and. mwbg_useScatIndexOverWaterObsClearsky) then
       scatIndexOverWaterObsUsed = scatIndexOverWaterObsClearsky
+    else
+      scatIndexOverWaterObsUsed = scatIndexOverWaterObs
     end if
     if (.not. grossrej) then
       allocate(obsTb(actualNumChannel))
