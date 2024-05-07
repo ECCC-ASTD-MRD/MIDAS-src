@@ -227,6 +227,7 @@
 /
  &NAMOER
   NEW_OER_SW=.true.
+  instrumentNamesInflateErrAllskyTt(1) = 'amsua'
   mwAllskyTtInflateByOmp = .true.
   mwAllskyTtInflateByClwDiff = .true.
 /
