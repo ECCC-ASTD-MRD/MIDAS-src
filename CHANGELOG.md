@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * When compiling with debug or code coverage options, we avoid
    running `check` and `clean` tasks in the system tests (#900 and !830)
  * Added `NAMCLIMATOLOGY` namelist variable `inputClimVarNames` to generalize specification of the input climatology file NOMVARs (#921 and !831)
+ * Option to not recenter sub-sample used to initialize medium-range forecasts (#918 and !826)
+   * New namelist variables `recenterSubSample` and `recenterSubSampleUnPert`
 
 ### Changed
 
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix the documentation generation to use the correct build directory name (#920 and !828)
+ * Bug fix for proper use of CLW when both rttov and rttovScatt simulate subset of channels (#919 and !827)
 
 ### Removed
 
@@ -31,8 +34,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Option to not recenter sub-sample used to initialize medium-range forecasts (#918 and !826)
-   * New namelist variables `recenterSubSample` and `recenterSubSampleUnPert`
  * Update documentation for release `v_4.0.0` (#916 and !824)
  * The MIDAS scripts have been generalized to support programs that
    only have observation files as output (#913 and !823)
@@ -82,7 +83,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Bug fix for proper use of CLW when both rttov and rttovScatt simulate subset of channels (#919 and !827)
  * Bug fix for uninitialized module variable `tvs_mwInstrumUsingHydrometeors_tl` (#889 and !813)
    * WARNING: minor impact on results when assimilating all-sky radiances (i.e. IC4 config of GDPS)
  * Introduction of a major bug fix to correct a problem introduced in merge request !797 (#909 and !817)
