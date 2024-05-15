@@ -1062,21 +1062,79 @@ contains
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
     ! Locals:
-    integer :: sindx
-    integer :: ni,nj
+    integer :: sindx, ierr, fnom
+    integer :: ni,nj, iun, ni_from_file, nj_from_file
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
     real(8)  :: deg2rad,dx,dy,sum_weight
     real(8)  :: lon1,lon2,lon3,lat1,lat2,lat3
     real(4), allocatable :: xg(:),yg(:)
-               
+    logical :: fileExist
+    character(len=1) :: grtyp
+    character(len=100) :: nistr1, njstr1, nistr2, njstr2
+    character(len=*), parameter :: fileName = 'grid_weight.bin'
+
     deg2rad= MPC_RADIANS_PER_DEGREE_R8 
     sindx  = 6
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
-      write(*,*) 'compute weights for Yin_Yang grid'      
       ni = nint(hco%tictacU(sindx))
       nj = nint(hco%tictacU(sindx+1))
+    else
+      ni = hco%ni
+      nj = hco%nj
+    end if
+
+    if ( mmpi_myid == 0 ) then
+      inquire(file = trim(fileName), exist = fileExist)
+      if ( fileExist ) then
+        ierr = fnom(iun,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
+
+        !! Read the first three bits of information from the file
+        !! to make sure it is consistent with what we expect.
+        read(iun) grtyp, ni_from_file, nj_from_file
+
+        !! check if the grtyp in the file is the same as the 'hco%grtyp'
+        if (trim(hco%grtyp) /= grtyp) then
+          call utl_abort('hco_weight: the grid_type in the file '// trim(fileName) // &
+               ' is ' // grtyp // ' and it is different from ' // trim(hco%grtyp) // &
+               ' in the ''struct_hco''')
+        end if
+
+        !! check if the 'ni' in the file is the same as the grid
+        if ( ni /= ni_from_file ) then
+          write(nistr1,'(I)') ni
+          write(nistr2,'(I)') ni_from_file
+
+          call utl_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
+               ' is ' // trim(nistr2) // ' and it is different from ' // trim(nistr1) // &
+               ' in the ''struct_hco''')
+        end if
+
+        !! check if the 'nj' in the file is the same as the grid
+        if ( nj /= nj_from_file ) then
+          write(njstr1,'(I)') nj
+          write(njstr2,'(I)') nj_from_file
+
+          call utl_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
+               ' is ' // trim(njstr2) // ' and it is different from ' // trim(njstr1) // &
+               ' in the ''struct_hco''')
+        end if
+
+        !! Now that we are sure that the content is consistent with
+        !! what we have, we read the file
+        read(iun) weight
+      end if !! End of 'if ( fileExist ) then'
+    end if !! End of 'if ( mmpi_myid == 0 ) then'
+
+    call rpn_comm_bcast(fileExist, 1, "MPI_LOGICAL", 0, "GRID", ierr)
+    if ( fileExist ) then
+      call rpn_comm_bcast(weight, ni*nj, "MPI_REAL8", 0, "GRID", ierr)
+      return
+    end if
+
+    if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
+      write(*,*) 'compute weights for Yin_Yang grid'
       allocate (F_mask_8 (ni,nj))
       allocate (F_mask(ni,2*nj))
       allocate (xg(ni))
@@ -1110,10 +1168,10 @@ contains
       deallocate(yg)
     else
       write(*,*) 'compute weights for grid type: ',hco%grtyp
-      do latIndex=1,hco%nj
-        latIndexP1 = min(hco%nj,latIndex+1)
-        do lonIndex=1,hco%ni
-          lonIndexP1 = min(hco%ni,lonIndex+1)
+      do latIndex=1,nj
+        latIndexP1 = min(nj,latIndex+1)
+        do lonIndex=1,ni
+          lonIndexP1 = min(ni,lonIndex+1)
           lon1 = hco%lon2d_4(lonIndex,latIndex)
           lon2 = hco%lon2d_4(lonIndexP1,latIndex)
           lon3 = hco%lon2d_4(lonIndex,latIndexP1)
