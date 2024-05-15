@@ -1187,6 +1187,13 @@ contains
       weight = weight/sum_weight      
     end if
 
+    !! Save the weight in the file
+    if ( mmpi_myid == 0 ) then
+      ierr = fnom(iun,trim(fileName), 'FTN+SEQ+UNF', 0)
+      write(iun), hco%grtyp, ni, nj
+      write(iun), weight
+    end if
+
   end subroutine hco_weight
 
   !--------------------------------------------------------------------------
