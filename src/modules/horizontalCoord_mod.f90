@@ -1071,7 +1071,6 @@ contains
     real(4), allocatable :: xg(:),yg(:)
     logical :: fileExist
     character(len=1) :: grtyp
-    character(len=100) :: nistr1, njstr1, nistr2, njstr2
     character(len=*), parameter :: fileName = 'grid_weight.bin'
 
     deg2rad= MPC_RADIANS_PER_DEGREE_R8 
@@ -1105,21 +1104,15 @@ contains
 
         !! check if the 'ni' in the file is the same as the grid
         if ( ni /= ni_from_file ) then
-          write(nistr1,'(I)') ni
-          write(nistr2,'(I)') ni_from_file
-
           call utl_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
-               ' is ' // trim(nistr2) // ' and it is different from ' // trim(nistr1) // &
+               ' is ' // str(ni_from_file) // ' and it is different from ' // str(ni) // &
                ' in the ''struct_hco''')
         end if
 
         !! check if the 'nj' in the file is the same as the grid
         if ( nj /= nj_from_file ) then
-          write(njstr1,'(I)') nj
-          write(njstr2,'(I)') nj_from_file
-
           call utl_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
-               ' is ' // trim(njstr2) // ' and it is different from ' // trim(njstr1) // &
+               ' is ' // str(nj_from_file) // ' and it is different from ' // str(nj) // &
                ' in the ''struct_hco''')
         end if
 
