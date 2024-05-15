@@ -1088,6 +1088,8 @@ contains
     if ( mmpi_myid == 0 ) then
       inquire(file = trim(fileName), exist = fileExist)
       if ( fileExist ) then
+        write(*,*) 'hco_weight: Read weight from ''' // trim(fileName) // ''''
+
         ierr = fnom(iun,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
 
         !! Read the first three bits of information from the file
@@ -1189,6 +1191,7 @@ contains
 
     !! Save the weight in the file
     if ( mmpi_myid == 0 ) then
+      write(*,*) 'hco_weight: Write weight to ''' // trim(fileName) // ''''
       ierr = fnom(iun,trim(fileName), 'FTN+SEQ+UNF', 0)
       write(iun), hco%grtyp, ni, nj
       write(iun), weight
