@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added namelist variable to control precision of surface fields written to mean/rms files by `ensPostProcess` (#925 and !837)
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
  * Added new namelist variables to allow deactivating extra thinning in `prepcma` (#870 and !809)
  * Added the branch v_3.9-RandD in the official documentation and activate the automatic tests for that branche (#888 and !808)
