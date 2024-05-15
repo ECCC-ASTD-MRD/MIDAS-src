@@ -1063,7 +1063,7 @@ contains
     
     ! Locals:
     integer :: sindx, ierr, fnom, fclos
-    integer :: ni,nj, iun, ni_from_file, nj_from_file
+    integer :: ni,nj, iun, niFromFile, njFromFile
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
     real(8)  :: deg2rad,dx,dy,sum_weight
@@ -1093,7 +1093,7 @@ contains
 
         !! Read the first three bits of information from the file
         !! to make sure it is consistent with what we expect.
-        read(iun) grtyp, ni_from_file, nj_from_file
+        read(iun) grtyp, niFromFile, njFromFile
 
         !! check if the grtyp in the file is the same as the 'hco%grtyp'
         if (trim(hco%grtyp) /= grtyp) then
@@ -1103,16 +1103,16 @@ contains
         end if
 
         !! check if the 'ni' in the file is the same as the grid
-        if ( ni /= ni_from_file ) then
+        if ( ni /= niFromFile ) then
           call utl_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
-               ' is ' // str(ni_from_file) // ' and it is different from ' // str(ni) // &
+               ' is ' // str(niFromFile) // ' and it is different from ' // str(ni) // &
                ' in the ''struct_hco''')
         end if
 
         !! check if the 'nj' in the file is the same as the grid
-        if ( nj /= nj_from_file ) then
+        if ( nj /= njFromFile ) then
           call utl_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
-               ' is ' // str(nj_from_file) // ' and it is different from ' // str(nj) // &
+               ' is ' // str(njFromFile) // ' and it is different from ' // str(nj) // &
                ' in the ''struct_hco''')
         end if
 
