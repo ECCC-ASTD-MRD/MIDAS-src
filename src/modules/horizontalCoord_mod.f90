@@ -1063,7 +1063,7 @@ contains
     
     ! Locals:
     integer :: sindx, ierr, fnom, fclos
-    integer :: ni,nj, iun, niFromFile, njFromFile
+    integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
     real(8)  :: deg2rad,dx,dy,sum_weight
@@ -1089,11 +1089,12 @@ contains
       if ( fileExist ) then
         write(*,*) 'hco_weight: Read weight from ''' // trim(fileName) // ''''
 
-        ierr = fnom(iun,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
+        gridWeightFileUnit = 0
+        ierr = fnom(gridWeightFileUnit,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
 
         ! Read the first three bits of information from the file
         ! to make sure it is consistent with what we expect.
-        read(iun) grtyp, niFromFile, njFromFile
+        read(gridWeightFileUnit) grtyp, niFromFile, njFromFile
 
         ! check if the grtyp in the file is the same as the 'hco%grtyp'
         if (trim(hco%grtyp) /= grtyp) then
@@ -1118,10 +1119,10 @@ contains
 
         ! Now that we are sure that the content is consistent with
         ! what we have, we read the file
-        read(iun) weight
+        read(gridWeightFileUnit) weight
 
         ! Close the file
-        ierr = fclos(iun)
+        ierr = fclos(gridWeightFileUnit)
       end if !! End of 'if ( fileExist ) then'
     end if !! End of 'if ( mmpi_myid == 0 ) then'
 
@@ -1132,7 +1133,7 @@ contains
     end if
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
-      write(*,*) 'compute weights for Yin_Yang grid'
+      write(*,*) 'hco_weight: compute weights for Yin_Yang grid'
       allocate (F_mask_8 (ni,nj))
       allocate (F_mask(ni,2*nj))
       allocate (xg(ni))
@@ -1165,7 +1166,7 @@ contains
       deallocate(xg)
       deallocate(yg)
     else
-      write(*,*) 'compute weights for grid type: ',hco%grtyp
+      write(*,*) 'hco_weight: compute weights for grid type: ',hco%grtyp
       do latIndex=1,nj
         latIndexP1 = min(nj,latIndex+1)
         do lonIndex=1,ni
@@ -1188,11 +1189,15 @@ contains
     ! Save the weight in the file
     if ( mmpi_myid == 0 ) then
       write(*,*) 'hco_weight: Write weight to ''' // trim(fileName) // ''''
-      ierr = fnom(iun,trim(fileName), 'FTN+SEQ+UNF', 0)
-      write(iun), hco%grtyp, ni, nj
-      write(iun), weight
+
+      gridWeightFileUnit = 0
+      ierr = fnom(gridWeightFileUnit,trim(fileName),'FTN+SEQ+UNF',0)
+
+      write(gridWeightFileUnit), hco%grtyp, ni, nj
+      write(gridWeightFileUnit), weight
+
       ! Close the file
-      ierr = fclos(iun)
+      ierr = fclos(gridWeightFileUnit)
     end if
 
   end subroutine hco_weight
