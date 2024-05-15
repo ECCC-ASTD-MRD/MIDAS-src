@@ -1091,33 +1091,33 @@ contains
 
         ierr = fnom(iun,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
 
-        !! Read the first three bits of information from the file
-        !! to make sure it is consistent with what we expect.
+        ! Read the first three bits of information from the file
+        ! to make sure it is consistent with what we expect.
         read(iun) grtyp, niFromFile, njFromFile
 
-        !! check if the grtyp in the file is the same as the 'hco%grtyp'
+        ! check if the grtyp in the file is the same as the 'hco%grtyp'
         if (trim(hco%grtyp) /= grtyp) then
           call utl_abort('hco_weight: the grid_type in the file '// trim(fileName) // &
                ' is ' // grtyp // ' and it is different from ' // trim(hco%grtyp) // &
                ' in the ''struct_hco''')
         end if
 
-        !! check if the 'ni' in the file is the same as the grid
+        ! check if the 'ni' in the file is the same as the grid
         if ( ni /= niFromFile ) then
           call utl_abort('hco_weight: the ni dimension in the file '// trim(fileName) // &
                ' is ' // str(niFromFile) // ' and it is different from ' // str(ni) // &
                ' in the ''struct_hco''')
         end if
 
-        !! check if the 'nj' in the file is the same as the grid
+        ! check if the 'nj' in the file is the same as the grid
         if ( nj /= njFromFile ) then
           call utl_abort('hco_weight: the nj dimension in the file '// trim(fileName) // &
                ' is ' // str(njFromFile) // ' and it is different from ' // str(nj) // &
                ' in the ''struct_hco''')
         end if
 
-        !! Now that we are sure that the content is consistent with
-        !! what we have, we read the file
+        ! Now that we are sure that the content is consistent with
+        ! what we have, we read the file
         read(iun) weight
 
         ! Close the file
@@ -1185,7 +1185,7 @@ contains
       weight = weight/sum_weight      
     end if
 
-    !! Save the weight in the file
+    ! Save the weight in the file
     if ( mmpi_myid == 0 ) then
       write(*,*) 'hco_weight: Write weight to ''' // trim(fileName) // ''''
       ierr = fnom(iun,trim(fileName), 'FTN+SEQ+UNF', 0)
