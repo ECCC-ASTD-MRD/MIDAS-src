@@ -1062,7 +1062,7 @@ contains
     real(8),          intent(out) :: weight(:,:) ! weight to be given when computing a horizontal average
     
     ! Locals:
-    integer :: sindx, ierr, fnom
+    integer :: sindx, ierr, fnom, fclos
     integer :: ni,nj, iun, ni_from_file, nj_from_file
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
@@ -1119,6 +1119,9 @@ contains
         !! Now that we are sure that the content is consistent with
         !! what we have, we read the file
         read(iun) weight
+
+        ! Close the file
+        ierr = fclos(iun)
       end if !! End of 'if ( fileExist ) then'
     end if !! End of 'if ( mmpi_myid == 0 ) then'
 
@@ -1188,6 +1191,8 @@ contains
       ierr = fnom(iun,trim(fileName), 'FTN+SEQ+UNF', 0)
       write(iun), hco%grtyp, ni, nj
       write(iun), weight
+      ! Close the file
+      ierr = fclos(iun)
     end if
 
   end subroutine hco_weight
