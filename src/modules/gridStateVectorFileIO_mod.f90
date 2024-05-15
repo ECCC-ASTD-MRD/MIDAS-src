@@ -1214,10 +1214,10 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFile
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, &
-                             scaleFactor_opt, ip3_opt, stepIndex_opt, typvar_opt,&
-                             HUcontainsLQ_opt, unitConversion_opt, &
-                             writeHeightSfc_opt, numBits_opt, containsFullField_opt)
+  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, scaleFactor_opt, &
+                             ip3_opt, stepIndex_opt, typvar_opt, HUcontainsLQ_opt, &
+                             unitConversion_opt, writeHeightSfc_opt, numBits_opt, &
+                             numBits2D_opt, containsFullField_opt)
     !
     ! :Purpose: Write a statevector object to an RPN standard file.
     !
@@ -1234,6 +1234,7 @@ module gridStateVectorFileIO_mod
     logical,          optional, intent(in) :: unitConversion_opt
     logical,          optional, intent(in) :: writeHeightSfc_opt
     integer,          optional, intent(in) :: numBits_opt
+    integer,          optional, intent(in) :: numBits2D_opt
     logical,          optional, intent(in) :: containsFullField_opt
 
     ! Locals:
@@ -1242,7 +1243,7 @@ module gridStateVectorFileIO_mod
     integer :: nulfile, stepIndex
     integer :: ierr, fstecr, ezdefset
     integer :: ni, nj, nk
-    integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
+    integer :: dateo, npak, npak2D, npak3D, levIndex, nlev, varIndex, maskLevIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
     integer :: yourid, nsize, youridy, youridx
@@ -1320,9 +1321,15 @@ module gridStateVectorFileIO_mod
     end if
 
     if ( present(numBits_opt) ) then
-      npak = -numBits_opt
+      npak3D = -numBits_opt
     else
-      npak = -32
+      npak3D = -32
+    end if
+
+    if ( present(numBits2D_opt) ) then
+      npak2D = -numBits2D_opt
+    else
+      npak2D = npak3D
     end if
 
     ! initialization of parameters for writing to file
@@ -1464,7 +1471,7 @@ module gridStateVectorFileIO_mod
           work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
           !- Writing to file
-          ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
+          ierr = fstecr(work2d_r4, work_r4, npak2D, nulfile, dateo, deet, npas, ni, nj, &
                         nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                         ig1, ig2, ig3, ig4, datyp, .false.)
         end if ! iDoWriting
@@ -1601,6 +1608,14 @@ module gridStateVectorFileIO_mod
               where (work2d_r4(:,:) > 100.0)
                 work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
               end where
+            end if
+
+            !- Set npak
+            if ( vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF' .and.  &
+                 vnl_varKindFromVarname(trim(nomvar)) == 'MT' ) then
+              npak = npak2D
+            else
+              npak = npak3D
             end if
 
             !- Do interpolation back to physics grid, if needed

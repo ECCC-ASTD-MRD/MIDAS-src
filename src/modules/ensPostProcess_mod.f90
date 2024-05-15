@@ -107,6 +107,7 @@ contains
     character(len=12) :: etiket_trlmean     ! etiket for mean of trials
     character(len=12) :: etiket_trlrms      ! etiket for rms of trials
     integer  :: numBits ! number of bits when writing ensemble mean and spread
+    integer  :: numBits2D ! number of bits when writing ensemble mean and spread for 2D surface variables
     logical  :: useAnalIncMask        ! mask out the increment on the pilot zone
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
@@ -120,7 +121,7 @@ contains
                                    etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,    &
                                    etiket_anlmeanpert, etiket_anlrmspert,  &
                                    etiket_anlmean_raw, etiket_anlrms_raw,  &
-                                   etiket_trlmean, etiket_trlrms, numBits, useAnalIncMask,  &
+                                   etiket_trlmean, etiket_trlrms, numBits, numBits2D, useAnalIncMask,  &
                                    writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble
 
     ! Check if the two numSteps are as expected
@@ -187,6 +188,7 @@ contains
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
     !
     numBits = 16
+    numBits2D = -999
     useAnalIncMask = .false.
     writeRawAnalStats = .false.
     useMemberAsHuRefState = .false.
@@ -198,6 +200,11 @@ contains
     if ( ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
     call utl_tmg_stop(181)
+
+    !- Set numBits2D if it does not appear in the namelist
+    if ( numBits2D == -999 ) then
+      numBits2D = numBits
+    end if
 
     if (use4Drecentering3Densemble) then
       if (tim_nstepobsinc > 1) then
@@ -622,14 +629,16 @@ contains
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
                              typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                             containsFullField_opt=.true.)
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorStdDevTrl)
       call gio_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
                            typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                           containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
       call utl_tmg_stop(5)
@@ -688,14 +697,16 @@ contains
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                             containsFullField_opt=.true.)
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
       call gio_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                           containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
 
@@ -707,14 +718,16 @@ contains
         do stepIndex = 1, tim_nstepobsinc
           call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                               containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analrms_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
         call gio_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                             containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
       end if  ! writeRawAnalStats
@@ -727,14 +740,16 @@ contains
         do stepIndex = 1, tim_nstepobsinc
           call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                               containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnlPert)
         call gio_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                             containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
