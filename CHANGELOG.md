@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The routine `hco_weight` can now read the grid weights from the file `grid_weight.bin` instead of recomputing them (#928 and !838)
+   * If it does compute the weights, then the routine writes them in `grid_weight.bin`.
  * Add namelist variables in `nambgck` and `namoer` for all-sky ATMS humidity channels (#879 and !832)
  * Added support for the special value `build_directory_local_to_the_repository` for the environment variable `MIDAS_COMPILE_DIR_MAIN` (#923 and !835)
  * All-sky assimilation in letkf (#880 and !833)
