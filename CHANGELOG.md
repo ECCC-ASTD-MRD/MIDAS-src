@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Use LibRMN `20.1.0-a4` to support the RSF files (#929 and !839)
  * Modifications to support GEM-H (without SLEVE) for `letkf` and `ensPostProcess` (#915 and !829)
 
 ### Fixed
