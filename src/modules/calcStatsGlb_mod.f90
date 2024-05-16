@@ -3797,7 +3797,7 @@ module calcStatsGlb_mod
         end if        
 
         do modeIndex = 1, nMode
-          write(99,'(I4,2X,E10.4)') modeIndex, powerSpec(varIndex,modeIndex)
+          write(99,'(I4,2X,E11.4)') modeIndex, powerSpec(varIndex,modeIndex)
         end do
         close(unit=99)
       end do
@@ -4418,7 +4418,7 @@ module calcStatsGlb_mod
         ' ',fitSmoothingTimes, ' ',setFittedCorrel(varIndex)
       write(iun,'(A)') ' Pressure Fit-Parameter  HWHM    fit RMSE'
       do levelIndex = 1, ndim
-        write(iun,'(f9.4,2x,f8.2,3x,f8.2,3x,g8.2)') press(levelIndex)/100.0d0, &
+        write(iun,'(f9.4,2x,f8.2,3x,f8.2,3x,g9.2)') press(levelIndex)/100.0d0, &
 	  fitParam(varIndex,levelIndex), hwhm(varIndex,levelIndex), &
 	  rmse(varIndex,levelIndex)
       end do

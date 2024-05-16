@@ -1810,16 +1810,18 @@ contains
       if ( .not. beSilent ) then
         write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
                    headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
-        if (mmpi_myid == 0) then
-          write(*,*) 's2c_nl: min/max of allNumHeader = ',  &
-                     minval(allNumHeader), maxval(allNumHeader)
-        end if
       end if
 
       call rpn_comm_allgather(numHeader,   1,'mpi_integer', &
                               allNumHeader,1,'mpi_integer','grid',ierr)
       call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
+
+      if ( .not. beSilent ) then
+        if (mmpi_myid == 0) then
+          write(*,*) 's2c_nl: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
+        end if
+      end if
 
       if (.not. interpInfo_nl%initialized) then
         call utl_tmg_stop(34)
