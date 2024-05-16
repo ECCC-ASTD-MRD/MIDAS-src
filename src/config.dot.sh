@@ -40,56 +40,6 @@ MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
 MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
 MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 
-## https://stackoverflow.com/a/4025065
-## if $1 = $2, returns '='
-## if $1 < $2, returns '<'
-## if $1 > $2, returns '>'
-vercomp () {
-    if [[ $1 == $2 ]]
-    then
-        echo '='
-    fi
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    # fill empty fields in ver1 with zeros
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
-    do
-        ver1[i]=0
-    done
-    for ((i=0; i<${#ver1[@]}; i++))
-    do
-        if [[ -z ${ver2[i]} ]]
-        then
-            # fill empty fields in ver2 with zeros
-            ver2[i]=0
-        fi
-        if ((10#${ver1[i]} > 10#${ver2[i]}))
-        then
-            echo '>'
-            return
-        fi
-        if ((10#${ver1[i]} < 10#${ver2[i]}))
-        then
-            echo '<'
-            return
-        fi
-    done
-}
-
-check_ec_atomic_profile_version () {
-    if [ "$(vercomp 1.28.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
-	echo
-	echo
-        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
-        echo "  EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.28.0"
-        echo "  Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.28.0"
-        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
-	echo
-	echo
-        return 1
-    fi
-}
-
 set +x
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 
@@ -274,6 +224,3 @@ export MIDAS_SSM_VERSION
 
 # config return status
 ${__status}
-
-# check version of profile
-check_ec_atomic_profile_version
