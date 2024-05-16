@@ -1063,7 +1063,7 @@ contains
     
     ! Locals:
     integer :: sindx, ierr, fnom, fclos
-    integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile
+    integer :: ni,nj, gridWeightFileUnit, niFromFile, njFromFile, njWeight
     integer :: lonIndex,latIndex,lonIndexP1,latIndexP1
     real(8),  allocatable :: F_mask_8(:,:), F_mask(:,:)
     real(8)  :: deg2rad,dx,dy,sum_weight
@@ -1079,9 +1079,12 @@ contains
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       ni = nint(hco%tictacU(sindx))
       nj = nint(hco%tictacU(sindx+1))
+      ! For Yin-Yang grid, the second dimension of the array is twice 'nj'
+      njWeight = 2*nj
     else
       ni = hco%ni
       nj = hco%nj
+      njWeight = nj
     end if
 
     if ( mmpi_myid == 0 ) then
@@ -1097,7 +1100,7 @@ contains
         read(gridWeightFileUnit) grtyp, niFromFile, njFromFile
 
         ! check if the grtyp in the file is the same as the 'hco%grtyp'
-        if (trim(hco%grtyp) /= grtyp) then
+        if ( trim(hco%grtyp) /= grtyp ) then
           call utl_abort('hco_weight: the grid_type in the file '// trim(fileName) // &
                ' is ' // grtyp // ' and it is different from ' // trim(hco%grtyp) // &
                ' in the ''struct_hco''')
@@ -1123,19 +1126,19 @@ contains
 
         ! Close the file
         ierr = fclos(gridWeightFileUnit)
-      end if !! End of 'if ( fileExist ) then'
-    end if !! End of 'if ( mmpi_myid == 0 ) then'
+      end if ! End of 'if ( fileExist ) then'
+    end if ! End of 'if ( mmpi_myid == 0 ) then'
 
     call rpn_comm_bcast(fileExist, 1, "MPI_LOGICAL", 0, "GRID", ierr)
     if ( fileExist ) then
-      call rpn_comm_bcast(weight, ni*nj, "MPI_REAL8", 0, "GRID", ierr)
+      call rpn_comm_bcast(weight, ni*njWeight, "MPI_REAL8", 0, "GRID", ierr)
       return
     end if
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       write(*,*) 'hco_weight: compute weights for Yin_Yang grid'
       allocate (F_mask_8 (ni,nj))
-      allocate (F_mask(ni,2*nj))
+      allocate (F_mask(ni,njWeight))
       allocate (xg(ni))
       allocate (yg(nj))
          
@@ -1156,19 +1159,17 @@ contains
         F_mask (:,latIndex) = F_mask_8(:,latIndex)
         F_mask (:,nj+latIndex)= F_mask (:,latIndex)
       end do
-      do latIndex=1,nj*2
+      do latIndex=1,njWeight
         weight(:,latIndex) = weight(:, latIndex) * F_mask(:, latIndex)
       end do
-      sum_weight=sum(weight)
-      weight = weight/sum_weight
       deallocate(F_mask_8)
       deallocate(F_mask)
       deallocate(xg)
       deallocate(yg)
     else
       write(*,*) 'hco_weight: compute weights for grid type: ',hco%grtyp
-      do latIndex=1,nj
-        latIndexP1 = min(nj,latIndex+1)
+      do latIndex=1,njWeight
+        latIndexP1 = min(njWeight,latIndex+1)
         do lonIndex=1,ni
           lonIndexP1 = min(ni,lonIndex+1)
           lon1 = hco%lon2d_4(lonIndex,latIndex)
@@ -1182,9 +1183,10 @@ contains
           weight(lonIndex,latIndex) = dx * dy
         end do
       end do
-      sum_weight=sum(weight)
-      weight = weight/sum_weight      
     end if
+
+    sum_weight=sum(weight)
+    weight = weight/sum_weight
 
     ! Save the weight in the file
     if ( mmpi_myid == 0 ) then
