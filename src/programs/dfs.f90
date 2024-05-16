@@ -1,32 +1,30 @@
 program midas_dfs
   !
-  !:Purpose: Main program for computing DFS
-  !          background error in observation space, stored in ``obs_hbht``. This
-  !          can then be used by python or other scripts to compute the
-  !          background error variance (consistent with the specified B matrix)
-  !          in observation space for comparison with the innovation variance
-  !          and observation error variance.
+  !:Purpose: Main program for computing degrees of freedom for signal (DFS)
+  !          total and a iterative channel selection (optionnaly) for an infrared instrument.
+  !            
   !
   !          --
   !
-  !:Algorithm: The random realization of background error in observation space
-  !            is computed following these steps:
+  !:Algorithm: The channel selection with the DFS is computed following these steps:            
   !
-  !            1. Compute random values for the control vector with each element
-  !               drawn from independent Gaussian distribution with variance of one
-  !               and bias of zero.
-  !            
-  !            2. Multiply random vector by sqrt of B matrix.
+  !            1. HBHt is extracted column by column for the specified instrument for all the channels
   !
-  !            3. Apply observation operator to obtain random perturbation in
-  !               observation space.
+  !            2. The total DFS is calculated for all channels
+  !                           
+  !            3.1 Channel selection: DFS is calculated (DFS= tr(HBHt (HBHt+R)-1)) for each channel of
+  !               the instrument individually and the channel with the largest DFS is selected
+  !
+  !            3.2 DFS is calculated to find a second channel after the first selected 
+  !               channel with the largest total DFS combined
+  !
+  !            3.4 Channels are selected iteratively until all the channels are ordered
+  !               or until a certain specified number of channels is reached
   !
   !            --
   !
   !:File I/O: The required input files and produced output files can vary
-  !           according to the application. Below are tables of files for
-  !           typical NWP 4D-EnVar (e.g. GDPS) and sea ice or SST 3D-Var
-  !           applications.
+  !           according to the application. 
   !
   !           --
   !
@@ -36,26 +34,24 @@ program midas_dfs
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
-  ! ``analysisgrid``                               In - File defining grid for computing the random gridded perturbation
+  ! ``analysisgrid``                               In - File defining grid for computing HBHt
   ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
-  ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obserr``                                     In - Observation error statistics
-  ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
-  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! ``obserr``                                     In - Conventionnal Observation error statistics
   ! Remainder are files related to radiance obs:
-  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of different sensors
   ! ``stats_tovs``                                 In - Satellite radiance observation errors
-  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
-  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``ozoneclim98``                                In - Ozone climatology
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Correlations structure of the R matrix
+  ! ``dfs.dat``                                    Out - Total DFS of all channels available
+  ! ``HBHt.dat``                                   Out - HBHt matrix for the specified instrument
+  ! ``selection.dat``                              Out - Selected channels ordered by decreasing contribution to the DFS 
   !============================================== ==============================================================
   !
   !           --
   !
-  !:Synopsis: Below is a summary of the ``diagHBHt`` program calling sequence:
+  !:Synopsis: Below is a summary of the ``dfs`` program calling sequence:
   !
   !             - **Initial setups:**
   !
@@ -89,28 +85,47 @@ program midas_dfs
   !               - Compute innovation from updated state:
   !                 ``inn_computeInnovation``.
   !
-  !               - Compute an MPI global random vector, then extract only
-  !                 portion needed for this MPI task (to reduce sensitivity of
-  !                 results to MPI topology).
+  !               - Create a MPI local list of observations corresponding to criteria
+  !                 from the namelist
   !
-  !               - Multiply random vector by sqrt of B matrix with resulting
-  !                 gridded state random perturbation in ``statevector``.
+  !               - Gather all selected observations
   !
-  !               - Apply linearized observation operators to the random gridded
-  !                 state: ``s2c_tl`` and ``oop_Htl`` with final result in
-  !                 observation space: ``obs_work`` column of ``obsSpaceData``.
+  !               - Loop on the selected observations and a loop on channels on the
+  !                 following steps
   !
-  !               - Copy result from ``obs_work`` to ``obs_hbht`` column.
+  !               - Set the corresponding entry of ``obs_work`` column of
+  !                   ``obsSpaceData` to one
   !
-  !             - **Final steps**, after the outer loop:
+  !               - Apply the adjoint of the observation operator ``oop_Had``
   !
-  !               - Various final steps, including: update the observation files
-  !                 (``obsf_writeFiles``).
+  !               - Apply the adjoint of the horizontal interpolation ``s2c_ad``
+  !
+  !               - Apply the transpose of the sqrt of B matrix ``bmat_sqrtBT``
+  !
+  !               - Apply the sqrt of B matrix ``bmat_sqrtB``
+  !
+  !               - Apply the tangent linear of the horizontal interpolation
+  !                  ``s2c_tl``
+  !
+  !               - Apply the tangent linear of the observation operator ``oop_Htl``
+  !
+  !               - At the end of the loop on the channels, we get a column of HBHt matrix
+  !
+  !               - Get the R matrix
+  !
+  !               - Compute the total DFS
+  !
+  !               - If requested, compute the channel selection 
+  !
+  !
   !
   !           --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#diaghbht>`_
-  !          that can affect the ``diagHBHt`` program.
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#dfs>`_
+  !          that can affect the ``dfs`` program.
+  !
+  !          * The NAMDFS section is read by the DFS program and controls which
+  !            observations and channels are considered.
   !
   !          * The choice of what B matrix is used for the calculation is
   !            controlled for each individual B matrix component through it's
@@ -124,7 +139,7 @@ program midas_dfs
   !            ``NAMTOV``.
   !
   !          * Some of the other relevant namelist blocks used to configure the
-  !            diagHBHt calculation are listed in the following table:
+  !            dfs calculation are listed in the following table:
   ! 
   !======================== ============ ==============================================================
   ! Module                   Namelist     Description of what is controlled
@@ -194,7 +209,7 @@ program midas_dfs
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
   real(8) :: latList(nObsMax)                    ! list of latitudes to select specific observations
-  real(8) :: lonList(nObsMax)                    ! list of latitudes to select specific observations
+  real(8) :: lonList(nObsMax)                    ! list of longitudes to select specific observations
   integer :: dayList(nObsMax)                    ! list of dates (yyyymmdd) to select specific observations
   integer :: timeList(nObsMax)                   ! list of hours (HHMM) to select specific observations
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
