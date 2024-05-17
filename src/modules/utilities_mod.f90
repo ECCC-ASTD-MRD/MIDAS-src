@@ -1735,7 +1735,7 @@ contains
 
     typeCode = wkoffit(trim(fileName_opt))
     select case(typeCode)
-    case (1,2,3,33,34)
+    case (1,2,3,33,34,39)
       fileType = 'FST'
     case (6)
       fileType = 'BURP'
