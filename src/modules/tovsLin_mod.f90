@@ -637,6 +637,12 @@ contains
 
     deallocate (sensorTovsIndexes)
     nullify( profiles )
+    if (allocated(tvslin_bodyIndexFromBtIndex)) then
+      deallocate( tvslin_bodyIndexFromBtIndex )
+      deallocate( tvslin_bodyIndexFromBtIndexScatt )
+      deallocate( tvslin_chanProf )
+      deallocate( tvslin_chanProfScatt )
+    end if
     write(*,*) 'tvslin_rttov_tl: Finished'
 
   end subroutine tvslin_rttov_tl
@@ -1202,6 +1208,12 @@ contains
 
     deallocate(sensorTovsIndexes)
     nullify(profiles)
+    if (allocated(tvslin_bodyIndexFromBtIndex)) then
+      deallocate( tvslin_bodyIndexFromBtIndex )
+      deallocate( tvslin_bodyIndexFromBtIndexScatt )
+      deallocate( tvslin_chanProf )
+      deallocate( tvslin_chanProfScatt )
+    end if
     write(*,*) 'tvslin_rttov_ad: Finished'
 
   end subroutine tvslin_rttov_ad
@@ -1379,7 +1391,12 @@ contains
   
     deallocate (sensorTovsIndexes)
     nullify(profiles)
-
+    if (allocated(tvslin_bodyIndexFromBtIndex)) then
+      deallocate( tvslin_bodyIndexFromBtIndex )
+      deallocate( tvslin_bodyIndexFromBtIndexScatt )
+      deallocate( tvslin_chanProf )
+      deallocate( tvslin_chanProfScatt )
+    end if
     write(*,*) 'tvslin_rttov_k: finished'
   end subroutine tvslin_rttov_k
 
