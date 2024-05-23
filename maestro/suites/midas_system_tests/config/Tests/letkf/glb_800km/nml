@@ -30,6 +30,9 @@
    NTRUNC      = 42
    SCALEFACTOR = 200*1.00000000000000
 /
+ &NAMHCO
+   maxGridSpacingAllowed = 1.2d6
+/
  &NAMBEN
 /
  &NAMDIMO

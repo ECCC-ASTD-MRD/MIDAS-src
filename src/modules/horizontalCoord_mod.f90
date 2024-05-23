@@ -26,6 +26,9 @@ module horizontalCoord_mod
 
   integer, parameter :: maxNumSubGrid = 2
 
+  ! Namelist variables
+  real(8) :: maxGridSpacingAllowed ! Maximum grid spacing (in meters) allowed
+
   type :: struct_hco
     character(len=32)    :: gridname
     logical              :: initialized = .false.
@@ -106,6 +109,8 @@ contains
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
     character(len=100) :: fileName
+
+    call readNml()
 
     if(.not.associated(hco)) then
       allocate(hco)
@@ -575,8 +580,8 @@ contains
       call msg('hco_setupFromFile', 'maxDeltaLon= '//str(maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
-    if (maxGridSpacing > 1.0d6) then
-      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
+    if (maxGridSpacing > maxGridSpacingAllowed) then
+      call utl_abort('hco_setupFromFile: maxGridSpacing ' // str(maxGridSpacing) // ' is greater than ' // str(maxGridSpacingAllowed) // ' m.')
     end if
 
     hco%maxGridSpacing = maxGridSpacing
@@ -631,8 +636,8 @@ contains
       call msg('hco_setupFromFile', 'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
-    if (minGridSpacing > 1.0d6) then
-      call utl_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
+    if (minGridSpacing > maxGridSpacingAllowed) then
+      call utl_abort('hco_setupFromFile: minGridSpacing ' // str(minGridSpacing) // '  is greater than ' // str(maxGridSpacingAllowed) // ' m.')
     end if
 
     hco%minGridSpacing = minGridSpacing
@@ -688,6 +693,46 @@ contains
     end if
 
   end subroutine global_or_lam
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMHCO
+    !
+    implicit none
+
+    ! Locals:
+    integer       :: ierr
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMHCO/ maxGridSpacingAllowed
+
+    if (firstCall) then
+
+      ! set the default values
+      maxGridSpacingAllowed = 1.0d6
+
+      ! read the namelist block if it exists
+      if ( utl_isNamelistPresent('NAMHCO','./flnml') ) then
+        ! Read namelist NAMHCO
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namhco, iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (hco): Error reading namelist')
+        if (mmpi_myid == 0) write(*,nml=namhco)
+        call utl_tmg_stop(181)
+      else
+        if (mmpi_myid == 0) then
+          call msg('readNml (hco)', 'namhco is missing in the namelist. The default values will be taken.')
+        end if
+      end if
+
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
   !--------------------------------------------------------------------------
   ! mpiBcast
