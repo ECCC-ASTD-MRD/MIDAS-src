@@ -423,7 +423,7 @@ program midas_letkf
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = 1, &
                        copyToRamDisk_opt = .false.)
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID', &
-                         maxGridSpacingAllowed_opt = maxGridSpacingAllowed)
+                       maxGridSpacingAllowed_opt = maxGridSpacingAllowed)
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')
@@ -481,8 +481,7 @@ program midas_letkf
                       dataKind_opt = 4, allocHeightSfc_opt = .true., &
                       varNames_opt=(/'P0', 'TT'/))
     call gio_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                          containsFullField_opt=.true., readHeightSfc_opt=.true., &
-                          maxGridSpacingAllowed_opt = maxGridSpacingAllowed)
+                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
   end if
 
   !- 2.8 Allocate statevector related to ensemble mean
