@@ -1,6 +1,6 @@
  &NAMLETKF
    algorithm                = 'CVLETKF'
-   ensPostProcessing        = .true.
+   ensPostProcessing        = .false.
    NENS                     = 128
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
@@ -13,7 +13,7 @@
    rejectHighLatIR          = .false.
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
-   mpiDistribution          = 'MASTERWORKER'
+   mpiDistribution          = 'ROUNDROBIN'
 /
  &namEnsPostProcModule
    alphaRTPP                = 0.00D0
@@ -27,8 +27,8 @@
    lWriteDiagSql   = .false.
 /
  &NAMBHI
-   NTRUNC  =          42,
-   SCALEFACTOR     = 200*1.00000000000000        ,
+   NTRUNC      = 42
+   SCALEFACTOR = 200*1.00000000000000
 /
  &NAMBEN
 /
@@ -37,8 +37,8 @@
    NDATAMX=100000
 /
  &NAMTIME
-   DSTEPOBS    = 3.0d0
-   DSTEPOBSINC = 3.0d0
+   DSTEPOBS    = 6.0d0
+   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
   NLIST(1)=10004,
