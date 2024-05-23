@@ -5,6 +5,7 @@
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
+   maxGridSpacingAllowed    = 1.2d6
    HLOCALIZE                = 2000.0D0
    VLOCALIZE                = 2.0D0
    modifyAmsubObsError      = .false.
