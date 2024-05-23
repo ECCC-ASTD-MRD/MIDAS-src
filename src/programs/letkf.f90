@@ -254,14 +254,13 @@ program midas_letkf
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
   real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
-  real(8)  :: maxGridSpacingAllowed ! Maximum grid spacing (in meters) allowed when the horizontal grid is setup
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
  
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
-                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand, maxGridSpacingAllowed, &
+                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
@@ -321,7 +320,6 @@ program midas_letkf
   hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize                = -1.0D0
   minDistanceToLand        = -1.0D0
-  maxGridSpacingAllowed    = 1.0d6
   obsTimeInterpType        = 'LINEAR'
   mpiDistribution          = 'ROUNDROBIN'
   etiket_anl               = 'ENS_ANL'
@@ -422,8 +420,7 @@ program midas_letkf
   if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = 1, &
                        copyToRamDisk_opt = .false.)
-  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID', &
-                       maxGridSpacingAllowed_opt = maxGridSpacingAllowed)
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
   if (vco_getNumLev(vco_ens, 'MM') /= vco_getNumLev(vco_ens, 'TH')) then
     call utl_abort('midas-letkf: nLev_M /= nLev_T - currently not supported')

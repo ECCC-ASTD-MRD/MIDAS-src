@@ -63,7 +63,7 @@ contains
   ! hco_SetupFromFile
   !--------------------------------------------------------------------------
   subroutine hco_SetupFromFile(hco, templateFile, etiketName, gridName_opt, &
-                               varName_opt, maxGridSpacingAllowed_opt)
+                               varName_opt)
     !
     ! :Purpose: to initialize hco structure from a template file
     !           
@@ -75,13 +75,12 @@ contains
     character(len=*),           intent(in)  :: etiketName
     character(len=*), optional, intent(in)  :: gridName_opt
     character(len=*), optional, intent(in)  :: varName_opt
-    real(8)         , optional, intent(in)  :: maxGridSpacingAllowed_opt
+
     ! Locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
-    real(8) :: maxGridSpacing, maxGridSpacingAllowed
-    real(8) :: maxDeltaLat, maxDeltaLon, deltaLon, deltaLat
-    real(8) :: minDeltaLat, minDeltaLon, minGridSpacing
+    real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat 
+    real(8) :: minDeltaLat, minDeltaLon, minGridSpacing 
     real(8) :: deltaLon1, deltaLon2, deltaLon3
     real(8) :: deltaLat1, deltaLat2, deltaLat3
     real(8), save :: maxGridSpacingPrevious = -1.0d0
@@ -131,12 +130,6 @@ contains
                                       'grid definition as the netCDF file must exist!')
       end if
       call utl_abort('hco_SetupFromFile: template grid file does not exist: '//trim(fileName))
-    end if
-
-    if (present(maxGridSpacingAllowed_opt)) then
-      maxGridSpacingAllowed = maxGridSpacingAllowed_opt
-    else
-      maxGridSpacingAllowed = 1.0d6
     end if
 
     !
@@ -582,8 +575,8 @@ contains
       call msg('hco_setupFromFile', 'maxDeltaLon= '//str(maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
-    if (maxGridSpacing > maxGridSpacingAllowed) then
-      call utl_abort('hco_setupFromFile: maxGridSpacing ' // str(maxGridSpacing) // ' is greater than ' // str(maxGridSpacingAllowed) // ' m.')
+    if (maxGridSpacing > 1.0d6) then
+      call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
     end if
 
     hco%maxGridSpacing = maxGridSpacing
@@ -638,8 +631,8 @@ contains
       call msg('hco_setupFromFile', 'minDeltaLon= '//str(minDeltaLon * MPC_DEGREES_PER_RADIAN_R8)//' deg')
     end if
 
-    if (minGridSpacing > maxGridSpacingAllowed) then
-      call utl_abort('hco_setupFromFile: minGridSpacing ' // str(minGridSpacing) // '  is greater than ' // str(maxGridSpacingAllowed) // ' m.')
+    if (minGridSpacing > 1.0d6) then
+      call utl_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
     end if
 
     hco%minGridSpacing = minGridSpacing
