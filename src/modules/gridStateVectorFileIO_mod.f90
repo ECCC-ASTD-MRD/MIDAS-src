@@ -62,7 +62,7 @@ module gridStateVectorFileIO_mod
   subroutine gio_readFromFile(statevector_out, fileName, etiket_in, typvar_in, &
                               stepIndex_opt, unitConversion_opt, &
                               statevectorRef_opt, readHeightSfc_opt, &
-                              containsFullField_opt, vcoFileIn_opt)
+                              containsFullField_opt, vcoFileIn_opt, maxGridSpacingAllowed_opt)
     !
     ! :Purpose: Read an RPN standard or netCDF file and put the contents into a
     !           stateVector object. Main high level wrapper subroutine.
@@ -80,6 +80,7 @@ module gridStateVectorFileIO_mod
     logical,          optional,          intent(in)    :: readHeightSfc_opt
     logical,          optional,          intent(in)    :: containsFullField_opt
     type(struct_vco), optional, pointer, intent(in)    :: vcoFileIn_opt
+    real(8)         , optional,          intent(in)    :: maxGridSpacingAllowed_opt
 
     ! Locals:
     logical           :: doHorizInterp, doVertInterp, unitConversion
@@ -178,7 +179,8 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFromFile: defining hco by varname: ', varName, ' from file: ', trim(fileName)
 
     call hco_setupFromFile(hco_file, trim(fileName), etiket_in, &
-                           gridName_opt = 'FILEGRID', varName_opt = varName)
+                           gridName_opt = 'FILEGRID', varName_opt = varName, &
+                           maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     doVertInterp = .not.vco_equal(vco_file, statevector_out%vco)
@@ -208,7 +210,8 @@ module gridStateVectorFileIO_mod
 
       call readFromFileOnly(statevector_out, trim(fileName), etiket_in, &
                             typvar_in, stepIndex, unitConversion, &
-                            readHeightSfc, containsFullField)
+                            readHeightSfc, containsFullField,     &
+                            maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
 
     end if
 
@@ -507,7 +510,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine readFromFileOnly(statevector_out, fileName, etiket_in, typvar_in, &
                               stepIndex, unitConversion, readHeightSfc, &
-                              containsFullField)
+                              containsFullField, maxGridSpacingAllowed_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object.  Wrapper subroutine
@@ -523,13 +526,14 @@ module gridStateVectorFileIO_mod
     logical         , intent(in)    :: unitConversion
     logical         , intent(in)    :: readHeightSfc
     logical         , intent(in)    :: containsFullField
+    real(8),optional, intent(in)    :: maxGridSpacingAllowed_opt
 
     write(*,*) ''
     write(*,*) 'readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
 
     call gio_readFile(statevector_out, fileName, etiket_in, typvar_in,  &
                       containsFullField, readHeightSfc_opt = readHeightSfc, &
-                      stepIndex_opt = stepIndex)
+                      stepIndex_opt = stepIndex, maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
 
     if (unitConversion) then
       call gio_fileUnitsToStateUnits(statevector_out, containsFullField, &
@@ -545,7 +549,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine gio_readFile(stateVector, fileName, etiket_in, typvar_in, &
                           containsFullField, readHeightSfc_opt, stepIndex_opt, &
-                          ignoreDate_opt)
+                          ignoreDate_opt, maxGridSpacingAllowed_opt)
     !
     ! :Purpose: Read a file (RPN standard file or NetCDF) and put the contents into a
     !           stateVector object by falling the subroutine specific to each file format.
@@ -561,13 +565,15 @@ module gridStateVectorFileIO_mod
     logical, optional, intent(in)    :: readHeightSfc_opt ! RPN standard file switch
     integer, optional, intent(in)    :: stepIndex_opt     ! step index defining in the time dimension of the input fields
     logical, optional, intent(in)    :: ignoreDate_opt    ! RPN standard file option
+    real(8), optional, intent(in)    :: maxGridSpacingAllowed_opt
 
     if (trim(utl_fileType(trim(fileName))) == 'FST') then
 
       call gio_readFileFst(stateVector, fileName, etiket_in, typvar_in, &
                            containsFullField, readHeightSfc_opt, & 
                            stepIndex_opt = stepIndex_opt, &
-                           ignoreDate_opt = ignoreDate_opt)
+                           ignoreDate_opt = ignoreDate_opt, &
+                           maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
 
     else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
 
@@ -728,7 +734,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine gio_readFileFst(stateVector, fileName, etiket_in, typvar_in, &
                              containsFullField, readHeightSfc_opt,        &
-                             stepIndex_opt, ignoreDate_opt)
+                             stepIndex_opt, ignoreDate_opt, maxGridSpacingAllowed_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object.  Low level subroutine that does the actual
@@ -745,6 +751,7 @@ module gridStateVectorFileIO_mod
     logical, optional, intent(in)    :: readHeightSfc_opt
     integer, optional, intent(in)    :: stepIndex_opt
     logical, optional, intent(in)    :: ignoreDate_opt
+    real(8), optional, intent(in)    :: maxGridSpacingAllowed_opt
 
     ! Locals:
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex
@@ -912,7 +919,8 @@ module gridStateVectorFileIO_mod
 
         if (.not. foundVarNameInFile) call utl_abort('gio_readFileFst: NO variable is in the file')
 
-        call hco_setupFromFile(hco_file, trim(fileName), ' ', 'INPUTFILE', varName_opt = varName)
+        call hco_setupFromFile(hco_file, trim(fileName), ' ', 'INPUTFILE', varName_opt = varName, &
+                               maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
@@ -929,7 +937,8 @@ module gridStateVectorFileIO_mod
                .not. associated(statevector%hco_physics)) then
               write(*,*) 'gio_readFileFst: set up physics grid using the variable:', varName
               call hco_SetupFromFile(statevector%hco_physics, trim(fileName), ' ', &
-                                     'INPUTFILE', varName_opt = varName)
+                                     'INPUTFILE', varName_opt = varName,           &
+                                     maxGridSpacingAllowed_opt = maxGridSpacingAllowed_opt)
               exit var_loop
             end if
           end do var_loop
