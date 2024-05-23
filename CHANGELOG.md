@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * A new namelist block, `NAMHCO`, has been introduced and is read by
+   the module `horizontalCoord_mod` to set the variable
+   `maxGridSpacingAllowed` (#932 and !841)
+   * The new test `Tests/letkf/glb_800km` is using this functionality.
  * The routine `hco_weight` can now read the grid weights from the file `grid_weight.bin` instead of recomputing them (#928 and !838)
    * If it does compute the weights, then the routine writes them in `grid_weight.bin`.
  * Add namelist variables in `nambgck` and `namoer` for all-sky ATMS humidity channels (#879 and !832)
