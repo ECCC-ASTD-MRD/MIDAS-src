@@ -4,7 +4,7 @@
    NENS                     = 128
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
-   WEIGHTLATLONSTEP         = 10
+   WEIGHTLATLONSTEP         = 20
    HLOCALIZE                = 2000.0D0
    VLOCALIZE                = 2.0D0
    modifyAmsubObsError      = .false.
@@ -14,14 +14,6 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
-/
- &namEnsPostProcModule
-   alphaRTPP                = 0.00D0
-   alphaRTPS                = 0.00D0
-   alphaRandomPert          = 0.33D0
-   alphaRandomPertSubSample = 0.66D0
-   imposeSaturationLimit    = .true.
-   imposeRttovHuLimits      = .true.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
