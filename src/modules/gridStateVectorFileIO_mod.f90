@@ -1500,7 +1500,6 @@ module gridStateVectorFileIO_mod
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
     integer, allocatable :: mask(:,:)
-    integer :: threadNum, nulfiles(mmpi_numthread), omp_get_thread_num
     real(4), allocatable :: work2d_r4(:,:), work2dFile_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
@@ -1630,31 +1629,25 @@ module gridStateVectorFileIO_mod
     !
     if (iDoWriting) then
 
-      !$OMP PARALLEL DO PRIVATE (threadNum,ierr)
-      do threadNum = 1, mmpi_numthread
-        !- Open output field
-        nulfiles(threadNum) = 0
-        call msg('gio_writeToFile', 'File name = ' // str(trim(fileName)) // '_' // str(threadNum))
-        ierr = fnom(nulfile(threadNum),trim(fileName) // '_' // str(threadNum),'RND+APPEND',0)
+      !- Open output field
+      nulfile = 0
+      call msg('gio_writeToFile', 'File name = ' // str(trim(fileName)))
+      ierr = fnom(nulfile,trim(fileName),'RND+APPEND',0)
 
-        if (ierr >= 0) then
-          ierr  =  fstouv(nulfiles(threadNum), 'RND')
-        else
-          call utl_abort('gio_writeToFile: problem opening output file' // str(trim(fileName)) // '_' // str(threadNum) )
-        end if
+      if (ierr >= 0) then
+        ierr  =  fstouv(nulfile, 'RND')
+      else
+        call utl_abort('gio_writeToFile: problem opening output file')
+      end if
 
-        if (nulfiles(threadNum) == 0 ) then
-          call utl_abort('gio_writeToFile: unit number for output file not valid')
-        end if
+      if (nulfile == 0 ) then
+        call utl_abort('gio_writeToFile: unit number for output file not valid')
+      end if
 
-        if ( threadNum == 1 ) then ! only the first thread needs to write the tictactoc since all files will be contatenated at the end
-          !- Write TicTacToc
-          if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
-            call writeTicTacToc(statevector, nulfiles(threadNum), etiket) ! IN
-          endif
-        end if
-      end do ! threadNum
-      !$OMP END PARALLEL DO
+      !- Write TicTacToc
+      if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
+        call writeTicTacToc(statevector, nulfile, etiket) ! IN
+      endif
 
     end if
 
@@ -1720,8 +1713,7 @@ module gridStateVectorFileIO_mod
 
           !- Writing to file
           call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-          ! Write the surface height only in the first file
-          ierr = fstecr(work2d_r4, work_r4, npak, nulfiles(1), dateo, deet, npas, ni, nj, &
+          ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                         nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                         ig1, ig2, ig3, ig4, datyp, .false.)
           call utl_tmg_stop(184)
@@ -1730,9 +1722,7 @@ module gridStateVectorFileIO_mod
       end if
     end if
 
-    !$OMP PARALLEL DO PRIVATE (varIndex,levIndex,nlev,ip1,varLevel,maskLevIndex,nomvar,factor_r4, &
-                               yourid,youridx,youridy,gd_send_r4,gd_recv_r4,work2d_r4,work2dFile_r4)
-    do varIndex = 1, vnl_numvarmax
+    do varIndex = 1, vnl_numvarmax 
  
       if (gsv_varExist(statevector,vnl_varNameList(varIndex))) then
 
@@ -1878,7 +1868,7 @@ module gridStateVectorFileIO_mod
 
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(work2dFile_r4, work_r4, npak, nulfiles(omp_get_thread_num()), dateo, deet, npas, &
+              ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
                             statevector%hco_physics%ni, statevector%hco_physics%nj, &
                             nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                             statevector%hco_physics%ig1, statevector%hco_physics%ig2, &
@@ -1891,7 +1881,7 @@ module gridStateVectorFileIO_mod
 
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(work2d_r4, work_r4, npak, nulfiles(omp_get_thread_num()), dateo, deet, npas, ni, nj, &
+              ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, datyp, .false.)
               call utl_tmg_stop(184)
@@ -1902,7 +1892,7 @@ module gridStateVectorFileIO_mod
               if (.not.allocated(mask)) allocate(mask(ni,nj))
               call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(mask, work_r4, -1, nulfiles(omp_get_thread_num()), dateo, deet, npas, ni, nj, &
+              ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
                             nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
                             ig1, ig2, ig3, ig4, 2, .false.)
               call utl_tmg_stop(184)
@@ -1915,7 +1905,6 @@ module gridStateVectorFileIO_mod
       end if ! varExist
 
     end do ! varIndex
-    !$OMP END PARALLEL DO
 
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
@@ -1923,11 +1912,8 @@ module gridStateVectorFileIO_mod
     if (allocated(mask)) deallocate(mask)
 
     if (iDoWriting) then
-      !$OMP PARALLEL DO PRIVATE (threadNum,ierr)
-      do threadNum = 1, mmpi_numthread
-        ierr = fstfrm(nulfiles(threadNum))
-        ierr = fclos(nulfiles(threadNum))
-      end do
+      ierr = fstfrm(nulfile)
+      ierr = fclos(nulfile)        
     end if
 
     !
