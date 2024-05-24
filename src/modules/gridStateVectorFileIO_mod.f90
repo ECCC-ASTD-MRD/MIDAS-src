@@ -21,7 +21,8 @@ module gridStateVectorFileIO_mod
   use Vgrid_Descriptors
   use netcdf
   use message_mod
-  
+  use rmn_fst24
+
   implicit none
   save
   private
@@ -1484,19 +1485,11 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField
-    integer :: fclos, fnom, fstouv, fstfrm
-    integer :: nulfile, stepIndex
-    integer :: ierr, fstecr, ezdefset
-    integer :: ni, nj, nk
-    integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
-    integer :: ip1, ip2, ip3, deet, npas, datyp
-    integer :: ig1 ,ig2 ,ig3 ,ig4
+    integer :: stepIndex
+    integer :: ierr, ezdefset
+    integer :: levIndex, nlev, varIndex, maskLevIndex
     integer :: yourid, nsize, youridy, youridx
-    real(4) :: factor_r4, work_r4
-    character(len=1)          :: grtyp
-    character(len=4)          :: nomvar
-    character(len=2)          :: typvar
-    character(len=12)         :: etiket
+    real(4) :: factor_r4
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
     integer, allocatable :: mask(:,:)
@@ -1505,6 +1498,9 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
+    type(fst_file)   :: fstFile
+    type(fst_record) :: fstRecord, fstRecordTmp
+    logical :: success
 
     call msg('gio_writeToFile', 'START')
 
@@ -1540,9 +1536,9 @@ module gridStateVectorFileIO_mod
     end if
 
     if (present(ip3_opt)) then
-      ip3 = ip3_opt
+      fstRecord%ip3 = ip3_opt
     else
-      ip3 = 0
+      fstRecord%ip3 = 0
     end if
 
     if (present(unitConversion_opt)) then
@@ -1566,59 +1562,61 @@ module gridStateVectorFileIO_mod
     end if
 
     if (present(numBits_opt)) then
-      npak = -numBits_opt
+      fstRecord%pack_bits = numBits_opt
     else
-      npak = -32
+      fstRecord%pack_bits = 32
     end if
+    ! the data will be 'real(4)' arrays and so it is 32 bits data
+    fstRecord%data_bits = 32
 
     ! initialization of parameters for writing to file
     if (statevector%dateOriginList(stepIndex) /= mpc_missingValue_int) then
-      dateo = statevector%dateOriginList(stepIndex)
+      fstRecord%dateo = statevector%dateOriginList(stepIndex)
     else
-      dateo  = statevector%dateStampList(stepIndex)
+      fstRecord%dateo  = statevector%dateStampList(stepIndex)
     end if
 
     if (statevector%deet /= mpc_missingValue_int) then
-      deet = statevector%deet
+      fstRecord%deet = statevector%deet
     else
-      deet = 0
+      fstRecord%deet = 0
     end if
 
     if (statevector%npasList(stepIndex) /= mpc_missingValue_int) then
-      npas = statevector%npasList(stepIndex)
+      fstRecord%npas = statevector%npasList(stepIndex)
     else
-      npas = 0
+      fstRecord%npas = 0
     end if
 
     if (statevector%ip2List(stepIndex) /= mpc_missingValue_int) then
-      ip2 = statevector%ip2List(stepIndex)
+      fstRecord%ip2 = statevector%ip2List(stepIndex)
     else
-      ip2 = 0
+      fstRecord%ip2 = 0
     end if
 
     if (statevector%etiket /= 'UNDEFINED') then
-      etiket = statevector%etiket
+      fstRecord%etiket = statevector%etiket
     else
-      etiket = trim(etiket_in)
+      fstRecord%etiket = trim(etiket_in)
     end if
 
-    ni     = statevector%ni
-    nj     = statevector%nj
-    nk     = 1
+    fstRecord%ni     = statevector%ni
+    fstRecord%nj     = statevector%nj
+    fstRecord%nk     = 1
     if (present(typvar_opt)) then
-      typvar = trim(typvar_opt)
+      fstRecord%typvar = trim(typvar_opt)
     else
-      typvar = 'R'
+      fstRecord%typvar = 'R'
     end if
     if (statevector%oceanMask%maskPresent) then
-      typvar(2:2) = '@'
+      fstRecord%typvar(2:2) = '@'
     end if
-    grtyp  = statevector%hco%grtyp
-    ig1    = statevector%hco%ig1
-    ig2    = statevector%hco%ig2
-    ig3    = statevector%hco%ig3
-    ig4    = statevector%hco%ig4
-    datyp  = 134
+    fstRecord%grtyp  = statevector%hco%grtyp
+    fstRecord%ig1    = statevector%hco%ig1
+    fstRecord%ig2    = statevector%hco%ig2
+    fstRecord%ig3    = statevector%hco%ig3
+    fstRecord%ig4    = statevector%hco%ig4
+    fstRecord%data_type = FST_TYPE_REAL + FST_TYPE_TURBOPACK
 
     ! only proc 0 does writing or each proc when data is global 
     ! (assuming only called for proc with global data)
@@ -1630,18 +1628,11 @@ module gridStateVectorFileIO_mod
     if (iDoWriting) then
 
       !- Open output field
-      nulfile = 0
       call msg('gio_writeToFile', 'File name = ' // str(trim(fileName)))
-      ierr = fnom(nulfile,trim(fileName),'RND+APPEND',0)
+      success = fstFile % open(trim(fileName), 'R/W')
 
-      if (ierr >= 0) then
-        ierr  =  fstouv(nulfile, 'RND')
-      else
-        call utl_abort('gio_writeToFile: problem opening output file')
-      end if
-
-      if (nulfile == 0 ) then
-        call utl_abort('gio_writeToFile: unit number for output file not valid')
+      if (.not. success) then
+        call utl_abort('gio_writeToFile: problem opening output file ' // fileName)
       end if
 
       !- Write TicTacToc
@@ -1704,18 +1695,21 @@ module gridStateVectorFileIO_mod
 
         ! now do writing
         if (iDoWriting) then
-          ip1 = statevector%vco%ip1_sfc
-          nomvar = 'GZ'
+          fstRecord%ip1 = statevector%vco%ip1_sfc
+          fstRecord%nomvar = 'GZ'
 
           !- Scale
           factor_r4 = real(1.0d0 / 10.0d0, 4)
           work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
+          fstRecord%data = c_loc(work2d_r4)
+
           !- Writing to file
           call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-          ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
-                        nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                        ig1, ig2, ig3, ig4, datyp, .false.)
+          success = fstFile % write(fstRecord)
+          if (.not. success) then
+            call utl_abort('gio_writeToFile: problem writing ' // fstRecord%nomvar // ' at level ' // str(fstRecord%ip1) // ' in output file ' // fileName)
+          end if
           call utl_tmg_stop(184)
         end if ! iDoWriting
 
@@ -1776,21 +1770,21 @@ module gridStateVectorFileIO_mod
 
             ! Set the ip1 value
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'MM') then
-              ip1 = statevector%vco%ip1_M(levIndex)
+              fstRecord%ip1 = statevector%vco%ip1_M(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
-              ip1 = statevector%vco%ip1_T(levIndex)
+              fstRecord%ip1 = statevector%vco%ip1_T(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              ip1 = 0
+              fstRecord%ip1 = 0
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFTH') then
-              ip1 = statevector%vco%ip1_T_2m
+              fstRecord%ip1 = statevector%vco%ip1_T_2m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFMM') then
-              ip1 = statevector%vco%ip1_M_10m
+              fstRecord%ip1 = statevector%vco%ip1_M_10m
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
-              ip1 = vco_ip1_other(levIndex)
+              fstRecord%ip1 = vco_ip1_other(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
-              ip1 = statevector%vco%ip1_depth(levIndex)
+              fstRecord%ip1 = statevector%vco%ip1_depth(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SS') then
-              ip1 = statevector%vco%ip1_seaLevel
+              fstRecord%ip1 = statevector%vco%ip1_seaLevel
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
               write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
@@ -1805,32 +1799,32 @@ module gridStateVectorFileIO_mod
             end if
              
             ! Set the output variable name
-            nomvar = trim(vnl_varNameList(varIndex))
-            if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
-               if (HUcontainsLQ_opt) nomvar = 'LQ'
+            fstRecord%nomvar = trim(vnl_varNameList(varIndex))
+            if (trim(fstRecord%nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
+               if (HUcontainsLQ_opt) fstRecord%nomvar = 'LQ'
             end if
 
-            if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then 
+            if (vnl_varKindFromVarname(trim(fstRecord%nomvar)) == 'CH' .and. containsFullField) then
               ! Impose lower limits
-              if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
+              if (gsv_minValVarKindCH(vnl_varListIndex(fstRecord%nomvar)) > 1.01 * mpc_missingValue_r8) &
                 work2d_r4(:,:) = max(work2d_r4(:,:), &
-                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
+                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(fstRecord%nomvar)))))
             end if
  
             ! Set the conversion factor
             if (unitConversion) then
 
-              if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+              if (trim(fstRecord%nomvar) == 'UU' .or. trim(fstRecord%nomvar) == 'VV') then
                 factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-              else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-                       trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
+              else if (trim(fstRecord%nomvar) == 'P0' .or. trim(fstRecord%nomvar) == 'UP' .or.  &
+                       trim(fstRecord%nomvar) == 'PB' .or. trim(fstRecord%nomvar) == 'P0LS') then
                 factor_r4 = 0.01 ! Pa -> hPa
-              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
+              else if ( vnl_varKindFromVarname(trim(fstRecord%nomvar)) == 'CH' ) then
                 if ( gsv_conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
-                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
+                  if ( trim(fstRecord%nomvar) == 'TO3' .or. trim(fstRecord%nomvar) == 'O3L' ) then
                     factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                                vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
+                                vnl_varMassFromVarName(trim(fstRecord%nomvar)) ! micrograms/kg -> vmr
                   else
                     factor_r4 = 1.0d0 ! no conversion
                   end if
@@ -1850,7 +1844,7 @@ module gridStateVectorFileIO_mod
             work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
 
             !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
+            if (containsFullField .and. (trim(fstRecord%nomvar) == 'TT' .or. trim(fstRecord%nomvar) == 'TM')) then
               where (work2d_r4(:,:) > 100.0)
                 work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
               end where
@@ -1859,21 +1853,28 @@ module gridStateVectorFileIO_mod
             !- Do interpolation back to physics grid, if needed
             if ( interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex) ) then
               write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
-                         nomvar, associated(statevector%hco_physics)
+                         fstRecord%nomvar, associated(statevector%hco_physics)
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
               ierr = ezdefset(statevector%hco_physics%EZscintID, statevector%hco%EZscintID)
               ierr = int_hInterpScalar(work2dFile_r4, work2d_r4, &
                                        interpDegree='NEAREST', extrapDegree_opt='NEUTRAL')
 
+              fstRecordTmp = fstRecord
+              fstRecordTmp%ni = statevector%hco_physics%ni
+              fstRecordTmp%nj = statevector%hco_physics%nj
+              fstRecordTmp%ig1 = statevector%hco_physics%ig1
+              fstRecordTmp%ig2 = statevector%hco_physics%ig2
+              fstRecordTmp%ig3 = statevector%hco_physics%ig3
+              fstRecordTmp%ig4 = statevector%hco_physics%ig4
+
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
-                            statevector%hco_physics%ni, statevector%hco_physics%nj, &
-                            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                            statevector%hco_physics%ig1, statevector%hco_physics%ig2, &
-                            statevector%hco_physics%ig3, statevector%hco_physics%ig4, &
-                            datyp, .false.)
+              fstRecordTmp%data = c_loc(work2dFile_r4)
+              success = fstFile % write(fstRecordTmp)
+              if (.not. success) then
+                call utl_abort('gio_writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fileName)
+              end if
               call utl_tmg_stop(184)
               deallocate(work2dFile_r4)
 
@@ -1881,20 +1882,27 @@ module gridStateVectorFileIO_mod
 
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
-                            nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                            ig1, ig2, ig3, ig4, datyp, .false.)
+              fstRecord%data = c_loc(work2d_r4)
+              success = fstFile % write(fstRecord)
+              if (.not. success) then
+                call utl_abort('gio_writeToFile: problem writing ' // fstRecord%nomvar // ' at level ' // str(fstRecord%ip1) // ' in output file ' // fileName)
+              end if
               call utl_tmg_stop(184)
 
             end if
 
             if (statevector%oceanMask%maskPresent) then
-              if (.not.allocated(mask)) allocate(mask(ni,nj))
+              if (.not.allocated(mask)) allocate(mask(fstRecord%ni,fstRecord%nj))
               call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ierr = fstecr(mask, work_r4, -1, nulfile, dateo, deet, npas, ni, nj, &
-                            nk, ip1, ip2, ip3, '@@', nomvar, etiket, grtyp,      &
-                            ig1, ig2, ig3, ig4, 2, .false.)
+              fstRecordTmp = fstRecord
+              fstRecordTmp%data = c_loc(mask)
+              fstRecordTmp%typvar = '@@'
+              fstRecordTmp%data_type = FST_TYPE_UNSIGNED
+              success = fstFile % write(fstRecordTmp)
+              if (.not. success) then
+                call utl_abort('gio_writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fileName)
+              end if
               call utl_tmg_stop(184)
             end if
 
@@ -1912,8 +1920,10 @@ module gridStateVectorFileIO_mod
     if (allocated(mask)) deallocate(mask)
 
     if (iDoWriting) then
-      ierr = fstfrm(nulfile)
-      ierr = fclos(nulfile)        
+      success = fstFile%close()
+      if (.not. success) then
+        call utl_abort('gio_writeToFile: problem closing output file ' // fileName)
+      end if
     end if
 
     !
