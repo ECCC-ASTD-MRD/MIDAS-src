@@ -434,8 +434,8 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
-    <SUBMITS sub_name="glb_800km"/>
-    <FAMILY  name="glb_800km">
+    <SUBMITS sub_name="glb_3D"/>
+    <FAMILY  name="glb_3D">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
