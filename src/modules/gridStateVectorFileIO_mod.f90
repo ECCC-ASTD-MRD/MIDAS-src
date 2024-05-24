@@ -1637,7 +1637,7 @@ module gridStateVectorFileIO_mod
 
       !- Write TicTacToc
       if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
-        call writeTicTacToc(statevector, nulfile, etiket) ! IN
+        call writeTicTacToc(statevector, fstFile, fstRecord%etiket)
       endif
 
     end if
@@ -1942,7 +1942,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! writeTicTacToc
   !--------------------------------------------------------------------------
-  subroutine writeTicTacToc(statevector,iun,etiket)
+  subroutine writeTicTacToc(statevector,fstFile,etiket)
     !
     ! :Purpose: Write a statevector object grid descriptors to an RPN standard
     !           file.
@@ -1951,120 +1951,165 @@ module gridStateVectorFileIO_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
-    integer,          intent(in) :: iun
+    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' calling 'fstFile%write()' modifies 'fstFile'
     character(len=*), intent(in) :: etiket
 
     ! Locals:
-    integer :: ier
-    integer :: dateo, npak, status, fstecr
-    integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
-    integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
-    character(len=1)  :: grtyp
-    character(len=2)  :: typvar
+    logical :: success
+    type(fst_record) :: fstRecord
+    integer :: status
+    real(4), target :: lat_4(statevector%hco%ni,statevector%hco%nj) ! in degrees
+    real(4), target :: lon_4(statevector%hco%ni,statevector%hco%nj) ! in degrees
+    real(8), target :: lat_8(statevector%hco%nj) ! in degrees
+    real(8), target :: lon_8(statevector%hco%ni) ! in degrees
 
     !
     !- 1.  Writing Tic-Tac
     !
     if (statevector%hco%grtyp == 'Z') then
-      npak     = -32
-      deet     =  0
-      ip1      =  statevector%hco%ig1
-      ip2      =  statevector%hco%ig2
-      ip3      =  statevector%hco%ig3
-      npas     =  0
-      datyp    =  1
-      grtyp    =  statevector%hco%grtypTicTac
-      typvar   = 'X'
-      dateo =  0
+      fstRecord%data_type = FST_TYPE_REAL_OLD_QUANT
+      fstRecord%data_bits = 64
+      fstRecord%pack_bits = 32
+      fstRecord%deet   =  0
+      fstRecord%ip1    =  statevector%hco%ig1
+      fstRecord%ip2    =  statevector%hco%ig2
+      fstRecord%ip3    =  statevector%hco%ig3
+      fstRecord%npas   =  0
+      fstRecord%grtyp  =  statevector%hco%grtypTicTac
+      fstRecord%typvar = 'X'
+      fstRecord%dateo  =  0
+      fstRecord%etiket = etiket
 
-      call cxgaig (grtyp,                                                    & ! IN
-                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,           & ! OUT
-                   real(statevector%hco%xlat1), real(statevector%hco%xlon1), & ! IN
-                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))   ! IN
+      call cxgaig (fstRecord%grtyp,                                            & ! IN
+                   fstRecord%ig1, fstRecord%ig2, fstRecord%ig3, fstRecord%ig4, & ! OUT
+                   real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
+                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))     ! IN
 
-      ig1      =  ig1_tictac
-      ig2      =  ig2_tictac
-      ig3      =  ig3_tictac
-      ig4      =  ig4_tictac
+      lon_8(:) = statevector%hco%lon(:)*mpc_degrees_per_radian_r8
+      fstRecord%data = c_loc(lon_8)
+      fstRecord%nomvar = '>>'
+      fstRecord%ni = statevector%ni
+      fstRecord%nj = 1
+      fstRecord%nk = 1
+      success = fstFile % write(fstRecord, rewrite = .true.)
+      if (.not. success) then
+        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+      end if
 
-      ier = utl_fstecr(statevector%hco%lon*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,   &
-                       ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                       ig2, ig3, ig4, datyp, .true.)
-
-      ier = utl_fstecr(statevector%hco%lat*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,   &
-                       ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                       ig2, ig3, ig4, datyp, .true.)
+      lat_8(:) = statevector%hco%lat(:)*mpc_degrees_per_radian_r8
+      fstRecord%data = c_loc(lat_8)
+      fstRecord%nomvar = '^^'
+      fstRecord%ni = 1
+      fstRecord%nj = statevector%nj
+      fstRecord%nk = 1
+      success = fstFile % write(fstRecord, rewrite = .true.)
+      if (.not. success) then
+        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+      end if
 
       ! Also write the tic tac for the physics grid
       if ( any(statevector%onPhysicsGrid(:)) ) then
 
-        ip1      =  statevector%hco_physics%ig1
-        ip2      =  statevector%hco_physics%ig2
-        ip3      =  statevector%hco_physics%ig3
-        grtyp    =  statevector%hco_physics%grtypTicTac
+        fstRecord%ip1   = statevector%hco_physics%ig1
+        fstRecord%ip2   = statevector%hco_physics%ig2
+        fstRecord%ip3   = statevector%hco_physics%ig3
+        fstRecord%grtyp = statevector%hco_physics%grtypTicTac
         
-        call cxgaig (grtyp,                                                                   & ! IN
-                     ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,                          & ! OUT
-                     real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1),& ! IN
-                     real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2))  ! IN
+        call cxgaig (fstRecord%grtyp,                                            & ! IN
+                     fstRecord%ig1, fstRecord%ig2, fstRecord%ig3, fstRecord%ig4, & ! OUT
+                     real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1), & ! IN
+                     real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2))   ! IN
 
-        ig1      =  ig1_tictac
-        ig2      =  ig2_tictac
-        ig3      =  ig3_tictac
-        ig4      =  ig4_tictac
+        lon_8(:) = statevector%hco_physics%lon(:)*mpc_degrees_per_radian_r8
+        fstRecord%data = c_loc(lon_8)
+        fstRecord%nomvar = '>>'
+        fstRecord%ni = statevector%hco_physics%ni
+        fstRecord%nj = 1
+        fstRecord%nk = 1
+        success = fstFile % write(fstRecord, rewrite = .true.)
+        if (.not. success) then
+          call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        end if
 
-        ier = utl_fstecr(statevector%hco_physics%lon*mpc_degrees_per_radian_r8, npak, &
-                         iun, dateo, deet, npas, statevector%hco_physics%ni, 1, 1, ip1,    &
-                         ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                         ig2, ig3, ig4, datyp, .true.)
-
-        ier = utl_fstecr(statevector%hco_physics%lat*mpc_degrees_per_radian_r8, npak, &
-                         iun, dateo, deet, npas, 1, statevector%hco_physics%nj, 1, ip1,    &
-                         ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                         ig2, ig3, ig4, datyp, .true.)
+        lat_8(:) = statevector%hco_physics%lat(:)*mpc_degrees_per_radian_r8
+        fstRecord%data = c_loc(lat_8)
+        fstRecord%nomvar = '^^'
+        fstRecord%ni = 1
+        fstRecord%nj = statevector%hco_physics%nj
+        fstRecord%nk = 1
+        success = fstFile % write(fstRecord, rewrite = .true.)
+        if (.not. success) then
+          call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+        end if
       end if
 
     else if (statevector%hco%grtyp == 'U') then
-      npak     = -32
-      ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, &
-                   0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
-                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, &
-                   'X', '^>', etiket, 'F', 1, 0, 0, 0, 5, .false.)
+      fstRecord%data_type = FST_TYPE_REAL_IEEE
+      fstRecord%data_bits = 32
+      fstRecord%pack_bits = 32
+      fstRecord%deet   = 0
+      fstRecord%ip1    = statevector%hco%ig1
+      fstRecord%ip2    = statevector%hco%ig2
+      fstRecord%ip3    = statevector%hco%ig3
+      fstRecord%npas   = 0
+      fstRecord%grtyp  = 'F'
+      fstRecord%typvar = 'X'
+      fstRecord%dateo  = 0
+      fstRecord%etiket = etiket
+      fstRecord%nomvar = '^>'
+      fstRecord%ni     = size(statevector%hco%tictacU)
+      fstRecord%nj     = 1
+      fstRecord%nk     = 1
+      fstRecord%ig1    = 1
+      fstRecord%ig2    = 0
+      fstRecord%ig3    = 0
+      fstRecord%ig4    = 0
+      fstRecord%data = c_loc(statevector%hco%tictacU)
+      success = fstFile % write(fstRecord)
+      if (.not. success) then
+        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+      end if
 
     else if (statevector%hco%grtyp == 'Y') then
-      npak     = -32
-      deet     =  0
-      ip1      =  statevector%hco%ig1
-      ip2      =  statevector%hco%ig2
-      ip3      =  statevector%hco%ig3
-      npas     =  0
-      datyp    =  1
-      grtyp    =  statevector%hco%grtypTicTac
-      typvar   = 'X'
-      dateo =  0
+      fstRecord%data_type = FST_TYPE_REAL_OLD_QUANT
+      fstRecord%data_bits = 32
+      fstRecord%pack_bits = 32
+      fstRecord%deet      = 0
+      fstRecord%ip1       = statevector%hco%ig1
+      fstRecord%ip2       = statevector%hco%ig2
+      fstRecord%ip3       = statevector%hco%ig3
+      fstRecord%npas      = 0
+      fstRecord%grtyp     = statevector%hco%grtypTicTac
+      fstRecord%typvar    = 'X'
+      fstRecord%dateo     = 0
+      fstRecord%etiket    = etiket
 
-      call cxgaig (grtyp,                                                   & ! IN
-                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac,          & ! OUT
-                   real(statevector%hco%xlat1), real(statevector%hco%xlon1),& ! IN
-                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))  ! IN
+      call cxgaig (fstRecord%grtyp,                                            & ! IN
+                   fstRecord%ig1, fstRecord%ig2, fstRecord%ig3, fstRecord%ig4, & ! OUT
+                   real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
+                   real(statevector%hco%xlat2), real(statevector%hco%xlon2))     ! IN
 
-      ig1      =  ig1_tictac
-      ig2      =  ig2_tictac
-      ig3      =  ig3_tictac
-      ig4      =  ig4_tictac
+      lon_4(:,:) = statevector%hco%lon2d_4(:,:)*mpc_degrees_per_radian_r8
+      fstRecord%data = c_loc(lon_4)
+      fstRecord%nomvar = '>>'
+      fstRecord%ni = statevector%ni
+      fstRecord%nj = statevector%nj
+      fstRecord%nk = 1
+      success = fstFile % write(fstRecord, rewrite = .true.)
+      if (.not. success) then
+        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+      end if
 
-      ier = utl_fstecr(statevector%hco%lon2d_4*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1, &
-                       ip1, ip2, ip3, typvar, '>>', etiket, grtyp,          &
-                       ig1, ig2, ig3, ig4, datyp, .true.)
-
-      ier = utl_fstecr(statevector%hco%lat2d_4*mpc_degrees_per_radian_r8, npak, &
-                       iun, dateo, deet, npas, statevector%ni, statevector%nj, 1, &
-                       ip1, ip2, ip3, typvar, '^^', etiket, grtyp,          &
-                       ig1, ig2, ig3, ig4, datyp, .true.)
-
+      lat_4(:,:) = statevector%hco%lat2d_4(:,:)*mpc_degrees_per_radian_r8
+      fstRecord%data = c_loc(lat_4)
+      fstRecord%nomvar = '^^'
+      fstRecord%ni = statevector%ni
+      fstRecord%nj = statevector%nj
+      fstRecord%nk = 1
+      success = fstFile % write(fstRecord, rewrite = .true.)
+      if (.not. success) then
+        call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
+      end if
 
     end if
 
@@ -2072,7 +2117,7 @@ module gridStateVectorFileIO_mod
     !- Writing Toc-Toc
     !
     if (statevector%vco%vgridPresent) then
-      status = vgd_write(statevector%vco%vgrid,iun,'fst')
+      status = vgd_write(statevector%vco%vgrid,fstFile%get_unit(),'fst')
       if (status /= VGD_OK) then
         call utl_abort('writeTicTacToc: ERROR with vgd_write')
       end if
