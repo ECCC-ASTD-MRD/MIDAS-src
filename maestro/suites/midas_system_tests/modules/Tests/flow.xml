@@ -434,6 +434,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="glb_3D"/>
+    <FAMILY  name="glb_3D">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="gem-h"/>
     <FAMILY  name="gem-h">
       <SUBMITS sub_name="24mem-gemp"/>

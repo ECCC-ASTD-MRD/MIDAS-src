@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add a test `/Tests/letkf/glb_3D` to run LETKF on a single node (#932 and !841)
  * The routine `hco_weight` can now read the grid weights from the file `grid_weight.bin` instead of recomputing them (#928 and !838)
    * If it does compute the weights, then the routine writes them in `grid_weight.bin`.
  * Add namelist variables in `nambgck` and `namoer` for all-sky ATMS humidity channels (#879 and !832)
@@ -15,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * All-sky assimilation in letkf (#880 and !833)
  * When compiling with debug or code coverage options, we avoid
    running `check` and `clean` tasks in the system tests (#900 and !830)
- * Added `NAMCLIMATOLOGY` namelist variable `inputClimVarNames` to generalize specification of the input climatology file NOMVARs (#921 and !831)
+ * Added `NAMCLIMATOLOGY` namelist variable `inputClimVarNames` to generalize specification of the input climatology file `NOMVAR`s (#921 and !831)
  * Option to not recenter sub-sample used to initialize medium-range forecasts (#918 and !826)
    * New namelist variables `recenterSubSample` and `recenterSubSampleUnPert`
 
@@ -43,7 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added the capability to compute EnVar analysis increments on GEM-P levels using a background and ensembles on GEM-H levels (#850 and !820)
    * WARNING: minor impact on results when vertically interpolating the ensembles
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
- * Add climatologies_mod which replaces and generalizes ozoneClim_mod (#202 and !772)
+ * Add climatologies_mod which replaces and generalizes `ozoneClim_mod` (#202 and !772)
    * WARNING: Minor impact on results when using ozone sensitive radiances
  * Added ability to write LETKF analysis increment in netCDF format and compute BG check for NEMO SST files(#872 and !814)
  * Added option to include surface emissivity as an analysis variable in Var1D program (#878 and !812)
