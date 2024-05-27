@@ -523,7 +523,7 @@ contains
         call handle_error(error, "brpr_updateBurp: burp_get_property #1")
 
         IF ( stnid(1:2) == ">>" ) THEN
-          write(*,*)  ' RESUME RECORD POSITION IN BURP FILE =',stnid,kk
+          ! write(*,*)  ' RESUME RECORD POSITION IN BURP FILE =',stnid,kk
           call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
           call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
           call handle_error(error, "brpr_updateBurp: Burp_Init_Report_Write #1")
