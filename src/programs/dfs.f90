@@ -94,7 +94,7 @@ program midas_dfs
   !                 following steps
   !
   !               - Set the corresponding entry of ``obs_work`` column of
-  !                   ``obsSpaceData` to one
+  !                   ``obsSpaceData`` to one
   !
   !               - Apply the adjoint of the observation operator ``oop_Had``
   !
