@@ -1486,21 +1486,20 @@ module gridStateVectorFileIO_mod
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField
     integer :: stepIndex
-    integer :: ierr, ezdefset
-    integer :: levIndex, nlev, varIndex, maskLevIndex
+    integer :: ierr
+    integer :: levIndex, nlev, varIndex
     integer :: yourid, nsize, youridy, youridx, threadId
     real(4) :: factor_r4
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
-    integer, allocatable :: mask(:,:)
     real(4), allocatable :: work2d_r4(:,:,:) ! last dimension is along the thread id
-    real(4), allocatable :: work2dFile_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
+    real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
     type(fst_file)   :: fstFile
-    type(fst_record) :: fstRecords(0:mmpi_numthread-1), fstRecordTmp
+    type(fst_record) :: fstRecords(0:mmpi_numthread-1)
     logical :: success
 
     call msg('gio_writeToFile', 'START')
@@ -1793,13 +1792,6 @@ module gridStateVectorFileIO_mod
               call utl_abort('gio_writeToFile')
             end if
 
-            ! Set the level index for the mask (if present)
-            if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
-              maskLevIndex = levIndex
-            else
-              maskLevIndex = 1
-            end if
-             
             ! Set the output variable name
             fstRecords(threadId)%nomvar = trim(vnl_varNameList(varIndex))
             if (trim(fstRecords(threadId)%nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
@@ -1852,61 +1844,12 @@ module gridStateVectorFileIO_mod
               end where
             end if
 
-            !- Do interpolation back to physics grid, if needed
-            if ( interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex) ) then
-              write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
-                         fstRecords(threadId)%nomvar, associated(statevector%hco_physics)
-              allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
-              work2dFile_r4(:,:) = 0.0
-              ierr = ezdefset(statevector%hco_physics%EZscintID, statevector%hco%EZscintID)
-              ierr = int_hInterpScalar(work2dFile_r4, work2d_r4(:,:,threadID), &
-                                       interpDegree='NEAREST', extrapDegree_opt='NEUTRAL')
-
-              fstRecordTmp = fstRecords(threadId)
-              fstRecordTmp%ni = statevector%hco_physics%ni
-              fstRecordTmp%nj = statevector%hco_physics%nj
-              fstRecordTmp%ig1 = statevector%hco_physics%ig1
-              fstRecordTmp%ig2 = statevector%hco_physics%ig2
-              fstRecordTmp%ig3 = statevector%hco_physics%ig3
-              fstRecordTmp%ig4 = statevector%hco_physics%ig4
-
-              !- Writing to file
-              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              fstRecordTmp%data = c_loc(work2dFile_r4)
-              success = fstFile % write(fstRecordTmp)
-              if (.not. success) then
-                call utl_abort('gio_writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fileName)
-              end if
-              call utl_tmg_stop(184)
-              deallocate(work2dFile_r4)
-
-            else
-
-              !- Writing to file
-              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              fstRecords(threadId)%data = c_loc(work2d_r4(:,:,threadId))
-              success = fstFile % write(fstRecords(threadId))
-              if (.not. success) then
-                call utl_abort('gio_writeToFile: problem writing ' // fstRecords(threadId)%nomvar // ' at level ' // str(fstRecords(threadId)%ip1) // ' in output file ' // fileName)
-              end if
-              call utl_tmg_stop(184)
-
-            end if
-
-            if (statevector%oceanMask%maskPresent) then
-              fstRecordTmp = fstRecords(threadId)
-              if (.not.allocated(mask)) allocate(mask(fstRecordTmp%ni,fstRecordTmp%nj))
-              call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
-              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              fstRecordTmp%data = c_loc(mask)
-              fstRecordTmp%typvar = '@@'
-              fstRecordTmp%data_type = FST_TYPE_UNSIGNED
-              success = fstFile % write(fstRecordTmp)
-              if (.not. success) then
-                call utl_abort('gio_writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fileName)
-              end if
-              call utl_tmg_stop(184)
-            end if
+            !- Writing to file
+            call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
+            call writeToFile(fstFile = fstFile, fstRecord = fstRecords(threadId), levIndex = levIndex, &
+                             statevector = statevector, data = work2d_r4(:,:,threadId), &
+                             interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex))
+            call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
 
           end if ! iDoWriting
 
@@ -1919,7 +1862,6 @@ module gridStateVectorFileIO_mod
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
-    if (allocated(mask)) deallocate(mask)
 
     if (iDoWriting) then
       success = fstFile%close()
@@ -1940,6 +1882,86 @@ module gridStateVectorFileIO_mod
     call msg('gio_writeToFile', 'Completed')
 
   end subroutine gio_writeToFile
+
+  !--------------------------------------------------------------------------
+  ! writeToFile
+  !--------------------------------------------------------------------------
+  subroutine writeToFile(fstFile,fstRecord,levIndex,statevector,data,interpolationToPhysicsGrid)
+    !
+    ! :Purpose: Write field to disk
+    !
+    implicit none
+
+    ! Arguments:
+    type(fst_file), intent(inout) :: fstFile ! we must use 'intent(inout)' calling 'fstFile%write()' modifies 'fstFile'
+    type(fst_record), intent(in)  :: fstRecord
+    integer, intent(in) :: levIndex
+    type(struct_gsv), target, intent(inout) :: statevector ! we must use  'intent(inout)' call 'ocm_copyToInt(statevector%oceanMask,...)' modifies 'statevector%oceanMask'
+    logical, intent(in) :: interpolationToPhysicsGrid
+    real(4), intent(in) :: data(:,:)
+
+    ! Locals:
+    type(fst_record) :: fstRecordTmp
+    real(4), allocatable :: work2dFile_r4(:,:)
+    integer, allocatable :: mask(:,:)
+    logical :: success
+    integer :: ierr, ezdefset, maskLevIndex
+
+    fstRecordTmp = fstRecord
+
+    !- Do interpolation back to physics grid, if needed
+    if ( interpolationToPhysicsGrid ) then
+      write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
+           fstRecord%nomvar, associated(statevector%hco_physics)
+      allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
+      work2dFile_r4(:,:) = 0.0
+      ierr = ezdefset(statevector%hco_physics%EZscintID, statevector%hco%EZscintID)
+      ierr = int_hInterpScalar(work2dFile_r4, data, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL')
+
+      fstRecordTmp%ni = statevector%hco_physics%ni
+      fstRecordTmp%nj = statevector%hco_physics%nj
+      fstRecordTmp%ig1 = statevector%hco_physics%ig1
+      fstRecordTmp%ig2 = statevector%hco_physics%ig2
+      fstRecordTmp%ig3 = statevector%hco_physics%ig3
+      fstRecordTmp%ig4 = statevector%hco_physics%ig4
+
+      fstRecordTmp%data = c_loc(work2dFile_r4)
+      success = fstFile % write(fstRecordTmp)
+      deallocate(work2dFile_r4)
+
+    else
+
+      fstRecordTmp%data = c_loc(data)
+      success = fstFile % write(fstRecordTmp)
+
+    end if
+
+    if (.not. success) then
+      call utl_abort('writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+    end if
+
+    if (statevector%oceanMask%maskPresent) then
+      ! Set the level index for the mask (if present)
+      if (vnl_varLevelFromVarname(fstRecordTmp%nomvar) == 'DP') then
+        maskLevIndex = levIndex
+      else
+        maskLevIndex = 1
+      end if
+
+      allocate(mask(fstRecordTmp%ni,fstRecordTmp%nj))
+      call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
+      fstRecordTmp%data = c_loc(mask)
+      fstRecordTmp%typvar = '@@'
+      fstRecordTmp%data_type = FST_TYPE_UNSIGNED
+      success = fstFile % write(fstRecordTmp)
+      deallocate(mask)
+    end if
+
+    if (.not. success) then
+      call utl_abort('writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+    end if
+
+  end subroutine writeToFile
 
   !--------------------------------------------------------------------------
   ! writeTicTacToc
