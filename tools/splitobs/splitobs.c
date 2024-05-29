@@ -11,8 +11,8 @@
 
 /* Include pour les librairies RPN */
 #include "rmn.h"
+#include "App.h"
 #include "rmn/rpnmacros.h"
-
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
 
@@ -23,7 +23,7 @@
 /* Include qui permet d'obtenir la version a la compilation
  * (ce fichier est genere on-the-fly par le Makefile puis efface)
  */
-#include "version.h"
+#include "midas_build_info.h"
 
 /* variables pour les fonction exdb et exfin */
 #define PROGRAM_NAME      "splitobs"
@@ -241,32 +241,29 @@ int main(int argc, char** argv) {
   /* Impression de la boite indiquant le demarrage du programme */
   /**************************************************************/
 
-  F2Cl l_program_name = strlen(PROGRAM_NAME);
-  F2Cl l_version      = strlen(VERSION);
-  F2Cl l_non          = strlen("NON");
+  
+  App_Init(APP_MAIN,PROJECT_NAME_STRING,VERSION,PROJECT_DESCRIPTION_STRING,BUILD_TIMESTAMP);
+  App_Start();
 
-  f77name(exdb)(PROGRAM_NAME,VERSION,"NON",l_program_name,l_version,l_non);
-
-  printf("\n%s version: %s (SHA-1 %s)\n\n", PROGRAM_NAME, VERSION, VERSION_SHA1);
+  //printf("\n%s version: %s (SHA-1 %s)\n\n", PROGRAM_NAME, VERSION, VERSION_SHA1);
 
   /***************************************/
   /* on va lire les options au programme */
   /***************************************/
   status = parseOptions(argc,argv,&opt);
   if (status == NOT_OK) {
-    fprintf(stderr, "Fonction main: probleme avec la fonction parseOptions\n");
-
-    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+    App_Log(APP_ERROR,"Fonction main: probleme avec la fonction parseOptions\n");
+    App_End(-1);exit(1);
   }
 
   status = access(opt.obsin,F_OK);
   if ( status != 0 ) { /* Le fichier existe deja */
-      fprintf(stderr,"The file '%s' does not exist and should.\n",opt.obsin);
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_Log(APP_ERROR,"The file '%s' does not exist and should.\n",opt.obsin);
+      App_End(-1);exit(1);
   }
 
   filetype = c_wkoffit(opt.obsin,strlen(opt.obsin));
-
+ 
   /* Si on n'est pas en mode round-robin, alors on a besoin du fichier 'opt.fstin'. */
   if ( opt.roundrobin == 0 ) {
     /**********************************************************
@@ -276,37 +273,35 @@ int main(int argc, char** argv) {
      **********************************************************/
     status = open_stdfile(iun, opt.fstin, "RND+R/O");
     if (status == NOT_OK) {
-      fprintf(stderr, "Fonction main: Erreur dans la fonction open_stdfile avec le fichier %s\n",opt.fstin);
-
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction open_stdfile avec le fichier %s\n",opt.fstin);
+      App_End(-1);exit(1);
     }
 
     /* On va chercher la grille definie par le champ identifie avec la structure opt.fstin */
     status = getgrid(iun,&grid,&opt.fst,opt.fstin);
     if (status == NOT_OK) {
-      fprintf(stderr, "Fonction main: Erreur dans la fonction getgrid pour les parametres "
+      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction getgrid pour les parametres "
 	      "(%s,%s,%s,%d,%d,%d,%d) dans le fichier %s\n",opt.fst.nomvar,opt.fst.typvar,opt.fst.etiket,
 	      opt.fst.dateo,opt.fst.ip1,opt.fst.ip2,opt.fst.ip3,opt.fstin);
 
       /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
       close_stdfile(iun,opt.fstin);
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_End(-1);exit(1);
     }
 
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     status = close_stdfile(iun,opt.fstin);
     if (status == NOT_OK) {
-      fprintf(stderr, "Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",ier,opt.fstin);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction close_stdfile pour le fichier '%s'\n",ier,opt.fstin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
-	status = c_gdrls(grid.gridid);
-	if (status<0)
-	  fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	       status = c_gdrls(grid.gridid);
+	       if (status<0)
+	          App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
-
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_End(-1);exit(1);
     }
 
     /* Si on a defini la region avec l'option -pilot alors on definit le rectangle avec cette option */
@@ -399,11 +394,11 @@ int main(int argc, char** argv) {
 	  if ( opt.roundrobin == 0 ) {
 	    status = c_gdrls(grid.gridid);
 	    if (status<0)
-	      fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	  }
 
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
-	}
+      App_End(-1);exit(1);
+  	}
       }
       if (opt.niveau_max != IP1_VIDE) {
 	status = getGZ(iun,opt.gz,&grid_gz,opt.niveau_max,&VALEURS_GZ_MAX);
@@ -412,13 +407,12 @@ int main(int argc, char** argv) {
 	  if ( opt.roundrobin == 0 ) {
 	    status = c_gdrls(grid.gridid);
 	    if (status<0)
-	      fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	  }
 
 	  if (VALEURS_GZ_MIN != (float*) NULL)
 	    free(VALEURS_GZ_MIN);
-
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_End(-1);exit(1);
 	}
       }
     } /* Fin du if (strlen(opt.gz)!=0) */
@@ -443,9 +437,8 @@ int main(int argc, char** argv) {
     strcpy(table_list_without_split_key,"");
     status = sqlite_get_tables(opt.obsin, opt.rdb_split_on_key, table_list_with_split_key, table_list_without_split_key);
     if( status != OK ) {
-      fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
-
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite_get_tables pour le fichier '%s'\n", status, opt.obsin);
+      App_End(-1);exit(1);
     }
 
     append_table_list_without_split_key_requests(sqlreq_tables_without_split_key,"dbin",table_list_without_split_key);
@@ -457,20 +450,20 @@ int main(int argc, char** argv) {
       if ( status == 0 ) { /* Le fichier existe deja */
         status = sqlite3_open(opt.obsout,&sqldb);
         if ( status != SQLITE_OK ) {
-          fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+          App_Log(APP_ERROR,"Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
 
           status = sqlite3_close(sqldb);
           if( status != SQLITE_OK )
-            fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -478,7 +471,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+          App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
       } /* Fin du 'if ( status == 0 )' */
       else {
@@ -489,20 +482,20 @@ int main(int argc, char** argv) {
         /* On lit le fichier d'input */
         status = sqlite3_open(opt.obsin,&sqldbin);
         if ( status != SQLITE_OK ) {
-          fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
+          App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
           status = sqlite3_close(sqldbin);
           if( status != SQLITE_OK )
-            fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -510,7 +503,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+           App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         /* Execution de la requete SQL sur la base de donnees */
@@ -522,21 +515,21 @@ int main(int argc, char** argv) {
         strcpy(sqlschema,"");
         status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
         if( status != SQLITE_OK ) {
-          fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+          App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
           sqlite3_free(ErrMsg);
 
           status = sqlite3_close(sqldbin);
           if( status != SQLITE_OK )
-            fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -544,21 +537,21 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+           App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         status = sqlite3_close(sqldbin);
         if( status != SQLITE_OK ) {
-          fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -566,26 +559,26 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+           App_End(-1);exit(1);
         }
 
         status = sqlite3_open(opt.obsout,&sqldb);
         if ( status != SQLITE_OK ) {
-          fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", opt.obsout, sqlite3_errmsg(sqldb));
+          App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees pour le fichier '%s': %s\n", opt.obsout, sqlite3_errmsg(sqldb));
 
           status = sqlite3_close(sqldbin);
           if( status != SQLITE_OK )
-            fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
 
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -593,27 +586,27 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+           App_End(-1);exit(1);
         } /* Fin du 'if ( status != SQLITE_OK )' */
 
         status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
         if( status != SQLITE_OK ){
-          fprintf(stderr, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
+          App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsout, ErrMsg);
           if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-            fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+            App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                     "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
           }
           sqlite3_free(ErrMsg);
 
           status = c_gdrls(grid.gridid);
           if (status<0)
-            fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+            App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
           if (strlen(opt.gz)!=0) {
             status = c_gdrls(grid_gz.gridid);
             if (status<0)
 
-              fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+              App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
             if (VALEURS_GZ_MIN != (float*) NULL)
               free(VALEURS_GZ_MIN);
@@ -621,7 +614,7 @@ int main(int argc, char** argv) {
               free(VALEURS_GZ_MAX);
           }
 
-          exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+           App_End(-1);exit(1);
         }
       } /* Fin du 'else' relie au 'if ( status == 0 )' */
 
@@ -631,20 +624,20 @@ int main(int argc, char** argv) {
       status = sqlite3_create_function(sqldb, SQLFUNCTION_NAME, NUMBER_OF_ARGS_FOR_CHECK_GRID, SQLITE_UTF8,
                                        (void*) NULL, &checkgrid_sql, (void*) NULL, (void*) NULL);
       if( status != SQLITE_OK ) {
-        fprintf(stderr,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
+        App_Log(APP_ERROR,"Fonction main: Incapable de creer la fonction %s\n", SQLFUNCTION_NAME);
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
-          fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
         status = c_gdrls(grid.gridid);
         if (status<0)
-          fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+          App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
         if (strlen(opt.gz)!=0) {
           status = c_gdrls(grid_gz.gridid);
           if (status<0)
-            fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
           if (VALEURS_GZ_MIN != (float*) NULL)
             free(VALEURS_GZ_MIN);
@@ -652,7 +645,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-        exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+         App_End(-1);exit(1);
       }
 
       /* On cree la fonction checkvertical qui verifie si l'observation est a l'interieur
@@ -661,20 +654,20 @@ int main(int argc, char** argv) {
       status = sqlite3_create_function(sqldb, SQL_VERTICAL_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL, SQLITE_UTF8,
                                        (void*) NULL, &checkvertical_sql, (void*) NULL, (void*) NULL);
       if( status != SQLITE_OK ) {
-        fprintf(stderr, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
+        App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
-          fprintf(stderr, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
         status = c_gdrls(grid.gridid);
         if (status<0)
-          fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
         if (strlen(opt.gz)!=0) {
           status = c_gdrls(grid_gz.gridid);
           if (status<0)
-            fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
           if (VALEURS_GZ_MIN != (float*) NULL)
             free(VALEURS_GZ_MIN);
@@ -682,7 +675,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-        exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+         App_End(-1);exit(1);
       }
 
       /* On cree la fonction checkvertical_gz qui verifie si l'observation est a l'interieur
@@ -691,20 +684,20 @@ int main(int argc, char** argv) {
       status = sqlite3_create_function(sqldb, SQL_VERTICAL_GZ_NAME, NUMBER_OF_ARGS_FOR_CHECK_VERTICAL_GZ, SQLITE_UTF8,
                                        (void*) NULL, &checkvertical_gz_sql, (void*) NULL, (void*) NULL);
       if( status != SQLITE_OK ) {
-        fprintf(stderr, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
+        App_Log(APP_ERROR, "Fonction main: Incapable de creer la fonction %s\n", SQL_VERTICAL_NAME);
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
-          fprintf(stderr, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
         status = c_gdrls(grid.gridid);
         if (status<0)
-          fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
         if (strlen(opt.gz)!=0) {
           status = c_gdrls(grid_gz.gridid);
           if (status<0)
-            fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
           if (VALEURS_GZ_MIN != (float*) NULL)
             free(VALEURS_GZ_MIN);
@@ -712,7 +705,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-        exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+         App_End(-1);exit(1);
       }
 
       /* On cree la requete SQL a l'aide de l'information sur la grille que nous avons */
@@ -779,20 +772,20 @@ int main(int argc, char** argv) {
                 opt.rdb_data_table, opt.rdb_data_table, opt.rdb_data_table, opt.rdb_split_on_key, opt.rdb_split_on_key, opt.rdb_header_table,
                 opt.rdb_data_table, opt.channels);
       else {
-        fprintf(stderr, "Fonction main: Incapable de creer la requete SQL\n");
+        App_Log(APP_ERROR, "Fonction main: Incapable de creer la requete SQL\n");
 
         status = sqlite3_close(sqldb);
         if( status != SQLITE_OK )
-          fprintf(stderr, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+          App_Log(APP_ERROR, "Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
         status = c_gdrls(grid.gridid);
         if (status<0)
-          fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+          App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
         if (strlen(opt.gz)!=0) {
           status = c_gdrls(grid_gz.gridid);
           if (status<0)
-            fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+            App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
           if (VALEURS_GZ_MIN != (float*) NULL)
             free(VALEURS_GZ_MIN);
@@ -800,7 +793,7 @@ int main(int argc, char** argv) {
             free(VALEURS_GZ_MAX);
         }
 
-        exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+         App_End(-1);exit(1);
       }
 
       // On ajoute la requete SQL pour copier les tables qui ne contiennent par la 'split-on-key'.
@@ -816,9 +809,9 @@ int main(int argc, char** argv) {
       /* Execution de la requete SQL sur la base de donnees finale */
       status = sqlite3_exec(sqldb, requete_sql, (void*) NULL, (void*) NULL, &ErrMsg);
       if( status != SQLITE_OK ){
-        fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+        App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
         if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-          fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+          App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                   "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
         }
         sqlite3_free(ErrMsg);
@@ -828,7 +821,7 @@ int main(int argc, char** argv) {
       /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
       status = sqlite3_close(sqldb);
       if( status != SQLITE_OK ) {
-        fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+        App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
         EXIT_STATUS = 1;
       }
 
@@ -861,8 +854,8 @@ int main(int argc, char** argv) {
             /* On ouvre la base de donnees SQL de sortie */
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
-              fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-              exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+               App_End(-1);exit(1);
             } /* Fin du 'if ( status != SQLITE_OK )' */
           } /* Fin du 'if ( status == 0 )' */
           else {
@@ -873,13 +866,13 @@ int main(int argc, char** argv) {
               /* On ouvre le fichier d'input */
               status = sqlite3_open(opt.obsin,&sqldbin);
               if ( status != SQLITE_OK ) {
-                fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
+                App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldbin));
 
                 status = sqlite3_close(sqldbin);
                 if( status != SQLITE_OK )
-                  fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+                  App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
 
-                exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+                 App_End(-1);exit(1);
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               /* Execution de la requete SQL sur la base de donnees */
@@ -889,37 +882,37 @@ int main(int argc, char** argv) {
               */
               status = sqlite3_exec(sqldbin, "select * from sqlite_master", sqlite_schema_callback, sqlschema, &ErrMsg);
               if( status != SQLITE_OK ) {
-                fprintf(stderr, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
+                App_Log(APP_ERROR, "Fonction main: Erreur %d pour le fichier '%s' dans la fonction sqlite3_exec: %s\n", status, opt.obsin, ErrMsg);
                 sqlite3_free(ErrMsg);
               
                 status = sqlite3_close(sqldbin);
                 if( status != SQLITE_OK )
-                  fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+                  App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+                 App_End(-1);exit(1);
               } /* Fin du 'if ( status != SQLITE_OK )' */
 
               printf("Voici le schema du fichier d'input: '%s'\n%s\n", opt.obsin, sqlschema);
 
               status = sqlite3_close(sqldbin);
               if( status != SQLITE_OK ) {
-                fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
+                App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, opt.obsin);
 
-                exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+                 App_End(-1);exit(1);
               }
             } /* Fin du 'if (strlen(sqlschema)==0)' */
 
             status = sqlite3_open(rdbout,&sqldb);
             if ( status != SQLITE_OK ) {
-              fprintf(stderr, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
-              exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+              App_Log(APP_ERROR, "Fonction main: Incapable d'ouvrir la base de donnees: %s\n", sqlite3_errmsg(sqldb));
+               App_End(-1);exit(1);
             } /* Fin du 'if ( status != SQLITE_OK )' */
 
             status = sqlite3_exec(sqldb, sqlschema, (void*) NULL, (void*) NULL, &ErrMsg);
             if( status != SQLITE_OK ) {
-              fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+              App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
               if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-                fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+                App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                         "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
               }
               sqlite3_free(ErrMsg);
@@ -947,9 +940,9 @@ int main(int argc, char** argv) {
           /* Execution de la requete SQL sur la base de donnees finale */
           status = sqlite3_exec(sqldb, requete_sql, (void*) NULL, (void*) NULL, &ErrMsg);
           if( status != SQLITE_OK ) {
-            fprintf(stderr, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+            App_Log(APP_ERROR, "Fonction main: Erreur %d dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
             if (strcmp(ErrMsg,"PRIMARY KEY must be unique")==0) {
-              fprintf(stderr,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
+              App_Log(APP_ERROR,"Cette erreur est probablement due au fait que le fichier de sortie (%s) \n"
                       "n'a pas ete cree avant l'appel a ce programme avec l'utilitaire 'rdbgen'.  \n", opt.obsout);
             }
             sqlite3_free(ErrMsg);
@@ -959,7 +952,7 @@ int main(int argc, char** argv) {
           /* On ferme la base de donnees ouverte plus haut avec sqlite3_open */
           status = sqlite3_close(sqldb);
           if( status != SQLITE_OK ) {
-            fprintf(stderr,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
+            App_Log(APP_ERROR,"Fonction main: Erreur %d de la fonction sqlite3_close\n", status);
             EXIT_STATUS = 1;
           }
         } /* Fin du 'for (jlatband=0;jlatband<opt.npey;jlatband++)' */
@@ -985,132 +978,132 @@ int main(int argc, char** argv) {
     /* status = brp_SetOptChar ( "MSGLVL",  "INFORMATIF" ); */
     status = brp_SetOptChar ( "MSGLVL",  "FATAL" );
     if ( status<0 ) {
-      fprintf(stderr,"Fonction main: Erreur %d avec la fonction brp_SetOptChar\n", status);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction brp_SetOptChar\n", status);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     /* Ouverture du fichier burp en entree */
     status = brp_open(iun,opt.obsin,"r");
     if ( status<0 ) {
-      fprintf(stderr,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsin);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
     else if (status == 0) {
       /* Si le fichier BURP est vide alors on doit sortir */
-      fprintf(stderr,"Fonction main: Il n'y a aucun enregistrement dans le fichier BURP %s\n",opt.obsin);
+      App_Log(APP_WARNING,"Fonction main: Il n'y a aucun enregistrement dans le fichier BURP %s\n",opt.obsin);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     /* Si aucun probleme alors 'status' est le nombre d'enregistrements du fichier BURP */
     nombre_enregistrements = status;
     adresses = (int*) malloc(sizeof(int)*nombre_enregistrements);
     if ( adresses == (int*) NULL) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer un vecteur de (int) de dimension %d\n", nombre_enregistrements);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
 
     }
 
     nts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
     if ( nts == (int*) NULL) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer le vecteur nts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer le vecteur nts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 	
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
       free(adresses);
 	
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     } /* Fin du if ( nts == (int*) NULL) */
 
     num_obs_per_tile = (int*) malloc(opt.npex*opt.npey*sizeof(int));
     if ( num_obs_per_tile == (int*) NULL) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer le vecteur num_obs_per_tile de (int) de dimension %dx%d\n", opt.npex, opt.npey);
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer le vecteur num_obs_per_tile de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
       free(adresses);
       free(nts);
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     } /* Fin du if ( nts == (int*) NULL) */
 
     iouts = (int*) malloc(opt.npex*opt.npey*sizeof(int));
     if ( iouts == (int*) NULL) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer le vecteur iouts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer le vecteur iouts de (int) de dimension %dx%d\n", opt.npex, opt.npey);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 	
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
       free(adresses);
       free(nts);
       free(num_obs_per_tile);
 	
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     } /* Fin du if ( iouts == (int*) NULL) */
 
       /* Ouverture du fichier burp en sortie */
@@ -1118,18 +1111,18 @@ int main(int argc, char** argv) {
 
       status = access(opt.obsout,F_OK);
       if ( status==0 ) {
-	fprintf(stderr,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
+	App_Log(APP_ERROR,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
 		"alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", opt.obsout);
 
 	status = brp_close(iun);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
 	/* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
 	if ( opt.roundrobin == 0 ) {
 	  status = c_gdrls(grid.gridid);
 	  if (status<0)
-	    fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	    App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	}
 
 	free(adresses);
@@ -1137,28 +1130,28 @@ int main(int argc, char** argv) {
 	free(num_obs_per_tile);
 	free(iouts);
 
-	exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	 App_End(-1);exit(1);
       }
 
 
       iouts[0] = iout;
       status = brp_open(iout,opt.obsout,"a");
       if ( status<0 ) {
-	fprintf(stderr,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier '%s'\n", status, opt.obsout);
 	
 	status = brp_close(iun);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsin);
 
 	status = brp_close(iout);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsout);
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close sur le fichier %s\n", status, opt.obsout);
 	
 	/* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
 	if ( opt.roundrobin == 0 ) {
 	  status = c_gdrls(grid.gridid);
 	  if (status<0)
-	    fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	    App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	}
 
 	free(adresses);
@@ -1166,7 +1159,7 @@ int main(int argc, char** argv) {
 	free(nts);
 	free(iouts);
 
-	exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	 App_End(-1);exit(1);
       }
     }
     else { /* Il faut ouvrir npex*npey fichiers */
@@ -1197,21 +1190,21 @@ int main(int argc, char** argv) {
 	    int ilonbandtmp, jlatbandtmp;
 
             if ( status==0 )
-              fprintf(stderr,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
+              App_Log(APP_ERROR,"Fonction main: Le fichier '%s' existe deja mais il pourrait etre efface "
                       "alors il vaut mieux que ce fichier n'existe pas a l'appel du programme\n", burpout);
             else if ( iouts[id]>999 )
-              fprintf(stderr,"Fonction main: Comme iouts[%d]=%d, la commande 'brp_open(...)' "
+              App_Log(APP_ERROR,"Fonction main: Comme iouts[%d]=%d, la commande 'brp_open(...)' "
                       "n'acceptera pas cette valeur puisqu'elle est plus grande que 999\n", id, iouts[id]);
 
 	    status = brp_close(iun);
 	    if (status<0)
-	      fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
+	      App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
 
 	    for (ilonbandtmp=0;ilonbandtmp<ilonband;ilonbandtmp++) {
 	      for (jlatbandtmp=0;jlatbandtmp<jlatband;jlatbandtmp++) {
 		status = brp_close(iouts[ilonbandtmp*opt.npey+jlatbandtmp]);
 		if ( status<0 )
-		  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close "
+		  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close "
 			  "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonbandtmp+1,jlatbandtmp+1);
 	      }
 	    }
@@ -1220,7 +1213,7 @@ int main(int argc, char** argv) {
 	    if ( opt.roundrobin == 0 ) {
 	      status = c_gdrls(grid.gridid);
 	      if (status<0)
-		fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+		App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	    }
 
 	    free(adresses);
@@ -1228,24 +1221,24 @@ int main(int argc, char** argv) {
 	    free(iouts);
 	    free(nts);
 
-	    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	     App_End(-1);exit(1);
 	  } /* Fin du if ( status==0 ) pour l'acces au fichier */
 
 	  status = brp_open(iouts[id],burpout,"a");
 	  if ( status<0 ) {
 	    int ilonbandtmp, jlatbandtmp;
 
-	    fprintf(stderr,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier %s\n", status, burpout);
+	    App_Log(APP_ERROR,"Fonction main: Erreur %d avec la fonction brp_open sur le fichier %s\n", status, burpout);
 
 	    status = brp_close(iun);
 	    if (status<0)
-	      fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
+	      App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
 
 	    for (ilonbandtmp=0;ilonbandtmp<ilonband;ilonbandtmp++) {
 	      for (jlatbandtmp=0;jlatbandtmp<jlatband;jlatbandtmp++) {
 		status = brp_close(iouts[ilonbandtmp*opt.npey+jlatbandtmp]);
 		if ( status<0 )
-		  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close "
+		  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close "
 			  "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonbandtmp+1,jlatbandtmp+1);
 	      }
 	    }
@@ -1254,7 +1247,7 @@ int main(int argc, char** argv) {
 	    if ( opt.roundrobin == 0 ) {
 	      status = c_gdrls(grid.gridid);
 	      if (status<0)
-		fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+		App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 	    }
 
 	    free(adresses);
@@ -1262,7 +1255,7 @@ int main(int argc, char** argv) {
 	    free(nts);
 	    free(num_obs_per_tile);
 
-	    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	     App_End(-1);exit(1);
 	  } /* Fin du if ( status<0 ) */
 	} /* Fin du for (jlatband=0;jlatband<opt.npey;jlatband++) */
       } /* Fin du for (ilonband=0;ilonband<opt.npex;ilonband++) */
@@ -1271,24 +1264,24 @@ int main(int argc, char** argv) {
     /* Toujours initialiser les pointeurs */
     rptout = (BURP_RPT**) malloc(opt.npex*opt.npey*sizeof(BURP_RPT*));
     if ( rptout == (BURP_RPT**) NULL ) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer le vecteur rptout de (BURP_RPT*) de dimension %dx%d\n", opt.npex, opt.npey);
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer le vecteur rptout de (BURP_RPT*) de dimension %dx%d\n", opt.npex, opt.npey);
 
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
       for (ilonband=0;ilonband<opt.npex;ilonband++)
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
 	  status = brp_close(iouts[ilonband*opt.npey+jlatband]);
 	  if ( status<0 )
-	    fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close "
+	    App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close "
 		    "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonband+1,jlatband+1);
 	}
 
@@ -1297,28 +1290,28 @@ int main(int argc, char** argv) {
       free(nts);
       free(num_obs_per_tile);
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     rptin  = brp_newrpt();
     if ( rptin == (BURP_RPT*) NULL ) {
-      fprintf(stderr,"Fonction main: Incapable d'allouer rptin de (BURP_RPT*)\n");
+      App_Log(APP_ERROR,"Fonction main: Incapable d'allouer rptin de (BURP_RPT*)\n");
       status = brp_close(iun);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
 
       /* Si on n'est pas en mode round-robin, alors on a eu besoin du fichier 'opt.fstin'. */
       if ( opt.roundrobin == 0 ) {
 	status = c_gdrls(grid.gridid);
 	if (status<0)
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       }
 
       for (ilonband=0;ilonband<opt.npex;ilonband++)
 	for (jlatband=0;jlatband<opt.npey;jlatband++) {
 	  status = brp_close(iouts[ilonband*opt.npey+jlatband]);
 	  if ( status<0 )
-	    fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close "
+	    App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close "
 		    "pour le fichier %s_%d_%d\n", status, opt.obsout,ilonband+1,jlatband+1);
 	}
 
@@ -1328,7 +1321,7 @@ int main(int argc, char** argv) {
       free(num_obs_per_tile);
       free(rptout);
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     i_enrgs=0;
@@ -1367,7 +1360,7 @@ int main(int argc, char** argv) {
 
       status = brp_getrpt(iun,adresses[i_enrgs],rptin);
       if (status<0) {
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_getrpt pour "
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_getrpt pour "
 		"le fichier d'entree %s a l'adresse %d (%d rapport)\n", status, opt.obsin, adresses[i_enrgs], i_enrgs);
 	continue;
       }
@@ -1443,7 +1436,7 @@ int main(int argc, char** argv) {
       if ((is_ua4d==-1 || opt.check_ua4d) && strncmp(">>",RPT_STNID(rptin),2)!=0) {
 	is_ua4d = check_ua4d(rptin);
 	if (is_ua4d<0) {
-	  fprintf(stderr,"Fonction main: la fonction 'check_ua4d' retourne %d\n"
+	  App_Log(APP_ERROR,"Fonction main: la fonction 'check_ua4d' retourne %d\n"
 		  "le fichier d'entree %s a l'adresse %d (%d rapport)\n",
 		  is_ua4d, opt.obsin, adresses[i_enrgs], i_enrgs);
 	  continue;
@@ -1465,7 +1458,7 @@ int main(int argc, char** argv) {
 	
 	status = clipping_vertical(rptin,&opt,&grid_gz,rptin_clip_vert);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction clipping_vertical\n", status);
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction clipping_vertical\n", status);
 	  EXIT_STATUS=-1;
 	  continue;
 	}
@@ -1502,7 +1495,7 @@ int main(int argc, char** argv) {
 
 	status = brp_putrpthdr(iouts[i],rptout[i]);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_putrpthdr pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_putrpthdr pour "
 		  "le fichier de sortie %s_%d_%d a l'adresse %d (rapport %d) (iun=%d)\n",
 		  status, opt.obsout, ilonband+1, jlatband+1, adresses[i_enrgs], i_enrgs,
 		  iouts[ilonband*opt.npey+jlatband]);
@@ -1519,7 +1512,7 @@ int main(int argc, char** argv) {
 		 RPT_STNID(rptin),i_enrgs);
 	status = fill_rptout_blk(rptin,rptout,(int*) NULL,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
 		  "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
 	  break;
@@ -1543,7 +1536,7 @@ int main(int argc, char** argv) {
 	num_obs_per_tile[bin_id] += nts[bin_id];
 	status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
 		  "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
 	  break;
@@ -1561,7 +1554,7 @@ int main(int argc, char** argv) {
 	/* 6002 est l'element qui donne la longitude de l'observation */
 	status = extract_data_in_domains_along_nt(&opt,&grid,rptin,5002,6002,nts,&t_in_domain);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction extract_data_in_domains_along_nt pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction extract_data_in_domains_along_nt pour "
 		  "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
 	  break;
@@ -1608,7 +1601,7 @@ int main(int argc, char** argv) {
 	    RPT_SetELEV(rptout[i],nts[i]);
 	    status = brp_updrpthdr(iouts[i],rptout[i]);
 	    if (status<0) {
-	      fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_updrpthdr pour "
+	      App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_updrpthdr pour "
 		      "le fichier de sortie %s_%d_%d a l'adresse %d (%d rapport)\n",
 		      status, opt.obsout, i/opt.npey+1, i%opt.npey+1, adresses[i_enrgs], i_enrgs);
 	      EXIT_STATUS = 1;
@@ -1625,7 +1618,7 @@ int main(int argc, char** argv) {
 
 	status = fill_rptout_blk(rptin,rptout,nts,t_in_domain,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
 		  "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
 	  break;
@@ -1639,7 +1632,7 @@ int main(int argc, char** argv) {
 	btyps_data = (int*) NULL;
 	status = find_blk_data_in_rpt(rptin,5001,6001,&bknos_data,&btyps_data,&btypnum);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur dans la fonction find_blk_data_in_rpt\n");
+	  App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction find_blk_data_in_rpt\n");
 	  if (bknos_data != (int*) NULL)  free(bknos_data);
 	  continue;
 	}
@@ -1648,7 +1641,7 @@ int main(int argc, char** argv) {
 	nvals_in_domain = (int*) NULL;
 	nvals_in_domain = (int*) malloc(opt.npex*opt.npey*sizeof(int));
 	if (nvals_in_domain == (int*) NULL) {
-	  fprintf(stderr,"Fonction main: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey);
+	  App_Log(APP_ERROR,"Fonction main: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey);
 	  if (bknos_data != (int*) NULL)  free(bknos_data);
 	  continue;
 	}
@@ -1663,19 +1656,19 @@ int main(int argc, char** argv) {
 	  blkdata = brp_newblk();
 	  status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
 	  if (status<0) {
-	    fprintf(stderr,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+	    App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
 	    brp_freeblk(blkdata);
 	    continue;
 	  }
 	  btyp_data = BLK_BTYP(blkdata);
 	  if (btyp_data != btyps_data[i_btyp])
-	    fprintf(stderr,"Fonction main: Probleme potentiel puisque btyp_data=%d est different de btyps_data[%d]=%d",
+	    App_Log(APP_ERROR,"Fonction main: Probleme potentiel puisque btyp_data=%d est different de btyps_data[%d]=%d",
 		    btyp_data, i_btyp, btyps_data[i_btyp]);
 
 	  val_in_domain = (int*) NULL;
 	  val_in_domain = (int*) malloc(opt.npex*opt.npey*BLK_NVAL(blkdata)*sizeof(int));
 	  if (val_in_domain == (int*) NULL) {
-	    fprintf(stderr,"Fonction main: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey*BLK_NVAL(blkdata));
+	    App_Log(APP_ERROR,"Fonction main: Incapable d'allouer un vecteur de int de dimension %d pour le cas 'ua4d'\n", opt.npex*opt.npey*BLK_NVAL(blkdata));
 	    if (bknos_data != (int*) NULL) free(bknos_data);
 	    brp_freeblk(blkdata);
 	    continue;
@@ -1685,7 +1678,7 @@ int main(int argc, char** argv) {
 
 	  status = extract_data_in_domains_along_nval(&opt,&grid,rptin,5001,6001,blkdata,nvals_in_domain,val_in_domain);
 	  if (status<0) {
-	    fprintf(stderr,"Fonction main: Erreur %d dans la fonction extract_data_in_domains_along_nval pour "
+	    App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction extract_data_in_domains_along_nval pour "
 		    "l'adresse %d (%d rapport) et le bloc %d\n", status, adresses[i_enrgs], i_enrgs, i_btyp);
 	    EXIT_STATUS = 1;
 	    brp_freeblk(blkdata);
@@ -1720,7 +1713,7 @@ int main(int argc, char** argv) {
 	    blkout = brp_newblk();
 	    status = brp_readblk(BLK_BKNO(blksearch), blkout, rptin, 0);
 	    if (status<0) {
-	      fprintf(stderr,"Fonction main: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
+	      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction brp_readblk pour bkno=%d\n", BLK_BKNO(blksearch));
 	      brp_freeblk(blkout);
 	      continue;
 	    }
@@ -1743,7 +1736,7 @@ int main(int argc, char** argv) {
 
 		    status = putblk_nval(rptout[i],blkout,&val_in_domain[BLK_NVAL(blkout)*i], nvals_in_domain[i]);
 		    if (status<0) {
-		      fprintf(stderr,"Fonction main: Erreur %d dans la fonction putblk_nval pour "
+		      App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction putblk_nval pour "
 			      "l'adresse %d (%d rapport) et le bloc %d (btyp=%d) pour la tuile %d (bloc data)\n",
 			      status, adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), i);
 		      EXIT_STATUS = 1;
@@ -1753,7 +1746,7 @@ int main(int argc, char** argv) {
                 } /* for (i=0;i<opt.npex*opt.npey;i++) */
 	      } /* Fin du 'if (btyp_data == BLK_BTYP(blkout) || btypAssociated(btyp_data,BLK_BTYP(blkout)) == 1)' */
 	      else {
-		fprintf(stderr,"Fonction main: Erreur dans le traitement de l'enregistrement a "
+		App_Log(APP_ERROR,"Fonction main: Erreur dans le traitement de l'enregistrement a "
 			"l'adresse %d (%d rapport) et le bloc %d (btyp=%d, nval=%d).  Le nval est different "
 			"du bloc d'observations associe (bkno=%d btyp=%d nval=%d)\n",
 			adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blkout), BLK_NVAL(blkout),
@@ -1799,7 +1792,7 @@ int main(int argc, char** argv) {
 	    blkout = brp_newblk();
 	    status = brp_readblk(BLK_BKNO(blktmp), blkout, rptin, 0);
 	    if (status<0) {
-	      fprintf(stderr,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, BLK_BKNO(blktmp));
+	      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, BLK_BKNO(blktmp));
 	      brp_freeblk(blkout);
 	      continue;
 	    }
@@ -1807,7 +1800,7 @@ int main(int argc, char** argv) {
 	    for (i_btyp=0;i_btyp<btypnum;i_btyp++) {
 	      status = brp_readblk(bknos_data[i_btyp],blkdata,rptin,0);
 	      if (status<0) {
-		fprintf(stderr,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
+		App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction brp_readblk pour bknos_data[%d]=%d\n", i_btyp, bknos_data[i_btyp]);
 		brp_freeblk(blkdata);
 		continue;
 	      }
@@ -1834,7 +1827,7 @@ int main(int argc, char** argv) {
 
 		status = putblk_nval(rptout[i],blkout,(int*) NULL, 0);
                 if (status<0) {
-                  fprintf(stderr,"Fonction main: Erreur %d dans la fonction putblk_nval pour "
+                  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction putblk_nval pour "
                           "l'adresse %d (%d rapport) et le bloc %d (btyp=%d) pour la tuile %d (bloc data)\n",
                           status, adresses[i_enrgs], i_enrgs, i_btyp, BLK_BTYP(blktmp), i);
                   EXIT_STATUS = 1;
@@ -1866,7 +1859,7 @@ int main(int argc, char** argv) {
 	  jlatband=1;
 	  status = checkgrid(grid.gridid, grid.ni, grid.nj, lat, lon, opt.rect, errmsg);
 	  if (status<0) {
-	    fprintf(stderr,"Fonction main: Erreur dans la fonction checkgrid pour le lat=%f "
+	    App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction checkgrid pour le lat=%f "
 		    "et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	    EXIT_STATUS = 1;
 	    break;
@@ -1890,7 +1883,7 @@ int main(int argc, char** argv) {
 	  status = find_subdomain(grid.gridid, grid.ni, grid.nj, lat, lon, opt.rect,
 				  opt.npex, opt.npey, &ilonband, &jlatband, errmsg);
 	  if (status<0) {
-	    fprintf(stderr,"Fonction main: Erreur dans la fonction find_subdomain "
+	    App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction find_subdomain "
 		    "pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	    EXIT_STATUS = 1;
 	    break;
@@ -1918,7 +1911,7 @@ int main(int argc, char** argv) {
 
 	status = fill_rptout_blk(rptin,rptout,nts,(int*) NULL,opt.npex*opt.npey,opt.cherrypick_x,opt.cherrypick_y,opt.npey);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction fill_rptout_blk pour "
 		  "l'adresse %d (%d rapport)\n", status, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
 	  break;
@@ -1931,7 +1924,7 @@ int main(int argc, char** argv) {
       }
 
       if (EXIT_STATUS!=0) {
-	fprintf(stderr,"Fonction main: il y a eu une erreur precedemment (dans else if (vertical_clipping==1))\n");
+	App_Log(APP_ERROR,"Fonction main: il y a eu une erreur precedemment (dans else if (vertical_clipping==1))\n");
 	break;
       }
 
@@ -2019,7 +2012,7 @@ int main(int argc, char** argv) {
 
 	status = brp_writerpt(iouts[i],rptout[i],END_BURP_FILE);
 	if (status<0) {
-	  fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_writerpt pour "
+	  App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_writerpt pour "
 		  "le fichier de sortie %s_%d_%d a l'adresse %d (%d rapport)\n",
 		  status, opt.obsout, i/opt.npey+1, i%opt.npey+1, adresses[i_enrgs], i_enrgs);
 	  EXIT_STATUS = 1;
@@ -2031,7 +2024,7 @@ int main(int argc, char** argv) {
     /* fermeture de fichier burp d'entree */
     status = brp_close(iun);
     if (status<0) {
-      fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
+      App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsin);
       EXIT_STATUS = 1;
     }
 
@@ -2044,14 +2037,14 @@ int main(int argc, char** argv) {
 
       status = brp_close(iout);
       if (status<0) {
-	fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsout);
+	App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close pour le fichier %s\n", status, opt.obsout);
 	EXIT_STATUS = 1;
       }
       else if (num_obs_per_tile[0]==0) {
 	printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", opt.obsout);
 	status = remove(opt.obsout);
 	if (status!=0) {
-	  fprintf(stderr,"Il est impossible d'effacer le fichier %s\n", opt.obsout);
+	  App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", opt.obsout);
 	  EXIT_STATUS = 1;
 	}
 	else if (VERBOSE>2)
@@ -2065,7 +2058,7 @@ int main(int argc, char** argv) {
 	
 	status = access(burpout_num_headers,F_OK);
 	if (status==0)
-	  fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
+	  App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
 
 	file = (FILE*) fopen(burpout_num_headers,"w");
 	fprintf(file,"%d\n", num_obs_per_tile[0]);
@@ -2095,7 +2088,7 @@ int main(int argc, char** argv) {
 
 	  status = brp_close(iouts[id]);
 	  if ( status<0 )
-	    fprintf(stderr,"Fonction main: Erreur %d dans la fonction brp_close "
+	    App_Log(APP_ERROR,"Fonction main: Erreur %d dans la fonction brp_close "
 		    "pour le fichier %s\n", status, burpout);
 
 	  printf("\nIl y a %d observations qui ont ete selectionnees et mise dans le fichier %s\n",
@@ -2105,7 +2098,7 @@ int main(int argc, char** argv) {
 	    printf("Aucune observation n'a ete garde alors on efface le fichier %s\n", burpout);
 	    status = remove(burpout);
 	    if (status!=0) {
-	      fprintf(stderr,"Il est impossible d'effacer le fichier %s\n", burpout);
+	      App_Log(APP_ERROR,"Il est impossible d'effacer le fichier %s\n", burpout);
 	      EXIT_STATUS = 1;
 	    }
 	    else if (VERBOSE>2)
@@ -2119,7 +2112,7 @@ int main(int argc, char** argv) {
 
 	    status = access(burpout_num_headers,F_OK);
 	    if (status==0)
-	      fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
+	      App_Log(APP_ERROR,"Attention le fichier '%s' sera efface\n", burpout_num_headers);
 
 	    file = (FILE*) fopen(burpout_num_headers,"w");
 	    fprintf(file,"%d\n", num_obs_per_tile[id]);
@@ -2177,37 +2170,37 @@ int main(int argc, char** argv) {
     regmatch_t regex_match[5];
 
     if ( opt.roundrobin == 1 ) {
-      fprintf(stderr,"Fonction main: Le mode 'round-robin' n'a pas encore ete "
+      App_Log(APP_ERROR,"Fonction main: Le mode 'round-robin' n'a pas encore ete "
               "implementee pour des fichiers d'input de type ASCII!\n");
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     filein=fopen(opt.obsin,"r");
     if (filein == (FILE*) NULL) {
-      fprintf(stderr,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsin);
+      App_Log(APP_ERROR,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsin);
 
       status = c_gdrls(grid.gridid);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     fileout=fopen(opt.obsout,"w");
     if (fileout == (FILE*) NULL) {
-      fprintf(stderr,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsout);
+      App_Log(APP_ERROR,"Fonction main: Le fichier ascii %s n'a pu etre ouvert correctement!\n", opt.obsout);
 
       fclose(filein);
 
       status = c_gdrls(grid.gridid);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
       if (strlen(opt.gz)!=0) {
 	status = c_gdrls(grid_gz.gridid);
 	if (status<0)
-	  fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+	  App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
 	if (VALEURS_GZ_MIN != (float*) NULL)
 	  free(VALEURS_GZ_MIN);
@@ -2215,7 +2208,7 @@ int main(int argc, char** argv) {
 	  free(VALEURS_GZ_MAX);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
 #define REGEX_DEFINITION  "^[[:blank:]]*([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*)[[:blank:]]+([-]?[0-9]*\\.?[0-9]*).*$"
@@ -2223,19 +2216,19 @@ int main(int argc, char** argv) {
     regex_err = regcomp(&regex, REGEX_DEFINITION, REG_EXTENDED);
     if (regex_err!=0) {
       regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-      fprintf(stderr,"Fonction main: Erreur avec la fonction regcomp '%s' avec l'expression reguliere '%s'\n",regex_errbuf, REGEX_DEFINITION);
+      App_Log(APP_ERROR,"Fonction main: Erreur avec la fonction regcomp '%s' avec l'expression reguliere '%s'\n",regex_errbuf, REGEX_DEFINITION);
 
       fclose(filein);
       fclose(fileout);
 
       status = c_gdrls(grid.gridid);
       if (status<0)
-	fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+	App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
 
       if (strlen(opt.gz)!=0) {
 	status = c_gdrls(grid_gz.gridid);
 	if (status<0)
-	  fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+	  App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 
 	if (VALEURS_GZ_MIN != (float*) NULL)
 	  free(VALEURS_GZ_MIN);
@@ -2243,7 +2236,7 @@ int main(int argc, char** argv) {
 	  free(VALEURS_GZ_MAX);
       }
 
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+       App_End(-1);exit(1);
     }
 
     while( fgets(ligne,sizeof(ligne),filein) != (char*) NULL ) {
@@ -2251,7 +2244,7 @@ int main(int argc, char** argv) {
       regex_err = regexec(&regex,ligne,regex.re_nsub+1,regex_match,0);
       if (regex_err!=0) {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-	fprintf(stderr,"Fonction main: Erreur avec la fonction regexec '%s' sur la ligne '%s'\n",regex_errbuf,ligne);
+	App_Log(APP_ERROR,"Fonction main: Erreur avec la fonction regexec '%s' sur la ligne '%s'\n",regex_errbuf,ligne);
 	EXIT_STATUS = 1;
 	break;
       }
@@ -2266,7 +2259,7 @@ int main(int argc, char** argv) {
 
       status = checkgrid(grid.gridid, grid.ni, grid.nj, lat, lon, opt.rect, errmsg);
       if (status<0) {
-	fprintf(stderr,"Fonction main: Erreur dans la fonction checkgrid pour la ligne '%s' avec le message '%s'\n", ligne, errmsg);
+	App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction checkgrid pour la ligne '%s' avec le message '%s'\n", ligne, errmsg);
 	EXIT_STATUS = 1;
 	break;
       }
@@ -2301,14 +2294,14 @@ int main(int argc, char** argv) {
     /* On ferme la grille EZSCINT allouee pour definir la grille */
     status = c_gdrls(grid.gridid);
     if (status<0) {
-      fprintf(stderr,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
+      App_Log(APP_ERROR,"Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid.gridid);
       EXIT_STATUS = 1;
     }
 
     if (strlen(opt.gz)!=0) {
       status = c_gdrls(grid_gz.gridid);
       if (status<0) {
-	fprintf(stderr, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
+	App_Log(APP_ERROR, "Fonction main: Erreur dans la fonction c_gdrls pour gridid = %d\n", grid_gz.gridid);
 	EXIT_STATUS = NOT_OK;
       }
 
@@ -2319,13 +2312,9 @@ int main(int argc, char** argv) {
     }
   } /* Fin du 'if ( opt.roundrobin == 0 )'*/
 
-  /* On a termine! */
-  if (EXIT_STATUS != OK)
-    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+  App_End(EXIT_STATUS);
 
-  exit_program(OK,PROGRAM_NAME,"OK",VERSION);
-
-  return OK;
+  return(EXIT_STATUS);
 
 } /* Fin du main */
 
@@ -2375,11 +2364,11 @@ int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_spl
   /* On ouvre le fichier d'input */
   status = sqlite3_open(obsin,&sqldbin);
   if ( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
+    App_Log(APP_ERROR, "Fonction sqlite_get_tables Incapable d'ouvrir le fichier '%s' avec l'erreur '%s'\n", obsin, sqlite3_errmsg(sqldbin));
 
     status = sqlite3_close(sqldbin);
     if( status != SQLITE_OK )
-      fprintf(stderr,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+      App_Log(APP_ERROR,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   } /* Fin du 'if ( status != SQLITE_OK )' */
@@ -2394,7 +2383,7 @@ int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_spl
   /* Execution de la requete SQL sur la base de donnees */
   status = sqlite3_exec(sqldbin, "select * from sqlite_master;", sqlite_get_tables_callback, &callback_arg, &ErrMsg);
   if( status != SQLITE_OK ) {
-    fprintf(stderr, "Fonction sqlite_get_tables: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
+    App_Log(APP_ERROR, "Fonction sqlite_get_tables: Erreur %d pour le fichier dans la fonction sqlite3_exec: %s\n", status, ErrMsg);
     sqlite3_free(ErrMsg);
 
     return NOT_OK;
@@ -2403,7 +2392,7 @@ int sqlite_get_tables(char* obsin, char* split_on_key, char* table_list_with_spl
 
   status = sqlite3_close(sqldbin);
   if( status != SQLITE_OK ) {
-    fprintf(stderr,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
+    App_Log(APP_ERROR,"Fonction sqlite_get_tables: Erreur %d de la fonction sqlite3_close pour le fichier '%s'\n", status, obsin);
 
     return NOT_OK;
   }
@@ -2444,7 +2433,7 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
   regex_err = regcomp(&regex, callback_arg->split_on_key, REG_ICASE);
   if (regex_err!=0) {
     regerror(regex_err, &regex, regex_errbuf, MAXSTR);
-    fprintf(stderr,"sqlite_get_tables_callback: cannot compile regular expression '%s': error '%s'",
+    App_Log(APP_ERROR,"sqlite_get_tables_callback: cannot compile regular expression '%s': error '%s'",
             callback_arg->split_on_key, regex_errbuf);
     return 1;
   }
@@ -2496,7 +2485,7 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
       else {
 	regerror(regex_err, &regex, regex_errbuf, MAXSTR);
         regfree(&regex);
-	fprintf(stderr,"sqlite_get_tables_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
+	App_Log(APP_ERROR,"sqlite_get_tables_callback: Erreur '%s' avec la fonction regexec sur la ligne '%s'\n", regex_errbuf, data[idx]);
         return 1;
       }
     } // End of 'for (idx = 0; idx < count; idx++)'
@@ -2519,7 +2508,7 @@ static int sqlite_get_tables_callback(void *void_callback_arg, int count, char *
     /* printf("sqlite_get_tables_callback: found table: '%s'\n", callback_arg->table_list); */
   }
   else {
-    fprintf(stderr,"sqlite_get_tables_callback: found_split_on_key = %d but table_name is empty", found_split_on_key);
+    App_Log(APP_ERROR,"sqlite_get_tables_callback: found_split_on_key = %d but table_name is empty", found_split_on_key);
     return 1;
   }
 
@@ -2632,14 +2621,14 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
 
   status = open_stdfile(iun, fichier, "RND+R/O");
   if (status == NOT_OK) {
-    fprintf(stderr, "Fonction getGZ: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
+    App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction open_stdfile avec le fichier %s\n",fichier);
 
     return NOT_OK;
   }
   
   status = getgrid(iun,gridptr,&fst,fichier);
   if (status == NOT_OK) {
-    fprintf(stderr, "Fonction getGZ: Erreur dans la fonction getgrid pour les parametres "
+    App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction getgrid pour les parametres "
 	    "(%s,%s,%s,%d,%d,%d,%d) dans le fichier %s\n",
 	    fst.nomvar,fst.typvar,fst.etiket,fst.dateo,fst.ip1,fst.ip2,fst.ip3,fichier);
 
@@ -2655,12 +2644,12 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
   /* Allocation de la memoire */
   *valeurs = (float*) malloc(gridptr->ni*gridptr->nj*sizeof(float));
   if ( *valeurs == (float*) NULL) {
-    fprintf(stderr, "Fonction getGZ: Incapable d'allouer un vecteur de float de dimension %dx%d=%d elements\n",
+    App_Log(APP_ERROR, "Fonction getGZ: Incapable d'allouer un vecteur de float de dimension %dx%d=%d elements\n",
 	    gridptr->ni,gridptr->nj,gridptr->ni*gridptr->nj);
 
     status = c_gdrls(gridptr->gridid);
     if (status<0)
-      fprintf(stderr, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
+      App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
 
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     close_stdfile(iun,fichier);
@@ -2675,12 +2664,12 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
   key = c_fstinf(iun,&fst.ni,&fst.nj,&fst.nk,datev,fst.etiket,
 		 fst.ip1,fst.ip2,fst.ip3,fst.typvar,fst.nomvar);
   if (key<0) {
-    fprintf(stderr,"Fonction getGZ: Erreur %d avec le fichier %s pour les parametres (%s,%s,%s,%d,%d,%d,%d) dans la fonction c_fstinf\n",
+    App_Log(APP_ERROR,"Fonction getGZ: Erreur %d avec le fichier %s pour les parametres (%s,%s,%s,%d,%d,%d,%d) dans la fonction c_fstinf\n",
 	    key,fichier,fst.nomvar,fst.typvar,fst.etiket,fst.dateo,fst.ip1,fst.ip2,fst.ip3);
 
     status = c_gdrls(gridptr->gridid);
     if (status<0)
-      fprintf(stderr, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
+      App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
 
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     close_stdfile(iun,fichier);
@@ -2690,13 +2679,13 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
 
   ier = c_fstluk(*valeurs,key,&gridptr->ni,&gridptr->nj,&gridptr->nk);
   if (ier<0) {
-    fprintf(stderr, "Fonction getGZ: Erreur %d avec le fichier %s pour les parametres "
+    App_Log(APP_ERROR, "Fonction getGZ: Erreur %d avec le fichier %s pour les parametres "
 	    "(%s,%s,%s,%d,%d,%d,%d) dans la fonction fstluk\n",
 	    ier,fichier,fst.nomvar,fst.typvar,fst.etiket,fst.dateo,fst.ip1,fst.ip2,fst.ip3);
     
     status = c_gdrls(gridptr->gridid);
     if (status<0)
-      fprintf(stderr, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
+      App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
 
     /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
     close_stdfile(iun,fichier);
@@ -2709,11 +2698,11 @@ int getGZ(int iun, char* fichier, gridtype* gridptr, int niveau, float** valeurs
   /* On ferme le fichier standard ouvert pour lire le champ definissant la grille */
   status = close_stdfile(iun,fichier);
   if (status == NOT_OK) {
-    fprintf(stderr, "Fonction getGZ: Erreur avec la fonction close_stdfile pour le fichier %s\n",fichier);
+    App_Log(APP_ERROR, "Fonction getGZ: Erreur avec la fonction close_stdfile pour le fichier %s\n",fichier);
 
     status = c_gdrls(gridptr->gridid);
     if (status<0)
-      fprintf(stderr, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
+      App_Log(APP_ERROR, "Fonction getGZ: Erreur dans la fonction c_gdrls pour gridid = %d\n", gridptr->gridid);
 
     free(*valeurs);
     
@@ -2812,7 +2801,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
     sprintf(errmsg, "Fonction checkgrid: Erreur avec c_gdxyfll qui retourne %d "
 	    "pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
 	    status, lat, lon, gridid, ni, nj);
-    fprintf(stderr,"%s",errmsg);
+    App_Log(APP_ERROR,"%s",errmsg);
     return -1;
   }
 
@@ -2855,7 +2844,7 @@ int checkgrid(int gridid, int ni, int nj, float lat, float lon, rectangle rect, 
     else if (criteria==4)
       printf("(!rect.max_j_equal && y<rect.max_j) || (rect.max_j_equal && y<=rect.max_j)\n");
     else
-      fprintf(stderr,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
+      App_Log(APP_ERROR,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
 
   }
 
@@ -2909,7 +2898,7 @@ void checkvertical_sql(sqlite3_context *context, int argc, sqlite3_value **argv)
     char errmsg[MAXSTR];
     sprintf(errmsg, "Fonction checkvertical_sql: Erreur avec checkvertical pour "
 	    "id_obs=%d vcoord=%f niveau_min=%d et niveau_max=%d\n", id_obs, vcoord, niveau_min, niveau_max);
-    fprintf(stderr,"%s",errmsg);
+    App_Log(APP_ERROR,"%s",errmsg);
     sqlite3_result_error(context, errmsg, -1);
     return;
   }
@@ -2988,7 +2977,7 @@ int checkvertical(float vcoord, int niveau_min, int niveau_max) {
       }
     } /* Fin du if (niveau_max != IP1_VIDE) */
     else {
-      fprintf(stderr, "Fonction checkvertical: Erreur pour niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
+      App_Log(APP_ERROR, "Fonction checkvertical: Erreur pour niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
       return -1;
     }
   } /* Fin du else du if if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE ) */
@@ -3053,7 +3042,7 @@ void checkvertical_gz_sql(sqlite3_context *context, int argc, sqlite3_value **ar
     char errmsg[MAXSTR];
     sprintf(errmsg, "Fonction checkvertical_gz_sql: Erreur avec checkvertical_gz pour "
 	    "id_obs=%d lat=%f lon=%f vcoord=%f niveau_min=%d niveau_max=%d\n",id_obs,lat,lon,vcoord,niveau_min,niveau_max);
-    fprintf(stderr,"%s",errmsg);
+    App_Log(APP_ERROR,"%s",errmsg);
     sqlite3_result_error(context, errmsg, -1);
     return;
   }
@@ -3108,7 +3097,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
 		status, lat, lon, gridid, ni, nj);
-	fprintf(stderr,"%s",errmsg);
+	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
 
@@ -3118,7 +3107,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
 		status, lat, lon, gridid, ni, nj);
-	fprintf(stderr,"%s",errmsg);
+	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
 	
@@ -3152,7 +3141,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
 		status, lat, lon, gridid, ni, nj);
-	fprintf(stderr,"%s",errmsg);
+	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
 
@@ -3186,7 +3175,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
 	sprintf(errmsg, "Fonction checkvertical_gz: c_gdllsval retourne %d "
 		"pour lat = %f, lon = %f, ni = %d, nj = %d, gridid = %d\n", 
 		status, lat, lon, gridid, ni, nj);
-	fprintf(stderr,"%s",errmsg);
+	App_Log(APP_ERROR,"%s",errmsg);
 	return -1;
       }
 	
@@ -3210,7 +3199,7 @@ int checkvertical_gz(float lat, float lon, float vcoord, int gridid, int ni, int
     else {
       char errmsg[MAXSTR];
       sprintf(errmsg, "Fonction checkvertical_gz: niveau_min=%d et niveau_max=%d\n", niveau_min, niveau_max);
-      fprintf(stderr,"%s",errmsg);
+      App_Log(APP_ERROR,"%s",errmsg);
       return -1;
     }
   } /* Fin du else du if (niveau_min == IP1_VIDE && niveau_max == IP1_VIDE ) */
@@ -3283,7 +3272,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
     sprintf(errmsg, "Fonction find_subdomain: Erreur avec c_gdxyfll qui retourne %d "
 	    "pour lat = %f, lon = %f, gridid = %d, ni = %d, nj = %d\n",
 	    status, lat, lon, gridid, ni, nj);
-    fprintf(stderr,"%s",errmsg);
+    App_Log(APP_ERROR,"%s",errmsg);
     return -1;
   }
 
@@ -3303,7 +3292,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  if (status<0) {
 	    sprintf(errmsg, "Fonction find_subdomain: Erreur avec c_ezgprm qui retourne %d "
 		    "pour gridid = %d, ni = %d, nj = %d\n", status, gridid, ni, nj);
-	    fprintf(stderr,"%s",errmsg);
+	    App_Log(APP_ERROR,"%s",errmsg);
 	    return -1;
 	  }
 
@@ -3320,7 +3309,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 	  }
 
 	  if (*ilonband<1 || *ilonband>npex)
-	    fprintf(stderr,"Fonction find_subdomain: ilonband=%d n'est pas dans l'intervalle permis"
+	    App_Log(APP_ERROR,"Fonction find_subdomain: ilonband=%d n'est pas dans l'intervalle permis"
 		    " pour lat=%f lon=%f x=%f y=%f npex=%d npey=%d ni=%d nj=%d\n",*ilonband,lat,lon,x,y,npex,npey,ni,nj);
 
 	  if (y<1)
@@ -3358,7 +3347,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 		     lat,lon,x,y,npex,npey,*ilonband,*jlatband,(x-1)/(ni/npex)+1,(y-1)/(nj/npey)+1);
 	  }
 	  if (*jlatband<1 || *jlatband>npey)
-	    fprintf(stderr,"Fonction find_subdomain: jlatband=%d n'est pas dans l'intervalle permis"
+	    App_Log(APP_ERROR,"Fonction find_subdomain: jlatband=%d n'est pas dans l'intervalle permis"
 		    " pour lat=%f lon=%f x=%f y=%f npex=%d npey=%d ni=%d nj=%d\n",*jlatband,lat,lon,x,y,npex,npey,ni,nj);
 
 	  if (VERBOSE>3)
@@ -3396,7 +3385,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
     else if (criteria==4)
       printf("(!rect.max_j_equal && y<rect.max_j) || (rect.max_j_equal && y<=rect.max_j)\n");
     else
-      fprintf(stderr,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
+      App_Log(APP_ERROR,"Fonction checkgrid: Le critere '%d' n'est pas possible.  Il faut 1,2, 3 ou 4.  ", criteria);
 
   }
 
@@ -3444,7 +3433,7 @@ int which_btyp(int btyp) {
     else if ( crit == 3 )
       return 1;
     else {
-      fprintf(stderr,"Fonction which_btyp: Ce n'est ni un bloc marqueur ni un "
+      App_Log(APP_ERROR,"Fonction which_btyp: Ce n'est ni un bloc marqueur ni un "
 	      "bloc de donnees btyp=%d (btyp>>2 & 31 = %d) (btyp>>11 & 3 = %d)\n",
 	      btyp, btyp>>2 & 31, btyp>>11 & 3);
       return -1;
@@ -3487,7 +3476,7 @@ int btypAssociated(int btyp_obs, int btyp) {
   int newbtyp_obs, newbtyp, bknat;
 
   if (btyp_obs == btyp) {
-    fprintf(stderr,"Fonction btypAssociated: erreur: btyp_obs = btyp = %d\n", btyp);
+    App_Log(APP_ERROR,"Fonction btypAssociated: erreur: btyp_obs = btyp = %d\n", btyp);
     return -1;
   }
 
@@ -3562,7 +3551,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
     blkout = brp_newblk();
     status = brp_readblk(BLK_BKNO(blk), blkout, rptin,0);
     if (status<0) {
-      fprintf(stderr,"Fonction clipping_vertical: Erreur %d dans la fonction brp_readblk\n", status);
+      App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction brp_readblk\n", status);
       EXIT_STATUS = -1;
       brp_freeblk(blkout);
       break;
@@ -3598,7 +3587,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
     if (is_data==0 || is_marqueur==0) {
       status = putblk_nt(rptout,blkout,(int*) NULL,0);
       if (status!=0) {
-	fprintf(stderr,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n", 
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n", 
 		status, btyp);
 	brp_freeblk(blkout);
 	EXIT_STATUS = 1;
@@ -3609,7 +3598,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
       /* On alloue de nouveaux blocs de la meme grandeur */
       if (BLK_NELE(blk_donnees) != BLK_NELE(blk_marqueur) ||
 	  BLK_NVAL(blk_donnees) != BLK_NVAL(blk_marqueur)) {
-	fprintf(stderr,"Fonction clipping_vertical: Les blocs data et marqueur "
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Les blocs data et marqueur "
 		"ne sont pas de la meme taille!!!\n");
 
 	brp_freeblk(blk_donnees);
@@ -3664,7 +3653,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
       status = brp_encodeblk(new_blk_donnees);
       if (status<0) {
-	fprintf(stderr,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
 		"le bloc btyp=%d\n", status, BLK_BTYP(new_blk_donnees));
 	EXIT_STATUS = 1;
 	break;
@@ -3672,7 +3661,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
 
       status = brp_encodeblk(new_blk_marqueur);
       if (status<0) {
-	fprintf(stderr,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d avec la fonction brp_encodeblk pour "
 		"le bloc btyp=%d\n", status, BLK_BTYP(new_blk_marqueur));
 	EXIT_STATUS = 1;
 	break;
@@ -3716,7 +3705,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
       status = putblk_nt(rptout,new_blk_donnees,(int*) NULL,0);
       brp_freeblk(new_blk_donnees);
       if (status!=0) {
-	fprintf(stderr,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
 		status, BLK_BTYP(new_blk_donnees));
 	brp_freeblk(blkout);
 	EXIT_STATUS = 1;
@@ -3726,7 +3715,7 @@ int clipping_vertical(BURP_RPT *rptin, optionsptr optptr, gridtype* grid_gz, BUR
       status = putblk_nt(rptout,new_blk_marqueur,(int*) NULL,0);
       brp_freeblk(new_blk_marqueur);
       if (status!=0) {
-	fprintf(stderr,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
+	App_Log(APP_ERROR,"Fonction clipping_vertical: Erreur %d dans la fonction putblk_nt (btyp %d)\n",
 		status, BLK_BTYP(new_blk_donnees));
 	brp_freeblk(blkout);
 	EXIT_STATUS = 1;
@@ -3859,7 +3848,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
     status = brp_readblk(BLK_BKNO(blktmp), blk, rptin,0);
     if (status<0) {
-      fprintf(stderr,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
+      App_Log(APP_ERROR,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
       brp_freeblk(blk);
       brp_freeblk(blktmp);
       return -1;
@@ -3918,7 +3907,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   *bknos_data_ptr = (int*) NULL;
   *bknos_data_ptr = (int*) malloc(nblkstmp*sizeof(int));
   if (*bknos_data_ptr == (int*) NULL) {
-    fprintf(stderr, "Fonction find_data_flag_in_rpt: Incapable d'allouer le vecteur '*bknos_data_ptr' de dimension %d de (int)\n", nblkstmp);
+    App_Log(APP_ERROR, "Fonction find_data_flag_in_rpt: Incapable d'allouer le vecteur '*bknos_data_ptr' de dimension %d de (int)\n", nblkstmp);
     brp_freeblk(blk);
     brp_freeblk(blktmp);
     return -1;
@@ -3926,7 +3915,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   *btyps_data_ptr = (int*) NULL;
   *btyps_data_ptr = (int*) malloc(nblkstmp*sizeof(int));
   if (*btyps_data_ptr == (int*) NULL) {
-    fprintf(stderr, "Fonction find_data_flag_in_rpt: Incapable d'allouer le vecteur '*btyps_data_ptr' de dimension %d de (int)\n", nblkstmp);
+    App_Log(APP_ERROR, "Fonction find_data_flag_in_rpt: Incapable d'allouer le vecteur '*btyps_data_ptr' de dimension %d de (int)\n", nblkstmp);
     free(*bknos_data_ptr);
     brp_freeblk(blk);
     brp_freeblk(blktmp);
@@ -3940,7 +3929,7 @@ int find_blk_data_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon,
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
     status = brp_readblk(BLK_BKNO(blktmp), blk, rptin,0);
     if (status<0) {
-      fprintf(stderr,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
+      App_Log(APP_ERROR,"Fonction find_blk_data_in_rpt: Erreur %d dans la fonction brp_readblk\n", status);
       brp_freeblk(blk);
       brp_freeblk(blktmp);
       free(*bknos_data_ptr);
@@ -4042,7 +4031,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
   blk    = brp_newblk();
   status = brp_readblk(bkno_data, blk, rptin, 0);
   if (status<0) {
-    fprintf(stderr,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction brp_readblk "
+    App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction brp_readblk "
 	    "pour le bloc %d\n", status, bkno_data);
     brp_freeblk(blk);
     return -1;
@@ -4080,7 +4069,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
   while ( brp_findblk( blktmp, rptin ) >= 0 ) {
     status = brp_getblk(BLK_BKNO(blktmp), blk, rptin);
     if (status<0) {
-      fprintf(stderr,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction "
+      App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: Erreur %d dans la fonction "
 	      "brp_getblk pour bkno=%d\n", status, BLK_BKNO(blktmp));
       brp_freeblk(blk);
       brp_freeblk(blktmp);
@@ -4129,7 +4118,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
   brp_freeblk(blktmp);
 
   if (trouve_data == 0) {
-    fprintf(stderr,"Fonction find_blk_data_flag_in_rpt: le bloc data n'a pas ete trouve dans cet enregistrement\n");
+    App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: le bloc data n'a pas ete trouve dans cet enregistrement\n");
     if (*blk_data_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_data_ptr);
     if (*blk_flags_ptr != (BURP_BLK*) NULL) brp_freeblk(*blk_flags_ptr);
     return -1;
@@ -4138,7 +4127,7 @@ int find_blk_data_flag_in_rpt(BURP_RPT *rptin, int elem_lat, int elem_lon, int b
   if (trouve_flags == 0) {
     *blk_flags_ptr = (BURP_BLK*) NULL;
     if (VERBOSE>0)
-      fprintf(stderr,"Fonction find_blk_data_flag_in_rpt: le bloc marqueur n'a pas ete trouve dans cet enregistrement\n");
+      App_Log(APP_ERROR,"Fonction find_blk_data_flag_in_rpt: le bloc marqueur n'a pas ete trouve dans cet enregistrement\n");
   }
 
   if (*colonne_lat_ptr<0 || *colonne_lon_ptr<0) {
@@ -4188,7 +4177,7 @@ int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_dom
      */
     status = brp_readblk(BLK_BKNO(blk), blkout, rptin, 0);
     if (status<0) {
-      fprintf(stderr,"Fonction fill_rptout_blk: Erreur %d dans la fonction brp_readblk pour blk_no=%d\n", status, BLK_BKNO(blk));
+      App_Log(APP_ERROR,"Fonction fill_rptout_blk: Erreur %d dans la fonction brp_readblk pour blk_no=%d\n", status, BLK_BKNO(blk));
       brp_freeblk(blkout);
       EXIT_STATUS = -1;
       break;
@@ -4218,7 +4207,7 @@ int fill_rptout_blk(BURP_RPT *rptin, BURP_RPT ** rptout, int* nts, int* t_in_dom
 	status = putblk_nt(rptout[i],blkout,(int*) NULL, 0);
 
       if (status!=0) {
-	fprintf(stderr,"Fonction fill_rptout_blk: Erreur %d dans la fonction putblk_nt pour btyp=%d "
+	App_Log(APP_ERROR,"Fonction fill_rptout_blk: Erreur %d dans la fonction putblk_nt pour btyp=%d "
 		"pour le id=%d\n", status, BLK_BTYP(blkout), i);
 	EXIT_STATUS = -1;
 	brp_freeblk(blkout);
@@ -4269,17 +4258,17 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
   bknos_flags = (int*) NULL;
   status = find_blk_data_in_rpt(rptin,elem_lat,elem_lon,&bknos_data,&bknos_flags,&btypnum);
   if (status<0) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_in_rpt\n");
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_in_rpt\n");
     return 1;
   }
 
   if (btypnum!=1) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Dans la fonction find_blk_data_in_rpt, "
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Dans la fonction find_blk_data_in_rpt, "
 	    "on a trouve %d blocs de donnees qui sont: ", btypnum);
     for (t=0;t<btypnum;t++)
-      fprintf(stderr,"%d ", bknos_data[t]);
-    fprintf(stderr,"\n");
-    fprintf(stderr,"Or, ce programme ne peut traiter des enregistrements contenant plus d'un bloc de donnees regroupees\n");
+      App_Log(APP_ERROR,"%d ", bknos_data[t]);
+    App_Log(APP_ERROR,"\n");
+    App_Log(APP_ERROR,"Or, ce programme ne peut traiter des enregistrements contenant plus d'un bloc de donnees regroupees\n");
     free(bknos_data);
     free(bknos_flags);
     return 1;
@@ -4291,7 +4280,7 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
   blk_flags = (BURP_BLK*) NULL;
   status = find_blk_data_flag_in_rpt(rptin,elem_lat,elem_lon,bknos_data[0],&blk_data,&blk_flags,&colonne_lat,&colonne_lon);
   if (status<0) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_flag_in_rpt\n");
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_blk_data_flag_in_rpt\n");
     free(bknos_data);
     free(bknos_flags);
     return 1;
@@ -4299,7 +4288,7 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
 
   *t_in_domain_ptr = (int*) malloc(BLK_NT(blk_data)*optptr->npex*optptr->npey*sizeof(int));
   if (*t_in_domain_ptr == (int*) NULL) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Incapable d'allouer la memoire pour un tableau de "
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Incapable d'allouer la memoire pour un tableau de "
 	    "int de dimension %dx%dx%d=%d\n", BLK_NT(blk_data), optptr->npex, optptr->npey,
 	    BLK_NT(blk_data)*optptr->npex*optptr->npey);
     free(bknos_data);
@@ -4317,7 +4306,7 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
       /* On verifie si on est dans le domaine */
       status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg);
       if (status<0) {
-	fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction checkgrid pour le lat=%f "
+	App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction checkgrid pour le lat=%f "
 		"et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	EXIT_STATUS = 1;
 	break;
@@ -4340,7 +4329,7 @@ int extract_data_in_domains_along_nt(optionsptr optptr, gridtype* gridptr, BURP_
       status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
 			      optptr->npex, optptr->npey, &ilonband, &jlatband, errmsg);
       if (status<0) {
-	fprintf(stderr,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_subdomain "
+	App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nt: Erreur dans la fonction find_subdomain "
 		"pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	EXIT_STATUS = 1;
 	break;
@@ -4416,7 +4405,7 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
   status = brp_readblk(BLK_BKNO(blk_data), blk_data_converted, rptin, 1);
 
   if (val_in_domain == (int*) NULL) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nval: le vecteur 'val_in_domain' doit etre deja alloue\n");
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: le vecteur 'val_in_domain' doit etre deja alloue\n");
     brp_freeblk(blk_data_converted);
     return 1;
   }
@@ -4440,13 +4429,13 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
   if (colonne_lat<0 || colonne_lon<0) {
 
     if (colonne_lat<0 && colonne_lon<0)
-      fprintf(stderr,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
+      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
 	      "les elements %d et %d dans l'entete du bloc\n", elem_lat, elem_lon);
     else if (colonne_lat<0)
-      fprintf(stderr,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
+      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
 	      "l'element %d dans l'entete du bloc\n", elem_lat);
     else if (colonne_lon<0)
-      fprintf(stderr,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
+      App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: ne trouve pas "
 	      "l'element %d dans l'entete du bloc\n", elem_lon);
 
     brp_freeblk(blk_data_converted);
@@ -4466,7 +4455,7 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
       /* On verifie si on est dans le domaine */
       status = checkgrid(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect, errmsg);
       if (status<0) {
-	fprintf(stderr,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction checkgrid pour le lat=%f "
+	App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction checkgrid pour le lat=%f "
 		"et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	EXIT_STATUS = 1;
 	break;
@@ -4487,7 +4476,7 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
       status = find_subdomain(gridptr->gridid, gridptr->ni, gridptr->nj, lat, lon, optptr->rect,
 			      optptr->npex, optptr->npey, &ilonband, &jlatband, errmsg);
       if (status<0) {
-	fprintf(stderr,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction find_subdomain "
+	App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Erreur dans la fonction find_subdomain "
 		"pour le lat=%f et lon=%f avec le message '%s'\n", lat, lon, errmsg);
 	EXIT_STATUS = 1;
 	break;
@@ -4523,7 +4512,7 @@ int extract_data_in_domains_along_nval(optionsptr optptr, gridtype* gridptr, BUR
   brp_freeblk(blk_data_converted);
 
   if (EXIT_STATUS!=0) {
-    fprintf(stderr,"Fonction extract_data_in_domains_along_nval: Une erreur dans la "
+    App_Log(APP_ERROR,"Fonction extract_data_in_domains_along_nval: Une erreur dans la "
 	    "selection des observations\n");
     return 1;
   }
@@ -4601,7 +4590,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
 
   status = brp_encodeblk(newblk);
   if (status<0) {
-    fprintf(stderr,"Fonction putblk_nt: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
+    App_Log(APP_ERROR,"Fonction putblk_nt: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
     brp_freeblk(newblk);
     return -1;
   }
@@ -4650,7 +4639,7 @@ int putblk_nt(BURP_RPT *rpt, BURP_BLK *blk, int* t_in_domain, int nt) {
     fprintf(stdout,"Fonction putblk_nt: 'brp_putblk' terminee\n");
 
   if (status<0) {
-    fprintf(stderr,"Fonction putblk_nt: Erreur %d dans la fonction brp_putblk (btyp %d, datyp=%d)\n",
+    App_Log(APP_ERROR,"Fonction putblk_nt: Erreur %d dans la fonction brp_putblk (btyp %d, datyp=%d)\n",
 	    status, BLK_BTYP(newblk), BLK_DATYP(newblk));
     brp_freeblk(newblk);
     return -1;
@@ -4734,7 +4723,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
 
   status = brp_encodeblk(newblk);
   if (status<0) {
-    fprintf(stderr,"Fonction putblk_nval: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
+    App_Log(APP_ERROR,"Fonction putblk_nval: Erreur %d avec la fonction brp_encodeblk pour le bloc %d\n", status, BLK_BKNO(blk));
     brp_freeblk(newblk);
     return -1;
   }
@@ -4777,7 +4766,7 @@ int putblk_nval(BURP_RPT *rpt, BURP_BLK *blk, int* vals_in_domain, int nval) {
   if (VERBOSE>3)
     fprintf(stdout,"Fonction putblk_nval: 'brp_putblk' terminee\n");
   if (status<0) {
-    fprintf(stderr,"Fonction putblk_nt: Erreur %d dans la fonction blk_putblk (btyp %d)\n", status, BLK_BTYP(blk));
+    App_Log(APP_ERROR,"Fonction putblk_nt: Erreur %d dans la fonction blk_putblk (btyp %d)\n", status, BLK_BTYP(blk));
     return -1;
   }
   brp_freeblk(newblk);
@@ -4826,77 +4815,77 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       }
       else if (!strcmp(argv[i],VERBOSE_OPTION)) { /* On indique le niveau de print */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  App_Log(APP_ERROR, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  return NOT_OK;
 	}
 	VERBOSE = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],FSTIN_OPTION)) { /* Alors, on donne le nom du fichier standard input */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->fstin,argv[++i]);
       }
       else if (!strcmp(argv[i],OBSIN_OPTION)) { /* Alors, on donne le nom du fichier d'observations input */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],OBSOUT_OPTION)) { /* Alors, on donne le nom du fichier d'observations output */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
       else if (!strcmp(argv[i],RDBIN_OPTION)) { /* Alors, on donne le nom du fichier RDB input */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],RDBOUT_OPTION)) { /* Alors, on donne le nom du fichier RDB output */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
       else if (!strcmp(argv[i],BURPIN_OPTION)) { /* Alors, on donne le nom du fichier BURP input */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],BURPOUT_OPTION)) { /* Alors, on donne le nom du fichier BURP output */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
       else if (!strcmp(argv[i],ASCII_OPTION)) { /* Alors, on donne le nom du fichier ASCII qui contient des couplets lat-lon de points */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSIN_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsin,argv[++i]);
       }
       else if (!strcmp(argv[i],OUT_OPTION)) { /* Alors, on donne le nom du fichier ASCII de sortie */
-        fprintf(stderr,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
+        App_Log(APP_ERROR,"Fonction parseOptions: L'option %s a ete remplacee par %s\n", argv[i], OBSOUT_OPTION);
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->obsout,argv[++i]);
       }
@@ -4904,24 +4893,24 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						 * ou a l'exterieur (valeur = 0) du domaine.   
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->inout = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],PILOT_OPTION)) { /* On decide si on utilise une zone de pilotage pour rapetisser le domaine
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->pilot = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],MIN_I_OPTION)) { /* On donne le 'i' minimal pour definir le domaine
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.min_i = atof(&(argv[++i][1]));
@@ -4933,8 +4922,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],MAX_I_OPTION)) { /* On donne le 'i' maximal pour definir le domaine
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.max_i = atof(&(argv[++i][1]));
@@ -4946,8 +4935,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],MIN_J_OPTION)) { /* On donne le 'j' minimal pour definir le domaine
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.min_j = atof(&(argv[++i][1]));
@@ -4959,8 +4948,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],MAX_J_OPTION)) { /* On donne le 'j' maximal pour definir le domaine
 						 */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	if (argv[i+1][0]=='=') {
 	  optptr->rect.max_j = atof(&(argv[++i][1]));
@@ -4972,30 +4961,30 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       else if (!strcmp(argv[i],NPEX_OPTION)) { /* On donne le nombre de bandes dont on veut separer en 'i'
 						*/
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->npex = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],NPEY_OPTION)) { /* On donne le nombre de bandes dont on veut separer en 'j'
 						*/
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->npey = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],CHERRYPICK_X_OPTION)) { /* On donne la bande voulue en 'i' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->cherrypick_x = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],CHERRYPICK_Y_OPTION)) { /* On donne la bande voulue en 'j' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->cherrypick_y = atoi(argv[++i]);
       }
@@ -5003,8 +4992,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						   * avoir les extensions des fichiers separes en sous-domaines.
 						   */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->ndigits = atoi(argv[++i]);
       }
@@ -5014,8 +5003,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      * verification a chaque enregistrement.
 						      */
 	if (i+1<argc && argv[i+1][0]!='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->check_ua4d = 1;
       }
@@ -5023,8 +5012,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      * en fichiers sans egard a la position geographique.
 						      */
 	if (i+1<argc && argv[i+1][0]!='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->roundrobin = 1;
       }
@@ -5039,28 +5028,28 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       }
       else if (!strcmp(argv[i],RDB_HEADER_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'header' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_header_table,argv[++i]);
       }
       else if (!strcmp(argv[i],RDB_DATA_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'data' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_data_table,argv[++i]);
       }
       else if (!strcmp(argv[i],RDB_SPLITONKEY_OPTION)) { /* Cette option enregistrera le nom de la cle qui sera utilisee pour faire le split des fichiers */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->rdb_split_on_key,argv[++i]);
       }
       else if (!strcmp(argv[i],GZ_OPTION)) { /* Fichier standard dans lequel on lira le GZ au niveau voulu */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  App_Log(APP_ERROR, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  return NOT_OK;
 	}
 	strcpy(optptr->gz,argv[++i]);
@@ -5069,7 +5058,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      * les observations au dessus
 						      */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  App_Log(APP_ERROR, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  return NOT_OK;
 	}
 	optptr->niveau_min = atoi(argv[++i]);
@@ -5078,7 +5067,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 						      * les observations en dessous
 						      */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  App_Log(APP_ERROR, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  return NOT_OK;
 	}
 	optptr->niveau_max = atoi(argv[++i]);
@@ -5088,7 +5077,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	int indice_option = i;
 
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	  App_Log(APP_ERROR, "Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
 	  return NOT_OK;
 	}
 	/* Si on donne les canaux avec l'option -nochannels, alors on eviter ces canaux plutot que de les prendre */
@@ -5099,7 +5088,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	i++;
 	while(i<argc && argv[i][0]!='-') {
 	  if (strlen(optptr->channels) + strlen(argv[i])>=MAXSTR_CHANNELS) {
-	    fprintf(stderr,"Fonction parseOptions: L'option %s ne peut prendre qu'un argument "
+	    App_Log(APP_ERROR,"Fonction parseOptions: L'option %s ne peut prendre qu'un argument "
 		    "d'un maximum de %d caracteres (incluant les espaces)\n", argv[indice_option], MAXSTR_CHANNELS);
 	    return NOT_OK;
 	  }
@@ -5110,69 +5099,69 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
       }
       else if (!strcmp(argv[i],NOMVAR_OPTION)) { /* On a besoin du nomvar du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.nomvar,argv[++i]);
       }
       else if (!strcmp(argv[i],TYPVAR_OPTION)) { /* On a besoin du typvar du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.typvar,argv[++i]);
       }
       else if (!strcmp(argv[i],ETIKET_OPTION)) { /* On a besoin de l'etiquette du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	strcpy(optptr->fst.etiket,argv[++i]);
       }
       else if (!strcmp(argv[i],DATEV_OPTION)) { /* On a besoin de la date du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->fst.dateo = padtime(argv[++i]);
       }
       else if (!strcmp(argv[i],IP1_OPTION)) { /* On a besoin du ip1 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->fst.ip1 = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],IP2_OPTION)) { /* On a besoin du ip2 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->fst.ip2 = atoi(argv[++i]);
       }
       else if (!strcmp(argv[i],IP3_OPTION)) { /* On a besoin du ip3 du champ */
 	if (i+1>=argc || argv[i+1][0]=='-') {
-	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
-	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	  App_Log(APP_ERROR,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
+	   App_End(-1);exit(1);
 	}
 	optptr->fst.ip3 = atoi(argv[++i]);
       }
       else {
-	fprintf(stderr,"Fonction parseOptions: Je ne reconnais pas cette option: %s\n", argv[i]);
-	exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	App_Log(APP_ERROR,"Fonction parseOptions: Je ne reconnais pas cette option: %s\n", argv[i]);
+	 App_End(-1);exit(1);
       }
     } /* Fin du if (argv[i][0] ...) */
     else {
-      fprintf(stderr,"Fonction parseOptions: Erreur dans les arguments d'entree: (%d)\n\n", i);
-      exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+      App_Log(APP_ERROR,"Fonction parseOptions: Erreur dans les arguments d'entree: (%d)\n\n", i);
+       App_End(-1);exit(1);
     }
   } /* Fin du for (i=1; ...) */
 
   /* On checke les options recueillies */
   if ( strlen(optptr->fstin)==0 && optptr->roundrobin == 0 ) {
-    fprintf(stderr,"Fonction parseOptions: On doit absolument specifier un fichier standard "
+    App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier un fichier standard "
 	    "en entree avec l'option %s\n", FSTIN_OPTION);
-    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+     App_End(-1);exit(1);
   }
 
   printf("On imprime les differentes options choisies pour cette execution\n");
@@ -5183,14 +5172,14 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   }
   else {
     if ( strlen(optptr->obsin) == 0 ) {
-      fprintf(stderr,"Fonction parseOptions: On doit absolument specifier soit un fichier de base de "
+      App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier soit un fichier de base de "
               "donnees SQL, un fichier BURP ou ASCII en entree avec l'option %s\n", OBSIN_OPTION);
     }
     if ( strlen(optptr->obsout) == 0 ) {
-      fprintf(stderr,"Fonction parseOptions: On doit absolument specifier soit un fichier de base de "
+      App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier soit un fichier de base de "
               "donnees SQL, un fichier BURP ou ASCII en sortie avec l'option %s\n", OBSOUT_OPTION);
     }
-    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+     App_End(-1);exit(1);
   }
 
   printf("\n");
@@ -5220,8 +5209,8 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
     printf("On ne va extraire que les observations pour la tuile '%s_%s'\n\n",x_str,y_str);
   }
   else if (!(optptr->cherrypick_x<0 && optptr->cherrypick_y<0)) {
-    fprintf(stderr,"Fonction parseOptions: On doit absolument specifier les deux arguments %s et %s en meme temps.\n", CHERRYPICK_X_OPTION, CHERRYPICK_Y_OPTION);
-    exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+    App_Log(APP_ERROR,"Fonction parseOptions: On doit absolument specifier les deux arguments %s et %s en meme temps.\n", CHERRYPICK_X_OPTION, CHERRYPICK_Y_OPTION);
+     App_End(-1);exit(1);
   }
 
   if ( optptr->numheaders_files == 1 ) {
@@ -5250,7 +5239,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
     }
     else if (strlen(optptr->channels)!=0) {
       if (optptr->niveau_min != IP1_VIDE || optptr->niveau_max != IP1_VIDE) {
-	fprintf(stderr, "Fonction parseOptions: Si on donne des canaux avec l'option %s, on ne peut utiliser les options %s et %s\n", CHANNELS_OPTION, NIVEAU_MIN_OPTION, NIVEAU_MAX_OPTION);
+	App_Log(APP_ERROR, "Fonction parseOptions: Si on donne des canaux avec l'option %s, on ne peut utiliser les options %s et %s\n", CHANNELS_OPTION, NIVEAU_MIN_OPTION, NIVEAU_MAX_OPTION);
 
 	return NOT_OK;
       }
