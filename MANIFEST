@@ -1,0 +1,19 @@
+NAME       : midas
+VERSION    : 
+BUILD      : Release
+DESCRIPTION: The Modular and Integrated Data Assimilation System
+SUMMARY    : 
+MAINTAINER : ervig.lapalme@c.gc.ca
+URL        : https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas
+
+# Dependencies 
+#    =,<,<=,>,>= : Version rules
+#    ~           : Optional
+
+rmn  	     >= 20.1.0
+vgrid	     >= 6.9.3
+rpncomm      >= 4.6.3
+random 	     >= 1.1.0
+sqlite3      >= 3.26.0
+hdf5         >= 1.12.0
+
