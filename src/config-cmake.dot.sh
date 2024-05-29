@@ -1,0 +1,213 @@
+#! /bin/sh
+
+__toplevel=$(git rev-parse --show-toplevel)
+__revstring=$(${__toplevel}/midas.version.sh)
+__revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
+__status=true
+
+set -x
+###########################################################
+##
+##  USER CONFIGURATION
+##
+###########################################################
+
+## The variable 'MIDAS_COMPILE_DIR_MAIN' can be defined as
+## 'build_directory_local_to_the_repository' and so the build
+## directory will be in '${__toplevel}/compiledir' (see variable '${__compiledir_link}' below).
+## If it is not defined, we will use a default which appends the
+## basename of the toplevel directory to '${HOME}/data_maestro/ords/midas-bld'.
+
+MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
+MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
+MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
+MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
+MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
+MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND:-false}
+MIDAS_COMPILE_JOBNAME=${MIDAS_COMPILE_JOBNAME:-midasCompilation}
+MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING:-false}
+MIDAS_COMPILE_NCORES=${MIDAS_COMPILE_NCORES:-8}
+MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE:-2}
+MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
+
+###########################################################
+##  SSM Packaging configuration 
+##
+# TODO: this is now in the MANIFEST file
+MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
+MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
+MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER:-ervig.lapalme@ec.gc.ca}
+MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME:-midas}
+MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET:-/fs/ssm/eccc/mrd/rpn/anl/midas}
+MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
+
+set +x
+__compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
+
+## If 'MIDAS_COMPILE_DIR_MAIN' is equal to the special value
+## 'build_directory_local_to_the_repository', then we keep the build
+## directory local to the Git repository.
+if [ "${MIDAS_COMPILE_DIR_MAIN}" = build_directory_local_to_the_repository ]; then
+    echo "Creating '${__compiledir_link}' since 'MIDAS_COMPILE_DIR_MAIN' is defined but empty"
+    [ ! -d "${__compiledir_link}" ] && mkdir ${__compiledir_link}
+    __midas_compile_dir_main=${__compiledir_link}
+else
+    if [ -n "${MIDAS_COMPILE_DIR_MAIN}" ]; then
+        if [[ "${MIDAS_COMPILE_DIR_MAIN}" != /* ]]; then
+            __midas_compile_dir_main_var_name=MIDAS_COMPILE_DIR_MAIN
+            echo "Please provide of value of MIDAS_COMPILE_DIR_MAIN which is an absolute path"
+            echo "   ${__midas_compile_dir_main_var_name}=${MIDAS_COMPILE_DIR_MAIN}"
+            echo "was given"
+            return 1
+        fi
+        __midas_compile_dir_main=${MIDAS_COMPILE_DIR_MAIN}
+    else
+        ## If the variable 'MIDAS_COMPILE_DIR_MAIN' is not defined,
+        ## we add the leaf part of the toplevel directory to
+        ## '${HOME}/data_maestro/ords/midas-bld'.
+        __toplevel_leaf=$(basename ${__toplevel})
+        __midas_compile_dir_main=${HOME}/data_maestro/ords/midas-bld/${__toplevel_leaf}
+    fi
+
+    if [ ! -d "${__midas_compile_dir_main}" ]; then
+        mkdir -p ${__midas_compile_dir_main}
+    fi
+    ##  linking the build directory where it used to be
+    if [ -d "${__compiledir_link}" -o -L "${__compiledir_link}" ]; then
+        echo "${__compiledir_link} already exists: not creating link."
+    else
+        ln -s ${__midas_compile_dir_main} ${__compiledir_link}
+    fi
+fi
+set -x
+export MIDAS_SOURCE_DIR=${__toplevel}
+export MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
+
+###########################################################
+##  LESS-USER-FRIENDLY CONFIGURATION
+##
+##  these should not be changed unless you know what you're doing
+##  it can impact the maestro testing suite or the cleaning targets
+##  in unwated ways
+MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
+MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
+__install_always_midas=true
+
+__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+__keep_jobsubmit_ofile=false
+__ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
+
+###########################################################
+##  compilation and SSM needed for compilation
+##
+## -- should not change that
+set +x
+
+# User-specified compilation options
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_INCR_REAL_SINGLE"
+#export MIDAS_COMPILE_COMPF_GLOBAL="-DCODEPRECISION_SPECTRANS_REAL_SINGLE"
+if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
+     echo "..."
+     echo "... Additional user-specified compilation options = ${MIDAS_COMPILE_COMPF_GLOBAL}"
+     echo "..."
+fi
+
+# Set the optimization level
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
+    FOPTMIZ="-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
+else
+    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
+    return 1
+fi
+
+#----------------------------------------------------------------
+#  Set up dependent libraries and tools. 
+#---------------------------------------------------------------
+echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2"
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+
+## for rmn, vgrid, rpncomm, and random-tools
+echo "... loading eccc/mrd/rpn/libs/20240515-alpha"
+. r.load.dot eccc/mrd/rpn/libs/20240515-alpha
+echo "... loading hdf5"
+. ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
+
+echo "... loading eccc/cmd/cmda/libs/20230531/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20230531/${COMP_ARCH}
+
+echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
+
+echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
+
+COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL}"
+OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="-qmkl ${OPTF} -warn noexternal"
+
+# add compiler option to produce reports on code optimization and deactivate cleaning
+if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
+    OPTF="${OPTF} -qopt-report=5"
+    echo "... > !WARNING! Compiler optimization reports will be produced in the compile directory."
+    echo "... >           To be able to see them, we ensure cleaning is not activated."
+    MIDAS_COMPILE_CLEAN=false
+fi
+
+if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+    FOPTMIZ=-O0
+    COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -g -ftrapuv"
+    COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
+else
+    COMPF="${COMPF_GLOBAL} ${OPTF}"
+    COMPF_NOC=${COMPF}
+fi
+
+if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
+    echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
+    FOPTMIZ="-O0"
+    [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
+        echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
+        echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+        __status=false
+    }
+    [ ! -d "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ] && mkdir -p ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
+    [ ! -d "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ] && {
+        echo "Could not create the directory ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+        __status=false
+    }
+    COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+    COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+fi
+
+## loading docopt for analyzeDep.py
+## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
+. ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
+
+# We need a more recent version of cmake than the one available by default
+. ssmuse-sh -d main/opt/cmake/cmake-3.21.1
+
+# Shortcut commands for cmake and make
+alias cado=${PWD}/cado
+
+# Autocomplete for commands
+source ./_cado
+
+export COMPF
+export FOPTMIZ
+
+export MIDAS_COMPILE_FRONTEND
+export MIDAS_COMPILE_JOBNAME
+export MIDAS_ABS_LEAFDIR
+export MIDAS_COMPILE_VERBOSE
+export MIDAS_MAKEDEP_TIMEOUT
+
+export MIDAS_SSM_TARGET
+export MIDAS_SSM_PKGNAME
+export MIDAS_SSM_MAINTAINER
+export MIDAS_SSM_DESCRIPTION
+export MIDAS_SSM_GITREPO
+export MIDAS_SSM_VERSION
+
+# config return status
+${__status}
