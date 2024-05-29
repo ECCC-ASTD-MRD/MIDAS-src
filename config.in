@@ -1,0 +1,136 @@
+#!/bin/bash
+#
+# This forms the basis for the xx-config utility, which tells you
+# various things about the library installation.
+
+cc="@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@"
+fc="@CMAKE_Fortran_COMPILER_ID@ @CMAKE_Fortran_COMPILER_VERSION@"
+cflags="@EC_C_FLAGS@"
+fflags="@EC_Fortran_FLAGS@"
+defs="@EC_CMAKE_DEFINITIONS@"
+libs=CMAKE_LIBS
+
+version=@PROJECT_VERSION@
+env=@EC_CI_ENV@
+arch=@EC_ARCH@
+
+has_rmn=@rmn_VERSION@@rmn_STATE@
+has_rpncomm=@rpncomm_VERSION@@rpncomm_STATE@
+has_vgrid=@vgrid_VERSION@@vgrid_STATE@
+has_hdf5=@HDF5_VERSION@
+has_sqlite3=@SQLite3_VERSION@
+
+usage()
+{
+    cat <<EOF
+Usage: @NAME@-config [OPTION]
+
+Available values for OPTION include:
+
+  --help         display this help message and exit
+  --cc           C compiler [${cc}]
+  --fc           FORTRAN compiler [${fc}]
+  --cflags       C compiler flags [${cflags}]
+  --fflags       Fortran compiler flags [${fflags}]
+  --defs         preprocessor definitions [${defs}]
+  --libs         library linking information [${libs}]
+  --version      MIDAS version [${version}]
+  --env          environment version used [${env}]
+  --arch         architecture of build [${arch}]
+  --has-rmn      which version of librmn is it compiled with [${has_rmn}]
+  --has-rpncomm  which version of rpncomm is it compiled with [${has_rpncomm}]
+  --has-vgrid    which version of vgrid is it compiled with [${has_vgrid}]
+  --has-hdf5     which version of hdf5 is it compiled with [${has_hdf5}]
+  --has-sqlite3  which version of sqlite3 is it compiled with [${has_sqlite3}]
+ 
+EOF
+}
+
+if test $# -eq 0; then
+    usage 1
+fi
+
+while test $# -gt 0; do
+    case "$1" in
+    # this deals with options in the style
+    # --option=value and extracts the value part
+    # [not currently used]
+    -*=*) value=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+    *) value= ;;
+    esac
+
+    case "$1" in
+
+    --help)
+	usage 0
+	;;
+
+    --cc)
+       	echo ${cc:-no}
+       	;;
+
+    --ftn)
+       	echo ${fc:-no}
+       	;;
+
+    --cflags)
+       	echo ${cflags}
+       	;;
+           
+    --fflags)
+       	echo ${fflags}
+       	;;
+
+    --defs)
+       	echo ${defs}
+       	;;
+
+    --libs)
+       	echo ${libs}
+       	;;
+
+    --has-rmn)
+       	echo ${has_rmn:-no}
+       	;;
+
+    --has-rpncomm)
+       	echo ${has_rpncomm:-no}
+       	;;
+
+    --has-vgrid)
+       	echo ${has_vgrid:-no}
+       	;;
+
+    --has-hdf5)
+       	echo ${has_hdf5:-no}
+       	;;
+
+    --has-sqlite3)
+       	echo ${has_sqlite3:-no}
+       	;;
+
+    --libs)
+       	echo $libs
+       	;;
+
+    --version)
+	    echo ${version}
+	    ;;
+
+    --env)
+       echo ${env}
+       ;;
+
+    --arch)
+       echo ${arch}
+       ;;
+       
+    *)
+        echo "unknown option: $1"
+	    usage 1
+	    ;;
+    esac
+    shift
+done
+
+exit 0
