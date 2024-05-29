@@ -214,7 +214,7 @@ options will change the results of the programs.
 
 You can prepare the interactive mode by using this command:
 ```bash
-maestro -n /${pathToTest}/UnitTest/run -d ${SEQ_DATE} -s submit -o -args 'UnitTest_stop_for_interactive_work=yes'
+maestro -n /${pathToTest}/UnitTest/run -d ${SEQ_DATE} -s submit -o "-args UnitTest_stop_for_interactive_work=yes"
 ```
 instead of modifying `experiment.cfg` as mentioned in the previous
 section.
