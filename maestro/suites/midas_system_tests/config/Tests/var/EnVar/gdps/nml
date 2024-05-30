@@ -1,18 +1,19 @@
  &NAMBHI
    NTRUNC  = 270,
-   SCALEFACTOR = 17*0.25D0,0.225D0,0.2D0,0.175D0,0.15D0,0.125D0,0.1D0,0.075D0,0.05D0,0.025D0,100*0.0D0
+   SCALEFACTOR = 100*0.0D0
    READWRITE_SQRT = .true.
 /
  &NAMBEN
    NTRUNC  = 80,
    NENS = 256
-   SCALEFACTOR=3*0.00D0,0.1D0,0.2D0,0.3D0,0.4D0,0.5D0,0.6D0,0.7D0,0.8D0,0.9D0,100*1.0D0
+   SCALEFACTOR=0.01D0,0.04D0,0.09D0,0.16D0,0.50D0,100*1.0D0
    ENSPATHNAME='./ensemble/'
-   horizLocalizationType = 'ScaleDependent'
-   horizWaveBandPeaks = 80,20,4
-   HLOCALIZE = 1000.0,2400.0,3300.0
+   HORIZLOCALIZATIONTYPE = 'ScaleDependent'
+   HORIZWAVEBANDPEAKS = 80,20,4
+   HLOCALIZE = 1000.0,2400.0,3800.0
    VLOCALIZE = 2.0d0,2.0d0,2.0d0
-   huMinValue = 1.0D-7
+   huMinValue = 2.5D-6
+   hInterpolationDegree  = 'CUBIC'
    INCLUDEANLVAR(1) = 'UU'
    INCLUDEANLVAR(2) = 'VV'
    INCLUDEANLVAR(3) = 'TT'
@@ -25,6 +26,8 @@
    SCALEFACTOR(1,1:100) = 100*1.0D0
    STDDEVMODE = 'GD3D'
    READWRITE_SQRT = .true.
+   getPhysSpaceStats=.true.
+   getPhysSpaceHCorrel=.true.
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -32,7 +35,7 @@
    NSIMMAX  = 110,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
-   LWRTHESS = .TRUE.,
+   LWRTHESS = .FALSE.,
    LVARQC=.TRUE.,
    NWOQCV=5
 /
@@ -83,6 +86,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
+   addHeightSfcOffset=.false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
@@ -91,7 +95,9 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
    ANLVAR(7)   ='LWCR'
-   ANLVAR(8)   ='O3L'
+   ANLVAR(8)   ='IWCR'
+   ANLVAR(9)   ='CLDR'   
+   ANLVAR(10)  ='O3L'
 /
  &NAMS2C
    SLANTPATH_TO_NL   = .TRUE.,
@@ -174,10 +180,24 @@
    CINSTRUMENTID(36) = 'CRISFSR',
    CSATID(37)        = 'NOAA20',
    CINSTRUMENTID(37) = 'CRISFSR',
+   CSATID(38)        = 'METOP-3',
+   CINSTRUMENTID(38) = 'AMSUA',
+   CSATID(39)        = 'METOP-3',
+   CINSTRUMENTID(39) = 'MHS',
+   CSATID(40)        = 'GOES17',
+   CINSTRUMENTID(40) = 'ABI',
+   CSATID(41)        = 'FY3-3',
+   CINSTRUMENTID(41) = 'MWHS2',
+   CSATID(42)        = 'METOP-3',
+   CINSTRUMENTID(42) = 'IASI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    instrumentNamesUsingCLW(1) = 'amsua'
+   instrumentNamesUsingCLW(2) = 'atms'
+   instrumentNamesUsingHydrometeors(1) = 'mhs'
+   channelsUsingHydrometeors(1,1:5)=1,2,3,4,5
    mwInstrumUsingCLW_tl = .true.
+   mwInstrumUsingHydrometeors_tl = .true.
    cloudScaleFactor = 0.5D0
    mwAllskyAssim = .true.
 /
@@ -210,7 +230,7 @@
 /
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
-  LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035
+  LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035,40026
 /
  &NAMBURP_FILTER_CONV
   UA_HIGH_PRECISION_TT_ES=.true.,
@@ -218,7 +238,10 @@
   BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
 /
  &NAMADDTOBURP
-  clwFgElementId = 13109
+  addBtClearToBurp=.false.,
+  btClearElementId=12164, 
+  clwFgElementId = 13231,
+  siFgElementId=13091,
 /
  &NAMBURP_FILTER_TOVS
   BLISTELEMENTS=12163
@@ -234,9 +257,9 @@
 /
  &NAMOER
   NEW_OER_SW=.true.
-  instrumentNamesInflateErrAllskyTt(1) = 'amsua'
   mwAllskyTtInflateByOmp = .true.
   mwAllskyTtInflateByClwDiff = .true.
+  readOldSymmetricObsErrFile = .false.
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.
@@ -250,13 +273,20 @@
  &NAMCHEM 
   MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
   assim_all(1)=.false.
-  assim_num(1)=7
-  assim_stnid(1,1)='00322000'  ! GOME2B (excluded GOME2A 00422000)
-  assim_stnid(1,2)='22*94700'  ! OMPS-NM on NPP and NOAA-20
-  assim_nlev(1,2)=1            ! OMPS Total column
-  assim_stnid(1,3)='AUROMI00'  ! OMI on AURA
-  assim_stnid(1,4)='R2494700'  ! OMPSNP NPP with 6 layers
-  assim_stnid(1,5)='R2362400'  ! SBUV2 with 6 layers
-  assim_stnid(1,6)='78538700'  ! MLS on AURA
-  assim_stnid(1,7)='06412500'  ! TROPOMI on S5P
+  assim_num(1)=6
+  assim_stnid(1,1)='22*94700'  ! OMPS-NM on NPP and NOAA-20
+  assim_nlev(1,1)=1            ! OMPS Total column
+  assim_stnid(1,2)='AUROMI00'  ! OMI on AURA
+  assim_stnid(1,3)='R2494700'  ! OMPSNP NPP with 6 layers
+  assim_stnid(1,4)='R2362400'  ! SBUV2 with 6 layers
+  assim_stnid(1,5)='78538700'  ! MLS on AURA
+  assim_stnid(1,6)='06412500'  ! TROPOMI on S5P
+  operatorSubType(1,1)='78538700'
+  operatorSubType(2,1)='wgtAvg'
+  operatorSubType(1,2)='AUROMI00'
+  operatorSubType(2,2)='genOper'
+  operatorSubType(1,3)='22*94700'
+  operatorSubType(2,3)='genOper'
+  operatorSubType(1,4)='06412500'
+  operatorSubType(2,4)='genOper'
 /    
