@@ -1497,7 +1497,7 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
-    type(fst_file)   :: fstFile, fstFiles(0:mmpi_numthread-1)
+    type(fst_file)   :: fstFiles(0:mmpi_numthread-1)
     type(fst_record) :: fstRecords(0:mmpi_numthread-1)
     logical :: success, interpolationToPhysicsGrid
     integer :: levIndices(0:mmpi_numthread-1)
@@ -1628,13 +1628,6 @@ module gridStateVectorFileIO_mod
     !
     if (iDoWriting) then
 
-      !- Open output file
-      call msg('gio_writeToFile', 'File name = ' // trim(fileName))
-      success = fstFile % open(trim(fileName), 'R/W')
-      if (.not. success) then
-        call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileName))
-      end if
-
       ! Open temporary output files
       do thread = 0, (mmpi_numthread-1)
         fileNames(thread) = trim(fileName) // '_' // str(thread)
@@ -1647,7 +1640,7 @@ module gridStateVectorFileIO_mod
 
       !- Write TicTacToc in the final output file
       if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
-        call writeTicTacToc(statevector, fstFile, fstRecords(0)%etiket)
+        call writeTicTacToc(statevector, fstFiles(0), fstRecords(0)%etiket)
       endif
 
     end if
@@ -1716,9 +1709,9 @@ module gridStateVectorFileIO_mod
 
           !- Writing to file
           call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-          success = fstFile % write(fstRecords(0))
+          success = fstFiles(0) % write(fstRecords(0))
           if (.not. success) then
-            call utl_abort('gio_writeToFile: problem writing ' // fstRecords(0)%nomvar // ' at level ' // str(fstRecords(0)%ip1) // ' in output file ' // fileName)
+            call utl_abort('gio_writeToFile: problem writing ' // fstRecords(0)%nomvar // ' at level ' // str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
           end if
           call utl_tmg_stop(184)
         end if ! iDoWriting
@@ -1882,10 +1875,7 @@ module gridStateVectorFileIO_mod
 
     ! Close all files and put all of them in the 'final' file named "fileName"
     if (iDoWriting) then
-      success = fstFile%close()
-      if (.not. success) then
-        call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileName))
-      end if
+      call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
 
       do thread = 0, (mmpi_numthread-1)
         success = fstFiles(thread)%close()
