@@ -52,10 +52,15 @@ function check_result {
         ${TASK_BIN}/r.filetype ${live_file} > live.filetype ||  livetype=$?
         ${TASK_BIN}/r.filetype ${rfrn}      > rfrn.filetype || filetype2=$?
 
+        case "${livetype}" in
+            ## Tous ces type sont identiques et 'fstcomp' peut etre utilise pour les comparer
+            1|2|3|39) livetype=33 ;;
+        esac
+
         if [ "${livetype}" -eq "${filetype2}" ]; then
             case "${livetype}" in
                 ## de type fichier standard
-                1|2|3|33) method=fstcomp;;
+                1|2|3|33|39) method=fstcomp;; ## 39 est RSF qui est aussi un "fichier standard"
                 ## BURP
                 6) method=${UnitTest_burp_diff};;
                 ## SQLite
