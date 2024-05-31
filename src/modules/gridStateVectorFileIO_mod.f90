@@ -1723,7 +1723,7 @@ module gridStateVectorFileIO_mod
         interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex)
 
         do levIndex = 1, nlev
-          threadId = mod(levIndex, mmpi_numthread)
+          threadId = mod(levIndex-1, mmpi_numthread)
           levIndices(threadId) = levIndex
 
           if (statevector%dataKind == 8) then
@@ -1845,10 +1845,12 @@ module gridStateVectorFileIO_mod
               end where
             end if
 
-            if ( threadId == 0 ) then
+            if ( (threadId == mmpi_numthread-1) .or. (levIndex == nlev) ) then
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              do thread = 0, (mmpi_numthread-1)
+              ! if 'threadId == mmpi_numthread-1', we write all threads,
+              ! if not then we write only the threads that have been initialized
+              do thread = 0, threadId
                 call writeToFile(fstFile = fstFile, fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
                                  statevector = statevector, data = work2d_r4(:,:,thread), &
                                  interpolationToPhysicsGrid = interpolationToPhysicsGrid)
@@ -1859,17 +1861,6 @@ module gridStateVectorFileIO_mod
 
         end do ! levIndex
 
-        ! We must write the leftovers in the file too
-        if ( iDoWriting .and. threadId /= 0 ) then
-          !- Writing to file
-          call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-          do thread = 1, threadId
-            call writeToFile(fstFile = fstFile, fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
-                             statevector = statevector, data = work2d_r4(:,:,thread), &
-                             interpolationToPhysicsGrid = interpolationToPhysicsGrid)
-          end do
-          call utl_tmg_stop(184)
-        end if
       end if ! varExist
 
     end do ! varIndex
