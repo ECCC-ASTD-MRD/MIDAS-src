@@ -1632,7 +1632,7 @@ module gridStateVectorFileIO_mod
       do thread = 0, (mmpi_numthread-1)
         fileNames(thread) = trim(fileName) // '_' // str(thread)
         call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
-        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W')
+        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W+RSF')
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNames(thread)))
         end if
