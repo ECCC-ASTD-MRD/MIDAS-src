@@ -1485,10 +1485,8 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField
-    integer :: stepIndex
-    integer :: ierr
-    integer :: levIndex, nlev, varIndex
-    integer :: yourid, nsize, youridy, youridx, threadId
+    integer :: stepIndex, ierr, levIndex, nlev, varIndex
+    integer :: yourid, nsize, youridy, youridx, threadId, thread
     real(4) :: factor_r4
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
@@ -1500,7 +1498,8 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), target  :: statevector_tiles
     type(fst_file)   :: fstFile
     type(fst_record) :: fstRecords(0:mmpi_numthread-1)
-    logical :: success
+    logical :: success, interpolationToPhysicsGrid
+    integer :: levIndices(0:mmpi_numthread-1)
 
     call msg('gio_writeToFile', 'START')
 
@@ -1721,9 +1720,11 @@ module gridStateVectorFileIO_mod
       if (gsv_varExist(statevector,vnl_varNameList(varIndex))) then
 
         nlev = statevector%varNumLev(varIndex)
+        interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex)
 
         do levIndex = 1, nlev
           threadId = mod(levIndex, mmpi_numthread)
+          levIndices(threadId) = levIndex
 
           if (statevector%dataKind == 8) then
             call gsv_getField(statevector,field_r8,vnl_varNameList(varIndex))
@@ -1844,17 +1845,31 @@ module gridStateVectorFileIO_mod
               end where
             end if
 
-            !- Writing to file
-            call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-            call writeToFile(fstFile = fstFile, fstRecord = fstRecords(threadId), levIndex = levIndex, &
-                             statevector = statevector, data = work2d_r4(:,:,threadId), &
-                             interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex))
-            call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-
+            if ( threadId == 0 ) then
+              !- Writing to file
+              call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
+              do thread = 0, (mmpi_numthread-1)
+                call writeToFile(fstFile = fstFile, fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
+                                 statevector = statevector, data = work2d_r4(:,:,thread), &
+                                 interpolationToPhysicsGrid = interpolationToPhysicsGrid)
+              end do
+              call utl_tmg_stop(184)
+            end if
           end if ! iDoWriting
 
         end do ! levIndex
 
+        ! We must write the leftovers in the file too
+        if ( iDoWriting .and. threadId /= 0 ) then
+          !- Writing to file
+          call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
+          do thread = 1, threadId
+            call writeToFile(fstFile = fstFile, fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
+                             statevector = statevector, data = work2d_r4(:,:,thread), &
+                             interpolationToPhysicsGrid = interpolationToPhysicsGrid)
+          end do
+          call utl_tmg_stop(184)
+        end if
       end if ! varExist
 
     end do ! varIndex
