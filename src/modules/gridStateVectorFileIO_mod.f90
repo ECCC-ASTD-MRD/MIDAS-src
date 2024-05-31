@@ -22,6 +22,7 @@ module gridStateVectorFileIO_mod
   use netcdf
   use message_mod
   use rmn_fst24
+  use clibInterfaces_mod
 
   implicit none
   save
@@ -1496,10 +1497,11 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
-    type(fst_file)   :: fstFile
+    type(fst_file)   :: fstFile, fstFiles(0:mmpi_numthread-1)
     type(fst_record) :: fstRecords(0:mmpi_numthread-1)
     logical :: success, interpolationToPhysicsGrid
     integer :: levIndices(0:mmpi_numthread-1)
+    character(len=256) :: fileNames(0:mmpi_numthread-1)
 
     call msg('gio_writeToFile', 'START')
 
@@ -1626,15 +1628,24 @@ module gridStateVectorFileIO_mod
     !
     if (iDoWriting) then
 
-      !- Open output field
-      call msg('gio_writeToFile', 'File name = ' // str(trim(fileName)))
+      !- Open output file
+      call msg('gio_writeToFile', 'File name = ' // trim(fileName))
       success = fstFile % open(trim(fileName), 'R/W')
-
       if (.not. success) then
-        call utl_abort('gio_writeToFile: problem opening output file ' // fileName)
+        call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileName))
       end if
 
-      !- Write TicTacToc
+      ! Open temporary output files
+      do thread = 0, (mmpi_numthread-1)
+        fileNames(thread) = trim(fileName) // '_' // str(thread)
+        call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
+        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W')
+        if (.not. success) then
+          call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNames(thread)))
+        end if
+      end do
+
+      !- Write TicTacToc in the final output file
       if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
         call writeTicTacToc(statevector, fstFile, fstRecords(0)%etiket)
       endif
@@ -1851,7 +1862,7 @@ module gridStateVectorFileIO_mod
               ! if 'threadId == mmpi_numthread-1', we write all threads,
               ! if not then we write only the threads that have been initialized
               do thread = 0, threadId
-                call writeToFile(fstFile = fstFile, fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
+                call writeToFile(fstFile = fstFiles(thread), fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
                                  statevector = statevector, data = work2d_r4(:,:,thread), &
                                  interpolationToPhysicsGrid = interpolationToPhysicsGrid)
               end do
@@ -1869,11 +1880,23 @@ module gridStateVectorFileIO_mod
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
 
+    ! Close all files and put all of them in the 'final' file named "fileName"
     if (iDoWriting) then
       success = fstFile%close()
       if (.not. success) then
-        call utl_abort('gio_writeToFile: problem closing output file ' // fileName)
+        call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileName))
       end if
+
+      do thread = 0, (mmpi_numthread-1)
+        success = fstFiles(thread)%close()
+        if (.not. success) then
+          call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNames(thread)))
+        end if
+
+        ierr = utl_copyFile(fileNames(thread), fileName, concatenate_opt = .true.)
+
+        ierr = clib_remove(fileNames(thread))
+      end do
     end if
 
     !
