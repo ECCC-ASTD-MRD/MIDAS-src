@@ -1647,7 +1647,13 @@ module gridStateVectorFileIO_mod
 
       ! Open temporary output files
       do thread = 0, (numThreads-1)
-        fileNames(thread) = trim(fileName) // '_' // str(thread)
+        ! If 'numThreads' is 1, then we will directly write to the final output file
+        if (numThreads == 1) then
+          fileNames(thread) = trim(fileName)
+        else
+          fileNames(thread) = trim(fileName) // '_' // str(thread)
+        end if
+
         call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
         success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W+' // outputFormat)
         if (.not. success) then
@@ -1900,9 +1906,12 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNames(thread)))
         end if
 
-        ierr = utl_copyFile(fileNames(thread), fileName, concatenate_opt = .true.)
-
-        ierr = clib_remove(fileNames(thread))
+        ! If 'numThreads' is 1 then we directly write to the final output file.
+        ! So, there is no need to copy it.
+        if (numThreads /= 1) then
+          ierr = utl_copyFile(fileNames(thread), fileName, concatenate_opt = .true.)
+          ierr = clib_remove(fileNames(thread))
+        end if
       end do
     end if
 
