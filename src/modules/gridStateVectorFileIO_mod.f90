@@ -1877,11 +1877,13 @@ module gridStateVectorFileIO_mod
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
               ! if 'threadId == numThreads-1', we write all threads,
               ! if not then we write only the threads that have been initialized
+              !$OMP PARALLEL DO PRIVATE(thread)
               do thread = 0, threadId
                 call writeToFile(fstFile = fstFiles(thread), fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
                                  statevector = statevector, data = work2d_r4(:,:,thread), &
                                  interpolationToPhysicsGrid = interpolationToPhysicsGrid)
               end do
+              !$OMP END PARALLEL DO
               call utl_tmg_stop(184)
             end if
           end if ! iDoWriting
