@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * A new variable called `outputFormat` has been added to the namelist `NAMSTIO` which allows to write `RSF` files instead of the default `XDF` format (#922 and !842).
+   * If the user chooses to output in `RSF`, we will write in parallel using all OpenMP threads available in the routine `gio_writeToFile`.
  * Add a test `/Tests/letkf/glb_3D` to run LETKF on a single node (#932 and !841)
  * The routine `hco_weight` can now read the grid weights from the file `grid_weight.bin` instead of recomputing them (#928 and !838)
    * If it does compute the weights, then the routine writes them in `grid_weight.bin`.
