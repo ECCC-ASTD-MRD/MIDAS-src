@@ -1487,7 +1487,7 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField
-    integer :: stepIndex, ierr, levIndex, nlev, varIndex
+    integer :: stepIndex, ierr, levIndex, nlev, varIndex, numThreads
     integer :: yourid, nsize, youridy, youridx, threadId, thread
     real(4) :: factor_r4
     character(len=4)          :: varLevel
@@ -1498,11 +1498,11 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
-    type(fst_file)   :: fstFiles(0:mmpi_numthread-1)
-    type(fst_record) :: fstRecords(0:mmpi_numthread-1)
+    type(fst_file), allocatable   :: fstFiles(:)
+    type(fst_record), allocatable :: fstRecords(:)
+    integer, allocatable :: levIndices(:)
+    character(len=256), allocatable :: fileNames(:)
     logical :: success, interpolationToPhysicsGrid
-    integer :: levIndices(0:mmpi_numthread-1)
-    character(len=256) :: fileNames(0:mmpi_numthread-1)
 
     call msg('gio_writeToFile', 'START')
 
@@ -1536,6 +1536,22 @@ module gridStateVectorFileIO_mod
     if (.not. statevector%mpi_local) then
       call msg('gio_writeToFile', 'Writing statevector that is already mpiglobal!')
     end if
+
+    if ( outputFormat == 'XDF' ) then
+      ! We cannot concatenate several 'XDF' files, we will write in a single file
+      numThreads = 1
+    else
+      if ( outputFormat == 'RSF' ) then
+        numThreads = mmpi_numthread
+      else
+        call utl_abort('gio_writeToFile: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+      end if
+    end if
+
+    allocate(fstFiles(0:numThreads-1))
+    allocate(fstRecords(0:numThreads-1))
+    allocate(levIndices(0:numThreads-1))
+    allocate(fileNames(0:numThreads-1))
 
     if (present(ip3_opt)) then
       fstRecords(:)%ip3 = ip3_opt
@@ -1630,10 +1646,10 @@ module gridStateVectorFileIO_mod
     if (iDoWriting) then
 
       ! Open temporary output files
-      do thread = 0, (mmpi_numthread-1)
+      do thread = 0, (numThreads-1)
         fileNames(thread) = trim(fileName) // '_' // str(thread)
         call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
-        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W+RSF')
+        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W+' // outputFormat)
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNames(thread)))
         end if
@@ -1648,7 +1664,7 @@ module gridStateVectorFileIO_mod
 
     allocate(gd_send_r4(statevector%lonPerPEmax, statevector%latPerPEmax))
     if (mmpi_myid == 0 .or. (.not. statevector%mpi_local)) then
-      allocate(work2d_r4(statevector%ni, statevector%nj, 0:mmpi_numthread-1))
+      allocate(work2d_r4(statevector%ni, statevector%nj, 0:numThreads-1))
       if (statevector%mpi_local) then
         ! Receive tile data from all mpi tasks
         allocate(gd_recv_r4(statevector%lonPerPEmax, statevector%latPerPEmax, mmpi_nprocs))
@@ -1658,7 +1674,7 @@ module gridStateVectorFileIO_mod
       end if
     else
       allocate(gd_recv_r4(1,1,1))
-      allocate(work2d_r4(1,1,0:mmpi_numthread-1))
+      allocate(work2d_r4(1,1,0:numThreads-1))
     end if
 
     ! Write surface height, if requested
@@ -1728,7 +1744,7 @@ module gridStateVectorFileIO_mod
         interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex)
 
         do levIndex = 1, nlev
-          threadId = mod(levIndex-1, mmpi_numthread)
+          threadId = mod(levIndex-1, numThreads)
           levIndices(threadId) = levIndex
 
           if (statevector%dataKind == 8) then
@@ -1850,10 +1866,10 @@ module gridStateVectorFileIO_mod
               end where
             end if
 
-            if ( (threadId == mmpi_numthread-1) .or. (levIndex == nlev) ) then
+            if ( (threadId == numThreads-1) .or. (levIndex == nlev) ) then
               !- Writing to file
               call utl_tmg_start(184,'low-level--gio_writeToFile-fstecr')
-              ! if 'threadId == mmpi_numthread-1', we write all threads,
+              ! if 'threadId == numThreads-1', we write all threads,
               ! if not then we write only the threads that have been initialized
               do thread = 0, threadId
                 call writeToFile(fstFile = fstFiles(thread), fstRecord = fstRecords(thread), levIndex = levIndices(thread), &
@@ -1878,7 +1894,7 @@ module gridStateVectorFileIO_mod
     if (iDoWriting) then
       call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
 
-      do thread = 0, (mmpi_numthread-1)
+      do thread = 0, (numThreads-1)
         success = fstFiles(thread)%close()
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNames(thread)))
@@ -1889,6 +1905,11 @@ module gridStateVectorFileIO_mod
         ierr = clib_remove(fileNames(thread))
       end do
     end if
+
+    deallocate(fstFiles)
+    deallocate(fstRecords)
+    deallocate(levIndices)
+    deallocate(fileNames)
 
     !
     !- 4.  Ending
