@@ -203,6 +203,7 @@ program midas_obsImpact
   ! Read the namelists
   call utl_readNml()
 
+  ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
   !

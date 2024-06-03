@@ -343,6 +343,9 @@ program midas_var
   ! Setup the ram disk
   call ram_setup
 
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
 
   ! Set/Read values for the namelist NAMVAR

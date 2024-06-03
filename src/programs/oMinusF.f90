@@ -116,6 +116,7 @@ program midas_oMinusF
   use biasCorrectionSat_mod
   use ensembleObservations_mod
   use fileNames_mod
+
   implicit none
 
   ! Namelist

@@ -73,12 +73,14 @@ program midas_extractBmatrixFor1Dvar
   use gridVariableTransforms_mod
   use varNameList_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use bMatrix_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
+
   implicit none
 
   type(struct_gsv) :: statevector
@@ -125,6 +127,9 @@ program midas_extractBmatrixFor1Dvar
 
   ! Read the namelists
   call utl_readNml()
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   ! Set default values for namelist NAMEXTRACT parameters
   extractdate        =  2011020100

@@ -86,7 +86,9 @@ program midas_calcStats
   use utilities_mod
   use ramDisk_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use timeCoord_mod
+
   implicit none
 
   type(struct_vco), pointer :: vco_ens => null()
@@ -129,6 +131,9 @@ program midas_calcStats
 
   ! Setup time
   call tim_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   !- 1.2 Read NAMENS namelist
   nens              = 96                ! default value

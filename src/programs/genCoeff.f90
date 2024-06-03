@@ -140,6 +140,9 @@ program midas_genCoeff
   ! 1. Top level setup
   call ram_setup()
  
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
   call gencoeff_setup('VAR') ! obsColumnMode
 

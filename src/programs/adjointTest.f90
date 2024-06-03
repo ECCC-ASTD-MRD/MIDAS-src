@@ -84,6 +84,7 @@ program midas_adjointTest
   use ensembleStateVector_mod
   use localization_mod
   use lamBmatrixHI_mod
+
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()

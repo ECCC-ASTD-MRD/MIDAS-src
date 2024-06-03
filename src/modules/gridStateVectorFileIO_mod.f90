@@ -29,13 +29,14 @@ module gridStateVectorFileIO_mod
   private
 
   ! public subroutines and functions
+  public :: gio_setup
   public :: gio_readFromFile, gio_readTrials, gio_readFile
-  public :: gio_readMaskFromFile
-  public :: gio_getMaskLAM
+  public :: gio_readMaskFromFile, gio_getMaskLAM
   public :: gio_writeToFile, gio_writeToFileNetCDF
   public :: gio_fileUnitsToStateUnits
 
   integer, external :: get_max_rss
+  logical :: initialized = .false.
 
   ! Namelist variables
   logical :: interpToPhysicsGrid  ! for LAM grid, choose to keep physics variables on their original grid
@@ -59,6 +60,46 @@ module gridStateVectorFileIO_mod
   end type netCDFvarID
 
   contains
+
+  !--------------------------------------------------------------------------
+  ! gio_setup
+  !--------------------------------------------------------------------------
+  subroutine gio_setup()
+    implicit none
+
+    ! Locals:
+    integer :: lengthFstOptions, status
+    character(len=256) :: fstOptions
+
+    if (.not. initialized) then
+      call readNml()
+
+      !
+      !- Determine if 'FST_OPTIONS' is alreadu defined
+      !
+      status = 0
+      call get_environment_variable('FST_OPTIONS',fstOptions,lengthFstOptions,status,.true.)
+
+      if (status.gt.1) then
+        write(*,*) 'gio_setup: Problem when getting the environment variable '
+      end if
+      if (status.eq.1) then
+        write(*,*) 'gio_setup: The environment variable FST_OPTIONS  has not been detected!'
+        fstOptions = 'FST_OPTIONS=BACKEND=' // outputFormat
+      else
+        write(*,*)
+        write(*,*) 'gio_setup: The environment variable FST_OPTIONS has correctly been detected with value ''' // trim(fstOptions) // ''''
+        fstOptions = 'FST_OPTIONS=' // trim(fstOptions) // ';BACKEND=' // outputFormat
+      end if
+
+      write(*,*) 'gio_setup: Setting environment variable ''' // trim(fstOptions) // ''''
+      status = clib_putenv(fstOptions)
+
+      initialized = .true.
+    end if
+
+  end subroutine gio_setup
+
   !--------------------------------------------------------------------------
   ! gio_readFromFile
   !--------------------------------------------------------------------------
@@ -778,8 +819,6 @@ module gridStateVectorFileIO_mod
 
     write(*,*) 'gio_readFileFst: starting'
     write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
-
-    call readNml()
 
     vco_file => gsv_getVco(stateVector)
 
@@ -1508,8 +1547,6 @@ module gridStateVectorFileIO_mod
 
     call utl_tmg_start(161,'low-level--gio_writeToFile')
 
-    call readNml()
-
     !
     !- 1.  Since this routine can only work with 'Tiles' distribution when mpi_local = .true., 
     !      transpose a statevector using 'VarsLevs' distribution
@@ -1655,7 +1692,7 @@ module gridStateVectorFileIO_mod
         end if
 
         call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
-        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W+' // outputFormat)
+        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W')
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNames(thread)))
         end if

@@ -106,6 +106,7 @@ program midas_analysisErrorOI
   use obsSpaceData_mod
   use columnData_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsFiles_mod
   use innovation_mod
   use obsErrors_mod
@@ -143,6 +144,9 @@ program midas_analysisErrorOI
 
   ! Setup the ram disk
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
