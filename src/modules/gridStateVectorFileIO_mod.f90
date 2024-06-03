@@ -39,6 +39,7 @@ module gridStateVectorFileIO_mod
 
   ! Namelist variables
   logical :: interpToPhysicsGrid  ! for LAM grid, choose to keep physics variables on their original grid
+  character(len=3) :: outputFormat ! output format written by 'gio_writeToFile' can only be 'XDF' or 'RSF'
 
   type netCDFvarID
     ! derived type to store variable IDs for NEMO increment netCDF files
@@ -2332,12 +2333,13 @@ module gridStateVectorFileIO_mod
     integer       :: ierr
     logical, save :: firstCall = .true.
 
-    NAMELIST /NAMSTIO/interpToPhysicsGrid
+    NAMELIST /NAMSTIO/ interpToPhysicsGrid, outputFormat
 
     if (firstCall) then
       
       ! set the default values
       interpToPhysicsGrid = .false.
+      outputFormat = 'XDF'
 
       ! read the namelist block if it exists
       if (.not. utl_isNamelistPresent('NAMSTIO','./flnml')) then
@@ -2351,6 +2353,10 @@ module gridStateVectorFileIO_mod
         if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
         if (mmpi_myid == 0) write(*,nml=namstio)
         call utl_tmg_stop(181)
+      end if
+
+      if ( outputFormat /= 'XDF' .and. outputFormat /= 'RSF' ) then
+        call utl_abort('readNml (gio): ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
       end if
 
       firstCall = .false.
