@@ -1526,7 +1526,7 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField
-    integer :: stepIndex, ierr, levIndex, nlev, varIndex, numThreads
+    integer :: stepIndex, ierr, levIndex, nlev, varIndex, numThreadsForWriting
     integer :: yourid, nsize, youridy, youridx, threadId, thread
     real(4) :: factor_r4
     character(len=4)          :: varLevel
@@ -1577,18 +1577,18 @@ module gridStateVectorFileIO_mod
 
     if ( outputFormat == 'XDF' ) then
       ! We cannot concatenate several 'XDF' files, we will write in a single file
-      numThreads = 1
+      numThreadsForWriting = 1
     else
       if ( outputFormat == 'RSF' ) then
-        numThreads = mmpi_numthread
+        numThreadsForWriting = mmpi_numthread
       else
         call utl_abort('gio_writeToFile: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
       end if
     end if
 
-    allocate(fstFiles(0:numThreads-1))
-    allocate(fstRecords(0:numThreads-1))
-    allocate(levIndices(0:numThreads-1))
+    allocate(fstFiles(0:numThreadsForWriting-1))
+    allocate(fstRecords(0:numThreadsForWriting-1))
+    allocate(levIndices(0:numThreadsForWriting-1))
 
     if (present(ip3_opt)) then
       fstRecords(:)%ip3 = ip3_opt
@@ -1683,9 +1683,9 @@ module gridStateVectorFileIO_mod
     if (iDoWriting) then
 
       ! Open temporary output files
-      do thread = 0, (numThreads-1)
-        ! If 'numThreads' is 1, then we will directly write to the final output file
-        if (numThreads == 1) then
+      do thread = 0, (numThreadsForWriting-1)
+        ! If 'numThreadsForWriting' is 1, then we will directly write to the final output file
+        if (numThreadsForWriting == 1) then
           fileNameTmp = trim(fileName)
         else
           fileNameTmp = trim(fileName) // '_' // str(thread)
@@ -1707,7 +1707,7 @@ module gridStateVectorFileIO_mod
 
     allocate(gd_send_r4(statevector%lonPerPEmax, statevector%latPerPEmax))
     if (mmpi_myid == 0 .or. (.not. statevector%mpi_local)) then
-      allocate(work2d_r4(statevector%ni, statevector%nj, 0:numThreads-1))
+      allocate(work2d_r4(statevector%ni, statevector%nj, 0:numThreadsForWriting-1))
       if (statevector%mpi_local) then
         ! Receive tile data from all mpi tasks
         allocate(gd_recv_r4(statevector%lonPerPEmax, statevector%latPerPEmax, mmpi_nprocs))
@@ -1717,7 +1717,7 @@ module gridStateVectorFileIO_mod
       end if
     else
       allocate(gd_recv_r4(1,1,1))
-      allocate(work2d_r4(1,1,0:numThreads-1))
+      allocate(work2d_r4(1,1,0:numThreadsForWriting-1))
     end if
 
     ! Write surface height, if requested
@@ -1784,7 +1784,7 @@ module gridStateVectorFileIO_mod
         interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex)
 
         do levIndex = 1, nlev
-          threadId = mod(levIndex-1, numThreads)
+          threadId = mod(levIndex-1, numThreadsForWriting)
           levIndices(threadId) = levIndex
 
           if (statevector%dataKind == 8) then
@@ -1907,9 +1907,9 @@ module gridStateVectorFileIO_mod
               end where
             end if
 
-            if ( (threadId == numThreads-1) .or. (levIndex == nlev) ) then
+            if ( (threadId == numThreadsForWriting-1) .or. (levIndex == nlev) ) then
               !- Writing to file
-              ! if 'threadId == numThreads-1', we write all threads,
+              ! if 'threadId == numThreadsForWriting-1', we write all threads,
               ! if not then we write only the threads that have been initialized
               !$OMP PARALLEL DO PRIVATE(thread)
               do thread = 0, threadId
@@ -1934,16 +1934,16 @@ module gridStateVectorFileIO_mod
     if (iDoWriting) then
       call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
 
-      do thread = 0, (numThreads-1)
+      do thread = 0, (numThreadsForWriting-1)
         fileNameTmp = fstFiles(thread)%get_name()
         success = fstFiles(thread)%close()
         if (.not. success) then
           call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
         end if
 
-        ! If 'numThreads' is 1 then we directly write to the final output file.
+        ! If 'numThreadsForWriting' is 1 then we directly write to the final output file.
         ! So, there is no need to copy it.
-        if (numThreads /= 1) then
+        if (numThreadsForWriting /= 1) then
           ierr = utl_copyFile(fileNameTmp, fileName, concatenate_opt = .true.)
           ierr = clib_remove(fileNameTmp)
         end if
