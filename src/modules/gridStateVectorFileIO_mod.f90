@@ -71,32 +71,32 @@ module gridStateVectorFileIO_mod
     integer :: lengthFstOptions, status
     character(len=256) :: fstOptions
 
-    if (.not. initialized) then
-      call readNml()
+    if (initialized) return
 
-      !
-      !- Determine if 'FST_OPTIONS' is alreadu defined
-      !
-      status = 0
-      call get_environment_variable('FST_OPTIONS',fstOptions,lengthFstOptions,status,.true.)
+    call readNml()
 
-      if (status.gt.1) then
-        write(*,*) 'gio_setup: Problem when getting the environment variable '
-      end if
-      if (status.eq.1) then
-        write(*,*) 'gio_setup: The environment variable FST_OPTIONS  has not been detected!'
-        fstOptions = 'FST_OPTIONS=BACKEND=' // outputFormat
-      else
-        write(*,*)
-        write(*,*) 'gio_setup: The environment variable FST_OPTIONS has correctly been detected with value ''' // trim(fstOptions) // ''''
-        fstOptions = 'FST_OPTIONS=' // trim(fstOptions) // ';BACKEND=' // outputFormat
-      end if
+    !
+    !- Determine if 'FST_OPTIONS' is alreadu defined
+    !
+    status = 0
+    call get_environment_variable('FST_OPTIONS',fstOptions,lengthFstOptions,status,.true.)
 
-      write(*,*) 'gio_setup: Setting environment variable ''' // trim(fstOptions) // ''''
-      status = clib_putenv(fstOptions)
-
-      initialized = .true.
+    if (status.gt.1) then
+      write(*,*) 'gio_setup: Problem when getting the environment variable '
     end if
+    if (status.eq.1) then
+      write(*,*) 'gio_setup: The environment variable FST_OPTIONS  has not been detected!'
+      fstOptions = 'FST_OPTIONS=BACKEND=' // outputFormat
+    else
+      write(*,*)
+      write(*,*) 'gio_setup: The environment variable FST_OPTIONS has correctly been detected with value ''' // trim(fstOptions) // ''''
+      fstOptions = 'FST_OPTIONS=' // trim(fstOptions) // ';BACKEND=' // outputFormat
+    end if
+
+    write(*,*) 'gio_setup: Setting environment variable ''' // trim(fstOptions) // ''''
+    status = clib_putenv(fstOptions)
+
+    initialized = .true.
 
   end subroutine gio_setup
 
