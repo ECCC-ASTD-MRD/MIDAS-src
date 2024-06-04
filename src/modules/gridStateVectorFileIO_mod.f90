@@ -1873,7 +1873,7 @@ module gridStateVectorFileIO_mod
                 factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
               else if (trim(fstRecords(threadId)%nomvar) == 'P0' .or. trim(fstRecords(threadId)%nomvar) == 'UP' .or.  &
                        trim(fstRecords(threadId)%nomvar) == 'PB' .or. trim(fstRecords(threadId)%nomvar) == 'P0LS') then
-                factor_r4 = 0.01d0 ! Pa -> hPa
+                factor_r4 = 0.01 ! Pa -> hPa
               else if ( vnl_varKindFromVarname(trim(fstRecords(threadId)%nomvar)) == 'CH' ) then
                 if ( gsv_conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
@@ -1881,16 +1881,16 @@ module gridStateVectorFileIO_mod
                     factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
                                 vnl_varMassFromVarName(trim(fstRecords(threadId)%nomvar)) ! micrograms/kg -> vmr
                   else
-                    factor_r4 = 1.0d0 ! no conversion
+                    factor_r4 = 1.0 ! no conversion
                   end if
                 else
-                  factor_r4 = 1.0d0 ! no conversion
+                  factor_r4 = 1.0 ! no conversion
                 end if
               else
-                factor_r4 = 1.0d0 ! no conversion
+                factor_r4 = 1.0 ! no conversion
               end if
             else
-              factor_r4 = 1.0d0 ! no conversion
+              factor_r4 = 1.0 ! no conversion
             end if
 
             if (present(scaleFactor_opt)) factor_r4 = factor_r4 * real(scaleFactor_opt,4)
