@@ -202,6 +202,9 @@ program midas_diagHBHt
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
 
   obsMpiStrategy = 'LIKESPLITFILES'
