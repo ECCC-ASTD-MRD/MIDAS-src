@@ -1541,6 +1541,7 @@ module gridStateVectorFileIO_mod
     type(fst_record), allocatable :: fstRecords(:)
     integer, allocatable :: levIndices(:)
     character(len=256) :: fileNameTmp
+    character(len=4) :: nomvar
     logical :: success, interpolationToPhysicsGrid
 
     call msg('gio_writeToFile', 'START')
@@ -1756,7 +1757,8 @@ module gridStateVectorFileIO_mod
         ! now do writing
         if (iDoWriting) then
           fstRecords(0)%ip1 = statevector%vco%ip1_sfc
-          fstRecords(0)%nomvar = 'GZ'
+          nomvar = 'GZ'
+          fstRecords(0)%nomvar = nomvar
 
           !- Scale
           factor_r4 = real(1.0d0 / 10.0d0, 4)
@@ -1767,7 +1769,7 @@ module gridStateVectorFileIO_mod
           !- Writing to file
           success = fstFiles(0) % write(fstRecords(0))
           if (.not. success) then
-            call utl_abort('gio_writeToFile: problem writing ' // fstRecords(0)%nomvar // ' at level ' // str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
+            call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
           end if
         end if ! iDoWriting
 
@@ -1853,32 +1855,33 @@ module gridStateVectorFileIO_mod
             end if
 
             ! Set the output variable name
-            fstRecords(threadId)%nomvar = trim(vnl_varNameList(varIndex))
-            if (trim(fstRecords(threadId)%nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
+            nomvar = trim(vnl_varNameList(varIndex))
+            fstRecords(threadId)%nomvar = nomvar
+            if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
                if (HUcontainsLQ_opt) fstRecords(threadId)%nomvar = 'LQ'
             end if
 
-            if (vnl_varKindFromVarname(trim(fstRecords(threadId)%nomvar)) == 'CH' .and. containsFullField) then
+            if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then
               ! Impose lower limits
-              if (gsv_minValVarKindCH(vnl_varListIndex(fstRecords(threadId)%nomvar)) > 1.01 * mpc_missingValue_r8) &
+              if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
                 work2d_r4(:,:,threadId) = max(work2d_r4(:,:,threadId), &
-                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(fstRecords(threadId)%nomvar)))))
+                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
             end if
  
             ! Set the conversion factor
             if (unitConversion) then
 
-              if (trim(fstRecords(threadId)%nomvar) == 'UU' .or. trim(fstRecords(threadId)%nomvar) == 'VV') then
+              if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-              else if (trim(fstRecords(threadId)%nomvar) == 'P0' .or. trim(fstRecords(threadId)%nomvar) == 'UP' .or.  &
-                       trim(fstRecords(threadId)%nomvar) == 'PB' .or. trim(fstRecords(threadId)%nomvar) == 'P0LS') then
+              else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
+                       trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
                 factor_r4 = 0.01 ! Pa -> hPa
-              else if ( vnl_varKindFromVarname(trim(fstRecords(threadId)%nomvar)) == 'CH' ) then
+              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
                 if ( gsv_conversionVarKindCHtoMicrograms ) then
                   ! Apply inverse transform of unit conversion
-                  if ( trim(fstRecords(threadId)%nomvar) == 'TO3' .or. trim(fstRecords(threadId)%nomvar) == 'O3L' ) then
+                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
                     factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                                vnl_varMassFromVarName(trim(fstRecords(threadId)%nomvar)) ! micrograms/kg -> vmr
+                                vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
                   else
                     factor_r4 = 1.0 ! no conversion
                   end if
@@ -1898,7 +1901,7 @@ module gridStateVectorFileIO_mod
             work2d_r4(:,:,threadId) = factor_r4 * work2d_r4(:,:,threadId)
 
             !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. (trim(fstRecords(threadId)%nomvar) == 'TT' .or. trim(fstRecords(threadId)%nomvar) == 'TM')) then
+            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
               where (work2d_r4(:,:,threadId) > 100.0)
                 work2d_r4(:,:,threadId) = work2d_r4(:,:,threadId) - mpc_k_c_degree_offset_r4
               end where
