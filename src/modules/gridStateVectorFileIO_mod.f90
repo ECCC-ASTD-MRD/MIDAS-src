@@ -1977,13 +1977,19 @@ module gridStateVectorFileIO_mod
     !
     implicit none
 
+    ! We must use 'intent(inout)' for 'fstFile' because calling
+    ! 'fstFile%write()' modifies 'fstFile'.
+    ! We must use 'intent(inout)' for ' statevector' because callng
+    ! 'ocm_copyToInt(statevector%oceanMask,...)' modifies
+    ! 'statevector%oceanMask'.
+
     ! Arguments:
-    type(fst_file), intent(inout) :: fstFile ! we must use 'intent(inout)' calling 'fstFile%write()' modifies 'fstFile'
-    type(fst_record), intent(in)  :: fstRecord
-    integer, intent(in) :: levIndex
-    type(struct_gsv), target, intent(inout) :: statevector ! we must use  'intent(inout)' call 'ocm_copyToInt(statevector%oceanMask,...)' modifies 'statevector%oceanMask'
-    logical, intent(in) :: interpolationToPhysicsGrid
-    real(4), intent(in) :: data(:,:)
+    type(fst_file),           intent(inout) :: fstFile     ! object representing the file using the FST24 interface
+    type(fst_record),            intent(in) :: fstRecord   ! parameters to be used when writing the field to the file using the FST24 interface
+    integer,                     intent(in) :: levIndex    ! index of the level in the structure 'statevector'
+    type(struct_gsv), target, intent(inout) :: statevector ! grid state vector representing the fields to be writtent
+    logical,                     intent(in) :: interpolationToPhysicsGrid ! indicate if we should interpolate to the physics grid before writing
+    real(4),                     intent(in) :: data(:,:)   ! 2D array which will be written to the file
 
     ! Locals:
     type(fst_record) :: fstRecordTmp
