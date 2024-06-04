@@ -707,20 +707,20 @@ contains
     real(8),           intent(out) :: inverse(:,:)       ! its inverse
 
     ! Locals:
-    integer :: info, lwork, m, n
+    integer :: info, lwork, lineDim, columnDim
     real(8), allocatable :: work(:)
     integer, allocatable :: pivot(:)
     
-    m = size(inputMatrix, dim=1)
-    n = size(inputMatrix, dim=2)
-    if (m /= n) then
+    lineDim = size(inputMatrix, dim=1)
+    columnDim = size(inputMatrix, dim=2)
+    if (lineDim /= columnDim) then
       call utl_abort('utl_fastInverse: the input matrix should be square !')
     end if
     
-    inverse(1:m,1:n) = inputMatrix(:,:)
+    inverse(1:lineDim,1:columnDim) = inputMatrix(:,:)
 
-    allocate(pivot(n))
-    call dgetrf(n, n, inverse, n, pivot, info)
+    allocate(pivot(lineDim))
+    call dgetrf(lineDim, lineDim, inverse, columnDim, pivot, info)
     if (info < 0) then
       call utl_abort('utl_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetrf')
     else if (info > 0) then
@@ -730,10 +730,10 @@ contains
     lwork = -1
     allocate(work(1))
     !first call to query work array work size
-    call dgetri(n, inverse, n, pivot, work, lwork, info)
+    call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
     lwork = work(1)
     call utl_reallocate(work, lwork)
-    call dgetri(n, inverse, n, pivot, work, lwork, info)
+    call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
     if (info < 0) then
       call utl_abort('utl_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetri')
     else if (info > 0) then
