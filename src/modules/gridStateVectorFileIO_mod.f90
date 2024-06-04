@@ -1540,7 +1540,7 @@ module gridStateVectorFileIO_mod
     type(fst_file), allocatable   :: fstFiles(:)
     type(fst_record), allocatable :: fstRecords(:)
     integer, allocatable :: levIndices(:)
-    character(len=256), allocatable :: fileNames(:)
+    character(len=256) :: fileNameTmp
     logical :: success, interpolationToPhysicsGrid
 
     call msg('gio_writeToFile', 'START')
@@ -1588,7 +1588,6 @@ module gridStateVectorFileIO_mod
     allocate(fstFiles(0:numThreads-1))
     allocate(fstRecords(0:numThreads-1))
     allocate(levIndices(0:numThreads-1))
-    allocate(fileNames(0:numThreads-1))
 
     if (present(ip3_opt)) then
       fstRecords(:)%ip3 = ip3_opt
@@ -1686,15 +1685,15 @@ module gridStateVectorFileIO_mod
       do thread = 0, (numThreads-1)
         ! If 'numThreads' is 1, then we will directly write to the final output file
         if (numThreads == 1) then
-          fileNames(thread) = trim(fileName)
+          fileNameTmp = trim(fileName)
         else
-          fileNames(thread) = trim(fileName) // '_' // str(thread)
+          fileNameTmp = trim(fileName) // '_' // str(thread)
         end if
 
-        call msg('gio_writeToFile', 'File name = ' // trim(fileNames(thread)))
-        success = fstFiles(thread) % open(trim(fileNames(thread)), 'R/W')
+        call msg('gio_writeToFile', 'File name = ' // trim(fileNameTMp))
+        success = fstFiles(thread) % open(trim(fileNameTmp), 'R/W')
         if (.not. success) then
-          call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNames(thread)))
+          call utl_abort('gio_writeToFile: problem opening output file ' // trim(fileNameTmp))
         end if
       end do
 
@@ -1934,16 +1933,17 @@ module gridStateVectorFileIO_mod
       call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
 
       do thread = 0, (numThreads-1)
+        fileNameTmp = fstFiles(thread)%get_name()
         success = fstFiles(thread)%close()
         if (.not. success) then
-          call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNames(thread)))
+          call utl_abort('gio_writeToFile: problem closing output file ' // trim(fileNameTmp))
         end if
 
         ! If 'numThreads' is 1 then we directly write to the final output file.
         ! So, there is no need to copy it.
         if (numThreads /= 1) then
-          ierr = utl_copyFile(fileNames(thread), fileName, concatenate_opt = .true.)
-          ierr = clib_remove(fileNames(thread))
+          ierr = utl_copyFile(fileNameTmp, fileName, concatenate_opt = .true.)
+          ierr = clib_remove(fileNameTmp)
         end if
       end do
     end if
@@ -1951,7 +1951,6 @@ module gridStateVectorFileIO_mod
     deallocate(fstFiles)
     deallocate(fstRecords)
     deallocate(levIndices)
-    deallocate(fileNames)
 
     !
     !- 4.  Ending
