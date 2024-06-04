@@ -1969,9 +1969,9 @@ module gridStateVectorFileIO_mod
   end subroutine gio_writeToFile
 
   !--------------------------------------------------------------------------
-  ! writeToFile
+  ! writeFieldToFile
   !--------------------------------------------------------------------------
-  subroutine writeToFile(fstFile,fstRecord,levIndex,statevector,data,interpolationToPhysicsGrid)
+  subroutine writeFieldToFile(fstFile,fstRecord,levIndex,statevector,data,interpolationToPhysicsGrid)
     !
     ! :Purpose: Write field to disk
     !
@@ -1996,7 +1996,7 @@ module gridStateVectorFileIO_mod
 
     !- Do interpolation back to physics grid, if needed
     if ( interpolationToPhysicsGrid ) then
-      write(*,*) 'writeToFile: interpolate this variable back to physics grid: ', &
+      write(*,*) 'writeFieldToFile: interpolate this variable back to physics grid: ', &
            fstRecord%nomvar, associated(statevector%hco_physics)
       allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
       work2dFile_r4(:,:) = 0.0
@@ -2022,7 +2022,7 @@ module gridStateVectorFileIO_mod
     end if
 
     if (.not. success) then
-      call utl_abort('writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+      call utl_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
     end if
 
     if (statevector%oceanMask%maskPresent) then
@@ -2043,10 +2043,10 @@ module gridStateVectorFileIO_mod
     end if
 
     if (.not. success) then
-      call utl_abort('writeToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
+      call utl_abort('writeFieldToFile: problem writing ' // fstRecordTmp%nomvar // ' at level ' // str(fstRecordTmp%ip1) // ' in output file ' // fstFile%get_name())
     end if
 
-  end subroutine writeToFile
+  end subroutine writeFieldToFile
 
   !--------------------------------------------------------------------------
   ! writeTicTacToc
