@@ -448,7 +448,6 @@ module rMatrix_mod
     integer   :: foundChanIndex(size(list_sub))
     integer   :: chanIndex1, chanIndex2, nSubset
 
-
     nSubset = size(list_sub)
     allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then

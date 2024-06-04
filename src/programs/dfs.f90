@@ -1,7 +1,7 @@
 program midas_dfs
   !
   !:Purpose: Main program for computing degrees of freedom for signal (DFS)
-  !          total and a iterative channel selection (optionnaly) for an infrared instrument.
+  !          total and a iterative channel selection (optionally) for an infrared instrument.
   !            
   !
   !          --
@@ -228,7 +228,7 @@ program midas_dfs
   call utl_tmg_start(0, 'Main')
   call utl_printTime()
 
-  varMode='analysis'
+  varMode = 'analysis'
 
   ! Read the namelists
   call utl_readNml()
@@ -259,12 +259,12 @@ program midas_dfs
   else
     ! Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=NAMDFS, iostat=ierr)
+    read(utl_flnml, nml = NAMDFS, iostat = ierr)
     call utl_tmg_stop(181)
     if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
   end if
     
-  if (mmpi_myid == 0) write(*, nml=NAMDFS)
+  if (mmpi_myid == 0) write(*, nml = NAMDFS)
 
   nLevelsDfs = 0
   do levelIndex = 1, tvs_maxNumberOfChannels
@@ -283,17 +283,17 @@ program midas_dfs
                                                   dayList(:) == MPC_missingValue_INT  .and. &
                                                   timeList(:) == MPC_missingValue_INT .and. &
                                                   satZenList(:) == MPC_missingValue_R8 )
-  call var_setup('VAR') ! obsColumnMode
+  call dfs_setup('VAR') ! obsColumnMode
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
   call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                    mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                    allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                    beSilent_opt=.false.)
+                    dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                    mpi_distribution_opt = 'Tiles', dataKind_opt=4,  &
+                    allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
+                    beSilent_opt = .false.)
   call gsv_zero(stateVectorTrialHighRes)
   call gio_readTrials(stateVectorTrialHighRes)
 
@@ -344,9 +344,9 @@ program midas_dfs
 contains
 
   !--------------------------------------------------------------------------
-  ! var_setup
+  ! dfs_setup
   !--------------------------------------------------------------------------
-  subroutine var_setup(obsColumnMode)
+  subroutine dfs_setup(obsColumnMode)
     !
     !:Purpose: Control of the preprocessing of the variational assimilation
     !
@@ -362,7 +362,7 @@ contains
 
     write(*,*)
     write(*,*) '-----------------------------------'
-    write(*,*) '-- Starting subroutine var_setup --'
+    write(*,*) '-- Starting subroutine dfs_setup --'
     write(*,*) '-----------------------------------'
     call utl_printTime()
     
@@ -379,7 +379,7 @@ contains
       if (dateStampFromObs > 0) then
         call tim_setDatestamp(dateStampFromObs)
       else
-        call utl_abort('var_setup: dateStamp was not set')
+        call utl_abort('dfs_setup: dateStamp was not set')
       end if
     end if
 
@@ -451,17 +451,16 @@ contains
 
     !
     ! - Initialize the gridded variable transform module
-    !
-   
+    !   
     call gvt_setup(hco_anl, hco_core, vco_anl)
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
     
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    write(*,*) 'var_setup: exiting...'
+    write(*,*) 'dfs_setup: exiting...'
     call utl_printTime()
     
-  end subroutine var_setup
+  end subroutine dfs_setup
 
   !--------------------------------------------------------------------------
   ! diagDFS
@@ -515,7 +514,7 @@ contains
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     !- 1.3 Create a gridstateVector to store the perturbations
     call gsv_allocate(stateVector, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dataKind_opt=pre_incrReal, mpi_local_opt=.true.)
+                      dataKind_opt = pre_incrReal, mpi_local_opt = .true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(columnAnlInc, vco_anl)
@@ -562,7 +561,7 @@ contains
         end if
       end do BODY1
       if (countChannel == nLevelsDfs) then
-        write(*,*) "found one observation with all requested ", nlevelsDfs, "levels/channels available ", headerIndex
+        write(*,*) 'found one observation with all requested ', nlevelsDfs, 'levels/channels available ', headerIndex
         countObs = countObs + 1
         headerIndexList(countObs) = headerIndex
         mpiTaskList(countObs) = mmpi_myid
@@ -711,7 +710,7 @@ contains
               call oop_Htl(columnAnlInc, & !input
                   columnTrlOnAnlIncLev,  &
                   obsSpaceData,          & !output
-                  min_nsim=1, initializeLinearization_opt=.false.)
+                  min_nsim = 1, initializeLinearization_opt = .false.)
               
               do channelIndex2 = 1, maxCountChannelMpi
                 bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
@@ -751,6 +750,7 @@ contains
               end do
             end if
             dfs = computeDfs(HBHtMatrix, Rsub)
+            !calculate the selection of channels 
             if (doChannelSelection) then
               call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
             end if
@@ -867,21 +867,21 @@ contains
     implicit none
     
     ! Arguments
-    real(8), intent(in) :: HBHt(:,:)
-    real(8), intent(in) :: R(:,:)
-    real(8)             :: dfs
+    real(8), intent(in) :: HBHt(:,:)  ! HBHt matrix
+    real(8), intent(in) :: R(:,:)     ! Observation covariance matrix
+    ! Result
+    real(8)             :: dfs        ! Degrees of freedom for signal
     
     ! Local variables
     integer :: nbLevels, levelIndex
     real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
 
-    nbLevels = size(R, dim=1)
+    nbLevels = size(R, dim = 1)
     allocate(dMatrix(nbLevels,nbLevels))
     allocate(inverse(nbLevels,nbLevels))
     allocate(hk(nbLevels,nbLevels))
     
     dMatrix(:,:) =  HBHt(:,:) + R(:,:)
-    !call utl_pseudo_inverse(dMatrix, inverse)
     call utl_fastInverse(dMatrix, inverse)
     hk = matmul(HBHt, inverse)
     dfs = 0.d0
@@ -899,25 +899,26 @@ contains
   subroutine selectChannels(HBHt, R, orderedDfs, orderedChannelIndexes, nChannelsOut_opt)
     !
     !:Purpose: perform DFS-based channel selection
-    !
-    
+    !   
     implicit none
+    
     ! Arguments
-    real(8), intent(in) :: HBHt(:,:)
-    real(8), intent(in) :: R(:,:)
-    real(8), pointer, intent(inout):: orderedDfs(:)
-    integer, pointer, intent(inout):: orderedChannelIndexes(:)
-    integer, optional,  intent(in) :: nChannelsOut_opt
+    real(8), intent(in)            :: HBHt(:,:)                 ! Matrix HBHt
+    real(8), intent(in)            :: R(:,:)                    ! Observation covariance matrix R
+    real(8), pointer, intent(inout):: orderedDfs(:)             ! list of incremental DFS for each new added channel
+    integer, pointer, intent(inout):: orderedChannelIndexes(:)  ! list of the channels selected in order
+    integer, optional,  intent(in) :: nChannelsOut_opt          ! number of channels wanted to be selected
+    
     ! Locals
     integer, allocatable :: tmpOrder(:), freeIndexList(:), tmpFree(:)
-    real(8) :: optimalDfs, dfsTest
-    integer :: channelIndex1, channelIndex2, optimalIndex, numberOfFreeChannels
+    real(8)              :: optimalDfs, dfsTest
+    integer              :: channelIndex1, channelIndex2, optimalIndex, numberOfFreeChannels
     real(8), allocatable :: RSubset(:,:), HBHtSubset(:,:)
-    integer :: nChannelsIn, nChannelsOut
+    integer              :: nChannelsIn, nChannelsOut
 
     write(*,*) 'selectChannels: start'
     call utl_printTime()
-    nChannelsIn = size(R, dim=1)
+    nChannelsIn = size(R, dim = 1)
     
     if (present(nChannelsOut_opt)) then
       if (nChannelsOut_opt > nChannelsIn) then
@@ -956,7 +957,7 @@ contains
         call subsetMatrix(HBHt, tmpOrder(1:channelIndex1), HBHtSubset)
         dfsTest = computeDfs(HBHtSubset, RSubset)
         if (dfsTest > optimalDfs) then
-          optimalIndex =freeIndexList(channelIndex2)
+          optimalIndex = freeIndexList(channelIndex2)
           optimalDfs = dfsTest
         end if
       end do
@@ -988,14 +989,15 @@ contains
 
     ! Arguments
     integer, intent(in) :: headerIndex
+    !Result
     logical             :: selected
     
     ! Local variables
-    integer :: obsIndex
-    real(8) :: latitude, longitude, satelliteZenithAngle
-    integer :: date, hour
+    integer            :: obsIndex
+    real(8)            :: latitude, longitude, satelliteZenithAngle
+    integer            :: date, hour
     real(8), parameter :: epsilon=0.01d0
-    integer :: definedConditions, satisfiedConditions
+    integer            :: definedConditions, satisfiedConditions
     
     if (selectSpecificObservationsFromList) then
       selected = .false.
