@@ -2516,8 +2516,8 @@ contains
     character :: bufferKB(bufferSizeKB)
     integer, parameter :: bufferSizeMB = 1024*1024
     character :: bufferMB(bufferSizeMB)
-    character(len=7) :: open_status !! Will contain 'NEW', 'OLD' or 'REPLACE'
-    character(len=6) :: position    !! Will contain 'ASIS' or 'APPEND'
+    character(len=7) :: open_status ! Will contain 'NEW', 'OLD' or 'REPLACE'
+    character(len=6) :: position    ! Will contain 'ASIS' or 'APPEND'
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
