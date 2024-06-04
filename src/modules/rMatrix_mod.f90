@@ -441,7 +441,7 @@ module rMatrix_mod
     integer, intent(in)  :: sensor_id            ! Sensor ID
     integer, intent(in)  :: list_sub(:)          ! List of subset channels in R-matrix
     real(8), intent(in)  :: list_oer(:)          ! List of Obs Error
-    real(8), pointer, intent(inout) :: Rsub(:,:) ! output R matrix  
+    real(8), intent(out) :: Rsub(:,:)            ! output R matrix  
     
     ! Locals:
     real(8)   :: variance
@@ -449,7 +449,6 @@ module rMatrix_mod
     integer   :: chanIndex1, chanIndex2, nSubset
 
     nSubset = size(list_sub)
-    allocate(Rsub(nsubset, nsubset))
     if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
       write(*,*) 'invalid sensor_id', sensor_id,size(Rcorr_inst)
       call utl_abort('rmat_getRMatrix')
@@ -457,7 +456,7 @@ module rMatrix_mod
 
     ! Check error correlation for all channels are available
     foundChanIndex(:) = -1
-    do chanIndex1 = 1, nsubset
+    do chanIndex1 = 1, nSubset
       chanLoop: do chanIndex2 = 1, Rcorr_inst(sensor_id)%nchans
         if (list_sub(chanIndex1) == Rcorr_inst(sensor_id)%listChans(chanIndex2)) then
           foundChanIndex(chanIndex1) = chanIndex2
@@ -473,8 +472,8 @@ module rMatrix_mod
       call utl_abort('rmat_getRMatrix')
     end if
 
-    do chanIndex2 = 1, nsubset
-      do chanIndex1 = 1, nsubset
+    do chanIndex2 = 1, nSubset
+      do chanIndex1 = 1, nSubset
         variance = list_oer(chanIndex1) * list_oer(chanIndex2)
         Rsub(chanIndex1, chanIndex2) = variance * Rcorr_inst(sensor_id)%Rmat(foundChanIndex(chanIndex1), foundChanIndex(chanIndex2))
       end do
