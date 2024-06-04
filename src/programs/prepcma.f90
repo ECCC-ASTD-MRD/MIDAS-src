@@ -102,6 +102,7 @@ program midas_prepcma
   use ramDisk_mod
   use regions_mod
   use burpRead_mod
+  use gridStateVectorFileIO_mod
 
   implicit none
 
@@ -190,6 +191,9 @@ program midas_prepcma
 
   !- RAM disk usage
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   call utl_tmg_start(10,'--Observations')
 

@@ -116,6 +116,7 @@ program midas_oMinusF
   use biasCorrectionSat_mod
   use ensembleObservations_mod
   use fileNames_mod
+  use gridStateVectorFileIO_mod
 
   implicit none
 
@@ -159,6 +160,9 @@ program midas_oMinusF
 
   ! Read the namelists
   call utl_readNml()
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   !- 1.3 Namelist
   addHBHT   = .false. ! default value

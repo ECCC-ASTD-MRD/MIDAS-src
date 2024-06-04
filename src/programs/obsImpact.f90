@@ -206,6 +206,9 @@ program midas_obsImpact
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   !
   !- 1. Settings 
   !
