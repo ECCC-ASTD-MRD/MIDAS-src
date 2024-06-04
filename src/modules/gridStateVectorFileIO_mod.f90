@@ -1913,8 +1913,8 @@ module gridStateVectorFileIO_mod
               ! if not then we write only the threads that have been initialized
               !$OMP PARALLEL DO PRIVATE(thread)
               do thread = 0, threadId
-                call writeToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
-                                 statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid)
+                call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
+                                      statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid)
               end do
               !$OMP END PARALLEL DO
             end if
