@@ -1932,7 +1932,9 @@ module gridStateVectorFileIO_mod
 
     ! Close all files and put all of them in the 'final' file named "fileName"
     if (iDoWriting) then
-      call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
+      if (numThreadsForWriting /= 1) then
+        call msg('gio_writeToFile', 'Concatenate all the temporary files in ' // trim(fileName))
+      end if
 
       do thread = 0, (numThreadsForWriting-1)
         fileNameTmp = fstFiles(thread)%get_name()
