@@ -2134,7 +2134,7 @@ module gridStateVectorFileIO_mod
                      real(statevector%hco_physics%xlat1), real(statevector%hco_physics%xlon1), & ! IN
                      real(statevector%hco_physics%xlat2), real(statevector%hco_physics%xlon2))   ! IN
 
-        lon_8(:) = statevector%hco_physics%lon(:)*mpc_degrees_per_radian_r8
+        lon_8(1:statevector%hco_physics%ni) = statevector%hco_physics%lon(:)*mpc_degrees_per_radian_r8
         fstRecord%data = c_loc(lon_8)
         fstRecord%nomvar = '>>'
         fstRecord%ni = statevector%hco_physics%ni
@@ -2145,7 +2145,7 @@ module gridStateVectorFileIO_mod
           call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
         end if
 
-        lat_8(:) = statevector%hco_physics%lat(:)*mpc_degrees_per_radian_r8
+        lat_8(1:statevector%hco_physics%nj) = statevector%hco_physics%lat(:)*mpc_degrees_per_radian_r8
         fstRecord%data = c_loc(lat_8)
         fstRecord%nomvar = '^^'
         fstRecord%ni = 1
