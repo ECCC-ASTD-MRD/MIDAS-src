@@ -466,28 +466,22 @@ contains
     type(struct_gsv)        :: stateVector
     type(struct_vco), pointer :: vco_anl
     integer :: headerIndex, bodyIndex1, bodyIndex2, obsIndex, taskIndex
-    integer :: istart, iend, ierr
-    integer :: procIndex
+    integer :: bodyIndexBeg, bodyIndexEnd, ierr, procIndex
     integer, allocatable :: headerIndexList(:), levelList(:,:)
     integer, allocatable :: headerIndexListMpi(:,:), levelListMpi(:,:,:)
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
     integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
-    real(8), allocatable :: HBHtMatrix(:,:)
-    real(8), allocatable :: Rsub(:,:)
-    real(8), allocatable :: all_dfs(:)
+    real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), all_dfs(:)
     integer, allocatable :: order(:)
     real(8) :: dfs
-    integer :: localDimension
     logical :: first, llok
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
-    integer :: numHeader, numHeaderMaxMpi
+    integer :: numHeader, numHeaderMaxMpi, sensorIndex, localDimension
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
-    integer :: sensorIndex
     integer, external :: get_max_rss
     real(8), allocatable :: perturbationVector(:)
-    integer :: dfsCount, sizeSelect
-    integer :: nulDfs, nulSelec, nulHBHt
+    integer :: dfsCount, sizeSelect, nulDfs, nulSelec, nulHBHt
     character(len=128) :: headerObs1
     character(len=16) :: headerObs2
     !
@@ -533,10 +527,10 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER1
       if (.not. isSelected(headerIndex)) cycle HEADER1
-      istart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-      iend = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + istart - 1
+      bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
       countChannel = 0
-      BODY1:do bodyIndex1 = istart, iend
+      BODY1:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
         llok = (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex1) == obs_assimilated)
         if (llok) then
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex1, &
@@ -553,7 +547,7 @@ contains
         mpiTaskList(countObs) = mmpi_myid
         levelList(countObs,:) = vCoordList(1:nLevelsDfs)
         countChannel = 0
-        BODY2:do bodyIndex1 = istart, iend
+        BODY2:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
           llok = (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex1) == obs_assimilated)
           if (llok) then
             countChannel = countChannel + 1
@@ -679,6 +673,7 @@ contains
           call utl_printTime()
         end do channelLoop
         dfsCount = dfsCount + 1
+
         if (mmpi_myId == taskIndex) then
           write(headerObs1,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
               obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
@@ -864,11 +859,11 @@ contains
     implicit none
     
     ! Arguments
-    real(8), intent(in)            :: HBHt(:,:)                 ! Matrix HBHt
-    real(8), intent(in)            :: R(:,:)                    ! Observation covariance matrix R
-    real(8), intent(out)           :: orderedDfs(:)             ! list of incremental DFS for each new added channel
-    integer, intent(out)           :: orderedChannelIndexes(:)  ! list of the channels selected in order
-    integer, optional,  intent(in) :: nChannelsOut_opt          ! number of channels wanted to be selected
+    real(8),            intent(in)    :: HBHt(:,:)                 ! Matrix HBHt
+    real(8),            intent(in)    :: R(:,:)                    ! Observation covariance matrix R
+    real(8),            intent(out)   :: orderedDfs(:)             ! list of incremental DFS for each new added channel
+    integer,            intent(out)   :: orderedChannelIndexes(:)  ! list of the channels selected in order
+    integer, optional,  intent(in)    :: nChannelsOut_opt          ! number of channels wanted to be selected
     
     ! Locals
     integer, allocatable :: tmpOrder(:), freeIndexList(:), tmpFree(:)
@@ -965,29 +960,39 @@ contains
       satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
       date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
       hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+
       do obsIndex = 1, nObsMax
         definedConditions = 0
-        satisfiedConditions = 0        
+        satisfiedConditions = 0
+        
         if (latList(obsindex) /= MPC_missingValue_R8) then
-          definedConditions =  definedConditions + 1
+           definedConditions =  definedConditions + 1
+           
           if (abs(latList(obsIndex)-latitude) < epsilon) &
               satisfiedConditions = satisfiedConditions + 1
         end if
+       
         if (lonList(obsindex) /= MPC_missingValue_R8) then
           definedConditions =  definedConditions + 1
+
           if (abs(lonList(obsIndex)-longitude) < epsilon) &
               satisfiedConditions = satisfiedConditions + 1
         end if
+
         if (satZenList(obsindex) /= MPC_missingValue_R8) then
           definedConditions =  definedConditions + 1
+
           if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
               satisfiedConditions = satisfiedConditions + 1
         end if
+
         if (dayList(obsindex) /= MPC_missingValue_INT) then
           definedConditions =  definedConditions + 1
+
           if (dayList(obsIndex) == date) &
               satisfiedConditions = satisfiedConditions + 1
         end if
+
         if (timeList(obsindex) /= MPC_missingValue_INT) then
           definedConditions =  definedConditions + 1
           if (timeList(obsIndex) == hour) &
