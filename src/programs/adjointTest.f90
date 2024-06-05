@@ -76,6 +76,7 @@ program midas_adjointTest
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use gridVariableTransforms_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
@@ -84,6 +85,7 @@ program midas_adjointTest
   use ensembleStateVector_mod
   use localization_mod
   use lamBmatrixHI_mod
+
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()
@@ -125,6 +127,9 @@ program midas_adjointTest
 
   !- 1.4 RAM disk usage
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   !- 1.5 Temporal grid and set dateStamp from env variable
   call tim_setup()

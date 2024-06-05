@@ -63,7 +63,7 @@ program midas_thinning
   use tovsNL_mod
   use obsFilter_mod
   use thinning_mod
-  use fSQLite
+  use gridStateVectorFileIO_mod
 
   implicit none
 
@@ -88,7 +88,11 @@ program midas_thinning
   ! Read the namelists
   call utl_readNml()
 
+  !- RAM disk usage
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   ! 2. configuration the job
 

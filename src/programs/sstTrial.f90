@@ -73,6 +73,7 @@ program midas_sstTrial
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use oceanBackground_mod
   
   implicit none
@@ -107,8 +108,12 @@ program midas_sstTrial
   ! Read the namelists
   call utl_readNml()
 
+  ! Setup the ramdisk directory (if supplied)
   call ram_setup()
  
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
   call SSTtrial_setup(trialDateStamp, analysisDateStamp)
   

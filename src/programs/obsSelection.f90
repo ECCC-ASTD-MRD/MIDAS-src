@@ -269,6 +269,9 @@ program midas_obsSelection
   !
   call ram_setup
 
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   !     
   !- Initialize observation file names, but don't use datestamp
   !

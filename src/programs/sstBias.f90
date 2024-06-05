@@ -113,6 +113,7 @@ program midas_sstBias
   use timeCoord_mod
   use obsSpaceData_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsFiles_mod
   use innovation_mod
   use sstBias_mod
@@ -148,8 +149,12 @@ program midas_sstBias
   ! Read the namelists
   call utl_readNml()
 
+  ! Setup the ramdisk directory (if supplied)
   call ram_setup()
- 
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
   call SSTbias_setup('VAR') ! obsColumnMode
   

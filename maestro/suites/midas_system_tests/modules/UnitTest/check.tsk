@@ -55,7 +55,7 @@ function check_result {
         if [ "${livetype}" -eq "${filetype2}" ]; then
             case "${livetype}" in
                 ## de type fichier standard
-                1|2|3|33) method=fstcomp;;
+                1|2|3|33|39) method=fstcomp;; ## 39 est RSF qui est aussi un "fichier standard"
                 ## BURP
                 6) method=${UnitTest_burp_diff};;
                 ## SQLite

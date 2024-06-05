@@ -151,6 +151,7 @@ program midas_ensPostProcess
   use utilities_mod
   use ramDisk_mod
   use ensPostProcess_mod
+
   implicit none
 
   type(struct_ens)          :: ensembleTrl
@@ -196,6 +197,9 @@ program midas_ensPostProcess
 
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   !- Setting default namelist variable values
   nEns = 256

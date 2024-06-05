@@ -162,6 +162,7 @@ program midas_diagHBHt
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod
+
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -198,7 +199,11 @@ program midas_diagHBHt
   ! Read the namelists
   call utl_readNml()
 
+  ! Setup the ramdisk directory (if supplied)
   call ram_setup
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   ! Do initial set up
 

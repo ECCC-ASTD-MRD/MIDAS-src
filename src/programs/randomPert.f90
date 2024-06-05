@@ -118,6 +118,7 @@ program midas_randomPert
   use randomNumber_mod
   use utilities_mod
   use gridVariableTransforms_mod
+
   implicit none
 
   type(struct_gsv) :: stateVectorPert, stateVectorPertInterp
@@ -192,6 +193,9 @@ program midas_randomPert
 
   ! Read the namelists
   call utl_readNml()
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   !
   !- 1. Set/Read values for the namelist NAMENKF

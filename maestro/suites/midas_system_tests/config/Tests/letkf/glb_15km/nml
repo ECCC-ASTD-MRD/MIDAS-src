@@ -40,6 +40,9 @@
    DSTEPOBS    = 1.0d0
    DSTEPOBSINC = 6.0d0
 /
+ &NAMSTIO
+   outputFormat = 'RSF'
+/
  &NAMFILT
   NLIST(1)=10004,
   NLIST(2)=10051,

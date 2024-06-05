@@ -118,7 +118,8 @@ program midas_pseudoSSTobs
   use oceanObservations_mod
   use gridStateVector_mod
   use obsSpaceData_mod
-   
+  use gridStateVectorFileIO_mod
+
   implicit none
 
   integer, external :: exdb, exfin, get_max_rss
@@ -157,8 +158,12 @@ program midas_pseudoSSTobs
   ! Read the namelists
   call utl_readNml()
 
+  !- RAM disk usage
   call ram_setup()
  
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
+
   ! Do initial set up
   call pseudoSSTobs_setup()
 

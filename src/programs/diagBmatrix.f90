@@ -108,6 +108,7 @@ program midas_diagBmatrix
   use randomNumber_mod
   use utilities_mod
   use ramDisk_mod
+
   implicit none
 
   type(struct_gsv) :: statevector, statevectorEnsAmplitude
@@ -183,6 +184,9 @@ program midas_diagBmatrix
 
   ! Read the namelists
   call utl_readNml()
+
+  ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
+  call gio_setup
 
   ! Set default values for namelist NAMDIAG parameters
   numperturbations  = -1

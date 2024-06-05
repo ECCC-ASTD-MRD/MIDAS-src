@@ -2491,7 +2491,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_copyFile
   !--------------------------------------------------------------------------
-  function utl_copyFile(filein, fileout) result(status)
+  function utl_copyFile(filein, fileout, concatenate_opt) result(status)
     !
     !:Purpose: Copy the specified file to the new location and/or name
     !          This function is very general, but was initially written to
@@ -2501,12 +2501,14 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: filein
-    character(len=*), intent(in) :: fileout
+    character(len=*),  intent(in) :: filein
+    character(len=*),  intent(in) :: fileout
+    logical, optional, intent(in) :: concatenate_opt ! default is .false.
     ! Result:
     integer :: status
 
     ! Locals:
+    logical :: concatenate, exists
     integer :: ierr, unitin, unitout
     integer(8) :: numChar
     character :: bufferB
@@ -2514,6 +2516,8 @@ contains
     character :: bufferKB(bufferSizeKB)
     integer, parameter :: bufferSizeMB = 1024*1024
     character :: bufferMB(bufferSizeMB)
+    character(len=7) :: open_status ! Will contain 'NEW', 'OLD' or 'REPLACE'
+    character(len=6) :: position    ! Will contain 'ASIS' or 'APPEND'
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
@@ -2523,9 +2527,28 @@ contains
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
          action='READ', access='STREAM')
 
+    concatenate = .false.
+    if ( present(concatenate_opt) ) then
+      concatenate = concatenate_opt
+    end if
+
     unitout=11
-    open(unit=unitout, file=trim(fileout), status='REPLACE', form='UNFORMATTED', &
-         action='WRITE', access='STREAM')
+    if ( concatenate ) then
+      inquire(file=trim(fileout), exist=exists)
+      if ( exists ) then
+        open_status = 'OLD'
+      else
+        open_status = 'NEW'
+      end if
+
+      position = 'APPEND'
+    else
+      open_status = 'REPLACE'
+      position = 'ASIS' ! this is the default
+    end if
+
+    open(unit=unitout, file=trim(fileout), status=open_status, form='UNFORMATTED', &
+         action='WRITE', access='STREAM', position=position)
 
     numChar = 0
     do 
