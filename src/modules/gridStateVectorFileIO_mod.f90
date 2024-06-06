@@ -2109,7 +2109,7 @@ module gridStateVectorFileIO_mod
       fstRecord%ni = statevector%ni
       fstRecord%nj = 1
       fstRecord%nk = 1
-      success = fstFile % write(fstRecord, rewrite = .true.)
+      success = fstFile % write(fstRecord, rewrite = FST_YES)
       if (.not. success) then
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
@@ -2120,7 +2120,7 @@ module gridStateVectorFileIO_mod
       fstRecord%ni = 1
       fstRecord%nj = statevector%nj
       fstRecord%nk = 1
-      success = fstFile % write(fstRecord, rewrite = .true.)
+      success = fstFile % write(fstRecord, rewrite = FST_YES)
       if (.not. success) then
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
@@ -2144,7 +2144,7 @@ module gridStateVectorFileIO_mod
         fstRecord%ni = statevector%hco_physics%ni
         fstRecord%nj = 1
         fstRecord%nk = 1
-        success = fstFile % write(fstRecord, rewrite = .true.)
+        success = fstFile % write(fstRecord, rewrite = FST_YES)
         if (.not. success) then
           call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
         end if
@@ -2155,7 +2155,7 @@ module gridStateVectorFileIO_mod
         fstRecord%ni = 1
         fstRecord%nj = statevector%hco_physics%nj
         fstRecord%nk = 1
-        success = fstFile % write(fstRecord, rewrite = .true.)
+        success = fstFile % write(fstRecord, rewrite = FST_YES)
         if (.not. success) then
           call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
         end if
@@ -2213,7 +2213,7 @@ module gridStateVectorFileIO_mod
       fstRecord%ni = statevector%ni
       fstRecord%nj = statevector%nj
       fstRecord%nk = 1
-      success = fstFile % write(fstRecord, rewrite = .true.)
+      success = fstFile % write(fstRecord, rewrite = FST_YES)
       if (.not. success) then
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
@@ -2224,7 +2224,7 @@ module gridStateVectorFileIO_mod
       fstRecord%ni = statevector%ni
       fstRecord%nj = statevector%nj
       fstRecord%nk = 1
-      success = fstFile % write(fstRecord, rewrite = .true.)
+      success = fstFile % write(fstRecord, rewrite = FST_YES)
       if (.not. success) then
         call utl_abort('writeTicTacToc: problem writing ' // fstRecord%nomvar // ' in output file ' // fstFile%get_name())
       end if
