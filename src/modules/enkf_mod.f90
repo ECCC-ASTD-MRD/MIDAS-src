@@ -793,8 +793,7 @@ contains
     ! Locals:
     type(struct_hco), pointer :: hco_ens
 
-    integer :: nEns, nEnsGain, matrixRank, imode, dateStamp, ierr
-    integer :: datePrint, timePrint, newDate, randomSeed
+    integer :: nEns, nEnsGain, matrixRank
     integer :: hLocIndex, numLocalObs, numLocalObsFound, localObsIndex
     integer :: bodyIndex, memberIndex, memberIndex1, memberIndex2
     integer :: subEnsIndex, subEnsIndex2, memberIndexCV, memberIndexCV1, memberIndexCV2
@@ -812,7 +811,6 @@ contains
     integer, allocatable, save :: localBodyIndices(:)
     integer, allocatable, save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
     integer, allocatable, save :: memberIndexSubEnsComp(:,:)
-    integer, allocatable, save :: randomMemberIndexArray(:)
 
     real(8), allocatable, save :: distances(:), PaSqrt_pert(:,:)
     real(8), pointer, save :: PaInv_mean(:,:), Pa_mean(:,:)
@@ -866,68 +864,17 @@ contains
         allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
         allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
         allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
-        if ( useModulatedEns ) allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,numSubEns))
-      end if
-      if (.not.randomShuffleSubEns) then
-        ! form subensembles with contiguous sequential groups of members
-        do subEnsIndex = 1, numSubEns
-          do memberIndex = 1, nEnsPerSubEns
-            memberIndexSubEns(memberIndex,subEnsIndex) =  &
-                (subEnsIndex-1)*nEnsPerSubEns + memberIndex
-          end do
-        end do
         if ( useModulatedEns ) then
-          do subEnsIndex = 1, numSubEns
-            memberIndex2 = 0
-            do memberIndex = 1, nEnsPerSubEns
-              do eigenVectorColumnIndex = 1, numRetainedEigen
-                memberIndex2 = memberIndex2 + 1
-                memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
-                                        memberIndex
-                memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
-                     (subEnsIndex-1)*nEnsPerSubEns + memberIndexInModEns
-              end do
-            end do
-          end do
+          allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,numSubEns))
+        else
+          allocate(memberIndexSubEns_mod(1,1))
         end if
-      else
-        ! compute random seed from the date for randomly forming subensembles
-        imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-        dateStamp = tim_getDateStamp()
-        ierr = newdate(dateStamp, datePrint, timePrint, imode)
-        timePrint = timePrint/1000000
-        datePrint =  datePrint*100 + timePrint
-        ! Remove the century, keeping 2 digits of the year
-        randomSeed = datePrint - 100000000*(datePrint/100000000)
-        if (firstCall) allocate(randomMemberIndexArray(nEns))
-        do memberIndex = 1, nEns
-          randomMemberIndexArray(memberIndex) = memberIndex
-        end do
-        call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
-        if (firstCall) then
-          write(*,*) 'enkf_LETKFcomputeWeights: seed for random shuffle of sub ens = ', randomSeed
-          write(*,*) 'enkf_LETKFcomputeWeights: randomOrder = ', randomMemberIndexArray(:)
-        end if
-        do subEnsIndex = 1, numSubEns
-          do memberIndex = 1, nEnsPerSubEns
-            memberIndexSubEns(memberIndex,subEnsIndex) =  &
-                 randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex)
-          end do
-        end do
-        if ( useModulatedEns ) then
-          do subEnsIndex = 1, numSubEns
-            memberIndex2 = 0
-            do memberIndex = 1, nEnsPerSubEns
-              do eigenVectorColumnIndex = 1, numRetainedEigen
-                memberIndex2 = memberIndex2 + 1
-                memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
-                      randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex) + &
-                      (eigenVectorColumnIndex - 1) * nEns
-              end do
-            end do
-          end do
-        end if        
       end if
+
+      ! Define the subensembles: memberIndexSubEns and memberIndexSubEns_mod
+      call enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
+                                   randomShuffleSubEns, numSubEns, nEnsPerSubEns, &
+                                   useModulatedEns, numRetainedEigen, nEns)
 
       do subEnsIndex = 1, numSubEns
         memberIndex = 1
@@ -1783,6 +1730,100 @@ contains
     firstCall = .false.
 
   end subroutine enkf_LETKFcomputeWeights
+
+  !----------------------------------------------------------------------
+  ! enkf_defineSubEnsembles (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
+       randomShuffleSubEns, numSubEns, nEnsPerSubEns, useModulatedEns, numRetainedEigen, nEns)
+    !
+    !:Purpose: Compute the list of member indexes for each sub-ensemble. Also computes
+    !          a second list of member indexes for each sub-ensemble for the modulated
+    !          ensemble (when this is being used).
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(out) :: memberIndexSubEns(:,:)     ! Array of member indexes for each subEns
+    integer, intent(out) :: memberIndexSubEns_mod(:,:) ! Array of modulated member indexes for each subEns
+    logical, intent(in)  :: randomShuffleSubEns        ! Switch to control if randomization used
+    integer, intent(in)  :: numSubEns                  ! Number of sub-ensembles
+    integer, intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer, intent(in)  :: numRetainedEigen           ! Number of retained eigen-vectors for modulate ens
+    integer, intent(in)  :: nEns                       ! Ensemble size
+    logical, intent(in)  :: useModulatedEns            ! Switch to control if using modulated ensemble
+
+    ! Locals:
+    integer :: subEnsIndex, memberIndex, memberIndex2
+    integer :: imode, dateStamp, ierr, timePrint, datePrint, randomSeed
+    integer :: eigenVectorColumnIndex, memberIndexInModEns, newDate
+    integer, allocatable, save :: randomMemberIndexArray(:)
+    logical, save :: firstCall = .true.
+
+    if (.not.randomShuffleSubEns) then
+      ! form subensembles with contiguous sequential groups of members
+      do subEnsIndex = 1, numSubEns
+        do memberIndex = 1, nEnsPerSubEns
+          memberIndexSubEns(memberIndex,subEnsIndex) =  &
+               (subEnsIndex-1)*nEnsPerSubEns + memberIndex
+        end do
+      end do
+      if ( useModulatedEns ) then
+        do subEnsIndex = 1, numSubEns
+          memberIndex2 = 0
+          do memberIndex = 1, nEnsPerSubEns
+            do eigenVectorColumnIndex = 1, numRetainedEigen
+              memberIndex2 = memberIndex2 + 1
+              memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
+                   memberIndex
+              memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
+                   (subEnsIndex-1)*nEnsPerSubEns + memberIndexInModEns
+            end do
+          end do
+        end do
+      end if
+    else
+      ! compute random seed from the date for randomly forming subensembles
+      imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+      dateStamp = tim_getDateStamp()
+      ierr = newdate(dateStamp, datePrint, timePrint, imode)
+      timePrint = timePrint/1000000
+      datePrint =  datePrint*100 + timePrint
+      ! Remove the century, keeping 2 digits of the year
+      randomSeed = datePrint - 100000000*(datePrint/100000000)
+      if (firstCall) allocate(randomMemberIndexArray(nEns))
+      do memberIndex = 1, nEns
+        randomMemberIndexArray(memberIndex) = memberIndex
+      end do
+      call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
+      if (firstCall) then
+        write(*,*) 'enkf_LETKFcomputeWeights: seed for random shuffle of sub ens = ', randomSeed
+        write(*,*) 'enkf_LETKFcomputeWeights: randomOrder = ', randomMemberIndexArray(:)
+      end if
+      do subEnsIndex = 1, numSubEns
+        do memberIndex = 1, nEnsPerSubEns
+          memberIndexSubEns(memberIndex,subEnsIndex) =  &
+               randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex)
+        end do
+      end do
+      if ( useModulatedEns ) then
+        do subEnsIndex = 1, numSubEns
+          memberIndex2 = 0
+          do memberIndex = 1, nEnsPerSubEns
+            do eigenVectorColumnIndex = 1, numRetainedEigen
+              memberIndex2 = memberIndex2 + 1
+              memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
+                   randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex) + &
+                   (eigenVectorColumnIndex - 1) * nEns
+            end do
+          end do
+        end do
+      end if
+    end if
+
+    firstCall = .false.
+
+  end subroutine enkf_defineSubEnsembles
 
   !----------------------------------------------------------------------
   ! enkf_calcYbTinvRYb (private subroutine)
