@@ -654,9 +654,11 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
-  <FAMILY  name="dfs">
+ <FAMILY  name="dfs">
+   <SUBMITS sub_name="chanSelectCris"/>
+  <FAMILY  name="chanSelectCris">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
-  
+ </FAMILY> 
 </MODULE>
