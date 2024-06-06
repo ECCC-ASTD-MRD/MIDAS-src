@@ -94,7 +94,7 @@ contains
     type(struct_ens),            intent(inout) :: ensembleAnl
     type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal
     type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal
-    type(struct_gsv),            intent(in)    :: stateVectorMeanAnl
+    type(struct_gsv),            intent(inout) :: stateVectorMeanAnl
     type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
     integer,                     intent(in)    :: maxNumLocalObs
     real(8),                     intent(in)    :: hLocalize(:)
@@ -110,40 +110,29 @@ contains
     integer :: mpiStatus(MPI_STATUS_SIZE)
     integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
     integer :: latLonIndex, nEns, nLev_M, nLev_depth, nLev_weights
-    integer :: memberIndex, memberIndex1, memberIndex2, ierr
+    integer :: ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
-    integer :: latIndex, lonIndex, stepIndex, varLevIndex, levIndex, levIndex2
+    integer :: latIndex, lonIndex, levIndex
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
     integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonCalcMax, myNumLatLonSendMax
     integer :: sendTag, recvTag, nsize, numRecv, numSend
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
+    integer :: numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: nEnsGain, eigenVectorColumnIndex
-    integer :: memberIndexInModEns
+    integer :: nEnsGain
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     integer :: requestIdSignal
 
-    integer, allocatable :: levFromK(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
     integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: latLonTagMpiGlobal(:,:)
-    integer, allocatable :: levIndex2FromVarLevIndex(:)
 
-    real(4)              :: pert_r4, modulationFactor_r4
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
-    real(8), allocatable :: memberAnlPert(:)
     real(4), allocatable :: vertLocation_r4(:,:,:)
-    real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
-    real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
     real(8), allocatable :: weightsSendCombined(:,:,:), weightsRecvCombined(:,:,:)
-
-    character(len=4)     :: varName
-    character(len=2), allocatable :: varKindFromK(:)
-    character(len=4), allocatable :: varLevelFromK(:)
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
@@ -210,17 +199,11 @@ contains
     if ( useModulatedEns ) nLev_weights = 1
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
-    myLonBeg = stateVectorMeanAnl%myLonBeg
-    myLonEnd = stateVectorMeanAnl%myLonEnd
-    myLatBeg = stateVectorMeanAnl%myLatBeg
-    myLatEnd = stateVectorMeanAnl%myLatEnd
     numVarLev    = stateVectorMeanAnl%nk
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
-
-    allocate(memberAnlPert(nEns))
 
     ! Weights for mean analysis
     allocate(weightsMean(nEnsGain,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
@@ -253,16 +236,6 @@ contains
     if (vLocalize > 0.0d0) then
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
-
-    allocate(varLevelFromK(numVarLev))
-    allocate(levFromK(numVarLev))
-    allocate(varKindFromK(numVarLev))
-    do varLevIndex = 1, numVarLev
-      varName = gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)
-      varLevelFromK(varLevIndex) = vnl_varLevelFromVarname(varName)
-      levFromK(varLevIndex) = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-      varKindFromK(varLevIndex) = vnl_varKindFromVarname(varName)
-    end do
 
     call utl_tmg_start(141,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
@@ -566,152 +539,10 @@ contains
       !
       ! Apply the weights to compute the ensemble mean and members
       !
-      call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
-      call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
-      call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
-
-      if (.not. allocated(levIndex2FromVarLevIndex)) then
-        allocate(levIndex2FromVarLevIndex(numVarLev))
-        do varLevIndex = 1, numVarLev
-          ! Only treat varLevIndex values that correspond with current levIndex
-          if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
-              varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
-            if (varKindFromK(varLevIndex) == 'OC') then
-              levIndex2 = 1
-            else
-              levIndex2 = max(nLev_M,nLev_depth)
-            end if
-          else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
-            levIndex2 = levFromK(varLevIndex)
-          else if (varLevelFromK(varLevIndex) == 'OT') then
-            ! Most (all?) variables using the 'other' coordinate are surface
-            levIndex2 = max(nLev_M,nLev_depth)
-          else
-            write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
-            call utl_abort('enkf_LETKFanalyses: unknown varLevel')
-          end if
-          levIndex2FromVarLevIndex(varLevIndex) = levIndex2
-        end do
-      end if
-
-      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
-      !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
-      !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
-      do latIndex = myLatBeg, myLatEnd
-        LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
-
-          ! skip this grid point if all weights zero (no nearby obs)
-          if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
-
-          ! Compute the ensemble mean increment and analysis
-          do varLevIndex = 1, numVarLev
-            levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
-            if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
-            memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-            do stepIndex = 1, tim_nstepobsinc
-              ! mean increment
-              if ( useModulatedEns ) then
-                do eigenVectorColumnIndex = 1, numRetainedEigen
-                  call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                                            eigenVectorColumnIndex, numRetainedEigen, &
-                                            nEns, vLocalize, &
-                                            modulationFactor_r4 )
-
-                  do memberIndex = 1, nEns
-                    pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
-
-                    ! Index of the modulated ensemble member corresponding to original
-                    ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
-                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
-
-                    meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                        meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                        weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
-                  end do
-                end do
-              else
-                do memberIndex = 1, nEns
-                  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                       meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                       weightsMean(memberIndex,1,lonIndex,latIndex) *  &
-                       (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-                end do
-              end if
-
-              ! mean analysis
-              meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                   meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-            end do ! stepIndex
-          end do ! varLevIndex
-
-          ! Compute the ensemble member analyses
-          call utl_tmg_start(144,'------ApplyWeightsMember')
-          do varLevIndex = 1, numVarLev
-            levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
-            if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
-            memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-            memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
-            do stepIndex = 1, tim_nstepobsinc
-
-              ! Compute analysis member perturbation
-              memberAnlPert(:) = 0.0d0
-
-              if ( useModulatedEns ) then
-                do memberIndex2 = 1, nEns
-                  do eigenVectorColumnIndex = 1, numRetainedEigen
-                    call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                          eigenVectorColumnIndex, numRetainedEigen, &
-                          nEns, vLocalize, &
-                          modulationFactor_r4 )
-
-                    do memberIndex1 = 1, nEns
-                      ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
-                      pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
-
-                      ! Index of the modulated ensemble member corresponding to original
-                      ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
-                      memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
-                      
-                      ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
-                      !   original ensemble (memberIndex2)
-                      memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
-                           weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex) *  pert_r4
-                    end do
-                  end do
-
-                  ! Compute final member perturbations by removing background original ensemble perturbations
-                  memberAnlPert(memberIndex2) = (memberTrl_ptr_r4(memberIndex2,stepIndex,lonIndex,latIndex) -  &
-                                                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) + &
-                                                 memberAnlPert(memberIndex2)
-
-                end do ! memberIndex2
-              else
-                do memberIndex2 = 1, nEns
-                  do memberIndex1 = 1, nEns
-                    memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
-                         weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
-                         (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
-                  end do ! memberIndex1
-                end do ! memberIndex2
-              end if
-
-              ! Add analysis member perturbation to mean analysis
-              memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
-                   meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
-
-
-            end do ! stepIndex
-          end do ! varLevIndex
-          call utl_tmg_stop(144)
-
-        end do LON_LOOP5
-      end do
-      !$OMP END PARALLEL DO
+      call enkf_applyEnsWeights(stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
+                                ensembleTrl, ensembleAnl, levIndex,  &
+                                weightsMean, weightsMembers, useModulatedEns, numRetainedEigen, &
+                                vLocalize, myLonBegHalo, myLatBegHalo)
 
       call utl_tmg_stop(143)
 
@@ -1824,6 +1655,220 @@ contains
     firstCall = .false.
 
   end subroutine enkf_defineSubEnsembles
+
+  !----------------------------------------------------------------------
+  ! enkf_applyEnsWeights (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_applyEnsWeights(stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
+                                  ensembleTrl, ensembleAnl, levIndex,  &
+                                  weightsMean, weightsMembers, useModulatedEns, numRetainedEigen, &
+                                  vLocalize, myLonBegHalo, myLatBegHalo)
+    !
+    !:Purpose: Use the computed weights and the background ensemble to compute analysis
+    !          ensemble and ensemble mean. This calculation is done for just 1 level per call.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: stateVectorMeanInc ! Ensemble mean increment
+    type(struct_gsv), intent(inout) :: stateVectorMeanTrl ! Ensemble mean trial
+    type(struct_gsv), intent(inout) :: stateVectorMeanAnl ! Ensemble mean analysis
+    type(struct_ens), intent(inout) :: ensembleTrl        ! Trial ensemble
+    type(struct_ens), intent(inout) :: ensembleAnl        ! Analysis ensemble
+    integer,          intent(in)    :: levIndex           ! The `levIndex` being processed
+    real(8),          intent(in)    :: weightsMean(1:,1:,myLonBegHalo:,myLatBegHalo:)    ! Weights for ens mean
+    real(8),          intent(in)    :: weightsMembers(1:,1:,myLonBegHalo:,myLatBegHalo:) ! Weights for members
+    logical,          intent(in)    :: useModulatedEns    ! Indicates if modulated ens is used
+    integer,          intent(in)    :: numRetainedEigen   ! Number of eigen vectors for modulated ens
+    real(8),          intent(in)    :: vLocalize          ! Vertical localization distance
+    integer,          intent(in)    :: myLonBegHalo       ! First lon index of weights (for array indexing)
+    integer,          intent(in)    :: myLatBegHalo       ! First lat index of weights (for array indexing)
+
+    ! Locals:
+    character(len=4) :: varName
+    integer :: stepIndex, memberIndex, memberIndex1, memberIndex2, memberIndexInModEns
+    integer :: eigenVectorColumnIndex, latIndex, lonIndex, levIndex2, varLevIndex
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev_M, nLev_depth, numVarLev, nEns
+    real(4) :: modulationFactor_r4, pert_r4
+    real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
+    real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
+    real(8), allocatable :: memberAnlPert(:)
+    integer,          allocatable, save :: levIndex2FromVarLevIndex(:)
+    character(len=4), allocatable, save :: varLevelFromK(:)
+    character(len=2), allocatable, save :: varKindFromK(:)
+    integer,          allocatable, save :: levFromK(:)
+    logical, save :: firstCall = .true.
+
+    myLonBeg = stateVectorMeanAnl%myLonBeg
+    myLonEnd = stateVectorMeanAnl%myLonEnd
+    myLatBeg = stateVectorMeanAnl%myLatBeg
+    myLatEnd = stateVectorMeanAnl%myLatEnd
+    nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
+    nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
+    numVarLev  = stateVectorMeanAnl%nk
+    nEns       = ens_getNumMembers(ensembleAnl)
+
+    allocate(memberAnlPert(nEns))
+    call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
+    call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
+    call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
+
+    if (firstCall) then
+      allocate(varLevelFromK(numVarLev))
+      allocate(levFromK(numVarLev))
+      allocate(varKindFromK(numVarLev))
+      do varLevIndex = 1, numVarLev
+        varName = gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)
+        varLevelFromK(varLevIndex) = vnl_varLevelFromVarname(varName)
+        levFromK(varLevIndex) = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
+        varKindFromK(varLevIndex) = vnl_varKindFromVarname(varName)
+      end do
+
+      allocate(levIndex2FromVarLevIndex(numVarLev))
+      do varLevIndex = 1, numVarLev
+        ! Only treat varLevIndex values that correspond with current levIndex
+        if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
+            varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
+          if (varKindFromK(varLevIndex) == 'OC') then
+            levIndex2 = 1
+          else
+            levIndex2 = max(nLev_M,nLev_depth)
+          end if
+        else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
+          levIndex2 = levFromK(varLevIndex)
+        else if (varLevelFromK(varLevIndex) == 'OT') then
+          ! Most (all?) variables using the 'other' coordinate are surface
+          levIndex2 = max(nLev_M,nLev_depth)
+        else
+          write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
+          call utl_abort('enkf_LETKFanalyses: unknown varLevel')
+        end if
+        levIndex2FromVarLevIndex(varLevIndex) = levIndex2
+      end do
+    end if ! firstCall
+
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
+    !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
+    !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
+    do latIndex = myLatBeg, myLatEnd
+      LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
+
+        ! skip this grid point if all weights zero (no nearby obs)
+        if (all(weightsMean(:,1,lonIndex,latIndex) == 0.0d0)) cycle LON_LOOP5
+
+        ! Compute the ensemble mean increment and analysis
+        do varLevIndex = 1, numVarLev
+          levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
+          if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
+          memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+          do stepIndex = 1, tim_nstepobsinc
+            ! mean increment
+            if ( useModulatedEns ) then
+              do eigenVectorColumnIndex = 1, numRetainedEigen
+                call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
+                                          eigenVectorColumnIndex, numRetainedEigen, &
+                                          nEns, vLocalize, &
+                                          modulationFactor_r4 )
+
+                do memberIndex = 1, nEns
+                  pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                                                    meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+
+                  ! Index of the modulated ensemble member corresponding to original
+                  ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
+                  memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+
+                  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                       meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                       weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
+                end do
+              end do
+            else
+              do memberIndex = 1, nEns
+                meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                     weightsMean(memberIndex,1,lonIndex,latIndex) *  &
+                     (memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex))
+              end do
+            end if
+
+            ! mean analysis
+            meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
+                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                 meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+          end do ! stepIndex
+        end do ! varLevIndex
+
+        ! Compute the ensemble member analyses
+        call utl_tmg_start(144,'------ApplyWeightsMember')
+        do varLevIndex = 1, numVarLev
+          levIndex2 = levIndex2FromVarLevIndex(varLevIndex)
+          if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
+          memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
+          memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+          do stepIndex = 1, tim_nstepobsinc
+
+            ! Compute analysis member perturbation
+            memberAnlPert(:) = 0.0d0
+
+            if ( useModulatedEns ) then
+              do memberIndex2 = 1, nEns
+                do eigenVectorColumnIndex = 1, numRetainedEigen
+                  call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
+                                            eigenVectorColumnIndex, numRetainedEigen, &
+                                            nEns, vLocalize, &
+                                            modulationFactor_r4 )
+
+                  do memberIndex1 = 1, nEns
+                    ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
+                    pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                                                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+
+                    ! Index of the modulated ensemble member corresponding to original
+                    ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
+                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
+                      
+                    ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
+                    !   original ensemble (memberIndex2)
+                    memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
+                         weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex) *  pert_r4
+                  end do
+                end do
+
+                ! Compute final member perturbations by removing background original ensemble perturbations
+                memberAnlPert(memberIndex2) = (memberTrl_ptr_r4(memberIndex2,stepIndex,lonIndex,latIndex) -  &
+                                               meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) + &
+                                               memberAnlPert(memberIndex2)
+
+              end do ! memberIndex2
+            else
+              do memberIndex2 = 1, nEns
+                do memberIndex1 = 1, nEns
+                  memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
+                       weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
+                       ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
+                end do ! memberIndex1
+              end do ! memberIndex2
+            end if
+
+            ! Add analysis member perturbation to mean analysis
+            memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
+                 meanAnl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) + memberAnlPert(:)
+
+
+          end do ! stepIndex
+        end do ! varLevIndex
+        call utl_tmg_stop(144)
+
+      end do LON_LOOP5
+    end do
+    !$OMP END PARALLEL DO
+
+    firstCall = .false.
+
+  end subroutine enkf_applyEnsWeights
 
   !----------------------------------------------------------------------
   ! enkf_calcYbTinvRYb (private subroutine)
