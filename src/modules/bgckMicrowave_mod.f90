@@ -42,6 +42,7 @@ module bgckMicrowave_mod
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChan
+  logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -106,6 +107,7 @@ module bgckMicrowave_mod
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
   logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical            :: allowClwRejectHuChan
+  logical            :: useMeanTb183OnlyOverLandInAllskyHu
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -118,7 +120,7 @@ module bgckMicrowave_mod
                     ch17OmpRejectUpperHuChan, atmsRogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChan, &
-                    skipTestArr
+                    useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
                     
 
 contains
@@ -149,6 +151,7 @@ contains
     useAtmsCh17OmpThreshRogueCheck= .false.
     useScatIndexOverWaterObsClearsky = .false.
     allowClwRejectHuChan          = .false.
+    useMeanTb183OnlyOverLandInAllskyHu = .true.
     atmsRogueFactor(:)            = -1.0
     atmsCh17OmpThreshRogueCheck   = 5.0
     skipTestArr(:)                = .false.
@@ -177,6 +180,7 @@ contains
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
     mwbg_ch17OmpRejectUpperHuChan = ch17OmpRejectUpperHuChan
     mwbg_allowClwRejectHuChan = allowClwRejectHuChan
+    mwbg_useMeanTb183OnlyOverLandInAllskyHu = useMeanTb183OnlyOverLandInAllskyHu
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -5763,7 +5767,7 @@ contains
       end do
       riwv  = sum(ztb183) / 5.0d0
       if (riwv < mean_Tb_183Ghz_min) then
-        if (instrumentIsAllskyHu) then
+        if (instrumentIsAllskyHu .and. mwbg_useMeanTb183OnlyOverLandInAllskyHu) then
           if (.not. waterobs) iwvreject = .true.
         else
           iwvreject = .true.
