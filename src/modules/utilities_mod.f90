@@ -589,12 +589,12 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),           intent(inout) :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
-    real(8),           intent(out)   :: eigenValues(:)       ! computed eigenValues
-    real(8),           intent(out)   :: eigenVectors(:,:)    ! computed eigenVectors
-    real(8),           intent(in)    :: tolerance            ! threshold for eigenValue magnitude to be returned
-    integer,           intent(out)   :: numReturned          ! number of eigenValues/Vectors returned
-    logical, optional, intent(in)    :: printInformation_opt ! switch to print be more verbose
+    real(8),           intent(in)  :: matrix(:,:)          ! on entry, the original matrix; on exit, the inverse
+    real(8),           intent(out) :: eigenValues(:)       ! computed eigenValues
+    real(8),           intent(out) :: eigenVectors(:,:)    ! computed eigenVectors
+    real(8),           intent(in)  :: tolerance            ! threshold for eigenValue magnitude to be returned
+    integer,           intent(out) :: numReturned          ! number of eigenValues/Vectors returned
+    logical, optional, intent(in)  :: printInformation_opt ! switch to print be more verbose
 
     ! Locals:
     integer :: rank, index1, index2, info, sizework

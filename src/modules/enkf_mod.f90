@@ -109,36 +109,29 @@ contains
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
     integer :: mpiStatus(MPI_STATUS_SIZE)
     integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
-    integer :: latLonIndex, nEns, nLev_M, nLev_depth, nLev_weights
-    integer :: ierr
+    integer :: latLonIndex, nEns, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
     integer :: latIndex, lonIndex, levIndex
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
     integer :: myNumLatLonRecv, numLatLonMpiGlobal, myNumLatLonCalcMax, myNumLatLonSendMax
     integer :: sendTag, recvTag, nsize, numRecv, numSend
-    integer :: numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
-    integer :: nEnsGain
     integer :: requestIdRecvFinished(mmpi_nprocs-1), requestIdSendFinished(mmpi_nprocs-1)
     integer :: requestIdSignal
-
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
     integer, allocatable :: latIndexesSendMpiGlobal(:), lonIndexesSendMpiGlobal(:)
     integer, allocatable :: numProcsSendMpiGlobal(:)
     integer, allocatable :: procIndexesSendMpiGlobal(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: latLonTagMpiGlobal(:,:)
-
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(4), allocatable :: vertLocation_r4(:,:,:)
     real(8), allocatable :: weightsSendCombined(:,:,:), weightsRecvCombined(:,:,:)
-
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
-
     logical :: procAlreadyFinished(mmpi_nprocs)
     logical :: useModulatedEns, masterIsMe
 
@@ -156,9 +149,7 @@ contains
       nEnsGain   = nEns
     end if
 
-    !
     ! Set things up for the redistribution of work across mpi tasks
-    !
     call enkf_LETKFsetupMpiDistribution(numLatLonMpiGlobal, myNumLatLonRecv,  &
                                         myLatIndexesRecv, myLonIndexesRecv,   &
                                         latIndexesSendMpiGlobal, lonIndexesSendMpiGlobal,   &
@@ -180,6 +171,8 @@ contains
     myNumLatLonSendMax = ceiling(real(maxval(numProcsSendMpiGlobal))*real(myNumLatLonCalcMax))
     write(*,*) 'enkf_LETKFanalyses: myNumLatLonCalcMax, myNumLatLonSendMax = ',  &
                                     myNumLatLonCalcMax, myNumLatLonSendMax
+
+    ! Allocate and initialize various arrays needed for MPI communication
     allocate(requestIdSend(myNumLatLonSendMax))
     allocate(requestIdRecv(myNumLatLonRecv))
     allocate(waitStatusesSend(MPI_STATUS_SIZE,myNumLatLonSendMax))
@@ -193,29 +186,28 @@ contains
     weightsRecvCombined(:,:,:) = 0.0d0
     weightsSendCombined(:,:,:) = 0.0d0
 
-    nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
-    nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
-    nLev_weights = max(nLev_M,nLev_depth)
+    ! Initialize dimension related variables
+    nLev_weights = max(ens_getNumLev(ensembleAnl,'MM'), ens_getNumLev(ensembleAnl,'DP'))
     if ( useModulatedEns ) nLev_weights = 1
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
-    numVarLev    = stateVectorMeanAnl%nk
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
     myLatBegHalo = wInterpInfo%myLatBegHalo
     myLatEndHalo = wInterpInfo%myLatEndHalo
 
-    ! Weights for mean analysis
+    ! Allocate weights for mean analysis
     allocate(weightsMean(nEnsGain,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMean(:,:,:,:) = 0.0d0
     allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonCalcMax))
     weightsMeanLatLon(:,:,:) = 0.0d0
-    ! Weights for member analyses
+    ! Allocate weights for member analyses
     allocate(weightsMembers(nEnsGain,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
+    ! Allocate and initialize state vectors for mean trial and increment
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
@@ -230,9 +222,9 @@ contains
     call ens_computeMean(ensembleTrl)
     call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
 
-    call lfn_Setup(LocFunctionWanted='FifthOrder')
 
-    ! compute 3D field of vertical location needed for localization
+    ! Compute 3D field of vertical location needed for localization
+    call lfn_Setup(LocFunctionWanted='FifthOrder')
     if (vLocalize > 0.0d0) then
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
@@ -241,13 +233,13 @@ contains
     call rpn_comm_barrier('GRID',ierr)
     call utl_tmg_stop(141)
 
-    ! get mpi global list of tags used for mpi send/recv
+    ! Get mpi global list of tags used for mpi send/recv
     call utl_tmg_start(142, '----GetGlobalTags')
     allocate(latLonTagMpiGlobal(stateVectorMeanAnl%ni,stateVectorMeanAnl%nj))
     call enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
     call utl_tmg_stop(142)
 
-    ! Compute the weights for ensemble mean and members
+    ! Start of major loop for computing weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
     numGridPointWeights = 0
@@ -255,12 +247,9 @@ contains
       write(*,*) 'Computing ensemble updates for vertical level = ', levIndex
       call utl_printTime(reset_opt = (levIndex==1))
 
-      !
       ! First post all recv instructions for communication of weights
-      !
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(148,'----CommWeights-irecv')
-
       numSend = 0
       numRecv = 0
       do latLonIndex = 1, myNumLatLonRecv
@@ -283,9 +272,10 @@ contains
       assignmentTag = mmpi_maxTagValue - 1
       readyTag      = mmpi_maxTagValue - 2
 
+      ! Determine if I am the 'Master' (only for MASTERWORKER mpi distribution)
       masterIsMe = (mmpi_myid == 0) .and. (trim(mpiDistribution) == 'MASTERWORKER')
 
-      MASTER_WORKER: if (masterIsMe) then  ! I am the master
+      MASTER_WORKER: if (masterIsMe) then  ! I am the master, I do no actual computations
 
         call utl_tmg_start(132,'----CommWeights')
         call utl_tmg_start(145,'----CommWeights-signals')
@@ -354,14 +344,16 @@ contains
         call utl_tmg_stop(145)
         call utl_tmg_stop(132)
 
-      else  ! I am a worker
+      else  ! Not the master, I am a worker and therefore do actual computations
 
         ! Main loop over grid points for computing analysis weights
         latLonIndex = 0
         latLonIndexMpiGlobal = 0
         LATLON_LOOP: do
 
-          if (trim(mpiDistribution) == 'MASTERWORKER') then
+          MPI_DISTRIBUTION: if (trim(mpiDistribution) == 'MASTERWORKER') then
+
+            ! I am a worker, therefore need to get assignment from master
 
             call utl_tmg_start(132,'----CommWeights')
             call utl_tmg_start(145,'----CommWeights-signals')
@@ -369,6 +361,7 @@ contains
             write(*,*) 'Requesting an assignment'
             call utl_printTime()
 
+            ! Check if I have not yet reached max number of weight calculations allowed
             if ( (latLonIndex+1) <= myNumLatLonCalcMax) then
 
               ! Post recv to obtain assignment or signal that we are done
@@ -427,12 +420,12 @@ contains
               end if
             end do              
 
-          else
+          else ! mpiDistribution is not MASTERWORKER and not ROUNDROBIN
 
             write(*,*) 'mpiDistribution = ', trim(mpiDistribution)
             call utl_abort('enkf_LETKFanalyses: unknown value of mpiDistribution')
 
-          end if
+          end if MPI_DISTRIBUTION
 
           ! Increment main loop index
           latLonIndex = latLonIndex + 1
@@ -444,14 +437,13 @@ contains
             call utl_abort('enkf_LETKFanalyses: increase value of myNumLatLonSendFactor')
           end if
 
+          ! The latitude/longitude index where I will now compute weights
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
           lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
 
           numGridPointWeights = numGridPointWeights + 1
 
-          !
           ! Call main subroutine for computing the LETKF analysis weights for this lev/lat/lon
-          !
           call enkf_LETKFcomputeWeights(weightsMeanLatLon(:,:,latLonIndex), &
                                         weightsMembersLatLon(:,:,latLonIndex), &
                                         algorithm, numSubEns, randomShuffleSubEns, &
@@ -461,9 +453,7 @@ contains
                                         countMaxExceeded, maxCountMaxExceeded, &
                                         ensObs_mpiglobal, ensObsGain_mpiglobal)
 
-          !
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
-          !
           call utl_tmg_start(132,'----CommWeights')
           call utl_tmg_start(149,'----CommWeights-isend')
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
@@ -471,6 +461,7 @@ contains
           weightsSendCombined(:,1:nEns,latLonIndex) = weightsMembersLatLon(:,:,latLonIndex)
           weightsSendCombined(:,(nEns+1),latLonIndex) = weightsMeanLatLon(:,1,latLonIndex)
 
+          ! Loop over the tasks where I need to send the weights
           do procIndex = 1, numProcsSendMpiGlobal(latLonIndexMpiGlobal)
             sendTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
             sendTag = 1 + mod(sendTag-1, mmpi_maxTagValue - 10) 
@@ -492,9 +483,7 @@ contains
 
       end if MASTER_WORKER
 
-      !
-      ! Wait for RECV communications to finish before continuing
-      !
+      ! Wait for all previous RECV communications to finish before continuing
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(147,'----CommWeights-waitRecv')
       if ( numRecv > 0 ) then
@@ -503,8 +492,8 @@ contains
       end if
       call utl_tmg_stop(147)
 
-      call utl_tmg_start(148,'----CommWeights-irecv')
       ! Copy from combined to main separate arrays
+      call utl_tmg_start(148,'----CommWeights-irecv')
       do latLonIndex = 1, myNumLatLonRecv
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
@@ -524,9 +513,7 @@ contains
       call utl_tmg_stop(148)
       call utl_tmg_stop(132)
 
-      !
       ! Interpolate weights from coarse to full resolution
-      !
       call utl_tmg_start(140,'----InterpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
         call enkf_interpWeights(wInterpInfo, weightsMean)
@@ -534,21 +521,15 @@ contains
       end if
       call utl_tmg_stop(140)
 
-      call utl_tmg_start(143,'----ApplyWeights')
-
-      !
       ! Apply the weights to compute the ensemble mean and members
-      !
+      call utl_tmg_start(143,'----ApplyWeights')
       call enkf_applyEnsWeights(stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                                 ensembleTrl, ensembleAnl, levIndex,  &
                                 weightsMean, weightsMembers, useModulatedEns, numRetainedEigen, &
                                 vLocalize, myLonBegHalo, myLatBegHalo)
-
       call utl_tmg_stop(143)
 
-      !
-      ! Wait for SEND communications to finish before continuing
-      !
+      ! Wait for SEND communications to finish before continuing to the next level
       call utl_tmg_start(132,'----CommWeights')
       call utl_tmg_start(146,'----CommWeights-waitSend')
       if ( numSend > 0 ) then
@@ -596,7 +577,9 @@ contains
                                       countMaxExceeded, maxCountMaxExceeded, &
                                       ensObs_mpiglobal, ensObsGain_mpiglobal)
     !
-    !:Purpose:
+    !:Purpose: Main routine for computing the LETKF weights for 1 lat/lon/lev. The
+    !          first part of the calculation is done in this routine with the rest
+    !          done within separate subroutines for each specific algorithm.
     !
     implicit none
 
@@ -606,7 +589,7 @@ contains
     character(len=*),         intent(in)    :: algorithm
     integer         ,         intent(in)    :: numSubEns
     logical         ,         intent(in)    :: randomShuffleSubEns
-    type(struct_ens),         intent(inout) :: ensembleAnl
+    type(struct_ens),         intent(in)    :: ensembleAnl
     integer,                  intent(in)    :: levIndex
     integer,                  intent(in)    :: latIndex
     integer,                  intent(in)    :: lonIndex
@@ -623,39 +606,21 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
-
-    integer :: nEns, nEnsGain, matrixRank
+    integer :: nEns, nEnsGain
     integer :: hLocIndex, numLocalObs, numLocalObsFound, localObsIndex
-    integer :: bodyIndex, memberIndex, memberIndex1, memberIndex2
-    integer :: subEnsIndex, subEnsIndex2, memberIndexCV, memberIndexCV1, memberIndexCV2
+    integer :: bodyIndex, memberIndex, memberIndex2, subEnsIndex
     integer :: nEnsIndependentPerSubEns, nEnsPerSubEns, nEnsPerSubEns_mod
     integer :: eigenVectorColumnIndex, memberIndexInModEns
-
     logical :: hLocalizeIsConstant, useModulatedEns
-
-    real(8) :: anlLat, anlLon, anlVertLocation
-    real(8) :: distance, tolerance, localization
-
-    real(8), allocatable, target, save :: YbTinvRYb_pert(:,:)
-    real(8), allocatable, target, save :: YbTinvRCopy_pert(:,:)
- 
-    integer, allocatable, save :: localBodyIndices(:)
-    integer, allocatable, save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
-    integer, allocatable, save :: memberIndexSubEnsComp(:,:)
-
-    real(8), allocatable, save :: distances(:), PaSqrt_pert(:,:)
-    real(8), pointer, save :: PaInv_mean(:,:), Pa_mean(:,:)
-    real(8), pointer, save :: YbTinvR_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvRYb_mean(:,:)
-    real(8), pointer, save :: eigenValues_mean(:), eigenVectors_mean(:,:)
-    
-    real(8), allocatable, target, save :: PaInv_pert(:,:), Pa_pert(:,:)
+    real(8) :: anlLat, anlLon, anlVertLocation, distance, localization 
+    integer, allocatable,         save :: localBodyIndices(:)
+    integer, allocatable,         save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
+    integer, allocatable,         save :: memberIndexSubEnsComp(:,:)
+    real(8), allocatable,         save :: distances(:)
+    real(8), pointer,             save :: YbTinvRYb_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvR_mean(:,:)
+    real(8), allocatable, target, save :: YbTinvRYb_pert(:,:), YbTinvRCopy_pert(:,:)
     real(8), allocatable, target, save :: YbTinvR_pert(:,:)
-    real(8), allocatable, target, save :: eigenValues_pert(:), eigenVectors_pert(:,:)
-
-    real(8), allocatable, save :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
-    real(8), allocatable, save :: eigenValues_CV(:), eigenVectors_CV(:,:)
-    real(8), allocatable, save :: weightsTemp(:), weightsTemp2(:)
-
+    real(8), allocatable,         save :: YbTinvRYb_mod(:,:)
     logical, save :: firstCall = .true.
 
     hco_ens => ens_getHco(ensembleAnl)
@@ -673,7 +638,7 @@ contains
       allocate(YbTinvRCopy_pert(maxNumLocalObs,nEnsGain))
     end if
 
-    ! Quantities needed for CVLETKF and CVLETKF-PERTOBS and CVLETKF-ME
+    ! Quantities needed for cross validation (CVLETKF, CVLETKF-PERTOBS, CVLETKF-ME)
     if ( trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS' .or. &
          trim(algorithm) == 'CVLETKF-ME' ) then
       nEnsPerSubEns = nEns / numSubEns
@@ -683,16 +648,15 @@ contains
       if (numSubEns <= 1) then
         call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS)(-ME) algorithm, numSubEns must be greater than 1')
       end if
-      if ( .not. useModulatedEns ) then
-        nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
-      else
+      if (useModulatedEns) then
         nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
         nEnsIndependentPerSubEns = nEnsGain - nEnsPerSubEns_mod
+      else
+        nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
       end if
+
+      ! Define the subensembles: memberIndexSubEns, memberIndexSubEns_mod, memberIndexSubEnsComp
       if (firstCall) then
-        allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
-        allocate(eigenValues_CV(nEnsIndependentPerSubEns))
-        allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
         allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
         allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
         if ( useModulatedEns ) then
@@ -700,89 +664,55 @@ contains
         else
           allocate(memberIndexSubEns_mod(1,1))
         end if
-      end if
 
-      ! Define the subensembles: memberIndexSubEns and memberIndexSubEns_mod
-      call enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
-                                   randomShuffleSubEns, numSubEns, nEnsPerSubEns, &
-                                   useModulatedEns, numRetainedEigen, nEns)
+        call enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
+                                     memberIndexSubEnsComp, &
+                                     randomShuffleSubEns, numSubEns, &
+                                     nEnsPerSubEns, nEnsPerSubEns_mod, &
+                                     useModulatedEns, numRetainedEigen, nEns)
 
-      do subEnsIndex = 1, numSubEns
-        memberIndex = 1
-        do subEnsIndex2 = 1, numSubEns
-          if (subEnsIndex2 == subEnsIndex) cycle
-          
-          if ( .not. useModulatedEns ) then
-            memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
-              memberIndexSubEns(:,subEnsIndex2)
-            memberIndex = memberIndex + nEnsPerSubEns
-          else
-            memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns_mod-1,subEnsIndex) =  &
-              memberIndexSubEns_mod(:,subEnsIndex2)
-            memberIndex = memberIndex + nEnsPerSubEns_mod
-          end if
-        end do
-      end do
+        if (mmpi_myid == 0) then
+          write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
+                      nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+          do subEnsIndex = 1, numSubEns
+            write(*,*) 'memberIndexSubEns = '
+            write(*,*) memberIndexSubEns(:,subEnsIndex)
+            if ( useModulatedEns ) then
+              write(*,*) 'memberIndexSubEns_mod = '
+              write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
+            end if
+            write(*,*) 'memberIndexSubEnsComp = '
+            write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
+          end do
+        end if
 
-      if ( firstCall .and. mmpi_myid == 0 ) then
-        write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
-                  nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
-        do subEnsIndex = 1, numSubEns
-          write(*,*) 'memberIndexSubEns = '
-          write(*,*) memberIndexSubEns(:,subEnsIndex)
-          if ( useModulatedEns ) then
-            write(*,*) 'memberIndexSubEns_mod = '
-            write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
-          end if
-          write(*,*) 'memberIndexSubEnsComp = '
-          write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
-        end do
-      end if
+      end if ! firstCall
 
     end if ! if CVLETKF(-PERTOBS)(-ME) algorithm
 
+    ! Allocate arrays only on first call
     if (firstCall) then
       allocate(localBodyIndices(maxNumLocalObs))
       allocate(distances(maxNumLocalObs))
-      !
-      ! Compute gridded 3D ensemble weights
-      !
       allocate(YbTinvR_pert(nEnsGain,maxNumLocalObs))
       if ( trim(algorithm) == 'CVLETKF-ME' .or. &
            trim(algorithm) == 'LETKF-Gain-ME' ) then
         allocate(YbTinvRYb_mod(nEnsGain,nEns))
       end if
-      allocate(eigenValues_pert(nEnsGain))
-      allocate(eigenVectors_pert(nEnsGain,nEnsGain))
-      allocate(PaInv_pert(nEnsGain,nEnsGain))
-      allocate(PaSqrt_pert(nEnsGain,nEnsGain))
-      allocate(Pa_pert(nEnsGain,nEnsGain))
 
+      ! Only when observation is "simulated" separate quantities for ens mean needed
       if (eob_simObsAssim) then
         allocate(YbTinvR_mean(nEnsGain,maxNumLocalObs))
         allocate(YbTinvRCopy_mean(maxNumLocalObs,nEnsGain))
         allocate(YbTinvRYb_mean(nEnsGain,nEnsGain))
-        allocate(eigenValues_mean(nEnsGain))
-        allocate(eigenVectors_mean(nEnsGain,nEnsGain))
-        allocate(PaInv_mean(nEnsGain,nEnsGain))
-        allocate(Pa_mean(nEnsGain,nEnsGain))
       else
         YbTinvR_mean => YbTinvR_pert
         YbTinvRCopy_mean => YbTinvRCopy_pert
         YbTinvRYb_mean => YbTinvRYb_pert
-        eigenValues_mean => eigenValues_pert
-        eigenVectors_mean => eigenVectors_pert
-        PaInv_mean => PaInv_pert
-        Pa_mean => Pa_pert
-      end if
-    
-      allocate(weightsTemp(nEnsGain))
-      allocate(weightsTemp2(nEnsGain))
-      weightsTemp(:) = 0.0d0
-      weightsTemp2(:) = 0.0d0
+      end if    
     end if
 
-    ! lat-lon of the grid point for which we are doing the analysis
+    ! The lat-lon of the grid point for which we are computing the weights
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
     hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
@@ -812,37 +742,40 @@ contains
 
     call utl_tmg_start(134,'----CalculateWeights')
 
-    ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
+    ! Compute YbTinvR (assumes R is diagonal)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
 
       ! Compute value of localization function
-      ! Horizontal
+      ! Horizontal localization
       localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
-      ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
+      ! Vertical localization when NOT using modulated ensembles - pressures at grid point location
       if (vLocalize > 0.0d0 .and. .not. useModulatedEns) then
         distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
         localization = localization * lfn_Response(distance,vLocalize)
       end if
+
+      ! Compute YbTinvR for updating ensemble perturbations
       do memberIndex = 1, nEnsGain
-        ! YbTinvR for updating ensemble perturbations
         YbTinvR_pert(memberIndex,localObsIndex) =  &
              ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
              localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
       end do
       if (eob_simObsAssim) then
         do memberIndex = 1, nEnsGain
-          ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
+          ! Compute YbTinvR for the ensemble mean update for simulated observations
           YbTinvR_mean(memberIndex,localObsIndex) =  &
                ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                localization * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)             
         end do
       end if
+
     end do ! localObsIndex
 
+    ! Compute covariance matrix in ensemble space: YbTinvRYb (this is expensive!)
     call utl_tmg_start(136,'------CalcYbTinvRYb')
 
-    ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
+    ! Make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4 for better cache access
     call utl_tmg_start(137,'--------YbArraysCopy')
     !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex2)
     do localObsIndex = 1, numLocalObs
@@ -864,6 +797,7 @@ contains
     end if
     call utl_tmg_stop(137)
 
+    ! Here is the actual calculation
     call utl_tmg_start(138,'--------YbTinvRYb1')
     call enkf_calcYbTinvRYb(nEnsGain, nEnsGain, maxNumLocalObs, numLocalObs, &
                             YbTinvRYb_pert, YbTinvRCopy_pert, &
@@ -871,7 +805,7 @@ contains
                             YbTinvRYb_mean, YbTinvRCopy_mean)
     call utl_tmg_stop(138)
 
-    ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
+    ! When using modulated ensemble, also compute YbTinvRYb for perturbation update
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
 
@@ -885,652 +819,53 @@ contains
 
     call utl_tmg_stop(136)
 
-    ! Rest of the computation of local weights for this grid point
-    if (numLocalObs > 0) then
+    ! Rest of computation of local weights at this grid point: separate routine for each algorithm
+    localObsExist: if (numLocalObs > 0) then
 
       if (trim(algorithm) == 'LETKF') then
-        !
-        ! Weight calculation for standard LETKF algorithm
-        !
 
-        ! Add second term of PaInv
-        PaInv_pert(:,:) = YbTinvRYb_pert(:,:)
-        do memberIndex = 1, nEns
-          PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
-        end do
-        if (eob_simObsAssim) then
-          PaInv_mean(:,:) = YbTinvRYb_mean(:,:)            
-          do memberIndex = 1, nEns
-            PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
-          end do
-        end if
-
-        ! Compute Pa and sqrt(Pa) matrices from PaInv
-        Pa_pert(:,:) = PaInv_pert(:,:)
-        call utl_tmg_start(135,'------EigenDecomp')
-        call utl_matInverse(Pa_pert, nEns, inverseSqrt_opt=PaSqrt_pert)
-        if (eob_simObsAssim) then
-          Pa_mean(:,:) = PaInv_mean(:,:)
-          call utl_matInverse(Pa_mean, nEns)
-        end if
-        call utl_tmg_stop(135)
-
-        ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEns
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                         ensObs_mpiglobal%meanYb(bodyIndex) )
-          end do
-        end do
-
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, nEns
-          do memberIndex1 = 1, nEns
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +  &
-                 Pa_mean(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
-        weightsMembersLatLon(:,:) = sqrt(real(nEns - 1,8)) * PaSqrt_pert(:,:)
+        call enkf_algorithmLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+                                 YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                 nEns, numLocalObs, localBodyIndices, &
+                                 ensObs_mpiglobal)
 
       else if (trim(algorithm) == 'LETKF-Gain') then
-        !
-        ! Weight calculation for standard LETKF algorithm
-        !
 
-        ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-        call utl_tmg_start(135,'------EigenDecomp')
-        tolerance = 1.0D-50
-        call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-        if (eob_simObsAssim) then
-          call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-        end if
-        call utl_tmg_stop(135)
-
-        ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEns
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                         ensObs_mpiglobal%meanYb(bodyIndex) )
-          end do
-        end do
-        weightsTemp2(:) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                         eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                                         weightsTemp(memberIndex1)
-          end do
-        end do
-        do memberIndex = 1, matrixRank
-          weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                      1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
-        end do
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +   &
-                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                 weightsTemp2(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights: 
-        ! Wa = [ - (Nens-1)^1/2 * E *
-        !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-        !        E^T * YbTinvRYb ]
-        ! Loop over members within the current sub-ensemble being updated
-        do memberIndex = 1, nEns
-
-          ! E^T * YbTinvRYb
-          weightsTemp(:) = 0.0d0
-          do memberIndex2 = 1, matrixRank
-            do memberIndex1 = 1, nEns
-              weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                          eigenVectors_pert(memberIndex1,memberIndex2) *  &
-                                          YbTinvRYb_pert(memberIndex1,memberIndex)
-            end do
-          end do
-
-          ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
-          
-          do memberIndex1 = 1, matrixRank
-            weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                        ( 1.0D0/sqrt(real(nEns - 1,8)) -   &
-                                          1.0D0/sqrt(eigenValues_pert(memberIndex1) +  &
-                                                      real(nEns - 1,8)) )
-            weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                        eigenValues_pert(memberIndex1)
-          end do
-
-          ! E * previous_result
-          weightsMembersLatLon(:,memberIndex) = 0.0d0
-          do memberIndex2 = 1, matrixRank
-            do memberIndex1 = 1, nEns
-              weightsMembersLatLon(memberIndex1,memberIndex) =   &
-                   weightsMembersLatLon(memberIndex1,memberIndex) +   &
-                   eigenVectors_pert(memberIndex1,memberIndex2) *  &
-                   weightsTemp(memberIndex2)
-            end do
-          end do
-
-          ! -1 * (Nens-1)^1/2 * previous_result
-          weightsMembersLatLon(:,memberIndex) =  &
-               -1.0D0 * sqrt(real(nEns - 1,8)) *  &
-               weightsMembersLatLon(:,memberIndex)
-
-          ! I + previous_result
-          weightsMembersLatLon(memberIndex,memberIndex) =  &
-               1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
-
-        end do
-
-        ! Remove the weights mean computed over the columns
-        do memberIndex = 1, nEns
-          weightsMembersLatLon(memberIndex,:) =  &
-               weightsMembersLatLon(memberIndex,:) - &
-               sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
-        end do
+        call enkf_algorithmLETKFgain(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                     nEns, numLocalObs, localBodyIndices, &
+                                     ensObs_mpiglobal)
 
       else if (trim(algorithm) == 'LETKF-Gain-ME') then
-        !
-        ! Weight calculation for standard LETKF algorithm with modulated ensemble
-        !
 
-        ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-        call utl_tmg_start(135,'------EigenDecomp')
-        tolerance = 1.0D-50
-        call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-        if (eob_simObsAssim) then
-          call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-        end if
-        call utl_tmg_stop(135)
-
-        ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEnsGain
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       (ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                        ensObs_mpiglobal%meanYb(bodyIndex))
-          end do
-        end do
-        weightsTemp2(:) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEnsGain
-            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                         eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                                         weightsTemp(memberIndex1)
-          end do
-        end do
-        do memberIndex = 1, matrixRank
-          weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                      1.0D0/(eigenValues_mean(memberIndex) + real(nEnsGain - 1,8))
-        end do
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEnsGain
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +   &
-                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                 weightsTemp2(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights: 
-        ! Wa = [ - (Nens-1)^1/2 * E *
-        !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-        !        E^T * YbTinvRYb_mod ]
-        ! Loop over members within the current sub-ensemble being updated
-        do memberIndex = 1, nEns
-
-          ! E^T * YbTinvRYb_mod
-          weightsTemp(:) = 0.0d0
-          do memberIndex2 = 1, matrixRank
-            do memberIndex1 = 1, nEnsGain
-              weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                          eigenVectors_pert(memberIndex1,memberIndex2) *  &
-                                          YbTinvRYb_mod(memberIndex1,memberIndex)
-            end do
-          end do
-
-          ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
-
-          do memberIndex1 = 1, matrixRank
-            weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                        ( 1.0D0/sqrt(real(nEnsGain - 1,8)) -   &
-                                          1.0D0/sqrt(eigenValues_pert(memberIndex1) +  &
-                                                      real(nEnsGain - 1,8)) )
-            weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                        eigenValues_pert(memberIndex1)
-          end do
-
-          ! E * previous_result
-          weightsMembersLatLon(:,memberIndex) = 0.0d0
-          do memberIndex2 = 1, matrixRank
-            do memberIndex1 = 1, nEnsGain
-              weightsMembersLatLon(memberIndex1,memberIndex) =   &
-                   weightsMembersLatLon(memberIndex1,memberIndex) +   &
-                   eigenVectors_pert(memberIndex1,memberIndex2) *  &
-                   weightsTemp(memberIndex2)
-            end do
-          end do
-
-          ! -1 * (Nens-1)^1/2 * previous_result
-          weightsMembersLatLon(:,memberIndex) =  &
-               -1.0D0 * sqrt(real(nEnsGain - 1,8)) *  &
-               weightsMembersLatLon(:,memberIndex)
-
-        end do
-
-        ! Remove the weights mean computed over the columns
-        do memberIndex = 1, nEnsGain
-          weightsMembersLatLon(memberIndex,:) =  &
-               weightsMembersLatLon(memberIndex,:) - &
-               sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
-        end do
+        call enkf_algorithmLETKFgainME(weightsMeanLatLon, weightsMembersLatLon, &
+                                       YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
+                                       nEns, nEnsGain, numLocalObs, localBodyIndices, &
+                                       ensObs_mpiglobal)
 
       else if (trim(algorithm) == 'CVLETKF') then
-        !
-        ! Weight calculation for cross-validation LETKF algorithm
-        !
 
-        ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-        call utl_tmg_start(135,'------EigenDecomp')
-        tolerance = 1.0D-50
-        call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-        call utl_tmg_stop(135)
-
-        ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEns
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                         ensObs_mpiglobal%meanYb(bodyIndex) )
-          end do
-        end do
-        weightsTemp2(:) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                         eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                                         weightsTemp(memberIndex1)
-          end do
-        end do
-        do memberIndex = 1, matrixRank
-          weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                      1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
-        end do
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +   &
-                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                 weightsTemp2(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights: 
-        ! Wa = [ I - (Nens-1)^1/2 * E * 
-        !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-        !        E^T * YbTinvRYb ]
-        ! Loop over sub-ensembles
-
-        !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
-        !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
-        !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
-        do subEnsIndex = 1, numSubEns
-
-          ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-          call utl_tmg_start(135,'------EigenDecomp')
-          do memberIndexCV2 = 1, nEnsIndependentPerSubEns
-            memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
-            do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-              memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-              YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
-            end do
-          end do
-          tolerance = 1.0D-50
-          call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-          call utl_tmg_stop(135)
-
-          ! Loop over members within the current sub-ensemble being updated
-          do memberIndexCV = 1, nEnsPerSubEns
-
-            ! This is index of member being updated
-            memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
-
-            ! E^T * YbTinvRYb
-            weightsTemp(:) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                            eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                                            YbTinvRYb_pert(memberIndex1,memberIndex)
-              end do
-            end do
-
-            ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
-
-            do memberIndex1 = 1, matrixRank
-              weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                          ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                            1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
-                                                      real(nEnsIndependentPerSubEns - 1,8)) )
-              weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                          eigenValues_CV(memberIndex1)
-            end do
-
-            ! E * previous_result
-            weightsMembersLatLon(:,memberIndex) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsMembersLatLon(memberIndex1,memberIndex) =   &
-                     weightsMembersLatLon(memberIndex1,memberIndex) +   &
-                     eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                     weightsTemp(memberIndex2)
-              end do
-            end do
-
-            ! -1 * (Nens-1)^1/2 * previous_result
-            weightsMembersLatLon(:,memberIndex) =  &
-                 -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
-                 weightsMembersLatLon(:,memberIndex)
-
-            ! I + previous_result
-            weightsMembersLatLon(memberIndex,memberIndex) =  &
-                 1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
-
-          end do ! memberIndexCV
-        end do ! subEnsIndex
-        !$OMP END PARALLEL DO
-
-        ! Remove the weights mean computed over the columns
-        do memberIndex = 1, nEns
-          weightsMembersLatLon(memberIndex,:) =  &
-               weightsMembersLatLon(memberIndex,:) - &
-               sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
-        end do
+        call enkf_algorithmCVLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+                                   YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                   numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                   memberIndexSubEns, memberIndexSubEnsComp, &
+                                   numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
       else if (trim(algorithm) == 'CVLETKF-ME') then
-        !
-        ! Weight calculation for cross-validation LETKF algorithm
-        !
 
-        ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-        call utl_tmg_start(135,'------EigenDecomp')
-        tolerance = 1.0D-50
-        call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-        call utl_tmg_stop(135)
-        !if (matrixRank < (nEns-1)) then
-        !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
-        !end if
-
-        ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEnsGain
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                         ensObs_mpiglobal%meanYb(bodyIndex) )
-          end do
-        end do
-        weightsTemp2(:) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEnsGain
-            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                         eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                                         weightsTemp(memberIndex1)
-          end do
-        end do
-        do memberIndex = 1, matrixRank
-          weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                      1.0D0/(eigenValues_mean(memberIndex) + real(nEnsGain - 1,8))
-        end do
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEnsGain
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +   &
-                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                 weightsTemp2(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights: 
-        ! Wa = [ - (Nens-1)^1/2 * E *
-        !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-        !        E^T * YbTinvRYb_mod ]
-        ! Loop over sub-ensembles
-        !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
-        !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
-        !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
-        do subEnsIndex = 1, numSubEns
-
-          ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-          call utl_tmg_start(135,'------EigenDecomp')
-          do memberIndexCV2 = 1, nEnsIndependentPerSubEns
-            memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
-            do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-              memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-              YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
-            end do
-          end do
-          tolerance = 1.0D-50
-          call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-          call utl_tmg_stop(135)
-
-          ! Loop over members within the current sub-ensemble being updated
-          do memberIndexCV = 1, nEnsPerSubEns
-
-            ! This is index of member being updated
-            memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
-
-            ! E^T * YbTinvRYb
-            weightsTemp(:) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                            eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                                            YbTinvRYb_mod(memberIndex1,memberIndex)
-              end do
-            end do
-
-            ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
-
-            do memberIndex1 = 1, matrixRank
-              weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                          ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                            1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
-                                                       real(nEnsIndependentPerSubEns - 1,8)) )
-              weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                          eigenValues_CV(memberIndex1)
-            end do
-
-            ! E * previous_result
-            weightsMembersLatLon(:,memberIndex) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsMembersLatLon(memberIndex1,memberIndex) =   &
-                     weightsMembersLatLon(memberIndex1,memberIndex) +   &
-                     eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                     weightsTemp(memberIndex2)
-              end do
-            end do
-
-            ! -1 * (Nens-1)^1/2 * previous_result
-            weightsMembersLatLon(:,memberIndex) =  &
-                 -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
-                 weightsMembersLatLon(:,memberIndex)
-
-          end do ! memberIndexCV
-        end do ! subEnsIndex
-        !$OMP END PARALLEL DO
-
-        ! Remove the weights mean computed over the columns
-        do memberIndex = 1, nEnsGain
-          weightsMembersLatLon(memberIndex,:) =  &
-               weightsMembersLatLon(memberIndex,:) - &
-               sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
-        end do
+        call enkf_algorithmCVLETKFME(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
+                                     numSubEns, nEns, nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     memberIndexSubEns, memberIndexSubEnsComp, &
+                                     numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
       else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
-        !
-        ! Weight calculation for perturbed-obs cross-validation LETKF algorithm
-        !
 
-        ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-        call utl_tmg_start(135,'------EigenDecomp')
-        tolerance = 1.0D-50
-        call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-        call utl_tmg_stop(135)
-
-        ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
-        weightsTemp(:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex = 1, nEns
-            weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                       YbTinvR_mean(memberIndex,localObsIndex) *  &
-                                       ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                         ensObs_mpiglobal%meanYb(bodyIndex) )
-          end do
-        end do
-        weightsTemp2(:) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                         eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                                         weightsTemp(memberIndex1)
-          end do
-        end do
-        do memberIndex = 1, matrixRank
-          weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                      1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
-        end do
-        weightsMeanLatLon(:,1) = 0.0d0
-        do memberIndex2 = 1, matrixRank
-          do memberIndex1 = 1, nEns
-            weightsMeanLatLon(memberIndex1,1) =  &
-                 weightsMeanLatLon(memberIndex1,1) +   &
-                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
-                 weightsTemp2(memberIndex2)
-          end do
-        end do
-
-        ! Compute ensemble perturbation weights using mean increment weights 
-        ! formula, but with subset of members: 
-        ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
-        ! Wa   = wa_i - mean_over_i(wa_i) 
-        !
-        ! Loop over sub-ensembles
-        !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
-        !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
-        !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank, &
-        !$OMP                     weightsTemp2, localObsIndex, bodyIndex)
-        do subEnsIndex = 1, numSubEns
-
-          ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-          call utl_tmg_start(135,'------EigenDecomp')
-          do memberIndexCV2 = 1, nEnsIndependentPerSubEns
-            memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
-            do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-              memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-              YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
-            end do
-          end do
-          tolerance = 1.0D-50
-          call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-          call utl_tmg_stop(135)
-
-          ! Loop over members within the current sub-ensemble being updated
-          do memberIndexCV = 1, nEnsPerSubEns
-
-            ! This is index of member being updated (i'th member)
-            memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
-
-            ! YbTinvRYb * (obsValue + randPert_i - Yb_i)
-            weightsTemp(:) = 0.0d0
-            do localObsIndex = 1, numLocalObs
-              bodyIndex = localBodyIndices(localObsIndex)
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsTemp(memberIndexCV1) =  & 
-                     weightsTemp(memberIndexCV1) +   &
-                     YbTinvR_pert(memberIndex1,localObsIndex) *  &
-                     ( ensObs_mpiglobal%obsValue(bodyIndex) +  &
-                       ensObs_mpiglobal%randPert_r4(memberIndex,bodyIndex) -  &
-                       ( ensObs_mpiglobal%meanYb(bodyIndex) +  &
-                         ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex) ) )
-              end do
-            end do
-
-            ! E^T * previous_result
-            weightsTemp2(:) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEnsIndependentPerSubEns
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors_CV(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
-              end do
-            end do
-
-            ! [lambda + (N_indep-1)*I]^-1 * previous_result
-            do memberIndex1 = 1, matrixRank
-              weightsTemp2(memberIndex1) =  &
-                   weightsTemp2(memberIndex1) *  &
-                   1.0D0/(eigenValues_CV(memberIndex1) + real(nEnsIndependentPerSubEns - 1,8))
-            end do
-
-            ! E * previous_result
-            weightsMembersLatLon(:,memberIndex) = 0.0d0
-            do memberIndex2 = 1, matrixRank
-              do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                weightsMembersLatLon(memberIndex1,memberIndex) =  &
-                     weightsMembersLatLon(memberIndex1,memberIndex) +   &
-                     eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
-              end do
-            end do
-
-            ! I + previous_result
-            weightsMembersLatLon(memberIndex,memberIndex) =  &
-                 1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
-
-          end do ! memberIndexCV
-        end do ! subEnsIndex
-        !$OMP END PARALLEL DO
-
-        ! Remove the weights mean computed over the columns
-        do memberIndex = 1, nEns
-          weightsMembersLatLon(memberIndex,:) =  &
-               weightsMembersLatLon(memberIndex,:) - &
-               sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
-        end do
+        call enkf_algorithmCVLETKFPO(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, YbTinvR_pert, &
+                                     numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     memberIndexSubEns, memberIndexSubEnsComp, &
+                                     numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
       else
 
@@ -1538,7 +873,7 @@ contains
 
       end if
 
-    else
+    else ! if numLocalObs > 0
 
       ! no obs near this grid point, mean weights zero, member weights identity
       weightsMeanLatLon(:,1) = 0.0d0
@@ -1554,19 +889,868 @@ contains
         end if
       end do
 
-    end if ! numLocalObs > 0
+    end if localObsExist
 
     call utl_tmg_stop(134)
 
     firstCall = .false.
 
   end subroutine enkf_LETKFcomputeWeights
+  
+  !----------------------------------------------------------------------
+  ! enkf_algorithmLETKF (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+                                 YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                 nEns, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for standard LETKF algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    real(8) :: PaInv(nEns,nEns), Pa_pert(nEns,nEns), Pa_mean(nEns,nEns)
+    real(8) :: PaSqrt_pert(nEns,nEns)
+    real(8) :: weightsTemp(nEns)
+
+    ! Add second term of PaInv
+    PaInv(:,:) = YbTinvRYb_pert(:,:)
+    do memberIndex = 1, nEns
+      PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
+    end do
+    ! Compute Pa and sqrt(Pa) matrices from PaInv
+    Pa_pert(:,:) = PaInv(:,:)
+    call utl_tmg_start(135,'------EigenDecomp')
+    call utl_matInverse(Pa_pert, nEns, inverseSqrt_opt=PaSqrt_pert)
+    call utl_tmg_stop(135)
+
+    if (eob_simObsAssim) then
+      PaInv(:,:) = YbTinvRYb_mean(:,:)            
+      do memberIndex = 1, nEns
+        PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
+      end do
+      Pa_mean(:,:) = PaInv(:,:)
+      call utl_tmg_start(135,'------EigenDecomp')
+      call utl_matInverse(Pa_mean, nEns)
+      call utl_tmg_stop(135)
+    else
+      Pa_mean(:,:) = Pa_pert(:,:)
+    end if
+
+    ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEns
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                     ensObs_mpiglobal%meanYb(bodyIndex) )
+      end do
+    end do
+
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, nEns
+      do memberIndex1 = 1, nEns
+        weightsMeanLatLon(memberIndex1,1) =  &
+             weightsMeanLatLon(memberIndex1,1) +  &
+             Pa_mean(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
+    weightsMembersLatLon(:,:) = sqrt(real(nEns - 1,8)) * PaSqrt_pert(:,:)
+
+  end subroutine enkf_algorithmLETKF
+
+  !----------------------------------------------------------------------
+  ! enkf_algorithmLETKFgain (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmLETKFgain(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                     nEns, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for gain-form LETKF algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    integer :: matrixRank
+    real(8) :: tolerance
+    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
+    real(8) :: eigenValues_pert(nEns), eigenVectors_pert(nEns,nEns)
+    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+
+    ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+    call utl_tmg_start(135,'------EigenDecomp')
+    tolerance = 1.0D-50
+    call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
+    if (eob_simObsAssim) then
+      call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    else
+      eigenValues_mean(:)    = eigenValues_pert(:)
+      eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
+    end if
+    call utl_tmg_stop(135)
+
+    ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEns
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                     ensObs_mpiglobal%meanYb(bodyIndex) )
+      end do
+    end do
+    weightsTemp2(:) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                     eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                                     weightsTemp(memberIndex1)
+      end do
+    end do
+    do memberIndex = 1, matrixRank
+      weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+    end do
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsMeanLatLon(memberIndex1,1) =  &
+             weightsMeanLatLon(memberIndex1,1) +   &
+             eigenVectors_mean(memberIndex1,memberIndex2) *  &
+             weightsTemp2(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights: 
+    ! Wa = [ - (Nens-1)^1/2 * E *
+    !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+    !        E^T * YbTinvRYb ]
+    ! Loop over members within the current sub-ensemble being updated
+    do memberIndex = 1, nEns
+
+      ! E^T * YbTinvRYb
+      weightsTemp(:) = 0.0d0
+      do memberIndex2 = 1, matrixRank
+        do memberIndex1 = 1, nEns
+          weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                      eigenVectors_pert(memberIndex1,memberIndex2) *  &
+                                      YbTinvRYb_pert(memberIndex1,memberIndex)
+        end do
+      end do
+
+      ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+      do memberIndex1 = 1, matrixRank
+        weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                    ( 1.0D0/sqrt(real(nEns - 1,8)) -   &
+                                      1.0D0/sqrt(eigenValues_pert(memberIndex1) +  &
+                                                 real(nEns - 1,8)) )
+        weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                    eigenValues_pert(memberIndex1)
+      end do
+
+      ! E * previous_result
+      weightsMembersLatLon(:,memberIndex) = 0.0d0
+      do memberIndex2 = 1, matrixRank
+        do memberIndex1 = 1, nEns
+          weightsMembersLatLon(memberIndex1,memberIndex) =   &
+               weightsMembersLatLon(memberIndex1,memberIndex) +   &
+               eigenVectors_pert(memberIndex1,memberIndex2) *  &
+               weightsTemp(memberIndex2)
+        end do
+      end do
+
+      ! -1 * (Nens-1)^1/2 * previous_result
+      weightsMembersLatLon(:,memberIndex) =  &
+           -1.0D0 * sqrt(real(nEns - 1,8)) *  &
+           weightsMembersLatLon(:,memberIndex)
+
+      ! I + previous_result
+      weightsMembersLatLon(memberIndex,memberIndex) =  &
+           1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
+
+    end do
+
+    ! Remove the weights mean computed over the columns
+    do memberIndex = 1, nEns
+      weightsMembersLatLon(memberIndex,:) =  &
+           weightsMembersLatLon(memberIndex,:) - &
+           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+    end do
+
+  end subroutine enkf_algorithmLETKFgain
+
+  !----------------------------------------------------------------------
+  ! enkf_algorithmLETKFgainME (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmLETKFgainME(weightsMeanLatLon, weightsMembersLatLon, &
+                                       YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
+                                       nEns, nEnsGain, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for gain-form LETKF using modulated ensemble algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mod(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: nEnsGain
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    integer :: matrixRank
+    real(8) :: tolerance
+    real(8) :: eigenValues_mean(nEnsGain), eigenVectors_mean(nEnsGain,nEnsGain)
+    real(8) :: eigenValues_pert(nEnsGain), eigenVectors_pert(nEnsGain,nEnsGain)
+    real(8) :: weightsTemp(nEnsGain), weightsTemp2(nEnsGain)
+
+    ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+    call utl_tmg_start(135,'------EigenDecomp')
+    tolerance = 1.0D-50
+    call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
+    if (eob_simObsAssim) then
+      call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    else
+      eigenValues_mean(:)    = eigenValues_pert(:)
+      eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
+    end if
+    call utl_tmg_stop(135)
+
+    ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEnsGain
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   (ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                    ensObs_mpiglobal%meanYb(bodyIndex))
+      end do
+    end do
+    weightsTemp2(:) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEnsGain
+        weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                     eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                                     weightsTemp(memberIndex1)
+      end do
+    end do
+    do memberIndex = 1, matrixRank
+      weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEnsGain - 1,8))
+    end do
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEnsGain
+        weightsMeanLatLon(memberIndex1,1) =  &
+                 weightsMeanLatLon(memberIndex1,1) +   &
+                 eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                 weightsTemp2(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights: 
+    ! Wa = [ - (Nens-1)^1/2 * E *
+    !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+    !        E^T * YbTinvRYb_mod ]
+    ! Loop over members within the current sub-ensemble being updated
+    do memberIndex = 1, nEns
+
+      ! E^T * YbTinvRYb_mod
+      weightsTemp(:) = 0.0d0
+      do memberIndex2 = 1, matrixRank
+        do memberIndex1 = 1, nEnsGain
+          weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                      eigenVectors_pert(memberIndex1,memberIndex2) *  &
+                                      YbTinvRYb_mod(memberIndex1,memberIndex)
+        end do
+      end do
+
+      ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+      do memberIndex1 = 1, matrixRank
+        weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                    ( 1.0D0/sqrt(real(nEnsGain - 1,8)) -   &
+                                      1.0D0/sqrt(eigenValues_pert(memberIndex1) +  &
+                                                 real(nEnsGain - 1,8)) )
+        weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                    eigenValues_pert(memberIndex1)
+      end do
+
+      ! E * previous_result
+      weightsMembersLatLon(:,memberIndex) = 0.0d0
+      do memberIndex2 = 1, matrixRank
+        do memberIndex1 = 1, nEnsGain
+          weightsMembersLatLon(memberIndex1,memberIndex) =   &
+               weightsMembersLatLon(memberIndex1,memberIndex) +   &
+               eigenVectors_pert(memberIndex1,memberIndex2) *  &
+               weightsTemp(memberIndex2)
+        end do
+      end do
+
+      ! -1 * (Nens-1)^1/2 * previous_result
+      weightsMembersLatLon(:,memberIndex) =  &
+           -1.0D0 * sqrt(real(nEnsGain - 1,8)) *  &
+           weightsMembersLatLon(:,memberIndex)
+
+    end do
+
+    ! Remove the weights mean computed over the columns
+    do memberIndex = 1, nEnsGain
+      weightsMembersLatLon(memberIndex,:) =  &
+           weightsMembersLatLon(memberIndex,:) - &
+           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+    end do
+
+  end subroutine enkf_algorithmLETKFgainME
+
+  !----------------------------------------------------------------------
+  ! enkf_algorithmCVLETKF (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmCVLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+                                   YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
+                                   numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                   memberIndexSubEns, memberIndexSubEnsComp, &
+                                   numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for LETKF with cross validation algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    integer,          intent(in)  :: numSubEns
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: nEnsPerSubEns
+    integer,          intent(in)  :: nEnsIndependentPerSubEns
+    integer,          intent(in)  :: memberIndexSubEns(:,:)
+    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    integer :: matrixRank, subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2
+    real(8) :: tolerance
+    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
+    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+    real(8) :: YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+    real(8) :: eigenValues_CV(nEnsIndependentPerSubEns)
+    real(8) :: eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+
+    ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+    call utl_tmg_start(135,'------EigenDecomp')
+    tolerance = 1.0D-50
+    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call utl_tmg_stop(135)
+
+    ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEns
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                     ensObs_mpiglobal%meanYb(bodyIndex) )
+      end do
+    end do
+    weightsTemp2(:) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                     eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                                     weightsTemp(memberIndex1)
+      end do
+    end do
+    do memberIndex = 1, matrixRank
+      weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+    end do
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsMeanLatLon(memberIndex1,1) =  &
+             weightsMeanLatLon(memberIndex1,1) +   &
+             eigenVectors_mean(memberIndex1,memberIndex2) *  &
+             weightsTemp2(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights: 
+    ! Wa = [ I - (Nens-1)^1/2 * E * 
+    !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+    !        E^T * YbTinvRYb ]
+    ! Loop over sub-ensembles
+
+    !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+    !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+    !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
+    do subEnsIndex = 1, numSubEns
+
+      ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+      call utl_tmg_start(135,'------EigenDecomp')
+      do memberIndexCV2 = 1, nEnsIndependentPerSubEns
+        memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+        do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+          memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+          YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+        end do
+      end do
+      tolerance = 1.0D-50
+      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call utl_tmg_stop(135)
+
+      ! Loop over members within the current sub-ensemble being updated
+      do memberIndexCV = 1, nEnsPerSubEns
+
+        ! This is index of member being updated
+        memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+
+        ! E^T * YbTinvRYb
+        weightsTemp(:) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                        eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                                        YbTinvRYb_pert(memberIndex1,memberIndex)
+          end do
+        end do
+
+        ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+        do memberIndex1 = 1, matrixRank
+          weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                      ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
+                                        1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
+                                                   real(nEnsIndependentPerSubEns - 1,8)) )
+          weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                      eigenValues_CV(memberIndex1)
+        end do
+
+        ! E * previous_result
+        weightsMembersLatLon(:,memberIndex) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsMembersLatLon(memberIndex1,memberIndex) =   &
+                 weightsMembersLatLon(memberIndex1,memberIndex) +   &
+                 eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                 weightsTemp(memberIndex2)
+          end do
+        end do
+
+        ! -1 * (Nens-1)^1/2 * previous_result
+        weightsMembersLatLon(:,memberIndex) =  &
+             -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+             weightsMembersLatLon(:,memberIndex)
+
+        ! I + previous_result
+        weightsMembersLatLon(memberIndex,memberIndex) =  &
+             1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
+
+      end do ! memberIndexCV
+    end do ! subEnsIndex
+    !$OMP END PARALLEL DO
+
+    ! Remove the weights mean computed over the columns
+    do memberIndex = 1, nEns
+      weightsMembersLatLon(memberIndex,:) =  &
+           weightsMembersLatLon(memberIndex,:) - &
+           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+    end do
+
+  end subroutine enkf_algorithmCVLETKF
+
+  !----------------------------------------------------------------------
+  ! enkf_algorithmCVLETKFME (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmCVLETKFME(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
+                                     numSubEns, nEns, nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     memberIndexSubEns, memberIndexSubEnsComp, &
+                                     numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for LETKF with cross validation and
+    !          modulated ensemble algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mod(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    integer,          intent(in)  :: numSubEns
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: nEnsGain
+    integer,          intent(in)  :: nEnsPerSubEns
+    integer,          intent(in)  :: nEnsIndependentPerSubEns
+    integer,          intent(in)  :: memberIndexSubEns(:,:)
+    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    integer :: matrixRank, subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2
+    real(8) :: tolerance
+    real(8) :: eigenValues_mean(nEnsGain), eigenVectors_mean(nEnsGain,nEnsGain)
+    real(8) :: weightsTemp(nEnsGain), weightsTemp2(nEnsGain)
+    real(8) :: YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+    real(8) :: eigenValues_CV(nEnsIndependentPerSubEns)
+    real(8) :: eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+
+    ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+    call utl_tmg_start(135,'------EigenDecomp')
+    tolerance = 1.0D-50
+    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call utl_tmg_stop(135)
+    !if (matrixRank < (nEns-1)) then
+    !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
+    !end if
+
+    ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEnsGain
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                     ensObs_mpiglobal%meanYb(bodyIndex) )
+      end do
+    end do
+    weightsTemp2(:) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEnsGain
+        weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                     eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                                     weightsTemp(memberIndex1)
+      end do
+    end do
+    do memberIndex = 1, matrixRank
+      weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEnsGain - 1,8))
+    end do
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEnsGain
+        weightsMeanLatLon(memberIndex1,1) =  &
+             weightsMeanLatLon(memberIndex1,1) +   &
+             eigenVectors_mean(memberIndex1,memberIndex2) *  &
+             weightsTemp2(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights: 
+    ! Wa = [ - (Nens-1)^1/2 * E *
+    !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+    !        E^T * YbTinvRYb_mod ]
+    ! Loop over sub-ensembles
+    !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+    !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+    !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
+    do subEnsIndex = 1, numSubEns
+
+      ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+      call utl_tmg_start(135,'------EigenDecomp')
+      do memberIndexCV2 = 1, nEnsIndependentPerSubEns
+        memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+        do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+          memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+          YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+        end do
+      end do
+      tolerance = 1.0D-50
+      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call utl_tmg_stop(135)
+
+      ! Loop over members within the current sub-ensemble being updated
+      do memberIndexCV = 1, nEnsPerSubEns
+
+        ! This is index of member being updated
+        memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+
+        ! E^T * YbTinvRYb
+        weightsTemp(:) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                        eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                                        YbTinvRYb_mod(memberIndex1,memberIndex)
+          end do
+        end do
+
+        ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+        do memberIndex1 = 1, matrixRank
+          weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                      ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
+                                        1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
+                                                   real(nEnsIndependentPerSubEns - 1,8)) )
+          weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                      eigenValues_CV(memberIndex1)
+        end do
+
+        ! E * previous_result
+        weightsMembersLatLon(:,memberIndex) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsMembersLatLon(memberIndex1,memberIndex) =   &
+                 weightsMembersLatLon(memberIndex1,memberIndex) +   &
+                 eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                 weightsTemp(memberIndex2)
+          end do
+        end do
+
+        ! -1 * (Nens-1)^1/2 * previous_result
+        weightsMembersLatLon(:,memberIndex) =  &
+             -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+             weightsMembersLatLon(:,memberIndex)
+
+      end do ! memberIndexCV
+    end do ! subEnsIndex
+    !$OMP END PARALLEL DO
+
+    ! Remove the weights mean computed over the columns
+    do memberIndex = 1, nEnsGain
+      weightsMembersLatLon(memberIndex,:) =  &
+           weightsMembersLatLon(memberIndex,:) - &
+           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+    end do
+    
+  end subroutine enkf_algorithmCVLETKFME
+
+  !----------------------------------------------------------------------
+  ! enkf_algorithmCVLETKFPO (private subroutine)
+  !----------------------------------------------------------------------
+  subroutine enkf_algorithmCVLETKFPO(weightsMeanLatLon, weightsMembersLatLon, &
+                                     YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, YbTinvR_pert, &
+                                     numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     memberIndexSubEns, memberIndexSubEnsComp, &
+                                     numLocalObs, localBodyIndices, ensObs_mpiglobal)
+    !
+    !:Purpose: Weight calculation for LETKF with cross validation with
+    !          perturbed observations algorithm
+    !
+    implicit none
+
+    ! Arguments:
+    real(8),          intent(out) :: weightsMeanLatLon(:,:)
+    real(8),          intent(out) :: weightsMembersLatLon(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),          intent(in)  :: YbTinvR_mean(:,:)
+    real(8),          intent(in)  :: YbTinvR_pert(:,:)
+    integer,          intent(in)  :: numSubEns
+    integer,          intent(in)  :: nEns
+    integer,          intent(in)  :: nEnsPerSubEns
+    integer,          intent(in)  :: nEnsIndependentPerSubEns
+    integer,          intent(in)  :: memberIndexSubEns(:,:)
+    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,          intent(in)  :: numLocalObs
+    integer,          intent(in)  :: localBodyIndices(:)
+    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+
+    ! Locals:
+    integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
+    integer :: matrixRank, subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2
+    real(8) :: tolerance
+    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
+    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+    real(8) :: YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+    real(8) :: eigenValues_CV(nEnsIndependentPerSubEns)
+    real(8) :: eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
+
+    ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+    call utl_tmg_start(135,'------EigenDecomp')
+    tolerance = 1.0D-50
+    call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
+    call utl_tmg_stop(135)
+
+    ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+    weightsTemp(:) = 0.0d0
+    do localObsIndex = 1, numLocalObs
+      bodyIndex = localBodyIndices(localObsIndex)
+      do memberIndex = 1, nEns
+        weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                   YbTinvR_mean(memberIndex,localObsIndex) *  &
+                                   ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                     ensObs_mpiglobal%meanYb(bodyIndex) )
+      end do
+    end do
+    weightsTemp2(:) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                     eigenVectors_mean(memberIndex1,memberIndex2) *  &
+                                     weightsTemp(memberIndex1)
+      end do
+    end do
+    do memberIndex = 1, matrixRank
+      weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+    end do
+    weightsMeanLatLon(:,1) = 0.0d0
+    do memberIndex2 = 1, matrixRank
+      do memberIndex1 = 1, nEns
+        weightsMeanLatLon(memberIndex1,1) =  &
+             weightsMeanLatLon(memberIndex1,1) +   &
+             eigenVectors_mean(memberIndex1,memberIndex2) *  &
+             weightsTemp2(memberIndex2)
+      end do
+    end do
+
+    ! Compute ensemble perturbation weights using mean increment weights 
+    ! formula, but with subset of members: 
+    ! wa_i = I_i + E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs + randpert_i - Yb_i)
+    ! Wa   = wa_i - mean_over_i(wa_i) 
+    !
+    ! Loop over sub-ensembles
+    !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
+    !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
+    !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank, &
+    !$OMP                     weightsTemp2, localObsIndex, bodyIndex)
+    do subEnsIndex = 1, numSubEns
+
+      ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+      call utl_tmg_start(135,'------EigenDecomp')
+      do memberIndexCV2 = 1, nEnsIndependentPerSubEns
+        memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+        do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+          memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+          YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+        end do
+      end do
+      tolerance = 1.0D-50
+      call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+      call utl_tmg_stop(135)
+
+      ! Loop over members within the current sub-ensemble being updated
+      do memberIndexCV = 1, nEnsPerSubEns
+
+        ! This is index of member being updated (i'th member)
+        memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+
+        ! YbTinvRYb * (obsValue + randPert_i - Yb_i)
+        weightsTemp(:) = 0.0d0
+        do localObsIndex = 1, numLocalObs
+          bodyIndex = localBodyIndices(localObsIndex)
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsTemp(memberIndexCV1) =  & 
+                 weightsTemp(memberIndexCV1) +   &
+                 YbTinvR_pert(memberIndex1,localObsIndex) *  &
+                 ( ensObs_mpiglobal%obsValue(bodyIndex) +  &
+                   ensObs_mpiglobal%randPert_r4(memberIndex,bodyIndex) -  &
+                   ( ensObs_mpiglobal%meanYb(bodyIndex) +  &
+                     ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex) ) )
+          end do
+        end do
+
+        ! E^T * previous_result
+        weightsTemp2(:) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndex1 = 1, nEnsIndependentPerSubEns
+            weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                         eigenVectors_CV(memberIndex1,memberIndex2) *  &
+                                         weightsTemp(memberIndex1)
+          end do
+        end do
+
+        ! [lambda + (N_indep-1)*I]^-1 * previous_result
+        do memberIndex1 = 1, matrixRank
+          weightsTemp2(memberIndex1) =  &
+               weightsTemp2(memberIndex1) *  &
+               1.0D0/(eigenValues_CV(memberIndex1) + real(nEnsIndependentPerSubEns - 1,8))
+        end do
+
+        ! E * previous_result
+        weightsMembersLatLon(:,memberIndex) = 0.0d0
+        do memberIndex2 = 1, matrixRank
+          do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+            memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+            weightsMembersLatLon(memberIndex1,memberIndex) =  &
+                 weightsMembersLatLon(memberIndex1,memberIndex) +   &
+                 eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                 weightsTemp2(memberIndex2)
+          end do
+        end do
+
+        ! I + previous_result
+        weightsMembersLatLon(memberIndex,memberIndex) =  &
+             1.0D0 + weightsMembersLatLon(memberIndex,memberIndex)
+
+      end do ! memberIndexCV
+    end do ! subEnsIndex
+    !$OMP END PARALLEL DO
+
+    ! Remove the weights mean computed over the columns
+    do memberIndex = 1, nEns
+      weightsMembersLatLon(memberIndex,:) =  &
+           weightsMembersLatLon(memberIndex,:) - &
+           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+    end do
+
+  end subroutine enkf_algorithmCVLETKFPO
 
   !----------------------------------------------------------------------
   ! enkf_defineSubEnsembles (private subroutine)
   !----------------------------------------------------------------------
   subroutine enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
-       randomShuffleSubEns, numSubEns, nEnsPerSubEns, useModulatedEns, numRetainedEigen, nEns)
+                                     memberIndexSubEnsComp, &
+                                     randomShuffleSubEns, numSubEns, &
+                                     nEnsPerSubEns, nEnsPerSubEns_mod, &
+                                     useModulatedEns, numRetainedEigen, nEns)
     !
     !:Purpose: Compute the list of member indexes for each sub-ensemble. Also computes
     !          a second list of member indexes for each sub-ensemble for the modulated
@@ -1577,15 +1761,17 @@ contains
     ! Arguments:
     integer, intent(out) :: memberIndexSubEns(:,:)     ! Array of member indexes for each subEns
     integer, intent(out) :: memberIndexSubEns_mod(:,:) ! Array of modulated member indexes for each subEns
+    integer, intent(out) :: memberIndexSubEnsComp(:,:) ! Array of member indexes complementary to each subEns
     logical, intent(in)  :: randomShuffleSubEns        ! Switch to control if randomization used
     integer, intent(in)  :: numSubEns                  ! Number of sub-ensembles
     integer, intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer, intent(in)  :: nEnsPerSubEns_mod          ! Number of modulated members per sub-ensemble
     integer, intent(in)  :: numRetainedEigen           ! Number of retained eigen-vectors for modulate ens
     integer, intent(in)  :: nEns                       ! Ensemble size
     logical, intent(in)  :: useModulatedEns            ! Switch to control if using modulated ensemble
 
     ! Locals:
-    integer :: subEnsIndex, memberIndex, memberIndex2
+    integer :: subEnsIndex, subEnsIndex2, memberIndex, memberIndex2
     integer :: imode, dateStamp, ierr, timePrint, datePrint, randomSeed
     integer :: eigenVectorColumnIndex, memberIndexInModEns, newDate
     integer, allocatable, save :: randomMemberIndexArray(:)
@@ -1651,6 +1837,23 @@ contains
         end do
       end if
     end if
+
+    do subEnsIndex = 1, numSubEns
+      memberIndex = 1
+      do subEnsIndex2 = 1, numSubEns
+        if (subEnsIndex2 == subEnsIndex) cycle
+          
+        if ( .not. useModulatedEns ) then
+          memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
+               memberIndexSubEns(:,subEnsIndex2)
+          memberIndex = memberIndex + nEnsPerSubEns
+        else
+          memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns_mod-1,subEnsIndex) =  &
+               memberIndexSubEns_mod(:,subEnsIndex2)
+          memberIndex = memberIndex + nEnsPerSubEns_mod
+        end if
+      end do
+    end do
 
     firstCall = .false.
 
