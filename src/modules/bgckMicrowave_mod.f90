@@ -41,6 +41,7 @@ module bgckMicrowave_mod
   logical :: mwbg_ch17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
+  logical :: mwbg_allowClwRejectHuChan
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -104,6 +105,7 @@ module bgckMicrowave_mod
   logical            :: siObsRejectTempChan           ! scattering index from obs can reject temperature channels
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
   logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical            :: allowClwRejectHuChan
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -115,7 +117,8 @@ module bgckMicrowave_mod
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
                     ch17OmpRejectUpperHuChan, atmsRogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
-                    useScatIndexOverWaterObsClearsky, skipTestArr
+                    useScatIndexOverWaterObsClearsky, allowClwRejectHuChan, &
+                    skipTestArr
                     
 
 contains
@@ -145,6 +148,7 @@ contains
     ch17OmpRejectUpperHuChan      = .true.
     useAtmsCh17OmpThreshRogueCheck= .false.
     useScatIndexOverWaterObsClearsky = .false.
+    allowClwRejectHuChan          = .false.
     atmsRogueFactor(:)            = -1.0
     atmsCh17OmpThreshRogueCheck   = 5.0
     skipTestArr(:)                = .false.
@@ -172,6 +176,7 @@ contains
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
     mwbg_ch17OmpRejectUpperHuChan = ch17OmpRejectUpperHuChan
+    mwbg_allowClwRejectHuChan = allowClwRejectHuChan
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -6074,12 +6079,12 @@ contains
           else
             lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           end if
-          if (.not. instrumentIsAllskyHu) lflagchn(16:20) = .true.
+          if (.not. instrumentIsAllskyHu .or. mwbg_allowClwRejectHuChan) lflagchn(16:20) = .true.
         end if
 
         if (cloudLiquidWaterPathObs > clw_atms_nrl_UTrej)  then
           lflagchn(7:9)   = .true.
-          if (.not. instrumentIsAllskyHu) lflagchn(21:22) = .true.
+          if (.not. instrumentIsAllskyHu .or. mwbg_allowClwRejectHuChan) lflagchn(21:22) = .true.
         end if
 
         if (instrumentIsAllskyHu .and. mwbg_useScatIndexOverWaterObsClearsky) then
