@@ -415,6 +415,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="lamI0I1_gain-me"/>
+    <FAMILY  name="lamI0I1_gain-me">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="glbGridSpaceLoc"/>
     <FAMILY  name="glbGridSpaceLoc">
       <SUBMITS sub_name="UnitTest"/>
