@@ -84,6 +84,9 @@ module enkf_mod
     character(len=20) :: obsTimeInterpType
     character(len=20) :: mpiDistribution
     character(len=12) :: etiket_anl
+    integer  :: fileMemberIndex1       = 1
+    logical  :: readEnsMeanFromFile    = .false.
+    integer  :: numFullEns             = 0
   end type struct_enkfNML
 
   integer, external :: get_max_rss
@@ -131,7 +134,10 @@ contains
     real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
     character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
     character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-    character(len=12) :: etiket_anl        ! etiket for output files
+    character(len=12) :: etiket_anl  ! etiket for output files
+    integer  :: fileMemberIndex1     ! first member index in ensemble set to be read
+    logical  :: readEnsMeanFromFile  ! choose to read ens mean from file (when reading subset of members)
+    integer  :: numFullEns           ! number of full ensemble set (needed only for modulated ensemble)
  
     NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                        ensPathName, randomShuffleSubEns,  &
@@ -141,7 +147,8 @@ contains
                        ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                        obsTimeInterpType, mpiDistribution, etiket_anl, &
                        readEnsObsFromFile, writeLocalEnsObsToFile, &
-                       numRetainedEigen, myNumLatLonSendFactor, debug
+                       numRetainedEigen, myNumLatLonSendFactor, debug, &
+                       fileMemberIndex1, readEnsMeanFromFile, numFullEns 
 
     !- 1.1 Setting default namelist variable values
     algorithm                = 'LETKF'
@@ -173,21 +180,31 @@ contains
     numRetainedEigen         = 0
     myNumLatLonSendFactor    = 10
     debug                    = .false.
+    fileMemberIndex1         = 1
+    readEnsMeanFromFile      = .false.
+    numFullEns               = 0
 
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=namletkf, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('enkf_readNML: Error reading namelist')
-    if ( mmpi_myid == 0 ) write(*,nml=namletkf)
-    call utl_tmg_stop(181)
+    if ( .not. utl_isNamelistPresent('NAMLETKF','./flnml') ) then
+      call utl_abort('enkf_readNML: namletkf is missing in the namelist. ')
+    else
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namletkf, iostat=ierr)
+      if ( ierr /= 0) call utl_abort('enkf_readNML: Error reading namelist')
+      if ( mmpi_myid == 0 ) write(*,nml=namletkf)
+      call utl_tmg_stop(181)
+    end if
 
     ! Some minor modifications of namelist values
     if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
       ! if only 1 value given for hLocalize, use it for entire column
       hLocalize(2:4) = hLocalize(1)
-      if (mmpi_myid == 0) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
-                                     'hLocalize(2:4)=', hLocalize(1)
+      if (mmpi_myid == 0) then
+        write(*,*) 'enkf_readNML: hLocalize(2:4) are modified after reading namelist. ' // &
+                   'hLocalize(2:4)=', hLocalize(1)
+      end if
     else if (hLocalize(1) < 0.0D0) then
-      call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
+      write(*,*) 'enkf_readNML: WARNING: hLocalize(1) < 0.0D0'
+      hLocalize(1) = 0.0D0
     end if
     hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
     hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
@@ -202,11 +219,13 @@ contains
         trim(algorithm) /= 'LETKF-Gain'      .and. &
         trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
         trim(algorithm) /= 'CVLETKF-ME') then
-      call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
+      call utl_abort('enkf_readNML: unknown LETKF algorithm: ' // trim(algorithm))
     end if
 
-    if (numRetainedEigen < 0) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-         'equal or greater than zero')
+    if (numRetainedEigen < 0) then
+      call utl_abort('enkf_readNML: numRetainedEigen should be ' // &
+                     'equal or greater than zero')
+    end if
 
     ! Copy all variables to the dervied type variable enkfNML
     enkfNML%algorithm              = algorithm
@@ -238,6 +257,9 @@ contains
     enkfNML%numRetainedEigen       = numRetainedEigen
     enkfNML%myNumLatLonSendFactor  = myNumLatLonSendFactor
     enkfNML%debug                  = debug
+    enkfNML%fileMemberIndex1       = fileMemberIndex1
+    enkfNML%readEnsMeanFromFile    = readEnsMeanFromFile
+    enkfNML%numFullEns             = numFullEns
 
   end subroutine enkf_readNML
 
