@@ -29,9 +29,10 @@ module enkf_mod
   private
 
   ! Public types
-  public :: struct_enkfInterpInfo
+  public :: struct_enkfInterpInfo, struct_enkfNML
 
   ! Public procedures
+  public :: enkf_readNML
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
 
@@ -52,20 +53,202 @@ module enkf_mod
     integer              :: myLatEnd
   end type struct_enkfInterpInfo
 
+  ! all namelist variables
+  type struct_enkfNML
+    character(len=20)  :: algorithm
+    logical            :: ensPostProcessing
+    logical            :: recenterInputEns
+    integer            :: numSubEns
+    character(len=256) :: ensPathName
+    integer  :: nEns
+    logical  :: randomShuffleSubEns
+    logical  :: writeLocalEnsObsToFile
+    integer  :: maxNumLocalObs
+    integer  :: weightLatLonStep
+    integer  :: numRetainedEigen
+    integer  :: myNumLatLonSendFactor
+    logical  :: modifyAmsubObsError
+    logical  :: backgroundCheck
+    logical  :: huberize
+    logical  :: rejectHighLatIR
+    logical  :: rejectRadNearSfc
+    logical  :: ignoreEnsDate
+    logical  :: outputOnlyEnsMean
+    logical  :: outputEnsObs
+    logical  :: debug
+    logical  :: readEnsObsFromFile
+    real(8)  :: hLocalize(4)
+    real(8)  :: hLocalizePressure(3)
+    real(8)  :: vLocalize
+    real(8)  :: minDistanceToLand
+    character(len=20) :: obsTimeInterpType
+    character(len=20) :: mpiDistribution
+    character(len=12) :: etiket_anl
+  end type struct_enkfNML
+
   integer, external :: get_max_rss
 
 contains
 
   !----------------------------------------------------------------------
+  ! enkf_readNML
+  !----------------------------------------------------------------------
+  subroutine enkf_readNML(enkfNML)
+    implicit none
+
+    ! Arguments
+    type(struct_enkfNML) :: enkfNML
+
+    ! Locals
+    integer :: ierr
+
+    ! namelist variables
+    character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
+    logical            :: ensPostProcessing ! do all post-processing of analysis ensemble
+    logical            :: recenterInputEns  ! read a deterministic state to recenter ensemble
+    integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
+    character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
+    integer  :: nEns                 ! ensemble size
+    logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
+    logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
+    integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
+    integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
+    integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
+    integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
+    logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
+    logical  :: backgroundCheck      ! apply additional background check using ensemble spread
+    logical  :: huberize             ! apply huber norm quality control procedure
+    logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
+    logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
+    logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
+    logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
+    logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
+    logical  :: debug                ! debug option to print values to the listings.
+    logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
+    real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
+    real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
+    real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
+    real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
+    character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
+    character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
+    character(len=12) :: etiket_anl        ! etiket for output files
+ 
+    NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
+                       ensPathName, randomShuffleSubEns,  &
+                       hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
+                       maxNumLocalObs, weightLatLonStep,  &
+                       modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
+                       ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
+                       obsTimeInterpType, mpiDistribution, etiket_anl, &
+                       readEnsObsFromFile, writeLocalEnsObsToFile, &
+                       numRetainedEigen, myNumLatLonSendFactor, debug
+
+    !- 1.1 Setting default namelist variable values
+    algorithm                = 'LETKF'
+    ensPostProcessing        = .false.
+    recenterInputEns         = .false.
+    ensPathName              = 'ensemble'
+    nEns                     = 10
+    numSubEns                = 2
+    randomShuffleSubEns      = .false.
+    maxNumLocalObs           = 1000
+    weightLatLonStep         = 1
+    modifyAmsubObsError      = .false.
+    backgroundCheck          = .false.
+    huberize                 = .false.
+    rejectHighLatIR          = .false.
+    rejectRadNearSfc         = .false.
+    ignoreEnsDate            = .false.
+    outputOnlyEnsMean        = .false.
+    outputEnsObs             = .false.
+    hLocalize(:)             = -1.0D0
+    hLocalizePressure(:)     = (/14.0D0, 140.0D0, 400.0D0/)
+    vLocalize                = -1.0D0
+    minDistanceToLand        = -1.0D0
+    obsTimeInterpType        = 'LINEAR'
+    mpiDistribution          = 'ROUNDROBIN'
+    etiket_anl               = 'ENS_ANL'
+    readEnsObsFromFile       = .false.
+    writeLocalEnsObsToFile   = .false.
+    numRetainedEigen         = 0
+    myNumLatLonSendFactor    = 10
+    debug                    = .false.
+
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namletkf, iostat=ierr)
+    if ( ierr /= 0) call utl_abort('enkf_readNML: Error reading namelist')
+    if ( mmpi_myid == 0 ) write(*,nml=namletkf)
+    call utl_tmg_stop(181)
+
+    ! Some minor modifications of namelist values
+    if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
+      ! if only 1 value given for hLocalize, use it for entire column
+      hLocalize(2:4) = hLocalize(1)
+      if (mmpi_myid == 0) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
+                                     'hLocalize(2:4)=', hLocalize(1)
+    else if (hLocalize(1) < 0.0D0) then
+      call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
+    end if
+    hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
+    hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
+
+    if (minDistanceToLand > 0.0D0) then
+      minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
+    end if
+
+    if (trim(algorithm) /= 'LETKF'           .and. &
+        trim(algorithm) /= 'CVLETKF'         .and. &
+        trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
+        trim(algorithm) /= 'LETKF-Gain'      .and. &
+        trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
+        trim(algorithm) /= 'CVLETKF-ME') then
+      call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
+    end if
+
+    if (numRetainedEigen < 0) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+         'equal or greater than zero')
+
+    ! Copy all variables to the dervied type variable enkfNML
+    enkfNML%algorithm              = algorithm
+    enkfNML%ensPostProcessing      = ensPostProcessing
+    enkfNML%recenterInputEns       = recenterInputEns
+    enkfNML%ensPathName            = ensPathName
+    enkfNML%nEns                   = nEns
+    enkfNML%numSubEns              = numSubEns
+    enkfNML%randomShuffleSubEns    = randomShuffleSubEns
+    enkfNML%maxNumLocalObs         = maxNumLocalObs
+    enkfNML%weightLatLonStep       = weightLatLonStep
+    enkfNML%modifyAmsubObsError    = modifyAmsubObsError
+    enkfNML%backgroundCheck        = backgroundCheck
+    enkfNML%huberize               = huberize
+    enkfNML%rejectHighLatIR        = rejectHighLatIR
+    enkfNML%rejectRadNearSfc       = rejectRadNearSfc
+    enkfNML%ignoreEnsDate          = ignoreEnsDate
+    enkfNML%outputOnlyEnsMean      = outputOnlyEnsMean
+    enkfNML%outputEnsObs           = outputEnsObs
+    enkfNML%hLocalize(:)           = hLocalize(:)
+    enkfNML%hLocalizePressure(:)   = hLocalizePressure(:)
+    enkfNML%vLocalize              = vLocalize
+    enkfNML%minDistanceToLand      = minDistanceToLand
+    enkfNML%obsTimeInterpType      = obsTimeInterpType
+    enkfNML%mpiDistribution        = mpiDistribution
+    enkfNML%etiket_anl             = etiket_anl
+    enkfNML%readEnsObsFromFile     = readEnsObsFromFile
+    enkfNML%writeLocalEnsObsToFile = writeLocalEnsObsToFile
+    enkfNML%numRetainedEigen       = numRetainedEigen
+    enkfNML%myNumLatLonSendFactor  = myNumLatLonSendFactor
+    enkfNML%debug                  = debug
+
+  end subroutine enkf_readNML
+
+  !----------------------------------------------------------------------
   ! enkf_LETKFanalyses
   !----------------------------------------------------------------------
-  subroutine enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
+  subroutine enkf_LETKFanalyses(enkfNML,  &
                                 ensembleAnl, ensembleTrl, &
                                 ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
-                                wInterpInfo, maxNumLocalObs,  &
-                                hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
+                                wInterpInfo)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -87,29 +270,20 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*),            intent(in)    :: algorithm
-    integer         ,            intent(in)    :: numSubEns
-    logical         ,            intent(in)    :: randomShuffleSubEns
+    type(struct_enkfNML),        intent(in)    :: enkfNML
     type(struct_ens), pointer,   intent(inout) :: ensembleTrl
     type(struct_ens),            intent(inout) :: ensembleAnl
     type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal
     type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal
     type(struct_gsv),            intent(inout) :: stateVectorMeanAnl
     type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
-    integer,                     intent(in)    :: maxNumLocalObs
-    real(8),                     intent(in)    :: hLocalize(:)
-    real(8),                     intent(in)    :: hLocalizePressure(:)
-    real(8),                     intent(in)    :: vLocalize
-    character(len=*),            intent(in)    :: mpiDistribution
-    integer,                     intent(in)    :: numRetainedEigen
-    integer,                     intent(in)    :: myNumLatLonSendFactor
 
     ! Locals:
     character :: readySignal
     integer :: workerProcID, finishedSignal, assignmentTag, readyTag, numFinished
     integer :: mpiStatus(MPI_STATUS_SIZE)
     integer, allocatable :: waitStatusesSend(:,:), waitStatusesRecv(:,:)
-    integer :: latLonIndex, nEns, nEnsGain, nLev_weights, ierr
+    integer :: latLonIndex, nEnsGain, nLev_weights, ierr
     integer :: procIndex, procIndexSend, latLonIndexMpiGlobal
     integer :: latIndex, lonIndex, levIndex
     integer :: countMaxExceeded, maxCountMaxExceeded, numGridPointWeights
@@ -141,12 +315,11 @@ contains
     write(*,*) 'enkf_LETKFanalyses: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    nEns       = ens_getNumMembers(ensembleAnl)
-    useModulatedEns = (numRetainedEigen > 0)
+    useModulatedEns = (enkfNML%numRetainedEigen > 0)
     if ( useModulatedEns ) then
-      nEnsGain   = nEns * numRetainedEigen
+      nEnsGain   = enkfNML%nEns * enkfNML%numRetainedEigen
     else
-      nEnsGain   = nEns
+      nEnsGain   = enkfNML%nEns
     end if
 
     ! Set things up for the redistribution of work across mpi tasks
@@ -160,12 +333,12 @@ contains
                                     numLatLonMpiGlobal, maxval(numProcsSendMpiGlobal)
 
     ! Compute maximum expected number of grid points where weights computed on each mpi task 
-    if (trim(mpiDistribution) == 'ROUNDROBIN') then
+    if (trim(enkfNML%mpiDistribution) == 'ROUNDROBIN') then
       myNumLatLonCalcMax = ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
-    else if (trim(mpiDistribution) == 'MASTERWORKER') then
-      myNumLatLonCalcMax = myNumLatLonSendFactor*ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
+    else if (trim(enkfNML%mpiDistribution) == 'MASTERWORKER') then
+      myNumLatLonCalcMax = enkfNML%myNumLatLonSendFactor*ceiling(real(numLatLonMpiGlobal)/real(mmpi_nprocs))
     else
-      write(*,*) 'mpiDistribution = ', trim(mpiDistribution)
+      write(*,*) 'mpiDistribution = ', trim(enkfNML%mpiDistribution)
       call utl_abort('enkf_LETKFanalyses: unknown mpiDistribution')
     end if
     myNumLatLonSendMax = ceiling(real(maxval(numProcsSendMpiGlobal))*real(myNumLatLonCalcMax))
@@ -177,8 +350,8 @@ contains
     allocate(requestIdRecv(myNumLatLonRecv))
     allocate(waitStatusesSend(MPI_STATUS_SIZE,myNumLatLonSendMax))
     allocate(waitStatusesRecv(MPI_STATUS_SIZE,myNumLatLonRecv))
-    allocate(weightsRecvCombined(nEnsGain, nEns+1, myNumLatLonRecv))
-    allocate(weightsSendCombined(nEnsGain, nEns+1, myNumLatLonCalcMax))
+    allocate(weightsRecvCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonRecv))
+    allocate(weightsSendCombined(nEnsGain, enkfNML%nEns+1, myNumLatLonCalcMax))
     requestIdRecv(:) = 0
     requestIdSend(:) = 0
     waitStatusesRecv(:,:) = 0
@@ -202,30 +375,32 @@ contains
     allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonCalcMax))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Allocate weights for member analyses
-    allocate(weightsMembers(nEnsGain,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEnsGain,enkfNML%nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonCalcMax))
+    allocate(weightsMembersLatLon(nEnsGain,enkfNML%nEns,myNumLatLonCalcMax))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     ! Allocate and initialize state vectors for mean trial and increment
-    call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+    call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorMeanTrl)
-    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+    call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., &
                        allocHeight_opt=.false., allocPressure_opt=.false. )
     call gsv_zero(stateVectorMeanInc)
 
+    ! Compute trial ensemble mean and copy to state vector
     call ens_computeMean(ensembleTrl)
     call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
 
-
     ! Compute 3D field of vertical location needed for localization
     call lfn_Setup(LocFunctionWanted='FifthOrder')
-    if (vLocalize > 0.0d0) then
+    if (enkfNML%vLocalize > 0.0d0) then
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
@@ -258,7 +433,7 @@ contains
         recvTag = latLonTagMpiGlobal(lonIndex,latIndex) + (levIndex-1)*maxval(latLonTagMpiGlobal)
         recvTag = 1 + mod(recvTag-1, mmpi_maxTagValue - 10) 
 
-        nsize = nEnsGain * (nEns+1)
+        nsize = nEnsGain * (enkfNML%nEns+1)
         numRecv = numRecv + 1
         weightsRecvCombined(:,:,latLonIndex) = -999.8d0
         call mpi_irecv( weightsRecvCombined(:,:,latLonIndex),  &
@@ -273,7 +448,7 @@ contains
       readyTag      = mmpi_maxTagValue - 2
 
       ! Determine if I am the 'Master' (only for MASTERWORKER mpi distribution)
-      masterIsMe = (mmpi_myid == 0) .and. (trim(mpiDistribution) == 'MASTERWORKER')
+      masterIsMe = (mmpi_myid == 0) .and. (trim(enkfNML%mpiDistribution) == 'MASTERWORKER')
 
       MASTER_WORKER: if (masterIsMe) then  ! I am the master, I do no actual computations
 
@@ -344,16 +519,16 @@ contains
         call utl_tmg_stop(145)
         call utl_tmg_stop(132)
 
-      else  ! Not the master, I am a worker and therefore do actual computations
+      else  ! Not the master, I am a worker and therefore I do actual computations
 
         ! Main loop over grid points for computing analysis weights
         latLonIndex = 0
         latLonIndexMpiGlobal = 0
         LATLON_LOOP: do
 
-          MPI_DISTRIBUTION: if (trim(mpiDistribution) == 'MASTERWORKER') then
+          MPI_DISTRIBUTION: if (trim(enkfNML%mpiDistribution) == 'MASTERWORKER') then
 
-            ! I am a worker, therefore need to get assignment from master
+            ! I am a worker and there exists a master, therefore need to get assignment from him
 
             call utl_tmg_start(132,'----CommWeights')
             call utl_tmg_start(145,'----CommWeights-signals')
@@ -375,7 +550,7 @@ contains
 
               call mpi_wait(requestIdSignal, MPI_STATUS_IGNORE, ierr)
 
-            else
+            else ! Reached the maximum calculations allowed, inform master
 
               ! Post recv to obtain assignment that WILL BE IGNORED
               call MPI_IRECV(latLonIndexMpiGlobal, 1, MPI_INTEGER, 0, assignmentTag, &  
@@ -392,7 +567,7 @@ contains
               ! No assignment, so set latLonIndex to 0 to exit LATLON_LOOP
               latLonIndexMpiGlobal = 0
 
-            end if
+            end if ! check if max allowed calculations not yet reached
 
             write(*,*) 'Received assignment: ', latLonIndexMpiGlobal
             call utl_printTime()
@@ -406,7 +581,8 @@ contains
               exit LATLON_LOOP
             end if
 
-          else if (trim(mpiDistribution) == 'ROUNDROBIN') then
+          else if (trim(enkfNML%mpiDistribution) == 'ROUNDROBIN') then
+            ! There is no master, so just do the next grid point calculations in my list
 
             ! Find the next value of latLonIndexMpiGlobal that I am responsible for
             do
@@ -422,7 +598,7 @@ contains
 
           else ! mpiDistribution is not MASTERWORKER and not ROUNDROBIN
 
-            write(*,*) 'mpiDistribution = ', trim(mpiDistribution)
+            write(*,*) 'mpiDistribution = ', trim(enkfNML%mpiDistribution)
             call utl_abort('enkf_LETKFanalyses: unknown value of mpiDistribution')
 
           end if MPI_DISTRIBUTION
@@ -444,13 +620,10 @@ contains
           numGridPointWeights = numGridPointWeights + 1
 
           ! Call main subroutine for computing the LETKF analysis weights for this lev/lat/lon
-          call enkf_LETKFcomputeWeights(weightsMeanLatLon(:,:,latLonIndex), &
+          call enkf_LETKFcomputeWeights(enkfNML, weightsMeanLatLon(:,:,latLonIndex), &
                                         weightsMembersLatLon(:,:,latLonIndex), &
-                                        algorithm, numSubEns, randomShuffleSubEns, &
                                         ensembleAnl, levIndex, latIndex, lonIndex, &
-                                        hLocalize, hLocalizePressure, vLocalize, &
-                                        vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
-                                        countMaxExceeded, maxCountMaxExceeded, &
+                                        vertLocation_r4, countMaxExceeded, maxCountMaxExceeded, &
                                         ensObs_mpiglobal, ensObsGain_mpiglobal)
 
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -458,8 +631,8 @@ contains
           call utl_tmg_start(149,'----CommWeights-isend')
           latIndex = latIndexesSendMpiGlobal(latLonIndexMpiGlobal)
           lonIndex = lonIndexesSendMpiGlobal(latLonIndexMpiGlobal)
-          weightsSendCombined(:,1:nEns,latLonIndex) = weightsMembersLatLon(:,:,latLonIndex)
-          weightsSendCombined(:,(nEns+1),latLonIndex) = weightsMeanLatLon(:,1,latLonIndex)
+          weightsSendCombined(:,1:enkfNML%nEns,latLonIndex) = weightsMembersLatLon(:,:,latLonIndex)
+          weightsSendCombined(:,(enkfNML%nEns+1),latLonIndex) = weightsMeanLatLon(:,1,latLonIndex)
 
           ! Loop over the tasks where I need to send the weights
           do procIndex = 1, numProcsSendMpiGlobal(latLonIndexMpiGlobal)
@@ -467,7 +640,7 @@ contains
             sendTag = 1 + mod(sendTag-1, mmpi_maxTagValue - 10) 
             procIndexSend = procIndexesSendMpiGlobal(latLonIndexMpiGlobal, procIndex)
 
-            nsize = nEnsGain * (nEns+1)
+            nsize = nEnsGain * (enkfNML%nEns+1)
             numSend = numSend + 1
             if (numSend > myNumLatLonSendMax) then
               call utl_abort('numSend larger than allowed limit')
@@ -497,8 +670,8 @@ contains
       do latLonIndex = 1, myNumLatLonRecv
         latIndex = myLatIndexesRecv(latLonIndex)
         lonIndex = myLonIndexesRecv(latLonIndex)
-        weightsMembers(:,:,lonIndex,latIndex) = weightsRecvCombined(:,1:nEns,latLonIndex)
-        weightsMean(:,1,lonIndex,latIndex)    = weightsRecvCombined(:,(nEns+1),latLonIndex)
+        weightsMembers(:,:,lonIndex,latIndex) = weightsRecvCombined(:,1:enkfNML%nEns,latLonIndex)
+        weightsMean(:,1,lonIndex,latIndex)    = weightsRecvCombined(:,(enkfNML%nEns+1),latLonIndex)
         if (any(weightsMembers(:,:,lonIndex,latIndex) < -999.0d0)) then
           write(*,*) 'latLonIndex, latIndex, lonIndex = ', latLonIndex, latIndex, lonIndex
           write(*,*) 'weightsMembers = ', weightsMembers(:,:,lonIndex,latIndex)
@@ -523,10 +696,10 @@ contains
 
       ! Apply the weights to compute the ensemble mean and members
       call utl_tmg_start(143,'----ApplyWeights')
-      call enkf_applyEnsWeights(stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
+      call enkf_applyEnsWeights(enkfNML, stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                                 ensembleTrl, ensembleAnl, levIndex,  &
-                                weightsMean, weightsMembers, useModulatedEns, numRetainedEigen, &
-                                vLocalize, myLonBegHalo, myLatBegHalo)
+                                weightsMean, weightsMembers, useModulatedEns, &
+                                myLonBegHalo, myLatBegHalo)
       call utl_tmg_stop(143)
 
       ! Wait for SEND communications to finish before continuing to the next level
@@ -547,7 +720,7 @@ contains
       write(*,*) 'enkf_LETKFanalyses: WARNING: Found more local obs than specified max number at ', &
                  real(100*countMaxExceeded)/real(numGridPointWeights), '% of grid points.'
       write(*,*) '                      Maximum number found was ', maxCountMaxExceeded,  &
-                 ' which is greater than specified number ', maxNumLocalObs
+                 ' which is greater than specified number ', enkfNML%maxNumLocalObs
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
@@ -569,12 +742,9 @@ contains
   !----------------------------------------------------------------------
   ! enkf_LETKFcomputeWeights (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_LETKFcomputeWeights(weightsMeanLatLon, weightsMembersLatLon, &
-                                      algorithm, numSubEns, randomShuffleSubEns, &
+  subroutine enkf_LETKFcomputeWeights(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                       ensembleAnl, levIndex, latIndex, lonIndex, &
-                                      hLocalize, hLocalizePressure, vLocalize, &
-                                      vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
-                                      countMaxExceeded, maxCountMaxExceeded, &
+                                      vertLocation_r4, countMaxExceeded, maxCountMaxExceeded, &
                                       ensObs_mpiglobal, ensObsGain_mpiglobal)
     !
     !:Purpose: Main routine for computing the LETKF weights for 1 lat/lon/lev. The
@@ -584,21 +754,14 @@ contains
     implicit none
 
     ! Arguments:
+    type(struct_enkfNML),     intent(in)    :: enkfNML
     real(8),                  intent(inout) :: weightsMeanLatLon(:,:)
     real(8),                  intent(inout) :: weightsMembersLatLon(:,:)
-    character(len=*),         intent(in)    :: algorithm
-    integer         ,         intent(in)    :: numSubEns
-    logical         ,         intent(in)    :: randomShuffleSubEns
     type(struct_ens),         intent(in)    :: ensembleAnl
     integer,                  intent(in)    :: levIndex
     integer,                  intent(in)    :: latIndex
     integer,                  intent(in)    :: lonIndex
-    real(8),                  intent(in)    :: hLocalize(:)
-    real(8),                  intent(in)    :: hLocalizePressure(:)
-    real(8),                  intent(in)    :: vLocalize
     real(4),                  intent(in)    :: vertLocation_r4(:,:,:)
-    integer,                  intent(in)    :: numRetainedEigen
-    integer,                  intent(in)    :: maxNumLocalObs
     integer,                  intent(inout) :: countMaxExceeded
     integer,                  intent(inout) :: maxCountMaxExceeded
     type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
@@ -606,7 +769,7 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
-    integer :: nEns, nEnsGain
+    integer :: nEnsGain
     integer :: hLocIndex, numLocalObs, numLocalObsFound, localObsIndex
     integer :: bodyIndex, memberIndex, memberIndex2, subEnsIndex
     integer :: nEnsIndependentPerSubEns, nEnsPerSubEns, nEnsPerSubEns_mod
@@ -625,56 +788,54 @@ contains
 
     hco_ens => ens_getHco(ensembleAnl)
 
-    nEns       = ens_getNumMembers(ensembleAnl)
-    useModulatedEns = (numRetainedEigen > 0)
+    useModulatedEns = (enkfNML%numRetainedEigen > 0)
     if ( useModulatedEns ) then
-      nEnsGain   = nEns * numRetainedEigen
+      nEnsGain   = enkfNML%nEns * enkfNML%numRetainedEigen
     else
-      nEnsGain   = nEns
+      nEnsGain   = enkfNML%nEns
     end if
 
     if (firstCall) then
       allocate(YbTinvRYb_pert(nEnsGain,nEnsGain))
-      allocate(YbTinvRCopy_pert(maxNumLocalObs,nEnsGain))
+      allocate(YbTinvRCopy_pert(enkfNML%maxNumLocalObs,nEnsGain))
     end if
 
     ! Quantities needed for cross validation (CVLETKF, CVLETKF-PERTOBS, CVLETKF-ME)
-    if ( trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS' .or. &
-         trim(algorithm) == 'CVLETKF-ME' ) then
-      nEnsPerSubEns = nEns / numSubEns
-      if ( (nEnsPerSubEns * numSubEns) /= nEns ) then
+    if ( trim(enkfNML%algorithm) == 'CVLETKF' .or. trim(enkfNML%algorithm) == 'CVLETKF-PERTOBS' .or. &
+         trim(enkfNML%algorithm) == 'CVLETKF-ME' ) then
+      nEnsPerSubEns = enkfNML%nEns / enkfNML%numSubEns
+      if ( (nEnsPerSubEns * enkfNML%numSubEns) /= enkfNML%nEns ) then
         call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
-      if (numSubEns <= 1) then
+      if (enkfNML%numSubEns <= 1) then
         call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS)(-ME) algorithm, numSubEns must be greater than 1')
       end if
       if (useModulatedEns) then
-        nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
+        nEnsPerSubEns_mod = nEnsPerSubEns * enkfNML%numRetainedEigen
         nEnsIndependentPerSubEns = nEnsGain - nEnsPerSubEns_mod
       else
-        nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
+        nEnsIndependentPerSubEns = enkfNML%nEns - nEnsPerSubEns
       end if
 
       ! Define the subensembles: memberIndexSubEns, memberIndexSubEns_mod, memberIndexSubEnsComp
       if (firstCall) then
-        allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
-        allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
+        allocate(memberIndexSubEns(nEnsPerSubEns,enkfNML%numSubEns))
+        allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,enkfNML%numSubEns))
         if ( useModulatedEns ) then
-          allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,numSubEns))
+          allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,enkfNML%numSubEns))
         else
           allocate(memberIndexSubEns_mod(1,1))
         end if
 
-        call enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
+        call enkf_defineSubEnsembles(enkfNML, memberIndexSubEns, memberIndexSubEns_mod, &
                                      memberIndexSubEnsComp, &
-                                     randomShuffleSubEns, numSubEns, &
                                      nEnsPerSubEns, nEnsPerSubEns_mod, &
-                                     useModulatedEns, numRetainedEigen, nEns)
+                                     useModulatedEns)
 
         if (mmpi_myid == 0) then
           write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
-                      nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
-          do subEnsIndex = 1, numSubEns
+                      enkfNML%nEns, enkfNML%numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+          do subEnsIndex = 1, enkfNML%numSubEns
             write(*,*) 'memberIndexSubEns = '
             write(*,*) memberIndexSubEns(:,subEnsIndex)
             if ( useModulatedEns ) then
@@ -692,18 +853,18 @@ contains
 
     ! Allocate arrays only on first call
     if (firstCall) then
-      allocate(localBodyIndices(maxNumLocalObs))
-      allocate(distances(maxNumLocalObs))
-      allocate(YbTinvR_pert(nEnsGain,maxNumLocalObs))
-      if ( trim(algorithm) == 'CVLETKF-ME' .or. &
-           trim(algorithm) == 'LETKF-Gain-ME' ) then
-        allocate(YbTinvRYb_mod(nEnsGain,nEns))
+      allocate(localBodyIndices(enkfNML%maxNumLocalObs))
+      allocate(distances(enkfNML%maxNumLocalObs))
+      allocate(YbTinvR_pert(nEnsGain,enkfNML%maxNumLocalObs))
+      if ( trim(enkfNML%algorithm) == 'CVLETKF-ME' .or. &
+           trim(enkfNML%algorithm) == 'LETKF-Gain-ME' ) then
+        allocate(YbTinvRYb_mod(nEnsGain,enkfNML%nEns))
       end if
 
       ! Only when observation is "simulated" separate quantities for ens mean needed
       if (eob_simObsAssim) then
-        allocate(YbTinvR_mean(nEnsGain,maxNumLocalObs))
-        allocate(YbTinvRCopy_mean(maxNumLocalObs,nEnsGain))
+        allocate(YbTinvR_mean(nEnsGain,enkfNML%maxNumLocalObs))
+        allocate(YbTinvRCopy_mean(enkfNML%maxNumLocalObs,nEnsGain))
         allocate(YbTinvRYb_mean(nEnsGain,nEnsGain))
       else
         YbTinvR_mean => YbTinvR_pert
@@ -715,8 +876,8 @@ contains
     ! The lat-lon of the grid point for which we are computing the weights
     anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
     anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-    hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
-    if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
+    hLocalizeIsConstant = all(enkfNML%hLocalize(:) == enkfNML%hLocalize(1))
+    if (enkfNML%vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
       anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
     end if
 
@@ -724,7 +885,7 @@ contains
     if (hLocalizeIsConstant) then
       hLocIndex = 1
     else
-      hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
+      hLocIndex = 1 + count(anlVertLocation > enkfNML%hLocalizePressure(:))
     end if
 
     ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
@@ -733,8 +894,9 @@ contains
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                           distances, anlLat, anlLon, anlVertLocation,  &
-                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound)
-    if (numLocalObsFound > maxNumLocalObs) then
+                                          enkfNML%hLocalize(hLocIndex), enkfNML%vLocalize, &
+                                          numLocalObsFound)
+    if (numLocalObsFound > enkfNML%maxNumLocalObs) then
       countMaxExceeded = countMaxExceeded + 1
       maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
     end if
@@ -748,11 +910,11 @@ contains
 
       ! Compute value of localization function
       ! Horizontal localization
-      localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
+      localization = lfn_Response(distances(localObsIndex),enkfNML%hLocalize(hLocIndex))
       ! Vertical localization when NOT using modulated ensembles - pressures at grid point location
-      if (vLocalize > 0.0d0 .and. .not. useModulatedEns) then
+      if (enkfNML%vLocalize > 0.0d0 .and. .not. useModulatedEns) then
         distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
-        localization = localization * lfn_Response(distance,vLocalize)
+        localization = localization * lfn_Response(distance,enkfNML%vLocalize)
       end if
 
       ! Compute YbTinvR for updating ensemble perturbations
@@ -799,18 +961,18 @@ contains
 
     ! Here is the actual calculation
     call utl_tmg_start(138,'--------YbTinvRYb1')
-    call enkf_calcYbTinvRYb(nEnsGain, nEnsGain, maxNumLocalObs, numLocalObs, &
+    call enkf_calcYbTinvRYb(nEnsGain, nEnsGain, enkfNML%maxNumLocalObs, numLocalObs, &
                             YbTinvRYb_pert, YbTinvRCopy_pert, &
                             ensObsGain_mpiglobal, localBodyIndices, &
                             YbTinvRYb_mean, YbTinvRCopy_mean)
     call utl_tmg_stop(138)
 
     ! When using modulated ensemble, also compute YbTinvRYb for perturbation update
-    if ( trim(algorithm) == 'CVLETKF-ME' .or. &
-         trim(algorithm) == 'LETKF-Gain-ME' ) then
+    if ( trim(enkfNML%algorithm) == 'CVLETKF-ME' .or. &
+         trim(enkfNML%algorithm) == 'LETKF-Gain-ME' ) then
 
       call utl_tmg_start(139,'--------YbTinvRYb2')
-      call enkf_calcYbTinvRYb(nEnsGain, nEns, maxNumLocalObs, numLocalObs, &
+      call enkf_calcYbTinvRYb(nEnsGain, enkfNML%nEns, enkfNML%maxNumLocalObs, numLocalObs, &
                               YbTinvRYb_mod, YbTinvRCopy_pert, &
                               ensObs_mpiglobal, localBodyIndices)
       call utl_tmg_stop(139)
@@ -822,48 +984,48 @@ contains
     ! Rest of computation of local weights at this grid point: separate routine for each algorithm
     localObsExist: if (numLocalObs > 0) then
 
-      if (trim(algorithm) == 'LETKF') then
+      if (trim(enkfNML%algorithm) == 'LETKF') then
 
-        call enkf_algorithmLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmLETKF(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                  YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                 nEns, numLocalObs, localBodyIndices, &
+                                 numLocalObs, localBodyIndices, &
                                  ensObs_mpiglobal)
 
-      else if (trim(algorithm) == 'LETKF-Gain') then
+      else if (trim(enkfNML%algorithm) == 'LETKF-Gain') then
 
-        call enkf_algorithmLETKFgain(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmLETKFgain(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                     nEns, numLocalObs, localBodyIndices, &
+                                     numLocalObs, localBodyIndices, &
                                      ensObs_mpiglobal)
 
-      else if (trim(algorithm) == 'LETKF-Gain-ME') then
+      else if (trim(enkfNML%algorithm) == 'LETKF-Gain-ME') then
 
-        call enkf_algorithmLETKFgainME(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmLETKFgainME(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                        YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
-                                       nEns, nEnsGain, numLocalObs, localBodyIndices, &
+                                       nEnsGain, numLocalObs, localBodyIndices, &
                                        ensObs_mpiglobal)
 
-      else if (trim(algorithm) == 'CVLETKF') then
+      else if (trim(enkfNML%algorithm) == 'CVLETKF') then
 
-        call enkf_algorithmCVLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmCVLETKF(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                    YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                   numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                   nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                    memberIndexSubEns, memberIndexSubEnsComp, &
                                    numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
-      else if (trim(algorithm) == 'CVLETKF-ME') then
+      else if (trim(enkfNML%algorithm) == 'CVLETKF-ME') then
 
-        call enkf_algorithmCVLETKFME(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmCVLETKFME(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
-                                     numSubEns, nEns, nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                      memberIndexSubEns, memberIndexSubEnsComp, &
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
-      else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
+      else if (trim(enkfNML%algorithm) == 'CVLETKF-PERTOBS') then
 
-        call enkf_algorithmCVLETKFPO(weightsMeanLatLon, weightsMembersLatLon, &
+        call enkf_algorithmCVLETKFPO(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, YbTinvR_pert, &
-                                     numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                      memberIndexSubEns, memberIndexSubEnsComp, &
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
 
@@ -878,10 +1040,10 @@ contains
       ! no obs near this grid point, mean weights zero, member weights identity
       weightsMeanLatLon(:,1) = 0.0d0
       weightsMembersLatLon(:,:) = 0.0d0
-      do memberIndex = 1, nEns
+      do memberIndex = 1, enkfNML%nEns
         if ( useModulatedEns ) then
-          do eigenVectorColumnIndex = 1, numRetainedEigen 
-            memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+          do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen 
+            memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
             weightsMembersLatLon(memberIndexInModEns,memberIndex) = 1.0d0
           end do
         else
@@ -900,50 +1062,51 @@ contains
   !----------------------------------------------------------------------
   ! enkf_algorithmLETKF (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmLETKF(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                  YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                 nEns, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+                                 numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
     !:Purpose: Weight calculation for standard LETKF algorithm
     !
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
-    real(8) :: PaInv(nEns,nEns), Pa_pert(nEns,nEns), Pa_mean(nEns,nEns)
-    real(8) :: PaSqrt_pert(nEns,nEns)
-    real(8) :: weightsTemp(nEns)
+    real(8) :: PaInv(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: Pa_pert(enkfNML%nEns,enkfNML%nEns), Pa_mean(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: PaSqrt_pert(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: weightsTemp(enkfNML%nEns)
 
     ! Add second term of PaInv
     PaInv(:,:) = YbTinvRYb_pert(:,:)
-    do memberIndex = 1, nEns
-      PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
+    do memberIndex = 1, enkfNML%nEns
+      PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(enkfNML%nEns - 1,8)
     end do
     ! Compute Pa and sqrt(Pa) matrices from PaInv
     Pa_pert(:,:) = PaInv(:,:)
     call utl_tmg_start(135,'------EigenDecomp')
-    call utl_matInverse(Pa_pert, nEns, inverseSqrt_opt=PaSqrt_pert)
+    call utl_matInverse(Pa_pert, enkfNML%nEns, inverseSqrt_opt=PaSqrt_pert)
     call utl_tmg_stop(135)
 
     if (eob_simObsAssim) then
       PaInv(:,:) = YbTinvRYb_mean(:,:)            
-      do memberIndex = 1, nEns
-        PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
+      do memberIndex = 1, enkfNML%nEns
+        PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(enkfNML%nEns - 1,8)
       end do
       Pa_mean(:,:) = PaInv(:,:)
       call utl_tmg_start(135,'------EigenDecomp')
-      call utl_matInverse(Pa_mean, nEns)
+      call utl_matInverse(Pa_mean, enkfNML%nEns)
       call utl_tmg_stop(135)
     else
       Pa_mean(:,:) = Pa_pert(:,:)
@@ -953,7 +1116,7 @@ contains
     weightsTemp(:) = 0.0d0
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      do memberIndex = 1, nEns
+      do memberIndex = 1, enkfNML%nEns
         weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                    YbTinvR_mean(memberIndex,localObsIndex) *  &
                                    ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -962,8 +1125,8 @@ contains
     end do
 
     weightsMeanLatLon(:,1) = 0.0d0
-    do memberIndex2 = 1, nEns
-      do memberIndex1 = 1, nEns
+    do memberIndex2 = 1, enkfNML%nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsMeanLatLon(memberIndex1,1) =  &
              weightsMeanLatLon(memberIndex1,1) +  &
              Pa_mean(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
@@ -971,39 +1134,39 @@ contains
     end do
 
     ! Compute ensemble perturbation weights: [(Nens-1)^1/2*PaSqrt]
-    weightsMembersLatLon(:,:) = sqrt(real(nEns - 1,8)) * PaSqrt_pert(:,:)
+    weightsMembersLatLon(:,:) = sqrt(real(enkfNML%nEns - 1,8)) * PaSqrt_pert(:,:)
 
   end subroutine enkf_algorithmLETKF
 
   !----------------------------------------------------------------------
   ! enkf_algorithmLETKFgain (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmLETKFgain(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmLETKFgain(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                     nEns, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+                                     numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
     !:Purpose: Weight calculation for gain-form LETKF algorithm
     !
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
     integer :: matrixRank
     real(8) :: tolerance
-    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
-    real(8) :: eigenValues_pert(nEns), eigenVectors_pert(nEns,nEns)
-    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+    real(8) :: eigenValues_mean(enkfNML%nEns), eigenVectors_mean(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: eigenValues_pert(enkfNML%nEns), eigenVectors_pert(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: weightsTemp(enkfNML%nEns), weightsTemp2(enkfNML%nEns)
 
     ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
     call utl_tmg_start(135,'------EigenDecomp')
@@ -1021,7 +1184,7 @@ contains
     weightsTemp(:) = 0.0d0
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      do memberIndex = 1, nEns
+      do memberIndex = 1, enkfNML%nEns
         weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                    YbTinvR_mean(memberIndex,localObsIndex) *  &
                                    ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -1030,7 +1193,7 @@ contains
     end do
     weightsTemp2(:) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                      eigenVectors_mean(memberIndex1,memberIndex2) *  &
                                      weightsTemp(memberIndex1)
@@ -1038,11 +1201,11 @@ contains
     end do
     do memberIndex = 1, matrixRank
       weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(enkfNML%nEns - 1,8))
     end do
     weightsMeanLatLon(:,1) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsMeanLatLon(memberIndex1,1) =  &
              weightsMeanLatLon(memberIndex1,1) +   &
              eigenVectors_mean(memberIndex1,memberIndex2) *  &
@@ -1055,12 +1218,12 @@ contains
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb ]
     ! Loop over members within the current sub-ensemble being updated
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
 
       ! E^T * YbTinvRYb
       weightsTemp(:) = 0.0d0
       do memberIndex2 = 1, matrixRank
-        do memberIndex1 = 1, nEns
+        do memberIndex1 = 1, enkfNML%nEns
           weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
                                       eigenVectors_pert(memberIndex1,memberIndex2) *  &
                                       YbTinvRYb_pert(memberIndex1,memberIndex)
@@ -1071,9 +1234,9 @@ contains
 
       do memberIndex1 = 1, matrixRank
         weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                    ( 1.0D0/sqrt(real(nEns - 1,8)) -   &
+                                    ( 1.0D0/sqrt(real(enkfNML%nEns - 1,8)) -   &
                                       1.0D0/sqrt(eigenValues_pert(memberIndex1) +  &
-                                                 real(nEns - 1,8)) )
+                                                 real(enkfNML%nEns - 1,8)) )
         weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
                                     eigenValues_pert(memberIndex1)
       end do
@@ -1081,7 +1244,7 @@ contains
       ! E * previous_result
       weightsMembersLatLon(:,memberIndex) = 0.0d0
       do memberIndex2 = 1, matrixRank
-        do memberIndex1 = 1, nEns
+        do memberIndex1 = 1, enkfNML%nEns
           weightsMembersLatLon(memberIndex1,memberIndex) =   &
                weightsMembersLatLon(memberIndex1,memberIndex) +   &
                eigenVectors_pert(memberIndex1,memberIndex2) *  &
@@ -1091,7 +1254,7 @@ contains
 
       ! -1 * (Nens-1)^1/2 * previous_result
       weightsMembersLatLon(:,memberIndex) =  &
-           -1.0D0 * sqrt(real(nEns - 1,8)) *  &
+           -1.0D0 * sqrt(real(enkfNML%nEns - 1,8)) *  &
            weightsMembersLatLon(:,memberIndex)
 
       ! I + previous_result
@@ -1101,10 +1264,10 @@ contains
     end do
 
     ! Remove the weights mean computed over the columns
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
       weightsMembersLatLon(memberIndex,:) =  &
            weightsMembersLatLon(memberIndex,:) - &
-           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+           sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
 
   end subroutine enkf_algorithmLETKFgain
@@ -1112,26 +1275,26 @@ contains
   !----------------------------------------------------------------------
   ! enkf_algorithmLETKFgainME (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmLETKFgainME(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmLETKFgainME(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                        YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
-                                       nEns, nEnsGain, numLocalObs, localBodyIndices, ensObs_mpiglobal)
+                                       nEnsGain, numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
     !:Purpose: Weight calculation for gain-form LETKF using modulated ensemble algorithm
     !
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mod(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: nEnsGain
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    integer,              intent(in)  :: nEnsGain
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1191,7 +1354,7 @@ contains
     !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
     !        E^T * YbTinvRYb_mod ]
     ! Loop over members within the current sub-ensemble being updated
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
 
       ! E^T * YbTinvRYb_mod
       weightsTemp(:) = 0.0d0
@@ -1236,7 +1399,7 @@ contains
     do memberIndex = 1, nEnsGain
       weightsMembersLatLon(memberIndex,:) =  &
            weightsMembersLatLon(memberIndex,:) - &
-           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+           sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
 
   end subroutine enkf_algorithmLETKFgainME
@@ -1244,9 +1407,9 @@ contains
   !----------------------------------------------------------------------
   ! enkf_algorithmCVLETKF (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmCVLETKF(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmCVLETKF(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                    YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
-                                   numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                   nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                    memberIndexSubEns, memberIndexSubEnsComp, &
                                    numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
@@ -1255,27 +1418,26 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    integer,          intent(in)  :: numSubEns
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: nEnsPerSubEns
-    integer,          intent(in)  :: nEnsIndependentPerSubEns
-    integer,          intent(in)  :: memberIndexSubEns(:,:)
-    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    integer,              intent(in)  :: nEnsPerSubEns
+    integer,              intent(in)  :: nEnsIndependentPerSubEns
+    integer,              intent(in)  :: memberIndexSubEns(:,:)
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
     integer :: matrixRank, subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2
     real(8) :: tolerance
-    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
-    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+    real(8) :: eigenValues_mean(enkfNML%nEns), eigenVectors_mean(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: weightsTemp(enkfNML%nEns), weightsTemp2(enkfNML%nEns)
     real(8) :: YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
     real(8) :: eigenValues_CV(nEnsIndependentPerSubEns)
     real(8) :: eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
@@ -1290,7 +1452,7 @@ contains
     weightsTemp(:) = 0.0d0
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      do memberIndex = 1, nEns
+      do memberIndex = 1, enkfNML%nEns
         weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                    YbTinvR_mean(memberIndex,localObsIndex) *  &
                                    ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -1299,7 +1461,7 @@ contains
     end do
     weightsTemp2(:) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                      eigenVectors_mean(memberIndex1,memberIndex2) *  &
                                      weightsTemp(memberIndex1)
@@ -1307,11 +1469,11 @@ contains
     end do
     do memberIndex = 1, matrixRank
       weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(enkfNML%nEns - 1,8))
     end do
     weightsMeanLatLon(:,1) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsMeanLatLon(memberIndex1,1) =  &
              weightsMeanLatLon(memberIndex1,1) +   &
              eigenVectors_mean(memberIndex1,memberIndex2) *  &
@@ -1328,7 +1490,7 @@ contains
     !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
     !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
     !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
-    do subEnsIndex = 1, numSubEns
+    do subEnsIndex = 1, enkfNML%numSubEns
 
       ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
       call utl_tmg_start(135,'------EigenDecomp')
@@ -1397,10 +1559,10 @@ contains
     !$OMP END PARALLEL DO
 
     ! Remove the weights mean computed over the columns
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
       weightsMembersLatLon(memberIndex,:) =  &
            weightsMembersLatLon(memberIndex,:) - &
-           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+           sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
 
   end subroutine enkf_algorithmCVLETKF
@@ -1408,9 +1570,9 @@ contains
   !----------------------------------------------------------------------
   ! enkf_algorithmCVLETKFME (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmCVLETKFME(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmCVLETKFME(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
-                                     numSubEns, nEns, nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     nEnsGain, nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                      memberIndexSubEns, memberIndexSubEnsComp, &
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
@@ -1420,22 +1582,21 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mod(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    integer,          intent(in)  :: numSubEns
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: nEnsGain
-    integer,          intent(in)  :: nEnsPerSubEns
-    integer,          intent(in)  :: nEnsIndependentPerSubEns
-    integer,          intent(in)  :: memberIndexSubEns(:,:)
-    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    integer,              intent(in)  :: nEnsGain
+    integer,              intent(in)  :: nEnsPerSubEns
+    integer,              intent(in)  :: nEnsIndependentPerSubEns
+    integer,              intent(in)  :: memberIndexSubEns(:,:)
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1497,7 +1658,7 @@ contains
     !$OMP PARALLEL DO PRIVATE(subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2, &
     !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
     !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank)
-    do subEnsIndex = 1, numSubEns
+    do subEnsIndex = 1, enkfNML%numSubEns
 
       ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
       call utl_tmg_start(135,'------EigenDecomp')
@@ -1565,7 +1726,7 @@ contains
     do memberIndex = 1, nEnsGain
       weightsMembersLatLon(memberIndex,:) =  &
            weightsMembersLatLon(memberIndex,:) - &
-           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+           sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
     
   end subroutine enkf_algorithmCVLETKFME
@@ -1573,9 +1734,9 @@ contains
   !----------------------------------------------------------------------
   ! enkf_algorithmCVLETKFPO (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_algorithmCVLETKFPO(weightsMeanLatLon, weightsMembersLatLon, &
+  subroutine enkf_algorithmCVLETKFPO(enkfNML, weightsMeanLatLon, weightsMembersLatLon, &
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, YbTinvR_pert, &
-                                     numSubEns, nEns, nEnsPerSubEns, nEnsIndependentPerSubEns, &
+                                     nEnsPerSubEns, nEnsIndependentPerSubEns, &
                                      memberIndexSubEns, memberIndexSubEnsComp, &
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
@@ -1585,28 +1746,27 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),          intent(out) :: weightsMeanLatLon(:,:)
-    real(8),          intent(out) :: weightsMembersLatLon(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),          intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),          intent(in)  :: YbTinvR_mean(:,:)
-    real(8),          intent(in)  :: YbTinvR_pert(:,:)
-    integer,          intent(in)  :: numSubEns
-    integer,          intent(in)  :: nEns
-    integer,          intent(in)  :: nEnsPerSubEns
-    integer,          intent(in)  :: nEnsIndependentPerSubEns
-    integer,          intent(in)  :: memberIndexSubEns(:,:)
-    integer,          intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,          intent(in)  :: numLocalObs
-    integer,          intent(in)  :: localBodyIndices(:)
-    type(struct_eob), intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)
+    real(8),              intent(in)  :: YbTinvR_pert(:,:)
+    integer,              intent(in)  :: nEnsPerSubEns
+    integer,              intent(in)  :: nEnsIndependentPerSubEns
+    integer,              intent(in)  :: memberIndexSubEns(:,:)
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
+    integer,              intent(in)  :: numLocalObs
+    integer,              intent(in)  :: localBodyIndices(:)
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
     integer :: matrixRank, subEnsIndex, memberIndexCV, memberIndexCV1, memberIndexCV2
     real(8) :: tolerance
-    real(8) :: eigenValues_mean(nEns), eigenVectors_mean(nEns,nEns)
-    real(8) :: weightsTemp(nEns), weightsTemp2(nEns)
+    real(8) :: eigenValues_mean(enkfNML%nEns), eigenVectors_mean(enkfNML%nEns,enkfNML%nEns)
+    real(8) :: weightsTemp(enkfNML%nEns), weightsTemp2(enkfNML%nEns)
     real(8) :: YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
     real(8) :: eigenValues_CV(nEnsIndependentPerSubEns)
     real(8) :: eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns)
@@ -1621,7 +1781,7 @@ contains
     weightsTemp(:) = 0.0d0
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      do memberIndex = 1, nEns
+      do memberIndex = 1, enkfNML%nEns
         weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                    YbTinvR_mean(memberIndex,localObsIndex) *  &
                                    ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -1630,7 +1790,7 @@ contains
     end do
     weightsTemp2(:) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                      eigenVectors_mean(memberIndex1,memberIndex2) *  &
                                      weightsTemp(memberIndex1)
@@ -1638,11 +1798,11 @@ contains
     end do
     do memberIndex = 1, matrixRank
       weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                  1.0D0/(eigenValues_mean(memberIndex) + real(nEns - 1,8))
+                                  1.0D0/(eigenValues_mean(memberIndex) + real(enkfNML%nEns - 1,8))
     end do
     weightsMeanLatLon(:,1) = 0.0d0
     do memberIndex2 = 1, matrixRank
-      do memberIndex1 = 1, nEns
+      do memberIndex1 = 1, enkfNML%nEns
         weightsMeanLatLon(memberIndex1,1) =  &
              weightsMeanLatLon(memberIndex1,1) +   &
              eigenVectors_mean(memberIndex1,memberIndex2) *  &
@@ -1660,7 +1820,7 @@ contains
     !$OMP                     memberIndex, memberIndex1, memberIndex2, weightsTemp, tolerance, &
     !$OMP                     YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, matrixRank, &
     !$OMP                     weightsTemp2, localObsIndex, bodyIndex)
-    do subEnsIndex = 1, numSubEns
+    do subEnsIndex = 1, enkfNML%numSubEns
 
       ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
       call utl_tmg_start(135,'------EigenDecomp')
@@ -1735,10 +1895,10 @@ contains
     !$OMP END PARALLEL DO
 
     ! Remove the weights mean computed over the columns
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
       weightsMembersLatLon(memberIndex,:) =  &
            weightsMembersLatLon(memberIndex,:) - &
-           sum(weightsMembersLatLon(memberIndex,:))/real(nEns,8)
+           sum(weightsMembersLatLon(memberIndex,:))/real(enkfNML%nEns,8)
     end do
 
   end subroutine enkf_algorithmCVLETKFPO
@@ -1746,11 +1906,10 @@ contains
   !----------------------------------------------------------------------
   ! enkf_defineSubEnsembles (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_defineSubEnsembles(memberIndexSubEns, memberIndexSubEns_mod, &
+  subroutine enkf_defineSubEnsembles(enkfNML, memberIndexSubEns, memberIndexSubEns_mod, &
                                      memberIndexSubEnsComp, &
-                                     randomShuffleSubEns, numSubEns, &
                                      nEnsPerSubEns, nEnsPerSubEns_mod, &
-                                     useModulatedEns, numRetainedEigen, nEns)
+                                     useModulatedEns)
     !
     !:Purpose: Compute the list of member indexes for each sub-ensemble. Also computes
     !          a second list of member indexes for each sub-ensemble for the modulated
@@ -1759,16 +1918,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: memberIndexSubEns(:,:)     ! Array of member indexes for each subEns
-    integer, intent(out) :: memberIndexSubEns_mod(:,:) ! Array of modulated member indexes for each subEns
-    integer, intent(out) :: memberIndexSubEnsComp(:,:) ! Array of member indexes complementary to each subEns
-    logical, intent(in)  :: randomShuffleSubEns        ! Switch to control if randomization used
-    integer, intent(in)  :: numSubEns                  ! Number of sub-ensembles
-    integer, intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
-    integer, intent(in)  :: nEnsPerSubEns_mod          ! Number of modulated members per sub-ensemble
-    integer, intent(in)  :: numRetainedEigen           ! Number of retained eigen-vectors for modulate ens
-    integer, intent(in)  :: nEns                       ! Ensemble size
-    logical, intent(in)  :: useModulatedEns            ! Switch to control if using modulated ensemble
+    type(struct_enkfNML), intent(in)  :: enkfNML
+    integer,              intent(out) :: memberIndexSubEns(:,:)     ! Array of member indexes for each subEns
+    integer,              intent(out) :: memberIndexSubEns_mod(:,:) ! Array of modulated member indexes for each subEns
+    integer,              intent(out) :: memberIndexSubEnsComp(:,:) ! Array of member indexes complementary to each subEns
+    integer,              intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer,              intent(in)  :: nEnsPerSubEns_mod          ! Number of modulated members per sub-ensemble
+    logical,              intent(in)  :: useModulatedEns            ! Switch to control if using modulated ensemble
 
     ! Locals:
     integer :: subEnsIndex, subEnsIndex2, memberIndex, memberIndex2
@@ -1777,21 +1933,21 @@ contains
     integer, allocatable, save :: randomMemberIndexArray(:)
     logical, save :: firstCall = .true.
 
-    if (.not.randomShuffleSubEns) then
+    if (.not.enkfNML%randomShuffleSubEns) then
       ! form subensembles with contiguous sequential groups of members
-      do subEnsIndex = 1, numSubEns
+      do subEnsIndex = 1, enkfNML%numSubEns
         do memberIndex = 1, nEnsPerSubEns
           memberIndexSubEns(memberIndex,subEnsIndex) =  &
                (subEnsIndex-1)*nEnsPerSubEns + memberIndex
         end do
       end do
       if ( useModulatedEns ) then
-        do subEnsIndex = 1, numSubEns
+        do subEnsIndex = 1, enkfNML%numSubEns
           memberIndex2 = 0
           do memberIndex = 1, nEnsPerSubEns
-            do eigenVectorColumnIndex = 1, numRetainedEigen
+            do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
               memberIndex2 = memberIndex2 + 1
-              memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
+              memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + &
                    memberIndex
               memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
                    (subEnsIndex-1)*nEnsPerSubEns + memberIndexInModEns
@@ -1808,8 +1964,8 @@ contains
       datePrint =  datePrint*100 + timePrint
       ! Remove the century, keeping 2 digits of the year
       randomSeed = datePrint - 100000000*(datePrint/100000000)
-      if (firstCall) allocate(randomMemberIndexArray(nEns))
-      do memberIndex = 1, nEns
+      if (firstCall) allocate(randomMemberIndexArray(enkfNML%nEns))
+      do memberIndex = 1, enkfNML%nEns
         randomMemberIndexArray(memberIndex) = memberIndex
       end do
       call utl_randomOrderInt(randomMemberIndexArray,randomSeed)
@@ -1817,30 +1973,30 @@ contains
         write(*,*) 'enkf_LETKFcomputeWeights: seed for random shuffle of sub ens = ', randomSeed
         write(*,*) 'enkf_LETKFcomputeWeights: randomOrder = ', randomMemberIndexArray(:)
       end if
-      do subEnsIndex = 1, numSubEns
+      do subEnsIndex = 1, enkfNML%numSubEns
         do memberIndex = 1, nEnsPerSubEns
           memberIndexSubEns(memberIndex,subEnsIndex) =  &
                randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex)
         end do
       end do
       if ( useModulatedEns ) then
-        do subEnsIndex = 1, numSubEns
+        do subEnsIndex = 1, enkfNML%numSubEns
           memberIndex2 = 0
           do memberIndex = 1, nEnsPerSubEns
-            do eigenVectorColumnIndex = 1, numRetainedEigen
+            do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
               memberIndex2 = memberIndex2 + 1
               memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
                    randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex) + &
-                   (eigenVectorColumnIndex - 1) * nEns
+                   (eigenVectorColumnIndex - 1) * enkfNML%nEns
             end do
           end do
         end do
       end if
     end if
 
-    do subEnsIndex = 1, numSubEns
+    do subEnsIndex = 1, enkfNML%numSubEns
       memberIndex = 1
-      do subEnsIndex2 = 1, numSubEns
+      do subEnsIndex2 = 1, enkfNML%numSubEns
         if (subEnsIndex2 == subEnsIndex) cycle
           
         if ( .not. useModulatedEns ) then
@@ -1862,10 +2018,10 @@ contains
   !----------------------------------------------------------------------
   ! enkf_applyEnsWeights (private subroutine)
   !----------------------------------------------------------------------
-  subroutine enkf_applyEnsWeights(stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
+  subroutine enkf_applyEnsWeights(enkfNML, stateVectorMeanInc, stateVectorMeanTrl, stateVectorMeanAnl, &
                                   ensembleTrl, ensembleAnl, levIndex,  &
-                                  weightsMean, weightsMembers, useModulatedEns, numRetainedEigen, &
-                                  vLocalize, myLonBegHalo, myLatBegHalo)
+                                  weightsMean, weightsMembers, useModulatedEns, &
+                                  myLonBegHalo, myLatBegHalo)
     !
     !:Purpose: Use the computed weights and the background ensemble to compute analysis
     !          ensemble and ensemble mean. This calculation is done for just 1 level per call.
@@ -1873,25 +2029,24 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVectorMeanInc ! Ensemble mean increment
-    type(struct_gsv), intent(inout) :: stateVectorMeanTrl ! Ensemble mean trial
-    type(struct_gsv), intent(inout) :: stateVectorMeanAnl ! Ensemble mean analysis
-    type(struct_ens), intent(inout) :: ensembleTrl        ! Trial ensemble
-    type(struct_ens), intent(inout) :: ensembleAnl        ! Analysis ensemble
-    integer,          intent(in)    :: levIndex           ! The `levIndex` being processed
-    real(8),          intent(in)    :: weightsMean(1:,1:,myLonBegHalo:,myLatBegHalo:)    ! Weights for ens mean
-    real(8),          intent(in)    :: weightsMembers(1:,1:,myLonBegHalo:,myLatBegHalo:) ! Weights for members
-    logical,          intent(in)    :: useModulatedEns    ! Indicates if modulated ens is used
-    integer,          intent(in)    :: numRetainedEigen   ! Number of eigen vectors for modulated ens
-    real(8),          intent(in)    :: vLocalize          ! Vertical localization distance
-    integer,          intent(in)    :: myLonBegHalo       ! First lon index of weights (for array indexing)
-    integer,          intent(in)    :: myLatBegHalo       ! First lat index of weights (for array indexing)
+    type(struct_enkfNML), intent(in)    :: enkfNML
+    type(struct_gsv),     intent(inout) :: stateVectorMeanInc ! Ensemble mean increment
+    type(struct_gsv),     intent(inout) :: stateVectorMeanTrl ! Ensemble mean trial
+    type(struct_gsv),     intent(inout) :: stateVectorMeanAnl ! Ensemble mean analysis
+    type(struct_ens),     intent(inout) :: ensembleTrl        ! Trial ensemble
+    type(struct_ens),     intent(inout) :: ensembleAnl        ! Analysis ensemble
+    integer,              intent(in)    :: levIndex           ! The `levIndex` being processed
+    real(8),              intent(in)    :: weightsMean(1:,1:,myLonBegHalo:,myLatBegHalo:)    ! Weights for ens mean
+    real(8),              intent(in)    :: weightsMembers(1:,1:,myLonBegHalo:,myLatBegHalo:) ! Weights for members
+    logical,              intent(in)    :: useModulatedEns    ! Indicates if modulated ens is used
+    integer,              intent(in)    :: myLonBegHalo       ! First lon index of weights (for array indexing)
+    integer,              intent(in)    :: myLatBegHalo       ! First lat index of weights (for array indexing)
 
     ! Locals:
     character(len=4) :: varName
     integer :: stepIndex, memberIndex, memberIndex1, memberIndex2, memberIndexInModEns
     integer :: eigenVectorColumnIndex, latIndex, lonIndex, levIndex2, varLevIndex
-    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev_M, nLev_depth, numVarLev, nEns
+    integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, nLev_M, nLev_depth, numVarLev
     real(4) :: modulationFactor_r4, pert_r4
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
@@ -1909,9 +2064,8 @@ contains
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
     numVarLev  = stateVectorMeanAnl%nk
-    nEns       = ens_getNumMembers(ensembleAnl)
 
-    allocate(memberAnlPert(nEns))
+    allocate(memberAnlPert(enkfNML%nEns))
     call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
     call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
     call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
@@ -1967,19 +2121,18 @@ contains
           do stepIndex = 1, tim_nstepobsinc
             ! mean increment
             if ( useModulatedEns ) then
-              do eigenVectorColumnIndex = 1, numRetainedEigen
-                call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                                          eigenVectorColumnIndex, numRetainedEigen, &
-                                          nEns, vLocalize, &
+              do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
+                call getModulationFactor( enkfNML, stateVectorMeanInc%vco, levIndex2, &
+                                          eigenVectorColumnIndex, &
                                           modulationFactor_r4 )
 
-                do memberIndex = 1, nEns
+                do memberIndex = 1, enkfNML%nEns
                   pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                                     meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
                   ! Index of the modulated ensemble member corresponding to original
                   ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
-                  memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+                  memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex
 
                   meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                        meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
@@ -1987,7 +2140,7 @@ contains
                 end do
               end do
             else
-              do memberIndex = 1, nEns
+              do memberIndex = 1, enkfNML%nEns
                 meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                      meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                      weightsMean(memberIndex,1,lonIndex,latIndex) *  &
@@ -2016,21 +2169,20 @@ contains
             memberAnlPert(:) = 0.0d0
 
             if ( useModulatedEns ) then
-              do memberIndex2 = 1, nEns
-                do eigenVectorColumnIndex = 1, numRetainedEigen
-                  call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                                            eigenVectorColumnIndex, numRetainedEigen, &
-                                            nEns, vLocalize, &
+              do memberIndex2 = 1, enkfNML%nEns
+                do eigenVectorColumnIndex = 1, enkfNML%numRetainedEigen
+                  call getModulationFactor( enkfNML, stateVectorMeanInc%vco, levIndex2, &
+                                            eigenVectorColumnIndex, &
                                             modulationFactor_r4 )
 
-                  do memberIndex1 = 1, nEns
+                  do memberIndex1 = 1, enkfNML%nEns
                     ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
                     pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                                                       meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
                     ! Index of the modulated ensemble member corresponding to original
                     ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
-                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
+                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * enkfNML%nEns + memberIndex1
                       
                     ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                     !   original ensemble (memberIndex2)
@@ -2046,8 +2198,8 @@ contains
 
               end do ! memberIndex2
             else
-              do memberIndex2 = 1, nEns
-                do memberIndex1 = 1, nEns
+              do memberIndex2 = 1, enkfNML%nEns
+                do memberIndex1 = 1, enkfNML%nEns
                   memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                        weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
                        ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
@@ -2919,8 +3071,7 @@ contains
   !--------------------------------------------------------------------------
   ! enkf_getModulatedState
   !--------------------------------------------------------------------------
-  subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
-                                     vLocalizeLengthScale, numRetainedEigen, nEns, &
+  subroutine enkf_getModulatedState( enkfNML, stateVector_in, stateVectorMeanTrl, &
                                      eigenVectorColumnIndex, stateVector_out, &
                                      beSilent )
     !
@@ -2930,14 +3081,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)    :: stateVector_in
-    type(struct_gsv), intent(in)    :: stateVectorMeanTrl
-    real(8),          intent(in)    :: vLocalizeLengthScale
-    integer,          intent(in)    :: numRetainedEigen
-    integer,          intent(in)    :: nEns
-    integer,          intent(in)    :: eigenVectorColumnIndex
-    type(struct_gsv), intent(inout) :: stateVector_out
-    logical,          intent(in)    :: beSilent
+    type(struct_enkfNML), intent(in)    :: enkfNML
+    type(struct_gsv),     intent(in)    :: stateVector_in
+    type(struct_gsv),     intent(in)    :: stateVectorMeanTrl
+    integer,              intent(in)    :: eigenVectorColumnIndex
+    type(struct_gsv),     intent(inout) :: stateVector_out
+    logical,              intent(in)    :: beSilent
 
     ! Locals:
     real(4)          :: modulationFactor_r4
@@ -2956,7 +3105,7 @@ contains
     end if
 
     nLev = stateVector_in%vco%nLev_M
-    if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
+    if ( enkfNML%vLocalize <= 0.0d0 .or. nLev <= 1 ) then
       call utl_abort('enkf_getModulatedState: no vertical localization')
     end if
 
@@ -2989,9 +3138,8 @@ contains
                 eigenVectorLevelIndex = levIndex
               end if
 
-              call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
-                                        eigenVectorColumnIndex, numRetainedEigen, &
-                                        nEns, vLocalizeLengthScale, &
+              call getModulationFactor( enkfNML, stateVector_in%vco, eigenVectorLevelIndex, &
+                                        eigenVectorColumnIndex, &
                                         modulationFactor_r4, beSilent_opt=beSilent )
 
               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
@@ -3017,18 +3165,15 @@ contains
   !--------------------------------------------------------------------------
   ! enkf_setupModulationFactor
   !--------------------------------------------------------------------------
-  subroutine enkf_setupModulationFactor(vco, numRetainedEigen, nEns, vLocalizeLengthScale, &
-                                        beSilent)
+  subroutine enkf_setupModulationFactor(enkfNML, vco, beSilent)
     !
     !:Purpose: setup modulationFactorArray by calling getModulationFactor for first time. 
     !
     implicit none
 
     ! Arguments:
+    type(struct_enkfNML),      intent(in) :: enkfNML
     type(struct_vco), pointer, intent(in) :: vco
-    integer,                   intent(in) :: numRetainedEigen
-    integer,                   intent(in) :: nEns
-    real(8),                   intent(in) :: vLocalizeLengthScale
     logical,                   intent(in) :: beSilent
 
     ! Locals:
@@ -3038,9 +3183,8 @@ contains
 
     eigenVectorColumnIndex = 1
     eigenVectorLevelIndex = 1
-    call getModulationFactor(vco, eigenVectorLevelIndex, &
-                             eigenVectorColumnIndex, numRetainedEigen, &
-                             nEns, vLocalizeLengthScale, &
+    call getModulationFactor(enkfNML, vco, eigenVectorLevelIndex, &
+                             eigenVectorColumnIndex, &
                              modulationFactor_r4, beSilent_opt=beSilent)
      
   end subroutine enkf_setupModulationFactor
@@ -3048,9 +3192,8 @@ contains
   !--------------------------------------------------------------------------
   ! getModulationFactor
   !--------------------------------------------------------------------------
-  subroutine getModulationFactor( vco, eigenVectorLevelIndex, &
-                                  eigenVectorColumnIndex, numRetainedEigen, &
-                                  nEns, vLocalizeLengthScale, &
+  subroutine getModulationFactor( enkfNML, vco, eigenVectorLevelIndex, &
+                                  eigenVectorColumnIndex, &
                                   modulationFactor_r4, beSilent_opt )
     !
     !:Purpose: compute modulation factor needed to multiply ensemble
@@ -3060,12 +3203,10 @@ contains
     implicit none
 
     ! Arguments:
+    type(struct_enkfNML),      intent(in)  :: enkfNML
     type(struct_vco), pointer, intent(in)  :: vco
     integer,                   intent(in)  :: eigenVectorLevelIndex
     integer,                   intent(in)  :: eigenVectorColumnIndex
-    integer,                   intent(in)  :: numRetainedEigen
-    integer,                   intent(in)  :: nEns
-    real(8),                   intent(in)  :: vLocalizeLengthScale
     real(4),                   intent(out) :: modulationFactor_r4
     logical, optional,         intent(in)  :: beSilent_opt
 
@@ -3105,7 +3246,7 @@ contains
       allocate(eigenVectors(nLev,nLev))
       allocate(verticalLocalizationMat(nLev,nLev))
       allocate(verticalLocalizationMatLowRank(nLev,nLev))
-      allocate(modulationFactorArray_r4(numRetainedEigen,nLev))
+      allocate(modulationFactorArray_r4(enkfNML%numRetainedEigen,nLev))
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
@@ -3117,7 +3258,7 @@ contains
       do levIndex1 = 1, nLev
         do levIndex2 = 1, nLev
           zr = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
-          zcorr = lfn_response(zr,vLocalizeLengthScale)
+          zcorr = lfn_response(zr,enkfNML%vLocalize)
           verticalLocalizationMat(levIndex1,levIndex2) = zcorr
         end do
       end do
@@ -3126,7 +3267,7 @@ contains
       tolerance = 1.0D-50
       call utl_eigenDecomp(verticalLocalizationMat, eigenValues, eigenVectors, &
                            tolerance, matrixRank)
-      if ( matrixRank < numRetainedEigen ) then
+      if ( matrixRank < enkfNML%numRetainedEigen ) then
         write(*,*) 'matrixRank=', matrixRank
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
@@ -3134,7 +3275,7 @@ contains
       ! Compute low-ranked vertical localization matrix
       do levIndex1 = 1, nLev
         do levIndex2 = 1, nLev
-          do eigenIndex = 1, numRetainedEigen
+          do eigenIndex = 1, enkfNML%numRetainedEigen
             verticalLocalizationMatLowRank(levIndex1,levIndex2) = verticalLocalizationMatLowRank(levIndex1,levIndex2) + & 
                                                                   eigenVectors(levIndex1,eigenIndex) * &
                                                                   eigenVectors(levIndex2,eigenIndex) * &
@@ -3145,20 +3286,20 @@ contains
 
       ! now compute the 2D modulationFactor array
       do levIndex1 = 1, nLev
-        do eigenIndex = 1, numRetainedEigen
+        do eigenIndex = 1, enkfNML%numRetainedEigen
           modulationFactorArray_r4(eigenIndex,levIndex1) = real( &
                         1 / sqrt(verticalLocalizationMatLowRank(levIndex1,levIndex1)) * &
                         eigenVectors(levIndex1,eigenIndex) * &
                         eigenValues(eigenIndex) ** 0.5 * &
-                        (nEns * numRetainedEigen / (nEns - 1)) ** 0.5,4)
+                        (enkfNML%nEns * enkfNML%numRetainedEigen / (enkfNML%nEns - 1)) ** 0.5,4)
         end do
       end do
 
       if ( mmpi_myid == 0 .and. .not. beSilent ) then
-        do levIndex1 = 1, numRetainedEigen
+        do levIndex1 = 1, enkfNML%numRetainedEigen
           write(*,*) 'getModulationFactor: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
         end do
-        write(*,*) 'getModulationFactor: eigenValues=', eigenValues(1:numRetainedEigen)
+        write(*,*) 'getModulationFactor: eigenValues=', eigenValues(1:enkfNML%numRetainedEigen)
 
         do levIndex1 = 1, nLev
           write(*,*) 'getModulationFactor: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)

@@ -227,46 +227,8 @@ program midas_letkf
 
   real(4), pointer :: field_Psfc(:,:,:,:)
 
-  ! namelist variables
-  character(len=20)  :: algorithm  ! name of the chosen LETKF algorithm: 'LETKF', 'CVLETKF'
-  logical            :: ensPostProcessing ! do all post-processing of analysis ensemble
-  logical            :: recenterInputEns  ! read a deterministic state to recenter ensemble
-  integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
-  character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
-  integer  :: nEns                 ! ensemble size
-  logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
-  logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
-  integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
-  integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
-  integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
-  integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
-  logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
-  logical  :: backgroundCheck      ! apply additional background check using ensemble spread
-  logical  :: huberize             ! apply huber norm quality control procedure
-  logical  :: rejectHighLatIR      ! reject all IR observations at high latitudes
-  logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
-  logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
-  logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
-  logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
-  logical  :: debug                ! debug option to print values to the listings.
-  logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
-  real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
-  real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
-  real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
-  real(8)  :: minDistanceToLand    ! for ice/ocean DA: minimum distance to land for assimilating obs
-  character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
-  character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
-  character(len=12) :: etiket_anl        ! etiket for output files
- 
-  NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
-                     ensPathName, randomShuffleSubEns,  &
-                     hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
-                     maxNumLocalObs, weightLatLonStep,  &
-                     modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
-                     obsTimeInterpType, mpiDistribution, etiket_anl, &
-                     readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, myNumLatLonSendFactor, debug
+  ! derived type variable with all namelist variables
+  type(struct_enkfNML) :: enkfNML
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -300,89 +262,27 @@ program midas_letkf
   !
   !- 1. Set/Read values for the namelist NAMLETKF
   !
+  call enkf_readNML(enkfNML)
 
-  !- 1.1 Setting default namelist variable values
-  algorithm                = 'LETKF'
-  ensPostProcessing        = .false.
-  recenterInputEns         = .false.
-  ensPathName              = 'ensemble'
-  nEns                     = 10
-  numSubEns                = 2
-  randomShuffleSubEns      = .false.
-  maxNumLocalObs           = 1000
-  weightLatLonStep         = 1
-  modifyAmsubObsError      = .false.
-  backgroundCheck          = .false.
-  huberize                 = .false.
-  rejectHighLatIR          = .false.
-  rejectRadNearSfc         = .false.
-  ignoreEnsDate            = .false.
-  outputOnlyEnsMean        = .false.
-  outputEnsObs             = .false.
-  hLocalize(:)             = -1.0D0
-  hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
-  vLocalize                = -1.0D0
-  minDistanceToLand        = -1.0D0
-  obsTimeInterpType        = 'LINEAR'
-  mpiDistribution          = 'ROUNDROBIN'
-  etiket_anl               = 'ENS_ANL'
-  readEnsObsFromFile       = .false.
-  writeLocalEnsObsToFile   = .false.
-  numRetainedEigen         = 0
-  myNumLatLonSendFactor    = 10
-  debug                    = .false.
-
-  !- 1.2 Read the namelist
-  call utl_tmg_start(181,'low-level--readNML')
-  read(utl_flnml, nml=namletkf, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('midas-letkf: Error reading namelist')
-  if ( mmpi_myid == 0 ) write(*,nml=namletkf)
-  call utl_tmg_stop(181)
-
-  !- 1.3 Some minor modifications of namelist values
-  if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
-    ! if only 1 value given for hLocalize, use it for entire column
-    hLocalize(2:4) = hLocalize(1)
-    if (mmpi_myid == 0) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
-                                   'hLocalize(2:4)=', hLocalize(1)
-  else if (hLocalize(1) < 0.0D0) then
-    call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
-  end if
-  hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
-  hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
-
-  if (minDistanceToLand > 0.0D0) then
-    minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
-  end if
-
-  if (trim(algorithm) /= 'LETKF'           .and. &
-      trim(algorithm) /= 'CVLETKF'         .and. &
-      trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
-      trim(algorithm) /= 'LETKF-Gain'      .and. &
-      trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
-      trim(algorithm) /= 'CVLETKF-ME') then
-    call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
-  end if
-
-  if (numRetainedEigen < 0) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-    'equal or greater than zero')
-
-  useModulatedEns = (numRetainedEigen > 0)
-
-  if (trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME') then
-    if (.not. useModulatedEns) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-    'equal or greater than one for LETKF algorithm: ' // &
-    trim(algorithm))
+  useModulatedEns = (enkfNML%numRetainedEigen > 0)
+  if (trim(enkfNML%algorithm) == 'LETKF-Gain-ME' .or. trim(enkfNML%algorithm) == 'CVLETKF-ME') then
+    if (.not. useModulatedEns) then
+      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+                     'equal or greater than one for LETKF algorithm: ' // &
+                     trim(enkfNML%algorithm))
+    end if
   else
-    if (useModulatedEns) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-    'equal to zero for LETKF algorithm: ' // &
-    trim(algorithm))
+    if (useModulatedEns) then
+      call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+                     'equal to zero for LETKF algorithm: ' // &
+                     trim(enkfNML%algorithm))
+    end if
   end if
   
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if (.not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns) then
+  if (.not. all(enkfNML%hLocalize(2:4) == enkfNML%hLocalize(1)) .and. useModulatedEns) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
-    'letkf with modulated ensembles')
+                   'letkf with modulated ensembles')
   end if
 
   !
@@ -421,7 +321,7 @@ program midas_letkf
   !- 2.4 Initialize the Ensemble grid
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
-  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = 1, &
+  call fln_ensFileName(ensFileName, enkfNML%ensPathName, memberIndex_opt = 1, &
                        copyToRamDisk_opt = .false.)
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
@@ -449,11 +349,11 @@ program midas_letkf
   call filt_suprep(obsSpaceData)
 
   ! Allocate vectors for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
-  if (outputEnsObs) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
+  call eob_allocate(ensObs, enkfNML%nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  if (enkfNML%outputEnsObs) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
   if (useModulatedEns) then
-    nEnsGain = nEns * numRetainedEigen
+    nEnsGain = enkfNML%nEns * enkfNML%numRetainedEigen
     allocate(ensObsGain)
     call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
     call eob_zero(ensObsGain)
@@ -529,13 +429,13 @@ program midas_letkf
 
   !- 2.11 Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
-  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
-  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic = .false., &
-                        ignoreDate_opt = ignoreEnsDate)
+  call ens_allocate(ensembleTrl4D, enkfNML%nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
+  call ens_readEnsemble(ensembleTrl4D, enkfNML%ensPathName, biPeriodic = .false., &
+                        ignoreDate_opt = enkfNML%ignoreEnsDate)
   call utl_tmg_stop(2)
 
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
-  if (recenterInputEns) then
+  if (enkfNML%recenterInputEns) then
   
     call msg('midas-letkf', 'Read a deterministic state for recentering the ensemble.')
     call gsv_allocate(stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
@@ -573,18 +473,17 @@ program midas_letkf
   !
 
   !- 3.1 Loop over all members and compute HX for each
-  if (readEnsObsFromFile) then
-    call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
+  if (enkfNML%readEnsObsFromFile) then
+    call eob_readFromFiles(ensObs, enkfNML%nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
     if (useModulatedEns) then
-      call enkf_setupModulationFactor(stateVectorMeanTrl4D%vco, numRetainedEigen, &
-                                      nEns, vLocalize, beSilent=.true.)
+      call enkf_setupModulationFactor(enkfNML, stateVectorMeanTrl4D%vco, beSilent=.true.)
 
       ! refresh assimilation flag before reading the files
       call eob_setAssFlag(ensObsGain)
       call eob_readFromFiles(ensObsGain, nEnsGain, inputFilenamePrefix='eobGain_HX', readObsInfo=.false.)
     end if
   else
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
   
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
@@ -603,8 +502,8 @@ program midas_letkf
 
       ! Compute and set Yb in ensObs
       call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                  timeInterpType=obsTimeInterpType, dealloc_opt = .false., &
-                  beSilent_opt=.true.)
+                  timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false., &
+                  beSilent_opt = .true.)
 
       ! Compute Y-H(X) in OBS_OMP
       call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
@@ -613,18 +512,17 @@ program midas_letkf
       call eob_setYb(ensObs, memberIndex)
 
       ! Compute and set Yb in ensObsGain
-      do eigenVectorIndex = 1, numRetainedEigen
-        if (mmpi_myid == 0 .and. debug) then
+      do eigenVectorIndex = 1, enkfNML%numRetainedEigen
+        if (mmpi_myid == 0 .and. enkfNML%debug) then
           write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
-                     eigenVectorIndex, '/', numRetainedEigen
+                     eigenVectorIndex, '/', enkfNML%numRetainedEigen
         end if
 
         ! modulate the member with eigenvectors of vertical localization matrix
-        call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
-                                     vLocalize, numRetainedEigen, nEns, &
+        call enkf_getModulatedState( enkfNML, stateVector4D, stateVectorMeanTrl4D, &
                                      eigenVectorIndex, stateVector4Dmod, &
                                      beSilent=.true. )
-        if ( debug ) then
+        if ( enkfNML%debug ) then
           call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
           write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
                     ', min(Psfc)=', minval(field_Psfc)
@@ -636,15 +534,15 @@ program midas_letkf
           call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
         end if
         call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                    timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                    beSilent_opt=.true.)
+                    timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false., &
+                    beSilent_opt = .true.)
 
         ! Compute Y-H(X) in OBS_OMP
         call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt = .false., &
                                    beSilent_opt=.true. )
 
         ! Copy to ensObsGain: Y-HX for this member
-        memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
+        memberIndexInEnsObs = (eigenVectorIndex - 1) * enkfNML%nEns + memberIndex
         call eob_setYb(ensObsGain, memberIndexInEnsObs)
       end do ! eigenVectorIndex
 
@@ -653,12 +551,12 @@ program midas_letkf
   if (gsv_isAllocated(stateVector4Dmod)) call gsv_deallocate(stateVector4Dmod)
 
   ! write local ensObs to file
-  if (writeLocalEnsObsToFile) then
+  if (enkfNML%writeLocalEnsObsToFile) then
     call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
       call eob_writeToFiles(ensObsGain, outputFilenamePrefix = 'eobGain_HX', writeObsInfo=.false., &
-                            numGroupsToDivideMembers_opt = numRetainedEigen, &
-                            maxNumMembersPerGroup_opt = nEns)
+                            numGroupsToDivideMembers_opt = enkfNML%numRetainedEigen, &
+                            maxNumMembersPerGroup_opt = enkfNML%nEns)
     end if
   end if
 
@@ -674,7 +572,7 @@ program midas_letkf
   if (useModulatedEns) call eob_setHPHT(ensObsGain)
 
   ! Compute random observation perturbations
-  if (trim(algorithm) == 'CVLETKF-PERTOBS') then
+  if (trim(enkfNML%algorithm) == 'CVLETKF-PERTOBS') then
     randomSeedObs = 1 + mmpi_myid
     call eob_calcRandPert(ensObs, randomSeedObs)
   end if
@@ -688,7 +586,7 @@ program midas_letkf
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-              timeInterpType=obsTimeInterpType, dealloc_opt=.false.)
+              timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission profiles stored for use in eob_setVertLocation
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
 
@@ -700,7 +598,7 @@ program midas_letkf
   call eob_setSimObsVal(ensObs)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
-  if (vLocalize > 0.0d0) then
+  if (enkfNML%vlocalize > 0.0d0) then
     if (nwpFields) then
       call eob_setTypeVertCoord(ensObs,'logPressure')
       if (useModulatedEns) call eob_setTypeVertCoord(ensObsGain,'logPressure')
@@ -713,28 +611,28 @@ program midas_letkf
   end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
-  if (modifyAmsubObsError) call enkf_modifyAmsubObsError(obsSpaceData)
+  if (enkfNML%modifyAmsubObsError) call enkf_modifyAmsubObsError(obsSpaceData)
 
   ! Apply a background check (reject limit is set in the routine)
-  if (backgroundCheck) call eob_backgroundCheck(ensObs)
+  if (enkfNML%backgroundCheck) call eob_backgroundCheck(ensObs)
 
   ! For ice/ocean DA: remove obs that are too close to land
-  if (minDistanceToLand > 0.0D0) then
+  if (enkfNML%minDistanceToLand > 0.0D0) then
     call ens_getMask(ensembleTrl4D,oceanMask)
-    call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
+    call eob_removeObsNearLand(ensObs, oceanMask, enkfNML%minDistanceToLand)
   end if
 
   ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
   call eob_setSigiSigo(ensObs)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
-  if (huberize) call eob_huberNorm(ensObs)
+  if (enkfNML%huberize) call eob_huberNorm(ensObs)
 
   !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
-  if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
+  if (enkfNML%rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 
   ! Reject radiance observations too close to the surface
-  if (rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
+  if (enkfNML%rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
 
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
@@ -764,7 +662,7 @@ program midas_letkf
   !- 4.1 Copy trial ensemble to nstepobsinc time steps
   if (tim_nstepobsinc < tim_nstepobs) then
     allocate(ensembleTrl)
-    call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
+    call ens_allocate(ensembleTrl, enkfNML%nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
     call ens_copy4Dto3D(ensembleTrl4D, ensembleTrl)
     call ens_deallocate(ensembleTrl4D)
   else
@@ -773,11 +671,11 @@ program midas_letkf
   end if
 
   !- 4.2 Copy trl ensemble to anl ensemble
-  call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
+  call ens_allocate(ensembleAnl, enkfNML%nEns, tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc)
   call ens_copy(ensembleTrl,ensembleAnl)
 
   !- 4.3 Setup for interpolating weights from coarse to full resolution
-  call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanAnl%hco, weightLatLonStep,  &
+  call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanAnl%hco, enkfNML%weightLatLonStep,  &
                             stateVectorMeanAnl%myLonBeg, stateVectorMeanAnl%myLonEnd,  &
                             stateVectorMeanAnl%myLatBeg, stateVectorMeanAnl%myLatEnd)
 
@@ -786,18 +684,16 @@ program midas_letkf
   !
 
   !- 5.1 Call to perform LETKF
-  call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
+  call enkf_LETKFanalyses(enkfNML,  &
                           ensembleAnl, ensembleTrl, &
                           ensObs_mpiglobal, ensObsGain_mpiglobal, &
                           stateVectorMeanAnl, &
-                          wInterpInfo, maxNumLocalObs,  &
-                          hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
+                          wInterpInfo)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
-  if (outputEnsObs) then
+  if (enkfNML%outputEnsObs) then
   
-    do memberIndex = 1, nEns
+    do memberIndex = 1, enkfNML%nEns
 
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to analysis ensemble member ', memberIndex
@@ -823,7 +719,7 @@ program midas_letkf
       end if  
       
       call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                  timeInterpType = obsTimeInterpType, dealloc_opt=.false.)
+                  timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
 
       ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
       call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMAM, beSilent_opt=.true., &
@@ -855,18 +751,18 @@ program midas_letkf
     call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-              timeInterpType = obsTimeInterpType )
+              timeInterpType = enkfNML%obsTimeInterpType )
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, beSilent_opt = .false.)
   
   ! Write (update) observation files. 
-  if (outputEnsObs) then
+  if (enkfNML%outputEnsObs) then
     call obsf_writeFiles(obsSpaceData, ensObs_opt=ensObs)
   else
     call obsf_writeFiles(obsSpaceData)
   end if
   
   !- 7. Post processing of the analysis results (if desired) and write everything to files
-  if (ensPostProcessing) then
+  if (enkfNML%ensPostProcessing) then
     call utl_printTime()
 
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)
@@ -875,12 +771,12 @@ program midas_letkf
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
                       dataKind_opt = 4, allocHeightSfc_opt = .true., &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
-    if (recenterInputEns) then
+    if (enkfNML%recenterInputEns) then
       !- Use the deterministic trial, if we are recentering the input ensemble
       ctrlFileName = trim(recenterFileName)
     else
       !- Otherwise, use member 0000
-      call fln_ensFileName(ctrlFileName, ensPathName, memberIndex_opt = 0, &
+      call fln_ensFileName(ctrlFileName, enkfNML%ensPathName, memberIndex_opt = 0, &
                            copyToRamDisk_opt = .false.)
     end if
     do stepIndex = 1, tim_nstepobsinc
@@ -891,15 +787,15 @@ program midas_letkf
 
     call utl_printTime()
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
-                         writeTrlEnsemble = .false., outputOnlyEnsMean_opt = outputOnlyEnsMean)
+                         writeTrlEnsemble = .false., outputOnlyEnsMean_opt = enkfNML%outputOnlyEnsMean)
   else
     !- Just write the raw analysis ensemble to files
     if (mmpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call utl_tmg_start(3,'--WriteEnsemble')
-    if (.not. outputOnlyEnsMean) then
-      call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
+    if (.not. enkfNML%outputOnlyEnsMean) then
+      call ens_writeEnsemble(ensembleAnl, '.', '', enkfNML%etiket_anl, 'A',  &
                              numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
                              containsFullField_opt = .true.)
     end if
