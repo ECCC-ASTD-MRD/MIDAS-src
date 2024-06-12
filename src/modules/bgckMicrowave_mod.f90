@@ -42,7 +42,7 @@ module bgckMicrowave_mod
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
-  logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu
+  logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -81,8 +81,8 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForClw(:)             ! channels to reject because of CLW
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
   integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
-  real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)
-  real(8) :: mwbg_atmsCh17OmpThreshRogueCheck
+  real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)             ! rogue factors for atms
+  real(8) :: mwbg_atmsCh17OmpThreshRogueCheck                  ! threshold for atms ch.17 omp in rogue check test
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -107,7 +107,7 @@ module bgckMicrowave_mod
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
   logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
-  logical            :: useMeanTb183OnlyOverLandInAllskyHu
+  logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
