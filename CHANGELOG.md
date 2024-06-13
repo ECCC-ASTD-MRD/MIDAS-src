@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Refactoring of `enkf_mod` (#790 and !845)
+   * NOTE: the namelist for `ensembleH` was changed to use the same one as `letkf`
  * Make all public module variables `protected` (#938 and !850)
  * Use LibRMN `20.1.0-a4` to support the RSF files (#929 and !839)
  * Modifications to support GEM-H (without SLEVE) for `letkf` and `ensPostProcess` (#915 and !829)
