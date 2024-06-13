@@ -97,12 +97,17 @@ contains
   ! enkf_readNML
   !----------------------------------------------------------------------
   subroutine enkf_readNML(enkfNML)
+    !
+    !:Purpose: Read the namelist and put variables in a the derived type
+    !          variable supplied as an argument. Also, a few checks and
+    !          modifications are done.
+    !
     implicit none
 
-    ! Arguments
-    type(struct_enkfNML) :: enkfNML
+    ! Arguments:
+    type(struct_enkfNML) :: enkfNML  ! Derived type variable with namelist variables
 
-    ! Locals
+    ! Locals:
     integer :: ierr
 
     ! namelist variables
@@ -292,13 +297,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML),        intent(in)    :: enkfNML
-    type(struct_ens), pointer,   intent(inout) :: ensembleTrl
-    type(struct_ens),            intent(inout) :: ensembleAnl
-    type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal
-    type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal
-    type(struct_gsv),            intent(inout) :: stateVectorMeanAnl
-    type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
+    type(struct_enkfNML),        intent(in)    :: enkfNML              ! Derived type variable with namelist variables
+    type(struct_ens), pointer,   intent(inout) :: ensembleTrl          ! Trial ensemble
+    type(struct_ens),            intent(inout) :: ensembleAnl          ! Analysis ensemble
+    type(struct_eob), target,    intent(in)    :: ensObs_mpiglobal     ! Ensemble observations for original ensemble
+    type(struct_eob),            intent(in)    :: ensObsGain_mpiglobal ! Ensemble observations for computing gain matrix
+    type(struct_gsv),            intent(inout) :: stateVectorMeanAnl   ! Ensemble mean state vector
+    type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo          ! Derived type variable weight interpolation info
 
     ! Locals:
     character :: readySignal
@@ -776,18 +781,18 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML),     intent(in)    :: enkfNML
-    real(8),                  intent(inout) :: weightsMeanLatLon(:,:)
-    real(8),                  intent(inout) :: weightsMembersLatLon(:,:)
-    type(struct_ens),         intent(in)    :: ensembleAnl
-    integer,                  intent(in)    :: levIndex
-    integer,                  intent(in)    :: latIndex
-    integer,                  intent(in)    :: lonIndex
-    real(4),                  intent(in)    :: vertLocation_r4(:,:,:)
-    integer,                  intent(inout) :: countMaxExceeded
-    integer,                  intent(inout) :: maxCountMaxExceeded
-    type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
-    type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal
+    type(struct_enkfNML),     intent(in)    :: enkfNML                   ! Derived type variable with namelist variables
+    real(8),                  intent(inout) :: weightsMeanLatLon(:,:)    ! Ens mean weights at one grid point
+    real(8),                  intent(inout) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point 
+    type(struct_ens),         intent(in)    :: ensembleAnl               ! Analysis ensemble
+    integer,                  intent(in)    :: levIndex                  ! Level index
+    integer,                  intent(in)    :: latIndex                  ! Latitude index
+    integer,                  intent(in)    :: lonIndex                  ! Longitude index
+    real(4),                  intent(in)    :: vertLocation_r4(:,:,:)    ! Vertical location for each grid point location
+    integer,                  intent(inout) :: countMaxExceeded          ! Number of gridpts maxNumLocalObs exceeded
+    integer,                  intent(inout) :: maxCountMaxExceeded       ! Maximum number of local obs found
+    type(struct_eob), target, intent(in)    :: ensObs_mpiglobal          ! Ens observations for original ensemble
+    type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal      ! Ens observations for computing gain matrix
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -1088,20 +1093,20 @@ contains
                                  YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
                                  numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
-    !:Purpose: Weight calculation for standard LETKF algorithm
+    !:Purpose: Weight calculation for standard LETKF algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                   ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)    ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)       ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)       ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)         ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: numLocalObs               ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)       ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal          ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1167,20 +1172,20 @@ contains
                                      YbTinvRYb_mean, YbTinvRYb_pert, YbTinvR_mean, &
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
-    !:Purpose: Weight calculation for gain-form LETKF algorithm
+    !:Purpose: Weight calculation for gain-form LETKF algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                   ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)    ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)       ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)       ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)         ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: numLocalObs               ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)       ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal          ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1301,22 +1306,22 @@ contains
                                        YbTinvRYb_mean, YbTinvRYb_pert, YbTinvRYb_mod, YbTinvR_mean, &
                                        nEnsGain, numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
-    !:Purpose: Weight calculation for gain-form LETKF using modulated ensemble algorithm
+    !:Purpose: Weight calculation for gain-form LETKF using modulated ensemble algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    integer,              intent(in)  :: nEnsGain
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                   ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)    ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:) ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)       ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)       ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)        ! Cov matrix in ensemble space for modulated ensemble
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)         ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: nEnsGain                  ! Number of members used to compute the gain matrix
+    integer,              intent(in)  :: numLocalObs               ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)       ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal          ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1435,24 +1440,24 @@ contains
                                    memberIndexSubEns, memberIndexSubEnsComp, &
                                    numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
-    !:Purpose: Weight calculation for LETKF with cross validation algorithm
+    !:Purpose: Weight calculation for LETKF with cross validation algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    integer,              intent(in)  :: nEnsPerSubEns
-    integer,              intent(in)  :: nEnsIndependentPerSubEns
-    integer,              intent(in)  :: memberIndexSubEns(:,:)
-    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                    ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)     ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)  ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)        ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)        ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)          ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer,              intent(in)  :: nEnsIndependentPerSubEns   ! Number of members in all other sub-ensembles
+    integer,              intent(in)  :: memberIndexSubEns(:,:)     ! Member indexes in each sub-ensemble
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:) ! Member indexes in all other sub-ensembles
+    integer,              intent(in)  :: numLocalObs                ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)        ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal           ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1599,26 +1604,26 @@ contains
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
     !:Purpose: Weight calculation for LETKF with cross validation and
-    !          modulated ensemble algorithm
+    !          modulated ensemble algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    integer,              intent(in)  :: nEnsGain
-    integer,              intent(in)  :: nEnsPerSubEns
-    integer,              intent(in)  :: nEnsIndependentPerSubEns
-    integer,              intent(in)  :: memberIndexSubEns(:,:)
-    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                    ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)     ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)  ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)        ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)        ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvRYb_mod(:,:)         ! Cov matrix in ensemble space for modulated ensemble
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)          ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: nEnsGain                   ! Number of members used to compute the gain matrix
+    integer,              intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer,              intent(in)  :: nEnsIndependentPerSubEns   ! Number of members in all other sub-ensembles
+    integer,              intent(in)  :: memberIndexSubEns(:,:)     ! Member indexes in each sub-ensemble
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:) ! Member indexes in all other sub-ensembles
+    integer,              intent(in)  :: numLocalObs                ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)        ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal           ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1763,25 +1768,25 @@ contains
                                      numLocalObs, localBodyIndices, ensObs_mpiglobal)
     !
     !:Purpose: Weight calculation for LETKF with cross validation with
-    !          perturbed observations algorithm
+    !          perturbed observations algorithm.
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
-    real(8),              intent(out) :: weightsMeanLatLon(:,:)
-    real(8),              intent(out) :: weightsMembersLatLon(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)
-    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)
-    real(8),              intent(in)  :: YbTinvR_mean(:,:)
-    real(8),              intent(in)  :: YbTinvR_pert(:,:)
-    integer,              intent(in)  :: nEnsPerSubEns
-    integer,              intent(in)  :: nEnsIndependentPerSubEns
-    integer,              intent(in)  :: memberIndexSubEns(:,:)
-    integer,              intent(in)  :: memberIndexSubEnsComp(:,:)
-    integer,              intent(in)  :: numLocalObs
-    integer,              intent(in)  :: localBodyIndices(:)
-    type(struct_eob),     intent(in)  :: ensObs_mpiglobal
+    type(struct_enkfNML), intent(in)  :: enkfNML                    ! Derived type variable with namelist variables
+    real(8),              intent(out) :: weightsMeanLatLon(:,:)     ! Ens mean weights at one grid point
+    real(8),              intent(out) :: weightsMembersLatLon(:,:)  ! Ens member weights at one grid point
+    real(8),              intent(in)  :: YbTinvRYb_mean(:,:)        ! Cov matrix in ensemble space for ens mean calculation
+    real(8),              intent(in)  :: YbTinvRYb_pert(:,:)        ! Cov matrix in ensemble space for ens member calculation
+    real(8),              intent(in)  :: YbTinvR_mean(:,:)          ! Product of Yb and inv(R) needed for LETKF calculation
+    real(8),              intent(in)  :: YbTinvR_pert(:,:)          ! Product of Yb and inv(R) needed for LETKF calculation
+    integer,              intent(in)  :: nEnsPerSubEns              ! Number of members per sub-ensemble
+    integer,              intent(in)  :: nEnsIndependentPerSubEns   ! Number of members in all other sub-ensembles
+    integer,              intent(in)  :: memberIndexSubEns(:,:)     ! Member indexes in each sub-ensemble
+    integer,              intent(in)  :: memberIndexSubEnsComp(:,:) ! Member indexes in all other sub-ensembles
+    integer,              intent(in)  :: numLocalObs                ! Number of local observations for computing weights
+    integer,              intent(in)  :: localBodyIndices(:)        ! List of body indices of local observations
+    type(struct_eob),     intent(in)  :: ensObs_mpiglobal           ! Ens observations for original ensemble
 
     ! Locals:
     integer :: memberIndex, memberIndex1, memberIndex2, bodyIndex, localObsIndex
@@ -1940,7 +1945,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)  :: enkfNML
+    type(struct_enkfNML), intent(in)  :: enkfNML                    ! Derived type variable with namelist variables
     integer,              intent(out) :: memberIndexSubEns(:,:)     ! Array of member indexes for each subEns
     integer,              intent(out) :: memberIndexSubEns_mod(:,:) ! Array of modulated member indexes for each subEns
     integer,              intent(out) :: memberIndexSubEnsComp(:,:) ! Array of member indexes complementary to each subEns
@@ -2051,7 +2056,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)    :: enkfNML
+    type(struct_enkfNML), intent(in)    :: enkfNML            ! Derived type variable with namelist variables
     type(struct_gsv),     intent(inout) :: stateVectorMeanInc ! Ensemble mean increment
     type(struct_gsv),     intent(inout) :: stateVectorMeanTrl ! Ensemble mean trial
     type(struct_gsv),     intent(inout) :: stateVectorMeanAnl ! Ensemble mean analysis
@@ -2255,21 +2260,21 @@ contains
                                 ensObs_mpiglobal, localBodyIndices,  &
                                 YbTinvRYb_mean, YbTinvRCopy_mean)
     !
-    !:Purpose: Compute the background covariance in ensemble space
+    !:Purpose: Compute the background covariance in ensemble space.
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)            :: nEns1
-    integer, intent(in)            :: nEns2
-    integer, intent(in)            :: maxNumLocalObs
-    integer, intent(in)            :: numLocalObs
-    type(struct_eob), intent(in)   :: ensObs_mpiglobal
-    integer, intent(in)            :: localBodyIndices(maxNumLocalObs)
-    real(8), intent(out)           :: YbTinvRYb_pert(nEns1,nEns2)
-    real(8), intent(in)            :: YbTinvRCopy_pert(maxNumLocalObs,nEns1)
-    real(8), intent(out), optional :: YbTinvRYb_mean(nEns1,nEns2)
-    real(8), intent(in),  optional :: YbTinvRCopy_mean(maxNumLocalObs,nEns1)
+    integer,          intent(in)            :: nEns1                                  ! First dimension of cov matrix in ens space
+    integer,          intent(in)            :: nEns2                                  ! Second dimension of cov matrix in ens space
+    integer,          intent(in)            :: maxNumLocalObs                         ! Maximum number of local obs
+    integer,          intent(in)            :: numLocalObs                            ! Actual number of local obs
+    type(struct_eob), intent(in)            :: ensObs_mpiglobal                       ! Ensemble observations
+    integer,          intent(in)            :: localBodyIndices(maxNumLocalObs)       ! List of body indexes for local obs
+    real(8),          intent(out)           :: YbTinvRYb_pert(nEns1,nEns2)            ! Output cov matrix in ens space
+    real(8),          intent(in)            :: YbTinvRCopy_pert(maxNumLocalObs,nEns1) ! Input product of Yb and inv(R)
+    real(8),          intent(out), optional :: YbTinvRYb_mean(nEns1,nEns2)            ! Output cov matrix in ens space for mean
+    real(8),          intent(in),  optional :: YbTinvRCopy_mean(maxNumLocalObs,nEns1) ! Input product of Yb and inv(R) for mean
 
     ! Locals:
     integer :: threadIndex, omp_get_thread_num
@@ -2389,8 +2394,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(4), allocatable, intent(inout) :: vertLocation_r4(:,:,:)
-    type(struct_gsv),     intent(inout) :: stateVectorMeanTrl
+    real(4), allocatable, intent(inout) :: vertLocation_r4(:,:,:) ! Vertical locations for all grid points
+    type(struct_gsv),     intent(inout) :: stateVectorMeanTrl     ! Ensemble mean state vector
 
     ! Locals:
     integer          :: nLev_M, nLev_depth, nLev_vertLocation, levIndex, nsize, ierr
@@ -2470,15 +2475,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer,                     intent(out) :: numLatLonMpiGlobal
-    integer,                     intent(out) :: myNumLatLonRecv
-    integer, allocatable,        intent(out) :: myLatIndexesRecv(:)
-    integer, allocatable,        intent(out) :: myLonIndexesRecv(:)
-    integer, allocatable,        intent(out) :: latIndexesSendMpiGlobal(:)
-    integer, allocatable,        intent(out) :: lonIndexesSendMpiGlobal(:)
-    integer, allocatable,        intent(out) :: procIndexesSendMpiGlobal(:,:)
-    integer, allocatable,        intent(out) :: numProcsSendMpiGlobal(:)
-    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
+    integer,                     intent(out) :: numLatLonMpiGlobal            ! Total number of weights to be calculated
+    integer,                     intent(out) :: myNumLatLonRecv               ! Number of weights needed locally (including halo)
+    integer, allocatable,        intent(out) :: myLatIndexesRecv(:)           ! List of latIndex for locally needed weights
+    integer, allocatable,        intent(out) :: myLonIndexesRecv(:)           ! List of lonIndex for locally needed weights
+    integer, allocatable,        intent(out) :: latIndexesSendMpiGlobal(:)    ! Global list of latIndex
+    integer, allocatable,        intent(out) :: lonIndexesSendMpiGlobal(:)    ! Global list of lonIndex
+    integer, allocatable,        intent(out) :: procIndexesSendMpiGlobal(:,:) ! MPI task indexes where each weight is needed
+    integer, allocatable,        intent(out) :: numProcsSendMpiGlobal(:)      ! Number of MPI tasks where each weight is needed
+    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo                   ! LETKF weight interpolation info
 
     ! Locals:
     integer :: latIndex, lonIndex, procIndex, latLonIndex, myLatLonIndex, latLonIndexMpiGlobal
@@ -2650,12 +2655,16 @@ contains
   ! enkf_LETKFgetMpiGlobalTags (private subroutine)
   !----------------------------------------------------------------------
   subroutine enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
+    !
+    !:Purpose: Define a set of unique MPI tags used for doing MPI communication
+    !          of the LETKF weights.
+    !
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: latLonTagMpiGlobal(:,:)
-    integer, intent(in)  :: myLatIndexesRecv(:)
-    integer, intent(in)  :: myLonIndexesRecv(:)
+    integer, intent(out) :: latLonTagMpiGlobal(:,:) ! Output list of unique MPI tags for weight communication
+    integer, intent(in)  :: myLatIndexesRecv(:)     ! Input latIndex list for locally needed weights 
+    integer, intent(in)  :: myLonIndexesRecv(:)     ! Input lonIndex list for locally needed weights
 
     ! Locals:
     integer :: ierr, ni, nj, lonIndex, latIndex
@@ -2715,42 +2724,6 @@ contains
 
   end subroutine enkf_LETKFgetMpiGlobalTags
 
-  !----------------------------------------------------------------------
-  ! enkf_latLonAlreadyFound (private function)
-  !----------------------------------------------------------------------
-  function enkf_latLonAlreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex) result(found)
-    implicit none
-
-    ! Arguments:
-    integer, intent(in) :: allLatIndexesRecv(:,:)
-    integer, intent(in) :: allLonIndexesRecv(:,:)
-    integer, intent(in) :: latLonIndex
-    integer, intent(in) :: procIndex
-    ! Result:
-    logical :: found
-
-    ! Locals:
-    integer :: latLonIndex2, procIndex2, numLatLonRecvMax
-
-    numLatLonRecvMax = size(allLatIndexesRecv, 1)
-
-    ! check on all previous mpi tasks if this lat/lon has already been encountered
-    found = .false.
-    do procIndex2 = 1, procIndex-1
-      WEIGHTS1LEV_LOOP: do latLonIndex2 = 1, numLatLonRecvMax
-        if (allLatIndexesRecv(latLonIndex2, procIndex2) < 0) cycle WEIGHTS1LEV_LOOP
-        if ( (allLatIndexesRecv(latLonIndex, procIndex) ==  &
-              allLatIndexesRecv(latLonIndex2, procIndex2)) .and.  &
-             (allLonIndexesRecv(latLonIndex, procIndex) ==  &
-              allLonIndexesRecv(latLonIndex2, procIndex2)) ) then
-          found = .true.
-          exit WEIGHTS1LEV_LOOP
-        end if
-      end do WEIGHTS1LEV_LOOP
-    end do
-
-  end function enkf_latLonAlreadyFound
-
   !--------------------------------------------------------------------------
   ! enkf_setupInterpInfo
   !--------------------------------------------------------------------------
@@ -2765,13 +2738,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfInterpInfo), intent(out) :: wInterpInfo
-    type(struct_hco),            intent(in)  :: hco
-    integer,                     intent(in)  :: weightLatLonStep
-    integer,                     intent(in)  :: myLonBeg
-    integer,                     intent(in)  :: myLonEnd
-    integer,                     intent(in)  :: myLatBeg
-    integer,                     intent(in)  :: myLatEnd
+    type(struct_enkfInterpInfo), intent(out) :: wInterpInfo      ! Output LETKF weight interpolation info
+    type(struct_hco),            intent(in)  :: hco              ! Horizontal coordinate definition
+    integer,                     intent(in)  :: weightLatLonStep ! Grid-point spacing of weight calculation
+    integer,                     intent(in)  :: myLonBeg         ! Limits of local lat-lon tile
+    integer,                     intent(in)  :: myLonEnd         ! Limits of local lat-lon tile
+    integer,                     intent(in)  :: myLatBeg         ! Limits of local lat-lon tile
+    integer,                     intent(in)  :: myLatEnd         ! Limits of local lat-lon tile
 
     ! Locals:
     integer :: lonIndex, latIndex, ni, nj
@@ -2968,8 +2941,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo
-    real(8),                     intent(out) :: weights(1:,1:,wInterpInfo%myLonBegHalo:,wInterpInfo%myLatBegHalo:)
+    type(struct_enkfInterpInfo), intent(in)  :: wInterpInfo  ! LETKF weight interpolation info
+    real(8),                     intent(out) :: weights(1:,1:,wInterpInfo%myLonBegHalo:,wInterpInfo%myLatBegHalo:) ! Interpolated weights
 
     ! Locals:
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
@@ -3024,10 +2997,16 @@ contains
   ! enkf_modifyAMSUBobsError
   !--------------------------------------------------------------------------
   subroutine enkf_modifyAMSUBobsError(obsSpaceData)
+    !
+    !:Purpose: Ad-hoc modification of the observation error stddev of
+    !          AMSUB (MHS, MWHS2) observations in the region equatorward
+    !          of 40 degrees latitude. This was inherited from the
+    !          original EnKF system.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs), target, intent(inout) :: obsSpaceData
+    type(struct_obs), target, intent(inout) :: obsSpaceData ! Observation space information
 
     ! Locals:
     real(pre_obsReal), parameter :: AMSUB_trop_oer = 1.0 ! assumed value for AMSU-B obs error in tropics
@@ -3059,10 +3038,14 @@ contains
   ! enkf_rejectHighLatIR
   !--------------------------------------------------------------------------
   subroutine enkf_rejectHighLatIR(obsSpaceData)
+    !
+    !:Purpose: Reject hyperspectral IR radiance observations at latitudes
+    !          poleward of 60 degrees latitude.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs), target, intent(inout) :: obsSpaceData
+    type(struct_obs), target, intent(inout) :: obsSpaceData ! Observation space information
 
     ! Locals:
     integer           :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd, codeType
@@ -3103,12 +3086,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML), intent(in)    :: enkfNML
-    type(struct_gsv),     intent(in)    :: stateVector_in
-    type(struct_gsv),     intent(in)    :: stateVectorMeanTrl
-    integer,              intent(in)    :: eigenVectorColumnIndex
-    type(struct_gsv),     intent(inout) :: stateVector_out
-    logical,              intent(in)    :: beSilent
+    type(struct_enkfNML), intent(in)    :: enkfNML                ! Derived type variable with namelist variables
+    type(struct_gsv),     intent(in)    :: stateVector_in         ! State vector with ens member to be processed
+    type(struct_gsv),     intent(in)    :: stateVectorMeanTrl     ! Ensemble mean state vector
+    integer,              intent(in)    :: eigenVectorColumnIndex ! Index of eigenvector to use
+    type(struct_gsv),     intent(inout) :: stateVector_out        ! Resulting modulated ensemble member
+    logical,              intent(in)    :: beSilent               ! Control of verbose output
 
     ! Locals:
     real(4)          :: modulationFactor_r4
@@ -3189,14 +3172,14 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_setupModulationFactor(enkfNML, vco, beSilent)
     !
-    !:Purpose: setup modulationFactorArray by calling getModulationFactor for first time. 
+    !:Purpose: Setup modulationFactorArray by calling getModulationFactor for first time. 
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML),      intent(in) :: enkfNML
-    type(struct_vco), pointer, intent(in) :: vco
-    logical,                   intent(in) :: beSilent
+    type(struct_enkfNML),      intent(in) :: enkfNML  ! Derived type variable with namelist variables
+    type(struct_vco), pointer, intent(in) :: vco      ! Vertical coordinate definition
+    logical,                   intent(in) :: beSilent ! Control of verbose output
 
     ! Locals:
     integer :: eigenVectorColumnIndex
@@ -3218,19 +3201,19 @@ contains
                                   eigenVectorColumnIndex, &
                                   modulationFactor_r4, beSilent_opt )
     !
-    !:Purpose: compute modulation factor needed to multiply ensemble
+    !:Purpose: Compute modulation factor needed to multiply ensemble
     !          perturbation to get the modulated perturbation:
     !          (Nens*nLambda/(Nens - 1))^1/2 * Lambda^1/2
     !
     implicit none
 
     ! Arguments:
-    type(struct_enkfNML),      intent(in)  :: enkfNML
-    type(struct_vco), pointer, intent(in)  :: vco
-    integer,                   intent(in)  :: eigenVectorLevelIndex
-    integer,                   intent(in)  :: eigenVectorColumnIndex
-    real(4),                   intent(out) :: modulationFactor_r4
-    logical, optional,         intent(in)  :: beSilent_opt
+    type(struct_enkfNML),      intent(in)  :: enkfNML                ! Derived type variable with namelist variables
+    type(struct_vco), pointer, intent(in)  :: vco                    ! Vertical coordinate definition
+    integer,                   intent(in)  :: eigenVectorLevelIndex  ! Index of vertical level to use
+    integer,                   intent(in)  :: eigenVectorColumnIndex ! Index of eigenvector to use
+    real(4),                   intent(out) :: modulationFactor_r4    ! Resulting modulation factor
+    logical, optional,         intent(in)  :: beSilent_opt           ! Control of verbose output
 
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex
