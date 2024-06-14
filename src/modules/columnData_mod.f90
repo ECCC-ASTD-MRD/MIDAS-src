@@ -215,7 +215,6 @@ contains
 
     if (column%numCol > 0) then
       column%all(:,:) = 0.0d0
-      column%heightSfc(:) = 0.0d0
     end if
 
   end subroutine col_zero
@@ -536,6 +535,11 @@ contains
     ! Locals:
     integer                             :: ilev1
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getPressure: headerIndex out of range')
+    end if
+
     if (varLevel == 'TH' .and. col_varExist(column,'P_T')) then
       ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
       pressure = column%all(ilev1+ilev-1,headerIndex)
@@ -568,6 +572,11 @@ contains
 
     ! Locals:
     integer                             :: ilev1
+
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getHeight: headerIndex out of range')
+    end if
 
     if (varLevel == 'TH') then
       if (.not. col_varExist(column,'Z_T') ) then
@@ -603,6 +612,11 @@ contains
     integer,                 intent(in)    :: headerIndex ! The column/header index
     real(8),                 intent(in)    :: height      ! The supplied height value
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_setHeightSfc: headerIndex out of range')
+    end if
+
     column%heightSfc(headerIndex) = height
 
   end subroutine col_setHeightSfc
@@ -626,6 +640,11 @@ contains
     ! Result:
     real(8)                             :: value       ! The returned value of "oltv"
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getOltv: headerIndex out of range')
+    end if
+
     value = column%oltv(varIndex, levIndex, headerIndex)
 
   end function col_getOltv
@@ -648,6 +667,11 @@ contains
     integer,                 intent(in)    :: headerIndex ! The column/header index
     real(8),                 intent(in)    :: value       ! The value of "oltv" for setting
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_setOltv: headerIndex out of range')
+    end if
+
     column%oltv(varIndex, levIndex, headerIndex) = value
 
   end subroutine col_setOltv
@@ -655,7 +679,7 @@ contains
   !--------------------------------------------------------------------------
   ! col_getAllColumns
   !--------------------------------------------------------------------------
-  function col_getAllColumns(column,varName_opt) result(allColumns)
+  function col_getAllColumns(column,varName) result(allColumns)
     !
     !:Purpose: Return a pointer to either a portion of the main `column`
     !          object data array for a given variable or to the entire array.
@@ -663,25 +687,21 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column          ! The `columnData` object
-    character(len=*), optional, intent(in) :: varName_opt     ! The variable name
+    type(struct_columnData), intent(in) :: column  ! The `columnData` object
+    character(len=*),        intent(in) :: varName ! The variable name
     ! Result:
-    real(8), pointer                       :: allColumns(:,:) ! Resulting pointer to complete array
+    real(8), pointer                    :: allColumns(:,:) ! Resulting pointer to complete array
 
     ! Locals:
-    integer                                :: ilev1, ilev2
+    integer                             :: ilev1, ilev2
 
     if ( column%numCol > 0 ) then
-      if(present(varName_opt)) then
-        if ( col_varExist(column,varName_opt) ) then
-          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
-          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
-          allColumns => column%all(ilev1:ilev2,:)
-        else
-          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
-        end if
+      if ( col_varExist(column,varName) ) then
+        ilev1 = column%varOffset(vnl_varListIndex(varName))+1
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+        allColumns => column%all(ilev1:ilev2,:)
       else
-        allColumns => column%all(:,:)
+        call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
       end if
     else
       allColumns => null()
@@ -709,6 +729,11 @@ contains
 
     ! Locals:
     integer                                :: ilev1,ilev2
+
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getColumn: headerIndex out of range')
+    end if
 
     if(present(varName_opt)) then
       if(col_varExist(column,varName_opt)) then
@@ -745,10 +770,21 @@ contains
     ! Result:
     real(8)                                :: value       ! The returned value
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getElem: headerIndex out of range')
+    end if
+
     if(present(varName_opt)) then
-      if(.not.col_varExist(column,varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
+      if(.not.col_varExist(column,varName_opt)) then
+        call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
+      end if
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
+      if (ilev > column%nk .or. ilev < 1) then
+        write(*,*) 'varsLevs index = ', ilev
+        call utl_abort('col_getElem: varsLevs index out of range')
+      end if
       value = column%all(ilev,headerIndex)
     end if
 
@@ -769,6 +805,11 @@ contains
     ! Result:
     real(8)                                :: value       ! The returned latitude value
 
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_getLat: headerIndex out of range')
+    end if
+
     value = column%lat(headerIndex)
 
   end function col_getLat
@@ -786,6 +827,11 @@ contains
     type(struct_columnData), intent(inout) :: column      ! The `columnData` object
     integer,                 intent(in)    :: headerIndex ! The column/header index
     real(8),                 intent(in)    :: value       ! The latitude value for setting
+
+    if (headerIndex > column%numCol .or. headerIndex < 1) then
+      write(*,*) 'headerIndex = ', headerIndex
+      call utl_abort('col_setLat: headerIndex out of range')
+    end if
 
     column%lat(headerIndex) = value
 
@@ -911,8 +957,8 @@ contains
       call utl_abort('col_add: Vco in columnIn and columnInout are not equal')
     end if
 
-    ptrColInOut => col_getAllColumns(columnInout)
-    ptrColIn => col_getAllColumns(columnIn)
+    ptrColInOut => columnInout%all
+    ptrColIn => columnIn%all
 
     if (present(scaleFactor_opt)) then
       ptrColInOut(:,:) = ptrColInOut(:,:) + scaleFactor_opt * ptrColIn(:,:)

@@ -1219,8 +1219,8 @@ contains
         call col_setVco(columnOutRef_ptr, col_getVco(column_out))
         call col_allocate(columnOutRef_ptr, col_getNumCol(column_out))
 
-        pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, varName_opt ='P0')
-        pSfcOut_ptr => col_getAllColumns(columnOutRef_ptr, varName_opt ='P0')
+        pSfcIn_ptr => col_getAllColumns(columnInRef_ptr, 'P0')
+        pSfcOut_ptr => col_getAllColumns(columnOutRef_ptr, 'P0')
 
         pSfcIn_ptr = sfcPressureRef_opt
         pSfcOut_ptr = sfcPressureRef_opt

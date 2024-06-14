@@ -147,7 +147,7 @@ module bgckOcean_mod
       ! Convert sea water fraction stateVector to column object
       call col_setVco(columnSeaWaterFraction, col_getVco(columnTrlOnTrlLev))
       call col_allocate(columnSeaWaterFraction, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'VF'/))
-      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, varName_opt = 'VF', &
+      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, &
                   timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                   numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
     else
@@ -209,7 +209,7 @@ module bgckOcean_mod
     ! Convert FGE stateVector to column object
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'TM'/))
-    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, varName_opt = 'TM', &
+    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, &
                 timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                 numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
