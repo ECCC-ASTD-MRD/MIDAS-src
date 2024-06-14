@@ -465,53 +465,64 @@ module var1DIdealize_mod
       end if
     end do HEADER2
     
-    ! Compute R matrix based on the difference between simulate obseration and truth 
-    ! that is based on the true state and simulated emissivity
-    ! (H(x_true, emiss_true) + obs_error) - H(x_true, emiss_sim)
+   
     if (useSimObsErr) then
-      ! Simulate emissivity
-      call var1Di_simulateEmissivity(obsSpaceData, simEmissSeed)
-      tvs_useSfcEmissObsSpace = .true.
+      if (col_varExist(columnTruthOnTrlLev, 'EMMW')) then
+        ! Compute R matrix based on the difference between simulated obseration and truth 
+        ! that is based on the true state and simulated emissivity
+        ! (H(x_true, emiss_true)+ obs_error) - H(x_true, emiss_true)
+        ! Estimate and update R-Matrix.
+        call rmat_updateRmat(obsSpaceData, OBS_VAR, OBS_TRUO)
+        call rmat_writeRCorrFile
+      else
+        ! Compute R matrix based on the difference between simulated obseration and truth 
+        ! that is based on the true state and simulated emissivity
+        ! (H(x_true, emiss_true) + obs_error) - H(x_true, emiss_sim)
 
-      ! Prepare atmospheric profiles for all tovs observation points for use in rttov
-      call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
+        ! Simulate emissivity
+        call var1Di_simulateEmissivity(obsSpaceData, simEmissSeed)
+        tvs_useSfcEmissObsSpace = .true.
 
-      ! Compute radiance
-      call tvs_rttov(obsSpaceData, bgckMode, beSilent)
+        ! Prepare atmospheric profiles for all tovs observation points for use in rttov
+        call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, 'nl', beSilent)
 
-      ! loop over all header indices of the 'TO' family
-      call obs_set_current_header_list(obsSpaceData,'TO')
+        ! Compute radiance
+        call tvs_rttov(obsSpaceData, bgckMode, beSilent)
 
-      ! Store the true state (Observation Space) into ObsSpaceData
-      HEADER3: do
-        headerIndex = obs_getHeaderIndex(obsSpaceData)
-        if (headerIndex < 0) exit HEADER3
+        ! loop over all header indices of the 'TO' family
+        call obs_set_current_header_list(obsSpaceData,'TO')
 
-        ! process only radiance data to be assimilated?
-        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-        if (.not. tvs_isIdBurpTovs(idatyp)) then
-          write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-          cycle HEADER3
-        end if
+        ! Store the true state (Observation Space) into ObsSpaceData
+        HEADER3: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER3
 
-        tovsIndex = tvs_tovsIndex(headerIndex)
-        if (tovsIndex == -1) cycle HEADER3
+          ! process only radiance data to be assimilated?
+          idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+          if (.not. tvs_isIdBurpTovs(idatyp)) then
+            write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+            cycle HEADER3
+          end if
 
-        bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+          tovsIndex = tvs_tovsIndex(headerIndex)
+          if (tovsIndex == -1) cycle HEADER3
 
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd 
-          if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
-            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                                  channelNumber, channelIndex)
-            call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
-          end if 
-        end do
-      end do HEADER3
+          bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
+          bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
-      ! Estimate and update R-Matrix.
-      call rmat_updateRmat(obsSpaceData)
-      call rmat_writeRCorrFile
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd 
+            if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
+              call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                                    channelNumber, channelIndex)
+              call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+            end if 
+          end do
+        end do HEADER3
+
+        ! Estimate and update R-Matrix.
+        call rmat_updateRmat(obsSpaceData, OBS_VAR, OBS_ETRU)
+        call rmat_writeRCorrFile
+      end if
     end if
 
     ! Compute the Jacobian
@@ -602,7 +613,7 @@ module var1DIdealize_mod
           ! Match tvs_channelnumber with the channel index in emissivity error std file
           matchChanIndex = FINDLOC(emissChanList, channelNumber, dim=1)
           if (matchChanIndex == 0) then
-            call utl_abort('sse_simulateEmissivity: Unable to find emissivity error for a channel')
+            call utl_abort('var1Di_simulateEmissivity: Unable to find emissivity error for a channel')
           end if
 
             emissErrStdPerChan = emissStdErr(matchChanIndex)
