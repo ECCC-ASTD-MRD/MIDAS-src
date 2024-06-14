@@ -36,13 +36,15 @@ module columnData_mod
   public :: col_getLevIndexFromVarLevIndex, col_add, col_copy, col_copyLat
 
   type struct_columnData
-    integer                            :: nk, numCol
+    integer                            :: nk
+    integer,                   private :: numCol
     logical                            :: allocated=.false.
     logical                            :: addHeightSfcOffset = .false.
     real(8),          pointer, private :: all(:,:)
     real(8),          pointer, private :: heightSfc(:)
     real(8),          pointer, private :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    integer,          pointer, private :: varOffset(:),varNumLev(:)
+    integer,          pointer, private :: varOffset(:)
+    integer,          pointer, private :: varNumLev(:)
     logical,                   private :: varExistList(vnl_numVarMax)
     type(struct_vco), pointer, private :: vco => null()
     real(8),          pointer, private :: lat(:)
@@ -197,7 +199,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_zero(column)
     !
-    !:Purpose:
+    !:Purpose: Set the data column components (variables and surface
+    !          height) to zero.
     !
     implicit none
 
@@ -216,7 +219,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_allocate(column, numCol, beSilent_opt, setToZero_opt, varNames_opt)
     !
-    !:Purpose:
+    !:Purpose: Allocate contents of the `column` object. The user can either
+    !          specify the list of variables to allocate or rely on the defaults
+    !          as specified by the namelist `namstate`.
     !
     implicit none
 
@@ -345,7 +350,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_deallocate(column)
     !
-    !:Purpose:
+    !:Purpose: Deallocate the data contents of the `column` object.
     !
     implicit none
 
@@ -355,10 +360,11 @@ contains
     deallocate(column%varOffset)
     deallocate(column%varNumLev)
 
-    if(column%numCol.gt.0) then
+    if(column%numCol > 0) then
       deallocate(column%all)
       deallocate(column%heightSfc)
       deallocate(column%oltv)
+      deallocate(column%lat)
     end if
 
     column%allocated=.false.
@@ -370,7 +376,10 @@ contains
   !--------------------------------------------------------------------------
   recursive function col_varExist(column_opt,varName) result(varExist)
     !
-    !:Purpose:
+    !:Purpose: Check if the supplied variable name is part of this
+    !          `column` object. Wildcard names are possible for height
+    !          and pressure to include checks on these variables on
+    !          both momentum and thermodynamic levels (`Z_*`, `P_*`).
     !
     implicit none
 
@@ -415,7 +424,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt,modelName_opt) result(offset)
     !
-    !:Purpose:
+    !:Purpose: Return the "offset" for a given variable within the "varsLevs"
+    !          list of variables and levels.
     !
     implicit none
 
@@ -436,7 +446,7 @@ contains
   !--------------------------------------------------------------------------
   function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
     !
-    !:Purpose:
+    !:Purpose: Return the level index for a given value of the "varsLevs" index.
     !
     implicit none
 
@@ -469,7 +479,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getVarNameFromK(column,kIndex) result(varName)
     !
-    !:Purpose:
+    !:Purpose: Return the variable name for a given value of the
+    !          "varsLevs" index.
     !
     implicit none
 
@@ -502,7 +513,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     !
-    !:Purpose:
+    !:Purpose: Return the pressure for a given level index, header/column
+    !          index and type of levels.
     !
     implicit none
 
@@ -534,7 +546,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getHeight(column,ilev,headerIndex,varLevel) result(height)
     !
-    !:Purpose:
+    !:Purpose: Return the height for a given level index, header/column
+    !          index and type of levels.
     !
     implicit none
 
@@ -574,7 +587,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
     !
-    !:Purpose:
+    !:Purpose: Set the height of the surface for a given header/column index.
     !
     implicit none
 
@@ -592,7 +605,9 @@ contains
   !--------------------------------------------------------------------------
   function col_getOltv(column, varIndex, levIndex, headerIndex) result(value)
     !
-    !:Purpose:
+    !:Purpose: Get the value of `oltv` for a given level index and
+    !          header/column index. The second argument selects between
+    !          either temperature or humidity.
     !
     implicit none
 
@@ -613,7 +628,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setOltv(column, varIndex, levIndex, headerIndex, value)
     !
-    !:Purpose:
+    !:Purpose: Set the value of `oltv` for a given level index and
+    !          header/column index. The second argument selects between
+    !          either temperature or humidity.
     !
     implicit none
 
@@ -633,7 +650,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getAllColumns(column,varName_opt) result(allColumns)
     !
-    !:Purpose:
+    !:Purpose: Return a pointer to either a portion of the main `column`
+    !          object data array for a given variable or to the entire array.
     !
     implicit none
 
@@ -669,7 +687,9 @@ contains
   !--------------------------------------------------------------------------
   function col_getColumn(column,headerIndex,varName_opt) result(onecolumn)
     !
-    !:Purpose:
+    !:Purpose: For a single header/column index, return a pointer to either
+    !          a portion of the main `column` object data array for a given
+    !          variable or to the entire array.
     !
     implicit none
 
@@ -702,7 +722,11 @@ contains
   !--------------------------------------------------------------------------
   function col_getElem(column,ilev,headerIndex,varName_opt) result(value)
     !
-    !:Purpose:
+    !:Purpose: Return a single value from the main `column` data array for
+    !          a given level index, header/column index and variable name.
+    !          If the variable name is not given then the level index is
+    !          actually used as the index into the complete "varsLevs"
+    !          array of all variables and levels.
     !
     implicit none
 
@@ -728,7 +752,7 @@ contains
   !--------------------------------------------------------------------------
   function col_getLat(column,headerIndex) result(value)
     !
-    !:Purpose:
+    !:Purpose: Return the latitude for a given header/column index.
     !
     implicit none
 
@@ -747,7 +771,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setLat(column, headerIndex, value)
     !
-    !:Purpose:
+    !:Purpose: Set the latitude for a given header/column index.
     !
     implicit none
 
@@ -765,7 +789,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getNumLev(column,varLevel,varName_opt) result(nlev)
     !
-    !:Purpose:
+    !:Purpose: Return the number of levels for a given type of vertical
+    !          level and (optionally) the variable name.
     !
     implicit none
 
@@ -785,7 +810,7 @@ contains
   !--------------------------------------------------------------------------
   function col_getNumCol(column) result(numColumn)
     !
-    !:Purpose:
+    !:Purpose: Return the number of columns.
     !
     implicit none
 
@@ -803,7 +828,8 @@ contains
   !--------------------------------------------------------------------------
   function col_getVco(column) result(vco_ptr)
     !
-    !:Purpose:
+    !:Purpose: Return a pointer to the vertical coordinate inside
+    !          the `column` object.
     !
     implicit none
 
@@ -821,7 +847,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setVco(column,vco_ptr)
     !
-    !:Purpose:
+    !:Purpose: Set the pointer to the vertical coordinate inside
+    !          the `column` object.
     !
     implicit none
 
@@ -838,7 +865,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_add(columnIn, columnInout, scaleFactor_opt)
     !
-    ! :Purpose: Adds two columns
+    ! :Purpose: Adds two columns:
+    !
     !           columnInout = columnInout + scaleFactor_opt * columnIn
     !
     implicit none
@@ -892,7 +920,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_copy(columnIn, columnOut)
     !
-    ! :Purpose: Copy column object from columnIn to columnOut
+    ! :Purpose: Copy column object from columnIn to columnOut.
     !
     implicit none
 
@@ -938,7 +966,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_copyLat(columnIn, columnOut)
     !
-    ! :Purpose: Copy only latitude variable from columnIn to columnOut
+    ! :Purpose: Copy only latitude variable from columnIn to columnOut.
     !
     implicit none
 
@@ -968,7 +996,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_copyHeightSfc(columnIn, columnOut)
     !
-    ! :Purpose: Copy only surface height variable from columnIn to columnOut
+    ! :Purpose: Copy only surface height variable from columnIn to columnOut.
     !
     implicit none
 

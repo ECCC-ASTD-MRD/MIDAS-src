@@ -3392,7 +3392,7 @@ contains
 
     allocate(tv(nLev_T))
 
-    do_onAllcolumns: do colIndex = 1, column%numCol
+    do_onAllcolumns: do colIndex = 1, col_getNumCol(column)
       ! column%lat populated in innovation_mod from obsSpaceData latitudes
       lat = col_getLat(column, colIndex)
       sLat = sin(lat)
