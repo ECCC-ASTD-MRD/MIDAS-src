@@ -130,9 +130,7 @@
    CRTMODL    = 'RTTOV',
  
 /
- &NAMCODTYP
-   cnames(1)='crisfsr',
-   icod(1)=202,
+ &NAMCODTYP  
 /
 &NAMGPSRO
    LEVELGPSRO = 2,
