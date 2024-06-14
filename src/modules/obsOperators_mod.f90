@@ -1887,9 +1887,10 @@ contains
       do jlev = 1, nlev_T
          do columnIndex=1,col_getNumCol(columnTrlOnAnlIncLev)
             zhu=col_getElem(columnTrlOnAnlIncLev,jlev,columnIndex,'HU')
-            columnTrlOnAnlIncLev%oltv(1,jlev,columnIndex) = phf_fottva(zhu,one)
-            columnTrlOnAnlIncLev%oltv(2,jlev,columnIndex) = phf_folnqva(zhu,col_getElem(columnTrlOnAnlIncLev,  &
-                 jlev,columnIndex,'TT'),one)
+            call col_setOltv(columnTrlOnAnlIncLev, 1,jlev,columnIndex, &
+                             phf_fottva(zhu,one))
+            call col_setOltv(columnTrlOnAnlIncLev, 2,jlev,columnIndex, &
+                             phf_folnqva(zhu,col_getElem(columnTrlOnAnlIncLev,jlev,columnIndex,'TT'),one))
          end do
       end do
       !$OMP END PARALLEL DO
@@ -2082,9 +2083,9 @@ contains
                  end if
                  call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,anlIncWindSpeed)  
               else if (bufrCode == bufr_neps .OR. bufrCode == bufr_nepn) THEN
-                ZLTV  = columnTrlOnAnlIncLev%OLTV(1,nlev_T,headerIndex)*col_getElem(columnAnlInc,nlev_T,headerIndex,'TT')  & 
-                      + columnTrlOnAnlIncLev%OLTV(2,nlev_T,headerIndex)*col_getElem(columnAnlInc,nlev_T,headerIndex,'HU')
-                trlVirtTemp  = columnTrlOnAnlIncLev%OLTV(1,nlev_T,headerIndex)*col_getElem(columnTrlOnAnlIncLev,nlev_T,headerIndex,'TT')
+                ZLTV  = col_getOltv(columnTrlOnAnlIncLev,1,nlev_T,headerIndex)*col_getElem(columnAnlInc,nlev_T,headerIndex,'TT')  & 
+                      + col_getOltv(columnTrlOnAnlIncLev,2,nlev_T,headerIndex)*col_getElem(columnAnlInc,nlev_T,headerIndex,'HU')
+                trlVirtTemp  = col_getOltv(columnTrlOnAnlIncLev,1,nlev_T,headerIndex)*col_getElem(columnTrlOnAnlIncLev,nlev_T,headerIndex,'TT')
                 deltaT= temperatureLapseRate*(obsHeight-col_getHeight(columnTrlOnAnlIncLev,0,headerIndex,'SF'))
                 coeffA  = ((trlVirtTemp-deltaT)/trlVirtTemp)
                 ZDELPS= (col_getElem(columnAnlInc,1,headerIndex,'P0')*coeffA**coeffB)
@@ -2845,7 +2846,7 @@ contains
                  tt_column  => col_getColumn(columnAnlInc,headerIndex,'TT')
                  hu_column  => col_getColumn(columnAnlInc,headerIndex,'HU')
                  ps_column  => col_getColumn(columnAnlInc,headerIndex,'P0')
-                 trlVirtTemp = columnTrlOnAnlIncLev%OLTV(1,nlev_T,headerIndex)*col_getElem(columnTrlOnAnlIncLev,nlev_T,headerIndex,'TT')
+                 trlVirtTemp = col_getOltv(columnTrlOnAnlIncLev,1,nlev_T,headerIndex)*col_getElem(columnTrlOnAnlIncLev,nlev_T,headerIndex,'TT')
                  deltaT = temperatureLapseRate*(obsHeight-col_getHeight(columnTrlOnAnlIncLev,0,headerIndex,'SF'))
                  coeffA = ((trlVirtTemp-deltaT)/trlVirtTemp)
                  ZDELTV = (col_getElem(columnTrlOnAnlIncLev,1,headerIndex,'P0')*coeffB*coeffA**(coeffB-1))  &
@@ -2854,9 +2855,9 @@ contains
                  ZATV   = ZDELTV*ZRES
                  ps_column(1)= ps_column(1) + ZDELPS*ZRES
                  tt_column(nlev_T) = tt_column(nlev_T) + &
-                                     columnTrlOnAnlIncLev%OLTV(1,nlev_T,headerIndex)*ZATV
+                                     col_getOltv(columnTrlOnAnlIncLev,1,nlev_T,headerIndex)*ZATV
                  hu_column(nlev_T) = hu_column(nlev_T) + &
-                                     columnTrlOnAnlIncLev%OLTV(2,nlev_T,headerIndex)*ZATV
+                                     col_getOltv(columnTrlOnAnlIncLev,2,nlev_T,headerIndex)*ZATV
                else
 
                  call utl_abort('oop_HTsf: You have entered the twilight zone!')

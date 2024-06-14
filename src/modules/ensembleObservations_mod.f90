@@ -1442,7 +1442,7 @@ CONTAINS
         end if
 
         ! SST observations
-        ensObs%vertLocation(obsIndex) = minval(columnMeanTrl%vco%depths(:))
+        ensObs%vertLocation(obsIndex) = minval(col_getVco(columnMeanTrl)%depths(:))
 
       else if(ensObs%assFlag(obsIndex)==1) then
 

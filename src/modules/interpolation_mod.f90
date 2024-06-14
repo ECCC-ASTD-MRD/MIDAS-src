@@ -1199,8 +1199,8 @@ contains
       call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
     end if
 
-    vcode_in  = column_in%vco%vcode
-    vcode_out = column_out%vco%vcode
+    vcode_in  = col_getVco(column_in)%vcode
+    vcode_out = col_getVco(column_out)%vcode
     nLevIn_T  = col_getNumLev(column_in,  'TH')
     nLevIn_M  = col_getNumLev(column_in,  'MM')
     nLevOut_T = col_getNumLev(column_out, 'TH')
@@ -1297,14 +1297,14 @@ contains
 
     else if_vInterp
 
-      if (column_out%vco%nlev_T > 0 .and. column_out%vco%nlev_M > 0) then
+      if (col_getNumLev(column_out, 'TH') > 0 .and. col_getNumLev(column_out, 'MM') > 0) then
 
         ! Find which levels in column_in matches column_out
-        allocate(THlevelWanted(column_out%vco%nlev_T))
-        allocate(MMlevelWanted(column_out%vco%nlev_M))
+        allocate(THlevelWanted(col_getNumLev(column_out, 'TH')))
+        allocate(MMlevelWanted(col_getNumLev(column_out, 'MM')))
 
         call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
-                                    column_out%vco, column_in%vco ) ! IN
+                                    col_getVco(column_out), col_getVco(column_in) ) ! IN
 
         if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
           call utl_abort('int_vInterp_col: column_out is not a subsets of column_in!')
@@ -1327,9 +1327,9 @@ contains
         deallocate(THlevelWanted)
         deallocate(MMlevelWanted)
 
-      else if (column_out%vco%nlev_depth > 0) then
+      else if (col_getNumLev(column_out, 'DP') > 0) then
         call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
-        if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
+        if (any(col_getVco(column_out)%depths(:) /= col_getVco(column_in)%depths(:))) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels

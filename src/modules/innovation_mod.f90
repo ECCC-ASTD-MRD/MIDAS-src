@@ -203,9 +203,10 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
-    integer                   :: ierr
+    integer                   :: ierr, headerIndex
     logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
+    real(8)           :: obsLat
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     integer           :: numObsBatches      ! number of batches for calling interp setup
 
@@ -243,9 +244,10 @@ contains
     call col_allocate(columnTrlOnTrlLev,obs_numHeader(obsSpaceData))
 
     ! copy latitude from obsSpaceData
-    if ( obs_numHeader(obsSpaceData) > 0 ) then
-      call obs_extractObsRealHeaderColumn(columnTrlOnTrlLev%lat(:), obsSpaceData, OBS_LAT)
-    end if
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+      call col_setLat(columnTrlOnTrlLev, headerIndex, obsLat)
+    end do
 
     call s2c_nl( stateVectorUpdateHighRes, obsSpaceData, columnTrlOnTrlLev, hco_core, &
                  timeInterpType=timeInterpType_nl, &
@@ -305,7 +307,7 @@ contains
     !
     
     ! copy latitude
-    columnTrlOnAnlIncLev%lat(:) = columnTrlOnTrlLev%lat(:)
+    call col_copyLat(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
@@ -387,21 +389,19 @@ contains
     !
 
     ! Set surface height
-    do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
-      columnTrlOnAnlIncLev%heightSfc(columnIndex) = columnTrlOnTrlLev%heightSfc(columnIndex)
-    end do
+    call col_copyHeightSfc(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
     if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then 
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_T')
-        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'TH')) = columnTrlOnAnlIncLev%heightSfc(columnIndex)
+        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'TH')) = col_getHeight(columnTrlOnAnlIncLev,1,columnIndex,'SF')
       end do
     end if
     if ( col_varExist(columnTrlOnAnlIncLev,'Z_M') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_M')
-        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'MM')) = columnTrlOnAnlIncLev%heightSfc(columnIndex)
+        columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'MM')) = col_getHeight(columnTrlOnAnlIncLev,1,columnIndex,'SF')
       end do
     end if
 
@@ -422,7 +422,7 @@ contains
             //new_line('')//'Z_M (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
     end if
 
-    call msg('inn_setupColumnsOnAnlIncLev','HeightSfc:'//str(columnTrlOnAnlIncLev%heightSfc(1)))
+    call msg('inn_setupColumnsOnAnlIncLev','HeightSfc:'//str(col_getHeight(columnTrlOnAnlIncLev,1,1,'SF')))
 
     call msg('inn_setupColumnsOnAnlIncLev','END',verb_opt=2)
 

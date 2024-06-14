@@ -29,21 +29,23 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
-  public :: col_getPressure, col_getHeight, col_setHeightSfc
-  public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
-  public :: col_getLevIndexFromVarLevIndex, col_add, col_copy
+  public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
+  public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
+  public :: col_getLat, col_setLat, col_getOltv, col_setOltv
+  public :: col_getVco, col_setVco
+  public :: col_getLevIndexFromVarLevIndex, col_add, col_copy, col_copyLat
 
   type struct_columnData
-    integer           :: nk, numCol
-    logical           :: allocated=.false.
-    real(8), pointer  :: all(:,:)
-    real(8), pointer  :: heightSfc(:)
-    real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    integer, pointer  :: varOffset(:),varNumLev(:)
-    logical           :: varExistList(vnl_numVarMax)
-    type(struct_vco), pointer :: vco => null()
-    logical           :: addHeightSfcOffset = .false.
-    real(8), pointer  :: lat(:)
+    integer                            :: nk, numCol
+    logical                            :: allocated=.false.
+    logical                            :: addHeightSfcOffset = .false.
+    real(8),          pointer, private :: all(:,:)
+    real(8),          pointer, private :: heightSfc(:)
+    real(8),          pointer, private :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
+    integer,          pointer, private :: varOffset(:),varNumLev(:)
+    logical,                   private :: varExistList(vnl_numVarMax)
+    type(struct_vco), pointer, private :: vco => null()
+    real(8),          pointer, private :: lat(:)
   end type struct_columnData
 
   logical :: varExistList(vnl_numvarmax)
@@ -58,7 +60,10 @@ contains
   !--------------------------------------------------------------------------
   ! col_setup
   !--------------------------------------------------------------------------
-  subroutine col_setup
+  subroutine col_setup()
+    !
+    !:Purpose: Read the namelist and setup some module variables.
+    !
     implicit none
 
     ! Locals:
@@ -191,6 +196,9 @@ contains
   ! col_zero
   !--------------------------------------------------------------------------
   subroutine col_zero(column)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -207,6 +215,9 @@ contains
   ! col_allocate
   !--------------------------------------------------------------------------
   subroutine col_allocate(column, numCol, beSilent_opt, setToZero_opt, varNames_opt)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -333,6 +344,9 @@ contains
   ! col_deallocate
   !--------------------------------------------------------------------------
   subroutine col_deallocate(column)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -355,6 +369,9 @@ contains
   ! col_varExist
   !--------------------------------------------------------------------------
   recursive function col_varExist(column_opt,varName) result(varExist)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -397,6 +414,9 @@ contains
   ! col_getOffsetFromVarno
   !--------------------------------------------------------------------------
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt,modelName_opt) result(offset)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -415,6 +435,9 @@ contains
   ! col_getLevIndexFromVarLevIndex
   !--------------------------------------------------------------------------
   function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -445,6 +468,9 @@ contains
   ! col_getVarNameFromK
   !--------------------------------------------------------------------------
   function col_getVarNameFromK(column,kIndex) result(varName)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -475,6 +501,9 @@ contains
   ! col_getPressure
   !--------------------------------------------------------------------------
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -504,6 +533,9 @@ contains
   ! col_getHeight
   !--------------------------------------------------------------------------
   function col_getHeight(column,ilev,headerIndex,varLevel) result(height)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -541,6 +573,9 @@ contains
   ! col_setHeightsSfc
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -553,9 +588,53 @@ contains
   end subroutine col_setHeightSfc
 
   !--------------------------------------------------------------------------
+  ! col_getOltv
+  !--------------------------------------------------------------------------
+  function col_getOltv(column, varIndex, levIndex, headerIndex) result(value)
+    !
+    !:Purpose:
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column
+    integer,                 intent(in) :: varIndex
+    integer,                 intent(in) :: levIndex
+    integer,                 intent(in) :: headerIndex
+    ! Result:
+    real(8)                             :: value
+
+    value = column%oltv(varIndex, levIndex, headerIndex)
+
+  end function col_getOltv
+  
+  !--------------------------------------------------------------------------
+  ! col_setOltv
+  !--------------------------------------------------------------------------
+  subroutine col_setOltv(column, varIndex, levIndex, headerIndex, value)
+    !
+    !:Purpose:
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: column
+    integer,                 intent(in)    :: varIndex
+    integer,                 intent(in)    :: levIndex
+    integer,                 intent(in)    :: headerIndex
+    real(8),                 intent(in)    :: value
+
+    column%oltv(varIndex, levIndex, headerIndex) = value
+
+  end subroutine col_setOltv
+  
+  !--------------------------------------------------------------------------
   ! col_getAllColumns
   !--------------------------------------------------------------------------
   function col_getAllColumns(column,varName_opt) result(allColumns)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -589,6 +668,9 @@ contains
   ! col_getColumn
   !--------------------------------------------------------------------------
   function col_getColumn(column,headerIndex,varName_opt) result(onecolumn)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -619,6 +701,9 @@ contains
   ! col_getElem
   !--------------------------------------------------------------------------
   function col_getElem(column,ilev,headerIndex,varName_opt) result(value)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -639,9 +724,49 @@ contains
   end function col_getElem
 
   !--------------------------------------------------------------------------
+  ! col_getLat
+  !--------------------------------------------------------------------------
+  function col_getLat(column,headerIndex) result(value)
+    !
+    !:Purpose:
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData),    intent(in) :: column
+    integer,                    intent(in) :: headerIndex
+    ! Result:
+    real(8)                                :: value
+
+    value = column%lat(headerIndex)
+
+  end function col_getLat
+
+  !--------------------------------------------------------------------------
+  ! col_setLat
+  !--------------------------------------------------------------------------
+  subroutine col_setLat(column, headerIndex, value)
+    !
+    !:Purpose:
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(inout) :: column
+    integer,                 intent(in)    :: headerIndex
+    real(8),                 intent(in)    :: value
+
+    column%lat(headerIndex) = value
+
+  end subroutine col_setLat
+
+  !--------------------------------------------------------------------------
   ! col_getNumLev
   !--------------------------------------------------------------------------
   function col_getNumLev(column,varLevel,varName_opt) result(nlev)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -659,6 +784,9 @@ contains
   ! col_getNumCol
   !--------------------------------------------------------------------------
   function col_getNumCol(column) result(numColumn)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -674,6 +802,9 @@ contains
   ! col_getVco
   !--------------------------------------------------------------------------
   function col_getVco(column) result(vco_ptr)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -689,6 +820,9 @@ contains
   ! col_setVco
   !--------------------------------------------------------------------------
   subroutine col_setVco(column,vco_ptr)
+    !
+    !:Purpose:
+    !
     implicit none
 
     ! Arguments:
@@ -710,9 +844,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)     :: columnIn           ! first operand 
-    type(struct_columnData), intent(inout)  :: columnInout        ! second operand, will receive the result
-    real(8), optional,       intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
+    type(struct_columnData), intent(in)     :: columnIn        ! first operand 
+    type(struct_columnData), intent(inout)  :: columnInout     ! second operand, will receive the result
+    real(8), optional,       intent(in)     :: scaleFactor_opt ! optional scaling of the second operand prior to the addition
 
     ! Locals:
     real(8), pointer                        :: ptrColInOut(:,:)
@@ -790,7 +924,7 @@ contains
       call utl_abort('col_copy: Vco in columnIn and columnOut are not equal')
     end if
     
-    !Copy Content
+    ! Copy content
     columnOut%addHeightSfcOffset = columnIn%addHeightSfcOffset
     columnOut%all(:,:) =  columnIn%all(:,:)
     columnOut%heightSfc(:) = columnIn%heightSfc(:)
@@ -798,5 +932,65 @@ contains
     columnOut%lat(:) = columnIn%lat(:)
 
   end subroutine col_copy
+
+  !--------------------------------------------------------------------------
+  ! col_copyLat
+  !--------------------------------------------------------------------------
+  subroutine col_copyLat(columnIn, columnOut)
+    !
+    ! :Purpose: Copy only latitude variable from columnIn to columnOut
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)     :: columnIn  ! Source column to be copied from
+    type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
+
+    if (columnOut%numCol /= columnIn%numCol) then
+      call utl_abort('col_copyLat: Number of columns in columnIn and columnOut are not equal')
+    end if
+
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_copyLat: columnIn is not allocated')
+    end if
+
+    if (.not. columnOut%allocated) then
+      call utl_abort('col_copyLat: columnOut is not allocated')
+    end if
+
+    ! Copy latitude
+    columnOut%lat(:) = columnIn%lat(:)
+
+  end subroutine col_copyLat
+
+  !--------------------------------------------------------------------------
+  ! col_copyHeightSfc
+  !--------------------------------------------------------------------------
+  subroutine col_copyHeightSfc(columnIn, columnOut)
+    !
+    ! :Purpose: Copy only surface height variable from columnIn to columnOut
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in)     :: columnIn  ! Source column to be copied from
+    type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
+
+    if (columnOut%numCol /= columnIn%numCol) then
+      call utl_abort('col_copyHeightSfc: Number of columns in columnIn and columnOut are not equal')
+    end if
+
+    if (.not. columnIn%allocated) then
+      call utl_abort('col_copyHeightSfc: columnIn is not allocated')
+    end if
+
+    if (.not. columnOut%allocated) then
+      call utl_abort('col_copyHeightSfc: columnOut is not allocated')
+    end if
+
+    ! Copy latitude
+    columnOut%heightSfc(:) = columnIn%heightSfc(:)
+
+  end subroutine col_copyHeightSfc
 
 end module columnData_mod

@@ -19,7 +19,7 @@ module verticalCoord_mod
   integer, parameter :: maxNumOtherLevels = 20
 
   ! Public module procedures
-  public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_setupFromFile, vco_getNumLev, vco_getVcode, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_subsetOrNot, vco_levelMatchingList
 
   ! Public module variables
@@ -796,6 +796,24 @@ contains
     end if
 
   end function vco_getNumLev
+
+  !--------------------------------------------------------------------------
+  ! vco_getVcode
+  !--------------------------------------------------------------------------
+  function vco_getVcode(vco) result(Vcode)
+    ! 
+    ! :Purpose: get the Vcode from the vgrid descriptor
+    ! 
+    implicit none
+
+    ! Arguments:
+    type(struct_vco), pointer,  intent(in) :: vco         ! Vertical coordinate object
+    ! Result:
+    integer :: Vcode
+
+    Vcode = vco%Vcode
+
+  end function vco_getVcode
 
   !--------------------------------------------------------------------------
   ! vco_mpiBcast

@@ -139,7 +139,7 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaSatData(:)
       call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//str(seaWaterThreshold))
       ! read sea water fraction
-      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
                         varNames_opt = (/'VF'/), hInterpolateDegree_opt ='LINEAR')
       call gio_readFromFile(stateVectorSeaWaterFraction, './seaice_analysis', ' ','A', &
@@ -155,11 +155,11 @@ module bgckOcean_mod
     end if
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorFGE, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     if (fourSeasonsBgstdSST) then
-      call bdiff_getSSTBGstdFromFourSeasons(hco, columnTrlOnTrlLev%vco, stateVectorFGE)
+      call bdiff_getSSTBGstdFromFourSeasons(hco, col_getVco(columnTrlOnTrlLev), stateVectorFGE)
     else		      
       call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                             unitConversion_opt=.false., containsFullField_opt=.true.)
@@ -187,7 +187,7 @@ module bgckOcean_mod
       end do
       
       ! amplification error field state vector  
-      call gsv_allocate(stateVectorAmplFactor, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                         hInterpolateDegree_opt = 'LINEAR', datestamp_opt = dateStamp, &
                         mpi_local_opt = .true., varNames_opt = (/'TM'/))
       call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)

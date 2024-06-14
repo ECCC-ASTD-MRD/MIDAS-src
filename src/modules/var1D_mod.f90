@@ -137,7 +137,7 @@ contains
 
     call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)
     if (mmpi_myId ==0) then
-      call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=column%vco, &
+      call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=col_getVco(column), &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
