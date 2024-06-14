@@ -180,15 +180,21 @@ contains
     contains
 
       logical function varneed(varName)
+        !
+        !:Purpose: Detemine if the given variable name is to be included for allocation.
+        !
+        implicit none
+
         character(len=*) :: varName
         integer :: jvar
  
         varneed = .false.
-        do jvar = 1, vnl_numVarMax
+        NEED_LOOP: do jvar = 1, vnl_numVarMax
           if (trim(varName) == trim(anlvar(jvar))) then
             varneed = .true.
+            exit NEED_LOOP
           end if
-        end do
+        end do NEED_LOOP
 
       end function varneed
 
@@ -205,7 +211,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
+    type(struct_columnData), intent(inout) :: column ! The `columnData` object
 
     if (column%numCol > 0) then
       column%all(:,:) = 0.0d0
@@ -226,11 +232,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(inout) :: column
-    integer,                    intent(in)    :: numCol
-    logical,          optional, intent(in)    :: beSilent_opt
-    logical,          optional, intent(in)    :: setToZero_opt
-    character(len=*), optional, intent(in)    :: varNames_opt(:)
+    type(struct_columnData),    intent(inout) :: column          ! The `columnData` object
+    integer,                    intent(in)    :: numCol          ! Number of columns (header indexes)
+    logical,          optional, intent(in)    :: beSilent_opt    ! Control over verbose output
+    logical,          optional, intent(in)    :: setToZero_opt   ! Control to set contents to zero after allocating
+    character(len=*), optional, intent(in)    :: varNames_opt(:) ! List of variable names to use for allocation
 
     ! Locals:
     integer :: iloc, varIndex, varIndex2, numVar
@@ -355,7 +361,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
+    type(struct_columnData), intent(inout) :: column ! The `columnData` object
 
     deallocate(column%varOffset)
     deallocate(column%varNumLev)
@@ -384,10 +390,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), optional, intent(in) :: column_opt
-    character(len=*),                  intent(in) :: varName
+    type(struct_columnData), optional, intent(in) :: column_opt ! The `columnData` object
+    character(len=*),                  intent(in) :: varName    ! The variable name
     ! Result:
-    logical                                       :: varExist 
+    logical                                       :: varExist   ! Indicates if the variable exists in object
 
     if (varName == 'Z_*') then
       varExist =  col_varExist(column_opt, 'Z_T') .and. &
@@ -424,18 +430,19 @@ contains
   !--------------------------------------------------------------------------
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt,modelName_opt) result(offset)
     !
-    !:Purpose: Return the "offset" for a given variable within the "varsLevs"
-    !          list of variables and levels.
+    !:Purpose: Return the "offset" for a given observation variable "number"
+    !          (that is, the bufr code for an observation element) within the
+    !          "varsLevs" list of variables and levels.
     !
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    integer,                    intent(in) :: varnum
-    integer,          optional, intent(in) :: varNumberChm_opt
-    character(len=*), optional, intent(in) :: modelName_opt
+    type(struct_columnData),    intent(in) :: column           ! The `columnData` object
+    integer,                    intent(in) :: varnum           ! Observation variable "number" (bufr code)
+    integer,          optional, intent(in) :: varNumberChm_opt ! More specific obs code for chemistry obs
+    character(len=*), optional, intent(in) :: modelName_opt    ! The "model name", only needed for some obs types.
     ! Result:
-    integer                 :: offset
+    integer                                :: offset           ! The returned offset value within "varsLevs"
 
     offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
 
@@ -451,13 +458,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
-    integer,                 intent(in) :: varLevIndex
+    type(struct_columnData), intent(in) :: column      ! The `columnData` object
+    integer,                 intent(in) :: varLevIndex ! The index into the "varsLevs" array
     ! Result:
-    integer                 :: varIndex
+    integer                             :: levIndex    ! The returned level index
 
     ! Locals:
-    integer                 :: levIndex
+    integer :: varIndex
 
     do varIndex = 1, vnl_numvarmax
       if ( column%varExistList(varIndex) ) then
@@ -485,10 +492,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
-    integer,                 intent(in) :: kIndex
+    type(struct_columnData), intent(in) :: column  ! The `columnData` object
+    integer,                 intent(in) :: kIndex  ! The index into "varsLevs" array
     ! Result:
-    character(len=4)    :: varName
+    character(len=4)                    :: varName ! The returned variable name
 
     ! Locals:
     integer             :: varIndex
@@ -519,12 +526,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
-    integer,                 intent(in) :: ilev
-    integer,                 intent(in) :: headerIndex
-    character(len=*),        intent(in) :: varLevel
+    type(struct_columnData), intent(in) :: column      ! The `columnData` object
+    integer,                 intent(in) :: ilev        ! The level index
+    integer,                 intent(in) :: headerIndex ! The column/header index
+    character(len=*),        intent(in) :: varLevel    ! The type of vertical level
     ! Result:
-    real(8)                             :: pressure
+    real(8)                             :: pressure    ! The returned pressure value
 
     ! Locals:
     integer                             :: ilev1
@@ -552,12 +559,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
-    integer,                 intent(in) :: ilev
-    integer,                 intent(in) :: headerIndex
-    character(len=*),        intent(in) :: varLevel
+    type(struct_columnData), intent(in) :: column      ! The `columnData` object
+    integer,                 intent(in) :: ilev        ! The level index
+    integer,                 intent(in) :: headerIndex ! The column/header index
+    character(len=*),        intent(in) :: varLevel    ! The type of vertical level
     ! Result:
-    real(8)                             :: height
+    real(8)                             :: height      ! The returned height value
 
     ! Locals:
     integer                             :: ilev1
@@ -592,9 +599,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
-    integer,                 intent(in)    :: headerIndex
-    real(8),                 intent(in)    :: height
+    type(struct_columnData), intent(inout) :: column      ! The `columnData` object
+    integer,                 intent(in)    :: headerIndex ! The column/header index
+    real(8),                 intent(in)    :: height      ! The supplied height value
 
     column%heightSfc(headerIndex) = height
 
@@ -612,12 +619,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
-    integer,                 intent(in) :: varIndex
-    integer,                 intent(in) :: levIndex
-    integer,                 intent(in) :: headerIndex
+    type(struct_columnData), intent(in) :: column      ! The `columnData` object
+    integer,                 intent(in) :: varIndex    ! Indicates temperature or humidity (1 or 2)
+    integer,                 intent(in) :: levIndex    ! The level index
+    integer,                 intent(in) :: headerIndex ! The column/header index
     ! Result:
-    real(8)                             :: value
+    real(8)                             :: value       ! The returned value of "oltv"
 
     value = column%oltv(varIndex, levIndex, headerIndex)
 
@@ -635,11 +642,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
-    integer,                 intent(in)    :: varIndex
-    integer,                 intent(in)    :: levIndex
-    integer,                 intent(in)    :: headerIndex
-    real(8),                 intent(in)    :: value
+    type(struct_columnData), intent(inout) :: column      ! The `columnData` object
+    integer,                 intent(in)    :: varIndex    ! Indicates temperature or humidity (1 or 2)
+    integer,                 intent(in)    :: levIndex    ! The level index
+    integer,                 intent(in)    :: headerIndex ! The column/header index
+    real(8),                 intent(in)    :: value       ! The value of "oltv" for setting
 
     column%oltv(varIndex, levIndex, headerIndex) = value
 
@@ -656,13 +663,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    character(len=*), optional, intent(in) :: varName_opt
+    type(struct_columnData),    intent(in) :: column          ! The `columnData` object
+    character(len=*), optional, intent(in) :: varName_opt     ! The variable name
     ! Result:
-    real(8), pointer                       :: allColumns(:,:)
+    real(8), pointer                       :: allColumns(:,:) ! Resulting pointer to complete array
 
     ! Locals:
-    integer                                :: ilev1,ilev2
+    integer                                :: ilev1, ilev2
 
     if ( column%numCol > 0 ) then
       if(present(varName_opt)) then
@@ -694,11 +701,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    integer,                    intent(in) :: headerIndex
-    character(len=*), optional, intent(in) :: varName_opt
+    type(struct_columnData),    intent(in) :: column       ! The `columnData` object
+    integer,                    intent(in) :: headerIndex  ! The column/header index
+    character(len=*), optional, intent(in) :: varName_opt  ! The variable name
     ! Result:
-    real(8), pointer                       :: onecolumn(:)
+    real(8), pointer                       :: onecolumn(:) ! The return array pointer
 
     ! Locals:
     integer                                :: ilev1,ilev2
@@ -731,12 +738,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    integer,                    intent(in) :: ilev
-    integer,                    intent(in) :: headerIndex
-    character(len=*), optional, intent(in) :: varName_opt
+    type(struct_columnData),    intent(in) :: column      ! The `columnData` object
+    integer,                    intent(in) :: ilev        ! The level index
+    integer,                    intent(in) :: headerIndex ! The column/header index
+    character(len=*), optional, intent(in) :: varName_opt ! The variable name
     ! Result:
-    real(8)                                :: value
+    real(8)                                :: value       ! The returned value
 
     if(present(varName_opt)) then
       if(.not.col_varExist(column,varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
@@ -757,10 +764,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    integer,                    intent(in) :: headerIndex
+    type(struct_columnData),    intent(in) :: column      ! The `columnData` object
+    integer,                    intent(in) :: headerIndex ! The column/header index
     ! Result:
-    real(8)                                :: value
+    real(8)                                :: value       ! The returned latitude value
 
     value = column%lat(headerIndex)
 
@@ -776,9 +783,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column
-    integer,                 intent(in)    :: headerIndex
-    real(8),                 intent(in)    :: value
+    type(struct_columnData), intent(inout) :: column      ! The `columnData` object
+    integer,                 intent(in)    :: headerIndex ! The column/header index
+    real(8),                 intent(in)    :: value       ! The latitude value for setting
 
     column%lat(headerIndex) = value
 
@@ -795,11 +802,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),    intent(in) :: column
-    character(len=*),           intent(in) :: varLevel
-    character(len=*), optional, intent(in) :: varName_opt
+    type(struct_columnData),    intent(in) :: column      ! The `columnData` object
+    character(len=*),           intent(in) :: varLevel    ! The type of vertical level
+    character(len=*), optional, intent(in) :: varName_opt ! The variable name
     ! Result:
-    integer                             :: nlev
+    integer                                :: nlev        ! The returned number of levels
 
     nlev = vco_getNumLev(column%vco,varLevel,varName_opt)
 
@@ -815,9 +822,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
+    type(struct_columnData), intent(in) :: column    ! The `columnData` object
     ! Result:
-    integer                             :: numColumn
+    integer                             :: numColumn ! The returned number of columns
 
     numColumn = column%numCol
 
@@ -834,9 +841,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: column
+    type(struct_columnData), intent(in) :: column ! The `columnData` object
     ! Result:
-    type(struct_vco), pointer :: vco_ptr
+    type(struct_vco), pointer           :: vco_ptr ! The returned `vco` object pointer
 
     vco_ptr => column%vco
 
@@ -853,8 +860,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),   intent(inout) :: column
-    type(struct_vco), pointer, intent(in)    :: vco_ptr
+    type(struct_columnData),   intent(inout) :: column  ! The `columnData` object
+    type(struct_vco), pointer, intent(in)    :: vco_ptr ! The `vco` object pointer for setting
 
     column%vco => vco_ptr
 
@@ -872,9 +879,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)     :: columnIn        ! first operand 
-    type(struct_columnData), intent(inout)  :: columnInout     ! second operand, will receive the result
-    real(8), optional,       intent(in)     :: scaleFactor_opt ! optional scaling of the second operand prior to the addition
+    type(struct_columnData), intent(in)     :: columnIn        ! First operand 
+    type(struct_columnData), intent(inout)  :: columnInout     ! Second operand, will receive the result
+    real(8), optional,       intent(in)     :: scaleFactor_opt ! Optional scaling of second operand before addition
 
     ! Locals:
     real(8), pointer                        :: ptrColInOut(:,:)
