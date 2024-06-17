@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Optional system tests cleanup (#936 and !849)
-   * updated adjointTest was updated and is now mandatory
+   * adjointTest was updated and is now mandatory
    * letk/glb_benchmark was removed 
  * Fix the documentation generation to use the correct build directory name (#920 and !828)
  * Bug fix for proper use of CLW when both rttov and rttovScatt simulate subset of channels (#919 and !827)
