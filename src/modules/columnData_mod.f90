@@ -28,7 +28,8 @@ module columnData_mod
   ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
-  public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
+  public :: col_getNumLev, col_getNumCol, col_getNumK, col_getVarNameFromK
+  public :: col_addHeightSfcOffset
   public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
   public :: col_getLat, col_setLat, col_getOltv, col_setOltv
@@ -36,18 +37,19 @@ module columnData_mod
   public :: col_getLevIndexFromVarLevIndex, col_add, col_copy, col_copyLat
 
   type struct_columnData
-    integer                            :: nk
-    integer,                   private :: numCol
-    logical                            :: allocated=.false.
-    logical                            :: addHeightSfcOffset = .false.
-    real(8),          pointer, private :: all(:,:)
-    real(8),          pointer, private :: heightSfc(:)
-    real(8),          pointer, private :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    integer,          pointer, private :: varOffset(:)
-    integer,          pointer, private :: varNumLev(:)
-    logical,                   private :: varExistList(vnl_numVarMax)
-    type(struct_vco), pointer, private :: vco => null()
-    real(8),          pointer, private :: lat(:)
+    private
+    integer                   :: nk
+    integer                   :: numCol
+    logical                   :: allocated=.false.
+    logical                   :: addHeightSfcOffset = .false.
+    real(8),          pointer :: all(:,:)
+    real(8),          pointer :: heightSfc(:)
+    real(8),          pointer :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
+    integer,          pointer :: varOffset(:)
+    integer,          pointer :: varNumLev(:)
+    logical                   :: varExistList(vnl_numVarMax)
+    type(struct_vco), pointer :: vco => null()
+    real(8),          pointer :: lat(:)
   end type struct_columnData
 
   logical :: varExistList(vnl_numvarmax)
@@ -875,6 +877,42 @@ contains
     numColumn = column%numCol
 
   end function col_getNumCol
+
+  !--------------------------------------------------------------------------
+  ! col_getNumK
+  !--------------------------------------------------------------------------
+  function col_getNumK(column) result(numK)
+    !
+    !:Purpose: Return the number of variables x levels.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column ! The `columnData` object
+    ! Result:
+    integer                             :: numK   ! The returned number of varsLevs
+
+    numK = column%nk
+
+  end function col_getNumK
+
+  !--------------------------------------------------------------------------
+  ! col_addHeightSfcOffset
+  !--------------------------------------------------------------------------
+  function col_addHeightSfcOffset(column) result(addHeightSfcOffset)
+    !
+    !:Purpose: Return the value of addHeightSfcOffset
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData), intent(in) :: column             ! The `columnData` object
+    ! Result:
+    integer                             :: addHeightSfcOffset ! The returned value of addHeightSfcOffset
+
+    addHeightSfcOffset = column%addHeightSfcOffset
+
+  end function col_addHeightSfcOffset
 
   !--------------------------------------------------------------------------
   ! col_getVco

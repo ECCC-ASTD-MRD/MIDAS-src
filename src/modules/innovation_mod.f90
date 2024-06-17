@@ -392,13 +392,13 @@ contains
     call col_copyHeightSfc(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
-    if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then 
+    if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.col_addHeightSfcOffset(columnTrlOnAnlIncLev) ) then 
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_T')
         columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'TH')) = col_getHeight(columnTrlOnAnlIncLev,1,columnIndex,'SF')
       end do
     end if
-    if ( col_varExist(columnTrlOnAnlIncLev,'Z_M') .and. .not.columnTrlOnAnlIncLev%addHeightSfcOffset ) then
+    if ( col_varExist(columnTrlOnAnlIncLev,'Z_M') .and. .not.col_addHeightSfcOffset(columnTrlOnAnlIncLev) ) then
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'Z_M')
         columnTrlOnAnlIncLev_ptr(col_getNumLev(columnTrlOnAnlIncLev,'MM')) = col_getHeight(columnTrlOnAnlIncLev,1,columnIndex,'SF')

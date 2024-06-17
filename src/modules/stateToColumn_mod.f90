@@ -3518,13 +3518,14 @@ contains
     integer :: kIndex
 
     ! check column/statevector have same nk
-    if ( column%nk /= gsv_getNumK(statevector) ) then
-      write(*,*) 'checkColumnStatevectorMatch: column%nk, gsv_getNumK(statevector)', column%nk, gsv_getNumK(statevector)
-      call utl_abort('checkColumnStatevectorMatch: column%nk /= gsv_getNumK(statevector)')
+    if ( col_getNumK(column) /= gsv_getNumK(statevector) ) then
+      write(*,*) 'checkColumnStatevectorMatch: col_getNumK(column), gsv_getNumK(statevector)', &
+                 col_getNumK(column), gsv_getNumK(statevector)
+      call utl_abort('checkColumnStatevectorMatch: col_getNumK(column) /= gsv_getNumK(statevector)')
     end if
     
     ! loop through k and check varNames are same between column/statevector
-    do kIndex = 1, column%nk
+    do kIndex = 1, col_getNumK(column)
       if (gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: kIndex, varname in statevector and column: ', kIndex, &
                    gsv_getVarNameFromK(statevector,kIndex), col_getVarNameFromK(column,kIndex) 
