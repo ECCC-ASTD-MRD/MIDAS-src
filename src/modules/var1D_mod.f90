@@ -18,18 +18,17 @@ module var1D_mod
   save
   private
 
-  ! Public variables
-  public    :: var1D_validHeaderIndex, var1D_validHeaderCount
-  protected :: var1D_validHeaderIndex, var1D_validHeaderCount
+  ! Public module variables
+  integer, public, protected, allocatable :: var1D_validHeaderIndex(:) ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
+  integer, public, protected              :: var1D_validHeaderCount    ! taille effective de var1D_validHeaderIndex
 
-  ! Public procedures
+  ! Public module procedures
   public :: var1D_Setup, var1D_Finalize
   public :: var1D_transferColumnToYGrid, var1D_UpdateObsElevation
 
+  ! Private module variables
   logical              :: initialized = .false.
   integer, external    :: get_max_rss
-  integer, allocatable :: var1D_validHeaderIndex(:) ! pointeur vers les colonnes assimilables pour minimiser la taille du vecteur de controle
-  integer              :: var1D_validHeaderCount    ! taille effective de var1D_validHeaderIndex
 
 contains
 
