@@ -34,8 +34,7 @@ module minimization_mod
   private
 
   ! Public variables
-  public              :: min_niter, min_nsim
-  protected           :: min_niter, min_nsim
+  integer, public, protected :: min_niter, min_nsim
 
   ! Public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
@@ -47,9 +46,8 @@ module minimization_mod
 
   logical             :: initialized = .false.
 
-  integer             :: nmtra,nwork,min_nsim
+  integer             :: nmtra,nwork
   integer             :: nvadim_mpilocal ! for mpi
-  integer             :: min_niter
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
