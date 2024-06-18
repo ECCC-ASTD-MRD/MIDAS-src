@@ -30,9 +30,13 @@ module obsErrors_mod
   save
   private
 
-  ! Public variables
-  public    :: oer_ascatAnisOpenWater, oer_ascatAnisIce
-  protected :: oer_ascatAnisOpenWater, oer_ascatAnisIce
+  ! Private module parameter
+  integer, parameter :: ncells = 21
+
+  ! Public module variables
+  ! tiepoint standard deviation for ASCAT backscatter anisotropy
+  real, public, protected :: oer_ascatAnisOpenWater(ncells,12)
+  real, public, protected :: oer_ascatAnisIce(ncells,12)
 
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
@@ -140,10 +144,9 @@ module obsErrors_mod
 
   ! Sea Ice Concentration obs-error standard deviation
   real(8) :: xstd_sic(9)
+
   ! tiepoint standard deviation for ASCAT backscatter anisotropy
-  integer, parameter :: ncells = 21
   real(8) :: ascatAnisSigmaOpenWater(ncells,12), ascatAnisSigmaIce(ncells,12)
-  real    :: oer_ascatAnisOpenWater(ncells,12), oer_ascatAnisIce(ncells,12)
 
   ! Hydrology
   real(8) :: xstd_hydro(1)
