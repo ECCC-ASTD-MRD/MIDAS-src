@@ -14,7 +14,7 @@ module columnVariableTransforms_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: cvt_transform
 
 CONTAINS

@@ -27,11 +27,12 @@ module calcHeightAndPressure_mod
   use gps_mod
   use HorizontalCoord_mod
   use Vgrid_Descriptors
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: czp_calcZandP_nl, czp_calcZandP_tl, czp_calcZandP_ad
   public :: czp_calcHeight_nl, czp_calcHeight_tl, czp_calcHeight_ad
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad

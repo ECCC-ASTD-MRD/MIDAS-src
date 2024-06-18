@@ -23,7 +23,7 @@ MODULE bMatrixDiff_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: bdiff_Setup, bdiff_BSqrt, bdiff_BSqrtAd, bdiff_Finalize
   public :: bdiff_getScaleFactor, bdiff_reduceToMPILocal
   public :: bdiff_getSSTBGstdFromFourSeasons

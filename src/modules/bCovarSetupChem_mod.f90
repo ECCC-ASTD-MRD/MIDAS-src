@@ -51,18 +51,14 @@ module bCovarSetupChem_mod
   save
   private
 
-  ! public procedures
-  ! ------------------
-    
+  ! Public procedures
   public :: bcsc_setupCH,bcsc_finalize
   public :: bcsc_getCovarCH
   public :: bcsc_getScaleFactor
   public :: bcsc_StatsExistForVarName
   public :: bcsc_retrieveBgStddev,bcsc_addBgStddev,bcsc_getBgStddev
   
-  ! public types
-  ! ------------
-    
+  ! Public types
   public :: struct_bcsc_bgStats
 
   ! module shared variables

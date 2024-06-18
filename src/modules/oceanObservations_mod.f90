@@ -19,7 +19,6 @@ module oceanObservations_mod
   use bufr_mod
   
   implicit none
-
   save
   private
 

@@ -28,14 +28,16 @@ module minimization_mod
   use utilities_mod
   use biasCorrectionSat_mod
   use columnVariableTransforms_mod
+
   implicit none
   save
   private
 
-  ! public variables
+  ! Public variables
   public              :: min_niter, min_nsim
+  protected           :: min_niter, min_nsim
 
-  ! public procedures
+  ! Public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
   type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()

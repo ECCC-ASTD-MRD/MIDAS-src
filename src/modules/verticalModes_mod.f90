@@ -17,12 +17,14 @@ module verticalModes_mod
   use calcHeightAndPressure_mod
   use ensembleStatevector_mod
   use midasMpi_mod
+
   implicit none
   save
   private
   
   ! Public derived type
   public :: struct_vms
+
   ! Public subroutines
   public :: vms_computeModesFromEns, vms_computeModesFromFunction
   public :: vms_writeModes, vms_transform

@@ -32,7 +32,7 @@ module obsSpaceErrorStdDev_mod
   implicit none
   private
 
-  ! public procedures
+  ! Public procedures
   public :: ose_computeStddev
 
   ! module structures

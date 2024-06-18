@@ -13,7 +13,7 @@ module presProfileOperators_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   
   ! Linear interpolation routine
   public :: ppo_getColumn
@@ -31,9 +31,6 @@ module presProfileOperators_mod
   !                         within target layer and nearest specified layer boundary
   public :: ppo_vertLayersSetup
   
-  ! Work arrays for ppo_vertInteg* and ppo_vertAvg*
-  real(8), allocatable :: boundaries(:), weights(:,:)
-  
   ! Stand-alone integration routines providing integration weights 
   ! For weights W(:,:) and initial vector X(:), the integrated values would be W*X  
   public :: ppo_vertIntegWgts
@@ -41,6 +38,9 @@ module presProfileOperators_mod
   ! Stand-alone layer averaging routine (in lp(P)) providing weights 
   ! For weights W(:,:) and initial vector X(:), the average values would be W*X  
   public :: ppo_vertAvgWgts
+  
+  ! Work arrays for ppo_vertInteg* and ppo_vertAvg*
+  real(8), allocatable :: boundaries(:), weights(:,:)
   
   contains
 

@@ -35,7 +35,7 @@ module var1DIdealize_mod
     save
     private
   
-    ! public procedures
+    ! Public procedures
     public :: var1Di_simulateBackgroundState, var1Di_simulateObservation
     public :: var1Di_estSigmaBObsSpace
 
@@ -350,7 +350,7 @@ module var1DIdealize_mod
     write(*,*) 'var1Di_simulateObservation: Computing the truth in Obs Space'
 
     if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-      allocate(tvs_emissivity(tvs_maxChannelNumber, tvs_nobtov))
+      call tvs_allocateEmissivity(tvs_maxChannelNumber)
     end if
 
     ! Prepare atmospheric profiles for all tovs observation points for use in rttov

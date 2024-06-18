@@ -13,7 +13,7 @@ module randomNumber_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: rng_setup, rng_gaussian, rng_uniform
 
   logical :: initialized = .false.

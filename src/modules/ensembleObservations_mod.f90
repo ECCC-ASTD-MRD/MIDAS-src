@@ -24,24 +24,26 @@ MODULE ensembleObservations_mod
   use obsfamilylist_mod
   use varnamelist_mod
   use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
-  use mpi
+  use mpi   ! This is the standard mpi library
+
   implicit none
   save
   private
 
-  ! public types
+  ! Public variables
+  public    :: eob_simObsAssim
+  protected :: eob_simObsAssim
+
+  ! Public derived type
   public :: struct_eob
 
-  ! public procedures
+  ! Public procedures
   public :: eob_init, eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
-
-  ! public variables
-  public :: eob_simObsAssim
 
   integer, parameter   :: maxNumLocalObsSearch = 500000
   integer, external    :: get_max_rss

@@ -7,10 +7,12 @@ module quasiNewton_mod
   !          modified to support MPI parallelization.
   !
       use midasMpi_mod
+
       implicit none
       save 
       private
 
+      ! Public procedures
       public :: qna_n1qn3
 
       contains

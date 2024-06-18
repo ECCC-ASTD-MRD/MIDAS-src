@@ -5,13 +5,16 @@ module controlVector_mod
   !:Purpose: The control vector and related information.  
   !
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public variables
+  ! Public variables
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
-  ! public procedures
+  protected           :: cvm_nvadim, cvm_nvadim_mpiglobal
+
+  ! Public procedures
   public              :: cvm_setupSubVector, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
   public              :: cvm_subVectorExists

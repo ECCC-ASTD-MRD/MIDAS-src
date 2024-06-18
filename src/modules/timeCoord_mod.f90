@@ -14,15 +14,18 @@ module timeCoord_mod
   save
   private
   
-  ! public variables
-  public :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
-  public :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
-  public :: tim_fullyUseExtremeTimeBins
-  ! public procedures
+  ! Public variables
+  public    :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
+  protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
+  public    :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
+  protected :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
+  public    :: tim_fullyUseExtremeTimeBins
+  protected :: tim_fullyUseExtremeTimeBins
+
+  ! Public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
-  ! public functions
   public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate
 
   character(len=4) :: varNameForDate

@@ -18,6 +18,8 @@ module sqliteFiles_mod
   implicit none
   save
   private
+
+  ! Public procedures
   public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile
   public :: sqlf_addCloudParametersandEmissivity
   

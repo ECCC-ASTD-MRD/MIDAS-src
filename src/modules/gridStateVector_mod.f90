@@ -17,14 +17,21 @@ module gridStateVector_mod
   use utilities_mod
   use message_mod
   use physicsFunctions_mod
+
   implicit none
   save
   private
 
-  ! public structure definition
+  ! Public structure definition
   public :: struct_gsv
 
-  ! public subroutines and functions
+  ! Public module variables
+  public    :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
+  protected :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
+  public    :: gsv_minValVarKindCH
+  protected :: gsv_minValVarKindCH
+
+  ! Public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
   public :: gsv_modifyVarName, gsv_modifyDate
@@ -46,10 +53,6 @@ module gridStateVector_mod
   public :: gsv_applyMaskLAM, gsv_containsNonZeroValues
   public :: gsv_isAllocated
   public :: gsv_transposesteptovarslevs
-
-  ! public module variables
-  public :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
-  public :: gsv_minValVarKindCH
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4

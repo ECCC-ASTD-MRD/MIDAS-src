@@ -20,7 +20,7 @@ module backgroundCheck_mod
   implicit none
   private
 
-  ! public procedures
+  ! Public procedures
   public :: bgck_bgcheck_conv
 
   integer,          parameter :: numFamilyToProcess = 11

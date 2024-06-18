@@ -12,13 +12,15 @@ module localization_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use ensembleStatevector_mod
+
   implicit none
   save
   private
 
-  ! public structure
+  ! Public derived type
   public :: struct_loc
-  ! public procedures
+
+  ! Public procedures
   public :: loc_setup, loc_Lsqrt, loc_LsqrtAd, loc_finalize
   public :: loc_reducetompilocal, loc_reducetompilocal_r4
   public :: loc_expandtompiglobal, loc_expandtompiglobal_r4

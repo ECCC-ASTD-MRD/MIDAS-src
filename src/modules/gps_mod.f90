@@ -8,32 +8,46 @@ module gps_mod
   use utilities_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+
   implicit none
   save
   private
 
-  ! public types
+  ! Public derived types
   public :: gps_profile, gps_profilezd, gps_diff
 
-  ! public variables
-  public :: gps_numROProfiles, gps_vRO_IndexPrf
-  public :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
-  public :: gps_roError, gps_roBNorm, gps_roNsigma
-  public :: gps_gravitysrf, gps_gb_maxdata, gps_gb_dzmin
-  public :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt, gps_gb_numztd
-  public :: gps_ZTD_Index, gps_ncvmx, gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
+  ! Public variables
+  public    :: gps_numROProfiles, gps_vRO_IndexPrf
+  protected :: gps_numROProfiles, gps_vRO_IndexPrf
+  public    :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
+  protected :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
+  public    :: gps_roError, gps_roBNorm, gps_roNsigma
+  protected :: gps_roError, gps_roBNorm, gps_roNsigma
+  public    :: gps_gb_numztd, gps_ZTD_Index
+  protected :: gps_gb_numztd, gps_ZTD_Index
+  public    :: gps_gb_dzmin
+  protected :: gps_gb_dzmin
+  public    :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt
+  protected :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt
+  public    :: gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
+  protected :: gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
 
-  ! public procedures
-  public :: gps_setupro, gps_iprofile_from_index
-  public :: gps_setupgb, gps_iztd_from_index
-  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
-  public :: gps_geopotential
-
-  ! public constants
-  integer, parameter, public :: gps_Level_RO_Bnd       = 1
-  integer, parameter, public :: gps_Level_RO_Ref       = 2
-  integer, parameter, public :: gps_Level_RO_BndandRef = 3
+  ! Public variables (parameters)
+  public :: gps_ncvmx, gps_gb_maxdata
   public :: gps_p_md, gps_p_mw, gps_p_wa, gps_p_wb
+  public :: gps_Level_RO_Bnd, gps_Level_RO_Ref, gps_Level_RO_BndandRef
+
+  ! Public procedures
+  public :: gps_setupro, gps_iprofile_from_index
+  public :: gps_setNumROProfiles, gps_setROIndexPrf
+  public :: gps_setupgb, gps_iztd_from_index
+  public :: gps_setNumZTD, gps_setZTDIndex
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
+  public :: gps_geopotential, gps_gravitysrf
+
+  integer, parameter :: gps_Level_RO_Bnd       = 1
+  integer, parameter :: gps_Level_RO_Ref       = 2
+  integer, parameter :: gps_Level_RO_BndandRef = 3
 
 !modgps00base
   
@@ -2873,6 +2887,34 @@ contains
     end if
   end subroutine gps_setupro
 
+  subroutine gps_setNumROProfiles(numROProfiles)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: numROProfiles
+
+    gps_numROProfiles = numROProfiles
+    if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
+
+  end subroutine gps_setNumROProfiles
+
+  subroutine gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: iProfile
+    integer, intent(in) :: INDEX_HEADER
+    integer, intent(in) :: varNum
+    integer, intent(in) :: ISAT
+    integer, intent(in) :: IDSC
+
+    gps_vRO_IndexPrf(iProfile, 1) = INDEX_HEADER
+    gps_vRO_IndexPrf(iProfile, 2) = varNum
+    gps_vRO_IndexPrf(iProfile, 3) = ISAT
+    gps_vRO_IndexPrf(iProfile, 4) = IDSC
+
+  end subroutine gps_setROIndexPrf
+
   integer function gps_iprofile_from_index(index)
     implicit none
 
@@ -3097,6 +3139,32 @@ contains
     end if
 
   end subroutine gps_setupgb
+
+  subroutine gps_setNumZTD(numZTD)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: numZTD
+
+    gps_gb_numZTD = numZTD
+
+    if (allocated(gps_ZTD_Index)) deallocate(gps_ZTD_Index)
+    if (gps_gb_numztd > 0) then
+      allocate(gps_ZTD_Index(gps_gb_numztd))
+    end if
+
+  end subroutine gps_setNumZTD
+
+  subroutine gps_setZTDIndex(iztd, headerIndex)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: iztd
+    integer, intent(in) :: headerIndex
+
+    gps_ZTD_Index(iztd) = headerIndex
+
+  end subroutine gps_setZTDIndex
 
   integer function gps_iztd_from_index(index)
     implicit none

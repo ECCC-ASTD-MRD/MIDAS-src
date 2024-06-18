@@ -18,6 +18,7 @@ module bufr_mod
   !
   !       - bufr_isOceanObs: determines if it is an ocean observation
   !
+  implicit none
   public
 
  ! Table B:

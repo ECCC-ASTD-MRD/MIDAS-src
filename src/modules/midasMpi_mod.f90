@@ -9,17 +9,24 @@ module midasMpi_mod
   !
   use mpi
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public variables
-  public :: mmpi_myid,mmpi_myidHost,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey
-  public :: mmpi_numthread, mmpi_nodeMasters
-  public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
-  public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
-  public :: mmpi_maxTagValue
-  ! public procedures
+  ! Public variables
+  public    :: mmpi_myid,mmpi_myidHost,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey
+  protected :: mmpi_myid,mmpi_myidHost,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey
+  public    :: mmpi_numthread, mmpi_nodeMasters
+  protected :: mmpi_numthread, mmpi_nodeMasters
+  public    :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
+  protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
+  public    :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  public    :: mmpi_maxTagValue
+  protected :: mmpi_maxTagValue
+
+  ! Public procedures
   public :: mmpi_initialize,mmpi_getptopo
   public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
   public :: mmpi_allreduce_sumR8_1d, mmpi_allreduce_sumR8_2d

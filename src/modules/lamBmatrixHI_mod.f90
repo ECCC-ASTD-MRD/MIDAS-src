@@ -16,11 +16,12 @@ module lamBmatrixHI_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use interpolation_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: lbhi_Setup, lbhi_bSqrt, lbhi_bSqrtAdj, lbhi_Finalize
   public :: lbhi_expandToMPIglobal, lbhi_expandToMPIglobal_r4, lbhi_reduceToMPIlocal, lbhi_reduceToMPIlocal_r4
 

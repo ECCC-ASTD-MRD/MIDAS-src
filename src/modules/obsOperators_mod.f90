@@ -22,11 +22,12 @@ module obsOperators_mod
   use varNameList_mod
   use obsOperatorsChem_mod
   use obserrors_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs, oop_iceScaling
@@ -1544,7 +1545,7 @@ contains
        end if
     end if
 
-    gps_gb_numztd = icountp
+    call gps_setNumZTD(icountp)
 
     if ( analysisMode .and. icount > 0 .and. .not.gps_gb_l1obs .and. .not.beSilent ) then
        write(*,*) ' '
@@ -1570,9 +1571,6 @@ contains
           if ( .not.beSilent ) write(*,*) ' Number of GPS ZTD data for background check (gps_gb_numZTD) = ', gps_gb_numztd
        end if
 
-       if ( .not.beSilent ) write(*,*) ' Allocating and setting gps_ZTD_Index(gps_gb_numZTD)...'
-       if (allocated(gps_ZTD_Index)) deallocate(gps_ZTD_Index)
-       allocate(gps_ZTD_Index(gps_gb_numztd))
        iztd = 0
        call obs_set_current_header_list(obsSpaceData,'GP')
        HEADER_2: do
@@ -1588,7 +1586,7 @@ contains
                 if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated .and.  &
                      bufrCode == bufr_nezd ) then  
                    iztd = iztd + 1
-                   gps_ZTD_Index(iztd) = headerIndex
+                   call gps_setZTDIndex(iztd, headerIndex)
                 end if
              end do BODY_3
           end if
@@ -1669,7 +1667,7 @@ contains
     end if
 
     if (.not. allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then 
-      allocate(tvs_emissivity(tvs_maxChannelNumber, tvs_nobtov))
+      call tvs_allocateEmissivity(tvs_maxChannelNumber)
     end if
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov

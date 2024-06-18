@@ -35,9 +35,8 @@ module obsSpaceDiag_mod
   implicit none
   save
   private
-  
-  ! public procedures
-  !------------------
+
+  ! Public procedures
   public :: osd_ObsSpaceDiag
 
   type :: struct_osd_diagn

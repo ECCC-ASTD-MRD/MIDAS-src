@@ -25,10 +25,9 @@ module analysisErrorOI_mod
   use timeCoord_mod
 
   implicit none
-
   private
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: aer_analysisError
 
   type struct_neighborhood

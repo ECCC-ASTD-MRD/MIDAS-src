@@ -21,10 +21,10 @@ module oceanMask_mod
   save
   private
 
-  ! public structure definition
+  ! Public derived type
   public :: struct_ocm
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: ocm_readMaskFromFile, ocm_deallocate
   public :: ocm_copyMask, ocm_communicateMask
   public :: ocm_farFromLand

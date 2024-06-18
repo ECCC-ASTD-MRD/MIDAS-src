@@ -22,10 +22,9 @@ module burpRead_mod
 
   implicit none
   save
-
   private
 
-  ! public procedures
+  ! Public procedures
   public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
   public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 

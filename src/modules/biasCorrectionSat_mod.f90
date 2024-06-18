@@ -36,6 +36,7 @@ module biasCorrectionSat_mod
   save
   private
 
+  ! Public routines
   public :: bcs_setup, bcs_calcBias_tl, bcs_calcBias_ad, bcs_writeBias, bcs_finalize
   public :: bcs_removeBiasCorrection, bcs_refreshBiasCorrection
   public :: bcs_do_regression, bcs_filterObs, bcs_computeResidualsStatistics, bcs_calcBias

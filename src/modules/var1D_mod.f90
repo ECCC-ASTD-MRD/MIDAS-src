@@ -18,11 +18,13 @@ module var1D_mod
   save
   private
 
-  ! public procedures
+  ! Public variables
+  public    :: var1D_validHeaderIndex, var1D_validHeaderCount
+  protected :: var1D_validHeaderIndex, var1D_validHeaderCount
+
+  ! Public procedures
   public :: var1D_Setup, var1D_Finalize
   public :: var1D_transferColumnToYGrid, var1D_UpdateObsElevation
-  ! public variables
-  public :: var1D_validHeaderIndex, var1D_validHeaderCount
 
   logical              :: initialized = .false.
   integer, external    :: get_max_rss

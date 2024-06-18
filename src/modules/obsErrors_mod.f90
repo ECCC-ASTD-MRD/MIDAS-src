@@ -25,21 +25,21 @@ module obsErrors_mod
   use burp_module
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public variables
+  public    :: oer_ascatAnisOpenWater, oer_ascatAnisIce
+  protected :: oer_ascatAnisOpenWater, oer_ascatAnisIce
+
+  ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
-  
-  ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
-  ! public variables (parameters)
-  public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
-  
- ! Arrays for QC purpose
+  ! Arrays for QC purpose
   public :: oer_toverrst, oer_cldPredThresh, oer_tovutil
   public :: oer_errThreshAllsky, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
@@ -3053,7 +3053,7 @@ contains
 
     !      IF (DEBUG) call utl_abort('******DEBUG STOP*******')
 
-    IF (.not.ldata) gps_gb_numZTD = 0
+    IF (.not.ldata) call gps_setNumZTD(0)
 
     IF (ldata .and. .not.beSilent) write(*,*) ' gps_gb_numZTD = ', ICOUNT
 

@@ -32,7 +32,6 @@ module bMatrixChem_mod
   !    bchm_expand*   MPI manipulations of contol vector(s)
   !    bchm_reduce*   MPI manipulations related to contol vector(s)
   !
-  
   use midasMpi_mod
   use gridStateVector_mod
   use gridVariableTransforms_mod
@@ -47,9 +46,10 @@ module bMatrixChem_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: bchm_setupCH,bchm_finalize,bchm_BSqrt,bchm_BSqrtAd
-  public :: bchm_expandToMPIglobal,bchm_expandToMPIglobal_r4,bchm_reduceToMPIlocal,bchm_reduceToMPIlocal_r4
+  public :: bchm_expandToMPIglobal,bchm_expandToMPIglobal_r4
+  public :: bchm_reduceToMPIlocal,bchm_reduceToMPIlocal_r4
   
   logical             :: initialized = .false.                    
   integer             :: nla_mpiglobal,nla_mpilocal           

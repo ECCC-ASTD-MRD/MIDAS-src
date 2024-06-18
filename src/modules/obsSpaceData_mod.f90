@@ -663,6 +663,7 @@ module ObsDataColumn_mod
   !
    use codePrecision_mod
    use ObsColumnNames_mod
+
    implicit none
    save
    private
@@ -702,7 +703,7 @@ module ObsDataColumn_mod
    ! end of CLASS-CONSTANT objects
 
 
-   ! methods
+   ! Public procedures
    public :: odc_allocate, odc_deallocate, odc_class_initialize
    public :: odc_initAllColumnFlavours
    public :: odc_activateColumn, odc_numActiveColumn

@@ -13,12 +13,15 @@ module gridBinning_mod
   use utilities_mod
   use horizontalCoord_mod
   use timeCoord_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public derived type
   public :: struct_gbi
+
+  ! Public procedures
   public :: gbi_setup, gbi_deallocate
   public :: gbi_stdDev, gbi_mean
 

@@ -4,8 +4,7 @@ module obsVariableTransforms_mod
   !
   !:Purpose:  To store various functions for variable transforms using inputs
   !           from obsSpaceData. Outputs are also placed ObsSpaceData.
-  !  
-
+  !
   use obsSpaceData_mod
   use bufr_mod
   use codePrecision_mod
@@ -19,6 +18,7 @@ module obsVariableTransforms_mod
   save
   private
 
+  ! Public procedures
   public :: ovt_setup, ovt_transformObsValues, ovt_transformResiduals
   public :: ovt_getDestinationBufrCode, ovt_getSourceBufrCode, ovt_bufrCodeSkipped
   public :: ovt_isWindObs, ovt_isTransformedVariable, ovt_adjustHumGZ

@@ -19,11 +19,12 @@ module increment_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
   use varNamelist_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: inc_computeHighResAnalysis, inc_writeIncAndAnalHighRes, inc_getIncrement, inc_writeIncrement
   public :: inc_writeAnalysis, inc_analPostProcessing
 

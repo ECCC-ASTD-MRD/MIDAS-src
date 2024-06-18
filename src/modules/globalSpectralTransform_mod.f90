@@ -11,17 +11,19 @@ module globalSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public subroutines
+  ! Public subroutines
   public :: gst_setup
   public :: gst_speree, gst_speree_ad, gst_speree_kij, gst_speree_kij_ad, gst_reespe, gst_reespe_kij
   public :: gst_spgd, gst_spgda, gst_gdsp, gst_zleginv, gst_zlegdir
   public :: gst_setID, gst_setDefaultID, gst_setToDefaultID
   public :: gst_ilaList_mpilocal, gst_ilaList_mpiglobal
-  ! public functions
+
+  ! Public functions
   public :: gst_getRmu, gst_getRwt, gst_getnind, gst_getrlati, gst_getr1qm2, gst_getrsqm2
   public :: gst_getrnnp1, gst_getr1snp1, gst_getzleg, gst_getNla, gst_getNtrunc
 

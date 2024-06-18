@@ -18,10 +18,14 @@ module columnData_mod
   save
   private
 
-  ! public variables and types
-  public :: col_rhumin, col_minValVarKindCH, struct_columnData
+  ! Public variables and types
+  public    :: col_rhumin, col_minValVarKindCH
+  protected :: col_rhumin, col_minValVarKindCH
 
-  ! public subroutines and functions
+  ! Public dervied type
+  public :: struct_columnData
+
+  ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK

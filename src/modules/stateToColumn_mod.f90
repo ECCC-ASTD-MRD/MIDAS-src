@@ -32,7 +32,7 @@ module stateToColumn_mod
   save
   private
   
-  ! public routines
+  ! Public routines
   public :: s2c_tl, s2c_ad, s2c_nl
   public :: s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
   public :: s2c_deallocInterpInfo

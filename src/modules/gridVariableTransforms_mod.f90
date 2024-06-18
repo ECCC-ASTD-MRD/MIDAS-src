@@ -31,7 +31,7 @@ module gridVariableTransforms_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 

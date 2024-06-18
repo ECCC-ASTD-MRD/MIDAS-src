@@ -22,13 +22,16 @@ module thinning_mod
   use physicsFunctions_mod
   use utilities_mod
   use kdTree2_mod
+
   implicit none
   private
 
+  ! Public procedures
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
   public :: thn_thinSatSST
+
   integer, external :: get_max_rss
 
 contains

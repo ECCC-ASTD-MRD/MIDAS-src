@@ -20,16 +20,15 @@ module slantProfileLatLon_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: slp_calcLatLonTovs, slp_calcLatLonRO, slp_calcLatLonRadar
 
-  ! private module variables and derived types
+  ! module variables
   logical :: nmlAlreadyRead = .false.
 
   ! namelist variables
   real(4) :: toleranceHeightDiff  ! threshold of height diff (in m) for convergence of slant path
   integer :: maxNumIteration      ! maximum number of iterations for determining slant path
-
 
 contains 
 

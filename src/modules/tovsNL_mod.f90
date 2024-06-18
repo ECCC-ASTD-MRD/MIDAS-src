@@ -64,7 +64,6 @@ module tovsNL_mod
        sensor_id_po                ,&
        min_reflectivity            ,&
        min_radiance_radar
-
   use parkind1, only : jpim, jplm, jprb
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
@@ -91,33 +90,43 @@ module tovsNL_mod
   save
   private
 
-  type surface_params
-    real(8)              :: albedo   ! surface albedo (0-1)
-    real(8)              :: ice      ! ice cover (0-1) 
-    real(8)              :: snow     ! snow cover (0-1)
-    real(8)              :: pcnt_wat ! water percentage in pixel containing profile (0-1)
-    real(8)              :: pcnt_reg ! water percentage in an area around profile (0-1)
-    integer              :: ltype    ! surface type (1,...,20)
-  end type surface_params
-
-  ! public variables (parameters)
+  ! Public variables (parameters)
   public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
-  ! public variables (non-parameters)
-  public :: tvs_maxNumberOfRadiances
-  public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex, tvs_nobtov
-  public :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
-  public :: tvs_isReallyPresent,tvs_listSensors
-  public :: tvs_isReallyPresentMpiGlobal
-  public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
-  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
-  public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
-  public :: tvs_coef_scatt, tvs_opts_scatt
-  public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
-  public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
-  public :: tvs_mwAllskyAssim, tvs_computeJacobian
-  public :: tvs_channelsUsingHydrometeors
-  ! public procedures
+
+  ! Public variables
+  public    :: tvs_surfaceParameters, tvs_emissivity, tvs_nobtov, tvs_transmission
+  protected :: tvs_surfaceParameters, tvs_emissivity, tvs_nobtov, tvs_transmission
+  public    :: tvs_maxNumberOfRadiances
+  protected :: tvs_maxNumberOfRadiances
+  public    :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex
+  protected :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex
+  public    :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
+  protected :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
+  public    :: tvs_isReallyPresent,tvs_listSensors
+  protected :: tvs_isReallyPresent,tvs_listSensors
+  public    :: tvs_isReallyPresentMpiGlobal
+  protected :: tvs_isReallyPresentMpiGlobal
+  public    :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
+  protected :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
+  public    :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
+  protected :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
+  public    :: tvs_coefs, tvs_opts
+  protected :: tvs_coefs, tvs_opts
+  public    :: tvs_coef_scatt, tvs_opts_scatt
+  protected :: tvs_coef_scatt, tvs_opts_scatt
+  public    :: tvs_radiance
+  protected :: tvs_radiance
+  public    :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
+  protected :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
+  public    :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
+  protected :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
+  public    :: tvs_mwAllskyAssim, tvs_computeJacobian
+  protected :: tvs_mwAllskyAssim, tvs_computeJacobian
+  public    :: tvs_channelsUsingHydrometeors
+  protected :: tvs_channelsUsingHydrometeors
+
+  ! Public procedures
+  public :: tvs_setNobtov, tvs_allocateSurfaceParameters, tvs_allocateEmissivity
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -132,7 +141,18 @@ module tovsNL_mod
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
   public :: tvs_getHydrometeorsIndex
-  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_writeJacobianAscii, tvs_emissivityFromTrl, tvs_useSfcEmissObsSpace
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
+  public :: tvs_writeJacobianAscii, tvs_emissivityFromTrl, tvs_useSfcEmissObsSpace
+
+  type surface_params
+    real(8)              :: albedo   ! surface albedo (0-1)
+    real(8)              :: ice      ! ice cover (0-1) 
+    real(8)              :: snow     ! snow cover (0-1)
+    real(8)              :: pcnt_wat ! water percentage in pixel containing profile (0-1)
+    real(8)              :: pcnt_reg ! water percentage in an area around profile (0-1)
+    integer              :: ltype    ! surface type (1,...,20)
+  end type surface_params
+
   ! Module parameters
   ! units conversion from  micrograms/kg to kg/kg
   real(8), parameter :: microg2kg  = 1.0d-9
@@ -222,6 +242,51 @@ module tovsNL_mod
   integer, parameter :: maxsize = 100              ! Max number of instruments
   
 contains
+
+  !--------------------------------------------------------------------------
+  ! tvs_setNobtov
+  !--------------------------------------------------------------------------
+  subroutine tvs_setNobtov(nobtov)
+    !
+    ! :Purpose:  Set the global variable `nobtov`.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: nobtov  ! value of `nobtov`
+
+    tvs_nobtov = nobtov
+
+  end subroutine tvs_setNobtov
+
+  !--------------------------------------------------------------------------
+  ! tvs_allocateSurfaceParameters
+  !--------------------------------------------------------------------------
+  subroutine tvs_allocateSurfaceParameters()
+    !
+    ! :Purpose:  Allocate the global array `tvs_surfaceParameters`.
+    !
+    implicit none
+
+    allocate(tvs_surfaceParameters(tvs_nobtov))
+
+  end subroutine tvs_allocateSurfaceParameters
+
+  !--------------------------------------------------------------------------
+  ! tvs_allocateEmissivity
+  !--------------------------------------------------------------------------
+  subroutine tvs_allocateEmissivity(maxChannelNumber)
+    !
+    ! :Purpose:  Allocate the global array `tvs_emissivity`.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: maxChannelNumber
+
+    allocate(tvs_emissivity(maxChannelNumber,tvs_nobtov))
+
+  end subroutine tvs_allocateEmissivity
 
   !--------------------------------------------------------------------------
   !  validateRttovVariable
@@ -740,6 +805,7 @@ contains
     ! Locals:
     integer :: jo, isens, nc
 
+    if (allocated(tvs_transmission)) deallocate(tvs_transmission)
     allocate(tvs_transmission(tvs_nobtov))
 
     do jo = 1, tvs_nobtov

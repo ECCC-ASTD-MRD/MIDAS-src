@@ -15,6 +15,8 @@ module obsUtil_mod
   implicit none
   save
   private
+
+  ! Public procedures
   public :: obsu_setassflg, obsu_updateSourceVariablesFlag
   public :: obsu_computeVertCoordSurfObs, obsu_setGbgpsError, obsu_cvt_obs_instrum
   

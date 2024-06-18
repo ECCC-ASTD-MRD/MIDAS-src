@@ -24,6 +24,7 @@ module calcStatsLam_mod
   use timeCoord_mod
   use midasMpi_mod
   use calcHeightAndPressure_mod
+
   implicit none
   save
   private

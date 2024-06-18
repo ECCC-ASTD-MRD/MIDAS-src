@@ -10,9 +10,11 @@ module regions_mod
   !
   use mathPhysConstants_mod
   use midasMpi_mod
-  implicit none
 
+  implicit none
   private
+
+  ! Public procedures
   public :: struct_reg
   public :: reg_getlatitude, reg_getblock, reg_locatestn, reg_init_struct
 

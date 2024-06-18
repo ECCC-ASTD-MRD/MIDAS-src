@@ -4,19 +4,17 @@ module radialVelocity_mod
   !
   !:Purpose: Containing commonly used functions for the assimilation of Doppler velocity.
   !
-  !
   use codePrecision_mod
   use earthConstants_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: rdv_getlatlonHRfromRange, rdv_getRangefromH
 
-
 contains 
-
 
   subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, & !in
                                       radarAltitude, beamRange,                           & !in

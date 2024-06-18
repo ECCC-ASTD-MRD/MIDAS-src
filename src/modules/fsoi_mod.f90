@@ -26,11 +26,12 @@ module fsoi_mod
   use utilities_mod
   use calcHeightAndPressure_mod
   use rttov_const, only: inst_name, platform_name
+
   implicit none
   save
   private
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: fso_setup, fso_ensemble
 
   ! module private variables

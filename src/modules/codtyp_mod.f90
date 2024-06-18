@@ -11,7 +11,15 @@ module codtyp_mod
   !
   use utilities_mod
   use midasMpi_mod
+
+  implicit none
   private
+
+  ! Public variables (parameters)
+  public :: codtyp_name_length, codtyp_maxNumber
+
+  ! Public procedures
+  public :: codtyp_get_codtyp, codtyp_get_name
 
   integer ,parameter :: codtyp_maxNumber = 256
   integer, parameter :: codtyp_name_length = 21
@@ -22,12 +30,6 @@ module codtyp_mod
   character(len=codtyp_name_length) :: cnames(codtyp_maxNumber) ! names for new additions to standard codtype list
   integer                           :: icod (codtyp_maxNumber)  ! codes for new additions to standard codtype list
   namelist /NAMCODTYP/ cnames, icod
-
-  ! public variables (parameters)
-  public :: codtyp_name_length, codtyp_maxNumber
-
-  ! public procedures
-  public :: codtyp_get_codtyp, codtyp_get_name
 
 contains
 

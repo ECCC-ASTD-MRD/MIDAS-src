@@ -33,14 +33,16 @@ module obsFiles_mod
   save
   private
 
-  ! public variables
-  public :: obsf_nfiles, obsf_fileName
+  ! Public variables
+  public    :: obsf_nfiles, obsf_fileName
+  protected :: obsf_nfiles, obsf_fileName
 
-  ! public procedures
+  ! Public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
   public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
   public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
   public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
+
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 

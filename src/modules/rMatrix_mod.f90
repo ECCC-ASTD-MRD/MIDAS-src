@@ -17,17 +17,19 @@ module rMatrix_mod
   private
   save
 
-  ! public variables
-  public :: rmat_lnondiagr
-  ! public subroutines
-  public :: rmat_init, rmat_cleanup, rmat_readCMatrix, rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
+  ! Public variables
+  public    :: rmat_lnondiagr
+  protected :: rmat_lnondiagr
+
+  ! Public subroutines
+  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
   public :: rmat_updateRmat, rmat_writeRCorrFile, rmat_getRmatrix
 
- type rmat_matrix
+  type rmat_matrix
     real(8), pointer     :: Rmat(:,:)=>null()
     integer, pointer     :: listChans(:)=>null()
     integer              :: nchans=0 
- END type rmat_matrix
+  end type rmat_matrix
 
   type(rmat_matrix),target,allocatable  :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
   type(rmat_matrix),target,allocatable  :: R_tovs(:)     ! non diagonal R matrices used for the assimilation of all radiances
@@ -38,7 +40,8 @@ module rMatrix_mod
   real(8) :: rmat_estLatMin      ! Min latitude criteria for obs to be used in estimating R-Matrix
   integer :: rmat_estLandSeaExcl ! Land/Sea criteria to exclude obs that are used in estimating R-Matrix(0: land, 1: sea)
   real(8) :: rmat_estElevMax     ! Max sfc elevation criteria to exclude obs to be used in estimating R-Matrix (km)
-  contains
+
+contains
 
   subroutine rmat_init(nsensors,nobtovs)
    

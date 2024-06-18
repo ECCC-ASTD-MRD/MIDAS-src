@@ -15,6 +15,7 @@ module menetrierDiag_mod
   use ensembleStatevector_mod
   use timeCoord_mod
   use midasMpi_mod
+
   implicit none
   save
   private
