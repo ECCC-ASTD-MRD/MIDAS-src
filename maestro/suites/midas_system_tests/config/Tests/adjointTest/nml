@@ -1,5 +1,6 @@
 &NAMADT
-   TEST = 'Bhi'  
+   TEST = 'Bhi'
+   TESTDATE = 2014062000  
 /
 &NAMBHI
    NTRUNC  = 270,
@@ -13,7 +14,6 @@
  &NAMTIME
   DSTEPOBS = 0.25d0
   DSTEPOBSINC = 6.0d0
-  DATE =  2014062000
 /
  &NAMSTATE
    addHeightSfcOffset = .false.

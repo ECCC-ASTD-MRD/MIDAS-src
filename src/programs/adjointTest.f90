@@ -102,9 +102,13 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector1(:)
   real(8), allocatable ::  controlVector2(:)
 
-  integer :: get_max_rss, ierr, cvDim
-  character(len=20) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
-  NAMELIST /NAMADT/test
+  integer :: ierr, cvDim
+  integer :: idate, itime, dateStamp
+  integer, external :: newdate, get_max_rss
+  
+  character(len=20) :: test     ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
+  integer           :: testdate ! yyyymmddhh date
+  NAMELIST /NAMADT/ test, testdate
 
   call ver_printNameAndVersion('adjointTest','Various tests of adjoint codes')
 
@@ -131,13 +135,37 @@ program midas_adjointTest
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
-  !- 1.5 Temporal grid and set dateStamp from env variable
+  !- 1.5 Test selection
+  test = 'Bhi' ! default test 
+
+  if ( .not. utl_isNamelistPresent('NAMADT','./flnml') ) then
+    if (mmpi_myid == 0) then
+      write(*,*) 'midas-adjointTest: namadt is missing in the namelist. '&
+                 //'The default values will be taken.'
+    end if
+  else
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml=namadt, iostat=ierr)
+    if(ierr /= 0) call utl_abort('midas-adjointTest: Error reading namelist')
+    if( mmpi_myid == 0 ) write(*,nml=namadt)
+    call utl_tmg_stop(181)
+  end if
+
+  !- 1.6 Temporal grid and set dateStamp from env variable
   call tim_setup()
+  ! Decompose testdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
+  ! and calculate date-time stamp
+  idate = testdate/100
+  itime = (testdate-idate*100)*1000000
+  ierr = newdate(dateStamp, idate, itime, 3)
+  write(*,*)' idate= ',idate,' time= ',itime
+  write(*,*)' date= ',testdate,' stamp= ',dateStamp
+  call tim_setDatestamp(dateStamp)
   if (tim_getDateStamp()==0) then
     call utl_abort('midas-adjointTest: dateStamp was not set')
   end if
 
-  !- 1.6 Constants
+  !- 1.7 Constants
   if ( mmpi_myid == 0 ) then
     call mpc_printConstants(6)
     call pre_printPrecisions
@@ -165,22 +193,6 @@ program midas_adjointTest
 
   !- 1.11 Variable transforms
   call gvt_Setup(hco_anl, hco_core, vco_anl)
-
-  !- 1.12 Test selection
-  test = 'Bhi' ! default test 
-
-  if ( .not. utl_isNamelistPresent('NAMADT','./flnml') ) then
-    if (mmpi_myid == 0) then
-      write(*,*) 'midas-adjointTest: namadt is missing in the namelist. '&
-                 //'The default values will be taken.'
-    end if
-  else
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=namadt, iostat=ierr)
-    if(ierr /= 0) call utl_abort('midas-adjointTest: Error reading namelist')
-    if( mmpi_myid == 0 ) write(*,nml=namadt)
-    call utl_tmg_stop(181)
-  end if
 
   !
   !- 2.  The tests
