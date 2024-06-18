@@ -22,7 +22,7 @@ module rMatrix_mod
   protected :: rmat_lnondiagr
 
   ! Public subroutines
-  public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
+  public :: rmat_init, rmat_cleanup, rmat_readCMatrix, rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
   public :: rmat_updateRmat, rmat_writeRCorrFile, rmat_getRmatrix
 
   type rmat_matrix
