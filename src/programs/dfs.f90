@@ -342,7 +342,7 @@ contains
     implicit none
 
     ! Arguments:
-    character (len=*), intent(in) :: obsColumnMode
+    character (len=*), intent(in) :: obsColumnMode ! obsSpaceData initialisation mode
 
     ! Locals:
     integer :: dateStampFromObs
@@ -808,9 +808,9 @@ contains
     implicit none
     
     ! Arguments:
-    real(8), intent(in)  :: matrixInput(:,:)
-    integer, intent(in)  :: order(:)
-    real(8), intent(out) :: matrixOutput(size(order), size(order))
+    real(8), intent(in)  :: matrixInput(:,:)                         ! Initial matrix
+    integer, intent(in)  :: order(:)                                 ! Ordered list of channels wanted to be extracted
+    real(8), intent(out) :: matrixOutput(size(order), size(order))   ! Subset of the initial matrix with columns extracted
 
     matrixOutput(:, :) = matrixInput(order(:), order(:))
  
