@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Correct the method for computing R matrix when using simulated observations in `var1D` (#937 and !847)
  * Optional system tests cleanup (#936 and !849)
    * adjointTest was updated and is now mandatory
    * letk/glb_benchmark was removed 
