@@ -37,32 +37,30 @@ module obsErrors_mod
   ! tiepoint standard deviation for ASCAT backscatter anisotropy
   real, public, protected :: oer_ascatAnisOpenWater(ncells,12)
   real, public, protected :: oer_ascatAnisIce(ncells,12)
+  ! Arrays for QC purpose
+  real(8), public, protected :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8), public, protected :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  integer, public, protected :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8), public, protected :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  logical, public, protected :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
-  ! Arrays for QC purpose
-  public :: oer_toverrst, oer_cldPredThresh, oer_tovutil
-  public :: oer_errThreshAllsky, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-  real(8) :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyTtCoeff(tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyHuCoeff(tvs_maxNumberOfSensors)
-  integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer :: instrumentIdsInflateErrAllskyTt(tvs_maxNumberOfSensors)
   integer :: instrumentIdsInflateErrAllskyHu(tvs_maxNumberOfSensors)
   integer :: numInstrumInflateErrAllskyTt, numInstrumInflateErrAllskyHu
-  logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyTt(tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyHu(tvs_maxNumberOfSensors)
 
