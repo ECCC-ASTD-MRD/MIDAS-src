@@ -485,7 +485,7 @@ module rMatrix_mod
   !--------------------------------------------------------------------------
   ! rmat_updateRmat
   !--------------------------------------------------------------------------
-  subroutine rmat_updateRmat(obsSpaceData)
+  subroutine rmat_updateRmat(obsSpaceData, obsSpaceIndexObs, obsSpaceIndexTrue)
     !
     !:Purpose: Estimate observation error std and their correlations 
     !          based on truth and simulated obs
@@ -493,7 +493,9 @@ module rMatrix_mod
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData  ! ObsSpaceData object
+    type(struct_obs), intent(inout) :: obsSpaceData      ! ObsSpaceData object
+    integer,          intent(in)    :: obsSpaceIndexObs  ! ObsSpace Index corresponding to observation
+    integer,          intent(in)    :: obsSpaceIndexTrue ! ObsSpace Index corresponding to truth
      
 
     ! Locals: 
@@ -618,8 +620,8 @@ module rMatrix_mod
             end if
 
             ! Compute the observation error based on difference between observation and truth
-            obsErr = obs_bodyElem_r(obsspacedata, OBS_VAR, bodyIndex) - &
-                    obs_bodyElem_r(obsspacedata, OBS_ETRU, bodyIndex)
+            obsErr = obs_bodyElem_r(obsspacedata, obsSpaceIndexObs, bodyIndex) - &
+                    obs_bodyElem_r(obsspacedata, obsSpaceIndexTrue, bodyIndex)
             vector(1, assimChan) = obsErr
 
             ! Compute the sum of observation sum(x)
