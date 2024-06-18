@@ -7,7 +7,7 @@ module rMatrix_mod
   !
   use rttovInterfaces_mod
   use midasMpi_mod
-  use rttov_const, only  : errorstatus_success
+  use rttov_const, only: errorstatus_success
   use utilities_mod
   use obsSpaceData_mod
   use tovsNL_mod
@@ -18,24 +18,23 @@ module rMatrix_mod
   save
 
   ! Public variables
-  public    :: rmat_lnondiagr
-  protected :: rmat_lnondiagr
+  ! This is a namelist variable
+  logical, public, protected :: rmat_lnondiagr ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
 
   ! Public subroutines
   public :: rmat_init, rmat_cleanup, rmat_readCMatrix, rmat_RsqrtInverseOneObs, rmat_RsqrtInverseAllObs, rmat_Rsqrt
   public :: rmat_updateRmat, rmat_writeRCorrFile, rmat_getRmatrix
 
   type rmat_matrix
-    real(8), pointer     :: Rmat(:,:)=>null()
-    integer, pointer     :: listChans(:)=>null()
-    integer              :: nchans=0 
+    real(8), pointer :: Rmat(:,:) => null()
+    integer, pointer :: listChans(:) => null()
+    integer          :: nchans=0
   end type rmat_matrix
 
-  type(rmat_matrix),target,allocatable  :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
-  type(rmat_matrix),target,allocatable  :: R_tovs(:)     ! non diagonal R matrices used for the assimilation of all radiances
+  type(rmat_matrix), target, allocatable :: Rcorr_inst(:) ! non diagonal Correlation matrices for each instrument
+  type(rmat_matrix), target, allocatable :: R_tovs(:)     ! non diagonal R matrices used for the assimilation of all radiances
 
-  ! namelist variable
-  logical :: rmat_lnondiagr      ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
+  ! Private namelist module variables
   real(8) :: rmat_estLatMax      ! Max latitude criteria for obs to be used in estimating R-Matrix
   real(8) :: rmat_estLatMin      ! Min latitude criteria for obs to be used in estimating R-Matrix
   integer :: rmat_estLandSeaExcl ! Land/Sea criteria to exclude obs that are used in estimating R-Matrix(0: land, 1: sea)
