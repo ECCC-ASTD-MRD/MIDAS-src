@@ -1807,22 +1807,19 @@ contains
       numHeader = headerIndexEnd - headerIndexBeg + 1
       call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                               'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
-      if ( .not. beSilent ) then
-        write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
-                   headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
-      end if
-
+     
       call rpn_comm_allgather(numHeader,   1,'mpi_integer', &
                               allNumHeader,1,'mpi_integer','grid',ierr)
       call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
-
       if ( .not. beSilent ) then
+        write(*,*) 's2c_nl: headerIndexBeg/End, numHeader, numHeaderMax = ',  &
+             headerIndexBeg, headerIndexEnd, numHeader, numHeaderMax
         if (mmpi_myid == 0) then
-          write(*,*) 's2c_nl: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
+           write(*,*) 's2c_nl: min/max of allNumHeader = ', minval(allNumHeader), maxval(allNumHeader)
         end if
       end if
-
+      
       if (.not. interpInfo_nl%initialized) then
         call utl_tmg_stop(34)
         call utl_tmg_start(31,'----s2c_Setups')

@@ -617,7 +617,10 @@ else
         done
     fi
     mv -f pm1q ..                    || true
-
+    mv -f HBHt.dat ..                || true
+    mv -f selection.dat ..           || true
+    mv -f dfs.dat ..                 || true
+    
     ## mainly for letkf
     mv -f ??????????_000 ..          || true
     mv -f ??????????_???_*mean* ..   || true

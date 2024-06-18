@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added new program dfs.f90 to compute DFS and to perform channel selection (#904 and !840)
  * A new variable called `outputFormat` has been added to the namelist `NAMSTIO` which allows to write `RSF` files instead of the default `XDF` format (#922 and !842).
    * If the user chooses to output in `RSF`, we will write in parallel using all OpenMP threads available in the routine `gio_writeToFile`.
  * Add a test `/Tests/letkf/glb_3D` to run LETKF on a single node (#932 and !841)

@@ -18,6 +18,7 @@
   <SUBMITS sub_name="analysisErrorOI"/>
   <SUBMITS sub_name="SST"/>
   <SUBMITS sub_name="adjointTest"/>
+  <SUBMITS sub_name="dfs"/>
   
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -653,4 +654,11 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
+ <FAMILY  name="dfs">
+   <SUBMITS sub_name="chanSelectCris"/>
+  <FAMILY  name="chanSelectCris">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+ </FAMILY> 
 </MODULE>

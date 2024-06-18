@@ -15,7 +15,7 @@ module utilities_mod
   ! public procedures
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
-  public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp
+  public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse
   public :: utl_pseudo_inverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_printTime
@@ -693,6 +693,59 @@ contains
 
   end subroutine utl_eigenDecomp
 
+  !-----------------------------------------
+  ! utl_fastInverse
+  !-----------------------------------------
+  subroutine utl_fastInverse(inputMatrix, inverse)
+    !
+    !:Purpose: for fast computation of matrix inverse using LU decomposition
+    !
+    implicit none
+    
+    ! Arguments:
+    real(8),           intent(in)  :: inputMatrix(:,:)   ! Input Matrix
+    real(8),           intent(out) :: inverse(:,:)       ! its inverse
+
+    ! Locals:
+    integer :: info, lwork, lineDim, columnDim
+    real(8), allocatable :: work(:)
+    integer, allocatable :: pivot(:)
+    
+    lineDim = size(inputMatrix, dim=1)
+    columnDim = size(inputMatrix, dim=2)
+    if (lineDim /= columnDim) then
+      call utl_abort('utl_fastInverse: the input matrix should be square !')
+    end if
+    
+    inverse(1:lineDim,1:columnDim) = inputMatrix(:,:)
+
+    allocate(pivot(lineDim))
+    call dgetrf(lineDim, lineDim, inverse, columnDim, pivot, info)
+    if (info < 0) then
+      call utl_abort('utl_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetrf')
+    else if (info > 0) then
+      call utl_abort('utl_fastInverse: in dgetrf the U matrix is exactly singular ' // utl_str(info) )
+    end if
+
+    lwork = -1
+    allocate(work(1))
+    !first call to query work array work size
+    call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
+    lwork = work(1)
+    call utl_reallocate(work, lwork)
+    call dgetri(columnDim, inverse, columnDim, pivot, work, lwork, info)
+    if (info < 0) then
+      call utl_abort('utl_fastInverse: invalid value for parameter ' // utl_str(-info) // ' in lapack subroutine dgetri')
+    else if (info > 0) then
+      call utl_abort('utl_fastInverse: in dgetri singular matrix' // utl_str(info) )
+    end if
+
+    deallocate(work)
+    deallocate(pivot)
+     
+  end subroutine utl_fastInverse
+
+  
   !-----------------------------------------
   ! utl_pseudo_inverse
   !-----------------------------------------
