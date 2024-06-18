@@ -15,25 +15,21 @@ module verticalCoord_mod
   implicit none
   private
 
-  ! Public variables (parameters)
-  public :: vco_maxNumLevels
+  ! Private module parameter
+  integer, parameter :: maxNumOtherLevels = 20
 
-  ! Public variables
-  public    :: vco_ip1_other
-  protected :: vco_ip1_other
+  ! Public module procedures
+  public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_subsetOrNot, vco_levelMatchingList
+
+  ! Public module variables
+  integer, public, protected :: vco_ip1_other(maxNumOtherLevels)
+  ! Public module parameter
+  integer, public, parameter :: vco_maxNumLevels = 200
 
   ! Public derived type
   public :: struct_vco
 
-  ! Public procedures
-  public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
-  public :: vco_subsetOrNot, vco_levelMatchingList
-
-  integer, parameter :: maxNumOtherLevels = 20
-  integer :: vco_ip1_other(maxNumOtherLevels)
-
-  integer, parameter :: vco_maxNumLevels = 200
-  
   type struct_vco
      logical :: initialized=.false.
      integer :: Vcode = -1
