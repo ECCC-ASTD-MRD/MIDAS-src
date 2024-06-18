@@ -41,6 +41,8 @@ module bgckMicrowave_mod
   logical :: mwbg_ch17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
+  logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
+  logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
 
   integer, parameter :: mwbg_maxScanAngle = 98
   real(8), parameter :: mwbg_realMissing = -99.0d0 
@@ -79,8 +81,8 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForClw(:)             ! channels to reject because of CLW
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
   integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
-  real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)
-  real(8) :: mwbg_atmsCh17OmpThreshRogueCheck
+  real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)             ! rogue factors for atms
+  real(8) :: mwbg_atmsCh17OmpThreshRogueCheck                  ! threshold for atms ch.17 omp in rogue check test
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -104,6 +106,8 @@ module bgckMicrowave_mod
   logical            :: siObsRejectTempChan           ! scattering index from obs can reject temperature channels
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
   logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
+  logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
   logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
@@ -115,7 +119,8 @@ module bgckMicrowave_mod
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
                     ch17OmpRejectUpperHuChan, atmsRogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
-                    useScatIndexOverWaterObsClearsky, skipTestArr
+                    useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
+                    useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
                     
 
 contains
@@ -130,24 +135,26 @@ contains
     integer :: ierr
 
     ! Default values for namelist variables
-    debug                         = .false.
-    clwQcThreshold                = 0.3 
-    useUnbiasedObsForClw          = .false.
-    cloudyClwThresholdBcorr       = 0.05
-    minSiOverWaterThreshold       = -10.0
-    maxSiOverWaterThreshold       = 30.0
-    cloudySiThresholdBcorr        = 5.0
-    rejectWhenSiMissing           = .false.
-    resetQc                       = .false.
-    modLSQ                        = .false.
-    siObsRejectTempChan           = .true.
-    siObsEcmwfRejectTempChan      = .true.
-    ch17OmpRejectUpperHuChan      = .true.
-    useAtmsCh17OmpThreshRogueCheck= .false.
-    useScatIndexOverWaterObsClearsky = .false.
-    atmsRogueFactor(:)            = -1.0
-    atmsCh17OmpThreshRogueCheck   = 5.0
-    skipTestArr(:)                = .false.
+    debug                               = .false.
+    clwQcThreshold                      = 0.3 
+    useUnbiasedObsForClw                = .false.
+    cloudyClwThresholdBcorr             = 0.05
+    minSiOverWaterThreshold             = -10.0
+    maxSiOverWaterThreshold             = 30.0
+    cloudySiThresholdBcorr              = 5.0
+    rejectWhenSiMissing                 = .false.
+    resetQc                             = .false.
+    modLSQ                              = .false.
+    siObsRejectTempChan                 = .true.
+    siObsEcmwfRejectTempChan            = .true.
+    ch17OmpRejectUpperHuChan            = .true.
+    useAtmsCh17OmpThreshRogueCheck      = .false.
+    useScatIndexOverWaterObsClearsky    = .false.
+    allowClwRejectHuChanAllskyHu        = .false.
+    useMeanTb183OnlyOverLandInAllskyHu  = .true.
+    atmsRogueFactor(:)                  = -1.0
+    atmsCh17OmpThreshRogueCheck         = 5.0
+    skipTestArr(:)                      = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=nambgck, iostat=ierr)
@@ -172,6 +179,8 @@ contains
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
     mwbg_ch17OmpRejectUpperHuChan = ch17OmpRejectUpperHuChan
+    mwbg_allowClwRejectHuChanAllskyHu = allowClwRejectHuChanAllskyHu
+    mwbg_useMeanTb183OnlyOverLandInAllskyHu = useMeanTb183OnlyOverLandInAllskyHu
 
     ! Allocation
     call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
@@ -3541,7 +3550,7 @@ contains
     integer :: iRej, iNumSeaIce, JI, actualNumChannel, channelIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     logical :: waterobs, grossrej, reportHasMissingTb
-    logical :: cloudobs, iwvreject, precipobs
+    logical :: cloudobs, iwvreject, precipobs, terrainTypeIndiceIsReset
     real(8) :: zdi, scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, SeaIce, riwv
     logical, allocatable :: qcRejectLogic(:)
     logical, save :: firstCall = .true.
@@ -3668,7 +3677,7 @@ contains
     !###############################################################################
     call mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                             scatIndexOverWaterObsClearsky,scatIndexOverWaterObsEcmwf, &
-                            iNumSeaIce, iRej, SeaIce, &
+                            terrainTypeIndiceIsReset, iNumSeaIce, iRej, SeaIce, &
                             headerIndex, sensorIndex, obsSpaceData)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -3697,7 +3706,7 @@ contains
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, precipobs, &
                                              scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                             iwvreject, riwv, &
+                                             terrainTypeIndiceIsReset, iwvreject, riwv, &
                                              zdi, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                              headerIndex, sensorIndex, obsSpaceData)
@@ -5163,7 +5172,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                 scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                iNumSeaIce, iRej, SeaIce, &
+                                terrainTypeIndiceIsReset, iNumSeaIce, iRej, SeaIce, &
                                 headerIndex, sensorIndex, obsSpaceData)
     !
     !:Purpose: Compute the following parameters using 5 ATMS channels:
@@ -5194,6 +5203,7 @@ contains
     integer,          intent(out)   :: iRej           ! counter for number locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej       ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs       ! .true. if open water point (away from coasts and sea-ice)
+    logical,          intent(out)   :: terrainTypeIndiceIsReset ! .true. if terrain type is set to 0 when ice>=0.55.
     real(8),          intent(out)   :: scatIndexOverWaterObsClearsky ! clear-sky scattering index from tb89 & tb165 from obs over water
     real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165 from obs over water
     real(8),          intent(out)   :: SeaIce         ! computed sea-ice fraction from tb23 & tb50
@@ -5215,6 +5225,7 @@ contains
 
     iNumSeaIce = 0
     iRej = 0
+    terrainTypeIndiceIsReset = .false.
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -5348,6 +5359,7 @@ contains
           calcTerrainTypeIndice = 0
 
           if (instrumentIsAllskyHu) then
+            terrainTypeIndiceIsReset = .true.
             call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice)
           end if
         end if
@@ -5758,7 +5770,7 @@ contains
       end do
       riwv  = sum(ztb183) / 5.0d0
       if (riwv < mean_Tb_183Ghz_min) then
-        if (instrumentIsAllskyHu) then
+        if (instrumentIsAllskyHu .and. mwbg_useMeanTb183OnlyOverLandInAllskyHu) then
           if (.not. waterobs) iwvreject = .true.
         else
           iwvreject = .true.
@@ -5950,7 +5962,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllCritforFinalFlagsAtms(qcRejectLogic, grossrej, waterobs, precipobs, &
                                                  scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
-                                                 iwvreject, riwv, &
+                                                 terrainTypeIndiceIsReset, iwvreject, riwv, &
                                                  zdi, drycnt, landcnt, &
                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                  headerIndex, sensorIndex, obsSpaceData)
@@ -5969,6 +5981,7 @@ contains
     logical,          intent(in)    :: qcRejectLogic(:)              ! .true. if channel is rejected
     real(8),          intent(in)    :: scatIndexOverWaterObsClearsky ! clear-sky scattering index from tb89 & tb165 from obs over water
     real(8),          intent(in)    :: scatIndexOverWaterObsEcmwf    ! ECMWF scattering index from tb89 & tb165
+    logical,          intent(in)    :: terrainTypeIndiceIsReset      ! .true. if terrain type is set to 0 when ice>=0.55.
     logical,          intent(in)    :: grossrej  ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(in)    :: waterobs  ! if obs over open-water
     logical,          intent(in)    :: iwvreject ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
@@ -6028,7 +6041,7 @@ contains
         if (iwvreject) lflagchn(20:22) = .true.                 ! AMSU-B (like 4,3)
 
         surfTypeIsIce = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_seaice)
-        if (instrumentIsAllskyHu .and. surfTypeIsIce) lflagchn(20:22) = .true.
+        if (instrumentIsAllskyHu .and. surfTypeIsIce .and. terrainTypeIndiceIsReset) lflagchn(20:22) = .true.
 
         ! Dryness index (for AMSU-B channels 19-22 assimilated over land/sea-ice)
         ! Channel AMSUB-3 (ATMS channel 22) is rejected for a dryness index >    0.
@@ -6074,12 +6087,12 @@ contains
           else
             lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
           end if
-          if (.not. instrumentIsAllskyHu) lflagchn(16:20) = .true.
+          if (.not. instrumentIsAllskyHu .or. mwbg_allowClwRejectHuChanAllskyHu) lflagchn(16:20) = .true.
         end if
 
         if (cloudLiquidWaterPathObs > clw_atms_nrl_UTrej)  then
           lflagchn(7:9)   = .true.
-          if (.not. instrumentIsAllskyHu) lflagchn(21:22) = .true.
+          if (.not. instrumentIsAllskyHu .or. mwbg_allowClwRejectHuChanAllskyHu) lflagchn(21:22) = .true.
         end if
 
         if (instrumentIsAllskyHu .and. mwbg_useScatIndexOverWaterObsClearsky) then
