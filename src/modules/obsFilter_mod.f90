@@ -24,8 +24,7 @@ module obsFilter_mod
   private
 
   ! Public variables
-  public    :: filt_rlimlvhu
-  protected :: filt_rlimlvhu
+  real(8), public, protected :: filt_rlimlvhu
 
   ! Public procedures
   public :: filt_setup, filt_topo, filt_suprep
@@ -37,8 +36,6 @@ module obsFilter_mod
   integer :: filt_nelems, filt_nflags
   integer, target :: filt_nlist(nelemsMax)
   integer :: filt_nlistflg(nflagsMax)
-
-  real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
   integer, parameter :: numElem = 21
