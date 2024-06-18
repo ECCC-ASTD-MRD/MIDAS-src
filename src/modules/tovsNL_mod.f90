@@ -90,41 +90,6 @@ module tovsNL_mod
   save
   private
 
-  ! Public variables (parameters)
-  public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
-
-  ! Public variables
-  public    :: tvs_surfaceParameters, tvs_emissivity, tvs_nobtov, tvs_transmission
-  protected :: tvs_surfaceParameters, tvs_emissivity, tvs_nobtov, tvs_transmission
-  public    :: tvs_maxNumberOfRadiances
-  protected :: tvs_maxNumberOfRadiances
-  public    :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex
-  protected :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_headerIndex, tvs_tovsIndex
-  public    :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
-  protected :: tvs_nchanMpiGlobal, tvs_ichanMpiGlobal
-  public    :: tvs_isReallyPresent,tvs_listSensors
-  protected :: tvs_isReallyPresent,tvs_listSensors
-  public    :: tvs_isReallyPresentMpiGlobal
-  protected :: tvs_isReallyPresentMpiGlobal
-  public    :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
-  protected :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
-  public    :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
-  protected :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
-  public    :: tvs_coefs, tvs_opts
-  protected :: tvs_coefs, tvs_opts
-  public    :: tvs_coef_scatt, tvs_opts_scatt
-  protected :: tvs_coef_scatt, tvs_opts_scatt
-  public    :: tvs_radiance
-  protected :: tvs_radiance
-  public    :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
-  protected :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
-  public    :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
-  protected :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
-  public    :: tvs_mwAllskyAssim, tvs_computeJacobian
-  protected :: tvs_mwAllskyAssim, tvs_computeJacobian
-  public    :: tvs_channelsUsingHydrometeors
-  protected :: tvs_channelsUsingHydrometeors
-
   ! Public procedures
   public :: tvs_setNobtov, tvs_allocateSurfaceParameters, tvs_allocateEmissivity
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
@@ -146,58 +111,72 @@ module tovsNL_mod
 
   type surface_params
     real(8)              :: albedo   ! surface albedo (0-1)
-    real(8)              :: ice      ! ice cover (0-1) 
+    real(8)              :: ice      ! ice cover (0-1)
     real(8)              :: snow     ! snow cover (0-1)
     real(8)              :: pcnt_wat ! water percentage in pixel containing profile (0-1)
     real(8)              :: pcnt_reg ! water percentage in an area around profile (0-1)
     integer              :: ltype    ! surface type (1,...,20)
   end type surface_params
 
-  ! Module parameters
-  ! units conversion from  micrograms/kg to kg/kg
-  real(8), parameter :: microg2kg  = 1.0d-9
+  ! Public module parameters
+  integer, public, parameter :: tvs_maxChannelNumber    = 8461 ! Max. value for channel number
+  integer, public, parameter :: tvs_maxNumberOfChannels = 2211 ! Max. no. of channels (for one profile/spectra)
+  integer, public, parameter :: tvs_maxNumberOfSensors  = 100  ! Max no sensors to be used
+  real(pre_obsReal), public, parameter :: tvs_defaultEmissivity = 0.95
 
-  real(pre_obsReal), parameter :: tvs_defaultEmissivity = 0.95
+  ! Protected module variables
+  logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
+  logical, public, protected :: tvs_useO3Climatology ! Determine if ozone model field or climatology is used
+  real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
+  integer, public, protected :: tvs_nobtov ! Number of tovs observations (FOVs)
+  integer, public, protected :: tvs_nsensors ! Number of individual sensors.
+  integer, public, protected :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
+  integer, public, protected :: tvs_numMWInstrumUsingCLW
+  integer, public, protected :: tvs_numMWInstrumUsingHydrometeors
+  logical, public, protected :: tvs_mwInstrumUsingCLW_tl
+  logical, public, protected :: tvs_mwInstrumUsingHydrometeors_tl
+  logical, public, protected :: tvs_mwAllskyAssim
+  logical, public, protected :: tvs_computeJacobian ! Compute Jacobian for brightness temperature
+  integer, public, protected :: tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
+  integer, public, protected :: tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
+  integer, public, protected :: tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
+  integer, public, protected :: tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
+  integer, public, protected :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
+  character(len=15), public, protected :: tvs_satelliteName(tvs_maxNumberOfSensors)
+  character(len=15), public, protected :: tvs_instrumentName(tvs_maxNumberOfSensors)
+  integer, public, protected, allocatable :: tvs_listSensors(:,:)     ! Sensor list
+  integer, public, protected, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
+  integer, public, protected, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
+  integer, public, protected, allocatable :: tvs_lsensor(:)           ! Sensor number for each profile
+  integer, public, protected, allocatable :: tvs_headerIndex(:)       ! Observation position in obsSpaceData header for each profile
+  integer, public, protected, allocatable :: tvs_tovsIndex(:)         ! Index in TOVS structures for each observation header in obsSpaceData
+  integer, public, protected, allocatable :: tvs_nchanMpiGlobal(:)    ! Number of channels per instrument (global)
+  integer, public, protected, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
+  logical, public, protected, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
+  logical, public, protected, allocatable :: tvs_isReallyPresentMpiGLobal(:) ! Logical flag to identify instruments really assimilated (global)
+  type(surface_params), public, protected, allocatable :: tvs_surfaceParameters(:) ! surface parameters
+  type(rttov_transmission), public, protected , allocatable :: tvs_transmission(:) ! transmittances all profiles for HIR quality control
+  type(rttov_coefs), public, protected, allocatable         :: tvs_coefs(:)      ! rttov coefficients
+  type(rttov_options), public, protected, allocatable       :: tvs_opts(:)       ! rttov options
+  type(rttov_scatt_coef), public, protected, allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
+  type(rttov_options_scatt), public, protected, allocatable :: tvs_opts_scatt(:) ! rttovscatt options
+  type(rttov_radiance), public, protected, allocatable      :: tvs_radiance(:)   ! radiances organized by profile
 
-  integer, parameter :: tvs_maxChannelNumber    = 8461 ! Max. value for channel number
-  integer, parameter :: tvs_maxNumberOfChannels = 2211 ! Max. no. of channels (for one profile/spectra)
-  integer, parameter :: tvs_maxNumberOfSensors  = 100  ! Max no sensors to be used
-  integer, parameter :: tvs_nlevels             = 101  ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
+  ! Private module parameters
+  integer, parameter :: kslon=2160, kslat=1080 ! CERES file dimension in grid points
+  integer, parameter :: maxsize = 100 ! Max number of instruments
+  integer, parameter :: tvs_nlevels = 101  ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
+  real(8), parameter :: microg2kg   = 1.0d-9 ! units conversion from micrograms/kg to kg/kg
 
-  ! Module variables
-  integer              :: tvs_maxNumberOfRadiances     ! Max no of computed radiances for one sensor
+  ! Private module variables
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
   integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:,:) ! Provides RttovScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
-  integer, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
-  integer, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
-  integer, allocatable :: tvs_nchanMpiGlobal(:)    ! Number of channels per instrument (global)
-  integer, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
-  integer, allocatable :: tvs_lsensor(:)           ! Sensor number for each profile
-  integer, allocatable :: tvs_headerIndex(:)       ! Observation position in obsSpaceData header for each profile
-  integer, allocatable :: tvs_tovsIndex(:)         ! Index in TOVS structures for each observation header in obsSpaceData
-  logical, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
-  logical, allocatable :: tvs_isReallyPresentMpiGLobal(:)   ! Logical flag to identify instruments really assimilated (global)
-  integer, allocatable :: tvs_listSensors(:,:)     ! Sensor list
-  type (rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
-  type(surface_params), allocatable :: tvs_surfaceParameters(:) ! surface parameters 
-  integer tvs_nobtov                               ! Number of tovs observations (FOVs)
-  integer tvs_nsensors                             ! Number of individual sensors.
-  integer tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
-  integer tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
-  integer tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
-  integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
+  type(rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
-  integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
-  integer tvs_numMWInstrumUsingCLW 
-  integer tvs_numMWInstrumUsingHydrometeors
-  logical tvs_mwInstrumUsingCLW_tl
-  logical tvs_mwInstrumUsingHydrometeors_tl
-  logical tvs_mwAllskyAssim
+
   logical :: tvs_mpiTask0ReadCoeffs 
   real(8) :: tvs_cloudScaleFactor 
-  logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
-  logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
   logical tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
@@ -206,41 +185,28 @@ module tovsNL_mod
   logical tvs_userDefinedIsAzimuthValid
   logical tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
 
-  character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
-  character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
   character(len=8) radiativeTransferCode             ! RadiativeTransferCode : TOVS radiation model used
-  real(8), allocatable :: tvs_emissivity(:,:)        ! Surface emissivities organized by profiles and channels
   real(8), allocatable :: tvs_emissivityFromTrl(:,:) ! Surface emissivities extracted from trial
-  integer, parameter :: kslon=2160, kslat=1080       ! CERES file dimension in grid points
 
   ! High resolution surface fields
   integer :: surfaceType(kslon,kslat)  
   real(8) :: waterFraction(kslon,kslat) 
 
-  ! Derived typeso
-  type(rttov_coefs), allocatable           :: tvs_coefs(:)          ! rttov coefficients
-  type(rttov_options), allocatable         :: tvs_opts(:)           ! rttov options
-  type(rttov_scatt_coef), allocatable      :: tvs_coef_scatt(:)     ! rttovscatt coefficients
-  type(rttov_options_scatt), allocatable   :: tvs_opts_scatt(:)     ! rttovscatt options
   type(rttov_chanprof), allocatable        :: tvs_chanProf(:,:)     ! chanprof structures for Rttov
   type(rttov_chanprof), allocatable        :: tvs_chanProfScatt(:,:)! chanprof structures for RttovScatt
   type(rttov_profile), target, allocatable :: tvs_profiles_nl(:)    ! all profiles on trial vertical coordinate for nl obs operator
   type(rttov_profile), target, allocatable :: tvs_profiles_tlad(:)  ! all profiles on increments vertical coordinates for linearized obs. operator
-  type(rttov_radiance), allocatable        :: tvs_radiance(:)       ! radiances organized by profile
-  type(rttov_transmission), allocatable    :: tvs_transmission(:)   ! transmittances all profiles for HIR quality control
   type(rttov_profile_cloud), target, allocatable :: tvs_cld_profiles_nl(:)! rttov scatt cloud profiles on trial vertical coordinate
   type(rttov_profile_cloud), target, allocatable :: tvs_cld_profiles_tlad(:) ! rttov scatt cloud profiles on increment vertical coordinates
 
   ! Namelist variables:
-  logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
-  logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
-  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
-  logical tvs_computeJacobian                      ! Compute Jacobian for brightness temperature
+  logical :: useUofWIREmiss       ! Flag to activate use of RTTOV U of W IR emissivity Atlases
+  logical :: useMWEmissivityAtlas ! Flag to activate use of RTTOV built-in MW emissivity Atlases
+  integer :: mWAtlasId            ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
+  ! External procedures
   integer, external :: get_max_rss
 
-  integer, parameter :: maxsize = 100              ! Max number of instruments
-  
 contains
 
   !--------------------------------------------------------------------------
