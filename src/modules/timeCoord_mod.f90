@@ -14,31 +14,24 @@ module timeCoord_mod
   save
   private
   
-  ! Public variables
-  public    :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
-  protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
-  public    :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
-  protected :: tim_nstepobs, tim_nstepobsinc, tim_referencetime
-  public    :: tim_fullyUseExtremeTimeBins
-  protected :: tim_fullyUseExtremeTimeBins
+  ! Public module variables
+  real(8), public, protected :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
+  integer, public, protected :: tim_nstepobs, tim_nstepobsinc
+  character(len=6), public, protected :: tim_referenceTime
+  logical, public, protected :: tim_fullyUseExtremeTimeBins
 
-  ! Public procedures
+  ! Public module procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
   public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate
 
+  ! Private variables
   character(len=4) :: varNameForDate
-  character(len=6) :: tim_referenceTime
-  real(8)   :: tim_dstepobs
-  real(8)   :: tim_dstepobsinc
-  real(8)   :: tim_windowsize
-  integer   :: tim_nstepobs
-  integer   :: tim_nstepobsinc
-  logical   :: tim_fullyUseExtremeTimeBins
-  integer   :: datestamp = 0  ! datestamp is usually the centre of time window
-  logical   :: initialized = .false.
+  integer :: datestamp = 0  ! datestamp is usually the centre of time window
+  logical :: initialized = .false.
 
+  ! External procedures
   integer, external :: get_max_rss
 
 contains
