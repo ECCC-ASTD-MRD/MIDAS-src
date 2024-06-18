@@ -31,8 +31,7 @@ MODULE ensembleObservations_mod
   private
 
   ! Public variables
-  public    :: eob_simObsAssim
-  protected :: eob_simObsAssim
+  logical, public, protected :: eob_simObsAssim
 
   ! Public derived type
   public :: struct_eob
@@ -47,7 +46,7 @@ MODULE ensembleObservations_mod
 
   integer, parameter   :: maxNumLocalObsSearch = 500000
   integer, external    :: get_max_rss
-  logical              :: eob_simObsAssim, psvObsAssim
+  logical              :: psvObsAssim
   integer              :: numSimObsFam
   integer              :: numPsvObsFam
   integer              :: numSimCodTyp(ofl_numFamily), numPsvCodTyp(ofl_numFamily)

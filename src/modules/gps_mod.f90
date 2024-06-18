@@ -17,20 +17,20 @@ module gps_mod
   public :: gps_profile, gps_profilezd, gps_diff
 
   ! Public variables
-  public    :: gps_numROProfiles, gps_vRO_IndexPrf
-  protected :: gps_numROProfiles, gps_vRO_IndexPrf
-  public    :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
-  protected :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
-  public    :: gps_roError, gps_roBNorm, gps_roNsigma
-  protected :: gps_roError, gps_roBNorm, gps_roNsigma
-  public    :: gps_gb_numztd, gps_ZTD_Index
-  protected :: gps_gb_numztd, gps_ZTD_Index
-  public    :: gps_gb_dzmin
-  protected :: gps_gb_dzmin
-  public    :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt
-  protected :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt
-  public    :: gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
-  protected :: gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
+  integer,           public, protected, allocatable :: gps_vRO_IndexPrf(:,:) ! index for each profile
+  integer,           public, protected :: gps_numROProfiles
+  integer,           public, protected :: gps_Level_RO, gps_RO_MAXPRFSIZE
+  real(8),           public, protected :: gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
+  real(8),           public, protected :: gps_roNsigma
+  real(4),           public, protected :: gps_Wgps(0:1023,4)
+  character(len=20), public, protected :: gps_roError
+  logical,           public, protected :: gps_roBNorm
+  integer,           public, protected :: gps_gb_numZTD ! number of ZTD data to be assimilated
+  integer,           public, protected, allocatable :: gps_ZTD_Index (:) ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
+  real(8),           public, protected :: gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
+  real(8),           public, protected :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
+  integer,           public, protected :: gps_gb_IREFOPT, gps_gb_IZTDOP
+  logical,           public, protected :: gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
 
   ! Public variables (parameters)
   public :: gps_ncvmx, gps_gb_maxdata
@@ -48,6 +48,8 @@ module gps_mod
   integer, parameter :: gps_Level_RO_Bnd       = 1
   integer, parameter :: gps_Level_RO_Ref       = 2
   integer, parameter :: gps_Level_RO_BndandRef = 3
+
+  logical :: gps_gpsroEotvos
 
 !modgps00base
   
@@ -196,36 +198,10 @@ module gps_mod
      logical                                      :: bpst
   end type gps_profilezd
 
-!modgpsro_mod
-
-  !
-  ! Values determined by input data:
-  !
-  integer                                :: gps_numROProfiles
-  integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
-
-  ! Public versions of namelist variables
-  INTEGER gps_Level_RO, gps_RO_MAXPRFSIZE
-  REAL*8  gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
-  REAL*8  gps_roNsigma
-  REAL*4  gps_Wgps(0:1023,4)
-  character(len=20) :: gps_roError
-  LOGICAL :: gps_roBNorm, gps_gpsroEotvos
-
-
 !modgpsztd_mod
 
   integer, parameter      ::  max_gps_sites = 1200
   integer, parameter      ::  gps_gb_maxdata  = max_gps_sites*24     ! (max_gps_sites) * (max_num_obs in 6h)
-
-  integer                 :: gps_gb_numZTD            ! number of ZTD data to be assimilated
-  integer , allocatable   :: gps_ZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
-
-  ! Public versions of namelist variables
-  REAL*8 gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
-  REAL(8) :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
-  INTEGER gps_gb_IREFOPT, gps_gb_IZTDOP
-  LOGICAL gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
 
 contains
 

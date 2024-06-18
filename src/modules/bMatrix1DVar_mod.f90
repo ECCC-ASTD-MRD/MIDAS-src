@@ -36,11 +36,8 @@ module bMatrix1DVar_mod
   public :: bmat1D_finalize, bmat1D_get1DVarIncrement
 
   ! Public variables
-  public    :: bmat1D_includeAnlVar, bmat1D_numIncludeAnlVar
-  protected :: bmat1D_includeAnlVar, bmat1D_numIncludeAnlVar
-
-  integer                       :: bmat1D_numIncludeAnlVar
-  character(len=4), allocatable :: bmat1D_includeAnlVar(:)
+  integer,          public, protected              :: bmat1D_numIncludeAnlVar
+  character(len=4), public, protected, allocatable :: bmat1D_includeAnlVar(:)
 
   integer                       :: bmat1D_numExcludeVarScaling
   character(len=4), allocatable :: bmat1D_excludeVarScaling(:)

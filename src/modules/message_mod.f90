@@ -11,21 +11,17 @@ module message_mod
   save
   private
 
-  ! Public variables
-  public    :: msg_NML
-  protected :: msg_NML
-
   ! Public variables (parameters)
-  public :: msg_ALWAYS, msg_NEVER, msg_DEFAULT
+  integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
+  integer, public, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
+  integer, public, parameter :: msg_DEFAULT  =   1 ! default verbosity level
+
+  ! Public variables
+  integer, public, protected :: msg_NML      = msg_DEFAULT ! verbosity level fixed from namelist
 
   ! Public procedures
   public :: msg, msg_memUsage, msg_section, msg_setVerbThreshold
 
-  ! module variables
-  integer, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
-  integer, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
-  integer, parameter :: msg_DEFAULT  =   1 ! default verbosity level
-  integer            :: msg_NML      = msg_DEFAULT ! verbosity level fixed from namelist
 
   ! intrinsic type string representations
   public :: str

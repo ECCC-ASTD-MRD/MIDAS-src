@@ -11,8 +11,8 @@ module controlVector_mod
   private
 
   ! Public variables
-  public              :: cvm_nvadim, cvm_nvadim_mpiglobal
-  protected           :: cvm_nvadim, cvm_nvadim_mpiglobal
+  integer, public, protected :: cvm_nvadim
+  integer, public, protected :: cvm_nvadim_mpiglobal
 
   ! Public procedures
   public              :: cvm_setupSubVector, cvm_getSubVector, cvm_getSubVector_mpiglobal
@@ -34,9 +34,6 @@ module controlVector_mod
   integer, parameter :: maxNumVectors = 50
   integer            :: numVectors = 0
   type(struct_cvm)   :: cvm_vector(maxNumVectors)
-
-  integer             :: cvm_nvadim
-  integer             :: cvm_nvadim_mpiglobal
 
 contains
 
