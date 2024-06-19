@@ -12,7 +12,7 @@ code."""
 
 "It can be noted that, if Python 3.1 or greater is used, almost all platforms map Python floats to IEEE-754 'double precision', the same representation that is used by fortran. IEEE-754 doubles contain 53 bits of precision.  Thus, values that are calculated here should yield double precision, without explicitly requesting it.  It can be further noted that 53 base-two digits is equivalent to 15.95 base-ten digits.  Thus, if the constants were printed with 16 digits of precision, the non-perfect base-two representation of the numbers would be evident; e.g. 4.0000000000000002D-01 instead of 4.0000000000000000D-01.  Therefore, this utility writes only 15 digits of precision, for the sake of clarity to humans."
 
-from sys    import stdin,stdout
+from sys import stdin,stdout
 
 VALUE=1                                 # index to acces the value in the PhysDict
 
@@ -50,9 +50,9 @@ def init_phys_values():
               # <<<<<< V A L U E S   T H A T   A R E   C O N S T A N T  ...  F O R   N O W >>>>>>
 
               # *** ASTRONOMICAL CONSTANTS ***
-              "MPC_ASTRONOMICAL_UNIT"          : ('var', 149597870000.E+0, "m - half g. axis"),
-              "MPC_MEAN_ANOMALY"               : ('var', 0.409093E+0, "(unitless) - mean anomaly"),
-              "MPC_SIDEREAL_YEAR"              : ('var', 0.3155815E+08, "s - sidereal year"),
+              "MPC_ASTRONOMICAL_UNIT"          : ('const', 149597870000.E+0, "m - half g. axis"),
+              "MPC_MEAN_ANOMALY"               : ('const', 0.409093E+0, "(unitless) - mean anomaly"),
+              "MPC_SIDEREAL_YEAR"              : ('const', 0.3155815E+08, "s - sidereal year"),
 
               # *** EARTH, THE HEAVENLY BODY ***
               #     These are best obtained directly from:
@@ -60,81 +60,81 @@ def init_phys_values():
               #          module modgps06gravity (functions)
 
               # *** RADIATION CONSTANTS ***
-              "MPC_STEFAN_BOLTZMANN"           : ('var', 'reading thermoconsts FAILED',
+              "MPC_STEFAN_BOLTZMANN"           : ('const', 'reading thermoconsts FAILED',
                                                          "W m-2 K-4 - Stefan-Boltzmann constant"),
-              "MPC_SOLAR_CONSTANT"             : ('var', 'reading thermoconsts FAILED',
+              "MPC_SOLAR_CONSTANT"             : ('const', 'reading thermoconsts FAILED',
                                                          "W/m2 - solar constant"),
 
               # *** THERMODYNAMIC CONSTANTS (GAS PHASE) ***
-              "MPC_RGAS_IDEAL"                 : ('var', 'TBD',
+              "MPC_RGAS_IDEAL"                 : ('const', 'TBD',
                                                          "J mol-1 K-1 - ideal-gas constant"),
-              "MPC_RGAS_DRY_AIR"               : ('var', 'reading thermoconsts FAILED',
+              "MPC_RGAS_DRY_AIR"               : ('const', 'reading thermoconsts FAILED',
                                                          "J kg-1 K-1 - gas constant, dry air"),
-              "MPC_RGAS_VAPOUR"                : ('var', 'reading thermoconsts FAILED',
+              "MPC_RGAS_VAPOUR"                : ('const', 'reading thermoconsts FAILED',
                                                          "J kg-1 K-1 - gas constant, water vapour"),
-              "MPC_EPS1"                       : ('var', 'reading thermoconsts FAILED',
+              "MPC_EPS1"                       : ('const', 'reading thermoconsts FAILED',
                                                          "(unitless) - R(air) / R(vapour)"),
-              "MPC_EPS2"                       : ('var', 'reading thermoconsts FAILED',
+              "MPC_EPS2"                       : ('const', 'reading thermoconsts FAILED',
                                                          "(unitless) - 1 - eps1"),
-              "MPC_DELTA"                      : ('var', 'reading thermoconsts FAILED',
+              "MPC_DELTA"                      : ('const', 'reading thermoconsts FAILED',
                                                          "(unitless) - 1/eps1 - 1 (unitless) \u2013 [R(vapour) / R(air)] - 1"),
 
               # *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***
-              "MPC_MOLAR_MASS_DRY_AIR"         : ('var', 28.9644E+0,
+              "MPC_MOLAR_MASS_DRY_AIR"         : ('const', 28.9644E+0,
                                                          "g/mol - dry-air molar mass"),
-              "MPC_MOLAR_MASS_VAPOUR"          : ('var', 18.0153E+0,
+              "MPC_MOLAR_MASS_VAPOUR"          : ('const', 18.0153E+0,
                                                          "g/mol - water-vapour molar mass"),
 
               # *** THERMODYNAMIC CONSTANTS (SPECIFIC HEATS) ***
-              "MPC_CV_DRY_AIR"                 : ('var', 'TBD',
+              "MPC_CV_DRY_AIR"                 : ('const', 'TBD',
                                                          "J kg-1 K-1 - sp. heat(V) of dry air"),
-              "MPC_CV_VAPOUR"                  : ('var', 'TBD',
+              "MPC_CV_VAPOUR"                  : ('const', 'TBD',
                                                          "J kg-1 K-1 - sp. heat(V) of water vapour"),
-              "MPC_CP_DRY_AIR"                 : ('var', 'reading thermoconsts FAILED',
+              "MPC_CP_DRY_AIR"                 : ('const', 'reading thermoconsts FAILED',
                                                          "J kg-1 K-1 - sp. heat(P) of dry air"),
-              "MPC_CP_VAPOUR"                  : ('var', 'reading thermoconsts FAILED',
+              "MPC_CP_VAPOUR"                  : ('const', 'reading thermoconsts FAILED',
                                                          "J kg-1 K-1 - sp. heat(P) of water vapour"),
-              "MPC_CP_ICE"                     : ('var', 0.2115300000000E+04,
+              "MPC_CP_ICE"                     : ('const', 0.2115300000000E+04,
                                                          "J kg-1 K-1 - sp. heat(P?) of ice"),
-              "MPC_KAPPA"                      : ('var', 'reading thermoconsts FAILED',
+              "MPC_KAPPA"                      : ('const', 'reading thermoconsts FAILED',
                                                          "(unitless) - for dry air: Rgas / Cp"),
 
               # *** THERMODYNAMIC CONSTANTS (ENTHALPIES) ***
-              "MPC_HEAT_CONDENS_WATER"         : ('var', 'reading thermoconsts FAILED',
+              "MPC_HEAT_CONDENS_WATER"         : ('const', 'reading thermoconsts FAILED',
                                                          "J/kg - heat of condensation at 0C (water)"),
-              "MPC_HEAT_FUSION_WATER"          : ('var', 'reading thermoconsts FAILED',
+              "MPC_HEAT_FUSION_WATER"          : ('const', 'reading thermoconsts FAILED',
                                                          "J/kg - heat of fusion (water)"),
-              "MPC_HEAT_SUBL_WATER"            : ('var', 0.28340000000000E+07,
+              "MPC_HEAT_SUBL_WATER"            : ('const', 0.28340000000000E+07,
                                                          "J/kg - heat of sublimation (water)"),
 
               # *** THERMODYNAMIC CONSTANTS (FLUID DYNAMICS) ***
-              "MPC_KARMAN"                     : ('var', 0.4000000000000E+00,
+              "MPC_KARMAN"                     : ('const', 0.4000000000000E+00,
                                                          "(unitless) - von Karman constant"),
-              "MPC_CRITICAL_RICHARDSON"        : ('var', 'reading thermoconsts FAILED',
+              "MPC_CRITICAL_RICHARDSON"        : ('const', 'reading thermoconsts FAILED',
                                                          "(unitless) -critical Richardson number"),
-              "MPC_DENSITY_WATER"              : ('var', 'reading thermoconsts FAILED',
+              "MPC_DENSITY_WATER"              : ('const', 'reading thermoconsts FAILED',
                                                          "kg m-3 - density of (liquid) water"),
-              "MPC_SCHUMANN_NEWELL_LAPSE_RATE" : ('var', 'reading thermoconsts FAILED',
+              "MPC_SCHUMANN_NEWELL_LAPSE_RATE" : ('const', 'reading thermoconsts FAILED',
                                                          "K s2 m-2 - Schuman-Newell lapse rate"),
 
               # *** THERMODYNAMIC CONSTANTS (OTHER CHARACTERISTICS OF WATER) ***
-              "MPC_T_ICE"                      : ('var', 'reading thermoconsts FAILED',
+              "MPC_T_ICE"                      : ('const', 'reading thermoconsts FAILED',
                                                          "K - ice temperature in the atmosphere"),
-              "MPC_TRIPLE_POINT"               : ('var', 'reading thermoconsts FAILED',
+              "MPC_TRIPLE_POINT"               : ('const', 'reading thermoconsts FAILED',
                                                          "K - triple point of water"), 
 
               # *** USED TO CALCULATE L/CP IN FUNC HTVOCP ***
-              "MPC_AI"                         : ('var', 'reading thermoconsts FAILED', " "),
-              "MPC_AW"                         : ('var', 'reading thermoconsts FAILED', " "),
-              "MPC_BI"                         : ('var', 'reading thermoconsts FAILED', " "),
-              "MPC_BW"                         : ('var', 'reading thermoconsts FAILED', " "),
-              "MPC_SLP"                        : ('var', 'reading thermoconsts FAILED', " "),
-              "MPC_T1S"                        : ('var', 'reading thermoconsts FAILED', "K"),
-              "MPC_T2S"                        : ('var', 'reading thermoconsts FAILED', "K"),
+              "MPC_AI"                         : ('const', 'reading thermoconsts FAILED', " "),
+              "MPC_AW"                         : ('const', 'reading thermoconsts FAILED', " "),
+              "MPC_BI"                         : ('const', 'reading thermoconsts FAILED', " "),
+              "MPC_BW"                         : ('const', 'reading thermoconsts FAILED', " "),
+              "MPC_SLP"                        : ('const', 'reading thermoconsts FAILED', " "),
+              "MPC_T1S"                        : ('const', 'reading thermoconsts FAILED', "K"),
+              "MPC_T2S"                        : ('const', 'reading thermoconsts FAILED', "K"),
 
               # <<<<<< C O N S T A N T S   C O N C E R N I N G   T H E   L I M I T A T I O N S   O F   D I G I T A L   C A L C U L A T I O N >>>>>>
-              "MPC_MINIMUM_HU"                 : ('var', 2.50E-06, " "),
-              "MPC_MAXIMUM_ES"                 : ('var', 30.0E+00, " ")
+              "MPC_MINIMUM_HU"                 : ('const', 2.50E-06, " "),
+              "MPC_MAXIMUM_ES"                 : ('const', 30.0E+00, " ")
              }
 
     # Make a list of the 'nice' order of entries in PhysDict
