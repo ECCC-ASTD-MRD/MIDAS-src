@@ -220,29 +220,6 @@ MODULE mathPhysConstants_mod
 
 contains
 
-  subroutine mpc_setValue(name, var_r4, var_r8, value)
-     !
-     !:Purpose: To provide a means to change a (non-parameter) value
-     implicit none
-
-     ! Arguments:
-     character(len=*), intent(in)    :: name
-     real(4),          intent(inout) :: var_r4
-     real(8),          intent(inout) :: var_r8
-     real(8),          intent(in)    :: value
-
-     var_r4 = value
-     var_r8 = value
-
-     write(6,*)'****************************************************'
-     write(6,*)'*'
-     write(6,*)'*    THE VALUE OF THE CONSTANT ', name
-     write(6,*)'*'
-     write(6,'(A25, D22.15)')' *    HAS BEEN CHANGED TO ', var_r8
-     write(6,*)'*'
-     write(6,*)'****************************************************'
-  end subroutine mpc_setValue
-
   subroutine mpc_printConstants(kulout)
      !
      !:Purpose: To print all of the constants that are provided by this module.
