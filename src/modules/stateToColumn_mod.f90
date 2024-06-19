@@ -1292,8 +1292,7 @@ contains
     allocate(cols_send_1proc(numHeaderMax))
 
     ! set contents of column to zero
-    allCols_ptr => col_getAllColumns(columnAnlInc)
-    if ( numHeader > 0 ) allCols_ptr(:,:) = 0.0d0
+    call col_zero(columnAnlInc)
 
     call gsv_getField(stateVector_VarsLevs, ptr4d)
 
@@ -1523,9 +1522,6 @@ contains
     allocate(cols_recv(numHeaderMax,mmpi_nprocs))
     cols_recv(:,:) = 0.0d0
 
-    ! set contents of column to zero
-    allCols_ptr => col_getAllColumns(columnAnlInc)
-
     call gsv_getField(stateVector_VarsLevs,ptr4d)
     mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
 
@@ -1655,7 +1651,7 @@ contains
   ! s2c_nl
   !---------------------------------------------------------
   subroutine s2c_nl(stateVector, obsSpaceData, column, hco_core, timeInterpType, &
-                    varName_opt, numObsBatches_opt, dealloc_opt, moveObsAtPole_opt, &
+                    numObsBatches_opt, dealloc_opt, moveObsAtPole_opt, &
                     beSilent_opt)
     !
     ! :Purpose: Non-linear version of the horizontal interpolation,
@@ -1670,7 +1666,6 @@ contains
     type(struct_columnData),    intent(inout) :: column
     type(struct_hco), pointer,  intent(in)    :: hco_core
     character(len=*)          , intent(in)    :: timeInterpType
-    character(len=*), optional, intent(in)    :: varName_opt
     integer,          optional, intent(in)    :: numObsBatches_opt
     logical,          optional, intent(in)    :: dealloc_opt
     logical,          optional, intent(in)    :: moveObsAtPole_opt
@@ -1678,7 +1673,7 @@ contains
 
     ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs 
-    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
+    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
@@ -1793,9 +1788,8 @@ contains
 
     end if
 
-    ! set contents of column to zero (1 variable or all)
-    allCols_ptr => col_getAllColumns(column,varName_opt)
-    if (obs_numHeader(obsSpaceData) > 0 ) allCols_ptr(:,:) = 0.0d0
+    ! set contents of column to zero
+    call col_zero(column)
 
     OBSBATCH: do obsBatchIndex = 1, numObsBatches
       headerIndexBeg = 1 + (obsBatchIndex - 1) * (obs_numheader(obsSpaceData) / numObsBatches)
@@ -1964,14 +1958,21 @@ contains
         call utl_tmg_stop(36)
 	
         ! reorganize ensemble of distributed columns
-        !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2)
+        !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2, varName, levIndex, allCols_ptr)
         proc_loop: do procIndex = 1, mmpi_nprocs
+
           kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
           if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+
+          varName = gsv_getVarNameFromK(stateVector_VarsLevs, kIndex2)
+          levIndex = gsv_getLevFromK(statevector, kIndex2)
+          allCols_ptr => col_getAllColumns(column, varName)
+
           do headerIndex = 1, numHeader
             headerIndex2 = headerIndex + headerIndexBeg - 1
-            allCols_ptr(kIndex2,headerIndex2) = cols_recv(headerIndex, procIndex)
+            allCols_ptr(levIndex, headerIndex2) = cols_recv(headerIndex, procIndex)
           end do
+
         end do proc_loop
         !$OMP END PARALLEL DO
 
@@ -3517,13 +3518,14 @@ contains
     integer :: kIndex
 
     ! check column/statevector have same nk
-    if ( column%nk /= gsv_getNumK(statevector) ) then
-      write(*,*) 'checkColumnStatevectorMatch: column%nk, gsv_getNumK(statevector)', column%nk, gsv_getNumK(statevector)
-      call utl_abort('checkColumnStatevectorMatch: column%nk /= gsv_getNumK(statevector)')
+    if ( col_getNumK(column) /= gsv_getNumK(statevector) ) then
+      write(*,*) 'checkColumnStatevectorMatch: col_getNumK(column), gsv_getNumK(statevector)', &
+                 col_getNumK(column), gsv_getNumK(statevector)
+      call utl_abort('checkColumnStatevectorMatch: col_getNumK(column) /= gsv_getNumK(statevector)')
     end if
     
     ! loop through k and check varNames are same between column/statevector
-    do kIndex = 1, column%nk
+    do kIndex = 1, col_getNumK(column)
       if (gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: kIndex, varname in statevector and column: ', kIndex, &
                    gsv_getVarNameFromK(statevector,kIndex), col_getVarNameFromK(column,kIndex) 

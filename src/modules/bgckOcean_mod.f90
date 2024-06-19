@@ -139,7 +139,7 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaSatData(:)
       call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//str(seaWaterThreshold))
       ! read sea water fraction
-      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
                         varNames_opt = (/'VF'/), hInterpolateDegree_opt ='LINEAR')
       call gio_readFromFile(stateVectorSeaWaterFraction, './seaice_analysis', ' ','A', &
@@ -147,7 +147,7 @@ module bgckOcean_mod
       ! Convert sea water fraction stateVector to column object
       call col_setVco(columnSeaWaterFraction, col_getVco(columnTrlOnTrlLev))
       call col_allocate(columnSeaWaterFraction, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'VF'/))
-      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, varName_opt = 'VF', &
+      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, &
                   timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                   numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
     else
@@ -155,11 +155,11 @@ module bgckOcean_mod
     end if
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorFGE, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     if (fourSeasonsBgstdSST) then
-      call bdiff_getSSTBGstdFromFourSeasons(hco, columnTrlOnTrlLev%vco, stateVectorFGE)
+      call bdiff_getSSTBGstdFromFourSeasons(hco, col_getVco(columnTrlOnTrlLev), stateVectorFGE)
     else		      
       call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                             unitConversion_opt=.false., containsFullField_opt=.true.)
@@ -187,7 +187,7 @@ module bgckOcean_mod
       end do
       
       ! amplification error field state vector  
-      call gsv_allocate(stateVectorAmplFactor, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
                         hInterpolateDegree_opt = 'LINEAR', datestamp_opt = dateStamp, &
                         mpi_local_opt = .true., varNames_opt = (/'TM'/))
       call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
@@ -209,7 +209,7 @@ module bgckOcean_mod
     ! Convert FGE stateVector to column object
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'TM'/))
-    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, varName_opt = 'TM', &
+    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, &
                 timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                 numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 

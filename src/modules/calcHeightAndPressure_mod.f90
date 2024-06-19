@@ -140,7 +140,7 @@ contains
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       ! if P_T, P_M not allocated : do nothing
@@ -194,7 +194,7 @@ contains
     call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
-    Vcode = vco%vcode
+    Vcode = vco_getVcode(vco)
 
     if (Vcode == 0) return
 
@@ -261,7 +261,7 @@ contains
     call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
-    Vcode = vco%vcode
+    Vcode = vco_getVcode(vco)
 
     if (Vcode == 0) return
 
@@ -322,7 +322,7 @@ contains
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
@@ -411,7 +411,7 @@ contains
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
@@ -490,7 +490,7 @@ contains
 
     do stepIndex = 1, numStep
 
-      call fetch3DLevels_r4(statevector%vco, Hsfc4, &
+      call fetch3DLevels_r4(gsv_getVco(statevector), Hsfc4, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out, skipDiagLevel=.true.)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out, skipDiagLevel=.true.)
@@ -592,7 +592,7 @@ contains
 
     do stepIndex = 1, numStep
 
-      call fetch3DLevels_r8(statevector%vco, Hsfc, &
+      call fetch3DLevels_r8(gsv_getVco(statevector), Hsfc, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out, skipDiagLevel=.true.)
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out, skipDiagLevel=.true.)
@@ -723,7 +723,7 @@ contains
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
     numStep = statevector%numStep
 
     allocate(tv(nlev_T))
@@ -736,10 +736,10 @@ contains
     end if
 
     if (Vcode == 5005 .or. Vcode == 5100) then
-      status = vgd_get( statevector%vco%vgrid, &
+      status = vgd_get( gsv_getVco(statevector)%vgrid, &
                         key='DHM - height of the diagnostic level (m)', &
                         value=heightSfcOffset_M_r4)
-      status = vgd_get( statevector%vco%vgrid, &
+      status = vgd_get( gsv_getVco(statevector)%vgrid, &
                         key='DHT - height of the diagnostic level (t)', &
                         value=heightSfcOffset_T_r4)
       call msg('calcHeight_gsv_nl_vcode5xxx (czp)', &
@@ -1052,7 +1052,7 @@ contains
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
     call msg('calcHeight_gsv_tl (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevectorRef)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
@@ -1112,7 +1112,7 @@ contains
         real(pre_incrReal), pointer ::  delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
 
         call msg('calcHeight_gsv_tl_vcode5xxx (czp)', 'START', verb_opt=4)
-        Vcode_anl = gsv_getVco(statevectorRef)%vcode
+        Vcode_anl = vco_getVcode(gsv_getVco(statevectorRef))
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
         nlev_M = gsv_getNumLev(statevectorRef,'MM')
@@ -1324,7 +1324,7 @@ contains
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
     call msg('calcHeight_gsv_ad', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevectorRef)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
@@ -1665,7 +1665,7 @@ contains
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
@@ -1755,7 +1755,7 @@ contains
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
@@ -1858,10 +1858,10 @@ contains
       call utl_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
     end if
 
-    status = vgd_get( statevector%vco%vgrid, &
+    status = vgd_get( gsv_getVco(statevector)%vgrid, &
                       key='DHM - height of the diagnostic level (m)', &
                       value=heightSfcOffset_M_r4)
-    status = vgd_get( statevector%vco%vgrid, &
+    status = vgd_get( gsv_getVco(statevector)%vgrid, &
                       key='DHT - height of the diagnostic level (t)', &
                       value=heightSfcOffset_T_r4)
     call msg('calcPressure_gsv_nl_vcode2100x (czp)', &
@@ -2065,7 +2065,7 @@ contains
 
     call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'START', verb_opt=4)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2084,10 +2084,10 @@ contains
 
       if (Vcode == 5100) then
         PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
-        call fetch3DLevels_r8(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, &
+        call fetch3DLevels_r8(gsv_getVco(statevector), Psfc, sfcFldLS_opt=PsfcLS, &
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       else
-        call fetch3DLevels_r8(statevector%vco, Psfc, &
+        call fetch3DLevels_r8(gsv_getVco(statevector), Psfc, &
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       end if
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
@@ -2125,7 +2125,7 @@ contains
 
     call msg('calcPressure_gsv_nl_vcode5xxx_r4 (czp)', 'START', verb_opt=4)
 
-    Vcode = gsv_getVco(statevector)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevector))
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2144,10 +2144,10 @@ contains
 
       if (Vcode == 5100) then
         PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
-        call fetch3DLevels_r4(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, & 
+        call fetch3DLevels_r4(gsv_getVco(statevector), Psfc, sfcFldLS_opt=PsfcLS, & 
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       else
-        call fetch3DLevels_r4(statevector%vco, Psfc, &
+        call fetch3DLevels_r4(gsv_getVco(statevector), Psfc, &
                               fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       end if
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
@@ -2181,7 +2181,7 @@ contains
     call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
     call msg('calcPressure_gsv_tl (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevectorRef)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
@@ -2267,8 +2267,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(statevector%vco%vgrid, &
-                               statevector%vco%ip1_M, &
+          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
+                               gsv_getVco(statevector)%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2302,8 +2302,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(statevector%vco%vgrid, &
-                               statevector%vco%ip1_T, &
+          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
+                               gsv_getVco(statevector)%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2363,7 +2363,7 @@ contains
     call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
     call msg('calcPressure_gsv_ad (czp)', 'START', verb_opt=2)
 
-    Vcode = gsv_getVco(statevectorRef)%vcode
+    Vcode = vco_getVcode(gsv_getVco(statevectorRef))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
         call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
@@ -2448,8 +2448,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(statevector%vco%vgrid, &
-                               statevector%vco%ip1_M, &
+          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
+                               gsv_getVco(statevector)%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2485,8 +2485,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(statevector%vco%vgrid, &
-                               statevector%vco%ip1_T, &
+          status = vgd_dpidpis(gsv_getVco(statevector)%vgrid, &
+                               gsv_getVco(statevector)%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -2551,7 +2551,7 @@ contains
 
     call msg('calcZandP_col_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = column%vco%vcode
+    Vcode = vco_getVcode(col_getVco(column))
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(column,'P_*')) then
@@ -2594,7 +2594,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = columnInc%vco%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(columnInc,'P_*')) then
@@ -2640,7 +2640,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = columnInc%vco%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if Z_T, Z_M not allocated : do nothing
       if (col_varExist(columnInc,'Z_*')) then
@@ -2712,7 +2712,7 @@ contains
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = col_getVco(column)%vcode
+    Vcode = vco_getVcode(col_getVco(column))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( .not. (col_varExist(column,'P0') .and. col_varExist(column,'TT') .and. &
                   col_varExist(column,'HU'))  ) then
@@ -2759,7 +2759,7 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    call fetch3DLevels_r8(column%vco, hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
+    call fetch3DLevels_r8(col_getVco(column), hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
     Z_M(:,:) = transpose(hPtrM(1,:,:))
     Z_T(:,:) = transpose(hPtrT(1,:,:))
     deallocate(hPtrM, hPtrT)
@@ -2794,7 +2794,7 @@ contains
 
     ! to prevent 'variable not used' remark
     if (.false.) then
-      write(*,*) column%nk
+      write(*,*) col_getNumK(column)
       Z_T = 0.0
       Z_M = 0.0
     end if
@@ -2822,7 +2822,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = col_getVco(columnIncRef)%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
@@ -3034,7 +3034,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = col_getVco(columnIncRef)%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
@@ -3338,7 +3338,7 @@ contains
 
     call msg('czp_calcReturnPressure_col_nl (czp)', 'START', verb_opt=2)
 
-    Vcode = col_getVco(column)%vcode
+    Vcode = vco_getVcode(col_getVco(column))
     if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( .not. col_varExist(column,'P0')  ) then
         call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 5xxx, variable P0 must be allocated in column')
@@ -3392,9 +3392,9 @@ contains
 
     allocate(tv(nLev_T))
 
-    do_onAllcolumns: do colIndex = lbound(column%lat,1), ubound(column%lat,1)
+    do_onAllcolumns: do colIndex = 1, col_getNumCol(column)
       ! column%lat populated in innovation_mod from obsSpaceData latitudes
-      lat = column%lat(colIndex)
+      lat = col_getLat(column, colIndex)
       sLat = sin(lat)
       cLat = cos(lat)
 
@@ -3496,7 +3496,7 @@ contains
       return
     end if
 
-    Vcode = col_getVco(column)%vcode
+    Vcode = vco_getVcode(col_getVco(column))
 
     if (.not.col_varExist(column,'P0')) then
       call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
@@ -3517,11 +3517,11 @@ contains
         PsfcLS(1,headerIndex) = col_getElem(column,1,headerIndex,'P0LS')
       end do
 
-      call fetch3DLevels_r8(column%vco, Psfc ,sfcFldLS_opt=PsfcLS, &
+      call fetch3DLevels_r8(col_getVco(column), Psfc ,sfcFldLS_opt=PsfcLS, &
                             fldM_opt=zppobsM, fldT_opt=zppobsT)
       deallocate(PsfcLS)
     else
-      call fetch3DLevels_r8(column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
+      call fetch3DLevels_r8(col_getVco(column), Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
     end if
     P_M(:,:) = transpose(zppobsM(1,:,:))
     P_T(:,:) = transpose(zppobsT(1,:,:))
@@ -3552,7 +3552,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = col_getVco(columnIncRef)%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcPressure_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
@@ -3619,8 +3619,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(columnInc%vco%vgrid, &
-                               columnInc%vco%ip1_M, &
+          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
+                               col_getVco(columnInc)%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -3634,8 +3634,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(columnInc%vco%vgrid, &
-                               columnInc%vco%ip1_T, &
+          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
+                               col_getVco(columnInc)%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -3657,7 +3657,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_ad
   !---------------------------------------------------------
-  subroutine calcPressure_col_ad( columnInc, columnIncRef)
+  subroutine calcPressure_col_ad(columnInc, columnIncRef)
     !
     !:Purpose: Adjoint of pressure computation on the column.
     !
@@ -3674,7 +3674,7 @@ contains
 
     if (col_getNumCol(columnInc) == 0) return
 
-    Vcode = col_getVco(columnIncRef)%vcode
+    Vcode = vco_getVcode(col_getVco(columnInc))
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
         call utl_abort('calcPressure_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
@@ -3742,8 +3742,8 @@ contains
 
           ! dP_dPsfc_M
           nullify(dP_dPsfc_M)
-          status = vgd_dpidpis(columnInc%vco%vgrid, &
-                               columnInc%vco%ip1_M, &
+          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
+                               col_getVco(columnInc)%ip1_M, &
                                dP_dPsfc_M, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -3758,8 +3758,8 @@ contains
 
           ! dP_dPsfc_T
           nullify(dP_dPsfc_T)
-          status = vgd_dpidpis(columnInc%vco%vgrid, &
-                               columnInc%vco%ip1_T, &
+          status = vgd_dpidpis(col_getVco(columnInc)%vgrid, &
+                               col_getVco(columnInc)%ip1_T, &
                                dP_dPsfc_T, &
                                Psfc)
           if( status .ne. VGD_OK ) then
@@ -3793,7 +3793,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    type(struct_vco), pointer,  intent(in)    :: vco              ! Vertical descriptor
     real(8),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
     real(8), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
     real(8), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
@@ -3803,7 +3803,7 @@ contains
     integer :: status
 
     if ( minval(sfcFld) < 0 ) then
-      if ( vco%vcode == 21001 ) then
+      if ( vco_getVcode(vco) == 21001 ) then
         if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
@@ -3816,7 +3816,7 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco%vcode == 5100) then
+      if (vco_getVcode(vco) == 5100) then
         if (.not. present(sfcFldLS_opt) ) then
           call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
         end if
@@ -3835,7 +3835,7 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco%vcode == 5100) then
+      if (vco_getVcode(vco) == 5100) then
         if (.not. present(sfcFldLS_opt) ) then
           call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
         end if
@@ -3864,7 +3864,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),           intent(in)    :: vco              ! Vertical descriptor
+    type(struct_vco), pointer,  intent(in)    :: vco              ! Vertical descriptor
     real(4),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
     real(4), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
     real(4), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
@@ -3874,7 +3874,7 @@ contains
     integer :: status
 
     if ( minval(sfcFld) < 0 ) then
-      if ( vco%vcode == 21001 ) then
+      if ( vco_getVcode(vco) == 21001 ) then
         if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r4 ) then
           call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
@@ -3887,7 +3887,7 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco%vcode == 5100) then
+      if (vco_getVcode(vco) == 5100) then
         if (.not. present(sfcFldLS_opt) ) then
           call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
         end if
@@ -3906,7 +3906,7 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco%vcode == 5100) then
+      if (vco_getVcode(vco) == 5100) then
         if (.not. present(sfcFldLS_opt) ) then
           call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
         end if
@@ -3935,7 +3935,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    type(struct_vco), pointer,  intent(in)    :: vco          ! Vertical descriptor
     real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
     real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
     real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
@@ -3944,7 +3944,7 @@ contains
     integer :: status
 
     if ( sfcValue < 0 ) then
-      if ( vco%vcode == 21001 ) then
+      if ( vco_getVcode(vco) == 21001 ) then
         if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DLevels_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
@@ -3986,7 +3986,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco),           intent(in)    :: vco          ! Vertical descriptor
+    type(struct_vco), pointer,  intent(in)    :: vco          ! Vertical descriptor
     real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
     real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
     real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
@@ -3995,7 +3995,7 @@ contains
     integer :: status
 
     if ( sfcValue < 0 ) then
-      if ( vco%vcode == 21001 ) then
+      if ( vco_getVcode(vco) == 21001 ) then
         if ( sfcValue >= lowestLandAltitudeOnEarth_r8 ) then
           call msg('fetch1DdPdPs_r8','WARNING negative surface height referencem : '//str(sfcValue))
         else
@@ -4059,8 +4059,8 @@ contains
       return
     end if
 
-    if ( vco_sourceGrid%vCode == 21001 ) then
-      if ( vco_destGrid%vCode /= 21001 ) then
+    if ( vco_getVcode(vco_sourceGrid) == 21001 ) then
+      if ( vco_getVcode(vco_destGrid) /= 21001 ) then
         call utl_abort('czp_ensureCompatibleTops: destGrid not on vCode = 21001')
       end if
 
@@ -4090,7 +4090,7 @@ contains
       end if
       
     else
-      if ( vco_sourceGrid%vCode == 21001 ) then
+      if ( vco_getVcode(vco_sourceGrid) == 21001 ) then
         call utl_abort('czp_ensureCompatibleTops: sourceGrid is on vCode = 21001')
       end if
       
@@ -4099,14 +4099,14 @@ contains
       refSfcLS(1,1) = 100.0D3 !100 kPa
 
       ! pressure on momentum levels of source grid
-      if (vco_sourceGrid%vcode == 5100) then
+      if (vco_getVcode(vco_sourceGrid) == 5100) then
         call fetch3DLevels_r8(vco_sourceGrid, refSfc, sfcFldLS_opt=refSfcLS, &
                               fldM_opt=sourceLevels)
       else
         call fetch3DLevels_r8(vco_sourceGrid, refSfc, fldM_opt=sourceLevels)
       end if
       ! pressure on momentum levels of destination grid
-      if (vco_destGrid%vcode == 5100) then
+      if (vco_getVcode(vco_destGrid) == 5100) then
         call fetch3DLevels_r8(vco_destGrid, refSfc, sfcFldLS_opt=refSfcLS, &
                               fldM_opt=destLevels)
       else
@@ -4172,7 +4172,7 @@ contains
     firstTimeHeightCoeff_gsv = .false.
 
     vco => gsv_getVco(statevector)
-    Vcode = vco%vcode
+    Vcode = vco_getVcode(vco)
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -4426,7 +4426,7 @@ contains
     firstTimeHeightCoeff_col = .false.
 
     vco => col_getVco(column)
-    Vcode = vco%vcode
+    Vcode = vco_getVcode(vco)
 
     nlev_T = col_getNumLev(column,'TH')
     nlev_M = col_getNumLev(column,'MM')
@@ -4487,7 +4487,7 @@ contains
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
             ! Gravity acceleration
-            lat_8 = column%lat(colIndex)
+            lat_8 = col_getLat(column, colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
 
@@ -4523,7 +4523,7 @@ contains
             cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
             ! Gravity acceleration
-            lat_8 = column%lat(colIndex)
+            lat_8 = col_getLat(column, colIndex)
             sLat = sin(lat_8)
             Rgh = phf_gravityalt(sLat, height_T)
 
@@ -4566,7 +4566,7 @@ contains
           cmp_P0_2 = gpscompressibility_P0_2(Pr,tt,hu)
 
           ! Gravity acceleration
-          lat_8 = column%lat(colIndex)
+          lat_8 = col_getLat(column, colIndex)
           sLat = sin(lat_8)
           Rgh = phf_gravityalt(sLat, height_T)
 

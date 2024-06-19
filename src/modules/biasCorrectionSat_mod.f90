@@ -2620,7 +2620,7 @@ contains
       call col_allocate(column_mask, nobs, beSilent_opt=.false., varNames_opt=["WT"])
 
       call s2c_nl(stateVector_mask_4d, obsSpaceData, column_mask, hco_mask, &
-                   'NEAREST', varName_opt="WT", moveObsAtPole_opt=.true.)
+                   'NEAREST', moveObsAtPole_opt=.true.)
 
       call obs_set_current_header_list(obsSpaceData, 'TO')
       iobs = 0
