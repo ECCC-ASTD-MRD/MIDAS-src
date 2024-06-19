@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Declare all constants in `mathPhysConstants_mod.f90` as `parameter` (#940 and !851)
  * Improve access procedures of `columnData_mod` (#707 and !848)
  * Refactoring of `enkf_mod` (#790 and !845)
    * NOTE: the namelist for `ensembleH` was changed to use the same one as `letkf`
