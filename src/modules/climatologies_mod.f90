@@ -19,10 +19,10 @@ module climatologies_mod
   save
   private
 
-  ! Public procedures  
+  ! Public procedures
   public :: clm_readFields, clm_setColumn, clm_getColumn
 
-  ! Public dervied type
+  ! Public derived type
   public :: struct_clm
 
   !------------------------------------------------------------------------- 

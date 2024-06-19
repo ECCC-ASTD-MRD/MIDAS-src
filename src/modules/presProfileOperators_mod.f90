@@ -38,11 +38,11 @@ module presProfileOperators_mod
   ! Stand-alone layer averaging routine (in lp(P)) providing weights 
   ! For weights W(:,:) and initial vector X(:), the average values would be W*X  
   public :: ppo_vertAvgWgts
-  
+
   ! Work arrays for ppo_vertInteg* and ppo_vertAvg*
   real(8), allocatable :: boundaries(:), weights(:,:)
-  
-  contains
+
+contains
 
   !--------------------------------------------------------------------------
   ! ppo_getColumn

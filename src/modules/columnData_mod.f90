@@ -19,7 +19,7 @@ module columnData_mod
   private
 
   ! Public variables and types
-  real(8), public, protected :: col_rhumin  
+  real(8), public, protected :: col_rhumin
   real(8), public, protected :: col_minValVarKindCH(vnl_numVarMax) ! Minimum values for variables of CH kind
 
   ! Public dervied type

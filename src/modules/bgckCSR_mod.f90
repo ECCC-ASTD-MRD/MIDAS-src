@@ -18,8 +18,7 @@ module bgckCSR_mod
   ! Public functions/subroutines
   public :: csrbg_bgCheckCSR
   
-  real,    parameter :: csrbg_realMissing=-99.
-  
+  real, parameter :: csrbg_realMissing=-99.
   real, parameter :: csrbg_ompThreshold = 4.2
   integer, parameter :: maxNumsat  = 20     ! nb max de satellites
   integer, parameter :: maxNumchan = 15     ! nb max de canaux

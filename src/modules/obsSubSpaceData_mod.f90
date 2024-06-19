@@ -40,13 +40,13 @@ module obsSubSpaceData_mod
 
   ! Public derived types
   public :: struct_oss_obsdata
-  
+
   ! Public procedures
   public :: oss_obsdata_get_data1d,oss_obsdata_add_data1d,oss_obsdata_alloc,oss_obsdata_dealloc
   public :: oss_obsdata_get_element,oss_obsdata_get_array1d,oss_obsdata_get_array2d
   public :: oss_obsdata_get_header_code,oss_obsdata_MPIallgather
   public :: oss_obsdata_code_len, oss_comboIdList, oss_get_comboIdList
-  
+
   ! module constants
   ! -----------------
 
