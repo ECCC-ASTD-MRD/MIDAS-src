@@ -16,11 +16,12 @@ module humidityLimits_mod
   use calcHeightAndPressure_mod
   use columnData_mod
   use message_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
   public :: qlim_getMinValueCloud, qlim_getMaxValueCloud
 

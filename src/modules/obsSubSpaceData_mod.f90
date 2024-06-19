@@ -8,7 +8,6 @@ module obsSubSpaceData_mod
   !          themselves for the users' application(s).
   !
 
-
   ! Public routines:
   !
   !       - "oss_obsdata_get_*" to get arrays or elements from input 
@@ -29,7 +28,6 @@ module obsSubSpaceData_mod
   !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  
   !          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
   !
-
   use codePrecision_mod
   use utilities_mod    
   use MathPhysConstants_mod
@@ -40,21 +38,17 @@ module obsSubSpaceData_mod
   implicit none
   private
 
-! public procedures
-! -----------------
+  ! Public derived types
+  public :: struct_oss_obsdata
 
+  ! Public procedures
   public :: oss_obsdata_get_data1d,oss_obsdata_add_data1d,oss_obsdata_alloc,oss_obsdata_dealloc
   public :: oss_obsdata_get_element,oss_obsdata_get_array1d,oss_obsdata_get_array2d
   public :: oss_obsdata_get_header_code,oss_obsdata_MPIallgather
   public :: oss_obsdata_code_len, oss_comboIdList, oss_get_comboIdList
-  
-! public types
-! ------------
 
-  public :: struct_oss_obsdata
-  
-! module constants
-! -----------------
+  ! module constants
+  ! -----------------
 
   integer, parameter :: oss_code_len=40            ! Max string size for code in struct_oss_obsdata.
                                                    ! Minimum required size:
@@ -62,14 +56,14 @@ module obsSubSpaceData_mod
   integer, parameter :: oss_code_sublen=22         ! Length of lat/long and time coord
   integer, parameter :: oss_code_latlen=5          ! Length of lat segment 
 
-! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
+  ! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
   interface oss_obsdata_get_header_code
      module procedure obsdata_get_header_code_i
      module procedure obsdata_get_header_code_r
   end interface oss_obsdata_get_header_code
 
-! module structures
-! -----------------
+  ! module structures
+  ! -----------------
 
   type :: struct_oss_obsdata
 

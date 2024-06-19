@@ -35,11 +35,12 @@ module innovation_mod
   use varqc_mod
   use humidityLimits_mod
   use interpolation_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: inn_setupObs, inn_computeInnovation
   public :: inn_perturbObs, inn_setupColumnsOnTrlLev, inn_setupColumnsOnAnlIncLev
   public :: inn_getHcoVcoFromTrlmFile

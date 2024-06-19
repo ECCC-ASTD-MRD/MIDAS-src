@@ -18,23 +18,24 @@ module obsFilter_mod
   use physicsFunctions_mod
   use codtyp_mod
   use radialVelocity_mod
+
   implicit none
   save
   private
 
-  ! public variables
-  public :: filt_rlimlvhu
-  ! public procedures
+  ! Public variables
+  real(8), public, protected :: filt_rlimlvhu
+
+  ! Public procedures
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration, filt_radvel
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
+
   integer, parameter :: nelemsMax = 30
   integer, parameter :: nflagsMax = 15
   integer :: filt_nelems, filt_nflags
   integer, target :: filt_nlist(nelemsMax)
   integer :: filt_nlistflg(nflagsMax)
-
-  real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
   integer, parameter :: numElem = 21
@@ -1447,7 +1448,7 @@ end subroutine filt_topoAISW
     logical                , intent(in)    :: beSilent
 
     ! Locals:
-    INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
+    INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY, numROProfiles
     INTEGER :: JL, ISAT, IQLF, iProfile, IFLG, varNum, IDSC
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
@@ -1461,7 +1462,7 @@ end subroutine filt_topoAISW
     ! Loop over all header indices of the 'RO' family:
     !
     call obs_set_current_header_list(obsSpaceData,'RO')
-    gps_numROProfiles=0
+    numROProfiles=0
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
       if (index_header < 0) exit HEADER
@@ -1470,7 +1471,7 @@ end subroutine filt_topoAISW
       !
       IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
       if ( IDATYP == 169 ) then
-        gps_numROProfiles=gps_numROProfiles+1
+        numROProfiles=numROProfiles+1
         !
         ! Basic variables of the profile:
         !
@@ -1551,11 +1552,12 @@ end subroutine filt_topoAISW
         end do BODY
       end if
     end do HEADER
+    call gps_setNumROProfiles(numROProfiles)
+
     !
     ! List to enumerate and cross-link GPSRO headers 0 <= iProfile < gps_numROProfiles):
     !
     if (gps_numROProfiles > 0) then
-      if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
       iProfile=0
       !
       ! Loop over all header indices of the 'RO' family:
@@ -1570,7 +1572,6 @@ end subroutine filt_topoAISW
         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
-          gps_vRO_IndexPrf(iProfile, 1) = INDEX_HEADER
           ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
           IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
           LDSC = .not.btest(IQLF,16-3)
@@ -1591,9 +1592,8 @@ end subroutine filt_topoAISW
             varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
             if (varNum > 0) exit BODY2
           end do BODY2
-          gps_vRO_IndexPrf(iProfile, 2) = varNum
-          gps_vRO_IndexPrf(iProfile, 3) = ISAT
-          gps_vRO_IndexPrf(iProfile, 4) = IDSC
+
+          call gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC)
           if (.not.beSilent) write(*,*)'RO Prf', gps_numROProfiles, iProfile, varNum, ISAT, IDSC
         end if
       end do HEADER2

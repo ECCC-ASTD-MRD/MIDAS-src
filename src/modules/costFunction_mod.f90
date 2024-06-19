@@ -13,12 +13,10 @@ module costFunction_mod
   use codtyp_mod
 
   implicit none
-
   save
   private
 
-  ! public procedures
-
+  ! Public procedures
   public :: cfn_calcJo, cfn_sumJo
 
   integer,           allocatable :: channelNumberList(:,:)

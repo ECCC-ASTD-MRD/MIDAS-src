@@ -24,13 +24,15 @@ module bMatrix_mod
   use gridStateVector_mod
   use horizontalCoord_mod
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
-  public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4, bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
+  public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4
+  public :: bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
 
   logical :: globalGrid = .true.
 

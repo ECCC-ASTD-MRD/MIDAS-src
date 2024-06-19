@@ -18,30 +18,29 @@ module bgckSSMIS_mod
   ! Public functions/subroutines
   public :: ssbg_computeSsmisSurfaceType
   public :: ssbg_bgCheckSSMIS
+
   real    :: ssbg_clwQcThreshold
   logical :: ssbg_debug
 
   real,    parameter :: ssbg_realMissing=-99. 
   integer, parameter :: ssbg_intMissing=-1
-  ! Other variables:
   real,    parameter :: ssbg_rmisg=-999.0
   real,    parameter :: ssbg_clwThresh=0.02
   integer, parameter :: ssbg_mxval=30
   integer, parameter :: ssbg_maxObsNum=2500
   real,    parameter :: clw_amsu_rej=0.3
   real,    parameter :: clw_amsu_rej_ch3=0.1
+
   !  Highest peaking AMSU-A like SSMIS channel for ocean-only and CLW filtering
   !    3 = mid-troposphere   (AMSU/operations -- AMSU chan. 5)
   !    4 = upper-troposphere (scat. index used in AMSU/operations -- AMSU chan. 6)
   !       (AMSU-A scat. index cannot be computed here; need AMSU-A channels 1,2)
   integer, parameter :: ipc=4
-  ! Module variable
 
   character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file
   character(len=128), parameter :: fileGlace='bicefil'  ! binaire 0.1degre ice file
   character(len=128), parameter :: fileWentz='wentz_surf.std'  ! surface wentz file
   character(len=128), parameter :: algOption = 'fwentz'
-  ! Other NRL thresholds
 
   integer, parameter :: ssbg_maxNumSat  = 4
   integer, parameter :: ssbg_maxNumChan = 24
@@ -50,7 +49,6 @@ module bgckSSMIS_mod
   ! namelist variables
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: debug                         ! debug mode
-
 
   namelist /nambgck/debug, RESETQC
 

@@ -33,29 +33,31 @@ module obsFiles_mod
   save
   private
 
-  ! public variables
-  public :: obsf_nfiles, obsf_fileName
-
-  ! public procedures
-  public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
-  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
-  public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
-  public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
-  logical           :: obsFilesSplit
-  logical           :: initialized = .false.
-
+  ! Private module parameters
   integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: fileTypeLen = 20
   integer, parameter :: familyTypeLen = 2
-  integer :: obsf_nfiles, obsf_numMpiUniqueList
-  character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
+
+  ! Public module variables
+  integer, public, protected :: obsf_nfiles, obsf_numMpiUniqueList
+  character(len=maxLengthFilename), public, protected :: obsf_fileName(maxNumObsfiles)
+
+  ! Public module procedures
+  public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
+  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
+  public :: obsf_addCloudParametersAndEmissivity, obsf_getFileName, obsf_copyObsDirectory
+  public :: obsf_updateMissingObsFlags, obsf_cleanObsFiles
+
+  ! Private module variables
+  logical           :: initialized = .false.
+  logical           :: obsFilesSplit
+  character(len=9)  :: obsf_myIdExt
+  character(len=48) :: obsFileMode
   character(len=familyTypeLen)     :: obsf_familyType(maxNumObsfiles)
-  character(len=48)  :: obsFileMode
   character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(maxNumObsfiles)
   character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(maxNumObsfiles)
   character(len=fileTypeLen)       :: obsf_fileTypeMpiUniqueList(maxNumObsfiles)
-  character(len=9) :: obsf_myIdExt
 
 contains
 

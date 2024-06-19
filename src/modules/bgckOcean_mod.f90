@@ -21,7 +21,6 @@ module bgckOcean_mod
   use bMatrixDiff_mod
 
   implicit none
-
   save
   private
 

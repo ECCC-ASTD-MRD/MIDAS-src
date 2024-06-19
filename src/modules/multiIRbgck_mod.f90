@@ -20,10 +20,12 @@ module multiIRbgck_mod
   use midasMpi_mod
   use columnData_mod
   use MathPhysConstants_mod
+
   implicit none
   save
   private
-  ! Public functions (methods)
+
+  ! Public procedures
   public :: irbg_setup, irbg_bgCheckIR
 
   integer, parameter :: nClassAVHRR = 7
@@ -171,7 +173,7 @@ contains
     integer :: sensorIndex, channelNumber
 
     !     Memory allocation for background check related variables
-    allocate(tvs_surfaceParameters(tvs_nobtov))
+    call tvs_allocateSurfaceParameters()
 
     !___ emissivity by profile
 
@@ -182,7 +184,7 @@ contains
       if (channelNumber > maxChannelNumber) maxChannelNumber=channelNumber
     end do
 
-    allocate(tvs_emissivity(maxChannelNumber,tvs_nobtov))
+    call tvs_allocateEmissivity(maxChannelNumber)
     
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instruments(sensorIndex) == inst_id_iasi ) then
@@ -235,7 +237,7 @@ contains
 
     !  Preliminary initializations
 
-    tvs_nobtov = 0
+    call tvs_setNobtov(0)
     call irbg_init()
     allocate (nobir(ninst))
     nobir = 0
@@ -254,7 +256,7 @@ contains
         write(*,*) 'irbg_bgCheckIR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER   ! Proceed to the next header_index
       end if
-      tvs_nobtov = tvs_nobtov + 1
+      call tvs_setNobtov(tvs_nobtov + 1)
       do instrumentIndex=1, ninst
         if ( tvs_isIdBurpInst(idatyp,inst(instrumentIndex)) ) then
           nobir(instrumentIndex) = nobir(instrumentIndex) + 1
@@ -491,7 +493,7 @@ contains
     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
     write(*,*) modelTopIndex
 
-    tvs_nobtov = 0
+    call tvs_setNobtov(0)
 
     ! Loop over all header indices of the 'TO' family
     call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -501,7 +503,7 @@ contains
 
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( tvs_isIdBurpTovs(idatyp) ) tvs_nobtov = tvs_nobtov + 1
+      if ( tvs_isIdBurpTovs(idatyp) ) call tvs_setNobtov(tvs_nobtov + 1)
       if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER_2
       if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(tvs_tovsIndex (headerIndex)) == id) then
         btObs(:)    = -1.d0

@@ -28,7 +28,7 @@ module gridStateVectorFileIO_mod
   save
   private
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: gio_setup
   public :: gio_readFromFile, gio_readTrials, gio_readFile
   public :: gio_readMaskFromFile, gio_getMaskLAM

@@ -8,6 +8,10 @@ MODULE earthConstants_mod
   !           * ec_wgs_ (World Geodetic Syatem) when they are explicitly from WGS84 specification.
   !
   use mathPhysConstants_mod
+
+  implicit none
+  public
+
   !
   ! The following constants should ultimately be taken from module
   ! modgps02wgs84const OR module modgps06gravity.  They have been placed here

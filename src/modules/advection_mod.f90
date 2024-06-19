@@ -17,12 +17,16 @@ MODULE advection_mod
   use verticalCoord_mod
   use utilities_mod
   use varNameList_mod
+
   implicit none
   save
   private
 
-  ! public procedures
-  public :: struct_adv, adv_Setup
+  ! Public derived type
+  public :: struct_adv
+
+  ! Public procedures
+  public :: adv_Setup
   public :: adv_ensemble_tl, adv_ensemble_ad
   public :: adv_statevector_tl, adv_statevector_ad
 

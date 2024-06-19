@@ -9,15 +9,15 @@ MODULE localizationFunction_mod
   !
   use earthConstants_mod
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: lfn_Setup, lfn_Response, lfn_lengthscale, lfn_createBiPerFunction
 
   logical             :: initialized = .false.
-
   character(len=128)  :: LocFunction
 
 CONTAINS

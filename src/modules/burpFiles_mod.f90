@@ -21,7 +21,7 @@ module burpFiles_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: brpf_getDateStamp, brpf_readfile, brpf_updatefile
   public :: brpf_obsSub_read, brpf_obsSub_update
 

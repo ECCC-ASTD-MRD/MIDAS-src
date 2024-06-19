@@ -24,10 +24,11 @@ module oMinusF_mod
   use ensembleStateVector_mod
   use fileNames_mod
   use statetocolumn_mod
+
   implicit none
   private
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: omf_oMinusF, omf_oMinusFens
 
   contains

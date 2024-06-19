@@ -14,13 +14,15 @@ MODULE localizationSpectral_mod
   use horizontalCoord_mod
   use earthConstants_mod
   use ensembleStatevector_mod
+
   implicit none
   save
   private
 
-  ! public derived type
+  ! Public derived type
   public :: struct_lsp
-  ! public procedures
+
+  ! Public procedures
   public :: lsp_setup, lsp_Lsqrt, lsp_LsqrtAd, lsp_finalize
   public :: lsp_reducetompilocal, lsp_reducetompilocal_r4
   public :: lsp_expandtompiglobal, lsp_expandtompiglobal_r4

@@ -19,14 +19,15 @@ MODULE bMatrixHI_mod
   use gridVariableTransforms_mod
   use interpolation_mod
   use calcHeightAndPressure_mod
+
   implicit none
   save
   private
 
-  ! public procedures
-  public :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize,bhi_expandToMPIglobal,bhi_expandToMPIglobal_r4,bhi_reduceToMPIlocal,bhi_reduceToMPIlocal_r4
+  ! Public procedures
+  public :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize
+  public :: bhi_expandToMPIglobal,bhi_expandToMPIglobal_r4,bhi_reduceToMPIlocal,bhi_reduceToMPIlocal_r4
   public :: bhi_getScaleFactor,bhi_truncateCV
-
 
   logical             :: initialized = .false.
   integer             :: nj_l,ni_l

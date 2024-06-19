@@ -8,11 +8,12 @@ module fileNames_mod
   use clibInterfaces_mod
   use ramDisk_mod
   use timeCoord_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: fln_ensFileName, fln_ensAnlFileName, fln_ensTrlFileName
 
 contains

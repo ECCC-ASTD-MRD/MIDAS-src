@@ -21,11 +21,10 @@ module sqliteRead_mod
   use radialVelocity_mod
 
   implicit none
-
   save
-
   private
 
+  ! Public procedures
   public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
   public :: sqlr_cleanSqlite, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
   public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile

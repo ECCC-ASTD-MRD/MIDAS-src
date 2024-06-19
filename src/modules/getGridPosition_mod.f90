@@ -18,7 +18,7 @@ module getGridPosition_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: gpos_getPositionXY, gpos_gridIsOrca
 
   integer, parameter :: maxNumLocalGridPointsSearch = 3000

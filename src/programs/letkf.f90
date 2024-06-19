@@ -689,7 +689,6 @@ program midas_letkf
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType=obsTimeInterpType, dealloc_opt=.false.)
-  if (allocated(tvs_transmission)) deallocate(tvs_transmission)
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission profiles stored for use in eob_setVertLocation
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
 

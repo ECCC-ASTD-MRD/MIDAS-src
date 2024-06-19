@@ -10,13 +10,15 @@ module lamSpectralTransform_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public derived type
+  ! Public derived type
   public :: struct_lst
-  ! public procedures
+
+  ! Public procedures
   public :: lst_Setup, lst_Laplacian, lst_VarTransform
   public :: lst_ReshapeTrunc ! only for standalone tests
 

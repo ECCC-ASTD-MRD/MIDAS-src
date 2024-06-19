@@ -19,7 +19,7 @@ module surfaceEmissivity_mod
   save
   private
 
-  ! public procedures  
+  ! Public procedures
   public :: sse_setupEmissivityfromState, sse_extractEmissivityCol
   public :: sse_updateBEnsMatEmissFromBHi, sse_emissivityRttovLimits
   public :: sse_readEmissError, sse_readCEmissMatrixByFileName, sse_emissErrMatSqrt

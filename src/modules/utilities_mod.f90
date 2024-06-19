@@ -12,7 +12,7 @@ module utilities_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse

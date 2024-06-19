@@ -18,10 +18,14 @@ module columnData_mod
   save
   private
 
-  ! public variables and types
-  public :: col_rhumin, col_minValVarKindCH, struct_columnData
+  ! Public variables and types
+  real(8), public, protected :: col_rhumin
+  real(8), public, protected :: col_minValVarKindCH(vnl_numVarMax) ! Minimum values for variables of CH kind
 
-  ! public subroutines and functions
+  ! Public dervied type
+  public :: struct_columnData
+
+  ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
@@ -42,11 +46,7 @@ module columnData_mod
     real(8), pointer  :: lat(:)
   end type struct_columnData
 
-  real(8) :: col_rhumin
   logical :: varExistList(vnl_numvarmax)
-
-  ! Minimum values for variables of CH kind
-  real(8) :: col_minValVarKindCH(vnl_numVarMax)
 
   ! Namelist variables
   real(8) :: rhumin                         ! minimum humidity value imposed after interpolation to columns

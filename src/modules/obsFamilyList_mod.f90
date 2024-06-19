@@ -9,11 +9,10 @@ module obsFamilyList_mod
   save
   private
 
-  ! public variables (parameters)
-  public :: ofl_numFamily
-  public :: ofl_familyList
+  ! Public variables (parameters)
+  public :: ofl_numFamily, ofl_familyList
 
-  ! public procedures
+  ! Public procedures
   public :: ofl_isFamilyTypeInList
 
   integer,          parameter :: ofl_numFamily = 15

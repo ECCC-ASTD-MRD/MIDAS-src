@@ -6,19 +6,22 @@ module message_mod
   !
   use midasMpi_mod
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public procedures
-  public :: msg, msg_memUsage, msg_section, msg_setVerbThreshold
-
-  ! public module variables
+  ! Public variables (parameters)
   integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
   integer, public, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
   integer, public, parameter :: msg_DEFAULT  =   1 ! default verbosity level
 
-  integer, public :: msg_NML = msg_DEFAULT ! verbosity level fixed from namelist
+  ! Public variables
+  integer, public, protected :: msg_NML      = msg_DEFAULT ! verbosity level fixed from namelist
+
+  ! Public procedures
+  public :: msg, msg_memUsage, msg_section, msg_setVerbThreshold
+
 
   ! intrinsic type string representations
   public :: str

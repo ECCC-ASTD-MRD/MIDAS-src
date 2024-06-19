@@ -20,9 +20,8 @@ module varQC_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: vqc_setup, vqc_NlTl, vqc_ad, vqc_listrej
-
 
   contains
 

@@ -17,14 +17,20 @@ module gridStateVector_mod
   use utilities_mod
   use message_mod
   use physicsFunctions_mod
+
   implicit none
   save
   private
 
-  ! public structure definition
+  ! Public structure definition
   public :: struct_gsv
 
-  ! public subroutines and functions
+  ! Public module variables
+  real(8), public, protected :: gsv_rhumin
+  real(8), public, protected :: gsv_minValVarKindCH(vnl_numVarMax)
+  logical, public, protected :: gsv_conversionVarKindCHtoMicrograms ! activate unit conversion for CH variables
+
+  ! Public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
   public :: gsv_modifyVarName, gsv_modifyDate
@@ -46,10 +52,6 @@ module gridStateVector_mod
   public :: gsv_applyMaskLAM, gsv_containsNonZeroValues
   public :: gsv_isAllocated
   public :: gsv_transposesteptovarslevs
-
-  ! public module variables
-  public :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
-  public :: gsv_minValVarKindCH
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -120,16 +122,11 @@ module gridStateVector_mod
 
   logical :: varExistList(vnl_numVarMax)
 
-  ! public variables
-  real(8) :: gsv_rhumin
-  real(8) :: gsv_minValVarKindCH(vnl_numVarMax)
-
   ! namelist variables:
   character(len=8) :: ANLTIME_BIN                ! can be 'MIDDLE', 'FIRST' or 'LAST'
   logical :: addHeightSfcOffset                  ! choose to add non-zero height offset to diagnostic (sfc) levels
   logical :: abortOnMpiImbalance                 ! choose to abort program when MPI imbalance is too large
   real(8) :: minValVarKindCH(vnl_numVarMax)      ! variable-dependent minimum value applied to chemistry variables
-  logical :: gsv_conversionVarKindCHtoMicrograms ! activate unit conversion for CH variables
      
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:)

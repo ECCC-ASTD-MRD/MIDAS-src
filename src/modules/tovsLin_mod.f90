@@ -37,6 +37,7 @@ module tovsLin_mod
   save
   private
 
+  ! Public procedures
   public :: tvslin_rttov_tl, tvslin_rttov_ad, tvslin_rttov_k
   
   integer, allocatable :: tvslin_bodyIndexFromBtIndex(:,:)

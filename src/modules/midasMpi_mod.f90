@@ -9,17 +9,27 @@ module midasMpi_mod
   !
   use mpi
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public variables
-  public :: mmpi_myid,mmpi_myidHost,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey
-  public :: mmpi_numthread, mmpi_nodeMasters
-  public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED, mmpi_doBarrier
-  public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
-  public :: mmpi_maxTagValue
-  ! public procedures
+  ! Public variables
+  logical, public, protected :: mmpi_doBarrier = .true.
+  integer, public, protected :: mmpi_myid   = 0
+  integer, public, protected :: mmpi_myidHost = 0
+  integer, public, protected :: mmpi_nprocs = 0
+  integer, public, protected :: mmpi_myidx  = 0
+  integer, public, protected :: mmpi_myidy  = 0
+  integer, public, protected :: mmpi_npex   = 0
+  integer, public, protected :: mmpi_npey   = 0
+  integer, public, protected :: mmpi_numthread = 0
+  integer, public, protected :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
+  integer, public, protected :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
+  integer, public, protected :: mmpi_maxTagValue
+  integer, public, protected, allocatable :: mmpi_nodeMasters(:)
+
+  ! Public procedures
   public :: mmpi_initialize,mmpi_getptopo
   public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
   public :: mmpi_allreduce_sumR8_1d, mmpi_allreduce_sumR8_2d
@@ -29,23 +39,6 @@ module midasMpi_mod
   public :: mmpi_setup_levels
   public :: mmpi_setup_varslevels
   public :: mmpi_myidXfromLon, mmpi_myidYfromLat
-
-  integer :: mmpi_myid   = 0
-  integer :: mmpi_myidHost = 0
-  integer :: mmpi_nprocs = 0
-  integer :: mmpi_myidx  = 0
-  integer :: mmpi_myidy  = 0
-  integer :: mmpi_npex   = 0
-  integer :: mmpi_npey   = 0
-  integer :: mmpi_numthread = 0
-
-  integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_mpicomm_SHARED
-  integer :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
-  integer :: mmpi_maxTagValue
-
-  integer, allocatable :: mmpi_nodeMasters(:)
-
-  logical :: mmpi_doBarrier = .true.
 
   contains
 

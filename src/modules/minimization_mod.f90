@@ -28,14 +28,15 @@ module minimization_mod
   use utilities_mod
   use biasCorrectionSat_mod
   use columnVariableTransforms_mod
+
   implicit none
   save
   private
 
-  ! public variables
-  public              :: min_niter, min_nsim
+  ! Public variables
+  integer, public, protected :: min_niter, min_nsim
 
-  ! public procedures
+  ! Public procedures
   public              :: min_Setup, min_minimize, min_writeHessian
 
   type(struct_obs)       , pointer :: obsSpaceData_ptr         => null()
@@ -45,9 +46,8 @@ module minimization_mod
 
   logical             :: initialized = .false.
 
-  integer             :: nmtra,nwork,min_nsim
+  integer             :: nmtra,nwork
   integer             :: nvadim_mpilocal ! for mpi
-  integer             :: min_niter
   integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  

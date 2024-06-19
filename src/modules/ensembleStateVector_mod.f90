@@ -19,12 +19,16 @@ module ensembleStateVector_mod
   use utilities_mod
   use varNameList_mod
   use codePrecision_mod
+
   implicit none
   save
   private
 
-  ! public procedures
-  public :: struct_ens, ens_isAllocated, ens_allocate, ens_deallocate, ens_zero
+  ! Public derived type
+  public :: struct_ens
+
+  ! Public procedures
+  public :: ens_isAllocated, ens_allocate, ens_deallocate, ens_zero
   public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_copy4Dto3D, ens_add
   public :: ens_getOneLevMean_r8, ens_modifyVarName
   public :: ens_varExist, ens_getNumLev, ens_getNumMembers, ens_getNumSubEns

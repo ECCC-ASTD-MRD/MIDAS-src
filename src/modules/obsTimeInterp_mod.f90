@@ -15,10 +15,10 @@ module obsTimeInterp_mod
   save
   private
   
-  ! public derived type
+  ! Public derived type
   public :: struct_oti
 
-  ! public procedures
+  ! Public procedures
   public :: oti_setup, oti_deallocate
   public :: oti_timeBinning
   public :: oti_setTimeInterpWeight, oti_getTimeInterpWeight, oti_getTimeInterpWeightMpiGlobal

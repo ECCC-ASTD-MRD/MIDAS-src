@@ -30,16 +30,14 @@ module bMatrix1DVar_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: bmat1D_bsetup
   public :: bmat1D_sqrtB, bmat1D_sqrtBT
   public :: bmat1D_finalize, bmat1D_get1DVarIncrement
 
-  ! public variables
-  public :: bmat1D_includeAnlVar, bmat1D_numIncludeAnlVar
-
-  integer                       :: bmat1D_numIncludeAnlVar
-  character(len=4), allocatable :: bmat1D_includeAnlVar(:)
+  ! Public variables
+  integer,          public, protected              :: bmat1D_numIncludeAnlVar
+  character(len=4), public, protected, allocatable :: bmat1D_includeAnlVar(:)
 
   integer                       :: bmat1D_numExcludeVarScaling
   character(len=4), allocatable :: bmat1D_excludeVarScaling(:)

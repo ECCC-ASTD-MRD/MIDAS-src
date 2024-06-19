@@ -16,12 +16,12 @@ module varNameList_mod
   save
   private
 
-  ! public variables (parameters)
+  ! Public variables (parameters)
   public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmaxOther, vnl_numvarmax
   public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther, vnl_varNameList
   public :: vnl_numvarmaxCloud, vnl_varNameListCloud
 
-  ! public procedures
+  ! Public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
   public :: vnl_varListIndex, vnl_varnameFromVarnum, vnl_varnameIsValid
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum

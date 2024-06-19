@@ -18,6 +18,7 @@ module scaleDecomposition_mod
   use timeCoord_mod
   use earthConstants_mod
   use mathPhysConstants_mod
+
   implicit none
   save
   private

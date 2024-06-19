@@ -15,11 +15,12 @@ module interpolation_mod
   use utilities_mod
   use message_mod
   use kdTree2_mod
+
   implicit none
   save
   private
 
-  ! public subroutines and functions
+  ! Public subroutines and functions
   public :: int_interp_gsv
   public :: int_hInterp_gsv
   public :: int_vInterp_gsv

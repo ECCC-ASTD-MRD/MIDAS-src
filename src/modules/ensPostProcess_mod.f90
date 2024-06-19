@@ -24,11 +24,12 @@ module ensPostProcess_mod
   use fileNames_mod
   use clibInterfaces_mod
   use calcHeightAndPressure_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: epp_postProcess
   
 contains

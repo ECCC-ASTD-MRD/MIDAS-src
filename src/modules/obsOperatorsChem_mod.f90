@@ -25,7 +25,7 @@ module obsOperatorsChem_mod
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: oopc_CHobsoperators, oopc_diagnOnly, oopc_addEfftempObsfile
   
   !-------------------------------------------------------------------------

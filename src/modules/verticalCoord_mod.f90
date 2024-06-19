@@ -11,24 +11,25 @@ module verticalCoord_mod
   use varNameList_mod
   use utilities_mod
   use netcdf
-  
+
   implicit none
-  
   private
 
-  ! public derived type
-  public :: struct_vco
-  ! public variables
-  public :: vco_ip1_other, vco_maxNumLevels
-  ! public procedures
+  ! Private module parameter
+  integer, parameter :: maxNumOtherLevels = 20
+
+  ! Public module procedures
   public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_subsetOrNot, vco_levelMatchingList
 
-  integer, parameter :: maxNumOtherLevels = 20
-  integer :: vco_ip1_other(maxNumOtherLevels)
+  ! Public module variables
+  integer, public, protected :: vco_ip1_other(maxNumOtherLevels)
+  ! Public module parameter
+  integer, public, parameter :: vco_maxNumLevels = 200
 
-  integer, parameter :: vco_maxNumLevels = 200
-  
+  ! Public derived type
+  public :: struct_vco
+
   type struct_vco
      logical :: initialized=.false.
      integer :: Vcode = -1

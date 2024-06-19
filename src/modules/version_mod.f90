@@ -9,7 +9,7 @@ module version_mod
   save
   private
 
-  ! public routines
+  ! Public routines
   public :: ver_printNameAndVersion
 
 contains

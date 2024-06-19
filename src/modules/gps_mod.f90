@@ -8,32 +8,48 @@ module gps_mod
   use utilities_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+
   implicit none
   save
   private
 
-  ! public types
+  ! Public derived types
   public :: gps_profile, gps_profilezd, gps_diff
 
-  ! public variables
-  public :: gps_numROProfiles, gps_vRO_IndexPrf
-  public :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
-  public :: gps_roError, gps_roBNorm, gps_roNsigma
-  public :: gps_gravitysrf, gps_gb_maxdata, gps_gb_dzmin
-  public :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt, gps_gb_numztd
-  public :: gps_ZTD_Index, gps_ncvmx, gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
+  ! Public variables
+  integer,           public, protected, allocatable :: gps_vRO_IndexPrf(:,:) ! index for each profile
+  integer,           public, protected :: gps_numROProfiles
+  integer,           public, protected :: gps_Level_RO, gps_RO_MAXPRFSIZE
+  real(8),           public, protected :: gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
+  real(8),           public, protected :: gps_roNsigma
+  real(4),           public, protected :: gps_Wgps(0:1023,4)
+  character(len=20), public, protected :: gps_roError
+  logical,           public, protected :: gps_roBNorm
+  integer,           public, protected :: gps_gb_numZTD ! number of ZTD data to be assimilated
+  integer,           public, protected, allocatable :: gps_ZTD_Index (:) ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
+  real(8),           public, protected :: gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
+  real(8),           public, protected :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
+  integer,           public, protected :: gps_gb_IREFOPT, gps_gb_IZTDOP
+  logical,           public, protected :: gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
 
-  ! public procedures
-  public :: gps_setupro, gps_iprofile_from_index
-  public :: gps_setupgb, gps_iztd_from_index
-  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
-  public :: gps_geopotential
-
-  ! public constants
-  integer, parameter, public :: gps_Level_RO_Bnd       = 1
-  integer, parameter, public :: gps_Level_RO_Ref       = 2
-  integer, parameter, public :: gps_Level_RO_BndandRef = 3
+  ! Public variables (parameters)
+  public :: gps_ncvmx, gps_gb_maxdata
   public :: gps_p_md, gps_p_mw, gps_p_wa, gps_p_wb
+  public :: gps_Level_RO_Bnd, gps_Level_RO_Ref, gps_Level_RO_BndandRef
+
+  ! Public procedures
+  public :: gps_setupro, gps_iprofile_from_index
+  public :: gps_setNumROProfiles, gps_setROIndexPrf
+  public :: gps_setupgb, gps_iztd_from_index
+  public :: gps_setNumZTD, gps_setZTDIndex
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
+  public :: gps_geopotential, gps_gravitysrf
+
+  integer, parameter :: gps_Level_RO_Bnd       = 1
+  integer, parameter :: gps_Level_RO_Ref       = 2
+  integer, parameter :: gps_Level_RO_BndandRef = 3
+
+  logical :: gps_gpsroEotvos
 
 !modgps00base
   
@@ -182,36 +198,10 @@ module gps_mod
      logical                                      :: bpst
   end type gps_profilezd
 
-!modgpsro_mod
-
-  !
-  ! Values determined by input data:
-  !
-  integer                                :: gps_numROProfiles
-  integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
-
-  ! Public versions of namelist variables
-  INTEGER gps_Level_RO, gps_RO_MAXPRFSIZE
-  REAL*8  gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
-  REAL*8  gps_roNsigma
-  REAL*4  gps_Wgps(0:1023,4)
-  character(len=20) :: gps_roError
-  LOGICAL :: gps_roBNorm, gps_gpsroEotvos
-
-
 !modgpsztd_mod
 
   integer, parameter      ::  max_gps_sites = 1200
   integer, parameter      ::  gps_gb_maxdata  = max_gps_sites*24     ! (max_gps_sites) * (max_num_obs in 6h)
-
-  integer                 :: gps_gb_numZTD            ! number of ZTD data to be assimilated
-  integer , allocatable   :: gps_ZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
-
-  ! Public versions of namelist variables
-  REAL*8 gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
-  REAL(8) :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
-  INTEGER gps_gb_IREFOPT, gps_gb_IZTDOP
-  LOGICAL gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
 
 contains
 
@@ -2873,6 +2863,34 @@ contains
     end if
   end subroutine gps_setupro
 
+  subroutine gps_setNumROProfiles(numROProfiles)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: numROProfiles
+
+    gps_numROProfiles = numROProfiles
+    if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
+
+  end subroutine gps_setNumROProfiles
+
+  subroutine gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: iProfile
+    integer, intent(in) :: INDEX_HEADER
+    integer, intent(in) :: varNum
+    integer, intent(in) :: ISAT
+    integer, intent(in) :: IDSC
+
+    gps_vRO_IndexPrf(iProfile, 1) = INDEX_HEADER
+    gps_vRO_IndexPrf(iProfile, 2) = varNum
+    gps_vRO_IndexPrf(iProfile, 3) = ISAT
+    gps_vRO_IndexPrf(iProfile, 4) = IDSC
+
+  end subroutine gps_setROIndexPrf
+
   integer function gps_iprofile_from_index(index)
     implicit none
 
@@ -3097,6 +3115,32 @@ contains
     end if
 
   end subroutine gps_setupgb
+
+  subroutine gps_setNumZTD(numZTD)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: numZTD
+
+    gps_gb_numZTD = numZTD
+
+    if (allocated(gps_ZTD_Index)) deallocate(gps_ZTD_Index)
+    if (gps_gb_numztd > 0) then
+      allocate(gps_ZTD_Index(gps_gb_numztd))
+    end if
+
+  end subroutine gps_setNumZTD
+
+  subroutine gps_setZTDIndex(iztd, headerIndex)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: iztd
+    integer, intent(in) :: headerIndex
+
+    gps_ZTD_Index(iztd) = headerIndex
+
+  end subroutine gps_setZTDIndex
 
   integer function gps_iztd_from_index(index)
     implicit none

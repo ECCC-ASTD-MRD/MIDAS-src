@@ -25,7 +25,7 @@ module sstBias_mod
   save
   private
 
-  ! public subroutines
+  ! Public subroutines
   public :: sstb_computeBias, sstb_applySatelliteSSTBiasCorrection
 
   ! mpi topology

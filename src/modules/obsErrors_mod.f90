@@ -25,40 +25,42 @@ module obsErrors_mod
   use burp_module
   use rttov_const, only: surftype_sea
   use statetocolumn_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Private module parameter
+  integer, parameter :: ncells = 21
+
+  ! Public module variables
+  ! tiepoint standard deviation for ASCAT backscatter anisotropy
+  real, public, protected :: oer_ascatAnisOpenWater(ncells,12)
+  real, public, protected :: oer_ascatAnisIce(ncells,12)
+  ! Arrays for QC purpose
+  real(8), public, protected :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8), public, protected :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  integer, public, protected :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8), public, protected :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  logical, public, protected :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+
+  ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
-  
-  ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
-  ! public variables (parameters)
-  public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
-  
- ! Arrays for QC purpose
-  public :: oer_toverrst, oer_cldPredThresh, oer_tovutil
-  public :: oer_errThreshAllsky, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-  real(8) :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyTtCoeff(tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyHuCoeff(tvs_maxNumberOfSensors)
-  integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer :: instrumentIdsInflateErrAllskyTt(tvs_maxNumberOfSensors)
   integer :: instrumentIdsInflateErrAllskyHu(tvs_maxNumberOfSensors)
   integer :: numInstrumInflateErrAllskyTt, numInstrumInflateErrAllskyHu
-  logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyTt(tvs_maxNumberOfSensors)
   character(len=15) :: instrumentNamesInflateErrAllskyHu(tvs_maxNumberOfSensors)
 
@@ -140,10 +142,9 @@ module obsErrors_mod
 
   ! Sea Ice Concentration obs-error standard deviation
   real(8) :: xstd_sic(9)
+
   ! tiepoint standard deviation for ASCAT backscatter anisotropy
-  integer, parameter :: ncells = 21
   real(8) :: ascatAnisSigmaOpenWater(ncells,12), ascatAnisSigmaIce(ncells,12)
-  real    :: oer_ascatAnisOpenWater(ncells,12), oer_ascatAnisIce(ncells,12)
 
   ! Hydrology
   real(8) :: xstd_hydro(1)
@@ -3053,7 +3054,7 @@ contains
 
     !      IF (DEBUG) call utl_abort('******DEBUG STOP*******')
 
-    IF (.not.ldata) gps_gb_numZTD = 0
+    IF (.not.ldata) call gps_setNumZTD(0)
 
     IF (ldata .and. .not.beSilent) write(*,*) ' gps_gb_numZTD = ', ICOUNT
 

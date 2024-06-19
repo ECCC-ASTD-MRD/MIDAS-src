@@ -13,7 +13,7 @@ module physicsFunctions_mod
   implicit none
   private
 
-  ! public procedures
+  ! Public procedures
   public :: phf_FOEW8, phf_FODLE8, phf_FOQST8, phf_FODQS8, phf_FOEFQ8, phf_FOQFE8, phf_FOTVT8, phf_FOTTV8
   public :: phf_FOHR8, phf_FOEWA8, phf_FODLA8, phf_FOQSA8, phf_FODQA8, phf_FOHRA8, phf_FOTW8, phf_FOTI8
   public :: phf_FODTW8, phf_FODTI8, phf_FOTWI8, phf_FODTWI8, phf_FOEW8_CMAM, phf_FOEI8_CMAM, phf_FOERAT8_CMAM

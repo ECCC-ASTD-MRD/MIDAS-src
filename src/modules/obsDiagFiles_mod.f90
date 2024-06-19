@@ -18,11 +18,10 @@ module obsDiagFiles_mod
   use ensembleObservations_mod
 
   implicit none
-
   save
-
   private
 
+  ! Public procedures
   public :: diaf_writeAllSqlDiagFiles
 
   contains

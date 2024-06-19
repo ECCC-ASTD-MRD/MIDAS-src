@@ -14,12 +14,13 @@ module sqliteUtilities_mod
   implicit none
   save
   private
+
+  ! Public procedures
   public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
   public :: sqlu_query, sqlu_handleError
   public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDateStr, sqlu_getColumnValuesChar
   public :: sqlu_getInitialIdObsData
 
-  ! Arrays used to match SQLite column names with obsSpaceData column names
   integer, parameter :: lenSqlName = 60
 
 contains

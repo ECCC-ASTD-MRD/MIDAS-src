@@ -6,11 +6,12 @@ module ramDisk_mod
   !
   use utilities_mod
   use clibInterfaces_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: ram_setup, ram_fullWorkingPath, ram_remove, ram_getRamDiskDir
 
   character(len=256) :: ram_disk_dir

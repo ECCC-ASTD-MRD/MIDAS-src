@@ -5,13 +5,16 @@ module controlVector_mod
   !:Purpose: The control vector and related information.  
   !
   use utilities_mod
+
   implicit none
   save
   private
 
-  ! public variables
-  public              :: cvm_nvadim, cvm_nvadim_mpiglobal
-  ! public procedures
+  ! Public variables
+  integer, public, protected :: cvm_nvadim
+  integer, public, protected :: cvm_nvadim_mpiglobal
+
+  ! Public procedures
   public              :: cvm_setupSubVector, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
   public              :: cvm_subVectorExists
@@ -31,9 +34,6 @@ module controlVector_mod
   integer, parameter :: maxNumVectors = 50
   integer            :: numVectors = 0
   type(struct_cvm)   :: cvm_vector(maxNumVectors)
-
-  integer             :: cvm_nvadim
-  integer             :: cvm_nvadim_mpiglobal
 
 contains
 

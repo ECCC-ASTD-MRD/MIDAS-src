@@ -23,14 +23,15 @@ module enkf_mod
   use codePrecision_mod
   use codTyp_mod
   use calcHeightAndPressure_mod
+
   implicit none
   save
   private
 
-  ! public types
+  ! Public types
   public :: struct_enkfInterpInfo
 
-  ! public procedures
+  ! Public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
   public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
 

@@ -26,11 +26,12 @@ module bMatrixEnsemble_mod
   use lamAnalysisGridTransforms_mod
   use calcHeightAndPressure_mod
   use scaleDecomposition_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: ben_Setup, ben_BSqrt, ben_BSqrtAd, ben_writeAmplitude
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize

@@ -5,11 +5,12 @@ module residual_mod
   !:Purpose: To compute OMA (= OMP - H dx) and its adjoint.
   !
   use obsSpaceData_mod
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: res_compute , res_computeAd
 
 contains

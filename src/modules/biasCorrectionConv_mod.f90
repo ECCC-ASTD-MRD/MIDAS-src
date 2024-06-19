@@ -15,8 +15,10 @@ MODULE biasCorrectionConv_mod
   implicit none
   save
   private
-  public               :: bcc_applyAIBcor, bcc_applyGPBcor, bcc_applyUABcor
-  public               :: bcc_biasActive
+
+  ! Public routines
+  public             :: bcc_applyAIBcor, bcc_applyGPBcor, bcc_applyUABcor
+  public             :: bcc_biasActive
   
   ! This variable is set to .true. when bcc_readConfig() [the routine that reads &NAMBIASCONV namelist]
   ! is called for the first time to read/initialize the bias correction namelist variables.

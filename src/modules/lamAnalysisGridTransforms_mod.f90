@@ -13,11 +13,12 @@ module lamAnalysisGridTransforms_mod
   use midasMpi_mod
   use utilities_mod
   use Vgrid_Descriptors
+
   implicit none
   save
   private
 
-  ! public procedures
+  ! Public procedures
   public :: lgt_setupFromHCO, lgt_mach, lgt_mach_r4
   public :: lgt_PsiChiToUV, lgt_PsiChiToUVAdj, lgt_UVToVortDiv
   public :: lgt_createLamTemplateGrids
