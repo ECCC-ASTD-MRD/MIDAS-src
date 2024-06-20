@@ -52,7 +52,7 @@ MODULE mathPhysConstants_mod
 !
 ! *** THERMODYNAMIC CONSTANTS (GAS PHASE) ***
    real(8), parameter ::MPC_RGAS_IDEAL_R8                 =  8.314511211948600D+00 ! J mol-1 K-1 - ideal-gas constant
-   real(8), parameter ::MPC_RGAS_DRY_AIR_R8               =  2.870500000000000D+02 ! J kg-1 K-1 - gas constant, dry air
+   real(8), protected ::MPC_RGAS_DRY_AIR_R8               =  2.870500000000000D+02 ! J kg-1 K-1 - gas constant, dry air
    real(8), parameter ::MPC_RGAS_VAPOUR_R8                =  4.615100000000000D+02 ! J kg-1 K-1 - gas constant, water vapour
    real(8), parameter ::MPC_EPS1_R8                       =  6.219800221014000D-01 ! (unitless) - R(air) / R(vapour)
    real(8), parameter ::MPC_EPS2_R8                       =  3.780199778986000D-01 ! (unitless) - 1 - eps1
