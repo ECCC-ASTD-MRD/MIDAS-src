@@ -59,7 +59,7 @@ MODULE mathPhysConstants_mod
    real(8), parameter ::MPC_DELTA_R8                      =  6.077686814144000D-01 ! (unitless) - 1/eps1 - 1 (unitless) \u2013 [R(vapour) / R(air)] - 1
 !
 ! *** THERMODYNAMIC CONSTANTS (MOLAR MASSES) ***
-   real(8), parameter ::MPC_MOLAR_MASS_DRY_AIR_R8         =  2.896440000000000D+01 ! g/mol - dry-air molar mass
+   real(8), protected ::MPC_MOLAR_MASS_DRY_AIR_R8         =  2.896440000000000D+01 ! g/mol - dry-air molar mass
    real(8), parameter ::MPC_MOLAR_MASS_VAPOUR_R8          =  1.801530000000000D+01 ! g/mol - water-vapour molar mass
    real(8), parameter ::MPC_MOLAR_MASS_O3_R8              =  4.799820000000000D+01 ! g/mol - ozone molar mass
    real(8), parameter ::MPC_MOLAR_MASS_CH4_R8             =  1.604246000000000D+01 ! g/mol - methane molar mass
