@@ -379,7 +379,7 @@ def write_fortran_MPCmodule(PhysDict, PhysList):
                     s_parameter = '           '
 
                 # Prepare the string to be written
-                print_string = "   real({size}){parameter} ::{name:34}= {value:22.15E} ! {units}\n".format(size=real_size, parameter=s_parameter, name=''.join([item_name, '_R', real_size]), value=item_value, units=item_units)
+                print_string = "   real({size}){parameter} :: {name:34}= {value:22.15E} ! {units}\n".format(size=real_size, parameter=s_parameter, name=''.join([item_name, '_R', real_size]), value=item_value, units=item_units)
                 # Write the value in double precision
                 print_string = 'D+'.join(print_string.split('E+'))
                 print_string = 'D-'.join(print_string.split('E-'))
