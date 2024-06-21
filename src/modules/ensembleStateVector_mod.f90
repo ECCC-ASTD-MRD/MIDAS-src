@@ -2790,10 +2790,11 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
-    integer :: yourid, youridx, youridy
+    integer :: yourid, youridx, youridy, procIndex
     integer :: writeFilePE(ens%numMembers)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
@@ -2861,8 +2862,8 @@ CONTAINS
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
-    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -2950,18 +2951,34 @@ CONTAINS
               do varLevCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       ens%allLev_r4(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                       ens%allLev_r4(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
               !$OMP END PARALLEL DO
             end if
 
-            nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
+            nsize = lonPerPE * latPerPE * numLevelsToSend2
+            ! only send the exact data amount for each task
+            do procIndex = 1, mmpi_nprocs
+              sendsizes(procIndex) = nsize
+            end do
+            ! Collect the sizes for each processor
+            call rpn_comm_alltoall(sendsizes(:),1,"mpi_integer",  &
+                                   recvsizes(:),1,"mpi_integer","GRID",ierr)
+            senddispls(1) = 0
+            do procIndex = 2, mmpi_nprocs
+              senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+            end do
+            ! Collect the displacements for each processor
+            call rpn_comm_alltoall(senddispls(:),1,"mpi_integer",  &
+                                   recvdispls(:),1,"mpi_integer","GRID",ierr)
+
             if (mmpi_nprocs > 1) then
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoall')
-              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
-                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+              call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
+                                 gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
+                                 mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
