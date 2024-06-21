@@ -2925,6 +2925,7 @@ CONTAINS
       
       do memberIndex = 1, ens%numMembers
 
+        call utl_tmg_start(190,'ens_WriteEnsemble-mpicommunication')
         !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
         if (writeFilePE(memberIndex) == 0) then
 
@@ -2958,8 +2959,10 @@ CONTAINS
 
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mmpi_nprocs > 1) then
+              call utl_tmg_start(191,'ens_WriteEnsemble-alltoall')
               call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
                                      gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+              call utl_tmg_stop(191)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
@@ -2982,8 +2985,10 @@ CONTAINS
           end do ! varLevIndexBeg
           
         end if ! MPI communication
-        
+        call utl_tmg_stop(190)
+
         ! Write statevector to file
+        call utl_tmg_start(192,'ens_WriteEnsemble-writing')
         if (mmpi_myid == writeFilePE(memberIndex)) then
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -3050,6 +3055,7 @@ CONTAINS
 	  end if
 
         end if ! locally written one member
+        call utl_tmg_stop(192)
 
       end do ! memberIndex
 
