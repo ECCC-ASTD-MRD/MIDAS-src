@@ -2797,7 +2797,7 @@ CONTAINS
     integer :: writeFilePE(ens%numMembers)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, kCount
+    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName, outFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2936,18 +2936,18 @@ CONTAINS
             numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             if ( ens%dataKind == 8 ) then
-              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
-              do kCount = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
+              do varLevCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       real(ens%allLev_r8(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                       real(ens%allLev_r8(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
               !$OMP END PARALLEL DO
             else
-              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
-              do kCount = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
+              do varLevCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
@@ -2983,7 +2983,7 @@ CONTAINS
             !$OMP END PARALLEL DO
 
           end do ! varLevIndexBeg
-          
+
         end if ! MPI communication
         call utl_tmg_stop(190)
 
