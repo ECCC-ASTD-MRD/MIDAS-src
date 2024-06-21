@@ -2794,7 +2794,7 @@ CONTAINS
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy
-    integer :: writeFilePE(1000)
+    integer :: writeFilePE(ens%numMembers)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, kCount
