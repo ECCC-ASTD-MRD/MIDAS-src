@@ -7,6 +7,7 @@ which nodehistory 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
 
 eval $(cclargs_lite -D ' ' $0 "[ extract timings of 'run' task from MIDAS test suite ]" \
  -suite "" "" "[ suite to extract timings from (default to the same suite as this script is to) ]" \
+ -findAborts "no" "yes" "[ find tests that aborted ]" \
  -all "no" "yes" "[ extract all the timings ]" \
  -computeStats "no" "yes" "[ compute mean and other statistics from several execution of the tests for the same maestro date (default if 'no')]" \
  -findOutliers "no" "yes" "[ check for outliers in the listings if 'notify' then send an email to a list of emails when outliers are found (see '-emails' argument) (default is 'no') ]" \
@@ -52,7 +53,21 @@ if [ "${findOutliers}" = no -a -n "${emails}" ]; then
     echo "$0: WARNING: Since '-findOutliers' argument is 'no', no email will be sent to the list you gave." >&2
 fi
 
-echo "Extract run times for tests in ${suite}"
+if [ "${findAborts}" != no -a "${findAborts}" != yes ]; then
+    echo "$0: The '-findAborts' argument must be 'yes' or 'no' and not '${findAborts}" >&2
+    exit 1
+elif [ "${findAborts}" = yes ]; then
+    if [ "${findOutliers}" = yes ]; then
+        echo "$0: You cannot use '-findAborts' and '-findOutliers' at the same time" >&2
+        exit 1
+    fi
+    if [ "${computeStats}" = yes ]; then
+        echo "$0: You cannot use '-findAborts' and '-computeStats' at the same time" >&2
+        exit 1
+    fi
+else ## Then 'findAborts=no'
+    echo "Extract run times for tests in ${suite}"
+fi
 
 if [ "${log}" = latest ]; then
     logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
@@ -89,10 +104,17 @@ findRunTime () {
     findRunTime_node=$1
     findRunTime_nodes="$(nodeinfo -n ${findRunTime_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findRunTime_nodes}" = /*/UnitTest ]]; then
-        echo ${findRunTime_nodes%/*}
-        __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
-        if [ "${computeStats}" = yes ]; then
-            __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
+        if [ "${findAborts}" = yes ]; then
+            __findRunTime_aborts__=1
+            nodehistory -n ${findRunTime_nodes} -history 0 -edate ${logdate} | grep -sq ABORTED || __findRunTime_aborts__=0
+            if [ "${__findRunTime_aborts__}" -ne 0 ]; then
+                echo ${findRunTime_nodes%/*} aborted
+            fi
+        else
+            echo ${findRunTime_nodes%/*}
+            __findRunTime_runtime__=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds' | sed 's/%/%%/g')
+            if [ "${computeStats}" = yes ]; then
+                __findRunTime_stats__=$(printf "${__findRunTime_runtime__}" | awk '
 BEGIN {
    min=10000
    max=0
@@ -118,31 +140,32 @@ END {
         print mean, sqrt(var), sqrt(var)/mean, min, max, number
     }
 }')
-            printf "\t${__findRunTime_stats__}\n"
-            unset __findRunTime_stats__
-        fi
-        if [ "${extractAll}" = yes ]; then
-            printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
-        else
-            if [ -n "${__findRunTime_runtime__}" ]; then
-                noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
-                if [ -n "${noOutlier}" ]; then
-                    echo -e "\t${noOutlier}"
-                fi
+                printf "\t${__findRunTime_stats__}\n"
+                unset __findRunTime_stats__
+            fi
+            if [ "${extractAll}" = yes ]; then
+                printf "${__findRunTime_runtime__}\n" | sed 's/^/\t/'
             else
-                echo -e "\tNo run time was available for that test"
+                if [ -n "${__findRunTime_runtime__}" ]; then
+                    noOutlier=$(printf "${__findRunTime_runtime__}" | head -1 | grep -v 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' || true)
+                    if [ -n "${noOutlier}" ]; then
+                        echo -e "\t${noOutlier}"
+                    fi
+                else
+                    echo -e "\tNo run time was available for that test"
+                fi
             fi
-        fi
-        unset __findRunTime_runtime__
-        if [ "${findOutliers}" = yes ]; then
-            outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
-            if [ -n "${outlier}" ]; then
-                printf "${outlier}\n" | sed 's/^/\t/'
-                line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
-                outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
+            unset __findRunTime_runtime__
+            if [ "${findOutliers}" = yes ]; then
+                outlier=$(nodehistory -n ${findRunTime_nodes}/run -history 0 -edate ${logdate} | grep 'The runtime was [.0-9][.0-9]* seconds which is greater than the maximum allowed' | sed 's/%/%%/g')
+                if [ -n "${outlier}" ]; then
+                    printf "${outlier}\n" | sed 's/^/\t/'
+                    line=$(printf "${outlier}" | sed 's/^/\t/' | sed 's/%/%%/g')
+                    outliers="${outliers}"${findRunTime_nodes%/*}"\n"${line}"\n"
+                fi
             fi
-        fi
-    else
+        fi ## End of 'else' associated to 'if [ "${findAborts}" = yes ]'
+    else ## End of 'if [[ "${findRunTime_nodes}" = /*/UnitTest ]]'
         for __node__ in ${findRunTime_nodes}; do
             findRunTime ${__node__}
         done
