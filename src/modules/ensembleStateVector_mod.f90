@@ -2788,8 +2788,8 @@ CONTAINS
     type(struct_gsv) :: statevectorHeightSfc, statevectorHeightSfc_tiles
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
-    real(4), allocatable :: gd_send_r4(:,:,:,:)
-    real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    real(4), allocatable :: gd_send_r4(:,:,:,:), gd_send_alltoall_r4(:,:,:,:)
+    real(4), allocatable :: gd_recv_r4(:,:,:,:), gd_recv_alltoall_r4(:,:,:,:)
     integer :: sendsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvsizes(mmpi_nprocs), recvdispls(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
@@ -2864,6 +2864,8 @@ CONTAINS
     numLevelsToSend = 10
     allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_alltoall_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_recv_alltoall_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -2990,11 +2992,19 @@ CONTAINS
             ! end do
 
             if (mmpi_nprocs > 1) then
-              call utl_tmg_start(191,'ens_WriteEnsemble-alltoall')
+              call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
               call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, recvdispls, mmpi_datyp_real4, &
+                                 gd_recv_r4, sendsizes, recvdispls, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
+
+              gd_send_alltoall_r4(:,:,:,:) = gd_send_r4(:,:,:,:)
+              call utl_tmg_start(192,'ens_WriteEnsemble-alltoall')
+              call rpn_comm_alltoall(gd_send_alltoall_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
+                                     gd_recv_alltoall_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+              call utl_tmg_stop(192)
+
+              write(*,*) 'alltoall vs alltoallv differences ', all(abs(gd_send_alltoall_r4(:,:,1:numLevelsToSend2,mmpi_myid) - gd_send_alltoall_r4(:,:,1:numLevelsToSend2,mmpi_myid)) <= 0.001)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
