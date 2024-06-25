@@ -1422,7 +1422,7 @@ module calcStatsGlb_mod
       write(*,*) 'calcCorrelations: processing member ',ensIndex
 
       !- 2.1 Extract fields from ensPerturbations
-      do levIndex = 1, ens_getNumK(ensPerts)
+      do levIndex = 1, ens_getNumVarLev(ensPerts)
         ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
         gridState(:,:,levIndex) = real(ptr4d_r4(ensIndex,1,:,:),8)
       end do
@@ -1536,7 +1536,7 @@ module calcStatsGlb_mod
     integer :: memberIndex, levIndex, latIndex, lonIndex
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal
 
-    allocate(powerSpec          (ens_getNumK(ensPerts),0:ntrunc))
+    allocate(powerSpec(ens_getNumVarLev(ensPerts),0:ntrunc))
 
     !
     !- Spectral decomposition and spectral coefficient summation
@@ -1548,7 +1548,7 @@ module calcStatsGlb_mod
 
     powerSpec(:,:)=0.0d0
     
-    do levIndex = 1, ens_getNumK(ensPerts) ! Loop on variables and vertical levels
+    do levIndex = 1, ens_getNumVarLev(ensPerts) ! Loop on variables and vertical levels
       
       ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
 
@@ -1601,7 +1601,7 @@ module calcStatsGlb_mod
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
       dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
-      do levIndex = 1, ens_getNumK(ensPerts)
+      do levIndex = 1, ens_getNumVarLev(ensPerts)
         powerSpec(levIndex,jn) = powerSpec(levIndex,jn)*dfact2*dfact
       end do
     end do
@@ -2220,7 +2220,7 @@ module calcStatsGlb_mod
     allocate(ensPertGD(nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
     ensPertSP(:,:,:) = 0.0d0
     
-    do levIndex = 1, ens_getNumK(ensPerts) ! Loop on variables and vertical levels
+    do levIndex = 1, ens_getNumVarLev(ensPerts) ! Loop on variables and vertical levels
 
       ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
 

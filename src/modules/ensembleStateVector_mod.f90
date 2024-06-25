@@ -38,7 +38,7 @@ module ensembleStateVector_mod
   public :: ens_getMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
-  public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
+  public :: ens_getNumVarLev, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
   public :: ens_copyHeightSfc
@@ -1469,9 +1469,9 @@ CONTAINS
   end function ens_getNumSubEns
 
   !--------------------------------------------------------------------------
-  ! ens_getNumK
+  ! ens_getNumVarLev
   !--------------------------------------------------------------------------
-  function ens_getNumK(ens) result(numK)
+  function ens_getNumVarLev(ens) result(numVarLev)
     !
     !:Purpose: Return the number of varLevIndex (a.k.a. varLevs) values of the ensemble.
     !
@@ -1480,11 +1480,11 @@ CONTAINS
     ! Arguments:
     type(struct_ens), intent(in)  :: ens
     ! Result:
-    integer                       :: numK
+    integer                       :: numVarLev
 
-    numK = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
+    numVarLev = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
 
-  end function ens_getNumK
+  end function ens_getNumVarLev
 
   !--------------------------------------------------------------------------
   ! ens_getDataKind
@@ -2305,7 +2305,7 @@ CONTAINS
     integer, allocatable :: readFilePE(:), memberIndexFromMemberStep(:), stepIndexFromMemberStep(:)
     integer, allocatable :: batchIndexFromMemberStep(:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
-    integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numMembers, numLevelsToSend2
+    integer :: lonPerPEmax, latPerPEmax, ni, nj, numVarLev, numStep, numMembers, numLevelsToSend2
     integer :: memberIndex, memberIndex2, stepIndex, stepIndex2, procIndex, memberStepIndex, memberStepIndex2
     integer :: varLevIndexBeg, varLevIndexEnd, kCount, memberStepIndexStart, lastReadFilePE
     character(len=256) :: ensFileName
@@ -2332,7 +2332,7 @@ CONTAINS
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
     nj          = ens%statevector_work%nj
-    numK        = ens%statevector_work%nk
+    numVarLev   = ens%statevector_work%numVarLev
     numStep     = ens%statevector_work%numStep
     numMembers  = ens%numMembers
 
@@ -2592,7 +2592,7 @@ CONTAINS
           if ( .not. hco_ens%global .and. biperiodic ) then
             call gsv_getField(statevector_member_r4,ptr3d_r4)
             call lgt_mach_r4(ptr3d_r4,    & ! INOUT
-                             ni, nj, statevector_member_r4%nk)  ! IN
+                             ni, nj, statevector_member_r4%numVarLev)  ! IN
           end if
 
           ! copy over some time related and other parameters
@@ -2636,8 +2636,8 @@ CONTAINS
                                 'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
           end do
 
-          do varLevIndexBeg = 1, numK, numLevelsToSend
-            varLevIndexEnd = min(numK,varLevIndexBeg+numLevelsToSend-1)
+          do varLevIndexBeg = 1, numVarLev, numLevelsToSend
+            varLevIndexEnd = min(numVarLev,varLevIndexBeg+numLevelsToSend-1)
             numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             ! prepare for alltoallv
@@ -2796,7 +2796,7 @@ CONTAINS
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numK, numStep, numlevelstosend, numlevelstosend2
+    integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, kCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName, outFileName
@@ -2854,7 +2854,7 @@ CONTAINS
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
     nj          = ens%statevector_work%nj
-    numK        = ens%statevector_work%nk
+    numVarLev   = ens%statevector_work%numVarLev
     numStep     = ens%statevector_work%numStep
 
     ens%ensPathName = trim(ensPathName)
@@ -2930,8 +2930,8 @@ CONTAINS
 
           batchIndex = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
 
-          do varLevIndexBeg = 1, numK, numLevelsToSend
-            varLevIndexEnd = min(numK,varLevIndexBeg+numLevelsToSend-1)
+          do varLevIndexBeg = 1, numVarLev, numLevelsToSend
+            varLevIndexEnd = min(numVarLev,varLevIndexBeg+numLevelsToSend-1)
             numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             if ( ens%dataKind == 8 ) then
@@ -3098,7 +3098,7 @@ CONTAINS
     call gsv_getField(stateVectorAnalIncMask, analIncMask_ptr)
 
     nEns = ens_getNumMembers(ensIncrement)
-    numVarLev = ens_getNumK(ensIncrement)
+    numVarLev = ens_getNumVarLev(ensIncrement)
     call ens_getLatLonBounds(ensIncrement, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     do varLevIndex = 1, numVarLev
       increment_ptr => ens_getOneLev_r4(ensIncrement,varLevIndex)

@@ -347,7 +347,7 @@ program midas_randomPert
                     dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false., &
                     hInterpolateDegree_opt='LINEAR')
-  nkgdim = stateVectorPert%nk
+  nkgdim = stateVectorPert%numVarLev
   allocate(ensemble_r4(myLonBega:myLonEnda, myLatBega:myLatEnda, nkgdim, nEns))
 
   !- 3.2 Allocate auxillary variables
@@ -449,8 +449,8 @@ program midas_randomPert
   !- 4.3 Smooth variances to horizontally constant values
   if ( smoothVariances ) then
   
-    allocate(pturb_var(myLonBega:myLonEnda, myLatBega:myLatEnda, stateVectorPert%nk))
-    allocate(avg_pturb_var(stateVectorPert%nk), avg_pturb_var_glb(stateVectorPert%nk))
+    allocate(pturb_var(myLonBega:myLonEnda, myLatBega:myLatEnda, stateVectorPert%numVarLev))
+    allocate(avg_pturb_var(stateVectorPert%numVarLev), avg_pturb_var_glb(stateVectorPert%numVarLev))
     pturb_var(:,:,:) = 0.0D0
     avg_pturb_var(:) = 0.0D0
     avg_pturb_var_glb(:) = 0.0D0

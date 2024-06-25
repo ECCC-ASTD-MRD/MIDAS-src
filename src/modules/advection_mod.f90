@@ -1006,7 +1006,7 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
-    do varLevIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
 
       levIndex = ens_getLevFromK    (ens,varLevIndex)
       varName  = ens_getVarNameFromK(ens,varLevIndex)
@@ -1113,7 +1113,7 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
-    do varLevIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
 
       levIndex = ens_getLevFromK    (ens,varLevIndex)
       varName  = ens_getVarNameFromK(ens,varLevIndex)
@@ -1234,7 +1234,7 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
-    do varLevIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
             
       levIndex = ens_getLevFromK    (ens,varLevIndex)
       varName  = ens_getVarNameFromK(ens,varLevIndex)
@@ -1366,7 +1366,7 @@ CONTAINS
     allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
 
-    do varLevIndex = 1, gsv_getNumK(statevector)
+    do varLevIndex = 1, gsv_getNumVarLev(statevector)
 
       levIndex = gsv_getLevFromK    (statevector,varLevIndex)
       varName  = gsv_getVarNameFromK(statevector,varLevIndex)
@@ -1493,7 +1493,7 @@ CONTAINS
     allocate(field2D_mpiglobal_tiles (adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal_tiles2(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
-    do varLevIndex = 1, gsv_getNumK(statevector)
+    do varLevIndex = 1, gsv_getNumVarLev(statevector)
             
       levIndex = gsv_getLevFromK    (statevector,varLevIndex)
       varName  = gsv_getVarNameFromK(statevector,varLevIndex)

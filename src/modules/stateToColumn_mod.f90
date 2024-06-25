@@ -372,7 +372,7 @@ contains
     integer :: recvdispls(mmpi_nprocs), allkBeg(mmpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: lonIndex, latIndex, gridIndex
-    integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
+    integer :: maxkcount, numVarLevToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
@@ -660,8 +660,8 @@ contains
                               allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
                               'GRID', ierr)
 
-      allocate(latColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
-      allocate(lonColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
+      allocate(latColumn(numHeaderUsedMax,allkBeg(1):stateVector%numVarLev))
+      allocate(lonColumn(numHeaderUsedMax,allkBeg(1):stateVector%numVarLev))
       latColumn(:,:) = 0.0d0
       lonColumn(:,:) = 0.0d0
 
@@ -754,7 +754,7 @@ contains
                              latLev_S, lonLev_S )             ! IN/OUT
 
           ! put the lat/lon from TH/MM levels to varLevIndex
-          do varLevIndex = allkBeg(1), stateVector%nk
+          do varLevIndex = allkBeg(1), stateVector%numVarLev
             if (varLevIndex == 0) then
               varLevel = 'SF'
             else
@@ -782,7 +782,7 @@ contains
         ! MPI communication for the slant-path lat/lon
 
         maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
-        numkToSend = min(mmpi_nprocs,stateVector%nk)
+        numVarLevToSend = min(mmpi_nprocs,stateVector%numVarLev)
 
         allocate(lat_recv_r8(numHeaderUsedMax,mmpi_nprocs))
         lat_recv_r8(:,:) = 0.0d0
@@ -795,7 +795,7 @@ contains
 
         ! only send the data from tasks with data, same amount to all
         sendsizes(:) = 0
-        do procIndex = 1, numkToSend
+        do procIndex = 1, numVarLevToSend
           sendsizes(procIndex) = numHeaderUsed
         end do
         senddispls(1) = 0
@@ -816,9 +816,9 @@ contains
             ! compute varLevIndex value being sent
             varLevIndex = varLevIndexCount + allkBeg(procIndex) - 1
             if ( varLevIndex <= stateVector%allkEnd(procIndex) ) then
-              if( procIndex > numkToSend ) then
-                write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
-                call utl_abort('ERROR: with numkToSend?')
+              if( procIndex > numVarLevToSend ) then
+                write(*,*) 'procIndex, numVarLevToSend = ', procIndex, numVarLevToSend
+                call utl_abort('ERROR: with numVarLevToSend?')
               end if
 
               lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,varLevIndex)
@@ -2586,18 +2586,18 @@ contains
       extraLongitude = 0
     end if
 
-    allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%nk))
+    allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%numVarLev))
   
     zgd(:,:,:)=0.0d0
     call gsv_getField(statevector,field_ptr)
-    zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
-         field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
+    zgd(1:statevector%ni,1:statevector%nj,1:statevector%numVarLev)= &
+         field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%numVarLev)
 
     !
     !- 1.  Expand field by repeating meridian 1 into into meridian ni+1
     !
     if (extraLongitude == 1) then
-      do jk = 1, statevector%nk
+      do jk = 1, statevector%numVarLev
         do jgl = 1, statevector%nj
           zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
         end do
@@ -3530,14 +3530,14 @@ contains
     integer :: varLevIndex
 
     ! check column/statevector have same nk
-    if ( col_getNumK(column) /= gsv_getNumK(statevector) ) then
-      write(*,*) 'checkColumnStatevectorMatch: col_getNumK(column), gsv_getNumK(statevector)', &
-                 col_getNumK(column), gsv_getNumK(statevector)
-      call utl_abort('checkColumnStatevectorMatch: col_getNumK(column) /= gsv_getNumK(statevector)')
+    if ( col_getNumVarLev(column) /= gsv_getNumVarLev(statevector) ) then
+      write(*,*) 'checkColumnStatevectorMatch: col_getNumVarLev(column), gsv_getNumVarLev(statevector)', &
+                 col_getNumVarLev(column), gsv_getNumVarLev(statevector)
+      call utl_abort('checkColumnStatevectorMatch: col_getNumVarLev(column) /= gsv_getNumVarLev(statevector)')
     end if
     
     ! loop through k and check varNames are same between column/statevector
-    do varLevIndex = 1, col_getNumK(column)
+    do varLevIndex = 1, col_getNumVarLev(column)
       if (gsv_getVarNameFromK(statevector,varLevIndex) /= col_getVarNameFromK(column,varLevIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
                    gsv_getVarNameFromK(statevector,varLevIndex), col_getVarNameFromK(column,varLevIndex) 

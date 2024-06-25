@@ -2090,7 +2090,7 @@ contains
     myLatEnd = stateVectorMeanAnl%myLatEnd
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
-    numVarLev  = stateVectorMeanAnl%nk
+    numVarLev  = stateVectorMeanAnl%numVarLev
 
     allocate(memberAnlPert(enkfNML%nEns))
     call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)

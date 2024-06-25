@@ -762,7 +762,7 @@ CONTAINS
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
-    do levIndex = 1, ens_getNumK(ens)
+    do levIndex = 1, ens_getNumVarLev(ens)
 
       varName = ens_getVarNameFromK(ens,levIndex)
       if (varName /= 'HU') cycle
@@ -1730,7 +1730,7 @@ CONTAINS
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
-    do levIndex = 1, ens_getNumK(ens)
+    do levIndex = 1, ens_getNumVarLev(ens)
 
       varName_ens = ens_getVarNameFromK(ens,levIndex)
       if ( trim(varName_ens) /= trim(varName) ) cycle

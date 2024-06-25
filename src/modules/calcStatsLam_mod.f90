@@ -315,7 +315,7 @@ contains
 
     end do
 
-    bhi%nVarLev = ens_getNumK(ensPerts)
+    bhi%nVarLev = ens_getNumVarLev(ensPerts)
 
     !
     !- 6.  Transform u-wind and v-wind to control variables 
@@ -1710,7 +1710,7 @@ contains
     write(*,*)
     write(*,*) 'scaleStdDev: Starting...'
     
-    nVarLev = gsv_getNumK(statevector_stdDev)
+    nVarLev = gsv_getNumVarLev(statevector_stdDev)
  
     call gsv_getField(statevector_stdDev,ptr3d_r8)
 

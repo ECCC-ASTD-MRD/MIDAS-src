@@ -77,7 +77,7 @@ contains
     nj        = hco_ens%nj
     nLevEns_M = gsv_getNumLev(statevector_template,'MM') !nLevEns_M_in
     nLevEns_T = gsv_getNumLev(statevector_template,'TH') !nLevEns_T_in
-    nkgdimEns = statevector_template%nk
+    nkgdimEns = statevector_template%numVarLev
     pressureProfile_M => pressureProfile_M_in
     pressureProfile_T => pressureProfile_T_in
     nWaveBand = nWaveBand_in

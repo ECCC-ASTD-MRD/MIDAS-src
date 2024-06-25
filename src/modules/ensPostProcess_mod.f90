@@ -1025,7 +1025,7 @@ contains
     call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
     nEns = ens_getNumMembers(ensembleAnl)
-    numVarLev = ens_getNumK(ensembleAnl)
+    numVarLev = ens_getNumVarLev(ensembleAnl)
     call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     do varLevIndex = 1, numVarLev
       memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
@@ -1088,7 +1088,7 @@ contains
     call gsv_getField(stateVectorMeanTrl, meanTrl_ptr_r4)
 
     nEns = ens_getNumMembers(ensembleAnl)
-    numVarLev = ens_getNumK(ensembleAnl)
+    numVarLev = ens_getNumVarLev(ensembleAnl)
     call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
     do varLevIndex = 1, numVarLev
@@ -1165,7 +1165,7 @@ contains
 
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensembleAnl)
-    numVarLev = ens_getNumK(ensembleAnl)
+    numVarLev = ens_getNumVarLev(ensembleAnl)
     call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     vco_ens => ens_getVco(ensembleAnl)
     hco_ens => ens_getHco(ensembleAnl)
@@ -1641,7 +1641,7 @@ contains
     real(8), allocatable          :: scaleFactor(:)
     real(4), allocatable          :: pressureOrHeightOrDepth(:)
     integer                       :: ierr, latIndex, lonIndex, nulFile
-    integer                       :: varLevIndex, varLevIndexCount, numK
+    integer                       :: varLevIndex, varLevIndexCount, numVarLev
     integer                       :: varLevIndexUU, varLevIndexVV
     integer                       :: levIndex, nLev_M
     real(4), pointer              :: stdDev_ptr_r4(:,:,:)
@@ -1654,11 +1654,11 @@ contains
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
 
-    numK = gsv_getNumK(stateVectorStdDev)
-    allocate(nomvar_v(numK))
-    allocate(pressureOrHeightOrDepth(numK))
-    allocate(rmsvalue(numK))
-    allocate(scaleFactor(numK))
+    numVarLev = gsv_getNumVarLev(stateVectorStdDev)
+    allocate(nomvar_v(numVarLev))
+    allocate(pressureOrHeightOrDepth(numVarLev))
+    allocate(rmsvalue(numVarLev))
+    allocate(scaleFactor(numVarLev))
 
     ! compute a 2D weight field used for horizontal averaging
     hco => gsv_getHco(stateVectorStdDev)
@@ -1672,7 +1672,7 @@ contains
     ! compute global mean variance accounting for weights
     call gsv_getField(stateVectorStdDev,stdDev_ptr_r4)
     rmsvalue(:) = 0.0D0
-    do varLevIndex = 1, numK
+    do varLevIndex = 1, numVarLev
       do latIndex = stateVectorStdDev%myLatBeg, stateVectorStdDev%myLatEnd
         do lonIndex = stateVectorStdDev%myLonBeg, stateVectorStdDev%myLonEnd
           rmsvalue(varLevIndex) = rmsvalue(varLevIndex) +  &
@@ -1702,7 +1702,7 @@ contains
       end if
 
       ! set the variable name and pressure for each element of column
-      do varLevIndex = 1, numK
+      do varLevIndex = 1, numVarLev
         levIndex = gsv_getLevFromK(stateVectorStdDev, varLevIndex)
         nomvar_v(varLevIndex) = gsv_getVarNameFromK(stateVectorStdDev,varLevIndex)
         varLevel = vnl_varLevelFromVarname(nomvar_v(varLevIndex))
@@ -1726,7 +1726,7 @@ contains
     else if (vco%nLev_depth > 0) then
 
       ! set the variable name and depth for each element of column
-      do varLevIndex = 1, numK
+      do varLevIndex = 1, numVarLev
         nomvar_v(varLevIndex) = gsv_getVarNameFromK(stateVectorStdDev,varLevIndex)
         if (vnl_varLevelFromVarName(nomvar_v(varLevIndex)) == 'SS') then
           pressureOrHeightOrDepth(varLevIndex) = 0.0
@@ -1743,7 +1743,7 @@ contains
     end if
 
     ! set the scaleFactor and rmsvalue for each element of column
-    do varLevIndex = 1, numK
+    do varLevIndex = 1, numVarLev
       if ( (nomvar_v(varLevIndex) == 'UU') .or. (nomvar_v(varLevIndex) == 'VV') ) then
         scaleFactor(varLevIndex) = MPC_KNOTS_PER_M_PER_S_R8
       else if (nomvar_v(varLevIndex) == 'P0') then
@@ -1775,7 +1775,7 @@ contains
                              pressureOrHeightOrDepth(varLevIndexVV), rmsvalue(varLevIndexVV)
         end do
       end if
-      do varLevIndex = varLevIndexCount+1, numK
+      do varLevIndex = varLevIndexCount+1, numVarLev
         write(nulFile,100) elapsed, ftype, nEns, nomvar_v(varLevIndex), &
                            pressureOrHeightOrDepth(varLevIndex), rmsvalue(varLevIndex)   
       end do

@@ -312,7 +312,7 @@ contains
     call euclid(innerProduct1_local, &
          field3d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
          field3d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
-         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, 1)
+         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, 1)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
@@ -401,7 +401,7 @@ contains
     call euclid(innerProduct1_local, &
          field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
@@ -493,7 +493,7 @@ contains
     ! x
     seed=1
     call rng_setup(abs(seed+mmpi_myid))
-    do varLevIndex = 1, ens_getNumK(ensAmplitude_x)
+    do varLevIndex = 1, ens_getNumVarLev(ensAmplitude_x)
       ens_oneLev => ens_getOneLev_r8(ensAmplitude_x,varLevIndex)
       do memberIndex = 1, loc%nEnsOverDimension
         do stepIndex = 1,numStepAmplitude
@@ -529,7 +529,7 @@ contains
       call euclid(innerProduct1_local, &
            field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
            field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-           statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+           statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -645,7 +645,7 @@ contains
 !!$    end do
 !!$
 !!$    ! y
-!!$    do varLevIndex = 1, ens_getNumK(ensAmplitude_y)
+!!$    do varLevIndex = 1, ens_getNumVarLev(ensAmplitude_y)
 !!$      ens_oneLev => ens_getOneLev_r8(ensAmplitude_y,varLevIndex)
 !!$      do memberIndex = 1, loc%nEnsOverDimension
 !!$        do stepIndex = 1,tim_nstepobsinc
@@ -668,7 +668,7 @@ contains
 !!$    call euclid(innerProduct1_local, &
 !!$         statevector_x %gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
 !!$         statevector_Ly%gd_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-!!$         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+!!$         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
 !!$    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
 !!$    call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
 !!$    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
@@ -686,7 +686,7 @@ contains
 !!$      call euclid(innerProduct2_local, &
 !!$           statevector_LTx %gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
 !!$           statevector_y%gd_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
-!!$           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
+!!$           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
 !!$    end do
 !!$    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
 !!$    call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -773,7 +773,7 @@ contains
     ! x
     seed=1
     call rng_setup(abs(seed+mmpi_myid))
-    do varLevIndex = 1, ens_getNumK(ens_x)
+    do varLevIndex = 1, ens_getNumVarLev(ens_x)
       ens_oneLev => ens_getOneLev_r8(ens_x,varLevIndex)
       do memberIndex = 1, nEns
         do stepIndex = 1,tim_nstepobsinc
@@ -806,7 +806,7 @@ contains
       call euclid(innerProduct1_local, &
            field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
            field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-           statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+           statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     end do
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -828,7 +828,7 @@ contains
       call euclid(innerProduct2_local, &
            field4d_LTx_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
            field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
-           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
+           statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
     end do
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
@@ -937,7 +937,7 @@ contains
     call euclid(innerProduct1_local, &
          field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
          field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
-         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%nk, statevector_Ly%numStep)
+         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
     write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
     call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
     write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
@@ -955,7 +955,7 @@ contains
     call euclid(innerProduct2_local, &
          field4d_LTx_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
          field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
-         statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%nk, statevector_y%numStep)
+         statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
 !    call euclid(innerProduct2_local, controlVector2, controlVector1, 1, cvDim, 1, 1, 1, 1)
     print*,"<Lt(x) ,y   > local = ",innerProduct2_local
     call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)

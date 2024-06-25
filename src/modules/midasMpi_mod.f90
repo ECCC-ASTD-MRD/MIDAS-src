@@ -755,7 +755,7 @@ module midasMpi_mod
 
     ! Locals:
     integer :: jlev
-    integer :: jproc
+    integer :: procIndex
     integer :: factor
     integer :: myLevCounts(mmpi_npex)
 
@@ -770,21 +770,21 @@ module midasMpi_mod
     end if
 
     myLevCounts(:) = 0
-    do jproc = 1, mmpi_npex
-      do jlev = jproc, (numlevels / factor), mmpi_npex
-        myLevCounts(jproc) = myLevCounts(jproc) + 1
+    do procIndex = 1, mmpi_npex
+      do jlev = procIndex, (numlevels / factor), mmpi_npex
+        myLevCounts(procIndex) = myLevCounts(procIndex) + 1
       end do
     end do
-    do jproc = 1, mmpi_npex
-      myLevCounts(jproc) = myLevCounts(jproc) * factor
+    do procIndex = 1, mmpi_npex
+      myLevCounts(procIndex) = myLevCounts(procIndex) * factor
     end do
 
     myLevCount = myLevCounts(mmpi_myidx + 1)
 
     if (myLevCount > 0) then
       myLevBeg = 1
-      do jproc = 1, mmpi_myidx
-        myLevBeg = myLevBeg + myLevCounts(jproc)
+      do procIndex = 1, mmpi_myidx
+        myLevBeg = myLevBeg + myLevCounts(procIndex)
       end do
       myLevEnd = myLevBeg + myLevCount - 1
     else
@@ -800,7 +800,7 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_setup_varslevels
   !--------------------------------------------------------------------------
-  subroutine mmpi_setup_varslevels(numk, mykBeg, mykEnd, mykCount)
+  subroutine mmpi_setup_varslevels(numVarLev, mykBeg, mykEnd, mykCount)
     !
     !:Purpose: Compute parameters that define the mpi distribution of
     !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
@@ -808,28 +808,28 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: numk
+    integer, intent(in)  :: numVarLev
     integer, intent(out) :: mykBeg
     integer, intent(out) :: mykEnd
     integer, intent(out) :: mykCount
 
     ! Locals:
-    integer :: jk
-    integer :: jproc
+    integer :: varLevIndex
+    integer :: procIndex
     integer :: mykCounts(mmpi_nprocs)
 
     mykCounts(:) = 0
-    do jproc = 1, mmpi_nprocs
-      do jk = jproc, numk, mmpi_nprocs
-        mykCounts(jproc) = mykCounts(jproc) + 1
+    do procIndex = 1, mmpi_nprocs
+      do varLevIndex = procIndex, numVarLev, mmpi_nprocs
+        mykCounts(procIndex) = mykCounts(procIndex) + 1
       end do
     end do
 
     mykCount = mykCounts(mmpi_myid + 1)
 
     mykBeg = 1
-    do jproc = 1, mmpi_myid
-      mykBeg = mykBeg + mykCounts(jproc)
+    do procIndex = 1, mmpi_myid
+      mykBeg = mykBeg + mykCounts(procIndex)
     end do
     mykEnd = mykBeg + mykCount - 1
 

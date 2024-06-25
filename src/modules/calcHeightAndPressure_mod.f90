@@ -2794,7 +2794,7 @@ contains
 
     ! to prevent 'variable not used' remark
     if (.false.) then
-      write(*,*) col_getNumK(column)
+      write(*,*) col_getNumVarLev(column)
       Z_T = 0.0
       Z_M = 0.0
     end if

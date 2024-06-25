@@ -42,7 +42,7 @@ module gridStateVector_mod
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
   public :: gsv_copyHeightSfc, gsv_copyMask
-  public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
+  public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumVarLev
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_msgVarNames, gsv_msgFldExtremum
@@ -92,7 +92,7 @@ module gridStateVector_mod
 
     ! All the remaining extra information
     integer             :: dataKind = 8 ! default value
-    integer             :: ni, nj, nk, numStep, anltime
+    integer             :: ni, nj, numVarLev, numStep, anltime
     integer             :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer             :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer             :: mykCount, mykBeg, mykEnd
@@ -344,7 +344,7 @@ module gridStateVector_mod
     varNumberIndex = 0
     if (present(statevector_opt)) then
       !- 2.1 List the variables based on the varLevIndex ordering
-      do varLevIndex = 1, statevector_opt%nk
+      do varLevIndex = 1, statevector_opt%numVarLev
         varName = gsv_getVarNameFromK(statevector_opt,varLevIndex)
         if (.not. ANY(varNames(:) == varName)) then
           varNumberIndex = varNumberIndex + 1
@@ -445,9 +445,9 @@ module gridStateVector_mod
   end function gsv_getNumLev
 
   !--------------------------------------------------------------------------
-  ! gsv_getNumK
+  ! gsv_getNumVarLev
   !--------------------------------------------------------------------------
-  function gsv_getNumK(statevector) result(numK)
+  function gsv_getNumVarLev(statevector) result(numVarLev)
     !
     ! :Purpose: Returns the number of k indexes on the current MPI process
     !
@@ -456,11 +456,11 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     ! Result:
-    integer                       :: numK
+    integer                       :: numVarLev
 
-    numK = 1 + statevector%mykEnd - statevector%mykBeg
+    numVarLev = 1 + statevector%mykEnd - statevector%mykBeg
 
-  end function gsv_getNumK
+  end function gsv_getNumVarLev
 
   !--------------------------------------------------------------------------
   ! gsv_getDataKind
@@ -934,26 +934,26 @@ module gridStateVector_mod
       call utl_abort('gsv_allocate:  Nothing to allocate')
     end if
 
-    statevector%nk=iloc
+    statevector%numVarLev = iloc
 
     if (beSilent) then
       verbLevel = msg_NEVER
     else
       verbLevel = 2
     end if
-    call msg('gsv_allocate', 'statevector%nk = '//str(statevector%nk)&
+    call msg('gsv_allocate', 'statevector%numVarLev = '//str(statevector%numVarLev)&
              //new_line('')//'varOffset='//str(statevector%varOffset)&
              //new_line('')//'varNumLev='//str(statevector%varNumLev),&
              verb_opt=verbLevel, mpiAll_opt=.false.)
 
     ! determine range of values for the 'k' index (vars+levels)
     if (statevector%mpi_distribution == 'VarsLevs') then
-      call mmpi_setup_varslevels(statevector%nk, statevector%mykBeg, &
+      call mmpi_setup_varslevels(statevector%numVarLev, statevector%mykBeg, &
                                  statevector%mykEnd, statevector%mykCount)
     else
-      statevector%mykCount = statevector%nk
+      statevector%mykCount = statevector%numVarLev
       statevector%mykBeg = 1
-      statevector%mykEnd = statevector%nk
+      statevector%mykEnd = statevector%numVarLev
     end if
 
     ! determine if a wind component exists on this mpi task
@@ -3525,8 +3525,8 @@ module gridStateVector_mod
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
     integer :: sendrecvKind, inKind, outKind, varLevIndexUU, varLevIndexVV, MpiIdUU, MpiIdVV
     integer :: levUV, stepIndex, numSend, numRecv
-    integer :: requestIdSend(stateVector_out%nk), requestIdRecv(stateVector_out%nk)
-    integer :: mpiStatuses(mpi_status_size,stateVector_out%nk)
+    integer :: requestIdSend(stateVector_out%numVarLev), requestIdRecv(stateVector_out%numVarLev)
+    integer :: mpiStatuses(mpi_status_size,stateVector_out%numVarLev)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
@@ -3700,7 +3700,7 @@ module gridStateVector_mod
 
         numSend = 0
         numRecv = 0
-        LOOP_VARLEV: do varLevIndexUU = 1, stateVector_out%nk
+        LOOP_VARLEV: do varLevIndexUU = 1, stateVector_out%numVarLev
           if (gsv_getVarNameFromK(stateVector_out, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
 
           ! get k index for corresponding VV component
@@ -3860,8 +3860,8 @@ module gridStateVector_mod
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiIdUU, mpiIdVV
     integer :: sendrecvKind, inKind, outKind, varLevIndexUU, varLevIndexVV, varLevIndex
     integer :: levUV, mpiTagUU, mpiTagVV, stepIndex, numSend, numRecv
-    integer :: requestIdSend(stateVector_in%nk), requestIdRecv(stateVector_in%nk)
-    integer :: mpiStatuses(mpi_status_size,stateVector_in%nk)
+    integer :: requestIdSend(stateVector_in%numVarLev), requestIdRecv(stateVector_in%numVarLev)
+    integer :: mpiStatuses(mpi_status_size,stateVector_in%numVarLev)
     integer :: displs(mmpi_nprocs), nsizes(mmpi_nprocs)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
@@ -3912,7 +3912,7 @@ module gridStateVector_mod
 
         numSend = 0
         numRecv = 0
-        LOOP_VARLEV: do varLevIndexUU = 1, stateVector_in%nk
+        LOOP_VARLEV: do varLevIndexUU = 1, stateVector_in%numVarLev
           if (gsv_getVarNameFromK(stateVector_in, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
 
           ! get k index for corresponding VV component
@@ -4356,7 +4356,7 @@ module gridStateVector_mod
     integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
-    integer :: ierr, maxkCount, numStepInput, numkToSend, stepIndexInput
+    integer :: ierr, maxkCount, numStepInput, numVarLevToSend, stepIndexInput
     integer :: nsize
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: varLevIndex, varLevIndex2, levUV, procIndex, stepIndex
@@ -4400,11 +4400,11 @@ module gridStateVector_mod
     call msg('gsv_transposeStepToVarsLevs', 'numStepInput = '//str(numStepInput))
 
     maxkCount = maxval(stateVector_VarsLevs%allkCount(:))
-    numkToSend = min(mmpi_nprocs,stateVector_VarsLevs%nk)
+    numVarLevToSend = min(mmpi_nprocs,stateVector_VarsLevs%numVarLev)
     allocate(gd_recv_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numStepInput))
     gd_recv_r4(:,:,:) = 0.0
     if (stateVector_1step_r4%allocated) then
-      allocate(gd_send_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numkToSend))
+      allocate(gd_send_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numVarLevToSend))
     else
       allocate(gd_send_r4(1,1,1))
     end if
@@ -4418,7 +4418,7 @@ module gridStateVector_mod
     ! only send the data from tasks with data, same amount to all
     sendsizes(:) = 0
     if (stateVector_1step_r4%allocated) then
-      do procIndex = 1, numkToSend
+      do procIndex = 1, numVarLevToSend
         sendsizes(procIndex) = nsize
       end do
     end if
@@ -4429,7 +4429,7 @@ module gridStateVector_mod
 
     ! all tasks recv only from those with data
     recvsizes(:) = 0
-    if ((1+mmpi_myid) <= numkToSend) then
+    if ((1+mmpi_myid) <= numVarLevToSend) then
       do procIndex = 1, mmpi_nprocs
         if (thisProcIsAsender(procIndex)) then
           recvsizes(procIndex) = nsize
@@ -4453,10 +4453,10 @@ module gridStateVector_mod
           ! compute varLevIndex value being sent
           varLevIndex2 = varLevIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
           if (varLevIndex2 <= stateVector_VarsLevs%allkEnd(procIndex)) then
-            if(procIndex > numkToSend) then
-              call utl_abort('gsv_transposeStepToVarsLevs: ERROR with numkToSend? '&
+            if(procIndex > numVarLevToSend) then
+              call utl_abort('gsv_transposeStepToVarsLevs: ERROR with numVarLevToSend? '&
                    //'procIndex='//str(procIndex) &
-                   //', numkToSend = '//str(numkToSend))
+                   //', numVarLevToSend = '//str(numVarLevToSend))
             end if
             gd_send_r4(:,:,procIndex) = field_in_r4(:,:,varLevIndex2,1)
           end if
@@ -4688,7 +4688,7 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeStepToTiles: stateVector_tiles%dataKind not real 4 or 8')
     end if
 
-    varLevIndex_Loop: do varLevIndex = 1, stateVector_tiles%nk
+    varLevIndex_Loop: do varLevIndex = 1, stateVector_tiles%numVarLev
 
       ! determine if there is data to send for this varLevIndex
       if (stateVector_1step%allocated) then
@@ -4978,7 +4978,7 @@ module gridStateVector_mod
       call gsv_getField(stateVector_tiles,field_in_r8_ptr)
     end if
 
-    do varLevIndex = 1, stateVector_tiles%nk
+    do varLevIndex = 1, stateVector_tiles%numVarLev
 
       ! prepare data for distribution from all tasks to only those that need it
       stepIndex = stepIndexBeg - 1
@@ -5218,7 +5218,7 @@ module gridStateVector_mod
 
     ! do allGather for 1 2D field/stepIndex at a time
     do stepIndex = 1, numStep
-      do varLevIndex = 1, stateVector_tiles%nk
+      do varLevIndex = 1, stateVector_tiles%numVarLev
         if (stateVector_tiles%dataKind == 4) then
           gd_send_r4(1:stateVector_tiles%lonPerPE,1:stateVector_tiles%latPerPE) =  &
                field_in_r4(stateVector_tiles%myLonBeg:stateVector_tiles%myLonEnd,  &
@@ -5758,7 +5758,7 @@ module gridStateVector_mod
     write(*,*) 'dataKind = ',stateVector%dataKind
     write(*,*) 'ni = ',stateVector%ni
     write(*,*) 'nj = ',stateVector%nj
-    write(*,*) 'nk = ',stateVector%nk
+    write(*,*) 'nk = ',stateVector%numVarLev
     write(*,*) 'numStep = ',stateVector%numStep
     write(*,*) 'anltime = ',stateVector%anltime
     write(*,*) 'latPerPE = ',stateVector%latPerPE
@@ -5833,7 +5833,7 @@ module gridStateVector_mod
       call gsv_getField(statevector_inout,increment_r4)
       do stepIndex = 1, statevector_inout%numStep
         !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
-        do varLevIndex = 1, statevector_inout%nk
+        do varLevIndex = 1, statevector_inout%numVarLev
           do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
             do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
               increment_r4(lonIndex,latIndex,varLevIndex,stepIndex) =      &
@@ -5849,7 +5849,7 @@ module gridStateVector_mod
       call gsv_getField(statevector_inout,increment_r8)
       do stepIndex = 1, statevector_inout%numStep
         !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
-        do varLevIndex = 1, statevector_inout%nk
+        do varLevIndex = 1, statevector_inout%numVarLev
           do latIndex =  statevector_inout%myLatBeg,  statevector_inout%myLatEnd
             do lonIndex =  statevector_inout%myLonBeg,  statevector_inout%myLonEnd
               increment_r8(lonIndex,latIndex,varLevIndex,stepIndex) =      &

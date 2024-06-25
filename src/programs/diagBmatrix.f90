@@ -256,7 +256,7 @@ program midas_diagBmatrix
                     datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false.)
   call gsv_zero(statevector)
-  nkgdim = statevector%nk
+  nkgdim = statevector%numVarLev
 
   ! Setup the B matrix
   call bmat_setup(hco_anl,hco_core,vco_anl)
