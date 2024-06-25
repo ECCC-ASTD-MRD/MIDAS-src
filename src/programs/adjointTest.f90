@@ -269,7 +269,7 @@ contains
     call gsv_getField(statevector_x,field4d_r8)
     seed=1
     call rng_setup(abs(seed+mmpi_myid))
-    do varLevIndex = statevector_x%mykBeg, statevector_x%mykEnd
+    do varLevIndex = statevector_x%myVarLevBeg, statevector_x%myVarLevEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
@@ -375,7 +375,7 @@ contains
     seed=1
     call rng_setup(abs(seed+mmpi_myid))
     call gsv_getField(statevector_x,field4d_x_r8)
-    do varLevIndex = statevector_x%mykBeg, statevector_x%mykEnd
+    do varLevIndex = statevector_x%myVarLevBeg, statevector_x%myVarLevEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
@@ -634,7 +634,7 @@ contains
 !!$    ! x
 !!$    seed=1
 !!$    call rng_setup(abs(seed+mmpi_myid))
-!!$    do varLevIndex = statevector_x%mykBeg, statevector_x%mykEnd
+!!$    do varLevIndex = statevector_x%myVarLevBeg, statevector_x%myVarLevEnd
 !!$      do stepIndex = 1, statevector_x%numStep
 !!$        do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
 !!$          do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
@@ -902,7 +902,7 @@ contains
     seed=1
     call rng_setup(abs(seed+mmpi_myid))
     call gsv_getField(statevector_x,  field4d_x_r8 )
-    do varLevIndex = statevector_x%mykBeg, statevector_x%mykEnd
+    do varLevIndex = statevector_x%myVarLevBeg, statevector_x%myVarLevEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
           do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
@@ -914,7 +914,7 @@ contains
 
     ! y
     call gsv_getField(statevector_y,  field4d_y_r8 )
-    do varLevIndex = statevector_y%mykBeg, statevector_y%mykEnd
+    do varLevIndex = statevector_y%myVarLevBeg, statevector_y%myVarLevEnd
       do stepIndex = 1, statevector_y%numStep
         do latIndex = statevector_y%myLatBeg, statevector_y%myLatEnd
           do lonIndex = statevector_y%myLonBeg, statevector_y%myLonEnd

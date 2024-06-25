@@ -345,7 +345,7 @@ contains
     type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
-    integer :: varLevIndex, varLevIndexCount, myKBeg
+    integer :: varLevIndex, varLevIndexCount, myVarLevBeg
     integer :: numStep, stepIndex, ierr
     integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
@@ -369,7 +369,7 @@ contains
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     real(kdkind), allocatable :: positionArray(:,:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs)
-    integer :: recvdispls(mmpi_nprocs), allkBeg(mmpi_nprocs)
+    integer :: recvdispls(mmpi_nprocs), allVarLevBeg(mmpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numVarLevToSend, numTovsUsingFootprint, numAllTovs
@@ -455,13 +455,13 @@ contains
                    interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
     if ((stateVector%heightSfcPresent) .and. (mmpi_myid == 0)) then
-      mykBeg = 0 
+      myVarLevBeg = 0 
     else
-      mykBeg = stateVector%mykBeg
+      myVarLevBeg = stateVector%myVarLevBeg
     end if   
 
-    call rpn_comm_allgather(mykBeg, 1,'mpi_integer',       &
-                            allkBeg,1,'mpi_integer','grid',ierr)
+    call rpn_comm_allgather(myVarLevBeg, 1,'mpi_integer',       &
+                            allVarLevBeg,1,'mpi_integer','grid',ierr)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if (stateVector%hco%grtyp == 'G' .or. &
@@ -515,16 +515,16 @@ contains
     allocate(interpInfo%stepProcData(mmpi_nprocs,numStep))
     do stepIndex = 1,numStep
       do procIndex = 1, mmpi_nprocs
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
         interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,:) = 0.0d0
 
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(allNumHeaderUsed(stepIndex,procIndex)))
         interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(:) = 0
 
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,myVarLevBeg:stateVector%myVarLevEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,myVarLevBeg:stateVector%myVarLevEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(:,:,:) = 0
         interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(:,:,:) = -1
       end do
@@ -542,8 +542,8 @@ contains
     if (interpInfo%hco%rotated) then
       do stepIndex = 1, numStep
         do procIndex = 1, mmpi_nprocs
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
           interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
           interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(:,:,:) = 0.0d0
         end do
@@ -660,8 +660,8 @@ contains
                               allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
                               'GRID', ierr)
 
-      allocate(latColumn(numHeaderUsedMax,allkBeg(1):stateVector%numVarLev))
-      allocate(lonColumn(numHeaderUsedMax,allkBeg(1):stateVector%numVarLev))
+      allocate(latColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
+      allocate(lonColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
       latColumn(:,:) = 0.0d0
       lonColumn(:,:) = 0.0d0
 
@@ -754,7 +754,7 @@ contains
                              latLev_S, lonLev_S )             ! IN/OUT
 
           ! put the lat/lon from TH/MM levels to varLevIndex
-          do varLevIndex = allkBeg(1), stateVector%numVarLev
+          do varLevIndex = allVarLevBeg(1), stateVector%numVarLev
             if (varLevIndex == 0) then
               varLevel = 'SF'
             else
@@ -781,7 +781,7 @@ contains
 
         ! MPI communication for the slant-path lat/lon
 
-        maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
+        maxkCount = maxval(stateVector%allVarLevCount(:) + stateVector%allVarLevBeg(:) - allVarLevBeg(:))
         numVarLevToSend = min(mmpi_nprocs,stateVector%numVarLev)
 
         allocate(lat_recv_r8(numHeaderUsedMax,mmpi_nprocs))
@@ -814,8 +814,8 @@ contains
           sendsizes(:) = 0
           do procIndex = 1, mmpi_nprocs
             ! compute varLevIndex value being sent
-            varLevIndex = varLevIndexCount + allkBeg(procIndex) - 1
-            if ( varLevIndex <= stateVector%allkEnd(procIndex) ) then
+            varLevIndex = varLevIndexCount + allVarLevBeg(procIndex) - 1
+            if ( varLevIndex <= stateVector%allVarLevEnd(procIndex) ) then
               if( procIndex > numVarLevToSend ) then
                 write(*,*) 'procIndex, numVarLevToSend = ', procIndex, numVarLevToSend
                 call utl_abort('ERROR: with numVarLevToSend?')
@@ -830,8 +830,8 @@ contains
           end do
 
           ! all tasks recv only from those with data
-          varLevIndex = varLevIndexCount + mykBeg - 1
-          if ( varLevIndex <= stateVector%mykEnd ) then
+          varLevIndex = varLevIndexCount + myVarLevBeg - 1
+          if ( varLevIndex <= stateVector%myVarLevEnd ) then
             do procIndex = 1, mmpi_nprocs
               recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
             end do
@@ -848,8 +848,8 @@ contains
 
           do procIndex = 1, mmpi_nprocs
             ! all tasks copy the received step data into correct slot
-            varLevIndex = varLevIndexCount + mykBeg - 1
-            if ( varLevIndex <= stateVector%mykEnd ) then
+            varLevIndex = varLevIndexCount + myVarLevBeg - 1
+            if ( varLevIndex <= stateVector%myVarLevEnd ) then
               interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,varLevIndex) = &
                    lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
               interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,varLevIndex) = &
@@ -900,17 +900,17 @@ contains
                              latLev_T, lonLev_T,            & ! IN/OUT
                              latLev_M, lonLev_M )             ! IN/OUT 
 
-          latColumn(headerUsedIndex,allkBeg(1)) = latLev_T(1)
-          lonColumn(headerUsedIndex,allkBeg(1)) = lonLev_T(1)
+          latColumn(headerUsedIndex,allVarLevBeg(1)) = latLev_T(1)
+          lonColumn(headerUsedIndex,allVarLevBeg(1)) = lonLev_T(1)
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call rpn_comm_allgather(latColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
+        call rpn_comm_allgather(latColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-        call rpn_comm_allgather(lonColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
+        call rpn_comm_allgather(lonColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
 
-        k_loop: do varLevIndex = mykBeg, statevector%mykEnd
+        k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do procIndex = 1, mmpi_nprocs
             interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,varLevIndex) = &
                  allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
@@ -1001,7 +1001,7 @@ contains
       !$OMP xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, subGridIndex, numSubGridsForInterp, subGridForInterp, &
       !$OMP lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
       do procIndex = 1, mmpi_nprocs
-        do varLevIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
             ! Compute the rotated lat/lon, needed for the winds
@@ -1076,7 +1076,7 @@ contains
     numGridptTotal = 0
     do stepIndex = 1, numStep
       do procIndex = 1, mmpi_nprocs
-        do varLevIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
             do subGridIndex = 1, interpInfo%hco%numSubGrid
               if ( interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,varLevIndex) /= -1 ) then
@@ -1107,7 +1107,7 @@ contains
     !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, varLevIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
-        do varLevIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
 
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
@@ -1127,7 +1127,7 @@ contains
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
     if ( stateVector%oceanMask%maskPresent ) then
-      call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
+      call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,myVarLevBeg,stateVector%myVarLevEnd)
     end if
 
     ! on the last call, deallocate the tree_nl/tree_tlad
@@ -1198,7 +1198,7 @@ contains
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
+    integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     real(8) :: weight
@@ -1303,14 +1303,14 @@ contains
 
     call gsv_getField(stateVector_VarsLevs, ptr4d)
 
-    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+    myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
     kCount = 0
-    k_loop: do varLevIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
 
       kCount = kCount + 1
 
-      if ( varLevIndex <= stateVector_VarsLevs%mykEnd ) then
+      if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
         varName = gsv_getVarNameFromK(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
@@ -1369,7 +1369,7 @@ contains
         ! this value of k does not exist on this mpi task
         cols_send(:,:) = 0.0
 
-      end if ! if varLevIndex <= mykEnd
+      end if ! if varLevIndex <= myVarLevEnd
 
       call rpn_comm_barrier('GRID',ierr)
 
@@ -1386,8 +1386,8 @@ contains
       !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mmpi_nprocs
         ! This is varLevIndex value of source (can be different for destination)
-        varLevIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( varLevIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+        varLevIndex2 = statevector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+        if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
         ! Figure out which variable/level of destination
         varName = gsv_getVarNameFromK(statevector,varLevIndex2)
@@ -1445,7 +1445,7 @@ contains
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
+    integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     character(len=4)     :: varName
@@ -1530,10 +1530,10 @@ contains
     cols_recv(:,:) = 0.0d0
 
     call gsv_getField(stateVector_VarsLevs,ptr4d)
-    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+    myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
     kCount = 0
-    k_loop: do varLevIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
 
       kCount = kCount + 1
 
@@ -1541,8 +1541,8 @@ contains
       !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mmpi_nprocs
         ! This is varLevIndex value of destination (can be different for source)
-        varLevIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( varLevIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+        varLevIndex2 = statevector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+        if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
         
         ! Figure out which variable/level of source
         varName = gsv_getVarNameFromK(statevector,varLevIndex2)
@@ -1566,7 +1566,7 @@ contains
         cols_recv(:,1) = cols_send(:,1)
       end if
 
-      if ( varLevIndex <= stateVector_VarsLevs%mykEnd ) then
+      if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
         varName = gsv_getVarNameFromK(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
@@ -1620,7 +1620,7 @@ contains
         !$OMP END PARALLEL DO
         call utl_tmg_stop(41)
 
-      end if ! if varLevIndex <= mykEnd
+      end if ! if varLevIndex <= myVarLevEnd
 
     end do k_loop
 
@@ -1680,7 +1680,7 @@ contains
 
     ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs 
-    integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, mykEndExtended, levIndex
+    integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
@@ -1856,13 +1856,13 @@ contains
 
       call gsv_getField(stateVector_VarsLevs, ptr4d_r4)
 
-      mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+      myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
       kCount = 0
-      k_loop: do varLevIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+      k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
         kCount = kCount + 1
 
-        if ( varLevIndex <= stateVector_VarsLevs%mykEnd ) then
+        if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
           varName = gsv_getVarNameFromK(stateVector_VarsLevs, varLevIndex)
 
           call utl_tmg_start(35,'------s2c_NL_Hinterp')
@@ -1921,7 +1921,7 @@ contains
           ! this value of k does not exist on this mpi task
           cols_send(:,:) = 0.0d0
 
-        end if ! if varLevIndex <= mykEnd
+        end if ! if varLevIndex <= myVarLevEnd
 
         call utl_tmg_start(37,'------s2c_NL_barrier')
         call rpn_comm_barrier('GRID',ierr)
@@ -1933,8 +1933,8 @@ contains
         ! only receive the data from tasks with data, same amount from all of those
         recvsizes(:) = 0
         do procIndex = 1, mmpi_nprocs
-          varLevIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
-          if (varLevIndex2 > stateVector_VarsLevs%allkEnd(procIndex)) cycle
+          varLevIndex2 = stateVector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+          if (varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex)) cycle
           recvsizes(procIndex) = numHeader
         end do
         recvdispls(1) = 0
@@ -1943,7 +1943,7 @@ contains
         end do
 
         ! tasks send only from those with data
-        if (varLevIndex <= stateVector_VarsLevs%mykEnd) then
+        if (varLevIndex <= stateVector_VarsLevs%myVarLevEnd) then
           do procIndex = 1, mmpi_nprocs
             sendsizes(procIndex) = allNumHeader(procIndex)
           end do
@@ -1969,8 +1969,8 @@ contains
         !$OMP levIndex, allCols_ptr)
         proc_loop: do procIndex = 1, mmpi_nprocs
 
-          varLevIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
-          if ( varLevIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+          varLevIndex2 = stateVector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+          if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
           varName = gsv_getVarNameFromK(stateVector_VarsLevs, varLevIndex2)
           levIndex = gsv_getLevFromK(statevector, varLevIndex2)
@@ -2843,7 +2843,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_rejectZeroWeightObs
   !--------------------------------------------------------------------------
-  subroutine s2c_rejectZeroWeightObs(interpInfo, obsSpaceData, mykBeg, mykEnd)
+  subroutine s2c_rejectZeroWeightObs(interpInfo, obsSpaceData, myVarLevBeg, myVarLevEnd)
     !
     !:Purpose: To flag an observation in obsSpaceData as being rejected if
     !          it has zero interpolation weight (usually because an ocean
@@ -2854,8 +2854,8 @@ contains
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
-    integer                , intent(in)    :: mykBeg
-    integer                , intent(in)    :: mykEnd
+    integer                , intent(in)    :: myVarLevBeg
+    integer                , intent(in)    :: myVarLevEnd
 
     ! Locals:
     integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, varLevIndex
@@ -2880,8 +2880,8 @@ contains
       do stepIndex = 1, numStep
         do headerUsedIndex = 1, interpInfo%allNumHeaderUsed(stepIndex,procIndex)
           headerIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerUsedIndex)
-          do varLevIndex = mykBeg, mykEnd
-            if (varLevIndex == mykBeg) allRejectObs(headerIndex,procIndex) = .true.
+          do varLevIndex = myVarLevBeg, myVarLevEnd
+            if (varLevIndex == myVarLevBeg) allRejectObs(headerIndex,procIndex) = .true.
             do subGridIndex = 1, interpInfo%hco%numSubGrid
               do gridptIndex =  &
                    interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerUsedIndex, varLevIndex), &

@@ -3533,7 +3533,7 @@ module calcStatsGlb_mod
       call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember)
       call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
 
-      do k = statevector_locHorizCor%mykBeg, statevector_locHorizCor%mykEnd
+      do k = statevector_locHorizCor%myVarLevBeg, statevector_locHorizCor%myVarLevEnd
         do jref_id = 1, njrefpoint
           do iref_id = 1, nirefpoint
             iref = (2*iref_id-1)*blocklength_x/2
@@ -3619,7 +3619,7 @@ module calcStatsGlb_mod
     call gsv_getField(statevector_vertCorr,ptr3d_r8)
 
     ! Loop over all vertical levels and variables
-    varLev1: do varLevIndex1 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+    varLev1: do varLevIndex1 = statevector_vertCorr%myVarLevBeg, statevector_vertCorr%myVarLevEnd
 
       varName = ens_getVarNameFromK(ensPerts,varLevIndex1)
       levIndex1 = ens_getLevFromK(ensPerts,varLevIndex1)
@@ -3629,7 +3629,7 @@ module calcStatsGlb_mod
       member: do memberIndex = 1, nEns
         call ens_copyMember(ensPerts, statevector_oneMember, memberIndex)
         call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
-        varLev2: do varLevIndex2 = statevector_vertCorr%mykBeg, statevector_vertCorr%mykEnd
+        varLev2: do varLevIndex2 = statevector_vertCorr%myVarLevBeg, statevector_vertCorr%myVarLevEnd
           do latIndex = statevector_vertCorr%myLatBeg, statevector_vertCorr%myLatEnd
             do lonIndex = statevector_vertCorr%myLonBeg, statevector_vertCorr%myLonEnd
               ptr3d_r8(lonIndex,latIndex,varLevIndex2) = &

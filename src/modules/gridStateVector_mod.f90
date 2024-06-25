@@ -87,7 +87,7 @@ module gridStateVector_mod
     ! components together on each mpi task to facilitate horizontal interpolation
     logical             :: UVComponentPresent = .false.  ! wind component present on this mpi task
     logical             :: extraUVallocated = .false.    ! extra winds (gdUV) are allocated
-    integer             :: myUVkBeg, myUVkEnd, myUVkCount
+    integer             :: myUVvarLevBeg, myUVvarLevEnd, myUVvarLevCount
     type(struct_gdUV), pointer, private :: gdUV(:) => null()
 
     ! All the remaining extra information
@@ -95,11 +95,11 @@ module gridStateVector_mod
     integer             :: ni, nj, numVarLev, numStep, anltime
     integer             :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer             :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
-    integer             :: mykCount, mykBeg, mykEnd
+    integer             :: myVarLevCount, myVarLevBeg, myVarLevEnd
     integer, pointer    :: allLatBeg(:), allLatEnd(:), allLatPerPE(:)
     integer, pointer    :: allLonBeg(:), allLonEnd(:), allLonPerPE(:)
-    integer, pointer    :: allkCount(:), allkBeg(:), allkEnd(:)
-    integer, pointer    :: allUVkCount(:), allUVkBeg(:), allUVkEnd(:)
+    integer, pointer    :: allVarLevCount(:), allVarLevBeg(:), allVarLevEnd(:)
+    integer, pointer    :: allUVvarLevCount(:), allUVvarLevBeg(:), allUVvarLevEnd(:)
     integer, pointer    :: dateStampList(:) => null()
     integer, pointer    :: dateStamp3d
     integer, pointer    :: dateOriginList(:)
@@ -246,8 +246,8 @@ module gridStateVector_mod
     integer             :: procIndex
 
     do procIndex = 1, mmpi_nprocs
-      if ((varLevIndex >= statevector%allKBeg(procIndex)) .and.  &
-          (varLevIndex <= statevector%allKEnd(procIndex))) then
+      if ((varLevIndex >= statevector%allVarLevBeg(procIndex)) .and.  &
+          (varLevIndex <= statevector%allVarLevEnd(procIndex))) then
           MpiId = procIndex - 1
           return
       end if
@@ -458,7 +458,7 @@ module gridStateVector_mod
     ! Result:
     integer                       :: numVarLev
 
-    numVarLev = 1 + statevector%mykEnd - statevector%mykBeg
+    numVarLev = 1 + statevector%myVarLevEnd - statevector%myVarLevBeg
 
   end function gsv_getNumVarLev
 
@@ -948,26 +948,26 @@ module gridStateVector_mod
 
     ! determine range of values for the 'k' index (vars+levels)
     if (statevector%mpi_distribution == 'VarsLevs') then
-      call mmpi_setup_varslevels(statevector%numVarLev, statevector%mykBeg, &
-                                 statevector%mykEnd, statevector%mykCount)
+      call mmpi_setup_varslevels(statevector%numVarLev, statevector%myVarLevBeg, &
+                                 statevector%myVarLevEnd, statevector%myVarLevCount)
     else
-      statevector%mykCount = statevector%numVarLev
-      statevector%mykBeg = 1
-      statevector%mykEnd = statevector%numVarLev
+      statevector%myVarLevCount = statevector%numVarLev
+      statevector%myVarLevBeg = 1
+      statevector%myVarLevEnd = statevector%numVarLev
     end if
 
     ! determine if a wind component exists on this mpi task
     statevector%UVComponentPresent = .false.
-    statevector%myUVkCount = 0
-    statevector%myUVkBeg = 0
-    statevector%myUVkEnd = -1
-    do varLevIndex = statevector%mykBeg, statevector%mykEnd
+    statevector%myUVvarLevCount = 0
+    statevector%myUVvarLevBeg = 0
+    statevector%myUVvarLevEnd = -1
+    do varLevIndex = statevector%myVarLevBeg, statevector%myVarLevEnd
       if (gsv_getVarNameFromK(statevector,varLevIndex) == 'UU' .or.  &
            gsv_getVarNameFromK(statevector,varLevIndex) == 'VV') then
         statevector%UVComponentPresent = .true.
-        if (statevector%myUVkBeg == 0) statevector%myUVkBeg = varLevIndex
-        statevector%myUVkEnd = varLevIndex
-        statevector%myUVkCount = statevector%myUVkCount + 1
+        if (statevector%myUVvarLevBeg == 0) statevector%myUVvarLevBeg = varLevIndex
+        statevector%myUVvarLevEnd = varLevIndex
+        statevector%myUVvarLevCount = statevector%myUVvarLevCount + 1
       end if
     end do
 
@@ -988,12 +988,12 @@ module gridStateVector_mod
     allocate(statevector%allLatBeg(mmpi_npey))
     allocate(statevector%allLatEnd(mmpi_npey))
     allocate(statevector%allLatPerPE(mmpi_npey))
-    allocate(statevector%allkCount(mmpi_nprocs))
-    allocate(statevector%allkBeg(mmpi_nprocs))
-    allocate(statevector%allkEnd(mmpi_nprocs))
-    allocate(statevector%allUVkCount(mmpi_nprocs))
-    allocate(statevector%allUVkBeg(mmpi_nprocs))
-    allocate(statevector%allUVkEnd(mmpi_nprocs))
+    allocate(statevector%allVarLevCount(mmpi_nprocs))
+    allocate(statevector%allVarLevBeg(mmpi_nprocs))
+    allocate(statevector%allVarLevEnd(mmpi_nprocs))
+    allocate(statevector%allUVvarLevCount(mmpi_nprocs))
+    allocate(statevector%allUVvarLevBeg(mmpi_nprocs))
+    allocate(statevector%allUVvarLevEnd(mmpi_nprocs))
 
     if (statevector%mpi_local) then
       CALL rpn_comm_allgather(statevector%myLonBeg,1,'mpi_integer',       &
@@ -1012,19 +1012,19 @@ module gridStateVector_mod
 
       call gsv_checkMpiDistribution(stateVector)
 
-      CALL rpn_comm_allgather(statevector%mykCount,1,'mpi_integer',       &
-                              statevector%allkCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%mykBeg,1,'mpi_integer',       &
-                              statevector%allkBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%mykEnd,1,'mpi_integer',       &
-                              statevector%allkEnd,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myVarLevCount,1,'mpi_integer',       &
+                              statevector%allVarLevCount,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myVarLevBeg,1,'mpi_integer',       &
+                              statevector%allVarLevBeg,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myVarLevEnd,1,'mpi_integer',       &
+                              statevector%allVarLevEnd,1,'mpi_integer','grid',ierr)
 
-      CALL rpn_comm_allgather(statevector%myUVkCount,1,'mpi_integer',       &
-                              statevector%allUVkCount,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVkBeg,1,'mpi_integer',       &
-                              statevector%allUVkBeg,1,'mpi_integer','grid',ierr)
-      CALL rpn_comm_allgather(statevector%myUVkEnd,1,'mpi_integer',       &
-                              statevector%allUVkEnd,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myUVvarLevCount,1,'mpi_integer',       &
+                              statevector%allUVvarLevCount,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myUVvarLevBeg,1,'mpi_integer',       &
+                              statevector%allUVvarLevBeg,1,'mpi_integer','grid',ierr)
+      CALL rpn_comm_allgather(statevector%myUVvarLevEnd,1,'mpi_integer',       &
+                              statevector%allUVvarLevEnd,1,'mpi_integer','grid',ierr)
     else
 
       statevector%allLonBeg(:) = statevector%myLonBeg
@@ -1034,13 +1034,13 @@ module gridStateVector_mod
       statevector%allLatEnd(:) = statevector%myLatEnd
       statevector%allLatPerPE(:) = statevector%LatPerPE
 
-      statevector%allkCount(:) = statevector%mykCount
-      statevector%allkBeg(:) = statevector%mykBeg
-      statevector%allkEnd(:) = statevector%mykEnd
+      statevector%allVarLevCount(:) = statevector%myVarLevCount
+      statevector%allVarLevBeg(:) = statevector%myVarLevBeg
+      statevector%allVarLevEnd(:) = statevector%myVarLevEnd
 
-      statevector%allUVkCount(:) = statevector%myUVkCount
-      statevector%allUVkBeg(:) = statevector%myUVkBeg
-      statevector%allUVkEnd(:) = statevector%myUVkEnd
+      statevector%allUVvarLevCount(:) = statevector%myUVvarLevCount
+      statevector%allUVvarLevBeg(:) = statevector%myUVvarLevBeg
+      statevector%allUVvarLevEnd(:) = statevector%myUVvarLevEnd
 
     end if
 
@@ -1083,11 +1083,11 @@ module gridStateVector_mod
     if (statevector%dataKind == 8) then
       allocate(statevector%gd_r8(statevector%myLonBeg:statevector%myLonEnd,  &
                                  statevector%myLatBeg:statevector%myLatEnd,  &
-                                 statevector%mykBeg:statevector%mykEnd,numStep),stat=ierr)
+                                 statevector%myVarLevBeg:statevector%myVarLevEnd,numStep),stat=ierr)
       if (statevector%UVComponentPresent) then
-        allocate(statevector%gdUV(statevector%myUVkBeg:statevector%myUVkEnd))
+        allocate(statevector%gdUV(statevector%myUVvarLevBeg:statevector%myUVvarLevEnd))
         if (statevector%extraUVallocated) then
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             allocate(statevector%gdUV(varLevIndex)%r8(statevector%myLonBeg:statevector%myLonEnd,  &
                                                  statevector%myLatBeg:statevector%myLatEnd,  &
                                                  numStep))
@@ -1095,7 +1095,7 @@ module gridStateVector_mod
           end do
         else
           ! in this case, both components available on each mpi task, so just point to it
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             levUV = gsv_getLevFromK(statevector, varLevIndex)
             UVname = complementaryUVname(gsv_getVarNameFromK(statevector,varLevIndex))
             varLevIndex2 = levUV + gsv_getOffsetFromVarName(statevector,UVname)
@@ -1108,11 +1108,11 @@ module gridStateVector_mod
     else if (statevector%dataKind == 4) then
       allocate(statevector%gd_r4(statevector%myLonBeg:statevector%myLonEnd,  &
                                  statevector%myLatBeg:statevector%myLatEnd,  &
-                                 statevector%mykBeg:statevector%mykEnd,numStep),stat=ierr)
+                                 statevector%myVarLevBeg:statevector%myVarLevEnd,numStep),stat=ierr)
       if (statevector%UVComponentPresent) then
-        allocate(statevector%gdUV(statevector%myUVkBeg:statevector%myUVkEnd))
+        allocate(statevector%gdUV(statevector%myUVvarLevBeg:statevector%myUVvarLevEnd))
         if (statevector%extraUVallocated) then
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             allocate(statevector%gdUV(varLevIndex)%r4(statevector%myLonBeg:statevector%myLonEnd,  &
                                                     statevector%myLatBeg:statevector%myLatEnd,  &
                                                     numStep))
@@ -1120,7 +1120,7 @@ module gridStateVector_mod
           end do
         else
           ! in this case, both components available on each mpi task, so just point to it
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             levUV = gsv_getLevFromK(statevector, varLevIndex)
             UVname = complementaryUVname(gsv_getVarNameFromK(statevector,varLevIndex))
             varLevIndex2 = levUV + gsv_getOffsetFromVarName(statevector,UVname)
@@ -1152,7 +1152,7 @@ module gridStateVector_mod
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
-    k1=statevector%mykBeg
+    k1=statevector%myVarLevBeg
     if (statevector%dataKind == 8) then
       statevector%gd3d_r8(lon1:,lat1:,k1:) => statevector%gd_r8(:,:,:,statevector%anltime)
     else if (statevector%dataKind == 4) then
@@ -1430,10 +1430,10 @@ module gridStateVector_mod
     lon2=statevector%myLonEnd
     lat1=statevector%myLatBeg
     lat2=statevector%myLatEnd
-    k1=statevector%mykBeg
-    k2=statevector%mykEnd
-    k1UV = statevector%myUVkBeg
-    k2UV = statevector%myUVkEnd
+    k1=statevector%myVarLevBeg
+    k2=statevector%myVarLevEnd
+    k1UV = statevector%myUVvarLevBeg
+    k2UV = statevector%myUVvarLevEnd
 
     if (associated(statevector%HeightSfc)) statevector%HeightSfc(:,:) = 0.0d0
 
@@ -1523,9 +1523,9 @@ module gridStateVector_mod
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_add: stateVector_inout not yet allocated')
     end if
-    if ( statevector_in%mykBeg /= statevector_inout%mykBeg .or. &
-         statevector_in%mykEnd /= statevector_inout%mykEnd ) then
-      call utl_abort('gsv_add: mykBeg/mykEnd of stateVector_in/inout do not match')
+    if ( statevector_in%myVarLevBeg /= statevector_inout%myVarLevBeg .or. &
+         statevector_in%myVarLevEnd /= statevector_inout%myVarLevEnd ) then
+      call utl_abort('gsv_add: myVarLevBeg/myVarLevEnd of stateVector_in/inout do not match')
     end if
     if ( statevector_in%numStep /= statevector_inout%numStep ) then
       call utl_abort('gsv_add: numStep of stateVector_in/inout do not match')
@@ -1535,8 +1535,8 @@ module gridStateVector_mod
     lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
     lat2=statevector_in%myLatEnd
-    k1=statevector_in%mykBeg
-    k2=statevector_in%mykEnd
+    k1=statevector_in%myVarLevBeg
+    k2=statevector_in%myVarLevEnd
 
     if (statevector_inout%dataKind == 8 .and. statevector_in%dataKind == 8) then
 
@@ -1636,8 +1636,8 @@ module gridStateVector_mod
     lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
     lat2=statevector_in%myLatEnd
-    k1=statevector_in%mykBeg
-    k2=statevector_in%mykEnd
+    k1=statevector_in%myVarLevBeg
+    k2=statevector_in%myVarLevEnd
 
     if (statevector_inout%dataKind == 8 .and. statevector_in%dataKind == 8) then
 
@@ -1818,8 +1818,8 @@ module gridStateVector_mod
     lon2 = statevector_in%myLonEnd
     lat1 = statevector_in%myLatBeg
     lat2 = statevector_in%myLatEnd
-    k1 = statevector_in%mykBeg
-    k2 = statevector_in%mykEnd
+    k1 = statevector_in%myVarLevBeg
+    k2 = statevector_in%myVarLevEnd
     ! If stepIndexOut_opt present then copy from step 1 to stepIndexOut_opt
     if (present(stepIndexOut_opt)) then
       step1 = stepIndexOut_opt
@@ -2164,8 +2164,8 @@ module gridStateVector_mod
     lon2 = statevector_in%myLonEnd
     lat1 = statevector_in%myLatBeg
     lat2 = statevector_in%myLatEnd
-    k1 = statevector_in%mykBeg
-    k2 = statevector_in%mykEnd
+    k1 = statevector_in%myVarLevBeg
+    k2 = statevector_in%myVarLevEnd
     numStepIn  =  statevector_in%numStep
     numStepOut =  statevector_out%numStep
 
@@ -2284,8 +2284,8 @@ module gridStateVector_mod
     lonEnd_in=statevector_in%myLonEnd
     latBeg_in=statevector_in%myLatBeg
     latEnd_in=statevector_in%myLatEnd
-    kBeg=statevector_in%mykBeg
-    kEnd=statevector_in%mykEnd
+    kBeg=statevector_in%myVarLevBeg
+    kEnd=statevector_in%myVarLevEnd
 
     if (lonBeg_in > statevector_out%myLonBeg .or. &
         lonEnd_in > statevector_out%myLonEnd .or. &
@@ -2293,7 +2293,7 @@ module gridStateVector_mod
         latEnd_in > statevector_out%myLatEnd) then
       call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in')
     end if
-    if (kBeg /= statevector_out%mykBeg .or. kEnd /= statevector_out%mykEnd) then
+    if (kBeg /= statevector_out%myVarLevBeg .or. kEnd /= statevector_out%myVarLevEnd) then
       call utl_abort('gsv_hPad: Vertical levels are not compatible')
     end if
 
@@ -2391,8 +2391,8 @@ module gridStateVector_mod
     lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
     lat2=statevector_inout%myLatEnd
-    k1=statevector_inout%mykBeg
-    k2=statevector_inout%mykEnd
+    k1=statevector_inout%myVarLevBeg
+    k2=statevector_inout%myVarLevEnd
 
     if (statevector_inout%dataKind == 8) then
 
@@ -2485,8 +2485,8 @@ module gridStateVector_mod
     lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
     lat2=statevector_inout%myLatEnd
-    k1=statevector_inout%mykBeg
-    k2=statevector_inout%mykEnd
+    k1=statevector_inout%myVarLevBeg
+    k2=statevector_inout%myVarLevEnd
 
     if (statevector_inout%dataKind == 8) then
 
@@ -2548,8 +2548,8 @@ module gridStateVector_mod
     lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
     lat2=statevector_inout%myLatEnd
-    k1=statevector_inout%mykBeg
-    k2=statevector_inout%mykEnd
+    k1=statevector_inout%myVarLevBeg
+    k2=statevector_inout%myVarLevEnd
 
     if (statevector_inout%dataKind == 8) then
 
@@ -2626,8 +2626,8 @@ module gridStateVector_mod
     lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
     lat2=statevector_inout%myLatEnd
-    k1=statevector_inout%mykBeg
-    k2=statevector_inout%mykEnd
+    k1=statevector_inout%myVarLevBeg
+    k2=statevector_inout%myVarLevEnd
 
     if (present(statevector_in_opt)) then
 
@@ -2732,8 +2732,8 @@ module gridStateVector_mod
     lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
     lat2=statevector_inout%myLatEnd
-    k1=statevector_inout%mykBeg
-    k2=statevector_inout%mykEnd
+    k1=statevector_inout%myVarLevBeg
+    k2=statevector_inout%myVarLevEnd
 
     if (statevector_inout%numStep.eq.1) return
 
@@ -2816,18 +2816,18 @@ module gridStateVector_mod
     deallocate(statevector%allLatBeg)
     deallocate(statevector%allLatEnd)
     deallocate(statevector%allLatPerPE)
-    deallocate(statevector%allkBeg)
-    deallocate(statevector%allkEnd)
-    deallocate(statevector%allkCount)
-    deallocate(statevector%allUVkBeg)
-    deallocate(statevector%allUVkEnd)
-    deallocate(statevector%allUVkCount)
+    deallocate(statevector%allVarLevBeg)
+    deallocate(statevector%allVarLevEnd)
+    deallocate(statevector%allVarLevCount)
+    deallocate(statevector%allUVvarLevBeg)
+    deallocate(statevector%allUVvarLevEnd)
+    deallocate(statevector%allUVvarLevCount)
 
     if (statevector%dataKind == 8) then
       deallocate(statevector%gd_r8,stat=ierr)
       nullify(statevector%gd_r8)
       if (statevector%UVComponentPresent) then 
-        do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+        do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
           if (statevector%extraUVallocated) deallocate(statevector%gdUV(varLevIndex)%r8)
           nullify(statevector%gdUV(varLevIndex)%r8)
         end do
@@ -2838,7 +2838,7 @@ module gridStateVector_mod
       deallocate(statevector%gd_r4,stat=ierr)
       nullify(statevector%gd_r4)
       if (statevector%UVComponentPresent) then 
-        do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+        do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
           if (statevector%extraUVallocated) deallocate(statevector%gdUV(varLevIndex)%r4)
           nullify(statevector%gdUV(varLevIndex)%r4)
         end do
@@ -2925,7 +2925,7 @@ module gridStateVector_mod
 
     lon1 = statevector%myLonBeg
     lat1 = statevector%myLatBeg
-    k1 = statevector%mykBeg
+    k1 = statevector%myVarLevBeg
 
     if (present(varName_opt)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
@@ -2973,7 +2973,7 @@ module gridStateVector_mod
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
-    k1=statevector%mykBeg
+    k1=statevector%myVarLevBeg
 
     if (.not. associated(statevector%gd3d_r8)) then
       call utl_abort('gsv_getField3D_r8: data with type r8 not allocated')
@@ -3025,7 +3025,7 @@ module gridStateVector_mod
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
-    k1=statevector%mykBeg
+    k1=statevector%myVarLevBeg
 
     if (.not. associated(statevector%gd3d_r4)) then
       call utl_abort('gsv_getField3D_r4: data with type r4 not allocated')
@@ -3305,7 +3305,7 @@ module gridStateVector_mod
       sendrecvKind = 8
     end if
 
-    maxkCount = maxval(statevector_in%allkCount(:))
+    maxkCount = maxval(statevector_in%allVarLevCount(:))
     if (sendrecvKind == 4) then
       call utl_reAllocate(gd_send_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
                            maxkCount, mmpi_nprocs)
@@ -3328,10 +3328,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+                              statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3343,10 +3343,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                                    statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),4)
+                                   statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex),4)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3358,10 +3358,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                                    statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),8)
+                                   statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex),8)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3373,10 +3373,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+                              statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3405,10 +3405,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
                                 1:statevector_out%latPerPE,  &
-                                1:statevector_in%allkCount(yourid+1), yourid+1)
+                                1:statevector_in%allVarLevCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 4 .and. outKind == 8) then
@@ -3417,10 +3417,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
                                      1:statevector_out%latPerPE,  &
-                                     1:statevector_in%allkCount(yourid+1), yourid+1),8)
+                                     1:statevector_in%allVarLevCount(yourid+1), yourid+1),8)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 8 .and. outKind == 4) then
@@ -3429,10 +3429,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             real(gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
                                      1:statevector_out%latPerPE,  &
-                                     1:statevector_in%allkCount(yourid+1), yourid+1),4)
+                                     1:statevector_in%allVarLevCount(yourid+1), yourid+1),4)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 8 .and. outKind == 8) then
@@ -3441,10 +3441,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
                                 1:statevector_out%latPerPE,  &
-                                1:statevector_in%allkCount(yourid+1), yourid+1)
+                                1:statevector_in%allVarLevCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
       end if
@@ -3573,7 +3573,7 @@ module gridStateVector_mod
       call utl_tmg_start(166,'low-level--gsv_tilesToVarsLevs_r8')
     end if
 
-    maxkCount = maxval(statevector_out%allkCount(:))
+    maxkCount = maxval(statevector_out%allVarLevCount(:))
     if (sendrecvKind == 4) then
       call utl_reAllocate(gd_send_varsLevs_r4, statevector_in%lonPerPEmax, statevector_in%latPerPEmax, &
                           maxkCount, mmpi_nprocs)
@@ -3594,10 +3594,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           gd_send_varsLevs_r8(1:statevector_in%lonPerPE, &
                               1:statevector_in%latPerPE, &
-                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+                              1:statevector_out%allVarLevCount(yourid+1), yourid+1) =  &
               field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                               statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                              statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex)
+                              statevector_out%allVarLevBeg(yourid+1):statevector_out%allVarLevEnd(yourid+1), stepIndex)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 4 .and. inKind == 4) then
@@ -3606,10 +3606,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           gd_send_varsLevs_r4(1:statevector_in%lonPerPE, &
                               1:statevector_in%latPerPE, &
-                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+                              1:statevector_out%allVarLevCount(yourid+1), yourid+1) =  &
               field_in_r4_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                               statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                              statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex)
+                              statevector_out%allVarLevBeg(yourid+1):statevector_out%allVarLevEnd(yourid+1), stepIndex)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 4 .and. inKind == 8) then
@@ -3618,10 +3618,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           gd_send_varsLevs_r4(1:statevector_in%lonPerPE, &
                               1:statevector_in%latPerPE, &
-                              1:statevector_out%allkCount(yourid+1), yourid+1) =  &
+                              1:statevector_out%allVarLevCount(yourid+1), yourid+1) =  &
               real(field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                                    statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                                   statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), stepIndex),4)
+                                   statevector_out%allVarLevBeg(yourid+1):statevector_out%allVarLevEnd(yourid+1), stepIndex),4)
         end do
         !$OMP END PARALLEL DO
       else
@@ -3653,10 +3653,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                              statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                             statevector_out%myVarLevBeg:statevector_out%myVarLevEnd, stepIndex) = &
                 gd_recv_varsLevs_r8(1:statevector_in%allLonPerPE(youridx+1),  &
                                     1:statevector_in%allLatPerPE(youridy+1),  &
-                                    1:statevector_out%mykCount, yourid+1)
+                                    1:statevector_out%myVarLevCount, yourid+1)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3668,10 +3668,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             field_out_r4_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                              statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                             statevector_out%myVarLevBeg:statevector_out%myVarLevEnd, stepIndex) = &
                 gd_recv_varsLevs_r4(1:statevector_in%allLonPerPE(youridx+1),  &
                                     1:statevector_in%allLatPerPE(youridy+1),  &
-                                    1:statevector_out%mykCount, yourid+1)
+                                    1:statevector_out%myVarLevCount, yourid+1)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3683,10 +3683,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                              statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                             statevector_out%mykBeg:statevector_out%mykEnd, stepIndex) = &
+                             statevector_out%myVarLevBeg:statevector_out%myVarLevEnd, stepIndex) = &
                 real(gd_recv_varsLevs_r4(1:statevector_in%allLonPerPE(youridx+1),  &
                                          1:statevector_in%allLatPerPE(youridy+1),  &
-                                         1:statevector_out%mykCount, yourid+1), 8)
+                                         1:statevector_out%myVarLevCount, yourid+1), 8)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3899,14 +3899,14 @@ module gridStateVector_mod
         if (statevector_in%UVComponentPresent) then
           if (sendrecvKind == 4) then
             allocate(gdUV_r4(statevector_in%ni,statevector_in%nj, &
-                             statevector_in%myUVkBeg:statevector_in%myUVkEnd))
+                             statevector_in%myUVvarLevBeg:statevector_in%myUVvarLevEnd))
             allocate(gd_r4(statevector_in%ni,statevector_in%nj, &
-                           statevector_in%myUVkBeg:statevector_in%myUVkEnd))
+                           statevector_in%myUVvarLevBeg:statevector_in%myUVvarLevEnd))
           else
             allocate(gdUV_r8(statevector_in%ni,statevector_in%nj, &
-                             statevector_in%myUVkBeg:statevector_in%myUVkEnd))
+                             statevector_in%myUVvarLevBeg:statevector_in%myUVvarLevEnd))
             allocate(gd_r8(statevector_in%ni,statevector_in%nj, &
-                           statevector_in%myUVkBeg:statevector_in%myUVkEnd))
+                           statevector_in%myUVvarLevBeg:statevector_in%myUVvarLevEnd))
           end if
         end if
 
@@ -4004,7 +4004,7 @@ module gridStateVector_mod
         end if
 
         if (statevector_in%UVComponentPresent) then
-          do varLevIndex = statevector_in%myUVkBeg, statevector_in%myUVkEnd
+          do varLevIndex = statevector_in%myUVvarLevBeg, statevector_in%myUVvarLevEnd
             if (sendrecvKind == 4) then
               statevector_in%gd_r4(:, :, varLevIndex, stepIndex) =   &
                    statevector_in%gd_r4(:, :, varLevIndex, stepIndex) +  &
@@ -4027,7 +4027,7 @@ module gridStateVector_mod
       end if ! UU and VV exist
 
       ! do allToAll to redistribute main variables from VarsLevs to Tiles
-      maxkCount = maxval(statevector_in%allkCount(:))
+      maxkCount = maxval(statevector_in%allVarLevCount(:))
       if (sendrecvKind == 4) then
         call utl_reAllocate(gd_send_varsLevs_r4, statevector_out%lonPerPEmax, statevector_out%latPerPEmax, &
                             maxkCount, mmpi_nprocs)
@@ -4048,10 +4048,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+                              statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -4063,10 +4063,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r8(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                              statevector_in%mykBeg:statevector_in%mykEnd, stepIndex)
+                              statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -4078,10 +4078,10 @@ module gridStateVector_mod
             yourid = youridx + youridy*mmpi_npex
             gd_send_varsLevs_r4(1:statevector_out%allLonPerPE(youridx+1),  &
                                 1:statevector_out%allLatPerPE(youridy+1),  &
-                                1:statevector_in%mykCount, yourid+1) =  &
+                                1:statevector_in%myVarLevCount, yourid+1) =  &
               real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                                    statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
-                                   statevector_in%mykBeg:statevector_in%mykEnd, stepIndex),4)
+                                   statevector_in%myVarLevBeg:statevector_in%myVarLevEnd, stepIndex),4)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -4112,10 +4112,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
                                 1:statevector_out%latPerPE,  &
-                                1:statevector_in%allkCount(yourid+1), yourid+1)
+                                1:statevector_in%allVarLevCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 8 .and. outKind == 8) then
@@ -4124,10 +4124,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             gd_recv_varsLevs_r8(1:statevector_out%lonPerPE,  &
                                 1:statevector_out%latPerPE,  &
-                                1:statevector_in%allkCount(yourid+1), yourid+1)
+                                1:statevector_in%allVarLevCount(yourid+1), yourid+1)
         end do
         !$OMP END PARALLEL DO
       else if (sendrecvKind == 4 .and. outKind == 8) then
@@ -4136,10 +4136,10 @@ module gridStateVector_mod
         do yourid = 0, (mmpi_nprocs-1)
           field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                           statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), stepIndex) =   &
+                           statevector_in%allVarLevBeg(yourid+1):statevector_in%allVarLevEnd(yourid+1), stepIndex) =   &
             real(gd_recv_varsLevs_r4(1:statevector_out%lonPerPE,  &
                                      1:statevector_out%latPerPE,  &
-                                     1:statevector_in%allkCount(yourid+1), yourid+1),8)
+                                     1:statevector_in%allVarLevCount(yourid+1), yourid+1),8)
         end do
         !$OMP END PARALLEL DO
       else
@@ -4399,7 +4399,7 @@ module gridStateVector_mod
     end do
     call msg('gsv_transposeStepToVarsLevs', 'numStepInput = '//str(numStepInput))
 
-    maxkCount = maxval(stateVector_VarsLevs%allkCount(:))
+    maxkCount = maxval(stateVector_VarsLevs%allVarLevCount(:))
     numVarLevToSend = min(mmpi_nprocs,stateVector_VarsLevs%numVarLev)
     allocate(gd_recv_r4(stateVector_VarsLevs%ni,stateVector_VarsLevs%nj,numStepInput))
     gd_recv_r4(:,:,:) = 0.0
@@ -4451,8 +4451,8 @@ module gridStateVector_mod
         !$OMP PARALLEL DO PRIVATE(procIndex,varLevIndex2)
         do procIndex = 1, mmpi_nprocs
           ! compute varLevIndex value being sent
-          varLevIndex2 = varLevIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
-          if (varLevIndex2 <= stateVector_VarsLevs%allkEnd(procIndex)) then
+          varLevIndex2 = varLevIndex + stateVector_VarsLevs%allVarLevBeg(procIndex) - 1
+          if (varLevIndex2 <= stateVector_VarsLevs%allVarLevEnd(procIndex)) then
             if(procIndex > numVarLevToSend) then
               call utl_abort('gsv_transposeStepToVarsLevs: ERROR with numVarLevToSend? '&
                    //'procIndex='//str(procIndex) &
@@ -4480,8 +4480,8 @@ module gridStateVector_mod
         end if
 
         ! all tasks copy the received step data into correct slot
-        varLevIndex2 = varLevIndex + stateVector_VarsLevs%mykBeg - 1
-        if (varLevIndex2 <= stateVector_VarsLevs%mykEnd) then
+        varLevIndex2 = varLevIndex + stateVector_VarsLevs%myVarLevBeg - 1
+        if (varLevIndex2 <= stateVector_VarsLevs%myVarLevEnd) then
           stepIndexInput = stepIndexInput + 1
           field_out_r4(:,:,varLevIndex2,stepIndex) = gd_recv_r4(:,:,stepIndexInput)
         end if
@@ -4500,10 +4500,10 @@ module gridStateVector_mod
           !$OMP PARALLEL DO PRIVATE(procIndex,varLevIndex2,levUV)
           ! loop over all tasks we are sending to
           do procIndex = 1, mmpi_nprocs
-            varLevIndex2 = varLevIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
-            if (varLevIndex2 <= stateVector_VarsLevs%allkEnd(procIndex) .and. &
-                varLevIndex2 >= stateVector_1step_r4%myUVkBeg .and.           &
-                varLevIndex2 <= stateVector_1step_r4%myUVkEnd) then
+            varLevIndex2 = varLevIndex + stateVector_VarsLevs%allVarLevBeg(procIndex) - 1
+            if (varLevIndex2 <= stateVector_VarsLevs%allVarLevEnd(procIndex) .and. &
+                varLevIndex2 >= stateVector_1step_r4%myUVvarLevBeg .and.           &
+                varLevIndex2 <= stateVector_1step_r4%myUVvarLevEnd) then
               gd_send_r4(:,:,procIndex) = stateVector_1step_r4%gdUV(varLevIndex2)%r4(:,:,1)
             end if
           end do
@@ -4527,11 +4527,11 @@ module gridStateVector_mod
           end if
 
           ! all tasks copy the received step data into correct slot
-          varLevIndex2 = varLevIndex + stateVector_VarsLevs%mykBeg - 1
-          if (varLevIndex2 <= stateVector_VarsLevs%mykEnd) then
+          varLevIndex2 = varLevIndex + stateVector_VarsLevs%myVarLevBeg - 1
+          if (varLevIndex2 <= stateVector_VarsLevs%myVarLevEnd) then
             stepIndexInput = stepIndexInput + 1
-            if (varLevIndex2 >= stateVector_VarsLevs%myUVkBeg .and.  &
-                varLevIndex2 <= stateVector_VarsLevs%myUVkEnd) then
+            if (varLevIndex2 >= stateVector_VarsLevs%myUVvarLevBeg .and.  &
+                varLevIndex2 <= stateVector_VarsLevs%myUVvarLevEnd) then
               statevector_varsLevs%gdUV(varLevIndex2)%r4(:,:,stepIndex) = gd_recv_r4(:,:,stepIndexInput)
             end if
           end if
@@ -5374,8 +5374,8 @@ module gridStateVector_mod
     lon2 = stateVector_a%myLonEnd
     lat1 = stateVector_a%myLatBeg
     lat2 = stateVector_a%myLatEnd
-    k1 = stateVector_a%mykBeg
-    k2 = stateVector_a%mykEnd
+    k1 = stateVector_a%myVarLevBeg
+    k2 = stateVector_a%myVarLevEnd
 
     dotsum = 0.0D0
     do jstep = 1, stateVector_a%numStep
@@ -5641,7 +5641,7 @@ module gridStateVector_mod
 
     ! apply a simple footprint operator type of averaging within specified radius
     do stepIndex = 1, stateVector%numStep
-      do varLevIndex = stateVector%mykBeg, stateVector%mykEnd
+      do varLevIndex = stateVector%myVarLevBeg, stateVector%myVarLevEnd
       
         if (present(varName_opt)) then
           if (gsv_getVarNameFromK(stateVector,varLevIndex) /= trim(varName_opt)) cycle
@@ -5752,9 +5752,9 @@ module gridStateVector_mod
     write(*,*) 'heightSfcPresent = ',stateVector%heightSfcPresent
     write(*,*) 'UVComponentPresent = ',stateVector%UVComponentPresent
     write(*,*) 'extraUVallocated = ',stateVector%extraUVallocated
-    write(*,*) 'myUVkBeg = ',stateVector%myUVkBeg
-    write(*,*) 'myUVkEnd = ',stateVector%myUVkEnd
-    write(*,*) 'myUVkCount = ',stateVector%myUVkCount
+    write(*,*) 'myUVvarLevBeg = ',stateVector%myUVvarLevBeg
+    write(*,*) 'myUVvarLevEnd = ',stateVector%myUVvarLevEnd
+    write(*,*) 'myUVvarLevCount = ',stateVector%myUVvarLevCount
     write(*,*) 'dataKind = ',stateVector%dataKind
     write(*,*) 'ni = ',stateVector%ni
     write(*,*) 'nj = ',stateVector%nj
@@ -5769,21 +5769,21 @@ module gridStateVector_mod
     write(*,*) 'lonPerPEmax = ',stateVector%lonPerPEmax
     write(*,*) 'myLonBeg = ',stateVector%myLonBeg
     write(*,*) 'myLonEnd = ',stateVector%myLonEnd
-    write(*,*) 'mykCount = ',stateVector%mykCount
-    write(*,*) 'mykBeg = ',stateVector%mykBeg
-    write(*,*) 'mykEnd = ',stateVector%mykEnd
+    write(*,*) 'myVarLevCount = ',stateVector%myVarLevCount
+    write(*,*) 'myVarLevBeg = ',stateVector%myVarLevBeg
+    write(*,*) 'myVarLevEnd = ',stateVector%myVarLevEnd
     if (associated(stateVector%allLatBeg)) write(*,*) 'allLatBeg = ',stateVector%allLatBeg
     if (associated(stateVector%allLatEnd)) write(*,*) 'allLatEnd = ',stateVector%allLatEnd
     if (associated(stateVector%allLatPerPE)) write(*,*) 'allLatPerPE = ',stateVector%allLatPerPE
     if (associated(stateVector%allLonBeg)) write(*,*) 'allLonBeg = ',stateVector%allLonBeg
     if (associated(stateVector%allLonEnd)) write(*,*) 'allLonEnd = ',stateVector%allLonEnd
     if (associated(stateVector%allLonPerPE)) write(*,*) 'allLonPerPE = ',stateVector%allLonPerPE
-    if (associated(stateVector%allkCount)) write(*,*) 'allkCount = ',stateVector%allkCount
-    if (associated(stateVector%allkBeg)) write(*,*) 'allkBeg = ',stateVector%allkBeg
-    if (associated(stateVector%allkEnd)) write(*,*) 'allkEnd = ',stateVector%mykEnd
-    if (associated(stateVector%allUVkCount)) write(*,*) 'allUVkCount = ',stateVector%allUVkCount
-    if (associated(stateVector%allUVkBeg)) write(*,*) 'allUVkBeg = ',stateVector%allUVkBeg
-    if (associated(stateVector%allUVkEnd)) write(*,*) 'allUVkEnd = ',stateVector%myUVkEnd
+    if (associated(stateVector%allVarLevCount)) write(*,*) 'allVarLevCount = ',stateVector%allVarLevCount
+    if (associated(stateVector%allVarLevBeg)) write(*,*) 'allVarLevBeg = ',stateVector%allVarLevBeg
+    if (associated(stateVector%allVarLevEnd)) write(*,*) 'allVarLevEnd = ',stateVector%myVarLevEnd
+    if (associated(stateVector%allUVvarLevCount)) write(*,*) 'allUVvarLevCount = ',stateVector%allUVvarLevCount
+    if (associated(stateVector%allUVvarLevBeg)) write(*,*) 'allUVvarLevBeg = ',stateVector%allUVvarLevBeg
+    if (associated(stateVector%allUVvarLevEnd)) write(*,*) 'allUVvarLevEnd = ',stateVector%myUVvarLevEnd
     if (associated(stateVector%dateStampList)) write(*,*) 'dateStampList = ',stateVector%dateStampList
     if (associated(stateVector%dateStamp3d)) write(*,*) 'dateStamp3d = ',stateVector%dateStamp3d
     if (associated(stateVector%dateOriginList)) write(*,*) 'dateOriginList = ',stateVector%dateOriginList

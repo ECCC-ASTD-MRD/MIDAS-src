@@ -734,7 +734,7 @@ module gridStateVectorFileIO_mod
     ! Read all fields needed for this MPI task
     call gsv_getField(stateVector, field_r4_ptr)
     
-    k_loop: do varLevIndex = stateVector%mykBeg, statevector%mykEnd
+    k_loop: do varLevIndex = stateVector%myVarLevBeg, statevector%myVarLevEnd
     
       varName = gsv_getVarNameFromK(stateVector, varLevIndex)
       varNameNetCDF = vnl_varNameNetCDF(trim(varName), trim(fileName))
@@ -917,7 +917,7 @@ module gridStateVectorFileIO_mod
 
     nullify(hco_file)
     nullify(gd2d_file_r4)
-    if (statevector%mykCount > 0) then
+    if (statevector%myVarLevCount > 0) then
       if (statevector%hco%global) then
 
         foundVarNameInFile = .false.
@@ -990,7 +990,7 @@ module gridStateVectorFileIO_mod
     end if
 
     do stepIndex = stepIndexBeg, stepIndexEnd
-      k_loop: do varLevIndex = statevector%mykBeg, statevector%mykEnd
+      k_loop: do varLevIndex = statevector%myVarLevBeg, statevector%myVarLevEnd
         varName = gsv_getVarNameFromK(statevector, varLevIndex)
         levIndex = gsv_getLevFromK(statevector, varLevIndex)
 
@@ -1218,7 +1218,7 @@ module gridStateVectorFileIO_mod
       end do k_loop
     end do
 
-    if (statevector%hco%global .and. statevector%mykCount > 0) then
+    if (statevector%hco%global .and. statevector%myVarLevCount > 0) then
       write(*,*) 'deallocating hco_file'
       call hco_deallocate(hco_file)
     end if
@@ -2282,7 +2282,7 @@ module gridStateVectorFileIO_mod
     step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
 
       ! Do unit conversion for all variables
-      VARLEVCYCLE: do varLevIndex = stateVector%mykBeg, stateVector%mykEnd
+      VARLEVCYCLE: do varLevIndex = stateVector%myVarLevBeg, stateVector%myVarLevEnd
         varName = gsv_getVarNameFromK(statevector, varLevIndex)
 
         if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
@@ -2385,7 +2385,7 @@ module gridStateVectorFileIO_mod
 
         if (statevector%dataKind == 4) then
           !$OMP PARALLEL DO PRIVATE (varLevIndex, fieldUV_r4_ptr)
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             nullify(fieldUV_r4_ptr)
             call gsv_getFieldUV(statevector, fieldUV_r4_ptr, varLevIndex)
             fieldUV_r4_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r4_ptr(:,:, stepIndex), 4)
@@ -2393,7 +2393,7 @@ module gridStateVectorFileIO_mod
           !$OMP END PARALLEL DO
         else
           !$OMP PARALLEL DO PRIVATE (varLevIndex, fieldUV_r8_ptr)
-          do varLevIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
             nullify(fieldUV_r8_ptr)
             call gsv_getFieldUV(statevector, fieldUV_r8_ptr, varLevIndex)
             fieldUV_r8_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r8_ptr(:,:, stepIndex), 8)

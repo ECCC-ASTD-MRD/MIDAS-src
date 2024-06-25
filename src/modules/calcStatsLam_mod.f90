@@ -2315,7 +2315,7 @@ contains
       call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember)
       call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
 
-      do k = statevector_locHorizCor%mykBeg, statevector_locHorizCor%mykEnd
+      do k = statevector_locHorizCor%myVarLevBeg, statevector_locHorizCor%myVarLevEnd
         do jref_id = 1, njrefpoint
           do iref_id = 1, nirefpoint
             iref = (2*iref_id-1)*blocklength_x/2

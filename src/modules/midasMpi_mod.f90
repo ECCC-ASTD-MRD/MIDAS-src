@@ -800,7 +800,7 @@ module midasMpi_mod
   !--------------------------------------------------------------------------
   ! mmpi_setup_varslevels
   !--------------------------------------------------------------------------
-  subroutine mmpi_setup_varslevels(numVarLev, mykBeg, mykEnd, mykCount)
+  subroutine mmpi_setup_varslevels(numVarLev, myVarLevBeg, myVarLevEnd, myVarLevCount)
     !
     !:Purpose: Compute parameters that define the mpi distribution of
     !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
@@ -809,32 +809,32 @@ module midasMpi_mod
 
     ! Arguments:
     integer, intent(in)  :: numVarLev
-    integer, intent(out) :: mykBeg
-    integer, intent(out) :: mykEnd
-    integer, intent(out) :: mykCount
+    integer, intent(out) :: myVarLevBeg
+    integer, intent(out) :: myVarLevEnd
+    integer, intent(out) :: myVarLevCount
 
     ! Locals:
     integer :: varLevIndex
     integer :: procIndex
-    integer :: mykCounts(mmpi_nprocs)
+    integer :: myVarLevCounts(mmpi_nprocs)
 
-    mykCounts(:) = 0
+    myVarLevCounts(:) = 0
     do procIndex = 1, mmpi_nprocs
       do varLevIndex = procIndex, numVarLev, mmpi_nprocs
-        mykCounts(procIndex) = mykCounts(procIndex) + 1
+        myVarLevCounts(procIndex) = myVarLevCounts(procIndex) + 1
       end do
     end do
 
-    mykCount = mykCounts(mmpi_myid + 1)
+    myVarLevCount = myVarLevCounts(mmpi_myid + 1)
 
-    mykBeg = 1
+    myVarLevBeg = 1
     do procIndex = 1, mmpi_myid
-      mykBeg = mykBeg + mykCounts(procIndex)
+      myVarLevBeg = myVarLevBeg + myVarLevCounts(procIndex)
     end do
-    mykEnd = mykBeg + mykCount - 1
+    myVarLevEnd = myVarLevBeg + myVarLevCount - 1
 
-    write(*,'(a,3i8)') 'mmpi_setup_varslevels: mykBeg, mykEnd, mykCount = ',  &
-         mykBeg, mykEnd, mykCount
+    write(*,'(a,3i8)') 'mmpi_setup_varslevels: myVarLevBeg, myVarLevEnd, myVarLevCount = ',  &
+         myVarLevBeg, myVarLevEnd, myVarLevCount
 
   end subroutine mmpi_setup_varslevels
 

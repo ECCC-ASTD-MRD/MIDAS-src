@@ -466,7 +466,7 @@ contains
 
             if (maxLcorr == 0.0d0) then
 
-              do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
                 do stepIndex = 1, stateVectorTrlErrorStd%numStep
 
                   call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, &
@@ -698,7 +698,7 @@ contains
             cycle HEADER_LOOP
           end if
 
-          do varLevIndex = stateVectorTrlDSLO%mykBeg, stateVectorTrlDSLO%mykEnd
+          do varLevIndex = stateVectorTrlDSLO%myVarLevBeg, stateVectorTrlDSLO%myVarLevEnd
             do stepIndex = 1, stateVectorTrlDSLO%numStep
               call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, &
                                                      procIndex, interpWeight, obsLatIndex, &
@@ -1037,7 +1037,7 @@ contains
               end if	
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
-              VARLEVCYCLE: do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              VARLEVCYCLE: do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &
@@ -1121,7 +1121,7 @@ contains
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
 
-              VARLEVCYCLE2: do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              VARLEVCYCLE2: do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &

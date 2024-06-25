@@ -163,8 +163,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
 
     if (ens%dataKind == 8) then
       allocate( ens%allLev_r8(k1:k2) )
@@ -211,8 +211,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     allocate( ens%allLev_ensMean_r8(k1:k2) )
@@ -244,8 +244,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     allocate( ens%allLev_ensStdDev_r8(k1:k2) )
@@ -275,8 +275,8 @@ CONTAINS
 
     if ( .not. ens%allocated ) return
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
 
     if (ens%dataKind == 8) then
       do varLevIndex = k1, k2
@@ -360,8 +360,8 @@ CONTAINS
     lon2 = ens_out%statevector_work%myLonEnd
     lat1 = ens_out%statevector_work%myLatBeg
     lat2 = ens_out%statevector_work%myLatEnd
-    k1   = ens_out%statevector_work%mykBeg
-    k2   = ens_out%statevector_work%mykEnd
+    k1   = ens_out%statevector_work%myVarLevBeg
+    k2   = ens_out%statevector_work%myVarLevEnd
  
     if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
@@ -435,8 +435,8 @@ CONTAINS
     lon2 = ens_out%statevector_work%myLonEnd
     lat1 = ens_out%statevector_work%myLatBeg
     lat2 = ens_out%statevector_work%myLatEnd
-    k1   = ens_out%statevector_work%mykBeg
-    k2   = ens_out%statevector_work%mykEnd
+    k1   = ens_out%statevector_work%myVarLevBeg
+    k2   = ens_out%statevector_work%myVarLevEnd
     numStepIn  =  ens_in%statevector_work%numStep
     numStepOut =  ens_out%statevector_work%numStep
 
@@ -514,8 +514,8 @@ CONTAINS
     lon2 = ens_inOut%statevector_work%myLonEnd
     lat1 = ens_inOut%statevector_work%myLatBeg
     lat2 = ens_inOut%statevector_work%myLatEnd
-    k1   = ens_inOut%statevector_work%mykBeg
-    k2   = ens_inOut%statevector_work%mykEnd
+    k1   = ens_inOut%statevector_work%myVarLevBeg
+    k2   = ens_inOut%statevector_work%myVarLevEnd
  
     if ( ens_inOut%dataKind == 8 .and. ens_in%dataKind == 8 ) then
 
@@ -609,8 +609,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1   = ens%statevector_work%mykBeg
-    k2   = ens%statevector_work%mykEnd
+    k1   = ens%statevector_work%myVarLevBeg
+    k2   = ens%statevector_work%myVarLevEnd
  
     if ( ens%dataKind == 8 ) then
 
@@ -672,8 +672,8 @@ CONTAINS
     integer          :: k1, k2, varLevIndex, numStep, stepIndex
     integer          :: memberIndex, subEnsIndex
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     select case(trim(dataType))
@@ -754,8 +754,8 @@ CONTAINS
     integer          :: k1, k2, varLevIndex, numStep, stepIndex
     integer          :: memberIndex, subEnsIndex
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     select case(trim(dataType))
@@ -921,8 +921,8 @@ CONTAINS
       subEnsIndex = 1
     end if
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. gsv_isAllocated(statevector)) then
@@ -983,8 +983,8 @@ CONTAINS
       subEnsIndex = 1
     end if
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. gsv_isAllocated(statevector)) then
@@ -1039,8 +1039,8 @@ CONTAINS
     integer          :: k1, k2, varLevIndex, stepIndex, numStep
     character(len=4), pointer :: varNamesInEns(:)
 
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. gsv_isAllocated(statevector)) then
@@ -1118,8 +1118,8 @@ CONTAINS
 
     if (sameVariables) then
 
-      k1 = ens%statevector_work%mykBeg
-      k2 = ens%statevector_work%mykEnd
+      k1 = ens%statevector_work%myVarLevBeg
+      k2 = ens%statevector_work%myVarLevEnd
 
       if (ens%dataKind == 8) then
         call gsv_getField(statevector,ptr4d_r8)
@@ -1238,8 +1238,8 @@ CONTAINS
 
     if (sameVariables) then
 
-      k1 = ens%statevector_work%mykBeg
-      k2 = ens%statevector_work%mykEnd
+      k1 = ens%statevector_work%myVarLevBeg
+      k2 = ens%statevector_work%myVarLevEnd
 
       if (ens%dataKind == 8) then
         call gsv_getField(statevector,ptr4d_r8)
@@ -1482,7 +1482,7 @@ CONTAINS
     ! Result:
     integer                       :: numVarLev
 
-    numVarLev = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
+    numVarLev = 1 + ens%statevector_work%myVarLevEnd - ens%statevector_work%myVarLevBeg
 
   end function ens_getNumVarLev
 
@@ -1744,8 +1744,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. allocated(ens%allLev_ensMean_r8)) then
@@ -1822,8 +1822,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     if (.not. allocated(ens%allLev_ensStdDev_r8)) then
@@ -1947,8 +1947,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex,factor)
@@ -1995,8 +1995,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     !$OMP PARALLEL DO PRIVATE (varLevIndex,latIndex,lonIndex,stepIndex,memberIndex)
@@ -2044,8 +2044,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     do varLevIndex = k1, k2
@@ -2177,8 +2177,8 @@ CONTAINS
     lon2 = ens%statevector_work%myLonEnd
     lat1 = ens%statevector_work%myLatBeg
     lat2 = ens%statevector_work%myLatEnd
-    k1 = ens%statevector_work%mykBeg
-    k2 = ens%statevector_work%mykEnd
+    k1 = ens%statevector_work%myVarLevBeg
+    k2 = ens%statevector_work%myVarLevEnd
     numStep = ens%statevector_work%numStep
 
     nullify(ptr4d_r4, ptr4d_r8)

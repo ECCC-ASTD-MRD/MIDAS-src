@@ -281,7 +281,7 @@ contains
       end if
 
       do stepIndex = 1, statevector_out%numStep
-        k_loop: do varLevIndex = statevector_in%mykBeg, statevector_in%mykEnd
+        k_loop: do varLevIndex = statevector_in%myVarLevBeg, statevector_in%myVarLevEnd
           varName = gsv_getVarNameFromK(statevector_in,varLevIndex)
           if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
@@ -1026,8 +1026,8 @@ contains
     lon2 = statevector_in%myLonEnd
     lat1 = statevector_in%myLatBeg
     lat2 = statevector_in%myLatEnd
-    k1 = statevector_in%mykBeg
-    k2 = statevector_in%mykEnd
+    k1 = statevector_in%myVarLevBeg
+    k2 = statevector_in%myVarLevEnd
 
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep

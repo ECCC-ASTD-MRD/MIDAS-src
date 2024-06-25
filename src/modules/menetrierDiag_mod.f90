@@ -200,7 +200,7 @@ contains
     real(8) :: t1, t2, t3, rmse
     integer :: i, j, k, f, ens, bin, numbins, numFunctions, nSize
     integer :: iref, jref, ier
-    integer :: nLevEns, jvar, mykBeg, mykEnd
+    integer :: nLevEns, jvar, myVarLevBeg, myVarLevEnd
     character(len=128) :: outfilename
     character(len=2)   :: wbnum
     character(len=4), pointer :: varNamesList(:)
@@ -221,8 +221,8 @@ contains
 
     call gsv_deallocate(statevector_ensStdDev_tiles)
 
-    mykBeg = statevector_ensStdDev%mykBeg
-    mykEnd = statevector_ensStdDev%mykEnd
+    myVarLevBeg = statevector_ensStdDev%myVarLevBeg
+    myVarLevEnd = statevector_ensStdDev%myVarLevEnd
 
     numFunctions = 3
 
@@ -311,7 +311,7 @@ contains
     call gsv_deallocate(statevector_oneMemberTiles)
 
     !$OMP PARALLEL DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
-    do k = mykBeg, mykEnd
+    do k = myVarLevBeg, myVarLevEnd
       write(*,*) 'Computing distance-bin statistics for ensemble level: ', k
 
       !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
