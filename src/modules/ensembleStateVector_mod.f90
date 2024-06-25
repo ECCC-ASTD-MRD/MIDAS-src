@@ -2790,7 +2790,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
-    integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
+    integer :: sendsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvsizes(mmpi_nprocs), recvdispls(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
@@ -2862,8 +2862,8 @@ CONTAINS
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mmpi_nprocs))
-    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -2959,20 +2959,35 @@ CONTAINS
             end if
 
             nsize = lonPerPE * latPerPE * numLevelsToSend2
+            write(*,*) 'ens_writeEnsemble: nsize = ', nsize
             ! only send the exact data amount for each task
-            do procIndex = 1, mmpi_nprocs
-              sendsizes(procIndex) = nsize
-            end do
+            sendsizes(:) = 0
             ! Collect the sizes for each processor
-            call rpn_comm_alltoall(sendsizes(:),1,"mpi_integer",  &
-                                   recvsizes(:),1,"mpi_integer","GRID",ierr)
+            call rpn_comm_allgather(nsize,     1, "mpi_integer",  &
+                                    sendsizes, 1, "mpi_integer", "GRID", ierr)
+            write(*,*) 'ens_writeEnsemble: sendsizes = ', sendsizes(:)
+
             senddispls(1) = 0
+            recvdispls(1) = 0
             do procIndex = 2, mmpi_nprocs
               senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+              recvdispls(procIndex) = senddispls(procIndex)
             end do
+            write(*,*) 'ens_writeEnsemble: senddispls = ', senddispls(:)
             ! Collect the displacements for each processor
-            call rpn_comm_alltoall(senddispls(:),1,"mpi_integer",  &
-                                   recvdispls(:),1,"mpi_integer","GRID",ierr)
+            !call rpn_comm_alltoall(senddispls(:), 1, "mpi_integer",  &
+            !                       recvdispls(:), 1, "mpi_integer", "GRID", ierr)
+
+            ! nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
+            ! do procIndex = 1, mmpi_nprocs
+            !   sendsizes(procIndex) = nsize
+            !   recvsizes(procIndex) = nsize
+            ! end do
+            ! senddispls(1) = 0
+            ! do procIndex = 2, mmpi_nprocs
+            !   senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
+            !   recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
+            ! end do
 
             if (mmpi_nprocs > 1) then
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoall')
