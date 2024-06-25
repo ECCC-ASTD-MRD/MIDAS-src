@@ -329,7 +329,7 @@ contains
 
     ! Locals:
     integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
-    integer :: procIndex, kIndex, stepIndex
+    integer :: procIndex, varLevIndex, stepIndex
     integer :: gridptCount, gridpt, numLocalGridptsFoundSearch
     integer :: lonIndex, latIndex, resultsIndex, gridIndex, numStep
     type(kdtree2_result) :: searchResults(maxNumLocalGridptsSearch)
@@ -466,10 +466,10 @@ contains
 
             if (maxLcorr == 0.0d0) then
 
-              do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
                 do stepIndex = 1, stateVectorTrlErrorStd%numStep
 
-                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, &
                                                          procIndex, interpWeight, obsLatIndex, &
                                                          obsLonIndex, gridptCount)
 
@@ -612,7 +612,7 @@ contains
     type(struct_gsv) :: stateVectorTrlDSLO, stateVectorAnlDSLO
     real(8), pointer :: trlDSLO_ptr(:,:,:,:), anlDSLO_ptr(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
-    integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
+    integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, varLevIndex, procIndex
     integer :: gridptCount, gridpt
     type(struct_columnData) :: column, columng
     real(8) :: leadTimeInHours, interpWeight(maxNumLocalGridptsSearch)
@@ -698,9 +698,9 @@ contains
             cycle HEADER_LOOP
           end if
 
-          do kIndex = stateVectorTrlDSLO%mykBeg, stateVectorTrlDSLO%mykEnd
+          do varLevIndex = stateVectorTrlDSLO%mykBeg, stateVectorTrlDSLO%mykEnd
             do stepIndex = 1, stateVectorTrlDSLO%numStep
-              call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
+              call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, &
                                                      procIndex, interpWeight, obsLatIndex, &
                                                      obsLonIndex, gridptCount)
 
@@ -908,7 +908,7 @@ contains
     real(8)                  ,          intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
 
     ! Locals:
-    integer :: latIndex, lonIndex, stepIndex, levIndex, kIndex, numStep, numLev
+    integer :: latIndex, lonIndex, stepIndex, levIndex, varLevIndex, numStep, numLev
     integer :: numInfluentObs, bodyIndex, numVariables
     integer :: influentObsIndex2, influentObsIndex
     integer :: xStateIndex, yStateIndex, procIndex
@@ -993,7 +993,7 @@ contains
         !$omp        numVariables, varIndex1, varIndex2, currentAnalVarIndex, found, &
         !$omp        influentObsIndex2, influentObsIndex, &
         !$omp        scaling, xStateIndex, yStateIndex, lonIndex, latIndex, headerIndex, &
-        !$omp        bodyIndex, kIndex, procIndex, &
+        !$omp        bodyIndex, varLevIndex, procIndex, &
         !$omp        numInfluentObs, xIndex1, yIndex1, xIndex2, yIndex2, distance, &
         !$omp        interpWeight, obsLatIndex, obsLonIndex, gridptCount, gridpt)
         YINDEX: do latIndex = mmpi_myidy+1, nj, mmpi_npey
@@ -1037,9 +1037,9 @@ contains
               end if	
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
-              KINDEXCYCLE: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              VARLEVCYCLE: do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
 
-                call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+                call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &
                                                        gridptCount)
 
@@ -1071,7 +1071,7 @@ contains
                   statej(numVariables) = yStateIndex
 
                 end do GRIDPTCYCLE
-              end do KINDEXCYCLE
+              end do VARLEVCYCLE
             end do INFLUENTOBSCYCLE
 
             ! make sure that current analysis variable is part of the state
@@ -1121,9 +1121,9 @@ contains
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
 
-              KINDEXCYCLE2: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
+              VARLEVCYCLE2: do varLevIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
 
-                call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+                call s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                        interpWeight, obsLatIndex, obsLonIndex, &
                                                        gridptCount)
 
@@ -1165,7 +1165,7 @@ contains
                   call utl_abort('aer_computeAnlErrorStd: not found in state vect.')
 
                 end do GRIDPTCYCLE2
-              end do KINDEXCYCLE2
+              end do VARLEVCYCLE2
             end do INFLUENTOBSCYCLE2
 
             ! form the background-error covariance matrix

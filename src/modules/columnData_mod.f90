@@ -485,7 +485,7 @@ contains
   !--------------------------------------------------------------------------
   ! col_getVarNameFromK
   !--------------------------------------------------------------------------
-  function col_getVarNameFromK(column,kIndex) result(varName)
+  function col_getVarNameFromK(column,varLevIndex) result(varName)
     !
     !:Purpose: Return the variable name for a given value of the
     !          "varsLevs" index.
@@ -494,7 +494,7 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in) :: column  ! The `columnData` object
-    integer,                 intent(in) :: kIndex  ! The index into "varsLevs" array
+    integer,                 intent(in) :: varLevIndex  ! The index into "varsLevs" array
     ! Result:
     character(len=4)                    :: varName ! The returned variable name
 
@@ -503,15 +503,15 @@ contains
 
     do varIndex = 1, vnl_numvarmax
       if ( column%varExistList(varIndex) ) then
-        if ( (kIndex >= (column%varOffset(varIndex) + 1)) .and.  &
-            (kIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
+        if ( (varLevIndex >= (column%varOffset(varIndex) + 1)) .and.  &
+            (varLevIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
           varName = vnl_varNameList(varIndex)
           return
         end if
       end if
     end do
 
-    write(*,*) 'col_getVarNameFromK: kIndex out of range: ', kIndex
+    write(*,*) 'col_getVarNameFromK: varLevIndex out of range: ', varLevIndex
     call utl_abort('col_getVarNameFromK')
 
   end function col_getVarNameFromK

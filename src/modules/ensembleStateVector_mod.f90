@@ -817,7 +817,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_getOneLev_r4
   !--------------------------------------------------------------------------
-  function ens_getOneLev_r4(ens,kIndex) result(oneLevLevel)
+  function ens_getOneLev_r4(ens,varLevIndex) result(oneLevLevel)
     !
     !:Purpose: Return a 4D pointer to a single level of a real4 ensemble. The
     !          dimensions of the pointer are:
@@ -827,7 +827,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
-    integer,          intent(in)    :: kIndex
+    integer,          intent(in)    :: varLevIndex
     ! Result:
     real(4), pointer                :: oneLevLevel(:,:,:,:)
 
@@ -837,14 +837,14 @@ CONTAINS
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
 
-    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r4(kIndex)%onelevel(:,:,:,:)
+    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r4(varLevIndex)%onelevel(:,:,:,:)
 
   end function ens_getOneLev_r4
 
   !--------------------------------------------------------------------------
   ! ens_getOneLev_r8
   !--------------------------------------------------------------------------
-  function ens_getOneLev_r8(ens,kIndex) result(oneLevLevel)
+  function ens_getOneLev_r8(ens,varLevIndex) result(oneLevLevel)
     !
     !:Purpose: Return a 4D pointer to a single level of a real8 ensemble. The
     !          dimensions of the pointer are:
@@ -854,7 +854,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer         , intent(in) :: kIndex
+    integer         , intent(in) :: varLevIndex
     ! Result:
     real(8), pointer :: oneLevLevel(:,:,:,:)
 
@@ -864,14 +864,14 @@ CONTAINS
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
 
-    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r8(kIndex)%onelevel(:,:,:,:)
+    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r8(varLevIndex)%onelevel(:,:,:,:)
 
   end function ens_getOneLev_r8
 
   !--------------------------------------------------------------------------
   ! ens_getOneLevMean_r8
   !--------------------------------------------------------------------------
-  function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
+  function ens_getOneLevMean_r8(ens,subEnsIndex,varLevIndex) result(field)
     !
     !:Purpose: Return a 3D pointer to a single level the ensemble mean. The
     !          dimensions of the pointer are:
@@ -881,7 +881,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_ens), intent(inout) :: ens
-    integer,          intent(in)    :: subEnsIndex, kIndex
+    integer,          intent(in)    :: subEnsIndex, varLevIndex
     ! Result:
     real(8), pointer                :: field(:,:,:)
 
@@ -891,7 +891,7 @@ CONTAINS
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
 
-    field(1:, lon1:, lat1:) => ens%allLev_ensMean_r8(kIndex)%onelevel(subEnsIndex,:,:,:)
+    field(1:, lon1:, lat1:) => ens%allLev_ensMean_r8(varLevIndex)%onelevel(subEnsIndex,:,:,:)
 
   end function ens_getOneLevMean_r8
 
@@ -1473,7 +1473,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getNumK(ens) result(numK)
     !
-    !:Purpose: Return the number of kIndex (a.k.a. varLevs) values of the ensemble.
+    !:Purpose: Return the number of varLevIndex (a.k.a. varLevs) values of the ensemble.
     !
     implicit none
 
@@ -1527,7 +1527,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ens_getOffsetFromVarName(ens,varName) result(offset)
     !
-    !:Purpose: Return the offset of the kIndex for the specified variable name.
+    !:Purpose: Return the offset of the varLevIndex for the specified variable name.
     !
     implicit none
 
@@ -1548,28 +1548,28 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_getLevFromK
   !--------------------------------------------------------------------------
-  function ens_getLevFromK(ens,kIndex) result(levIndex)
+  function ens_getLevFromK(ens,varLevIndex) result(levIndex)
     !
-    !:Purpose: Return the level index from the kIndex value.
+    !:Purpose: Return the level index from the varLevIndex value.
     !
     implicit none
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer,          intent(in) :: kIndex
+    integer,          intent(in) :: varLevIndex
     ! Result:
     integer                      :: levIndex
 
-    levIndex = gsv_getLevFromK(ens%statevector_work,kIndex)
+    levIndex = gsv_getLevFromK(ens%statevector_work,varLevIndex)
 
   end function ens_getLevFromK
 
   !--------------------------------------------------------------------------
   ! ens_getKFromLevVarName
   !--------------------------------------------------------------------------
-  function ens_getKFromLevVarName(ens, levIndex, varName) result(kIndex)
+  function ens_getKFromLevVarName(ens, levIndex, varName) result(varLevIndex)
     !
-    !:Purpose: Return the kIndex value for the specified level index
+    !:Purpose: Return the varLevIndex value for the specified level index
     !          and variable name.
     !
     implicit none
@@ -1579,28 +1579,28 @@ CONTAINS
     integer,          intent(in) :: levIndex
     character(len=*), intent(in) :: varName
     ! Result:
-    integer                      :: kIndex
+    integer                      :: varLevIndex
 
-    kIndex = levIndex + gsv_getOffsetFromVarName(ens%statevector_work,trim(varName))
+    varLevIndex = levIndex + gsv_getOffsetFromVarName(ens%statevector_work,trim(varName))
 
   end function ens_getKFromLevVarName
 
   !--------------------------------------------------------------------------
   ! ens_getVarNameFromK
   !--------------------------------------------------------------------------
-  function ens_getVarNameFromK(ens,kIndex) result(varName)
+  function ens_getVarNameFromK(ens,varLevIndex) result(varName)
     !
-    !:Purpose: Return the variable name from the specified kIndex value.
+    !:Purpose: Return the variable name from the specified varLevIndex value.
     !
     implicit none
 
     ! Arguments:
     type(struct_ens), intent(in) :: ens
-    integer,          intent(in) :: kIndex
+    integer,          intent(in) :: varLevIndex
     ! Result:
     character(len=4)             :: varName
 
-    varName = gsv_getVarNameFromK(ens%statevector_work,kIndex)
+    varName = gsv_getVarNameFromK(ens%statevector_work,varLevIndex)
 
   end function ens_getVarNameFromK
 
@@ -2033,7 +2033,7 @@ CONTAINS
 
     ! Locals:
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, ierr
-    integer :: kIndex, latIndex, lonIndex, stepIndex, memberIndex
+    integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex
     real(8)  :: globalMean, globalMean_mpiglobal
 
     if ( .not. ens%statevector_work%hco%global ) then
@@ -2048,7 +2048,7 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    do kIndex = k1, k2
+    do varLevIndex = k1, k2
       do memberIndex = 1, ens%numMembers
         do stepIndex = 1, numStep
           
@@ -2057,7 +2057,7 @@ CONTAINS
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               globalMean = globalMean + &
-                   real(ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
+                   real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex),8)
             end do
           end do
           
@@ -2069,8 +2069,9 @@ CONTAINS
           ! Remove it
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
-                   ens%allLev_r4(kIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) - real(globalMean_mpiglobal,4)
+              ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                   ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) - &
+                   real(globalMean_mpiglobal,4)
             end do
           end do
           
@@ -2306,7 +2307,7 @@ CONTAINS
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numMembers, numLevelsToSend2
     integer :: memberIndex, memberIndex2, stepIndex, stepIndex2, procIndex, memberStepIndex, memberStepIndex2
-    integer :: kIndexBeg, kIndexEnd, kCount, memberStepIndexStart, lastReadFilePE
+    integer :: varLevIndexBeg, varLevIndexEnd, kCount, memberStepIndexStart, lastReadFilePE
     character(len=256) :: ensFileName
     character(len=2)   :: typvar
     character(len=12)  :: etiket
@@ -2635,9 +2636,9 @@ CONTAINS
                                 'MPI_LOGICAL', procIndex-1, 'GRID', ierr)
           end do
 
-          do kIndexBeg = 1, numK, numLevelsToSend
-            kIndexEnd = min(numK,kIndexBeg+numLevelsToSend-1)
-            numLevelsToSend2 = kIndexEnd - kIndexBeg + 1
+          do varLevIndexBeg = 1, numK, numLevelsToSend
+            varLevIndexEnd = min(numK,varLevIndexBeg+numLevelsToSend-1)
+            numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             ! prepare for alltoallv
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
@@ -2677,7 +2678,8 @@ CONTAINS
                   gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
                              1:ens%statevector_work%allLatPerPE(youridy+1), :, yourid+1) =  &
                        ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                                ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), kIndexBeg:kIndexEnd)
+                                ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+                                varLevIndexBeg:varLevIndexEnd)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2702,7 +2704,7 @@ CONTAINS
                 memberIndex2 = memberIndexFromMemberStep(memberStepIndex2)
                 stepIndex2   = stepIndexFromMemberStep(memberStepIndex2)
                 yourid = readFilePE(memberStepIndex2)
-                ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex2, :, :) =  &
+                ens%allLev_r4(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex2, :, :) =  &
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, &
                                 kCount, yourid+1)
               end do
@@ -2712,7 +2714,7 @@ CONTAINS
             deallocate(gd_send_r4)
             deallocate(gd_recv_r4)
 
-          end do ! kIndexBeg
+          end do ! varLevIndexBeg
 
           ! deallocate the needed statevector objects
           if (gsv_isAllocated(statevector_member_r4)) then
@@ -2795,7 +2797,7 @@ CONTAINS
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numK, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, kIndexBeg, kIndexEnd, kCount
+    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, kCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName, outFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2928,9 +2930,9 @@ CONTAINS
 
           batchIndex = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
 
-          do kIndexBeg = 1, numK, numLevelsToSend
-            kIndexEnd = min(numK,kIndexBeg+numLevelsToSend-1)
-            numLevelsToSend2 = kIndexEnd - kIndexBeg + 1
+          do varLevIndexBeg = 1, numK, numLevelsToSend
+            varLevIndexEnd = min(numK,varLevIndexBeg+numLevelsToSend-1)
+            numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             if ( ens%dataKind == 8 ) then
               !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
@@ -2938,7 +2940,7 @@ CONTAINS
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       real(ens%allLev_r8(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                       real(ens%allLev_r8(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2948,7 +2950,7 @@ CONTAINS
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
+                       ens%allLev_r4(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
               !$OMP END PARALLEL DO
@@ -2968,15 +2970,16 @@ CONTAINS
               do youridx = 0, (mmpi_npex-1)
                 yourid = youridx + youridy*mmpi_npex
                 ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), kIndexBeg:kIndexEnd) = &
-                         gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                         1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
+                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+                         varLevIndexBeg:varLevIndexEnd) = &
+                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                                1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
 
               end do
             end do
             !$OMP END PARALLEL DO
 
-          end do ! kIndexBeg
+          end do ! varLevIndexBeg
           
         end if ! MPI communication
         

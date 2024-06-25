@@ -95,7 +95,7 @@ program midas_extractBmatrixFor1Dvar
   integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr
   integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
-  integer :: kIndex1, kIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
+  integer :: varLevIndex1, varLevIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
   integer :: idate, itime, dateStamp
   integer :: stepBinExtractIndex
   integer :: nLonLatPos, lonLatPosIndex
@@ -265,8 +265,8 @@ program midas_extractBmatrixFor1Dvar
     latitude = hco_anl%lat2d_4(lonIndex, latIndex)
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
 
-    variableLoop1:do kIndex1 = 1, nkgdim
-      varName1 = gsv_getVarNameFromK(statevector, kIndex1)
+    variableLoop1:do varLevIndex1 = 1, nkgdim
+      varName1 = gsv_getVarNameFromK(statevector, varLevIndex1)
       if ( .not. gsv_varExist(varName=varName1) ) cycle
       if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
       
@@ -274,7 +274,7 @@ program midas_extractBmatrixFor1Dvar
       write(*,*) 'midas-extractBmatrix: simulating a pseudo-observation of ', trim(varName1)
       
       factor1 = getConversionFactor( varName1 )
-      levIndex1 = gsv_getLevFromK(statevector, kIndex1)
+      levIndex1 = gsv_getLevFromK(statevector, varLevIndex1)
       call gsv_zero(statevector)
       call gsv_getField(statevector,field4d, varName1)
       if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
@@ -294,8 +294,8 @@ program midas_extractBmatrixFor1Dvar
       write(*,*) 'midas-extractBmatrix: writing out the column of B. levIndex1,lonIndex,latIndex=', &
                  levIndex1,lonIndex,latIndex
       
-      variableLoop2:do kIndex2 = 1, nkgdim
-        varName2 = gsv_getVarNameFromK(statevector, kIndex2)
+      variableLoop2:do varLevIndex2 = 1, nkgdim
+        varName2 = gsv_getVarNameFromK(statevector, varLevIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
         if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName2) ) cycle
         columnProcIdLocal = -1
@@ -304,8 +304,9 @@ program midas_extractBmatrixFor1Dvar
           columnProcIdLocal = mmpi_myId
           call gsv_getField(statevector, field4d, varName2)
           factor2 = getConversionFactor( varName2 )
-          levIndex2 = gsv_getLevFromK(statevector, kIndex2)
-          bmatrix(kIndex2, kIndex1) = factor1 * factor2 * field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
+          levIndex2 = gsv_getLevFromK(statevector, varLevIndex2)
+          bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
+                                                field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if
         call rpn_comm_allreduce(columnProcIdLocal, columnProcIdGlobal, 1, "mpi_integer", "mpi_max", "GRID", ierr)
       end do variableLoop2

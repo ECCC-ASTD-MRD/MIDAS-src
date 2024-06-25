@@ -1082,7 +1082,7 @@ CONTAINS
 
     ! Locals:
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
-    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, kIndexLPR, kIndexPR
+    integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, varLevIndexLPR, varLevIndexPR
     logical :: overWriteNeeded
     real(4), pointer :: PR_ptr_r4(:,:,:,:), LPR_ptr_r4(:,:,:,:)
 
@@ -1104,15 +1104,15 @@ CONTAINS
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
     levIndex = 1
-    kIndexLPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
+    varLevIndexLPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
     if (ens_varExist(ens,'PR')) then
-      kIndexPR = ens_getKFromLevVarName(ens, levIndex, 'PR')
+      varLevIndexPR = ens_getKFromLevVarName(ens, levIndex, 'PR')
     else
-      kIndexPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
+      varLevIndexPR = ens_getKFromLevVarName(ens, levIndex, 'LPR')
     end if
 
-    LPR_ptr_r4 => ens_getOneLev_r4(ens,kIndexLPR)
-    PR_ptr_r4  => ens_getOneLev_r4(ens,kIndexPR)
+    LPR_ptr_r4 => ens_getOneLev_r4(ens,varLevIndexLPR)
+    PR_ptr_r4  => ens_getOneLev_r4(ens,varLevIndexPR)
 
     do latIndex = myLatBeg, myLatEnd
       do lonIndex = myLonBeg, myLonEnd

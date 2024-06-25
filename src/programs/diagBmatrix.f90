@@ -134,7 +134,7 @@ program midas_diagBmatrix
 
   integer :: fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, nultxt
-  integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
+  integer :: ensIndex, index, varLevIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
@@ -558,11 +558,11 @@ program midas_diagBmatrix
 
       if ( writePsiChiStddev ) call gvt_transform(statevector,'UVtoPsiChi')
 
-      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
-      do kIndex = 1, nkgdim
+      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+      do varLevIndex = 1, nkgdim
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            randomEns(lonIndex,latIndex,kIndex,ensIndex) = field3d(lonIndex,latIndex,kIndex)
+            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = field3d(lonIndex,latIndex,varLevIndex)
           end do
         end do
       end do
@@ -575,22 +575,25 @@ program midas_diagBmatrix
     !
     mean(:,:,:) = 0.0d0
     do ensIndex = 1, numperturbations
-      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)
-      do kIndex = 1, nkgdim
+      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
+      do varLevIndex = 1, nkgdim
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            mean(lonIndex,latIndex,kIndex) = mean(lonIndex,latIndex,kIndex) + randomEns(lonIndex,latIndex,kIndex,ensIndex)
+            mean(lonIndex,latIndex,varLevIndex) = &
+                 mean(lonIndex,latIndex,varLevIndex) + &
+                 randomEns(lonIndex,latIndex,varLevIndex,ensIndex)
           end do
         end do
       end do
       !$OMP END PARALLEL DO
     end do
 
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          mean(lonIndex,latIndex,kIndex) = mean(lonIndex,latIndex,kIndex)/real(numperturbations,8)
+          mean(lonIndex,latIndex,varLevIndex) = mean(lonIndex,latIndex,varLevIndex) / &
+                                                real(numperturbations,8)
         end do
       end do
     end do
@@ -599,12 +602,14 @@ program midas_diagBmatrix
     !
     !- Remove the ensemble mean from the ensemble
     !
-    !$OMP PARALLEL DO PRIVATE (lonIndex,ensIndex,latIndex,kIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex,ensIndex,latIndex,varLevIndex)    
     do ensIndex = 1, numperturbations
-      do kIndex = 1, nkgdim
+      do varLevIndex = 1, nkgdim
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-            randomEns(lonIndex,latIndex,kIndex,ensIndex) = randomEns(lonIndex,latIndex,kIndex,ensIndex) - mean(lonIndex,latIndex,kIndex)
+            randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
+                 randomEns(lonIndex,latIndex,varLevIndex,ensIndex) - &
+                 mean(lonIndex,latIndex,varLevIndex)
           end do
         end do
       end do
@@ -618,12 +623,12 @@ program midas_diagBmatrix
     stddev(:,:,:) = 0.0d0
 
     do ensIndex = 1, numperturbations
-      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)
+      !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
       do lonIndex = statevector%myLonBeg, statevector%myLonEnd
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do kIndex = 1, nkgdim
-            stddev(lonIndex,latIndex,kIndex) = stddev(lonIndex,latIndex,kIndex) + &
-                 (randomEns(lonIndex,latIndex,kIndex,ensIndex)**2)/real(numperturbations,8)
+          do varLevIndex = 1, nkgdim
+            stddev(lonIndex,latIndex,varLevIndex) = stddev(lonIndex,latIndex,varLevIndex) + &
+                 (randomEns(lonIndex,latIndex,varLevIndex,ensIndex)**2)/real(numperturbations,8)
           end do
         end do
       end do
@@ -631,22 +636,22 @@ program midas_diagBmatrix
     end do
     deallocate(randomEns)
 
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          stddev(lonIndex,latIndex,kIndex) = sqrt(stddev(lonIndex,latIndex,kIndex))
+          stddev(lonIndex,latIndex,varLevIndex) = sqrt(stddev(lonIndex,latIndex,varLevIndex))
         end do
       end do
     end do
     !$OMP END PARALLEL DO
 
     !- Insert results in statevector
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          field3d(lonIndex,latIndex,kIndex) = stddev(lonIndex,latIndex,kIndex)
+          field3d(lonIndex,latIndex,varLevIndex) = stddev(lonIndex,latIndex,varLevIndex)
         end do
       end do
     end do
@@ -668,11 +673,12 @@ program midas_diagBmatrix
     stddev_zm(:,:) = 0.d0
     stddev_zm2(:,:) = 0.d0
 
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          stddev_zm(latIndex,kIndex) = stddev_zm(latIndex,kIndex) + (field3d(lonIndex,latIndex,kIndex)**2)/real(hco_anl%ni,8)
+          stddev_zm(latIndex,varLevIndex) = stddev_zm(latIndex,varLevIndex) + &
+               (field3d(lonIndex,latIndex,varLevIndex)**2)/real(hco_anl%ni,8)
         end do
       end do
     end do
@@ -683,14 +689,14 @@ program midas_diagBmatrix
          "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
     !- Insert results in statevector
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          if(stddev_zm2(latIndex,kIndex)> 0.0d0) then
-            field3d(lonIndex,latIndex,kIndex) = sqrt(stddev_zm2(latIndex,kIndex))
+          if(stddev_zm2(latIndex,varLevIndex)> 0.0d0) then
+            field3d(lonIndex,latIndex,varLevIndex) = sqrt(stddev_zm2(latIndex,varLevIndex))
           else
-            field3d(lonIndex,latIndex,kIndex) = 0.0d0
+            field3d(lonIndex,latIndex,varLevIndex) = 0.0d0
           end if
         end do
       end do
@@ -744,11 +750,12 @@ program midas_diagBmatrix
     stddev_dm(:,:) = 0.d0
     stddev_dm2(:,:) = 0.d0
 
-    !$OMP PARALLEL DO PRIVATE (latIndex,kIndex)
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex)
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          stddev_dm(lonIndex,kIndex) = stddev_dm(lonIndex,kIndex) + (field3d(lonIndex,latIndex,kIndex)**2)/real(hco_anl%nj,8)
+          stddev_dm(lonIndex,varLevIndex) = stddev_dm(lonIndex,varLevIndex) + &
+               (field3d(lonIndex,latIndex,varLevIndex)**2)/real(hco_anl%nj,8)
         end do
       end do
     end do
@@ -759,14 +766,14 @@ program midas_diagBmatrix
          "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
     !- Insert results in statevector
-    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)
-    do kIndex = 1, nkgdim
+    !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
+    do varLevIndex = 1, nkgdim
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-          if(stddev_dm2(lonIndex,kIndex)> 0.0d0) then
-            field3d(lonIndex,latIndex,kIndex) = sqrt(stddev_dm2(lonIndex,kIndex))
+          if(stddev_dm2(lonIndex,varLevIndex)> 0.0d0) then
+            field3d(lonIndex,latIndex,varLevIndex) = sqrt(stddev_dm2(lonIndex,varLevIndex))
           else
-            field3d(lonIndex,latIndex,kIndex) = 0.0d0
+            field3d(lonIndex,latIndex,varLevIndex) = 0.0d0
           end if
         end do
       end do

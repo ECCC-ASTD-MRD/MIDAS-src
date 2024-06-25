@@ -210,7 +210,7 @@ contains
     type(struct_gsv), intent(inout) :: statevector_out ! Statevector with target horiz and vert grids and result
 
     ! Locals:
-    integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
+    integer :: varIndex, levIndex, nlev, stepIndex, ierr, varLevIndex
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
 
@@ -281,25 +281,25 @@ contains
       end if
 
       do stepIndex = 1, statevector_out%numStep
-        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
-          varName = gsv_getVarNameFromK(statevector_in,kIndex)
+        k_loop: do varLevIndex = statevector_in%mykBeg, statevector_in%mykEnd
+          varName = gsv_getVarNameFromK(statevector_in,varLevIndex)
           if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep UU in main vector
-            ierr = int_hInterpUV( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
+            ierr = int_hInterpUV( statevector_out, statevector_in, 'UU', varLevIndex, stepIndex, &
                                   interpDegree=trim(interpolationDegree), &
                                   extrapDegree_opt=trim(extrapolationDegree) )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV in main vector
-            ierr = int_hInterpUV( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
+            ierr = int_hInterpUV( statevector_out, statevector_in, 'VV', varLevIndex, stepIndex, &
                                   interpDegree=trim(interpolationDegree), &
                                   extrapDegree_opt=trim(extrapolationDegree) )
           else
             ! interpolate scalar variable
-            ierr = int_hInterpScalar( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
+            ierr = int_hInterpScalar( statevector_out, statevector_in, 'ALL', varLevIndex, stepIndex, &
                                       interpDegree=trim(interpolationDegree), &
                                       extrapDegree_opt=trim(extrapolationDegree) )
           end if
@@ -990,7 +990,7 @@ contains
     type(struct_gsv),  intent(inout) :: statevector_out ! Statevector with target temporal structure and results
 
     ! Locals:
-    integer :: kIndex, latIndex, lonIndex
+    integer :: varLevIndex, latIndex, lonIndex
     integer :: stepIndexIn1, stepIndexIn2, stepIndexOut, numStepIn, numStepOut
     integer :: lon1, lon2, lat1, lat2, k1, k2
     integer :: dateStampIn, dateStampOut 
@@ -1086,13 +1086,13 @@ contains
       if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r4)
-        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-        do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
+        do varLevIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              gdOut_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1,4) * gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                real(weight2,4) * gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn2)
+              gdOut_r4(lonIndex,latIndex,varLevIndex,stepIndexOut) =  &
+                real(weight1,4) * gdIn_r4(lonIndex,latIndex,varLevIndex,stepIndexIn1) + &
+                real(weight2,4) * gdIn_r4(lonIndex,latIndex,varLevIndex,stepIndexIn2)
             end do
           end do
         end do
@@ -1100,13 +1100,13 @@ contains
       else if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r8)
-        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-        do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
+        do varLevIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              gdOut_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * real(gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn1),8) + &
-                weight2 * real(gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn2),8)
+              gdOut_r8(lonIndex,latIndex,varLevIndex,stepIndexOut) =  &
+                weight1 * real(gdIn_r4(lonIndex,latIndex,varLevIndex,stepIndexIn1),8) + &
+                weight2 * real(gdIn_r4(lonIndex,latIndex,varLevIndex,stepIndexIn2),8)
             end do
           end do
         end do
@@ -1114,13 +1114,13 @@ contains
       else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r4)
-        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-        do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
+        do varLevIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              gdOut_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn1),4) + &
-                real(weight2 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn2),4)
+              gdOut_r4(lonIndex,latIndex,varLevIndex,stepIndexOut) =  &
+                real(weight1 * gdIn_r8(lonIndex,latIndex,varLevIndex,stepIndexIn1),4) + &
+                real(weight2 * gdIn_r8(lonIndex,latIndex,varLevIndex,stepIndexIn2),4)
             end do
           end do
         end do
@@ -1128,13 +1128,13 @@ contains
       else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r8)
-        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-        do kIndex = k1, k2
+        !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex,lonIndex)
+        do varLevIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              gdOut_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                weight2 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn2)
+              gdOut_r8(lonIndex,latIndex,varLevIndex,stepIndexOut) =  &
+                weight1 * gdIn_r8(lonIndex,latIndex,varLevIndex,stepIndexIn1) + &
+                weight2 * gdIn_r8(lonIndex,latIndex,varLevIndex,stepIndexIn2)
             end do
           end do
         end do
@@ -1536,7 +1536,7 @@ contains
     !           in the case where the input data is a cloud of points (i.e. a Y grid) and
     !           the output is on a regular grid. Accessed through int_hInterpScalar.
     !
-    ! :Note:  When varName=='ALL', the argument levIndex is actually kIndex
+    ! :Note:  When varName=='ALL', the argument levIndex is actually varLevIndex
     !
     implicit none
 
@@ -1600,7 +1600,7 @@ contains
     if (stateVectorCloud%oceanMask%maskPresent) then
       maskCloud(:,:) = 0
       if (trim(varName) == 'ALL') then
-        ! when varName==ALL, the argument levIndex is actually kIndex
+        ! when varName==ALL, the argument levIndex is actually varLevIndex
         where(stateVectorCloud%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorCloud,levIndex))) maskCloud(:,:) = 1
       else
         where(stateVectorCloud%oceanMask%mask(:,:,levIndex)) maskCloud(:,:) = 1
@@ -1611,7 +1611,7 @@ contains
     if (stateVectorGrid%oceanMask%maskPresent) then
       maskGrid(:,:) = 0
       if (trim(varName) == 'ALL') then
-        ! when varName==ALL, the argument levIndex is actually kIndex
+        ! when varName==ALL, the argument levIndex is actually varLevIndex
         where(stateVectorGrid%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorGrid,levIndex))) maskGrid(:,:) = 1
       else
         where(stateVectorGrid%oceanMask%mask(:,:,levIndex)) maskGrid(:,:) = 1
