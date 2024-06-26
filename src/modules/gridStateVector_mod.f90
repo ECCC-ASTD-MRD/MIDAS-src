@@ -1707,7 +1707,7 @@ module gridStateVector_mod
     real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
     character(len=4), allocatable :: varNameListCommon(:)
     character(len=4)              :: varName
-    character(len=10)             :: gsvCopyType 
+    character(len=11)             :: gsvCopyType 
     character(len=4), pointer     :: varNamesList_in(:), varNamesList_out(:)
 
     if ( present(beSilent_opt) ) then
