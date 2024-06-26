@@ -2788,9 +2788,9 @@ CONTAINS
     type(struct_gsv) :: statevectorHeightSfc, statevectorHeightSfc_tiles
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
-    real(4), allocatable :: gd_send_r4(:,:,:,:) !, gd_send_alltoall_r4(:,:,:,:)
-    real(4), allocatable :: gd_recv_r4(:,:,:,:), gd_recv_alltoall_r4(:,:,:,:)
-    integer :: sendsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvsizes(mmpi_nprocs) !, recvdispls(mmpi_nprocs)
+    real(4), allocatable :: gd_send_r4(:,:,:,:)
+    real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    integer :: sendsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
@@ -2860,17 +2860,10 @@ CONTAINS
 
     ens%ensPathName = trim(ensPathName)
 
-    write(*,*) 'ens_writeEnsemble: lonPerPE = ', lonPerPE
-    write(*,*) 'ens_writeEnsemble: latPerPE = ', latPerPE
-    write(*,*) 'ens_writeEnsemble: lonPerPEmax = ', lonPerPEmax
-    write(*,*) 'ens_writeEnsemble: latPerPEmax = ', latPerPEmax
-
     ! Memory allocation
     numLevelsToSend = 10
     allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
-    !allocate(gd_send_alltoall_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
-    allocate(gd_recv_alltoall_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -2968,56 +2961,24 @@ CONTAINS
             end if
 
             nsize = lonPerPE * latPerPE * numLevelsToSend2
-            write(*,*) 'ens_writeEnsemble: nsize = ', nsize
             ! only send the exact data amount for each task
             sendsizes(:) = 0
-            ! Collect the sizes for each processor
+            ! collect the sizes for each processor
             call rpn_comm_allgather(nsize,     1, "mpi_integer",  &
                                     sendsizes, 1, "mpi_integer", "GRID", ierr)
-            write(*,*) 'ens_writeEnsemble: sendsizes = ', sendsizes(:)
 
+            ! Specify the start of each memory block to read/write on each MPI rank
             senddispls(1) = 0
-            ! recvdispls(1) = 0
             do procIndex = 2, mmpi_nprocs
               senddispls(procIndex) = senddispls(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
-              ! recvdispls(procIndex) = senddispls(procIndex)
             end do
-            write(*,*) 'ens_writeEnsemble: senddispls = ', senddispls(:)
-            write(*,*) 'ens_writeEnsemble: size(gd_send_r4) = ', size(gd_send_r4)
-            write(*,*) 'ens_writeEnsemble: lonPerPEmax*latPerPEmax*numLevelsToSend*mmpi_nprocs', lonPerPEmax*latPerPEmax*numLevelsToSend*mmpi_nprocs
-            ! Collect the displacements for each processor
-            !call rpn_comm_alltoall(senddispls(:), 1, "mpi_integer",  &
-            !                       recvdispls(:), 1, "mpi_integer", "GRID", ierr)
-
-            ! nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
-            ! do procIndex = 1, mmpi_nprocs
-            !   sendsizes(procIndex) = nsize
-            !   recvsizes(procIndex) = nsize
-            ! end do
-            ! senddispls(1) = 0
-            ! do procIndex = 2, mmpi_nprocs
-            !   senddispls(procIndex) = senddispls(procIndex-1) + sendsizes(procIndex-1)
-            !   recvdispls(procIndex) = recvdispls(procIndex-1) + recvsizes(procIndex-1)
-            ! end do
 
             if (mmpi_nprocs > 1) then
-              !gd_send_alltoall_r4(:,:,:,:) = gd_send_r4(:,:,:,:)
-              write(*,*) 'ens_writeEnsemble: calling rpn_comm_alltoall'
-              call utl_tmg_start(193,'ens_WriteEnsemble-alltoall')
-              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),         lonPerPEmax*latPerPEmax*numLevelsToSend2,"mpi_real4",  &
-                                     gd_recv_alltoall_r4(:,:,1:numLevelsToSend2,:),lonPerPEmax*latPerPEmax*numLevelsToSend2,"mpi_real4","GRID",ierr)
-              call utl_tmg_stop(193)
-
-              write(*,*) 'ens_writeEnsemble: calling mpi_alltoallv'
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
               call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
                                  gd_recv_r4, recvsizes, senddispls, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
-
-              !write(*,*) 'ens_writeEnsemble: gd_send_r4 = ', gd_send_r4(1:lonPerPE,1:latPerPE,1:numLevelsToSend2,mmpi_myid+1)
-              !write(*,*) 'ens_writeEnsemble: gd_send_alltoall_r4 = ', gd_send_alltoall_r4(1:lonPerPE,1:latPerPE,1:numLevelsToSend2,mmpi_myid+1)
-              write(*,*) 'ens_writeEnsemble: alltoall vs alltoallv differences ', all(abs(gd_recv_r4(1:lonPerPE,1:latPerPE,1:numLevelsToSend2,mmpi_myid+1) - gd_recv_alltoall_r4(1:lonPerPE,1:latPerPE,1:numLevelsToSend2,mmpi_myid+1)) <= 0.001)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
