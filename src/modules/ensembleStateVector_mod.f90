@@ -2867,9 +2867,6 @@ CONTAINS
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
-    ! This is the maximum data to be received on each MPI rank
-    recvsizes(:) = lonPerPEmax*latPerPEmax*numLevelsToSend
-
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
@@ -2963,9 +2960,22 @@ CONTAINS
 
             if (mmpi_nprocs > 1) then
               nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
+
               ! only send the exact data amount for each task
-              sendsizes(:) = nsize
-              recvsizes(:) = nsize
+              do procIndex = 1, mmpi_nprocs
+                if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                  sendsizes(procIndex) = nsize
+                else
+                  sendsizes(procIndex) = 0
+                end if
+              end do
+
+              ! only receive data on rank that receive data
+              if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                recvsizes(:) = nsize
+              else
+                recvsizes(:) = 0
+              end if
 
               ! Specify the start of each memory block to read/write for each MPI rank
               nsize = lonPerPEmax*latPerPEmax*numLevelsToSend

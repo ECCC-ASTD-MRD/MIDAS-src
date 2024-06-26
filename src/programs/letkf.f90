@@ -753,7 +753,7 @@ program midas_letkf
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType = enkfNML%obsTimeInterpType )
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, beSilent_opt = .false.)
-  
+
   ! Write (update) observation files. 
   if (enkfNML%outputEnsObs) then
     call obsf_writeFiles(obsSpaceData, ensObs_opt=ensObs)
