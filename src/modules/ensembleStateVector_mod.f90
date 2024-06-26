@@ -2789,7 +2789,7 @@ CONTAINS
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
-    real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    real(4), allocatable :: gd_recv_r4(:,:,:,:), gd_recv_alltoall_r4(:,:,:,:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
@@ -2864,8 +2864,10 @@ CONTAINS
     numLevelsToSend = 10
     allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_recv_alltoall_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
+    gd_recv_alltoall_r4(:,:,:,:) = 0.0
 
     ! This is the maximum data to be received on each MPI rank
     recvsizes(:) = lonPerPEmax*latPerPEmax*numLevelsToSend
@@ -2962,15 +2964,14 @@ CONTAINS
             end if
 
             if (mmpi_nprocs > 1) then
-
               nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
               ! only send the exact data amount for each task
               sendsizes(:) = nsize
               recvsizes(:) = nsize
 
               ! Specify the start of each memory block to read/write for each MPI rank
-              displacements(1) = 0
               nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+              displacements(1) = 0
               do procIndex = 2, mmpi_nprocs
                 displacements(procIndex) = displacements(procIndex-1) + nsize
               end do
@@ -2980,6 +2981,11 @@ CONTAINS
                                  gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
+
+              call mpi_alltoall(gd_send_r4         (:,:,1:numLevelsToSend2,:) ,lonPerPEmax*latPerPEmax*numLevelsToSend2, mmpi_datyp_real4, &
+                                gd_recv_alltoall_r4(:,:,1:numLevelsToSend2,:) ,lonPerPEmax*latPerPEmax*numLevelsToSend2, mmpi_datyp_real4, &
+                                mmpi_comm_grid, ierr)
+              write(*,*) 'alltoall vs alltoall differences: ', all(abs(gd_recv_alltoall_r4(:,:,1:numLevelsToSend2,:)-gd_recv_r4(:,:,1:numLevelsToSend2,:))<0.001)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
@@ -3087,6 +3093,7 @@ CONTAINS
     deallocate(varNamesInEns)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
+    deallocate(gd_recv_alltoall_r4)
     deallocate(datestamplist)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
