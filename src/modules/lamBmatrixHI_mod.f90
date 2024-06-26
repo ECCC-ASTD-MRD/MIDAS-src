@@ -56,7 +56,7 @@ module lamBmatrixHI_mod
   integer              :: nControlVariable
   integer              :: trunc
   integer              :: nksdim
-  integer              :: nkgdim
+  integer              :: numVarLev
   integer              :: cvDim
   integer              :: cvDim_mpiglobal
   
@@ -181,7 +181,7 @@ contains
     call lbhi_GetControlVariableInfo( iu_bstats ) ! IN
     call lbhi_GetHorizGridInfo()
 
-    nkgdim = 0
+    numVarLev = 0
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
@@ -194,12 +194,12 @@ contains
         ControlVariable(var)%ip1(:) = 0
       end if
 
-      ControlVariable(var)%kDimStart = nkgdim + 1
-      nkgdim = nkgdim + ControlVariable(var)%nlev
-      ControlVariable(var)%kDimEnd    = nkgdim
+      ControlVariable(var)%kDimStart = numVarLev + 1
+      numVarLev = numVarLev + ControlVariable(var)%nlev
+      ControlVariable(var)%kDimEnd    = numVarLev
     end do
 
-    nksdim = nkgdim ! + nlev
+    nksdim = numVarLev ! + nlev
 
     allocate( bsqrt  (1:nksdim, 1:nksdim ,0:trunc) )
 
@@ -215,7 +215,7 @@ contains
                    hco_bhi%dlon, trunc,             & ! IN
                    'LatLonMN', maxlevels_opt=nksdim)  ! IN
 
-    cvDim     = nkgdim * lst_bhi%nla * lst_bhi%nphase
+    cvDim     = numVarLev * lst_bhi%nla * lst_bhi%nphase
     cvDim_out = cvDim
 
     ! also compute mpiglobal control vector dimension

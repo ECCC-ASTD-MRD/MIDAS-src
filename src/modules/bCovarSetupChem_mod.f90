@@ -122,7 +122,7 @@ module bCovarSetupChem_mod
      
      ! Total number of elements over all verticallevels and 
      ! variables (varNameList)
-     integer              :: nkgdim
+     integer              :: numVarLev
      
      integer              :: ntrunc     ! spectral dimension
      character(len=4), allocatable :: varNameList(:) ! list of variable names
@@ -334,7 +334,7 @@ module bCovarSetupChem_mod
       end if
     end if
     
-    bgStats%nkgdim = &
+    bgStats%numVarLev = &
       bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d+1)-1
 
     ! Scalefactors must be > 0 until ensembles for constituents can be used.
@@ -370,7 +370,7 @@ module bCovarSetupChem_mod
     bgStats%nj = hco_in%nj
     bgStats%ntrunc = ntrunc
     gstID  = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc, &
-      bgStats%nkgdim)
+      bgStats%numVarLev)
 
     if (allocated(bgStats%lat)) deallocate(bgStats%lat)
     if (allocated(bgStats%lon)) deallocate(bgStats%lon)    
@@ -391,13 +391,13 @@ module bCovarSetupChem_mod
       bgStats%nlev = 0
     end if
     
-    allocate(stddev(bgStats%ni+1, bgStats%nj, bgStats%nkgdim))
-    allocate(rstddev(bgStats%nkgdim, 0:bgStats%ntrunc))    
+    allocate(stddev(bgStats%ni+1, bgStats%nj, bgStats%numVarLev))
+    allocate(rstddev(bgStats%numVarLev, 0:bgStats%ntrunc))    
       
-    allocate(bgStats%corns(bgStats%nkgdim,bgStats%nkgdim, &
+    allocate(bgStats%corns(bgStats%numVarLev,bgStats%numVarLev, &
       0:bgStats%ntrunc))  
     allocate(bgStats%stddev(bgStats%ni+1,bgStats%nj, &
-      bgStats%nkgdim ))
+      bgStats%numVarLev ))
     if ( bgStats%nlev > 1 ) then 
       allocate(bgStats%vlev(bgStats%nlev))
       if (getPhysSpaceStats .or. trim(bcsc_mode) == 'BackgroundCheck') then
@@ -766,10 +766,10 @@ module bCovarSetupChem_mod
     do jn = 0, bgStats%ntrunc
 
       ! Re-build correlation matrix: factorization of corns with convoluted RSTDDEV
-      do jcol = 1, bgStats%nkgdim
-        bgStats%corns(1:bgStats%nkgdim,jcol,jn) = &
-	  rstddev(1:bgStats%nkgdim,jn) * &
-	  bgStats%corns(1:bgStats%nkgdim,jcol,jn) * rstddev(jcol,jn)
+      do jcol = 1, bgStats%numVarLev
+        bgStats%corns(1:bgStats%numVarLev,jcol,jn) = &
+	  rstddev(1:bgStats%numVarLev,jn) * &
+	  bgStats%corns(1:bgStats%numVarLev,jcol,jn) * rstddev(jcol,jn)
       end do
 
     end do
@@ -787,8 +787,8 @@ module bCovarSetupChem_mod
     real(8) :: dtlen,zr,dlfact
     integer :: jn,latIndex,jk,varIndex,levelIndex,nsize,ierr
     real(8) :: zleg(0:bgStats%ntrunc,bgStats%nj)
-    real(8) :: zsp(0:bgStats%ntrunc,bgStats%nkgdim)
-    real(8) :: zgr(bgStats%nj,bgStats%nkgdim)
+    real(8) :: zsp(0:bgStats%ntrunc,bgStats%numVarLev)
+    real(8) :: zgr(bgStats%nj,bgStats%numVarLev)
     real(8) :: zrmu(bgStats%nj)
     integer :: nlev_MT,ini,inj,ink,nulcorns
     real(8), allocatable :: wtemp(:,:,:)    
@@ -807,18 +807,18 @@ module bCovarSetupChem_mod
     do jn = 0, bgStats%ntrunc
       dlfact = ((2.0d0*jn+1.0d0)/2.0d0)**(0.25d0)
       dlfact2 = ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
-      do jk = 1, bgStats%nkgdim
+      do jk = 1, bgStats%numVarLev
         zsp(jn,jk) = rstddev(jk,jn)*dlfact*dlfact2
       end do
     end do
 
     ! Transform to physical space
-    call gst_zleginv(gstID,zgr,zsp,bgStats%nkgdim)
+    call gst_zleginv(gstID,zgr,zsp,bgStats%numVarLev)
     
     ! Truncate in horizontal extent with Gaussian window
     
     varIndex=1
-    do jk = 1, bgStats%nkgdim
+    do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex)) then
         dtlen = rpor(varIndex)
         varIndex=varIndex+1 
@@ -837,10 +837,10 @@ module bCovarSetupChem_mod
     end do
 
     ! Transform back to spectral space
-    call gst_zlegdir(gstID,zgr,zsp,bgStats%nkgdim)
+    call gst_zlegdir(gstID,zgr,zsp,bgStats%numVarLev)
 
     ! Convert back to correlations
-    do jk = 1, bgStats%nkgdim
+    do jk = 1, bgStats%numVarLev
       do jn = 0, bgStats%ntrunc
         zsp(jn,jk) = zsp(jn,jk)*(2.0d0/(2.0d0*jn+1.0d0))**(0.25d0)
       end do
@@ -848,13 +848,13 @@ module bCovarSetupChem_mod
 
     ! PUT BACK INTO RSTDDEV
     do jn = 0, bgStats%ntrunc
-      do jk = 1, bgStats%nkgdim
+      do jk = 1, bgStats%numVarLev
         rstddev(jk,jn) = zsp(jn,jk)
       end do
     end do
 
     ! Re-normalize to ensure correlations
-    do jk = 1, bgStats%nkgdim
+    do jk = 1, bgStats%numVarLev
       dsummed = 0.d0
       do jn = 0, bgStats%ntrunc
         dsummed = dsummed+ dble(rstddev(jk,jn)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
@@ -869,7 +869,7 @@ module bCovarSetupChem_mod
     ! BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
     do jn = 0, bgStats%ntrunc
       dlfact = sqrt(0.5d0)*(1.0d0/((2.0d0*jn+1)/2.0d0))**0.25d0
-      do jk = 1, bgStats%nkgdim
+      do jk = 1, bgStats%numVarLev
         rstddev(jk,jn) = rstddev(jk,jn)*dlfact
       end do
     end do
@@ -939,7 +939,7 @@ module bCovarSetupChem_mod
     
     varIndex = 1
     levelIndex = 1
-    do jk = 1, bgStats%nkgdim
+    do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex+1)) then
         varIndex = varIndex+1 
         levelIndex = 1
@@ -955,14 +955,14 @@ module bCovarSetupChem_mod
       levelIndex = levelIndex+1
     end do
     
-    nsize=bgStats%nj*bgStats%nkgdim   
+    nsize=bgStats%nj*bgStats%numVarLev   
     call rpn_comm_allreduce(wtemp,hcorrel,nsize,"mpi_double_precision", &
                             "mpi_sum","GRID",ierr)
     deallocate(wtemp)
 
     varIndex = 1
     levelIndex = 1
-    do jk = 1, bgStats%nkgdim
+    do jk = 1, bgStats%numVarLev
       if (jk == bgStats%nsposit(varIndex+1)) then
         varIndex = varIndex+1 
         levelIndex = 1
@@ -1478,12 +1478,12 @@ module bCovarSetupChem_mod
     implicit none
 
     ! Locals:
-    real(8) :: eigenval(bgStats%nkgdim)
-    real(8) :: eigenvalsqrt(bgStats%nkgdim)
+    real(8) :: eigenval(bgStats%numVarLev)
+    real(8) :: eigenvalsqrt(bgStats%numVarLev)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
     integer :: jn,jk1,jk2,varIndex,ierr
     integer :: ilwork,info,jnum,jstart,nsize
-    real(8) :: zwork(2*4*bgStats%nkgdim)
+    real(8) :: zwork(2*4*bgStats%numVarLev)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
     logical, allocatable :: lfound_sqrt(:)
@@ -1536,7 +1536,7 @@ module bCovarSetupChem_mod
 
       if (any(CrossCornsVarKindCH(:) /= '')) then
         jstart=1
-        jnum=bgStats%nkgdim
+        jnum=bgStats%numVarLev
       else
         jstart = bgStats%nsposit(varIndex)
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
@@ -1629,11 +1629,11 @@ module bCovarSetupChem_mod
     implicit none
 
     ! Locals:
-    real(8) :: eigenval(bgStats%nkgdim)
+    real(8) :: eigenval(bgStats%numVarLev)
     real(8), allocatable :: eigenvec(:,:),result(:,:)
     integer :: jn,jk1,jk2,varIndex,numvartot,jstart
     integer :: ilwork,info,jnum,nvlev,ierr
-    real(8) :: zwork(2*4*bgStats%nkgdim)
+    real(8) :: zwork(2*4*bgStats%numVarLev)
     real(8) :: eigenvalmax
     integer iulcorvert
     ! Standard file variables
@@ -1815,7 +1815,7 @@ module bCovarSetupChem_mod
    
         if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) then
           jstart=1
-          jnum=bgStats%nkgdim
+          jnum=bgStats%numVarLev
           clnomvar = 'ZZ'
         else
           jstart = bgStats%nsposit(varIndex)
@@ -1900,7 +1900,7 @@ module bCovarSetupChem_mod
    
       if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) then
         jstart=1
-        jnum=bgStats%nkgdim
+        jnum=bgStats%numVarLev
         clnomvar = 'ZZ'
       else
         jstart = bgStats%nsposit(varIndex)

@@ -94,7 +94,7 @@ program midas_extractBmatrixFor1Dvar
   real(4) :: latitude, longitude
   integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr
-  integer :: varIndex, nkgdim, levIndex1, lonIndex, latIndex, levIndex2
+  integer :: varIndex, numVarLev, levIndex1, lonIndex, latIndex, levIndex2
   integer :: varLevIndex1, varLevIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
   integer :: idate, itime, dateStamp
   integer :: stepBinExtractIndex
@@ -191,8 +191,8 @@ program midas_extractBmatrixFor1Dvar
                     datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false.)
   call gsv_zero(statevector)
-  nkgdim = statevector%numVarLev
-  allocate( Bmatrix(nkgdim, nkgdim) )
+  numVarLev = statevector%numVarLev
+  allocate( Bmatrix(numVarLev, numVarLev) )
   ! Setup the B matrix
   call bmat_setup(hco_anl, hco_core, vco_anl)
   !- Initialize the gridded variable transform module
@@ -251,7 +251,7 @@ program midas_extractBmatrixFor1Dvar
     nulmat = 0
     ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
     write(nulmat) extractDate, vco_anl % nlev_T, vco_anl % nlev_M, vco_anl % Vcode, &
-         vco_anl % ip1_sfc, vco_anl % ip1_T_2m, vco_anl % ip1_M_10m, varCount, nkgdim, nLonLatPos
+         vco_anl % ip1_sfc, vco_anl % ip1_T_2m, vco_anl % ip1_M_10m, varCount, numVarLev, nLonLatPos
     write(nulmat) vco_anl % ip1_T(:), vco_anl % ip1_M(:), varList(:)
   end if
   
@@ -265,7 +265,7 @@ program midas_extractBmatrixFor1Dvar
     latitude = hco_anl%lat2d_4(lonIndex, latIndex)
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
 
-    variableLoop1:do varLevIndex1 = 1, nkgdim
+    variableLoop1:do varLevIndex1 = 1, numVarLev
       varName1 = gsv_getVarNameFromK(statevector, varLevIndex1)
       if ( .not. gsv_varExist(varName=varName1) ) cycle
       if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
@@ -294,7 +294,7 @@ program midas_extractBmatrixFor1Dvar
       write(*,*) 'midas-extractBmatrix: writing out the column of B. levIndex1,lonIndex,latIndex=', &
                  levIndex1,lonIndex,latIndex
       
-      variableLoop2:do varLevIndex2 = 1, nkgdim
+      variableLoop2:do varLevIndex2 = 1, numVarLev
         varName2 = gsv_getVarNameFromK(statevector, varLevIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
         if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName2) ) cycle
@@ -313,7 +313,7 @@ program midas_extractBmatrixFor1Dvar
 
     end do variableLoop1
 
-    call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
+    call RPN_COMM_bcast(Bmatrix, numVarLev * numVarLev, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
     if (mmpi_myId ==0) then
       write(nulmat) latitude, longitude,  Bmatrix(:,:)
     end if

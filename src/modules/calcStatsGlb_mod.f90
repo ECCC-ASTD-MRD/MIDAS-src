@@ -39,7 +39,7 @@ module calcStatsGlb_mod
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
   type(struct_vco), pointer :: vco_ens ! Ensemble horizontal grid parameters
 
-  integer :: nens,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,nla
+  integer :: nens,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,numVarLevEns,nla
   integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: mymBeg, mymEnd, mymSkip, mymCount, mynBeg, mynEnd, mynSkip, mynCount
   integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
@@ -48,7 +48,7 @@ module calcStatsGlb_mod
   integer, pointer    :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
   
   character(len=256), allocatable :: cflensin(:)
-  integer :: gstID_nkgdimEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
+  integer :: gstID_numVarLevEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
   integer, allocatable :: nip1_M(:),nip1_T(:)
   real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
   integer,external    :: get_max_rss
@@ -148,7 +148,7 @@ module calcStatsGlb_mod
     nla = (ntrunc+1)*(ntrunc+2)/2
 
     !- Setup the global spectral transform 
-    gstID_nkgdimEns = gst_setup(ni,nj,ntrunc,nkgdimEns)
+    gstID_numVarLevEns = gst_setup(ni,nj,ntrunc,numVarLevEns)
     gstID_nLevEns_M = gst_setup(ni,nj,ntrunc,nLevEns_M)
     gstID_nLevEns_T_P1 = gst_setup(ni,nj,ntrunc,nLevEns_T+1)
 
@@ -156,9 +156,9 @@ module calcStatsGlb_mod
     call mmpi_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
     call mmpi_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
     call gst_ilaList_mpiglobal(ilaList_mpiglobal, nla_mpilocal, maxMyNla,  &
-         gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
+         gstID_numVarLevEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
     call gst_ilaList_mpilocal(ilaList_mpilocal,  &
-         gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
+         gstID_numVarLevEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
 
     ! setup ensemble members mpi partinionning (when working with struct_ens)
     call mmpi_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
@@ -352,16 +352,16 @@ module calcStatsGlb_mod
     
     allocate(varLevOffset(nvar3d+nvar2d+1))
     varLevOffset(1) = 0
-    nkgdimEns=0   ! NO TG !!!
+    numVarLevEns=0   ! NO TG !!!
     if (nvar3d > 0) then
       do varIndex = 1, nvar3d
         if (trim(nomvar3d(varIndex,modelSpace)) == 'UU' .or. &
              trim(nomvar3d(varIndex,modelSpace)) == 'VV') then	            
           varLevOffset(varIndex+1) = varLevOffset(varIndex)+nLevEns_M
-	  nkgdimEns = nkgdimEns + nLevEns_M
+	  numVarLevEns = numVarLevEns + nLevEns_M
 	else
           varLevOffset(varIndex+1) = varLevOffset(varIndex)+nLevEns_T
-	  nkgdimEns = nkgdimEns + nLevEns_T
+	  numVarLevEns = numVarLevEns + nLevEns_T
         end if
       end do
     end if
@@ -370,7 +370,7 @@ module calcStatsGlb_mod
         varLevOffset(nvar3d+1+varIndex) = varLevOffset(nvar3d+varIndex)+1
       end do
     end if
-    nkgdimEns = nkgdimEns + nvar2d 
+    numVarLevEns = numVarLevEns + nvar2d 
     
   end subroutine setVarLevOffset
      
@@ -454,19 +454,19 @@ module calcStatsGlb_mod
     ! Verify the presence and order of required variables
     call csg_checkForLegacyVars        
 
-    allocate(ensPerturbations(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdimEns, nens))
+    allocate(ensPerturbations(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numVarLevEns, nens))
     allocate(ensBalPerturbations(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nLevEns_T+1, nens))
     allocate(theta1(nlevEns_M,nj))
-    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
-    allocate(stddevZonAvg(nkgdimEns,nj))
+    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns))
+    allocate(stddevZonAvg(numVarLevEns,nj))
     allocate(PtoT(nlevEns_T+1,nlevEns_M,nj))
     allocate(theta2(nlevEns_M,nj))
     allocate(stddev3dBal(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_T+1))
-    allocate(stddev3dUnbal(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
+    allocate(stddev3dUnbal(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns))
     allocate(stddevZonAvgBal(nLevEns_T+1,nj))
-    allocate(stddevZonAvgUnbal(nkgdimEns,nj))
-    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-    allocate(rstddev(nkgdimEns,0:ntrunc))
+    allocate(stddevZonAvgUnbal(numVarLevEns,nj))
+    allocate(corns(numVarLevEns,numVarLevEns,0:ntrunc))
+    allocate(rstddev(numVarLevEns,0:ntrunc))
 
     write(*,*) 'Initializing ensemble arrays to claim memory'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -482,9 +482,9 @@ module calcStatsGlb_mod
 
     call uv_to_psichi(ensPerturbations)
 
-    call calcStddev3d(ensPerturbations,stddev3d,nkgdimens)
+    call calcStddev3d(ensPerturbations,stddev3d,numVarLevEns)
 
-    call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
+    call calcZonAvg(stddevZonAvg,stddev3d,numVarLevEns)
 
     call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
 
@@ -500,7 +500,7 @@ module calcStatsGlb_mod
 
 !    call removeBalancedChi(ensPerturbations,theta2)
 
-    call multiply3d(ensPerturbations,stddev3d,nkgdimens)
+    call multiply3d(ensPerturbations,stddev3d,numVarLevEns)
 
     ens_ptr(myLonBeg:,myLatBeg:,1:,1:) => ensBalPerturbations(:,:,1:nLevEns_T,:)
     stddev3d_ptr(myLonBeg:,myLatBeg:,1:) => stddev3d(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T))
@@ -510,15 +510,15 @@ module calcStatsGlb_mod
     stddev3d_ptr(myLonBeg:,myLatBeg:,1:) => stddev3d(:,:,(2*nLevEns_M+2*nLevEns_T+1):(2*nLevEns_M+2*nLevEns_T+1))
     call multiply3d(ens_ptr, stddev3d_ptr, 1)
 
-    call spectralFilterLegacy(ensPerturbations,nkgdimens)
+    call spectralFilterLegacy(ensPerturbations,numVarLevEns)
 
     call spectralFilterLegacy(ensBalPerturbations,nLevEns_T+1)
 
-    call calcStddev3d(ensPerturbations,stddev3dUnbal,nkgdimens)
+    call calcStddev3d(ensPerturbations,stddev3dUnbal,numVarLevEns)
 
     call calcStddev3d(ensBalPerturbations,stddev3dBal,nLevEns_T+1)
 
-    call calcZonAvg(stddevZonAvgUnbal,stddev3dUnbal,nkgdimens)
+    call calcZonAvg(stddevZonAvgUnbal,stddev3dUnbal,numVarLevEns)
 
     call calcZonAvg(stddevZonAvgBal,stddev3dBal,nLevEns_T+1)
 
@@ -602,11 +602,11 @@ module calcStatsGlb_mod
     if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHILATBANDS)
     
     ! Set array sizes
-    allocate(ensPerturbations(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,nens))
-    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
-    allocate(stddevZonAvg(nkgdimEns,nj))
-    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-    allocate(rstddev(nkgdimEns,0:ntrunc))
+    allocate(ensPerturbations(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns,nens))
+    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns))
+    allocate(stddevZonAvg(numVarLevEns,nj))
+    allocate(corns(numVarLevEns,numVarLevEns,0:ntrunc))
+    allocate(rstddev(numVarLevEns,0:ntrunc))
 
     if (writeGridDescriptors) call csg_writeGridDescriptors
     
@@ -621,18 +621,18 @@ module calcStatsGlb_mod
         call uv_to_psichi(ensPerturbations)
       else
         ! Spectrally filter all fields
-        call spectralFilterLegacy(ensPerturbations, nkgdimEns)
+        call spectralFilterLegacy(ensPerturbations, numVarLevEns)
       end if
     else
       ! Spectrally filter all fields
-      call spectralFilterLegacy(ensPerturbations, nkgdimEns)
+      call spectralFilterLegacy(ensPerturbations, numVarLevEns)
     end if
 
     ! Calculation and output of error std dev estimates
     
-    call calcStddev3d(ensPerturbations, stddev3d ,nkgdimens)
+    call calcStddev3d(ensPerturbations, stddev3d ,numVarLevEns)
 
-    call calcZonAvg(stddevZonAvg, stddev3d, nkgdimens)
+    call calcZonAvg(stddevZonAvg, stddev3d, numVarLevEns)
 
     call scaleStdDev(stddev3d, stddevZonAvg, scaleFactor)
 
@@ -832,8 +832,8 @@ module calcStatsGlb_mod
       call ens_normalize(ensPerts)
       call ens_removeGlobalMean(ensPerts)
 
-      allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-      allocate(rstddev(nkgdimEns,0:ntrunc))
+      allocate(corns(numVarLevEns,numVarLevEns,0:ntrunc))
+      allocate(rstddev(numVarLevEns,0:ntrunc))
        
       call calcCorrelations2(ensPerts, & ! IN
                              corns,        & ! OUT (vertical correlation in spectral space)
@@ -1106,7 +1106,7 @@ module calcStatsGlb_mod
       end do
     end do
 
-    call gst_zlegdir(gstID_nkgdimEns,bufyz,zsp,nLevEns_M)
+    call gst_zlegdir(gstID_numVarLevEns,bufyz,zsp,nLevEns_M)
 
     do jn = 0, ntrunc
       do levIndex1=1, nLevEns_M
@@ -1129,7 +1129,7 @@ module calcStatsGlb_mod
     end do
 
     nlev=(nLevEns_T+1)*nLevEns_M
-    call gst_zlegdir(gstID_nkgdimEns,bufptot,spptot,nLev)
+    call gst_zlegdir(gstID_numVarLevEns,bufptot,spptot,nLev)
 
     do jn = 0, ntrunc
       do levIndex1 = 1, (nLevEns_T+1)
@@ -1263,16 +1263,16 @@ module calcStatsGlb_mod
 
     ! Arguments:
     real(4), pointer,  intent(in)  :: ensPerturbations(:,:,:,:)
-    real(8),           intent(out) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8),           intent(out) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8),           intent(out) :: corns(numVarLevEns,numVarLevEns,0:ntrunc)
+    real(8),           intent(out) :: rstddev(numVarLevEns,0:ntrunc)
     logical, optional, intent(in)  :: separableCorrel_opt  ! .true. to set as separable correlations
     real(8), optional, intent(in)  :: latMask_opt(:)
 
     ! Locals:
     real(8), allocatable :: corvert(:,:) ! total vertical correlation matrix
-    real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
-    real(8) :: corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
+    real(8) :: spectralState(nla_mpilocal,2,numVarLevEns)
+    real(8) :: corns_mpiglobal(numVarLevEns,numVarLevEns,0:ntrunc)
+    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns)
     real(8) :: dfact,dfact2,dsummed
     integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex,nsize,ierr
 
@@ -1289,7 +1289,7 @@ module calcStatsGlb_mod
           gridState(:,latIndex,:) = latMask_opt(latIndex)*gridState(:,latIndex,:)
         end do
       end if
-      call gst_setID(gstID_nkgdimEns)
+      call gst_setID(gstID_numVarLevEns)
       call gst_reespe(spectralState,gridState)
 
       !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila_mpilocal,ila_mpiglobal,jk1,jk2)
@@ -1298,10 +1298,10 @@ module calcStatsGlb_mod
           if(jm.le.jn) then
             dfact = 2.0d0
             if (jm.eq.0) dfact = 1.0d0
-            ila_mpiglobal = gst_getNind(jm,gstID_nkgdimEns) + jn - jm
+            ila_mpiglobal = gst_getNind(jm,gstID_numVarLevEns) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-            do jk1 = 1, nkgdimEns
-              do jk2 = 1, nkgdimEns
+            do jk1 = 1, numVarLevEns
+              do jk2 = 1, numVarLevEns
                 corns(jk1,jk2,jn) = corns(jk1,jk2,jn) +     &
                      dfact*(spectralState(ila_mpilocal,1,jk1)*spectralState(ila_mpilocal,1,jk2) +   &
                      spectralState(ila_mpilocal,2,jk1)*spectralState(ila_mpilocal,2,jk2))
@@ -1315,13 +1315,13 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    nsize = nkgdimEns*nkgdimEns*(1+ntrunc)
+    nsize = numVarLevEns*numVarLevEns*(1+ntrunc)
     call rpn_comm_allreduce(corns,corns_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     corns(:,:,:) = corns_mpiglobal(:,:,:)
     
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
     do jn = 0, ntrunc
-      do jk1 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
           rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
         else
@@ -1333,8 +1333,8 @@ module calcStatsGlb_mod
 
     !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
     do jn = 0, ntrunc
-      do jk1 = 1, nkgdimEns
-        do jk2 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
+        do jk2 = 1, numVarLevEns
           if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
             corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
@@ -1348,14 +1348,14 @@ module calcStatsGlb_mod
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
       dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
-      do jk1 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
         rstddev(jk1,jn) = rstddev(jk1,jn)*dfact2*dfact
       end do
     end do
 
     ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
     !$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
-    do jk1 = 1, nkgdimEns
+    do jk1 = 1, numVarLevEns
       dsummed=0.0d0
       do jn = 0, ntrunc
         dsummed=dsummed + (rstddev(jk1,jn)**2)*((2.0d0*dble(jn))+1.0d0)/2.0d0
@@ -1370,12 +1370,12 @@ module calcStatsGlb_mod
     ! and apply to all wavenumbers
     if (present(separableCorrel_opt)) then
       if (separableCorrel_opt == .true.) then
-        allocate(corvert(nkgdimEns,nkgdimEns))
+        allocate(corvert(numVarLevEns,numVarLevEns))
         call calcCorvert(corns, rstddev, corvert)
         !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
         do jn = 0, ntrunc
-          do jk1 = 1, nkgdimEns
-            do jk2 = 1, nkgdimEns
+          do jk1 = 1, numVarLevEns
+            do jk2 = 1, numVarLevEns
               corns(jk1,jk2,jn) = corvert(jk1,jk2)
 	    end do
           end do
@@ -1401,15 +1401,15 @@ module calcStatsGlb_mod
 
     ! Arguments:
     type(struct_ens),  intent(inout) :: ensPerts
-    real(8),           intent(out)   :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8),           intent(out)   :: rstddev(nkgdimEns,0:ntrunc)
+    real(8),           intent(out)   :: corns(numVarLevEns,numVarLevEns,0:ntrunc)
+    real(8),           intent(out)   :: rstddev(numVarLevEns,0:ntrunc)
     real(8), optional, intent(in)    :: latMask_opt(:)
 
     ! Locals:
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    real(8) :: corns_mpiglobal(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
-    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
+    real(8) :: corns_mpiglobal(numVarLevEns,numVarLevEns,0:ntrunc)
+    real(8) :: spectralState(nla_mpilocal,2,numVarLevEns)
+    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevEns)
     real(8) :: dfact, dfact2, dsummed
     integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
     integer :: levIndex, latIndex, nsize, ierr
@@ -1431,7 +1431,7 @@ module calcStatsGlb_mod
           gridState(:,latIndex,:) = latMask_opt(latIndex)*gridState(:,latIndex,:)
         end do
       end if
-      call gst_setID(gstID_nkgdimEns)
+      call gst_setID(gstID_numVarLevEns)
       call gst_reespe(spectralState,gridState)
 
       !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila_mpilocal,ila_mpiglobal,jk1,jk2)
@@ -1440,10 +1440,10 @@ module calcStatsGlb_mod
           if(jm.le.jn) then
             dfact = 2.0d0
             if (jm.eq.0) dfact = 1.0d0
-            ila_mpiglobal = gst_getNind(jm,gstID_nkgdimEns) + jn - jm
+            ila_mpiglobal = gst_getNind(jm,gstID_numVarLevEns) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-            do jk1 = 1, nkgdimEns
-              do jk2 = 1, nkgdimEns
+            do jk1 = 1, numVarLevEns
+              do jk2 = 1, numVarLevEns
                 corns(jk1,jk2,jn) = corns(jk1,jk2,jn) +     &
                      dfact*(spectralState(ila_mpilocal,1,jk1)*spectralState(ila_mpilocal,1,jk2) +   &
                      spectralState(ila_mpilocal,2,jk1)*spectralState(ila_mpilocal,2,jk2))
@@ -1457,13 +1457,13 @@ module calcStatsGlb_mod
     end do
 
     ! communicate between all tasks
-    nsize = nkgdimEns*nkgdimEns*(1+ntrunc)
+    nsize = numVarLevEns*numVarLevEns*(1+ntrunc)
     call rpn_comm_allreduce(corns,corns_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     corns(:,:,:) = corns_mpiglobal(:,:,:)
     
     !$OMP PARALLEL DO PRIVATE (jn,jk1)
     do jn = 0, ntrunc
-      do jk1 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
           rstddev(jk1,jn) = dsqrt(abs(corns(jk1,jk1,jn)))
         else
@@ -1475,8 +1475,8 @@ module calcStatsGlb_mod
 
     !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
     do jn = 0, ntrunc
-      do jk1 = 1, nkgdimEns
-        do jk2 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
+        do jk2 = 1, numVarLevEns
           if(rstddev(jk1,jn).ne.0..and.rstddev(jk2,jn).ne.0.) then
             corns(jk1,jk2,jn) =  corns(jk1,jk2,jn)/(rstddev(jk1,jn)*rstddev(jk2,jn))
           else
@@ -1490,14 +1490,14 @@ module calcStatsGlb_mod
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
       dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
-      do jk1 = 1, nkgdimEns
+      do jk1 = 1, numVarLevEns
         rstddev(jk1,jn) = rstddev(jk1,jn)*dfact2*dfact
       end do
     end do
 
     ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
     !$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
-    do jk1 = 1, nkgdimEns
+    do jk1 = 1, numVarLevEns
       dsummed=0.0d0
       do jn = 0, ntrunc
         dsummed=dsummed + (rstddev(jk1,jn)**2)*((2.0d0*dble(jn))+1.0d0)/2.0d0
@@ -1621,8 +1621,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8),           intent(in) :: corns(nkgdimEns,nkgdimEns,0:ntrunc)
-    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8),           intent(in) :: corns(numVarLevEns,numVarLevEns,0:ntrunc)
+    real(8),           intent(in) :: rstddev(numVarLevEns,0:ntrunc)
     real(8), optional, intent(in) :: PtoT_opt(:,:,:)
     real(8), optional, intent(in) :: theta_opt(:,:)
     integer, optional, intent(in) :: waveBandIndex_opt
@@ -1630,7 +1630,7 @@ module calcStatsGlb_mod
     logical, optional, intent(in) :: writeBlocks_opt
 
     ! Locals:
-    real(8) :: corvert(nkgdimEns,nkgdimEns)
+    real(8) :: corvert(numVarLevEns,numVarLevEns)
     integer :: jn, ierr, ipak
     integer :: fstouv, fnom, fstfrm, fclos
     integer :: ip1, ip2, ip3, idatyp, idateo
@@ -1686,20 +1686,20 @@ module calcStatsGlb_mod
     if (.not.writeBlocks) then
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = utl_fstecr(corns(:,:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,  &
+        ierr = utl_fstecr(corns(:,:,jn),ipak,nulstats,idateo,0,0,numVarLevEns,numVarLevEns,1,  &
                           ip1,ip2,ip3,'X','ZZ','CORRNS  ','X',0,0,0,0,idatyp,.true.)
       end do
 
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = utl_fstecr(rstddev(:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,1,1,   &
+        ierr = utl_fstecr(rstddev(:,jn),ipak,nulstats,idateo,0,0,numVarLevEns,1,1,   &
                           ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
       end do
     
       ! Output the total vertical correlation matrix    
       ip2 =0
       call calcCorvert(corns, rstddev, corvert)    
-      ierr = utl_fstecr(corvert(:,:),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,   &
+      ierr = utl_fstecr(corvert(:,:),ipak,nulstats,idateo,0,0,numVarLevEns,numVarLevEns,1,   &
                         ip1,ip2,ip3,'X','ZV','CORVERT ','X',0,0,0,0,idatyp,.true.)
     
     else
@@ -1781,17 +1781,17 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8),  intent(in) :: corns(nkgdimEns,nkgdimEns,0:ntrunc) ! SH vertical correlation matrices
-    real(8),  intent(in) :: rstddev(nkgdimEns,0:ntrunc)         ! SH horizontal correlation coefficients
-    real(8), intent(out) :: corvert(nkgdimEns,nkgdimEns)        ! Total vertical correlation matrix
+    real(8),  intent(in) :: corns(numVarLevEns,numVarLevEns,0:ntrunc) ! SH vertical correlation matrices
+    real(8),  intent(in) :: rstddev(numVarLevEns,0:ntrunc)         ! SH horizontal correlation coefficients
+    real(8), intent(out) :: corvert(numVarLevEns,numVarLevEns)        ! Total vertical correlation matrix
 
     ! Locals:
     integer :: jn,jk1,jk2
 
     ! Computing the total vertical correlation matrix
     !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
-    do jk1 = 1, nkgdimEns
-      do jk2 = 1, nkgdimEns
+    do jk1 = 1, numVarLevEns
+      do jk2 = 1, numVarLevEns
         corvert(jk1,jk2) = 0.0d0
         do jn = 0, ntrunc
           corvert(jk1,jk2) = corvert(jk1,jk2) + ((2*jn+1)*rstddev(jk1,jn)*rstddev(jk2,jn)*corns(jk1,jk2,jn))
@@ -1801,8 +1801,8 @@ module calcStatsGlb_mod
     !$OMP END PARALLEL DO
 
     !$OMP PARALLEL DO PRIVATE (jk1,jk2)
-    do jk1 = 1, nkgdimEns
-      do jk2 = 1, nkgdimEns
+    do jk1 = 1, numVarLevEns
+      do jk2 = 1, numVarLevEns
         if(corvert(jk1,jk1)*corvert(jk2,jk2) .gt. 0.0d0) then
           corvert(jk1,jk2) = corvert(jk1,jk2) / (sqrt(corvert(jk1,jk1)*corvert(jk2,jk2)))
         else
@@ -2175,8 +2175,8 @@ module calcStatsGlb_mod
 
     do ensIndex=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))     
-      if(nlev.eq.nkgdimEns) then
-        call gst_setID(gstID_nkgdimEns)
+      if(nlev.eq.numVarLevEns) then
+        call gst_setID(gstID_numVarLevEns)
       else if(nlev.eq.nLevEns_T+1) then
         call gst_setID(gstID_nLevEns_T_P1)
       else
@@ -2521,7 +2521,7 @@ module calcStatsGlb_mod
     real(8)  :: dmean, dmean_mpiglobal
 
     do ensIndex = 1, nens
-      do levIndex = 1, nkgdimEns
+      do levIndex = 1, numVarLevEns
         dmean = 0.0d0
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -2815,7 +2815,7 @@ module calcStatsGlb_mod
     real(8) :: dfact
 
     !$OMP PARALLEL DO PRIVATE (levIndex,ensIndex,latIndex,lonIndex,DFACT)
-    do levIndex = 1, nkgdimEns
+    do levIndex = 1, numVarLevEns
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           if(stddev3d(lonIndex,latIndex,levIndex).gt.0.0d0) then
@@ -2970,8 +2970,8 @@ module calcStatsGlb_mod
     ! Locals:
     integer :: ensIndex, levIndex, jla_mpilocal, ila_mpiglobal
     real(8) :: dla2
-    real(8) :: spectralState(nla_mpilocal,2,nkgdimEns)
-    real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatend,nkgdimens)
+    real(8) :: spectralState(nla_mpilocal,2,numVarLevEns)
+    real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatend,numVarLevEns)
 
     ! Convert from U/V to PSI/CHI and spectrally filter all fields
     call utl_tmg_start(121,'--CalcStats_UVtoPsiChi')
@@ -2979,7 +2979,7 @@ module calcStatsGlb_mod
     do ensIndex=1,nens
       write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', ensIndex
       member(:,:,:)=dble(ensPerturbations(:,:,:,ensIndex))
-      call gst_setID(gstID_nkgdimEns)
+      call gst_setID(gstID_numVarLevEns)
       call gst_gdsp(spectralState,member,nlevEns_M)
       do levIndex = 1, nlevEns_M
         do jla_mpilocal = 1, nla_mpilocal
@@ -3018,7 +3018,7 @@ module calcStatsGlb_mod
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
       !$OMP PARALLEL DO PRIVATE (levIndex,gd2d,ensIndex,latIndex,lonIndex)
-      do levIndex = 1, nkgdimEns
+      do levIndex = 1, numVarLevEns
         gd2d(:,:)=0.0d0
         do ensIndex = 1, nens
           do latIndex = myLatBeg, myLatEnd
@@ -3058,13 +3058,13 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8),          intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8),          intent(in) :: rstddev(numVarLevEns,0:ntrunc)
     integer,          intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex_opt
 
     ! Locals:
-    real(8)  :: spectralState(nla,2,nkgdimEns)
-    real(8)  :: gridState(ni,nj,nkgdimEns)
+    real(8)  :: spectralState(nla,2,numVarLevEns)
+    real(8)  :: gridState(ni,nj,numVarLevEns)
     integer :: ji, jk, jn, jm, ila, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, varIndex, iStart, iEnd
     character(len=128) :: outfilename
@@ -3088,7 +3088,7 @@ module calcStatsGlb_mod
     GridState(iref,jref,:) = GridState(iref,jref,:) * real(ni,8) / gst_getRWT(jref)
 
     !- 1.3 Move to spectral space
-    call gst_setID(gstID_nkgdimEns)
+    call gst_setID(gstID_numVarLevEns)
     call gst_reespe(spectralState,  & ! OUT
                     GridState)        ! IN
 
@@ -3096,7 +3096,7 @@ module calcStatsGlb_mod
     !- 2.  Apply the horizontal correlation function
     !
     !$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
-    do jk = 1, nkgdimEns
+    do jk = 1, numVarLevEns
        do jn = 0, ntrunc
           do jm = 0, jn
              ila = gst_getNind(jm) + jn - jm
@@ -3115,7 +3115,7 @@ module calcStatsGlb_mod
     !
     !- 3.  Move back to grid point space
     !
-    call gst_setID(gstID_nkgdimEns)
+    call gst_setID(gstID_numVarLevEns)
     call gst_speree(spectralState,     & ! IN
                     GridState)           ! OUT
 
@@ -3287,12 +3287,12 @@ module calcStatsGlb_mod
     ! Based on subroutine corrlength.ftn in the "old" var code
 
     ! Arguments:
-    real(8),           intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real(8),           intent(in) :: rstddev(numVarLevEns,0:ntrunc)
     integer,           intent(in) :: variableType
     integer, optional, intent(in) :: waveBandIndex_opt
 
     ! Locals:
-    real(8) :: HorizScale(nkgdimEns)
+    real(8) :: HorizScale(numVarLevEns)
     real(8), pointer :: PressureProfile(:)
     integer :: jk, jn, nLevEns, varIndex
     real(8) :: rjn, fact, temp, a, b
@@ -3307,7 +3307,7 @@ module calcStatsGlb_mod
     !
     !- 1.  Compute the horizontal correlation lengthscales
     !
-    do jk = 1, nkgdimEns
+    do jk = 1, numVarLevEns
        a = 0.d0
        b = 0.d0   
        do jn = 0, ntrunc
@@ -3392,7 +3392,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
+    real(8), intent(in) :: powerSpec(numVarLevEns,0:ntrunc)
     integer, intent(in) :: variableType
 
     ! Locals:
@@ -3819,8 +3819,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)  :: corns(nkgdimEns,nkgdimEns,0:ntrunc)  ! Vertical correlation matrices as a function of wavenumber
-    real(8), intent(inout)  :: rstddev(nkgdimEns,0:ntrunc) ! Variances of spectral components
+    real(8), intent(inout)  :: corns(numVarLevEns,numVarLevEns,0:ntrunc)  ! Vertical correlation matrices as a function of wavenumber
+    real(8), intent(inout)  :: rstddev(numVarLevEns,0:ntrunc) ! Variances of spectral components
     integer,     intent(in) :: fitSmoothingTimes   ! Number of 1-2-1 smoother applications
     logical,     intent(in) :: separableCorrel     ! .true. for separable correlations
     logical,     intent(in) :: setFittedVCorrel(:) ! .true. to apply spatial filter to vertical correlation fits 
@@ -3830,7 +3830,7 @@ module calcStatsGlb_mod
         
     ! Locals:
     integer :: waveIndex, varIndex, levelIndex, offset, ndim
-    real(8) :: corvert(nkgdimEns,nkgdimEns)    ! Total vertical correlation matrix
+    real(8) :: corvert(numVarLevEns,numVarLevEns)    ! Total vertical correlation matrix
     real(8) :: fitParam(nvar3d,nLevEns_T)      ! Fit parameters
     real(8) :: press(nLevEns_T)
     real(8), parameter :: scaleFactor = 10.0d0 ! Length scale scaling factor
@@ -3911,7 +3911,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: rstddev(nkgdimEns,0:ntrunc)  ! Autocorrelations (variances) of spectral components
+    real(8), intent(inout) :: rstddev(numVarLevEns,0:ntrunc)  ! Autocorrelations (variances) of spectral components
     integer,    intent(in) :: fitSmoothingTimes  ! Number of 1-2-1 smoother applications
     logical,    intent(in) :: setFittedCorrel(:) ! .true. to reset variances via fits
     character(len=*), intent(in) :: fitType(:)   ! autocorrelation fit type to apply (default = 'none')
@@ -3939,13 +3939,13 @@ module calcStatsGlb_mod
     !$OMP PARALLEL DO PRIVATE (latIndex)
     do latIndex = 1, nj
       distance(latIndex) = ec_ra * 1.0d-3 * &
-        acos(gst_getRmu(latIndex,gstID_nkgdimEns))  ! distance in km
+        acos(gst_getRmu(latIndex,gstID_numVarLevEns))  ! distance in km
     end do
     !$OMP END PARALLEL DO
     !$OMP PARALLEL DO PRIVATE (latIndex, k)
     do latIndex = 1, nj
       do k = 0, ntrunc
-	 zleg(k+1,latIndex) = gst_getzleg(k,latIndex,gstID_nkgdimEns) 
+	 zleg(k+1,latIndex) = gst_getzleg(k,latIndex,gstID_numVarLevEns) 
       end do
     end do
     !$OMP END PARALLEL DO
@@ -4024,7 +4024,7 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: correl(nkgdimEns,nkgdimEns) ! Vertical correlation matrix
+    real(8), intent(inout) :: correl(numVarLevEns,numVarLevEns) ! Vertical correlation matrix
     real(8),   intent(out) :: fitParam(nvar3d,nLevEns_T)  ! Fit parameter values
     integer,    intent(in) :: waveIndex                   ! Wavenumber (-1 for total)
     integer,    intent(in) :: fitSmoothingTimes           ! Number of 1-2-1 smoother applications
@@ -4303,7 +4303,7 @@ module calcStatsGlb_mod
       workSpectralSpace(k) = 0.0d0
       do latIndex = 1, ndim
         workSpectralSpace(k) = workSpectralSpace(k) + zleg(k,latIndex) &
-	  *physArray(latIndex)*gst_getRWT(latIndex,gstID_nkgdimEns)
+	  *physArray(latIndex)*gst_getRWT(latIndex,gstID_numVarLevEns)
       end do
       if (workSpectralSpace(k) <= 0.0d0) then
 	workSpectralSpace(k) = 0.0d0

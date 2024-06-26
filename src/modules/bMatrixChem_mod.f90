@@ -129,7 +129,7 @@ module bMatrixChem_mod
     ! Spectral transform and MPI setup parameters.
 
     nla_mpiglobal = (bgStats%ntrunc+1)*(bgStats%ntrunc+2)/2    
-    gstID  = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc,bgStats%nkgdim)
+    gstID  = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc,bgStats%numVarLev)
     gstID2 = gst_setup(bgStats%ni,bgStats%nj,bgStats%ntrunc,nlev_T_even)
     if (mmpi_myid == 0) write(*,*) 'bchm_setupCH: returned value of gstID =',gstID
     if (mmpi_myid == 0) write(*,*) 'bchm_setupCH: returned value of gstID2=',gstID2
@@ -153,10 +153,10 @@ module bMatrixChem_mod
         if (jm <= jn) then
           if (jm == 0) then
             ! only real component for jm=0
-            cvDim_mpilocal = cvDim_mpilocal + 1*bgStats%nkgdim
+            cvDim_mpilocal = cvDim_mpilocal + 1*bgStats%numVarLev
           else
             ! both real and imaginary components for jm>0
-            cvDim_mpilocal = cvDim_mpilocal + 2*bgStats%nkgdim
+            cvDim_mpilocal = cvDim_mpilocal + 2*bgStats%numVarLev
           end if
         end if
       end do
@@ -189,7 +189,7 @@ module bMatrixChem_mod
     
     ! Locals:
     real(8), allocatable :: gd_out(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
+    real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%numVarLev)
     character(len=30) :: transform
     integer :: varIndex
     
@@ -198,7 +198,7 @@ module bMatrixChem_mod
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrt: starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim))
+    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev))
 
     call bchm_cain(controlVector_in,hiControlVector)
 
@@ -252,7 +252,7 @@ module bMatrixChem_mod
     
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
+    real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%numVarLev)
     character(len=30) :: transform
     integer :: varIndex  
 
@@ -264,7 +264,7 @@ module bMatrixChem_mod
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrtad: starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim))
+    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev))
 
     if ( trim(transformVarKindCH) /= '' ) then  
           
@@ -309,14 +309,14 @@ module bMatrixChem_mod
 
     ! Arguments:
     real(8), intent(inout) :: controlVector_in(cvDim_mpilocal)
-    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%nkgdim)
+    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%numVarLev)
 
     ! Locals:
     integer :: jdim, levelIndex, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
     hiControlVector_out(:,:,:) = 0.0d0
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if (jm <= jn) then
@@ -348,13 +348,13 @@ module bMatrixChem_mod
 
     ! Arguments:
     real(8), intent(inout) :: controlVector_out(cvDim_mpilocal)
-    real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%nkgdim)
+    real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%numVarLev)
 
     ! Locals:
     integer :: jdim, levelIndex, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if (jm <= jn) then
@@ -385,23 +385,23 @@ module bMatrixChem_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%nkgdim)
-    real(8), intent(inout) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%numVarLev)
+    real(8), intent(inout) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
 
     ! Locals:
-    real(8) :: sp(nla_mpilocal,2,bgStats%nkgdim)
+    real(8) :: sp(nla_mpilocal,2,bgStats%numVarLev)
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: levelIndex, lonIndex, latIndex
-    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
 
     ! maybe not needed:
     sp(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
 
-    allocate(zsp(bgStats%nkgdim,2,mymCount))
-    allocate(zsp2(bgStats%nkgdim,2,mymCount))
+    allocate(zsp(bgStats%numVarLev,2,mymCount))
+    allocate(zsp2(bgStats%numVarLev,2,mymCount))
 
     !$OMP PARALLEL DO PRIVATE(jn,jm,levelIndex,ila_mpiglobal,ila_mpilocal, &
       zsp2,zsp,icount)
@@ -413,7 +413,7 @@ module bMatrixChem_mod
           icount = icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do levelIndex = 1, bgStats%nkgdim
+          do levelIndex = 1, bgStats%numVarLev
             zsp(levelIndex,1,icount) = hiControlVector_in(ila_mpilocal,1, &
 	      levelIndex)
             zsp(levelIndex,2,icount) = hiControlVector_in(ila_mpilocal,2, &
@@ -423,9 +423,9 @@ module bMatrixChem_mod
       end do
       if (icount > 0) then
 
-        CALL DGEMM('N','N',bgStats%nkgdim,2*icount,bgStats%nkgdim,1.0d0, &
-	  bgStats%corns(1,1,jn),bgStats%nkgdim,zsp(1,1,1), &
-	  bgStats%nkgdim,0.0d0,zsp2(1,1,1),bgStats%nkgdim)
+        CALL DGEMM('N','N',bgStats%numVarLev,2*icount,bgStats%numVarLev,1.0d0, &
+	  bgStats%corns(1,1,jn),bgStats%numVarLev,zsp(1,1,1), &
+	  bgStats%numVarLev,0.0d0,zsp2(1,1,1),bgStats%numVarLev)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -433,7 +433,7 @@ module bMatrixChem_mod
             icount = icount+1
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-            do levelIndex = 1, bgStats%nkgdim
+            do levelIndex = 1, bgStats%numVarLev
               sp(ila_mpilocal,1,levelIndex) = zsp2(levelIndex,1,icount)
               sp(ila_mpilocal,2,levelIndex) = zsp2(levelIndex,2,icount)
             end do
@@ -448,7 +448,7 @@ module bMatrixChem_mod
         ila_mpiglobal = gst_getNind(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           sp(ila_mpilocal,1,levelIndex) = sp(ila_mpilocal,1,levelIndex)*sq2
           sp(ila_mpilocal,2,levelIndex) = 0.0d0
         end do
@@ -462,7 +462,7 @@ module bMatrixChem_mod
 
 
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = 0.0d0
@@ -476,7 +476,7 @@ module bMatrixChem_mod
     call gst_setID(gstID2)
 
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = gd(lonIndex,latIndex,levelIndex) &
@@ -487,7 +487,7 @@ module bMatrixChem_mod
     !$OMP END PARALLEL DO
     
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd_out(lonIndex,latIndex,levelIndex) = gd(lonIndex,latIndex,levelIndex)
@@ -505,19 +505,19 @@ module bMatrixChem_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%nkgdim)
-    real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%numVarLev)
+    real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
 
     ! Locals:
-    real(8) :: sp(nla_mpilocal,2,bgStats%nkgdim)
+    real(8) :: sp(nla_mpilocal,2,bgStats%numVarLev)
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2
     real(8), allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: levelIndex, lonIndex, latIndex
-    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
 
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd                                                      
           gd(lonIndex,latIndex,levelIndex) = gd_in(lonIndex,latIndex,levelIndex)
@@ -527,7 +527,7 @@ module bMatrixChem_mod
     !$OMP END PARALLEL DO
 
     !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
-    do levelIndex = 1, bgStats%nkgdim
+    do levelIndex = 1, bgStats%numVarLev
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = gd(lonIndex,latIndex,levelIndex)* &
@@ -542,8 +542,8 @@ module bMatrixChem_mod
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
-    allocate(zsp(bgStats%nkgdim,2,mymCount))
-    allocate(zsp2(bgStats%nkgdim,2,mymCount))
+    allocate(zsp(bgStats%numVarLev,2,mymCount))
+    allocate(zsp2(bgStats%numVarLev,2,mymCount))
 
     !$OMP PARALLEL DO PRIVATE(JN,JM,levelIndex,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp, &
       zsp2,icount)
@@ -555,7 +555,7 @@ module bMatrixChem_mod
           icount = icount+1
           ila_mpiglobal = gst_getNind(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do levelIndex = 1, bgStats%nkgdim
+          do levelIndex = 1, bgStats%numVarLev
             zsp2(levelIndex,1,icount) = sp(ila_mpilocal,1,levelIndex)
             zsp2(levelIndex,2,icount) = sp(ila_mpilocal,2,levelIndex)
           end do
@@ -564,16 +564,16 @@ module bMatrixChem_mod
 
       if (icount > 0) then
 
-        CALL DGEMM('T','N',bgStats%nkgdim,2*icount,bgStats%nkgdim,1.0d0, &
-	  bgStats%corns(1,1,jn),bgStats%nkgdim,zsp2(1,1,1), &
-	  bgStats%nkgdim,0.0d0,zsp(1,1,1),bgStats%nkgdim)
+        CALL DGEMM('T','N',bgStats%numVarLev,2*icount,bgStats%numVarLev,1.0d0, &
+	  bgStats%corns(1,1,jn),bgStats%numVarLev,zsp2(1,1,1), &
+	  bgStats%numVarLev,0.0d0,zsp(1,1,1),bgStats%numVarLev)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
           icount=icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do levelIndex = 1, bgStats%nkgdim
+          do levelIndex = 1, bgStats%numVarLev
             hiControlVector_out(ila_mpilocal,1,levelIndex) = zsp(levelIndex,1,icount)
             hiControlVector_out(ila_mpilocal,2,levelIndex) = zsp(levelIndex,2,icount)
           end do
@@ -587,7 +587,7 @@ module bMatrixChem_mod
         ila_mpiglobal = gst_getNIND(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           hiControlVector_out(ila_mpilocal,1,levelIndex) = &
 	    hiControlVector_out(ila_mpilocal,1,levelIndex)*sq2
           hiControlVector_out(ila_mpilocal,2,levelIndex) = &
@@ -612,7 +612,7 @@ module bMatrixChem_mod
     
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
     
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
@@ -644,7 +644,7 @@ module bMatrixChem_mod
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
+    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev)
     
     ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
@@ -742,7 +742,7 @@ module bMatrixChem_mod
         cv_allmaxmpilocal(:,jproc+1) = 0.d0
         jdim_mpilocal = 0
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
@@ -896,7 +896,7 @@ module bMatrixChem_mod
         cv_allmaxmpilocal(:,jproc+1) = 0.d0
         jdim_mpilocal = 0
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
@@ -1059,7 +1059,7 @@ module bMatrixChem_mod
       do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
               if (jm <= jn) then
@@ -1196,7 +1196,7 @@ module bMatrixChem_mod
       do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
-        do levelIndex = 1, bgStats%nkgdim
+        do levelIndex = 1, bgStats%numVarLev
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
               if (jm <= jn) then

@@ -27,7 +27,7 @@ module menetrierDiag_mod
   
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
-  integer :: nens, ni, nj, nLevEns_M, nLevEns_T, nkgdimEns
+  integer :: nens, ni, nj, nLevEns_M, nLevEns_T, numVarLevEns
   integer :: nvar3d, nvar2d, nWaveBand
 
   integer, allocatable :: varLevOffset(:)
@@ -77,7 +77,7 @@ contains
     nj        = hco_ens%nj
     nLevEns_M = gsv_getNumLev(statevector_template,'MM') !nLevEns_M_in
     nLevEns_T = gsv_getNumLev(statevector_template,'TH') !nLevEns_T_in
-    nkgdimEns = statevector_template%numVarLev
+    numVarLevEns = statevector_template%numVarLev
     pressureProfile_M => pressureProfile_M_in
     pressureProfile_T => pressureProfile_T_in
     nWaveBand = nWaveBand_in
@@ -241,21 +241,21 @@ contains
       end if
     end if
 
-    allocate(meanCorrelSquare(numBins,nkgdimEns))
-    allocate(meanCorrel(numBins,nkgdimEns))
-    allocate(meanVarianceProduct(numBins,nkgdimEns))
-    allocate(meanCovarianceSquare(numBins,nkgdimEns))
-    allocate(meanFourthMoment(numBins,nkgdimEns))
-    allocate(sumWeight(numBins,nkgdimEns))
+    allocate(meanCorrelSquare(numBins,numVarLevEns))
+    allocate(meanCorrel(numBins,numVarLevEns))
+    allocate(meanVarianceProduct(numBins,numVarLevEns))
+    allocate(meanCovarianceSquare(numBins,numVarLevEns))
+    allocate(meanFourthMoment(numBins,numVarLevEns))
+    allocate(sumWeight(numBins,numVarLevEns))
 
-    allocate(meanCorrelSquare_local(numBins,nkgdimEns))
-    allocate(meanCorrel_local(numBins,nkgdimEns))
-    allocate(meanVarianceProduct_local(numBins,nkgdimEns))
-    allocate(meanCovarianceSquare_local(numBins,nkgdimEns))
-    allocate(meanFourthMoment_local(numBins,nkgdimEns))
-    allocate(sumWeight_local(numBins,nkgdimEns))
+    allocate(meanCorrelSquare_local(numBins,numVarLevEns))
+    allocate(meanCorrel_local(numBins,numVarLevEns))
+    allocate(meanVarianceProduct_local(numBins,numVarLevEns))
+    allocate(meanCovarianceSquare_local(numBins,numVarLevEns))
+    allocate(meanFourthMoment_local(numBins,numVarLevEns))
+    allocate(sumWeight_local(numBins,numVarLevEns))
 
-    allocate(gridPointWeight(ni,nj,nkgdimEns))
+    allocate(gridPointWeight(ni,nj,numVarLevEns))
 
     allocate(distanceBinThresholds(numBins))
 
@@ -310,7 +310,8 @@ contains
 
     call gsv_deallocate(statevector_oneMemberTiles)
 
-    !$OMP PARALLEL DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
+    !$OMP PARALLEL DO PRIVATE (ptr3d_r4,k,iref,jref,j,i,ens,correlation,covariance,fourthMoment, &
+    !$OMP                      distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
     do k = myVarLevBeg, myVarLevEnd
       write(*,*) 'Computing distance-bin statistics for ensemble level: ', k
 
@@ -383,7 +384,7 @@ contains
         end do ! iref
       end do   ! jref
 
-    end do ! nkgdimEns
+    end do ! numVarLevEns
     !$OMP END PARALLEL DO
 
     deallocate(ensPert_local)
@@ -393,7 +394,7 @@ contains
     end do
 
     !- 2.2 Gather the all the info in processor 0
-    nSize = nkgdimEns * numbins
+    nSize = numVarLevEns * numbins
     call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
          "mpi_double_precision","mpi_sum",0,"GRID",ier)
     call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
@@ -416,13 +417,13 @@ contains
 
     if (mmpi_myid == 0) then
       !- 2.3  Computation of the localization functions
-      allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+      allocate(localizationFunctions(numFunctions,numBins,numVarLevEns))
 
       t1=dble((nens-1)**2)/dble(nens*(nens-3))
       t2=dble(nens)/dble((nens-2)*(nens-3))
       t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
       !$OMP PARALLEL DO PRIVATE (k,bin)
-      do k = 1, nkgdimEns
+      do k = 1, numVarLevEns
         do bin = 1, numbins
           
           meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
@@ -458,7 +459,7 @@ contains
       !
       !- 3.  Estimation of localization radii (curve fitting)
       !
-      allocate(localizationRadii(numFunctions,nkgdimEns))
+      allocate(localizationRadii(numFunctions,numVarLevEns))
       allocate(distanceBinMean(numBins))
       allocate(distanceBinWeight(numBins))
       
@@ -477,7 +478,7 @@ contains
       do f = 1, numFunctions
         write(*,*)
         write(*,*) 'Localization Function : ', f
-        do k =  1, nkgdimEns
+        do k =  1, numVarLevEns
           write(*,*) '         ----- EnsLev : ', k
           call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
                rmse,                         & ! OUT
@@ -732,19 +733,19 @@ contains
 
     call ens_getLatLonBounds(ensPerts, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
-    allocate(meanCorrelSquare(numBins,nkgdimEns))
-    allocate(meanCorrel(numBins,nkgdimEns))
-    allocate(meanVarianceProduct(numBins,nkgdimEns))
-    allocate(meanCovarianceSquare(numBins,nkgdimEns))
-    allocate(meanFourthMoment(numBins,nkgdimEns))
-    allocate(sumWeight(numBins,nkgdimEns))
+    allocate(meanCorrelSquare(numBins,numVarLevEns))
+    allocate(meanCorrel(numBins,numVarLevEns))
+    allocate(meanVarianceProduct(numBins,numVarLevEns))
+    allocate(meanCovarianceSquare(numBins,numVarLevEns))
+    allocate(meanFourthMoment(numBins,numVarLevEns))
+    allocate(sumWeight(numBins,numVarLevEns))
     
-    allocate(meanCorrelSquare_local(numBins,nkgdimEns))
-    allocate(meanCorrel_local(numBins,nkgdimEns))
-    allocate(meanVarianceProduct_local(numBins,nkgdimEns))
-    allocate(meanCovarianceSquare_local(numBins,nkgdimEns))
-    allocate(meanFourthMoment_local(numBins,nkgdimEns))
-    allocate(sumWeight_local(numBins,nkgdimEns))
+    allocate(meanCorrelSquare_local(numBins,numVarLevEns))
+    allocate(meanCorrel_local(numBins,numVarLevEns))
+    allocate(meanVarianceProduct_local(numBins,numVarLevEns))
+    allocate(meanCovarianceSquare_local(numBins,numVarLevEns))
+    allocate(meanFourthMoment_local(numBins,numVarLevEns))
+    allocate(sumWeight_local(numBins,numVarLevEns))
 
     allocate(gridPointWeight(ni,nj))
 
@@ -782,7 +783,7 @@ contains
     meanFourthMoment_local(:,:)     = 0.d0
     sumWeight_local(:,:)            = 0.d0
 
-    allocate(ensPert_local(nens,nkgdimEns))
+    allocate(ensPert_local(nens,numVarLevEns))
 
     do jref = nint(stride/2.0)+horizPadding, nj-horizPadding, stride    ! Pick every stride point to save cost.
       do iref = nint(stride/2.0)+horizPadding, ni-horizPadding, stride  ! Pick every stride point to save cost.
@@ -793,7 +794,7 @@ contains
         !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
         !  because ensemble member is the last loop index below)
         do ens = 1, nens
-          do k = 1, nkgdimEns
+          do k = 1, numVarLevEns
             ptr4d_r4 => ens_getOneLev_r4(ensPerts,k)
             ensPert_local(ens,k) = ptr4d_r4(ens,1,iref,jref)
           end do
@@ -857,7 +858,7 @@ contains
     deallocate(ensPert_local)
 
     !- 2.2 Gather the all the info in processor 0
-    nSize = nkgdimEns * numbins
+    nSize = numVarLevEns * numbins
     call rpn_comm_reduce(sumWeight_local           ,sumWeight           ,nSize, &
          "mpi_double_precision","mpi_sum",0,"GRID",ier)
     call rpn_comm_reduce(meanCorrel_local          ,meanCorrel          ,nSize, &
@@ -880,7 +881,7 @@ contains
 
     if (mmpi_myid == 0) then
       !- 2.3  Computation of the localization functions
-      allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+      allocate(localizationFunctions(numFunctions,numBins,numVarLevEns))
       
       t1=dble((nens-1)**2)/dble(nens*(nens-3))
       t2=dble(nens)/dble((nens-2)*(nens-3))
@@ -931,7 +932,7 @@ contains
       !
       !- 3.  Estimation of localization radii (curve fitting)
       !
-      allocate(localizationRadii(numFunctions,nkgdimEns))
+      allocate(localizationRadii(numFunctions,numVarLevEns))
       allocate(distanceBinWeight(numBins))
       
       call lfn_setup('FifthOrder') ! IN

@@ -134,7 +134,7 @@ program midas_diagBmatrix
 
   integer :: fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, nultxt
-  integer :: ensIndex, index, varLevIndex, nkgdim, levIndex, lonIndex, latIndex
+  integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
@@ -256,7 +256,7 @@ program midas_diagBmatrix
                     datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false.)
   call gsv_zero(statevector)
-  nkgdim = statevector%numVarLev
+  numVarLev = statevector%numVarLev
 
   ! Setup the B matrix
   call bmat_setup(hco_anl,hco_core,vco_anl)
@@ -528,9 +528,9 @@ program midas_diagBmatrix
     call gsv_zero(statevector)
 
     ! Allocate the randomEns, mean and stddev
-    allocate(randomEns(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim,numperturbations))
-    allocate(mean(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim))
-    allocate(stddev(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim))
+    allocate(randomEns(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,numVarLev,numperturbations))
+    allocate(mean(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,numVarLev))
+    allocate(stddev(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,numVarLev))
 
     iseed = abs(nrandseed)
     call rng_setup(iseed)
@@ -559,7 +559,7 @@ program midas_diagBmatrix
       if ( writePsiChiStddev ) call gvt_transform(statevector,'UVtoPsiChi')
 
       !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
-      do varLevIndex = 1, nkgdim
+      do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = field3d(lonIndex,latIndex,varLevIndex)
@@ -576,7 +576,7 @@ program midas_diagBmatrix
     mean(:,:,:) = 0.0d0
     do ensIndex = 1, numperturbations
       !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
-      do varLevIndex = 1, nkgdim
+      do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             mean(lonIndex,latIndex,varLevIndex) = &
@@ -589,7 +589,7 @@ program midas_diagBmatrix
     end do
 
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           mean(lonIndex,latIndex,varLevIndex) = mean(lonIndex,latIndex,varLevIndex) / &
@@ -604,7 +604,7 @@ program midas_diagBmatrix
     !
     !$OMP PARALLEL DO PRIVATE (lonIndex,ensIndex,latIndex,varLevIndex)    
     do ensIndex = 1, numperturbations
-      do varLevIndex = 1, nkgdim
+      do varLevIndex = 1, numVarLev
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
           do lonIndex = statevector%myLonBeg, statevector%myLonEnd
             randomEns(lonIndex,latIndex,varLevIndex,ensIndex) = &
@@ -626,7 +626,7 @@ program midas_diagBmatrix
       !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
       do lonIndex = statevector%myLonBeg, statevector%myLonEnd
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
-          do varLevIndex = 1, nkgdim
+          do varLevIndex = 1, numVarLev
             stddev(lonIndex,latIndex,varLevIndex) = stddev(lonIndex,latIndex,varLevIndex) + &
                  (randomEns(lonIndex,latIndex,varLevIndex,ensIndex)**2)/real(numperturbations,8)
           end do
@@ -637,7 +637,7 @@ program midas_diagBmatrix
     deallocate(randomEns)
 
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           stddev(lonIndex,latIndex,varLevIndex) = sqrt(stddev(lonIndex,latIndex,varLevIndex))
@@ -648,7 +648,7 @@ program midas_diagBmatrix
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           field3d(lonIndex,latIndex,varLevIndex) = stddev(lonIndex,latIndex,varLevIndex)
@@ -668,13 +668,13 @@ program midas_diagBmatrix
     write(*,*) 'midas-diagBmatrix: Compute the zonal mean stddev'
     call flush(6)
 
-    allocate(stddev_zm(hco_anl%nj,nkgdim))
-    allocate(stddev_zm2(hco_anl%nj,nkgdim))
+    allocate(stddev_zm(hco_anl%nj,numVarLev))
+    allocate(stddev_zm2(hco_anl%nj,numVarLev))
     stddev_zm(:,:) = 0.d0
     stddev_zm2(:,:) = 0.d0
 
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           stddev_zm(latIndex,varLevIndex) = stddev_zm(latIndex,varLevIndex) + &
@@ -684,13 +684,13 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO
 
-    nsize = statevector%nj*nkgdim
+    nsize = statevector%nj*numVarLev
     call rpn_comm_allreduce(stddev_zm,stddev_zm2,nsize,  &
          "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)    
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           if(stddev_zm2(latIndex,varLevIndex)> 0.0d0) then
@@ -745,13 +745,13 @@ program midas_diagBmatrix
     write(*,*) 'midas-diagBmatrix: Compute the domain mean stddev'
     call flush(6)
 
-    allocate(stddev_dm(hco_anl%ni,nkgdim))
-    allocate(stddev_dm2(hco_anl%ni,nkgdim))
+    allocate(stddev_dm(hco_anl%ni,numVarLev))
+    allocate(stddev_dm2(hco_anl%ni,numVarLev))
     stddev_dm(:,:) = 0.d0
     stddev_dm2(:,:) = 0.d0
 
     !$OMP PARALLEL DO PRIVATE (latIndex,varLevIndex)
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           stddev_dm(lonIndex,varLevIndex) = stddev_dm(lonIndex,varLevIndex) + &
@@ -761,13 +761,13 @@ program midas_diagBmatrix
     end do
     !$OMP END PARALLEL DO 
 
-    nsize = statevector%ni*nkgdim
+    nsize = statevector%ni*numVarLev
     call rpn_comm_allreduce(stddev_dm,stddev_dm2,nsize,  &
          "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
     !- Insert results in statevector
     !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,varLevIndex)
-    do varLevIndex = 1, nkgdim
+    do varLevIndex = 1, numVarLev
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
           if(stddev_dm2(lonIndex,varLevIndex)> 0.0d0) then
