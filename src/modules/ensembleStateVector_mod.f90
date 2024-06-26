@@ -2970,13 +2970,14 @@ CONTAINS
 
               ! Specify the start of each memory block to read/write for each MPI rank
               displacements(1) = 0
+              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
               do procIndex = 2, mmpi_nprocs
                 displacements(procIndex) = displacements(procIndex-1) + nsize
               end do
 
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-              call mpi_alltoallv(gd_send_r4(:,:,1:numLevelsToSend2,:), sendsizes, displacements, mmpi_datyp_real4, &
-                                 gd_recv_r4(:,:,1:numLevelsToSend2,:), recvsizes, displacements, mmpi_datyp_real4, &
+              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
             else
