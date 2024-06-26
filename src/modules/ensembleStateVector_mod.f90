@@ -2867,7 +2867,13 @@ CONTAINS
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
+    ! This is the maximum data to be received on each MPI rank
     recvsizes(:) = lonPerPEmax*latPerPEmax*numLevelsToSend
+    ! Specify the start of each memory block to read/write on each MPI rank
+    displacements(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      displacements(procIndex) = displacements(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
+    end do
 
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
@@ -2966,12 +2972,6 @@ CONTAINS
             ! collect the sizes for each processor
             call rpn_comm_allgather(nsize,     1, "mpi_integer",  &
                                     sendsizes, 1, "mpi_integer", "GRID", ierr)
-
-            ! Specify the start of each memory block to read/write on each MPI rank
-            displacements(1) = 0
-            do procIndex = 2, mmpi_nprocs
-              displacements(procIndex) = displacements(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
-            end do
 
             if (mmpi_nprocs > 1) then
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
