@@ -736,10 +736,10 @@ module gridStateVectorFileIO_mod
     
     k_loop: do varLevIndex = stateVector%myVarLevBeg, statevector%myVarLevEnd
     
-      varName = gsv_getVarNameFromK(stateVector, varLevIndex)
+      varName = gsv_getVarNameFromVarLev(stateVector, varLevIndex)
       varNameNetCDF = vnl_varNameNetCDF(trim(varName), trim(fileName))
 
-      levIndex = gsv_getLevFromK(stateVector, varLevIndex)
+      levIndex = gsv_getLevFromVarLev(stateVector, varLevIndex)
       if (.not.gsv_varExist(stateVector, varName)) cycle k_loop
 
       numLevVar = gsv_getNumLevFromVarName(stateVector, varName)
@@ -991,8 +991,8 @@ module gridStateVectorFileIO_mod
 
     do stepIndex = stepIndexBeg, stepIndexEnd
       k_loop: do varLevIndex = statevector%myVarLevBeg, statevector%myVarLevEnd
-        varName = gsv_getVarNameFromK(statevector, varLevIndex)
-        levIndex = gsv_getLevFromK(statevector, varLevIndex)
+        varName = gsv_getVarNameFromVarLev(statevector, varLevIndex)
+        levIndex = gsv_getLevFromVarLev(statevector, varLevIndex)
 
         if (.not. gsv_varExist(statevector, varName)) cycle k_loop
 
@@ -2283,7 +2283,7 @@ module gridStateVectorFileIO_mod
 
       ! Do unit conversion for all variables
       VARLEVCYCLE: do varLevIndex = stateVector%myVarLevBeg, stateVector%myVarLevEnd
-        varName = gsv_getVarNameFromK(statevector, varLevIndex)
+        varName = gsv_getVarNameFromVarLev(statevector, varLevIndex)
 
         if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
           multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s

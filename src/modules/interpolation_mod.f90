@@ -282,7 +282,7 @@ contains
 
       do stepIndex = 1, statevector_out%numStep
         k_loop: do varLevIndex = statevector_in%myVarLevBeg, statevector_in%myVarLevEnd
-          varName = gsv_getVarNameFromK(statevector_in,varLevIndex)
+          varName = gsv_getVarNameFromVarLev(statevector_in,varLevIndex)
           if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
@@ -1601,7 +1601,7 @@ contains
       maskCloud(:,:) = 0
       if (trim(varName) == 'ALL') then
         ! when varName==ALL, the argument levIndex is actually varLevIndex
-        where(stateVectorCloud%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorCloud,levIndex))) maskCloud(:,:) = 1
+        where(stateVectorCloud%oceanMask%mask(:,:,gsv_getLevFromVarLev(stateVectorCloud,levIndex))) maskCloud(:,:) = 1
       else
         where(stateVectorCloud%oceanMask%mask(:,:,levIndex)) maskCloud(:,:) = 1
       end if
@@ -1612,7 +1612,7 @@ contains
       maskGrid(:,:) = 0
       if (trim(varName) == 'ALL') then
         ! when varName==ALL, the argument levIndex is actually varLevIndex
-        where(stateVectorGrid%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorGrid,levIndex))) maskGrid(:,:) = 1
+        where(stateVectorGrid%oceanMask%mask(:,:,gsv_getLevFromVarLev(stateVectorGrid,levIndex))) maskGrid(:,:) = 1
       else
         where(stateVectorGrid%oceanMask%mask(:,:,levIndex)) maskGrid(:,:) = 1
       end if

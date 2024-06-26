@@ -1008,8 +1008,8 @@ CONTAINS
 
     do varLevIndex = 1, ens_getNumVarLev(ens)
 
-      levIndex = ens_getLevFromK    (ens,varLevIndex)
-      varName  = ens_getVarNameFromK(ens,varLevIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1115,8 +1115,8 @@ CONTAINS
 
     do varLevIndex = 1, ens_getNumVarLev(ens)
 
-      levIndex = ens_getLevFromK    (ens,varLevIndex)
-      varName  = ens_getVarNameFromK(ens,varLevIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1236,8 +1236,8 @@ CONTAINS
 
     do varLevIndex = 1, ens_getNumVarLev(ens)
             
-      levIndex = ens_getLevFromK    (ens,varLevIndex)
-      varName  = ens_getVarNameFromK(ens,varLevIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1368,8 +1368,8 @@ CONTAINS
 
     do varLevIndex = 1, gsv_getNumVarLev(statevector)
 
-      levIndex = gsv_getLevFromK    (statevector,varLevIndex)
-      varName  = gsv_getVarNameFromK(statevector,varLevIndex)
+      levIndex = gsv_getLevFromVarLev    (statevector,varLevIndex)
+      varName  = gsv_getVarNameFromVarLev(statevector,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1495,8 +1495,8 @@ CONTAINS
 
     do varLevIndex = 1, gsv_getNumVarLev(statevector)
             
-      levIndex = gsv_getLevFromK    (statevector,varLevIndex)
-      varName  = gsv_getVarNameFromK(statevector,varLevIndex)
+      levIndex = gsv_getLevFromVarLev    (statevector,varLevIndex)
+      varName  = gsv_getVarNameFromVarLev(statevector,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then

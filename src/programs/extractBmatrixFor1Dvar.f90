@@ -266,7 +266,7 @@ program midas_extractBmatrixFor1Dvar
     longitude = hco_anl%lon2d_4(lonIndex, latIndex)
 
     variableLoop1:do varLevIndex1 = 1, numVarLev
-      varName1 = gsv_getVarNameFromK(statevector, varLevIndex1)
+      varName1 = gsv_getVarNameFromVarLev(statevector, varLevIndex1)
       if ( .not. gsv_varExist(varName=varName1) ) cycle
       if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName1) ) cycle
       
@@ -274,7 +274,7 @@ program midas_extractBmatrixFor1Dvar
       write(*,*) 'midas-extractBmatrix: simulating a pseudo-observation of ', trim(varName1)
       
       factor1 = getConversionFactor( varName1 )
-      levIndex1 = gsv_getLevFromK(statevector, varLevIndex1)
+      levIndex1 = gsv_getLevFromVarLev(statevector, varLevIndex1)
       call gsv_zero(statevector)
       call gsv_getField(statevector,field4d, varName1)
       if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
@@ -295,7 +295,7 @@ program midas_extractBmatrixFor1Dvar
                  levIndex1,lonIndex,latIndex
       
       variableLoop2:do varLevIndex2 = 1, numVarLev
-        varName2 = gsv_getVarNameFromK(statevector, varLevIndex2)
+        varName2 = gsv_getVarNameFromVarLev(statevector, varLevIndex2)
         if ( .not. gsv_varExist(varName= varName2) ) cycle
         if ( trim(varNameExtract) /= 'all' .and. trim(varNameExtract) /= trim(varName2) ) cycle
         columnProcIdLocal = -1
@@ -304,7 +304,7 @@ program midas_extractBmatrixFor1Dvar
           columnProcIdLocal = mmpi_myId
           call gsv_getField(statevector, field4d, varName2)
           factor2 = getConversionFactor( varName2 )
-          levIndex2 = gsv_getLevFromK(statevector, varLevIndex2)
+          levIndex2 = gsv_getLevFromVarLev(statevector, varLevIndex2)
           bmatrix(varLevIndex2, varLevIndex1) = factor1 * factor2 * &
                                                 field4d(lonIndex, latIndex, levIndex2, stepBinExtractIndex)
         end if

@@ -1309,7 +1309,7 @@ contains
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
       do varLevIndex = 1, numVarLev
-        varName = ens_getVarNameFromK(ensembleAnl,varLevIndex)
+        varName = ens_getVarNameFromVarLev(ensembleAnl,varLevIndex)
         memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -1703,8 +1703,8 @@ contains
 
       ! set the variable name and pressure for each element of column
       do varLevIndex = 1, numVarLev
-        levIndex = gsv_getLevFromK(stateVectorStdDev, varLevIndex)
-        nomvar_v(varLevIndex) = gsv_getVarNameFromK(stateVectorStdDev,varLevIndex)
+        levIndex = gsv_getLevFromVarLev(stateVectorStdDev, varLevIndex)
+        nomvar_v(varLevIndex) = gsv_getVarNameFromVarLev(stateVectorStdDev,varLevIndex)
         varLevel = vnl_varLevelFromVarname(nomvar_v(varLevIndex))
         if (varLevel == 'MM') then
           pressureOrHeightOrDepth(varLevIndex) = pressureOrHeight_M(1,1,levIndex) / &
@@ -1727,11 +1727,11 @@ contains
 
       ! set the variable name and depth for each element of column
       do varLevIndex = 1, numVarLev
-        nomvar_v(varLevIndex) = gsv_getVarNameFromK(stateVectorStdDev,varLevIndex)
+        nomvar_v(varLevIndex) = gsv_getVarNameFromVarLev(stateVectorStdDev,varLevIndex)
         if (vnl_varLevelFromVarName(nomvar_v(varLevIndex)) == 'SS') then
           pressureOrHeightOrDepth(varLevIndex) = 0.0
         else
-          levIndex = gsv_getLevFromK(stateVectorStdDev, varLevIndex)
+          levIndex = gsv_getLevFromVarLev(stateVectorStdDev, varLevIndex)
           pressureOrHeightOrDepth(varLevIndex) = vco%depths(levIndex)
         end if
       end do

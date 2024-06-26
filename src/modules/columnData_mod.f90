@@ -28,7 +28,7 @@ module columnData_mod
   ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
-  public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromK
+  public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromVarLev
   public :: col_addHeightSfcOffset
   public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
@@ -483,9 +483,9 @@ contains
   end function col_getLevIndexFromVarLevIndex
 
   !--------------------------------------------------------------------------
-  ! col_getVarNameFromK
+  ! col_getVarNameFromVarLev
   !--------------------------------------------------------------------------
-  function col_getVarNameFromK(column,varLevIndex) result(varName)
+  function col_getVarNameFromVarLev(column,varLevIndex) result(varName)
     !
     !:Purpose: Return the variable name for a given value of the
     !          "varsLevs" index.
@@ -511,10 +511,10 @@ contains
       end if
     end do
 
-    write(*,*) 'col_getVarNameFromK: varLevIndex out of range: ', varLevIndex
-    call utl_abort('col_getVarNameFromK')
+    write(*,*) 'col_getVarNameFromVarLev: varLevIndex out of range: ', varLevIndex
+    call utl_abort('col_getVarNameFromVarLev')
 
-  end function col_getVarNameFromK
+  end function col_getVarNameFromVarLev
 
   !--------------------------------------------------------------------------
   ! col_getPressure

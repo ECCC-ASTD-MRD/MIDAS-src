@@ -764,7 +764,7 @@ CONTAINS
 
     do levIndex = 1, ens_getNumVarLev(ens)
 
-      varName = ens_getVarNameFromK(ens,levIndex)
+      varName = ens_getVarNameFromVarLev(ens,levIndex)
       if (varName /= 'HU') cycle
 
       ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)
@@ -1732,7 +1732,7 @@ CONTAINS
 
     do levIndex = 1, ens_getNumVarLev(ens)
 
-      varName_ens = ens_getVarNameFromK(ens,levIndex)
+      varName_ens = ens_getVarNameFromVarLev(ens,levIndex)
       if ( trim(varName_ens) /= trim(varName) ) cycle
 
       ptr4d_r4 => ens_getOneLev_r4(ens,levIndex)

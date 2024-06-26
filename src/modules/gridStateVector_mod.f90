@@ -32,7 +32,7 @@ module gridStateVector_mod
 
   ! Public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
-  public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
+  public :: gsv_getOffsetFromVarName, gsv_getLevFromVarLev, gsv_getVarNameFromVarLev, gsv_getMpiIdFromVarLev, gsv_hPad
   public :: gsv_modifyVarName, gsv_modifyDate
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
@@ -164,9 +164,9 @@ module gridStateVector_mod
   end function gsv_getOffsetFromVarName
 
   !--------------------------------------------------------------------------
-  ! gsv_getVarNameFromK
+  ! gsv_getVarNameFromVarLev
   !--------------------------------------------------------------------------
-  function gsv_getVarNameFromK(statevector,varLevIndex) result(varName)
+  function gsv_getVarNameFromVarLev(statevector,varLevIndex) result(varName)
     !
     ! :Purpose: Returns the variable name from a given varLevIndex
     !
@@ -191,14 +191,14 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getVarNameFromK: varLevIndex out of range: '//str(varLevIndex))
+    call utl_abort('gsv_getVarNameFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
-  end function gsv_getVarNameFromK
+  end function gsv_getVarNameFromVarLev
 
   !--------------------------------------------------------------------------
-  ! gsv_getLevFromK
+  ! gsv_getLevFromVarLev
   !--------------------------------------------------------------------------
-  function gsv_getLevFromK(statevector,varLevIndex) result(levIndex)
+  function gsv_getLevFromVarLev(statevector,varLevIndex) result(levIndex)
     !
     ! :Purpose: Returns level index from a given varLevIndex
     !
@@ -223,14 +223,14 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getLevFromK: varLevIndex out of range: '//str(varLevIndex))
+    call utl_abort('gsv_getLevFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
-  end function gsv_getLevFromK
+  end function gsv_getLevFromVarLev
 
   !--------------------------------------------------------------------------
-  ! gsv_getMpiIdFromK
+  ! gsv_getMpiIdFromVarLev
   !--------------------------------------------------------------------------
-  function gsv_getMpiIdFromK(statevector,varLevIndex) result(MpiId)
+  function gsv_getMpiIdFromVarLev(statevector,varLevIndex) result(MpiId)
     !
     ! :Purpose: Returns MPI id from the given varLevIndex
     !
@@ -253,9 +253,9 @@ module gridStateVector_mod
       end if
     end do
 
-    call utl_abort('gsv_getMpiIdFromK: varLevIndex out of range: '//str(varLevIndex))
+    call utl_abort('gsv_getMpiIdFromVarLev: varLevIndex out of range: '//str(varLevIndex))
 
-  end function gsv_getMpiIdFromK
+  end function gsv_getMpiIdFromVarLev
 
   !--------------------------------------------------------------------------
   ! gsv_varExist
@@ -345,7 +345,7 @@ module gridStateVector_mod
     if (present(statevector_opt)) then
       !- 2.1 List the variables based on the varLevIndex ordering
       do varLevIndex = 1, statevector_opt%numVarLev
-        varName = gsv_getVarNameFromK(statevector_opt,varLevIndex)
+        varName = gsv_getVarNameFromVarLev(statevector_opt,varLevIndex)
         if (.not. ANY(varNames(:) == varName)) then
           varNumberIndex = varNumberIndex + 1
           varNames(varNumberIndex) = varName
@@ -962,8 +962,8 @@ module gridStateVector_mod
     statevector%myUVvarLevBeg = 0
     statevector%myUVvarLevEnd = -1
     do varLevIndex = statevector%myVarLevBeg, statevector%myVarLevEnd
-      if (gsv_getVarNameFromK(statevector,varLevIndex) == 'UU' .or.  &
-           gsv_getVarNameFromK(statevector,varLevIndex) == 'VV') then
+      if (gsv_getVarNameFromVarLev(statevector,varLevIndex) == 'UU' .or.  &
+           gsv_getVarNameFromVarLev(statevector,varLevIndex) == 'VV') then
         statevector%UVComponentPresent = .true.
         if (statevector%myUVvarLevBeg == 0) statevector%myUVvarLevBeg = varLevIndex
         statevector%myUVvarLevEnd = varLevIndex
@@ -1096,8 +1096,8 @@ module gridStateVector_mod
         else
           ! in this case, both components available on each mpi task, so just point to it
           do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
-            levUV = gsv_getLevFromK(statevector, varLevIndex)
-            UVname = complementaryUVname(gsv_getVarNameFromK(statevector,varLevIndex))
+            levUV = gsv_getLevFromVarLev(statevector, varLevIndex)
+            UVname = complementaryUVname(gsv_getVarNameFromVarLev(statevector,varLevIndex))
             varLevIndex2 = levUV + gsv_getOffsetFromVarName(statevector,UVname)
             lon1 = statevector%myLonBeg
             lat1 = statevector%myLatBeg
@@ -1121,8 +1121,8 @@ module gridStateVector_mod
         else
           ! in this case, both components available on each mpi task, so just point to it
           do varLevIndex = statevector%myUVvarLevBeg, statevector%myUVvarLevEnd
-            levUV = gsv_getLevFromK(statevector, varLevIndex)
-            UVname = complementaryUVname(gsv_getVarNameFromK(statevector,varLevIndex))
+            levUV = gsv_getLevFromVarLev(statevector, varLevIndex)
+            UVname = complementaryUVname(gsv_getVarNameFromVarLev(statevector,varLevIndex))
             varLevIndex2 = levUV + gsv_getOffsetFromVarName(statevector,UVname)
             lon1 = statevector%myLonBeg
             lat1 = statevector%myLatBeg
@@ -2316,7 +2316,7 @@ module gridStateVector_mod
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,paddingValue_r8)    
       do varLevIndex = kBeg, kEnd
-        if (trim(gsv_getVarNameFromK(statevector_out,varLevIndex)) == 'P0') then
+        if (trim(gsv_getVarNameFromVarLev(statevector_out,varLevIndex)) == 'P0') then
           paddingValue_r8 = 1000.d0 ! 1000 hPa
         else
           paddingValue_r8 = 0.d0
@@ -2342,7 +2342,7 @@ module gridStateVector_mod
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,paddingValue_r4)    
       do varLevIndex = kBeg, kEnd
-        if (trim(gsv_getVarNameFromK(statevector_out,varLevIndex)) == 'P0') then
+        if (trim(gsv_getVarNameFromVarLev(statevector_out,varLevIndex)) == 'P0') then
           paddingValue_r4 = 1000.0 ! 1000 hPa
         else
           paddingValue_r4 = 0.0
@@ -2555,12 +2555,12 @@ module gridStateVector_mod
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,levIndex,varLevel)
       do varLevIndex = k1, k2
-        varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, varLevIndex))
+        varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromVarLev(statevector_inout, varLevIndex))
         if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
           ! use lowest momentum level for surface variables
           levIndex = gsv_getNumLev(statevector_inout, 'MM')
         else
-          levIndex = gsv_getLevFromK(statevector_inout, varLevIndex)
+          levIndex = gsv_getLevFromVarLev(statevector_inout, varLevIndex)
         end if
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = lat1, lat2
@@ -2578,12 +2578,12 @@ module gridStateVector_mod
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,varLevIndex,lonIndex,levIndex,varLevel)
       do varLevIndex = k1, k2
-        varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(statevector_inout, varLevIndex))
+        varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromVarLev(statevector_inout, varLevIndex))
         if (varLevel == 'SF' .or. varLevel == 'SFMM' .or. varLevel == 'SFTH') then
           ! use lowest momentum level for surface variables
           levIndex = gsv_getNumLev(statevector_inout, 'MM')
         else
-          levIndex = gsv_getLevFromK(statevector_inout, varLevIndex)
+          levIndex = gsv_getLevFromVarLev(statevector_inout, varLevIndex)
         end if
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = lat1, lat2
@@ -3701,15 +3701,15 @@ module gridStateVector_mod
         numSend = 0
         numRecv = 0
         LOOP_VARLEV: do varLevIndexUU = 1, stateVector_out%numVarLev
-          if (gsv_getVarNameFromK(stateVector_out, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
+          if (gsv_getVarNameFromVarLev(stateVector_out, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
 
           ! get k index for corresponding VV component
-          levUV = gsv_getLevFromK(stateVector_out, varLevIndexUU)
+          levUV = gsv_getLevFromVarLev(stateVector_out, varLevIndexUU)
           varLevIndexVV = levUV + gsv_getOffsetFromVarName(statevector_out,'VV')
 
           ! get Mpi task id for both U and V
-          MpiIdUU = gsv_getMpiIdFromK(statevector_out,varLevIndexUU)
-          MpiIdVV = gsv_getMpiIdFromK(statevector_out,varLevIndexVV)
+          MpiIdUU = gsv_getMpiIdFromVarLev(statevector_out,varLevIndexUU)
+          MpiIdVV = gsv_getMpiIdFromVarLev(statevector_out,varLevIndexVV)
 
           if (MpiIdUU == MpiIdVV .and. mmpi_myid == MpiIdUU) then
             if (outKind == 8) then
@@ -3913,15 +3913,15 @@ module gridStateVector_mod
         numSend = 0
         numRecv = 0
         LOOP_VARLEV: do varLevIndexUU = 1, stateVector_in%numVarLev
-          if (gsv_getVarNameFromK(stateVector_in, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
+          if (gsv_getVarNameFromVarLev(stateVector_in, varLevIndexUU) /= 'UU') cycle LOOP_VARLEV
 
           ! get k index for corresponding VV component
-          levUV = gsv_getLevFromK(stateVector_in, varLevIndexUU)
+          levUV = gsv_getLevFromVarLev(stateVector_in, varLevIndexUU)
           varLevIndexVV = levUV + gsv_getOffsetFromVarName(statevector_in,'VV')
 
           ! get Mpi task id for both U and V
-          MpiIdUU = gsv_getMpiIdFromK(statevector_in,varLevIndexUU)
-          MpiIdVV = gsv_getMpiIdFromK(statevector_in,varLevIndexVV)
+          MpiIdUU = gsv_getMpiIdFromVarLev(statevector_in,varLevIndexUU)
+          MpiIdVV = gsv_getMpiIdFromVarLev(statevector_in,varLevIndexVV)
 
           if (MpiIdUU == MpiIdVV .and.  mmpi_myid == MpiIdUU) then
             if (sendrecvKind == 4) then
@@ -5644,7 +5644,7 @@ module gridStateVector_mod
       do varLevIndex = stateVector%myVarLevBeg, stateVector%myVarLevEnd
       
         if (present(varName_opt)) then
-          if (gsv_getVarNameFromK(stateVector,varLevIndex) /= trim(varName_opt)) cycle
+          if (gsv_getVarNameFromVarLev(stateVector,varLevIndex) /= trim(varName_opt)) cycle
         end if
 	
         smoothedField(:,:) = 0.0d0

@@ -1365,8 +1365,8 @@ CONTAINS
     !- 3.2 normalize and apply scale factors
     !$OMP PARALLEL DO PRIVATE (levIndex,varName,lev,ptr4d_r4,stepIndex,memberIndex,multFactor)
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
-      varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-      lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
       if ( .not. ens_varExist(bEns(instanceIndex)%ensPerts(1,1), varName) ) cycle 
 
@@ -1463,8 +1463,8 @@ CONTAINS
     end if
 
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
-      varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-      lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
         call gsv_getField(statevector, ptr4d_r8, 'HU')
@@ -1600,8 +1600,8 @@ CONTAINS
     end if
 
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
-      varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-      lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
         call gsv_getField(statevector, ptr4d_out, 'HU')
@@ -2042,8 +2042,8 @@ CONTAINS
 
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
 
-      lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-      varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
 
       !$OMP PARALLEL DO PRIVATE (latIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
@@ -2272,8 +2272,8 @@ CONTAINS
 
     do levIndex = 1, ens_getNumVarLev(bEns(instanceIndex)%ensPerts(1,1))
 
-      lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
-      varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      lev = ens_getLevFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
+      varName = ens_getVarNameFromVarLev(bEns(instanceIndex)%ensPerts(1,1),levIndex)
       varLevel     = vnl_varLevelFromVarname(varName)
       varLevelAlfa = vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1))
 

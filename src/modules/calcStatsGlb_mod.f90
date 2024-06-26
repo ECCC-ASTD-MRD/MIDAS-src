@@ -3621,8 +3621,8 @@ module calcStatsGlb_mod
     ! Loop over all vertical levels and variables
     varLev1: do varLevIndex1 = statevector_vertCorr%myVarLevBeg, statevector_vertCorr%myVarLevEnd
 
-      varName = ens_getVarNameFromK(ensPerts,varLevIndex1)
-      levIndex1 = ens_getLevFromK(ensPerts,varLevIndex1)
+      varName = ens_getVarNameFromVarLev(ensPerts,varLevIndex1)
+      levIndex1 = ens_getLevFromVarLev(ensPerts,varLevIndex1)
 
       ! Compute vertical correlations relative to varLev1
       call gsv_zero(statevector_vertCorr)

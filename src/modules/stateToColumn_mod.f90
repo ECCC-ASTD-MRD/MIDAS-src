@@ -758,8 +758,8 @@ contains
             if (varLevIndex == 0) then
               varLevel = 'SF'
             else
-              levIndex = gsv_getLevFromK(stateVector,varLevIndex)
-              varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,varLevIndex))
+              levIndex = gsv_getLevFromVarLev(stateVector,varLevIndex)
+              varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromVarLev(stateVector,varLevIndex))
             end if
 
             if ( varLevel == 'TH' ) then
@@ -1311,7 +1311,7 @@ contains
       kCount = kCount + 1
 
       if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
-        varName = gsv_getVarNameFromK(statevector,varLevIndex)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
           call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,varLevIndex)
@@ -1390,8 +1390,8 @@ contains
         if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
         ! Figure out which variable/level of destination
-        varName = gsv_getVarNameFromK(statevector,varLevIndex2)
-        levIndex = gsv_getLevFromK(statevector,varLevIndex2)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex2)
+        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex2)
         allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
@@ -1545,8 +1545,8 @@ contains
         if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
         
         ! Figure out which variable/level of source
-        varName = gsv_getVarNameFromK(statevector,varLevIndex2)
-        levIndex = gsv_getLevFromK(statevector,varLevIndex2)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex2)
+        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex2)
         allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
@@ -1567,7 +1567,7 @@ contains
       end if
 
       if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
-        varName = gsv_getVarNameFromK(statevector,varLevIndex)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
           call gsv_getFieldUV(stateVector_VarsLevs, ptr3d_UV, varLevIndex)
@@ -1863,7 +1863,7 @@ contains
         kCount = kCount + 1
 
         if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
-          varName = gsv_getVarNameFromK(stateVector_VarsLevs, varLevIndex)
+          varName = gsv_getVarNameFromVarLev(stateVector_VarsLevs, varLevIndex)
 
           call utl_tmg_start(35,'------s2c_NL_Hinterp')
           if ( varName == 'UU' .or. varName == 'VV' ) then
@@ -1972,8 +1972,8 @@ contains
           varLevIndex2 = stateVector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
           if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
-          varName = gsv_getVarNameFromK(stateVector_VarsLevs, varLevIndex2)
-          levIndex = gsv_getLevFromK(statevector, varLevIndex2)
+          varName = gsv_getVarNameFromVarLev(stateVector_VarsLevs, varLevIndex2)
+          levIndex = gsv_getLevFromVarLev(statevector, varLevIndex2)
           allCols_ptr => col_getAllColumns(column, varName)
 
           do headerIndex = 1, numHeader
@@ -3538,9 +3538,9 @@ contains
     
     ! loop through k and check varNames are same between column/statevector
     do varLevIndex = 1, col_getNumVarLev(column)
-      if (gsv_getVarNameFromK(statevector,varLevIndex) /= col_getVarNameFromK(column,varLevIndex)) then
+      if (gsv_getVarNameFromVarLev(statevector,varLevIndex) /= col_getVarNameFromVarLev(column,varLevIndex)) then
         write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
-                   gsv_getVarNameFromK(statevector,varLevIndex), col_getVarNameFromK(column,varLevIndex) 
+                   gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex) 
         call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
       end if	
     end do

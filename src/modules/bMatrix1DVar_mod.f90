@@ -763,7 +763,7 @@ contains
     do varIndex = 1, bmat1D_numIncludeAnlVar
       levIndex = 0
       do varLevIndexCol = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
+        if ( trim( col_getVarNameFromVarLev(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
           varLevIndexBmat = varLevIndexBmat + 1
           levIndex = levIndex + 1
           varLevColFromVarLevBmat(varLevIndexBmat) = varLevIndexCol

@@ -37,7 +37,7 @@ module ensembleStateVector_mod
   public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
   public :: ens_getMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
-  public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
+  public :: ens_getOffsetFromVarName, ens_getLevFromVarLev, ens_getVarNameFromVarLev 
   public :: ens_getNumVarLev, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
   public :: ens_getVco, ens_getHco, ens_getLatLonBounds, ens_getNumStep
   public :: ens_varNamesList, ens_applyMaskLAM
@@ -1546,9 +1546,9 @@ CONTAINS
   end function ens_getOffsetFromVarName
 
   !--------------------------------------------------------------------------
-  ! ens_getLevFromK
+  ! ens_getLevFromVarLev
   !--------------------------------------------------------------------------
-  function ens_getLevFromK(ens,varLevIndex) result(levIndex)
+  function ens_getLevFromVarLev(ens,varLevIndex) result(levIndex)
     !
     !:Purpose: Return the level index from the varLevIndex value.
     !
@@ -1560,9 +1560,9 @@ CONTAINS
     ! Result:
     integer                      :: levIndex
 
-    levIndex = gsv_getLevFromK(ens%statevector_work,varLevIndex)
+    levIndex = gsv_getLevFromVarLev(ens%statevector_work,varLevIndex)
 
-  end function ens_getLevFromK
+  end function ens_getLevFromVarLev
 
   !--------------------------------------------------------------------------
   ! ens_getKFromLevVarName
@@ -1586,9 +1586,9 @@ CONTAINS
   end function ens_getKFromLevVarName
 
   !--------------------------------------------------------------------------
-  ! ens_getVarNameFromK
+  ! ens_getVarNameFromVarLev
   !--------------------------------------------------------------------------
-  function ens_getVarNameFromK(ens,varLevIndex) result(varName)
+  function ens_getVarNameFromVarLev(ens,varLevIndex) result(varName)
     !
     !:Purpose: Return the variable name from the specified varLevIndex value.
     !
@@ -1600,9 +1600,9 @@ CONTAINS
     ! Result:
     character(len=4)             :: varName
 
-    varName = gsv_getVarNameFromK(ens%statevector_work,varLevIndex)
+    varName = gsv_getVarNameFromVarLev(ens%statevector_work,varLevIndex)
 
-  end function ens_getVarNameFromK
+  end function ens_getVarNameFromVarLev
 
   !--------------------------------------------------------------------------
   ! ens_getVco
@@ -2204,19 +2204,19 @@ CONTAINS
     do varLevIndex = k1, k2
 
       ! define scaling factor as a function of vertical level and variable type
-      varLevel = vnl_varLevelFromVarname(ens_getVarNameFromK(ens, varLevIndex))
+      varLevel = vnl_varLevelFromVarname(ens_getVarNameFromVarLev(ens, varLevIndex))
       if ( trim(varLevel) == 'SF' .or. trim(varLevel) == 'SFMM' .or. trim(varLevel) == 'SFTH' ) then
         ! use lowest momentum level for surface variables
         levIndex = ens_getNumLev(ens, 'MM')
       else if ( (trim(varLevel) == 'MM') .and. (ens%statevector_work%vco%Vcode == 5002) ) then
-        levIndex = ens_getLevFromK(ens, varLevIndex) + 1
+        levIndex = ens_getLevFromVarLev(ens, varLevIndex) + 1
       else
-        levIndex = ens_getLevFromK(ens, varLevIndex)
+        levIndex = ens_getLevFromVarLev(ens, varLevIndex)
       end if
       thisScaleFactor = scaleFactor(levIndex)
 
       ! determine which recentering coeff are used: general or land-specific
-      varKind = vnl_varKindFromVarname(ens_getVarNameFromK(ens, varLevIndex))
+      varKind = vnl_varKindFromVarname(ens_getVarNameFromVarLev(ens, varLevIndex))
       if ( varKind == 'LD' ) then
         recenteringCoeffArrayUsed(:) = recenteringCoeffArrayLand(:)
       else

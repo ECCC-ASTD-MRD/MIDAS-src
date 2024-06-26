@@ -1715,8 +1715,8 @@ contains
     call gsv_getField(statevector_stdDev,ptr3d_r8)
 
     do varLevIndex = 1, nVarLev
-      varName = gsv_getVarNameFromK(statevector_stdDev,varLevIndex)
-      levIndex = gsv_getLevFromK(statevector_stdDev,varLevIndex)
+      varName = gsv_getVarNameFromVarLev(statevector_stdDev,varLevIndex)
+      levIndex = gsv_getLevFromVarLev(statevector_stdDev,varLevIndex)
 
       if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
         multFactor = scaleFactor_M(levIndex)
