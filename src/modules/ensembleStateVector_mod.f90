@@ -2790,7 +2790,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
-    integer :: sendsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvsizes(mmpi_nprocs)
+    integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
@@ -2968,15 +2968,15 @@ CONTAINS
                                     sendsizes, 1, "mpi_integer", "GRID", ierr)
 
             ! Specify the start of each memory block to read/write on each MPI rank
-            senddispls(1) = 0
+            displacements(1) = 0
             do procIndex = 2, mmpi_nprocs
-              senddispls(procIndex) = senddispls(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
+              displacements(procIndex) = displacements(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
             end do
 
             if (mmpi_nprocs > 1) then
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-              call mpi_alltoallv(gd_send_r4, sendsizes, senddispls, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, senddispls, mmpi_datyp_real4, &
+              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
             else
