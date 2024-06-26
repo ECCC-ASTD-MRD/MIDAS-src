@@ -2963,7 +2963,7 @@ CONTAINS
 
             if (mmpi_nprocs > 1) then
 
-              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
               ! only send the exact data amount for each task
               sendsizes(:) = nsize
               recvsizes(:) = nsize
@@ -2975,8 +2975,8 @@ CONTAINS
               end do
 
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+              call mpi_alltoallv(gd_send_r4(:,:,1:numLevelsToSend2,:), sendsizes, displacements, mmpi_datyp_real4, &
+                                 gd_recv_r4(:,:,1:numLevelsToSend2,:), recvsizes, displacements, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
             else
