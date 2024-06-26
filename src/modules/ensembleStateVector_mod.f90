@@ -2869,11 +2869,6 @@ CONTAINS
 
     ! This is the maximum data to be received on each MPI rank
     recvsizes(:) = lonPerPEmax*latPerPEmax*numLevelsToSend
-    ! Specify the start of each memory block to read/write on each MPI rank
-    displacements(1) = 0
-    do procIndex = 2, mmpi_nprocs
-      displacements(procIndex) = displacements(procIndex-1) + lonPerPEmax * latPerPEmax * numLevelsToSend
-    end do
 
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
@@ -2966,14 +2961,19 @@ CONTAINS
               !$OMP END PARALLEL DO
             end if
 
-            nsize = lonPerPE * latPerPE * numLevelsToSend2
-            ! only send the exact data amount for each task
-            sendsizes(:) = 0
-            ! collect the sizes for each processor
-            call rpn_comm_allgather(nsize,     1, "mpi_integer",  &
-                                    sendsizes, 1, "mpi_integer", "GRID", ierr)
-
             if (mmpi_nprocs > 1) then
+
+              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+              ! only send the exact data amount for each task
+              sendsizes(:) = nsize
+              recvsizes(:) = nsize
+
+              ! Specify the start of each memory block to read/write for each MPI rank
+              displacements(1) = 0
+              do procIndex = 2, mmpi_nprocs
+                displacements(procIndex) = displacements(procIndex-1) + nsize
+              end do
+
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
               call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
                                  gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
