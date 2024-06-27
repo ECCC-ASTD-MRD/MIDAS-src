@@ -2874,6 +2874,13 @@ CONTAINS
       writeFilePE(memberIndex) = mod(memberIndex-1,mmpi_nprocs)
     end do
 
+    ! Specify the start of each memory block to read/write for each MPI rank
+    nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+    displacements(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      displacements(procIndex) = displacements(procIndex-1) + nsize
+    end do
+
     hco_ens => gsv_getHco(ens%statevector_work)
     vco_ens => gsv_getVco(ens%statevector_work)
 
@@ -2976,13 +2983,6 @@ CONTAINS
               else
                 recvsizes(:) = 0
               end if
-
-              ! Specify the start of each memory block to read/write for each MPI rank
-              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
-              displacements(1) = 0
-              do procIndex = 2, mmpi_nprocs
-                displacements(procIndex) = displacements(procIndex-1) + nsize
-              end do
 
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
               call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
