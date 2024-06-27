@@ -1,7 +1,7 @@
  &NAMLETKF
    algorithm                = 'CVLETKF'
    ensPostProcessing        = .true.
-   NENS                     = 256
+   NENS                     = 128
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
@@ -37,8 +37,8 @@
    NDATAMX=100000
 /
  &NAMTIME
-   DSTEPOBS    = 1.0d0
-   DSTEPOBSINC = 6.0d0
+   DSTEPOBS    = 3.0d0
+   DSTEPOBSINC = 3.0d0
 /
  &NAMFILT
   NLIST(1)=10004,

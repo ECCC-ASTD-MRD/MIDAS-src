@@ -2969,7 +2969,6 @@ CONTAINS
                   sendsizes(procIndex) = 0
                 end if
               end do
-              write(*,*) 'ens_WriteEnsemble: ', mmpi_myid, ' sendsizes = ', sendsizes(:)
 
               ! only receive data on rank that receive data
               if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
@@ -2977,7 +2976,6 @@ CONTAINS
               else
                 recvsizes(:) = 0
               end if
-              write(*,*) 'ens_WriteEnsemble: ', mmpi_myid, ' recvsizes = ', recvsizes(:)
 
               ! Specify the start of each memory block to read/write for each MPI rank
               nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
@@ -2986,13 +2984,11 @@ CONTAINS
                 displacements(procIndex) = displacements(procIndex-1) + nsize
               end do
 
-              write(*,*) 'ens_WriteEnsemble: Calling mpi_alltoallv'
               call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
               call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
                                  gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
                                  mmpi_comm_grid, ierr)
               call utl_tmg_stop(191)
-              write(*,*) 'ens_WriteEnsemble: After calling mpi_alltoallv'
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
