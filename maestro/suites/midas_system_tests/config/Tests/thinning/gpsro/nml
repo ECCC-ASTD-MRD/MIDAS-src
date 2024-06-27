@@ -1,3 +1,8 @@
+ &namObsSelection
+   doBgck     = .false.
+   doBiasCorr = .false.
+   doThinning = .true.
+/
  &thin_gpsro
    heightMin     = 0.0d0
    heightMax     = 40000.0d0
@@ -31,6 +36,10 @@
    NDATAMX=5000000,
 /
  &NAMCODTYP
+/
+ &NAMGPSRO
+/
+ &NAMGPSGB
 /
  &NAMBURP_FILTER_SFC
   LISTE_ELE_GPS=10004,12004,12203,15031,15032,15035,40026

@@ -1,3 +1,8 @@
+ &namObsSelection
+   doBgck     = .false.
+   doBiasCorr = .false.
+   doThinning = .true.
+/
  &THIN_CSR
    deltax  = 150
    deltrad = 45

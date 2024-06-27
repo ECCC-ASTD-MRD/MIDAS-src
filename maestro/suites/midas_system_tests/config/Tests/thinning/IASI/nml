@@ -1,3 +1,8 @@
+ &namObsSelection
+   doBgck     = .false.
+   doBiasCorr = .false.
+   doThinning = .true.
+/
  &THIN_HYPER
    removeUnCorrected = .true.
    deltmax = 22

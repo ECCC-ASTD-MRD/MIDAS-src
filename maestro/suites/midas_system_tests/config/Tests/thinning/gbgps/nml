@@ -1,3 +1,8 @@
+ &namObsSelection
+   doBgck     = .false.
+   doBiasCorr = .false.
+   doThinning = .true.
+/
  &thin_gbgps
    deltemps = 8
    deldist = 50
@@ -29,6 +34,10 @@
  &NAMDIMO
    NMXOBS =500000,
    NDATAMX=5000000,
+/
+ &NAMGPSRO
+/
+ &NAMGPSGB
 /
  &NAMCODTYP
 /
