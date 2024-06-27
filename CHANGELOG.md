@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Removed `thinning` program and replaced with added functionality in `obsSelection` (#775 and !854)
 
 ## [4.0.0]
 

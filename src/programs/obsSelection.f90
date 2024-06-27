@@ -318,7 +318,7 @@ program midas_obsSelection
         ! use dateStamp from obs if not set by env variable
         call tim_setDateStamp(dateStampFromObs)
       else
-        call utl_abort('midas-thinning: DateStamp was not set')
+        call utl_abort('midas-obsSelection: DateStamp was not set')
       end if
     end if
   else
