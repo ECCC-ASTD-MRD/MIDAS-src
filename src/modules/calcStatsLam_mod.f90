@@ -315,7 +315,7 @@ contains
 
     end do
 
-    bhi%nVarLev = ens_getNumK(ensPerts)
+    bhi%nVarLev = ens_getNumVarLev(ensPerts)
 
     !
     !- 6.  Transform u-wind and v-wind to control variables 
@@ -1710,13 +1710,13 @@ contains
     write(*,*)
     write(*,*) 'scaleStdDev: Starting...'
     
-    nVarLev = gsv_getNumK(statevector_stdDev)
+    nVarLev = gsv_getNumVarLev(statevector_stdDev)
  
     call gsv_getField(statevector_stdDev,ptr3d_r8)
 
     do varLevIndex = 1, nVarLev
-      varName = gsv_getVarNameFromK(statevector_stdDev,varLevIndex)
-      levIndex = gsv_getLevFromK(statevector_stdDev,varLevIndex)
+      varName = gsv_getVarNameFromVarLev(statevector_stdDev,varLevIndex)
+      levIndex = gsv_getLevFromVarLev(statevector_stdDev,varLevIndex)
 
       if ( vnl_varLevelFromVarname(varName) == 'MM' ) then
         multFactor = scaleFactor_M(levIndex)
@@ -2315,7 +2315,7 @@ contains
       call gsv_transposeTilesToVarsLevs(statevector_oneMemberTiles, statevector_oneMember)
       call gsv_getField(statevector_oneMember,ptr3d_r8_oneMember)
 
-      do k = statevector_locHorizCor%mykBeg, statevector_locHorizCor%mykEnd
+      do k = statevector_locHorizCor%myVarLevBeg, statevector_locHorizCor%myVarLevEnd
         do jref_id = 1, njrefpoint
           do iref_id = 1, nirefpoint
             iref = (2*iref_id-1)*blocklength_x/2

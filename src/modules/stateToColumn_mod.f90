@@ -41,16 +41,16 @@ module stateToColumn_mod
 
   type struct_stepProcData
     ! lat-lon location of observations to be interpolated
-    real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, kIndex)
-    real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, kIndex)
+    real(8), pointer          :: allLat(:,:) => null()         ! (headerUsed, varLevIndex)
+    real(8), pointer          :: allLon(:,:) => null()         ! (headerUsed, varLevIndex)
     ! lat-lon location on rotated grid of observations to be interpolated
-    real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
-    real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, kIndex)
+    real(8), pointer          :: allLatRot(:,:,:) => null()    ! (subGrid, headerUsed, varLevIndex)
+    real(8), pointer          :: allLonRot(:,:,:) => null()    ! (subGrid, headerUsed, varLevIndex)
     ! actual headerIndex, since the headerUsed is only for those obs with a non-zero interp weight
     integer, pointer          :: allHeaderIndex(:) => null()   ! (headerUsed)
     ! depotIndexBeg/End contain first/last indices into depots of interpolation weights and lat/lon indices
-    integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
-    integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, kIndex)
+    integer, pointer          :: depotIndexBeg(:,:,:) => null() ! (subGrid, headerUsed, varLevIndex)
+    integer, pointer          :: depotIndexEnd(:,:,:) => null() ! (subGrid, headerUsed, varLevIndex)
   end type struct_stepProcData
 
   type struct_interpInfo
@@ -345,7 +345,7 @@ contains
     type(struct_gsv), save    :: stateVector_1Step
     type(struct_gsv), pointer :: stateVector_Tiles_ptr
     integer :: numHeader, numHeaderUsedMax, headerIndex, headerUsedIndex
-    integer :: kIndex, kIndexCount, myKBeg
+    integer :: varLevIndex, varLevIndexCount, myVarLevBeg
     integer :: numStep, stepIndex, ierr
     integer :: procIndex, niP1, numGridptTotal, numHeaderUsed
     integer :: subGridIndex, subGridForInterp, numSubGridsForInterp
@@ -369,10 +369,10 @@ contains
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     real(kdkind), allocatable :: positionArray(:,:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs)
-    integer :: recvdispls(mmpi_nprocs), allkBeg(mmpi_nprocs)
+    integer :: recvdispls(mmpi_nprocs), allVarLevBeg(mmpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: lonIndex, latIndex, gridIndex
-    integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
+    integer :: maxkcount, numVarLevToSend, numTovsUsingFootprint, numAllTovs
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
@@ -455,13 +455,13 @@ contains
                    interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
     if ((stateVector%heightSfcPresent) .and. (mmpi_myid == 0)) then
-      mykBeg = 0 
+      myVarLevBeg = 0 
     else
-      mykBeg = stateVector%mykBeg
+      myVarLevBeg = stateVector%myVarLevBeg
     end if   
 
-    call rpn_comm_allgather(mykBeg, 1,'mpi_integer',       &
-                            allkBeg,1,'mpi_integer','grid',ierr)
+    call rpn_comm_allgather(myVarLevBeg, 1,'mpi_integer',       &
+                            allVarLevBeg,1,'mpi_integer','grid',ierr)
 
     ! Allow for periodicity in Longitude for global Gaussian grid
     if (stateVector%hco%grtyp == 'G' .or. &
@@ -515,16 +515,16 @@ contains
     allocate(interpInfo%stepProcData(mmpi_nprocs,numStep))
     do stepIndex = 1,numStep
       do procIndex = 1, mmpi_nprocs
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
         interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,:) = 0.0d0
 
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(allNumHeaderUsed(stepIndex,procIndex)))
         interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(:) = 0
 
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
-        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,mykBeg:stateVector%mykEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(interpInfo%hco%numSubGrid,numHeaderUsedMax,myVarLevBeg:stateVector%myVarLevEnd))
+        allocate(interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(interpInfo%hco%numSubGrid,numHeaderUsedMax,myVarLevBeg:stateVector%myVarLevEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(:,:,:) = 0
         interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(:,:,:) = -1
       end do
@@ -542,8 +542,8 @@ contains
     if (interpInfo%hco%rotated) then
       do stepIndex = 1, numStep
         do procIndex = 1, mmpi_nprocs
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
-          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
+          allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),myVarLevBeg:stateVector%myVarLevEnd))
           interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
           interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(:,:,:) = 0.0d0
         end do
@@ -660,8 +660,8 @@ contains
                               allFootprintRadius_r4(:,stepIndex,:), numHeaderUsedMax, 'MPI_REAL4', &
                               'GRID', ierr)
 
-      allocate(latColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
-      allocate(lonColumn(numHeaderUsedMax,allkBeg(1):stateVector%nk))
+      allocate(latColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
+      allocate(lonColumn(numHeaderUsedMax,allVarLevBeg(1):stateVector%numVarLev))
       latColumn(:,:) = 0.0d0
       lonColumn(:,:) = 0.0d0
 
@@ -753,24 +753,24 @@ contains
                              latLev_M, lonLev_M,            & ! IN/OUT
                              latLev_S, lonLev_S )             ! IN/OUT
 
-          ! put the lat/lon from TH/MM levels to kIndex
-          do kIndex = allkBeg(1), stateVector%nk
-            if (kIndex == 0) then
+          ! put the lat/lon from TH/MM levels to varLevIndex
+          do varLevIndex = allVarLevBeg(1), stateVector%numVarLev
+            if (varLevIndex == 0) then
               varLevel = 'SF'
             else
-              levIndex = gsv_getLevFromK(stateVector,kIndex)
-              varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVector,kIndex))
+              levIndex = gsv_getLevFromVarLev(stateVector,varLevIndex)
+              varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromVarLev(stateVector,varLevIndex))
             end if
 
             if ( varLevel == 'TH' ) then
-              latColumn(headerUsedIndex,kIndex) = latLev_T(levIndex)
-              lonColumn(headerUsedIndex,kIndex) = lonLev_T(levIndex)
+              latColumn(headerUsedIndex,varLevIndex) = latLev_T(levIndex)
+              lonColumn(headerUsedIndex,varLevIndex) = lonLev_T(levIndex)
             else if ( varLevel == 'MM' ) then
-              latColumn(headerUsedIndex,kIndex) = latLev_M(levIndex)
-              lonColumn(headerUsedIndex,kIndex) = lonLev_M(levIndex)
+              latColumn(headerUsedIndex,varLevIndex) = latLev_M(levIndex)
+              lonColumn(headerUsedIndex,varLevIndex) = lonLev_M(levIndex)
             else if ( varLevel == 'SF' ) then
-              latColumn(headerUsedIndex,kIndex) = latLev_S
-              lonColumn(headerUsedIndex,kIndex) = lonLev_S
+              latColumn(headerUsedIndex,varLevIndex) = latLev_S
+              lonColumn(headerUsedIndex,varLevIndex) = lonLev_S
             else
               call utl_abort('s2c_setupInterpInfo: unknown value of varLevel')
             end if
@@ -781,8 +781,8 @@ contains
 
         ! MPI communication for the slant-path lat/lon
 
-        maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
-        numkToSend = min(mmpi_nprocs,stateVector%nk)
+        maxkCount = maxval(stateVector%allVarLevCount(:) + stateVector%allVarLevBeg(:) - allVarLevBeg(:))
+        numVarLevToSend = min(mmpi_nprocs,stateVector%numVarLev)
 
         allocate(lat_recv_r8(numHeaderUsedMax,mmpi_nprocs))
         lat_recv_r8(:,:) = 0.0d0
@@ -795,7 +795,7 @@ contains
 
         ! only send the data from tasks with data, same amount to all
         sendsizes(:) = 0
-        do procIndex = 1, numkToSend
+        do procIndex = 1, numVarLevToSend
           sendsizes(procIndex) = numHeaderUsed
         end do
         senddispls(1) = 0
@@ -809,20 +809,20 @@ contains
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
-        do kIndexCount = 1, maxkCount
+        do varLevIndexCount = 1, maxkCount
 
           sendsizes(:) = 0
           do procIndex = 1, mmpi_nprocs
-            ! compute kIndex value being sent
-            kIndex = kIndexCount + allkBeg(procIndex) - 1
-            if ( kIndex <= stateVector%allkEnd(procIndex) ) then
-              if( procIndex > numkToSend ) then
-                write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
-                call utl_abort('ERROR: with numkToSend?')
+            ! compute varLevIndex value being sent
+            varLevIndex = varLevIndexCount + allVarLevBeg(procIndex) - 1
+            if ( varLevIndex <= stateVector%allVarLevEnd(procIndex) ) then
+              if( procIndex > numVarLevToSend ) then
+                write(*,*) 'procIndex, numVarLevToSend = ', procIndex, numVarLevToSend
+                call utl_abort('ERROR: with numVarLevToSend?')
               end if
 
-              lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,kIndex)
-              lon_send_r8(1:numHeaderUsed,procIndex) = lonColumn(1:numHeaderUsed,kIndex)
+              lat_send_r8(1:numHeaderUsed,procIndex) = latColumn(1:numHeaderUsed,varLevIndex)
+              lon_send_r8(1:numHeaderUsed,procIndex) = lonColumn(1:numHeaderUsed,varLevIndex)
               sendsizes(procIndex) = numHeaderUsed
             else
               sendsizes(procIndex) = 0
@@ -830,8 +830,8 @@ contains
           end do
 
           ! all tasks recv only from those with data
-          kIndex = kIndexCount + mykBeg - 1
-          if ( kIndex <= stateVector%mykEnd ) then
+          varLevIndex = varLevIndexCount + myVarLevBeg - 1
+          if ( varLevIndex <= stateVector%myVarLevEnd ) then
             do procIndex = 1, mmpi_nprocs
               recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
             end do
@@ -848,16 +848,16 @@ contains
 
           do procIndex = 1, mmpi_nprocs
             ! all tasks copy the received step data into correct slot
-            kIndex = kIndexCount + mykBeg - 1
-            if ( kIndex <= stateVector%mykEnd ) then
-              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = &
+            varLevIndex = varLevIndexCount + myVarLevBeg - 1
+            if ( varLevIndex <= stateVector%myVarLevEnd ) then
+              interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,varLevIndex) = &
                    lat_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
-              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = &
+              interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,varLevIndex) = &
                    lon_recv_r8(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             end if
           end do
 
-        end do ! kIndexCount
+        end do ! varLevIndexCount
 
         deallocate(lon_send_r8)
         deallocate(lon_recv_r8)
@@ -900,20 +900,22 @@ contains
                              latLev_T, lonLev_T,            & ! IN/OUT
                              latLev_M, lonLev_M )             ! IN/OUT 
 
-          latColumn(headerUsedIndex,allkBeg(1)) = latLev_T(1)
-          lonColumn(headerUsedIndex,allkBeg(1)) = lonLev_T(1)
+          latColumn(headerUsedIndex,allVarLevBeg(1)) = latLev_T(1)
+          lonColumn(headerUsedIndex,allVarLevBeg(1)) = lonLev_T(1)
         end do
 
         ! gather geographical lat, lon positions of observations from all processors
-        call rpn_comm_allgather(latColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
+        call rpn_comm_allgather(latColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLatOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
-        call rpn_comm_allgather(lonColumn(:,allkBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
+        call rpn_comm_allgather(lonColumn(:,allVarLevBeg(1)), numHeaderUsedMax, 'MPI_REAL8', &
                                 allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
 
-        k_loop: do kIndex = mykBeg, statevector%mykEnd
+        k_loop: do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do procIndex = 1, mmpi_nprocs
-            interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
-            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,varLevIndex) = &
+                 allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
+            interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,varLevIndex) = &
+                 allLonOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
           end do
         end do k_loop
 
@@ -995,17 +997,18 @@ contains
     end if
 
     do stepIndex = 1, numStep
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
-      !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
+      !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, &
+      !$OMP xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, subGridIndex, numSubGridsForInterp, subGridForInterp, &
+      !$OMP lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
       do procIndex = 1, mmpi_nprocs
-        do kIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
             ! Compute the rotated lat/lon, needed for the winds
 
-            lat_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,kIndex) *  &
+            lat_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,varLevIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
-            lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex) *  &
+            lon_deg_r4 = real(interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,varLevIndex) *  &
                          MPC_DEGREES_PER_RADIAN_R8)
             ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                                        xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -1032,15 +1035,15 @@ contains
               if ( interpInfo%hco%rotated .and.  &
                    (gsv_varExist(varName='UU') .or.  &
                     gsv_varExist(varName='VV')) ) then
-                lat = interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,kIndex)
-                lon = interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,kIndex)
+                lat = interpInfo%stepProcData(procIndex,stepIndex)%allLat(headerIndex,varLevIndex)
+                lon = interpInfo%stepProcData(procIndex,stepIndex)%allLon(headerIndex,varLevIndex)
                 call uvr_RotateLatLon( interpInfo%uvr,   & ! INOUT
                                        subGridIndex,     & ! IN
                                        latRot, lonRot,   & ! OUT (radians)
                                        lat, lon,         & ! IN  (radians)
                                        'ToLatLonRot')      ! IN
-                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex,headerIndex,kIndex) = latRot
-                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex,headerIndex,kIndex) = lonRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex,headerIndex,varLevIndex) = latRot
+                interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex,headerIndex,varLevIndex) = lonRot
               end if
 
             end do ! subGridForInterp
@@ -1050,21 +1053,22 @@ contains
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex,stepIndex,procIndex)
 
             call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, &
-                                      stateVector, headerIndex, kIndex, stepIndex, &
+                                      stateVector, headerIndex, varLevIndex, stepIndex, &
                                       procIndex, numGridpt)
 
             ! for now, just store the number of gridpts for each obs in depotIndexEnd
             if ( (subGridIndex == 1) .or. (subGridIndex == 2) ) then
               ! indices for only 1 subgrid, other will have zeros
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) = numGridpt(subGridIndex)
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,varLevIndex) = &
+                   numGridpt(subGridIndex)
             else
               ! locations on both subGrids will be averaged
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1,headerIndex,kIndex) = numGridpt(1)
-              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2,headerIndex,kIndex) = numGridpt(2)
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(1,headerIndex,varLevIndex) = numGridpt(1)
+              interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(2,headerIndex,varLevIndex) = numGridpt(2)
             end if
 
           end do ! headerIndex
-        end do ! kIndex
+        end do ! varLevIndex
       end do ! procIndex
       !$OMP END PARALLEL DO
     end do ! stepIndex
@@ -1072,17 +1076,20 @@ contains
     numGridptTotal = 0
     do stepIndex = 1, numStep
       do procIndex = 1, mmpi_nprocs
-        do kIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
             do subGridIndex = 1, interpInfo%hco%numSubGrid
-              if ( interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) /= -1 ) then
-                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,kIndex) = numGridptTotal + 1
-                numGridptTotal = numGridptTotal + interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex)
-                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,kIndex) = numGridptTotal
+              if ( interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,varLevIndex) /= -1 ) then
+                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex,headerIndex,varLevIndex) = &
+                     numGridptTotal + 1
+                numGridptTotal = numGridptTotal + &
+                     interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,varLevIndex)
+                interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex,headerIndex,varLevIndex) = &
+                     numGridptTotal
               end if
             end do ! subGridIndex
           end do ! headerIndex
-        end do ! kIndex
+        end do ! varLevIndex
       end do ! procIndex
     end do ! stepIndex
 
@@ -1097,21 +1104,21 @@ contains
     allocate(interpInfo%interpWeightDepot(numGridptTotal))
 
     call utl_tmg_start(33,'------s2c_SetupWeights')
-    !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
+    !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, varLevIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
-        do kIndex = mykBeg, statevector%mykEnd
+        do varLevIndex = myVarLevBeg, statevector%myVarLevEnd
 
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
             footprintRadius_r4 = allFootprintRadius_r4(headerIndex, stepIndex, procIndex)
 
             call s2c_setupHorizInterp(footprintRadius_r4, interpInfo, stateVector, &
-                                      headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+                                      headerIndex, varLevIndex, stepIndex, procIndex, numGridpt)
 
           end do ! headerIndex
 
-        end do ! kIndex
+        end do ! varLevIndex
       end do ! stepIndex
     end do ! procIndex
     !$OMP END PARALLEL DO
@@ -1120,7 +1127,7 @@ contains
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
     if ( stateVector%oceanMask%maskPresent ) then
-      call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,mykBeg,stateVector%mykEnd)
+      call s2c_rejectZeroWeightObs(interpInfo,obsSpaceData,myVarLevBeg,stateVector%myVarLevEnd)
     end if
 
     ! on the last call, deallocate the tree_nl/tree_tlad
@@ -1191,7 +1198,7 @@ contains
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: kIndex, kIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
+    integer :: varLevIndex, varLevIndex2, levIndex, kCount, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     real(8) :: weight
@@ -1296,18 +1303,18 @@ contains
 
     call gsv_getField(stateVector_VarsLevs, ptr4d)
 
-    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+    myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
     kCount = 0
-    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
 
       kCount = kCount + 1
 
-      if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,kIndex)
+          call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,varLevIndex)
         end if
 
         call utl_tmg_start(39,'------s2c_TL_Hinterp')
@@ -1321,15 +1328,15 @@ contains
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                   ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
-                                   interpInfo_tlad, kIndex, stepIndex, procIndex )
+                                   ptr4d(:,:,varLevIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
+                                   interpInfo_tlad, varLevIndex, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
                 call myezuvint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
-                                   interpInfo_tlad, kIndex, stepIndex, procIndex )
+                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,varLevIndex,stepIndex),  &
+                                   interpInfo_tlad, varLevIndex, stepIndex, procIndex )
               else
                 call myezsint_tl( cols_hint(1:yourNumHeader,stepIndex,procIndex),  &
-                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, &
+                                  ptr4d(:,:,varLevIndex,stepIndex), interpInfo_tlad, varLevIndex, &
                                   stepIndex, procIndex )
               end if
             end if
@@ -1362,7 +1369,7 @@ contains
         ! this value of k does not exist on this mpi task
         cols_send(:,:) = 0.0
 
-      end if ! if kIndex <= mykEnd
+      end if ! if varLevIndex <= myVarLevEnd
 
       call rpn_comm_barrier('GRID',ierr)
 
@@ -1376,15 +1383,15 @@ contains
       end if
 
       ! reorganize ensemble of distributed columns
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
+      !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mmpi_nprocs
-        ! This is kIndex value of source (can be different for destination)
-        kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+        ! This is varLevIndex value of source (can be different for destination)
+        varLevIndex2 = statevector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+        if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
         ! Figure out which variable/level of destination
-        varName = gsv_getVarNameFromK(statevector,kIndex2)
-        levIndex = gsv_getLevFromK(statevector,kIndex2)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex2)
+        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex2)
         allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
@@ -1438,7 +1445,7 @@ contains
     ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
-    integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
+    integer :: varLevIndex, varLevIndex2, kCount, levIndex, stepIndex, numStep, myVarLevEndExtended
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: procIndex, nsize, ierr, headerUsedIndex
     character(len=4)     :: varName
@@ -1523,23 +1530,23 @@ contains
     cols_recv(:,:) = 0.0d0
 
     call gsv_getField(stateVector_VarsLevs,ptr4d)
-    mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+    myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
     kCount = 0
-    k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+    k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
 
       kCount = kCount + 1
 
       ! reorganize ensemble of distributed columns
-      !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
+      !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, varName, levIndex, allCols_ptr, headerIndex)
       proc_loop: do procIndex = 1, mmpi_nprocs
-        ! This is kIndex value of destination (can be different for source)
-        kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
-        if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+        ! This is varLevIndex value of destination (can be different for source)
+        varLevIndex2 = statevector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+        if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
         
         ! Figure out which variable/level of source
-        varName = gsv_getVarNameFromK(statevector,kIndex2)
-        levIndex = gsv_getLevFromK(statevector,kIndex2)
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex2)
+        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex2)
         allCols_ptr => col_getAllColumns(columnAnlInc,varName)
 
         do headerIndex = 1, numHeader
@@ -1559,11 +1566,11 @@ contains
         cols_recv(:,1) = cols_send(:,1)
       end if
 
-      if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
+        varName = gsv_getVarNameFromVarLev(statevector,varLevIndex)
 
         if ( varName == 'UU' .or. varName == 'VV' ) then
-          call gsv_getFieldUV(stateVector_VarsLevs, ptr3d_UV, kIndex)
+          call gsv_getFieldUV(stateVector_VarsLevs, ptr3d_UV, varLevIndex)
         end if
 
         ! interpolate in time to the columns destined for all procs and one level/variable
@@ -1595,15 +1602,15 @@ contains
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
                 call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'UU',  &
-                                   ptr4d(:,:,kIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
-                                   interpInfo_tlad, kIndex, stepIndex, procIndex )
+                                   ptr4d(:,:,varLevIndex,stepIndex), ptr3d_UV(:,:,stepIndex),  &
+                                   interpInfo_tlad, varLevIndex, stepIndex, procIndex )
               else if ( varName == 'VV' ) then
                 call myezuvint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), 'VV',  &
-                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,kIndex,stepIndex),  &
-                                   interpInfo_tlad, kIndex, stepIndex, procIndex )
+                                   ptr3d_UV(:,:,stepIndex), ptr4d(:,:,varLevIndex,stepIndex),  &
+                                   interpInfo_tlad, varLevIndex, stepIndex, procIndex )
               else
                 call myezsint_ad( cols_hint(1:yourNumHeader,stepIndex,procIndex), &
-                                  ptr4d(:,:,kIndex,stepIndex), interpInfo_tlad, kIndex, &
+                                  ptr4d(:,:,varLevIndex,stepIndex), interpInfo_tlad, varLevIndex, &
                                   stepIndex, procIndex )
               end if
             end if
@@ -1613,7 +1620,7 @@ contains
         !$OMP END PARALLEL DO
         call utl_tmg_stop(41)
 
-      end if ! if kIndex <= mykEnd
+      end if ! if varLevIndex <= myVarLevEnd
 
     end do k_loop
 
@@ -1673,11 +1680,11 @@ contains
 
     ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs 
-    integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended, levIndex
+    integer :: varLevIndex, varLevIndex2, kCount, stepIndex, numStep, myVarLevEndExtended, levIndex
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
-    integer :: kIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
+    integer :: varLevIndexHeightSfc, varNameIndex, allNumHeader(mmpi_nprocs)
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1849,18 +1856,18 @@ contains
 
       call gsv_getField(stateVector_VarsLevs, ptr4d_r4)
 
-      mykEndExtended = stateVector_VarsLevs%mykBeg + maxval(stateVector_VarsLevs%allkCount(:)) - 1
+      myVarLevEndExtended = stateVector_VarsLevs%myVarLevBeg + maxval(stateVector_VarsLevs%allVarLevCount(:)) - 1
 
       kCount = 0
-      k_loop: do kIndex = stateVector_VarsLevs%mykBeg, mykEndExtended
+      k_loop: do varLevIndex = stateVector_VarsLevs%myVarLevBeg, myVarLevEndExtended
         kCount = kCount + 1
 
-        if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
-          varName = gsv_getVarNameFromK(stateVector_VarsLevs, kIndex)
+        if ( varLevIndex <= stateVector_VarsLevs%myVarLevEnd ) then
+          varName = gsv_getVarNameFromVarLev(stateVector_VarsLevs, varLevIndex)
 
           call utl_tmg_start(35,'------s2c_NL_Hinterp')
           if ( varName == 'UU' .or. varName == 'VV' ) then
-            call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
+            call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,varLevIndex)
           end if
 
           step_loop: do stepIndex = 1, numStep
@@ -1873,16 +1880,16 @@ contains
               if (yourNumHeader > 0) then
                 if (varName == 'UU') then
                   call myezuvint_nl(cols_hint(1:yourNumHeader, stepIndex, procIndex), 'UU',  &
-                                    ptr4d_r4(:,:, kIndex, stepIndex), ptr3d_UV_r4(:,:,stepIndex), &
-                                    interpInfo_nl, kindex, stepIndex, procIndex)
+                                    ptr4d_r4(:,:, varLevIndex, stepIndex), ptr3d_UV_r4(:,:,stepIndex), &
+                                    interpInfo_nl, varLevIndex, stepIndex, procIndex)
                 else if ( varName == 'VV' ) then
                   call myezuvint_nl(cols_hint(1:yourNumHeader, stepIndex, procIndex), 'VV',  &
-                                    ptr3d_UV_r4(:,:,stepIndex), ptr4d_r4(:,:, kIndex, stepIndex), &
-                                    interpInfo_nl, kindex, stepIndex, procIndex)
+                                    ptr3d_UV_r4(:,:,stepIndex), ptr4d_r4(:,:, varLevIndex, stepIndex), &
+                                    interpInfo_nl, varLevIndex, stepIndex, procIndex)
                 else
                   call myezsint_nl(cols_hint(1:yourNumHeader, stepIndex, procIndex), &
-                                   ptr4d_r4(:,:, kIndex, stepIndex),  &
-                                   interpInfo_nl, kindex, stepIndex, procIndex)
+                                   ptr4d_r4(:,:, varLevIndex, stepIndex),  &
+                                   interpInfo_nl, varLevIndex, stepIndex, procIndex)
                 end if
               end if
             end do
@@ -1914,7 +1921,7 @@ contains
           ! this value of k does not exist on this mpi task
           cols_send(:,:) = 0.0d0
 
-        end if ! if kIndex <= mykEnd
+        end if ! if varLevIndex <= myVarLevEnd
 
         call utl_tmg_start(37,'------s2c_NL_barrier')
         call rpn_comm_barrier('GRID',ierr)
@@ -1926,8 +1933,8 @@ contains
         ! only receive the data from tasks with data, same amount from all of those
         recvsizes(:) = 0
         do procIndex = 1, mmpi_nprocs
-          kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
-          if (kIndex2 > stateVector_VarsLevs%allkEnd(procIndex)) cycle
+          varLevIndex2 = stateVector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+          if (varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex)) cycle
           recvsizes(procIndex) = numHeader
         end do
         recvdispls(1) = 0
@@ -1936,7 +1943,7 @@ contains
         end do
 
         ! tasks send only from those with data
-        if (kIndex <= stateVector_VarsLevs%mykEnd) then
+        if (varLevIndex <= stateVector_VarsLevs%myVarLevEnd) then
           do procIndex = 1, mmpi_nprocs
             sendsizes(procIndex) = allNumHeader(procIndex)
           end do
@@ -1958,14 +1965,15 @@ contains
         call utl_tmg_stop(36)
 	
         ! reorganize ensemble of distributed columns
-        !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2, varName, levIndex, allCols_ptr)
+        !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, headerIndex, headerIndex2, varName, &
+        !$OMP levIndex, allCols_ptr)
         proc_loop: do procIndex = 1, mmpi_nprocs
 
-          kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
-          if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
+          varLevIndex2 = stateVector_VarsLevs%allVarLevBeg(procIndex) + kCount - 1
+          if ( varLevIndex2 > stateVector_VarsLevs%allVarLevEnd(procIndex) ) cycle proc_loop
 
-          varName = gsv_getVarNameFromK(stateVector_VarsLevs, kIndex2)
-          levIndex = gsv_getLevFromK(statevector, kIndex2)
+          varName = gsv_getVarNameFromVarLev(stateVector_VarsLevs, varLevIndex2)
+          levIndex = gsv_getLevFromVarLev(statevector, varLevIndex2)
           allCols_ptr => col_getAllColumns(column, varName)
 
           do headerIndex = 1, numHeader
@@ -2002,7 +2010,7 @@ contains
 
         if (mmpi_myid == 0) then
           varName = 'GZ'
-          kIndexHeightSfc = 0    
+          varLevIndexHeightSfc = 0    
           step_loop_height: do stepIndex = 1, numStep
 
             if (maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0) cycle step_loop_height
@@ -2014,7 +2022,7 @@ contains
               if ( yourNumHeader > 0 ) then
                 ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
                 call myezsint_r8_nl( cols_hint(1:yourNumHeader, stepIndex, procIndex), &
-                                     ptr2d_r8(:,:), interpInfo_nl, kIndexHeightSfc, stepIndex, procIndex )
+                                     ptr2d_r8(:,:), interpInfo_nl, varLevIndexHeightSfc, stepIndex, procIndex )
               end if
             end do
             !$OMP END PARALLEL DO
@@ -2088,7 +2096,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_nl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_nl( column_out, field_in, interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -2101,7 +2109,7 @@ contains
     type(struct_interpInfo), intent(in)  :: interpInfo
     integer                , intent(in)  :: stepIndex
     integer                , intent(in)  :: procIndex
-    integer                , intent(in)  :: kIndex
+    integer                , intent(in)  :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2117,8 +2125,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -2138,7 +2146,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_r8_nl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_r8_nl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_r8_nl( column_out, field_in, interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -2151,7 +2159,7 @@ contains
     type(struct_interpInfo), intent(in)  :: interpInfo
     integer                , intent(in)  :: stepIndex
     integer                , intent(in)  :: procIndex
-    integer                , intent(in)  :: kIndex
+    integer                , intent(in)  :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2167,8 +2175,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -2188,7 +2196,7 @@ contains
   ! -------------------------------------------------
   ! myezsint_tl: Scalar field horizontal interpolation
   ! -------------------------------------------------
-  subroutine myezsint_tl( column_out, field_in, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_tl( column_out, field_in, interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Scalar horizontal interpolation, replaces the
     !           ezsint routine from rmnlib.
@@ -2201,7 +2209,7 @@ contains
     type(struct_interpInfo), intent(in)  :: interpInfo
     integer                , intent(in)  :: stepIndex
     integer                , intent(in)  :: procIndex
-    integer                , intent(in)  :: kIndex
+    integer                , intent(in)  :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2217,8 +2225,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -2238,7 +2246,7 @@ contains
   ! -------------------------------------------------------------
   ! myezsint_ad: Adjoint of scalar field horizontal interpolation
   ! -------------------------------------------------------------
-  subroutine myezsint_ad( column_in, field_out, interpInfo, kIndex, stepIndex, procIndex )
+  subroutine myezsint_ad( column_in, field_out, interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Adjoint of the scalar horizontal interpolation.
     !
@@ -2250,7 +2258,7 @@ contains
     type(struct_interpInfo), intent(in)    :: interpInfo
     integer                , intent(in)    :: stepIndex
     integer                , intent(in)    :: procIndex
-    integer                , intent(in)    :: kIndex
+    integer                , intent(in)    :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
@@ -2265,8 +2273,8 @@ contains
       do subGridIndex = 1, interpInfo%hco%numSubGrid
 
         do gridptIndex =  &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex), &
-             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex), &
+             interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
           lonIndex = interpInfo%lonIndexDepot(gridptIndex)
           latIndex = interpInfo%latIndexDepot(gridptIndex)
@@ -2287,7 +2295,7 @@ contains
   ! myezuvint_nl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_nl( column_out, varName, fieldUU_in, fieldVV_in,  &
-                           interpInfo, kIndex, stepIndex, procIndex )
+                           interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Vector horizontal interpolation, replaces the
     !           ezuvint routine from rmnlib.
@@ -2302,7 +2310,7 @@ contains
     type(struct_interpInfo), intent(in)  :: interpInfo
     integer                , intent(in)  :: stepIndex
     integer                , intent(in)  :: procIndex
-    integer                , intent(in)  :: kIndex
+    integer                , intent(in)  :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2323,8 +2331,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -2343,10 +2351,10 @@ contains
         end do
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
-          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, varLevIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, varLevIndex)
 
           call uvr_rotateWind_nl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -2373,7 +2381,7 @@ contains
   ! myezuvint_tl: Vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_tl( column_out, varName, fieldUU_in, fieldVV_in,  &
-                           interpInfo, kIndex, stepIndex, procIndex )
+                           interpInfo, varLevIndex, stepIndex, procIndex )
     ! :Purpose: Vector horizontal interpolation, replaces the
     !           ezuvint routine from rmnlib.
     !
@@ -2387,7 +2395,7 @@ contains
     type(struct_interpInfo), intent(in)  :: interpInfo
     integer                , intent(in)  :: stepIndex
     integer                , intent(in)  :: procIndex
-    integer                , intent(in)  :: kIndex
+    integer                , intent(in)  :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2408,8 +2416,8 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
@@ -2428,10 +2436,10 @@ contains
         end do
         ! now rotate the wind vector
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
-          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, varLevIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, varLevIndex)
 
           call uvr_rotateWind_tl( interpInfo%uvr,            & ! IN
                                   subGridIndex,              & ! IN
@@ -2458,7 +2466,7 @@ contains
   ! myezuvint_ad: Adjoint of vector field horizontal interpolation
   ! -------------------------------------------------------------
   subroutine myezuvint_ad( column_in, varName, fieldUU_out, fieldVV_out, &
-                           interpInfo, kIndex, stepIndex, procIndex )
+                           interpInfo, varLevIndex, stepIndex, procIndex )
     !
     ! :Purpose: Adjoint of the vector horizontal interpolation.
     !
@@ -2472,7 +2480,7 @@ contains
     type(struct_interpInfo), intent(in)    :: interpInfo
     integer                , intent(in)    :: stepIndex
     integer                , intent(in)    :: procIndex
-    integer                , intent(in)    :: kIndex
+    integer                , intent(in)    :: varLevIndex
 
     ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
@@ -2498,17 +2506,17 @@ contains
 
       subGrid_loop: do subGridIndex = 1, interpInfo%hco%numSubGrid
 
-        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+        indexBeg = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
+        indexEnd = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
         if ( indexEnd < IndexBeg ) cycle subGrid_loop
 
         ! now rotate the wind vector and return the desired component
         if ( interpInfo%hco%rotated ) then
-          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
-          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, kIndex)
-          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, kIndex)
+          lat = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex)
+          lon = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex)
+          latRot = interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(subGridIndex, headerIndex, varLevIndex)
+          lonRot = interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(subGridIndex, headerIndex, varLevIndex)
 
           call uvr_rotateWind_ad( interpInfo%uvr,           & ! IN 
                                   subGridIndex,             & ! IN
@@ -2578,18 +2586,18 @@ contains
       extraLongitude = 0
     end if
 
-    allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%nk))
+    allocate(zgd(statevector%ni+extraLongitude,statevector%nj,statevector%numVarLev))
   
     zgd(:,:,:)=0.0d0
     call gsv_getField(statevector,field_ptr)
-    zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
-         field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
+    zgd(1:statevector%ni,1:statevector%nj,1:statevector%numVarLev)= &
+         field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%numVarLev)
 
     !
     !- 1.  Expand field by repeating meridian 1 into into meridian ni+1
     !
     if (extraLongitude == 1) then
-      do jk = 1, statevector%nk
+      do jk = 1, statevector%numVarLev
         do jgl = 1, statevector%nj
           zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
         end do
@@ -2686,7 +2694,7 @@ contains
   ! s2c_setupHorizInterp
   !--------------------------------------------------------------------------
   subroutine s2c_setupHorizInterp(footprintRadius_r4, interpInfo, &
-                                  stateVector, headerIndex, kIndex, stepIndex, &
+                                  stateVector, headerIndex, varLevIndex, stepIndex, &
                                   procIndex, numGridpt)
     !
     !:Purpose: To identify the appropriate horizontal interpolation scheme based
@@ -2700,25 +2708,29 @@ contains
     real(4)                , intent(in)    :: footprintRadius_r4 ! (metres)
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: headerIndex, varLevIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     if ( footprintRadius_r4 > 0.0 ) then
 
-      call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupFootprintInterp(footprintRadius_r4, interpInfo, stateVector, &
+                                    headerIndex, varLevIndex, stepIndex, procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == bilinearFootprint ) then
 
-      call s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
+                                   procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == lakeFootprint ) then
 
-      call s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
+                               procIndex, numGridpt)
 
     else if ( footprintRadius_r4 == nearestNeighbourFootprint ) then
 
-      call s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, kIndex, stepIndex, procIndex, numGridpt)
+      call s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, varLevIndex, stepIndex, &
+                                    procIndex, numGridpt)
 
     else
 
@@ -2831,7 +2843,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_rejectZeroWeightObs
   !--------------------------------------------------------------------------
-  subroutine s2c_rejectZeroWeightObs(interpInfo, obsSpaceData, mykBeg, mykEnd)
+  subroutine s2c_rejectZeroWeightObs(interpInfo, obsSpaceData, myVarLevBeg, myVarLevEnd)
     !
     !:Purpose: To flag an observation in obsSpaceData as being rejected if
     !          it has zero interpolation weight (usually because an ocean
@@ -2842,11 +2854,11 @@ contains
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_obs)       , intent(inout) :: obsSpaceData
-    integer                , intent(in)    :: mykBeg
-    integer                , intent(in)    :: mykEnd
+    integer                , intent(in)    :: myVarLevBeg
+    integer                , intent(in)    :: myVarLevEnd
 
     ! Locals:
-    integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, kIndex
+    integer :: numStep, procIndex, stepIndex, headerUsedIndex, headerIndex, varLevIndex
     integer :: numHeader, numHeaderMax, bodyIndexBeg, bodyIndexEnd, bodyIndex
     integer :: subGridIndex, gridptIndex, ierr, nsize
     integer, save :: numWrites = 0
@@ -2868,18 +2880,18 @@ contains
       do stepIndex = 1, numStep
         do headerUsedIndex = 1, interpInfo%allNumHeaderUsed(stepIndex,procIndex)
           headerIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerUsedIndex)
-          do kIndex = mykBeg, mykEnd
-            if (kIndex == mykBeg) allRejectObs(headerIndex,procIndex) = .true.
+          do varLevIndex = myVarLevBeg, myVarLevEnd
+            if (varLevIndex == myVarLevBeg) allRejectObs(headerIndex,procIndex) = .true.
             do subGridIndex = 1, interpInfo%hco%numSubGrid
               do gridptIndex =  &
-                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerUsedIndex, kIndex), &
-                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerUsedIndex, kIndex)
+                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerUsedIndex, varLevIndex), &
+                   interpInfo%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerUsedIndex, varLevIndex)
                 if (interpInfo%interpWeightDepot(gridptIndex) > 0.0d0) then
                   allRejectObs(headerIndex,procIndex) = .false.
                 end if
               end do
             end do
-          end do ! kIndex
+          end do ! varLevIndex
         end do ! headerUsedIndex
       end do ! stepIndex
     end do ! procIndex
@@ -2919,7 +2931,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupBilinearInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, kIndex, &
+  subroutine s2c_setupBilinearInterp(interpInfo, stateVector, headerIndex, varLevIndex, &
                                      stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
@@ -2932,7 +2944,7 @@ contains
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: headerIndex, varLevIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
@@ -2953,9 +2965,9 @@ contains
 
     numGridpt(:) = 0
 
-    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
+    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
                               xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
@@ -3116,7 +3128,7 @@ contains
 
       if ( allocated(interpInfo%interpWeightDepot) ) then
 
-        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
 
         do ipoint=1,gridptCount
 
@@ -3139,7 +3151,7 @@ contains
   ! s2c_setupFootprintInterp
   !--------------------------------------------------------------------------
   subroutine s2c_setupFootprintInterp(fpr, interpInfo, stateVector, headerIndex, &
-                                      kIndex, stepIndex, procIndex, numGridpt)
+                                      varLevIndex, stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
     !          for the footprint horizontal interpolation.
@@ -3150,7 +3162,7 @@ contains
     real(4)                , intent(in)    :: fpr ! footprint radius (metres)
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: headerIndex, varLevIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
@@ -3173,8 +3185,8 @@ contains
 
     ! Determine the grid point nearest the observation.
 
-    latObs = interpInfo % stepProcData(procIndex, stepIndex) % allLat(headerIndex, kIndex)
-    lonObs = interpInfo % stepProcData(procIndex, stepIndex) % allLon(headerIndex, kIndex)
+    latObs = interpInfo % stepProcData(procIndex, stepIndex) % allLat(headerIndex, varLevIndex)
+    lonObs = interpInfo % stepProcData(procIndex, stepIndex) % allLon(headerIndex, varLevIndex)
 
     latObs_deg_r4 = real(latObs * MPC_DEGREES_PER_RADIAN_R8)
     lonObs_deg_r4 = real(lonObs * MPC_DEGREES_PER_RADIAN_R8)
@@ -3271,7 +3283,7 @@ contains
 
     if ( allocated(interpInfo%interpWeightDepot) ) then
 
-      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+      depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
 
       do ipoint = 1, gridptCount
 
@@ -3291,7 +3303,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupLakeInterp
   !--------------------------------------------------------------------------
-  subroutine s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, kIndex, &
+  subroutine s2c_setupLakeInterp(interpInfo, stateVector, headerIndex, varLevIndex, &
                                  stepIndex, procIndex, numGridpt)
     !
     !:Purpose: To determine the grid points and their associated weights
@@ -3302,7 +3314,7 @@ contains
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex
+    integer                , intent(in)    :: headerIndex, varLevIndex, stepIndex
     integer                , intent(in)    :: procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
@@ -3337,8 +3349,8 @@ contains
 
     ! Determine the grid point nearest the observation.
 
-    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex)
-    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex)
+    lat_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex)
+    lon_rad = interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex)
     lat_deg_r4 = real(lat_rad * MPC_DEGREES_PER_RADIAN_R8)
     lon_deg_r4 = real(lon_rad * MPC_DEGREES_PER_RADIAN_R8)
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
@@ -3411,7 +3423,7 @@ contains
 
         if ( allocated(interpInfo%interpWeightDepot) ) then
 
-          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+          depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
 
           do ipoint=1,gridptCount
 
@@ -3435,7 +3447,7 @@ contains
   !--------------------------------------------------------------------------
   ! s2c_setupNearestNeighbor
   !--------------------------------------------------------------------------
-  subroutine s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, kIndex, &
+  subroutine s2c_setupNearestNeighbor(interpInfo, stateVector, headerIndex, varLevIndex, &
                                       stepIndex, procIndex, numGridpt)
     !
     !:Purpose: Determine the nearest grid points to the observations location
@@ -3445,7 +3457,7 @@ contains
     ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
-    integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
+    integer                , intent(in)    :: headerIndex, varLevIndex, stepIndex, procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
     ! Locals:
@@ -3462,9 +3474,9 @@ contains
 
     numGridpt(:) = 0
 
-    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, kIndex) *  &
+    lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
-    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, kIndex) *  &
+    lon_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLon(headerIndex, varLevIndex) *  &
                  MPC_DEGREES_PER_RADIAN_R8)
 
     ierr = gpos_getPositionXY( stateVector%hco%EZscintID,   &
@@ -3487,7 +3499,7 @@ contains
 
       if ( allocated(interpInfo%interpWeightDepot) ) then
       
-        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
+        depotIndex = interpInfo%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
 
         interpInfo%interpWeightDepot(depotIndex) = 1.d0
         interpInfo%latIndexDepot    (depotIndex) = latIndex
@@ -3515,20 +3527,20 @@ contains
     type(struct_columnData), intent(in) :: column
 
     ! Locals:
-    integer :: kIndex
+    integer :: varLevIndex
 
     ! check column/statevector have same nk
-    if ( col_getNumK(column) /= gsv_getNumK(statevector) ) then
-      write(*,*) 'checkColumnStatevectorMatch: col_getNumK(column), gsv_getNumK(statevector)', &
-                 col_getNumK(column), gsv_getNumK(statevector)
-      call utl_abort('checkColumnStatevectorMatch: col_getNumK(column) /= gsv_getNumK(statevector)')
+    if ( col_getNumVarLev(column) /= gsv_getNumVarLev(statevector) ) then
+      write(*,*) 'checkColumnStatevectorMatch: col_getNumVarLev(column), gsv_getNumVarLev(statevector)', &
+                 col_getNumVarLev(column), gsv_getNumVarLev(statevector)
+      call utl_abort('checkColumnStatevectorMatch: col_getNumVarLev(column) /= gsv_getNumVarLev(statevector)')
     end if
     
     ! loop through k and check varNames are same between column/statevector
-    do kIndex = 1, col_getNumK(column)
-      if (gsv_getVarNameFromK(statevector,kIndex) /= col_getVarNameFromK(column,kIndex)) then
-        write(*,*) 'checkColumnStatevectorMatch: kIndex, varname in statevector and column: ', kIndex, &
-                   gsv_getVarNameFromK(statevector,kIndex), col_getVarNameFromK(column,kIndex) 
+    do varLevIndex = 1, col_getNumVarLev(column)
+      if (gsv_getVarNameFromVarLev(statevector,varLevIndex) /= col_getVarNameFromVarLev(column,varLevIndex)) then
+        write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
+                   gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex) 
         call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
       end if	
     end do
@@ -3753,7 +3765,7 @@ contains
   ! -------------------------------------------------------------
   ! s2c_getWeightsAndGridPointIndexes
   ! -------------------------------------------------------------
-  subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+  subroutine s2c_getWeightsAndGridPointIndexes(headerIndex, varLevIndex, stepIndex, procIndex, &
                                                interpWeight, latIndex, lonIndex, gridptCount)
     ! :Purpose: Returns the weights and grid point indexes for a single observation.
     !           
@@ -3762,7 +3774,7 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: headerIndex
-    integer, intent(in)  :: kIndex
+    integer, intent(in)  :: varLevIndex
     integer, intent(in)  :: stepIndex
     integer, intent(in)  :: procIndex
     real(8), intent(out) :: interpWeight(:)
@@ -3788,8 +3800,8 @@ contains
 
     subGrid_loop: do subGridIndex = 1, interpInfo_tlad%hco%numSubGrid
 
-      indexBeg = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, kIndex)
-      indexEnd = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, kIndex)
+      indexBeg = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexBeg(subGridIndex, headerIndex, varLevIndex)
+      indexEnd = interpInfo_tlad%stepProcData(procIndex,stepIndex)%depotIndexEnd(subGridIndex, headerIndex, varLevIndex)
 
       if ( indexEnd < IndexBeg ) cycle subGrid_loop
 

@@ -271,7 +271,7 @@ contains
       write(*,*) 'gbi_mean_gsv: Starting...'
     end if
 
-    nVarLev   = statevector_in%nk
+    nVarLev   = statevector_in%numVarLev
     nStep     = statevector_in%numStep
     myLonBeg  = statevector_in%myLonBeg
     myLonEnd  = statevector_in%myLonEnd
@@ -377,7 +377,7 @@ contains
 
     call ens_getLatLonBounds(ens, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
 
-    nVarLev = ens_getNumK(ens)
+    nVarLev = ens_getNumVarLev(ens)
     nStep   = ens_getNumStep(ens)
     nEns    = ens_getNumMembers(ens)
 

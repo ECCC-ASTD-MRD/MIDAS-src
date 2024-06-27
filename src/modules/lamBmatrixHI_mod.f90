@@ -55,8 +55,8 @@ module lamBmatrixHI_mod
 
   integer              :: nControlVariable
   integer              :: trunc
-  integer              :: nksdim
-  integer              :: nkgdim
+  integer              :: numVarLevSpec
+  integer              :: numVarLev
   integer              :: cvDim
   integer              :: cvDim_mpiglobal
   
@@ -181,7 +181,7 @@ contains
     call lbhi_GetControlVariableInfo( iu_bstats ) ! IN
     call lbhi_GetHorizGridInfo()
 
-    nkgdim = 0
+    numVarLev = 0
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
@@ -194,14 +194,14 @@ contains
         ControlVariable(var)%ip1(:) = 0
       end if
 
-      ControlVariable(var)%kDimStart = nkgdim + 1
-      nkgdim = nkgdim + ControlVariable(var)%nlev
-      ControlVariable(var)%kDimEnd    = nkgdim
+      ControlVariable(var)%kDimStart = numVarLev + 1
+      numVarLev = numVarLev + ControlVariable(var)%nlev
+      ControlVariable(var)%kDimEnd    = numVarLev
     end do
 
-    nksdim = nkgdim ! + nlev
+    numVarLevSpec = numVarLev ! + nlev
 
-    allocate( bsqrt  (1:nksdim, 1:nksdim ,0:trunc) )
+    allocate( bsqrt  (1:numVarLevSpec, 1:numVarLevSpec ,0:trunc) )
 
     !- 2.2 Initialized the LAM spectral transform
     call mmpi_setup_lonbands(hco_bhi%ni,                  & ! IN
@@ -210,12 +210,12 @@ contains
     call mmpi_setup_latbands(hco_bhi%nj,                  & ! IN
                                latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
 
-    call lst_Setup(lst_bhi,                         & ! OUT
-                   hco_bhi%ni, hco_bhi%nj,          & ! IN
-                   hco_bhi%dlon, trunc,             & ! IN
-                   'LatLonMN', maxlevels_opt=nksdim)  ! IN
+    call lst_Setup(lst_bhi,                               & ! OUT
+                   hco_bhi%ni, hco_bhi%nj,                & ! IN
+                   hco_bhi%dlon, trunc,                   & ! IN
+                   'LatLonMN', maxlevels_opt=numVarLevSpec) ! IN
 
-    cvDim     = nkgdim * lst_bhi%nla * lst_bhi%nphase
+    cvDim     = numVarLev * lst_bhi%nla * lst_bhi%nphase
     cvDim_out = cvDim
 
     ! also compute mpiglobal control vector dimension
@@ -546,7 +546,7 @@ contains
     !
     !- 2.   Read B^0.5
     !
-    allocate( bsqrt2d  (1:nksdim, 1:nksdim) )
+    allocate( bsqrt2d  (1:numVarLevSpec, 1:numVarLevSpec) )
 
     do totwvnb = 0, trunc
 
@@ -559,10 +559,10 @@ contains
 
       if (key >= 0) then
         !- 2.2 Ensure that the number of vertical levels are compatible
-        if ( ni_t /= nksdim .or. nj_t /= nksdim  ) then
+        if ( ni_t /= numVarLevSpec .or. nj_t /= numVarLevSpec  ) then
           write(*,*)
           write(*,*) 'lbhi_ReadBSqrt: BG stat levels inconsitencies'
-          write(*,*) 'for BSQRT: ni_t, nj_t, nksdim =', ni_t, nj_t, nksdim
+          write(*,*) 'for BSQRT: ni_t, nj_t, numVarLevSpec =', ni_t, nj_t, numVarLevSpec
           call utl_abort('lbhi_ReadBSqrt')
         endif
 
@@ -709,7 +709,7 @@ contains
     !
     !-  1.  Extract data from the 1D controlVector array
     !
-    allocate( hiControlVector(lst_bhi%nla, lst_bhi%nphase, nksdim) )
+    allocate( hiControlVector(lst_bhi%nla, lst_bhi%nphase, numVarLevSpec) )
 
     call lbhi_cain( controlVector_in,  & ! IN
                     hiControlVector )    ! OUT
@@ -717,7 +717,7 @@ contains
     !
     !-  2.  Move from control variables space to model variables space
     !
-    allocate( gd_out  (myLonBeg:myLonEnd, myLatBeg:myLatEnd, nksdim) )
+    allocate( gd_out  (myLonBeg:myLonEnd, myLatBeg:myLatEnd, numVarLevSpec) )
 
     call lbhi_cv2gd( hiControlVector,   & ! IN
                      gd_out           )   ! OUT
@@ -781,7 +781,7 @@ contains
     !
     !-  3.  Extract data from the StateVector
     !
-    allocate( gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nksdim) )
+    allocate( gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numVarLevSpec) )
 
     call StatevectorInterface ( statevector,      & ! IN
                                 gd_in,            & ! OUT
@@ -790,7 +790,7 @@ contains
     !
     !-  2.  Move from model variables space to control variables space
     !
-    allocate( hiControlVector(lst_bhi%nla, lst_bhi%nphase, nksdim) )
+    allocate( hiControlVector(lst_bhi%nla, lst_bhi%nphase, numVarLevSpec) )
     hiControlVector(:,:,:) = 0.d0
 
     call lbhi_cv2gdAdj( hiControlVector, & ! OUT
@@ -817,8 +817,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, nksdim)
-    real(8), intent(out)   :: gd_out(myLonBeg:myLonEnd  ,myLatBeg:myLatEnd  ,1:nksdim)
+    real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, numVarLevSpec)
+    real(8), intent(out)   :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, 1:numVarLevSpec)
 
     ! Locals:
     real(8), allocatable :: uphy(:,:,:)
@@ -837,10 +837,10 @@ contains
     !- 2. Spectral Space -> Grid Point Space
     !
     kind = 'SpectralToGridPoint'
-    call lst_VarTransform(lst_bhi,            & ! IN
-                          hiControlVector_in, & ! IN
-                          gd_out,             & ! OUT
-                          kind, nksdim )        ! IN
+    call lst_VarTransform(lst_bhi,              & ! IN
+                          hiControlVector_in,   & ! IN
+                          gd_out,               & ! OUT
+                          kind, numVarLevSpec)    ! IN
 
     !
     !- 3.  Multiply by the grid point standard deviations
@@ -921,8 +921,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla, lst_bhi%nphase, nksdim)
-    real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd ,1:nksdim)
+    real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla, lst_bhi%nphase, numVarLevSpec)
+    real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd, 1:numVarLevSpec)
 
     ! Locals:
     real(8), allocatable :: uphy(:,:,:)
@@ -1003,10 +1003,10 @@ contains
     !- 2. Grid Point Space -> Spectral Space
     !
     kind = 'GridPointToSpectral'
-    call lst_VarTransform(lst_bhi,                & ! IN
-                          hiControlVector_out,    & ! OUT
-                          gd_in,                  & ! IN
-                          kind, nksdim )            ! IN
+    call lst_VarTransform(lst_bhi,               & ! IN
+                          hiControlVector_out,   & ! OUT
+                          gd_in,                 & ! IN
+                          kind, numVarLevSpec)     ! IN
 
     !
     !- 1. B^1/2 * xi (in spectral space)
@@ -1022,7 +1022,7 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, nksdim)
+    real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, numVarLevSpec)
 
     ! Locals:
     real(8), allocatable :: sp_in (:,:,:)
@@ -1039,14 +1039,14 @@ contains
          cycle
       end if
 
-      allocate( sp_in (nksdim,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
-      allocate( sp_out(nksdim,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
+      allocate( sp_in (numVarLevSpec,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
+      allocate( sp_out(numVarLevSpec,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
 
       !- 1.1 Select spectral elements associated with the total wavenumber
       !$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
-        do k = 1, nksdim
+        do k = 1, numVarLevSpec
           sp_in(k,1:lst_bhi%nphase,e) = hiControlVector_in(ila,1:lst_bhi%nphase,k)
         end do
       end do
@@ -1058,12 +1058,12 @@ contains
       ! Matrix A = BSQRT(:,:,totwvnb)
       ! Matrix B = SP_IN
       ! Matrix C = SP_OUT
-      m   = nksdim
+      m   = numVarLevSpec
       n   = lst_bhi%nphase * lst_bhi%nePerK(totwvnb)
-      k   = nksdim
-      lda = nksdim
-      ldb = nksdim
-      ldc = nksdim
+      k   = numVarLevSpec
+      lda = numVarLevSpec
+      ldb = numVarLevSpec
+      ldc = numVarLevSpec
 
       call dgemm( 'N', 'N', m, n, k, 1.d0,                   &  ! IN
                   bsqrt(:,:,totwvnb), lda, sp_in, ldb, 0.d0, &  ! IN
@@ -1074,7 +1074,7 @@ contains
       !$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
-        do k = 1, nksdim
+        do k = 1, numVarLevSpec
           hiControlVector_in(ila,1:lst_bhi%nphase,k) = sp_out(k,1:lst_bhi%nphase,e)
         end do
       end do
@@ -1095,14 +1095,14 @@ contains
 
     ! Arguments:
     real(8), intent(in)    :: controlVector_in(cvDim)
-    real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla,lst_bhi%nphase,nksdim)
+    real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla,lst_bhi%nphase,numVarLevSpec)
 
     ! Locals:
     integer :: dim, k, ila, p
 
     dim = 0
     hiControlVector_out(:,:,:) = 0.0d0
-    do k = 1, nksdim
+    do k = 1, numVarLevSpec
       do ila = 1, lst_bhi%nla
         do p = 1, lst_bhi%nphase
           dim = dim + 1
@@ -1121,13 +1121,13 @@ contains
 
     ! Arguments:
     real(8), intent(out)   :: controlVector_out(cvDim)
-    real(8), intent(in )   :: hiControlVector_in(lst_bhi%nla,lst_bhi%nphase,nksdim)
+    real(8), intent(in )   :: hiControlVector_in(lst_bhi%nla,lst_bhi%nphase,numVarLevSpec)
 
     ! Locals:
     integer :: dim, k, ila, p
 
     dim = 0
-    do k = 1, nksdim
+    do k = 1, numVarLevSpec
       do ila = 1, lst_bhi%nla
         do p = 1, lst_bhi%nphase
           dim = dim + 1
@@ -1147,7 +1147,7 @@ contains
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nksdim)
+    real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLevSpec)
     character(len=*), intent(in)    :: Direction
 
     ! Locals:
@@ -1306,7 +1306,7 @@ contains
        do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           
-          do k = 1, nksdim
+          do k = 1, numVarLevSpec
              do ila = 1, allnlaLocal(jproc+1)
                 do p = 1, lst_bhi%nphase
 
@@ -1426,7 +1426,7 @@ contains
        do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           
-          do k = 1, nksdim
+          do k = 1, numVarLevSpec
              do ila = 1, allnlaLocal(jproc+1)
                 do p = 1, lst_bhi%nphase
 
@@ -1565,7 +1565,7 @@ contains
 
        !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mmpi_nprocs-1)
-          do k = 1, nksdim
+          do k = 1, numVarLevSpec
              do ila = 1, allnlaLocal(jproc+1)
                 do p = 1, lst_bhi%nphase
 
@@ -1686,7 +1686,7 @@ contains
 
        !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
        do jproc = 0, (mmpi_nprocs-1)
-          do k = 1, nksdim
+          do k = 1, numVarLevSpec
              do ila = 1, allnlaLocal(jproc+1)
                 do p = 1, lst_bhi%nphase
 

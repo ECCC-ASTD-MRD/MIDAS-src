@@ -2079,9 +2079,9 @@ contains
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
     real(8), allocatable :: memberAnlPert(:)
     integer,          allocatable, save :: levIndex2FromVarLevIndex(:)
-    character(len=4), allocatable, save :: varLevelFromK(:)
-    character(len=2), allocatable, save :: varKindFromK(:)
-    integer,          allocatable, save :: levFromK(:)
+    character(len=4), allocatable, save :: varLevelFromVarLev(:)
+    character(len=2), allocatable, save :: varKindFromVarLev(:)
+    integer,          allocatable, save :: levFromVarLev(:)
     logical, save :: firstCall = .true.
 
     myLonBeg = stateVectorMeanAnl%myLonBeg
@@ -2090,7 +2090,7 @@ contains
     myLatEnd = stateVectorMeanAnl%myLatEnd
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
-    numVarLev  = stateVectorMeanAnl%nk
+    numVarLev  = stateVectorMeanAnl%numVarLev
 
     allocate(memberAnlPert(enkfNML%nEns))
     call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
@@ -2098,33 +2098,34 @@ contains
     call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
     if (firstCall) then
-      allocate(varLevelFromK(numVarLev))
-      allocate(levFromK(numVarLev))
-      allocate(varKindFromK(numVarLev))
+      allocate(varLevelFromVarLev(numVarLev))
+      allocate(levFromVarLev(numVarLev))
+      allocate(varKindFromVarLev(numVarLev))
       do varLevIndex = 1, numVarLev
-        varName = gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)
-        varLevelFromK(varLevIndex) = vnl_varLevelFromVarname(varName)
-        levFromK(varLevIndex) = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
-        varKindFromK(varLevIndex) = vnl_varKindFromVarname(varName)
+        varName = gsv_getVarNameFromVarLev(stateVectorMeanInc,varLevIndex)
+        varLevelFromVarLev(varLevIndex) = vnl_varLevelFromVarname(varName)
+        levFromVarLev(varLevIndex) = gsv_getLevFromVarLev(stateVectorMeanInc,varLevIndex)
+        varKindFromVarLev(varLevIndex) = vnl_varKindFromVarname(varName)
       end do
 
       allocate(levIndex2FromVarLevIndex(numVarLev))
       do varLevIndex = 1, numVarLev
         ! Only treat varLevIndex values that correspond with current levIndex
-        if (varLevelFromK(varLevIndex) == 'SF'   .or. varLevelFromK(varLevIndex) == 'SFMM' .or. &
-            varLevelFromK(varLevIndex) == 'SFTH' .or. varLevelFromK(varLevIndex) == 'SS') then
-          if (varKindFromK(varLevIndex) == 'OC') then
+        if (varLevelFromVarLev(varLevIndex) == 'SF'   .or. varLevelFromVarLev(varLevIndex) == 'SFMM' .or. &
+            varLevelFromVarLev(varLevIndex) == 'SFTH' .or. varLevelFromVarLev(varLevIndex) == 'SS') then
+          if (varKindFromVarLev(varLevIndex) == 'OC') then
             levIndex2 = 1
           else
             levIndex2 = max(nLev_M,nLev_depth)
           end if
-        else if (varLevelFromK(varLevIndex) == 'MM' .or. varLevelFromK(varLevIndex) == 'TH' .or. varLevelFromK(varLevIndex) == 'DP') then
-          levIndex2 = levFromK(varLevIndex)
-        else if (varLevelFromK(varLevIndex) == 'OT') then
+        else if (varLevelFromVarLev(varLevIndex) == 'MM' .or. varLevelFromVarLev(varLevIndex) == 'TH' .or. &
+                 varLevelFromVarLev(varLevIndex) == 'DP') then
+          levIndex2 = levFromVarLev(varLevIndex)
+        else if (varLevelFromVarLev(varLevIndex) == 'OT') then
           ! Most (all?) variables using the 'other' coordinate are surface
           levIndex2 = max(nLev_M,nLev_depth)
         else
-          write(*,*) 'varLevel = ', varLevelFromK(varLevIndex)
+          write(*,*) 'varLevel = ', varLevelFromVarLev(varLevIndex)
           call utl_abort('enkf_LETKFanalyses: unknown varLevel')
         end if
         levIndex2FromVarLevIndex(varLevIndex) = levIndex2

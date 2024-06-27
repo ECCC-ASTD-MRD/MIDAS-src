@@ -44,7 +44,7 @@ module bMatrix1DVar_mod
 
   type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
-  integer             :: nkgdim
+  integer             :: numVarLev
   integer             :: cvDim_mpilocal
  
   character(len=18) :: oneDBmatHiLand = './Bmatrix_land.bin'
@@ -316,10 +316,10 @@ contains
     end if
 
     ! Read static B-Matrix files for land and sea
-    call bmat1D_readBMatHi(oneDBmatHiLand, nkgdim, nLonLatPosLand, vco_1Dvar, bMatLand, latLand)
-    call bmat1D_readBMatHi(oneDBmatHiSea, nkgdim, nLonLatPosSea, vco_1Dvar, bMatSea, latSea)
+    call bmat1D_readBMatHi(oneDBmatHiLand, numVarLev, nLonLatPosLand, vco_1Dvar, bMatLand, latLand)
+    call bmat1D_readBMatHi(oneDBmatHiSea, numVarLev, nLonLatPosSea, vco_1Dvar, bMatSea, latSea)
 
-    allocate (multFactor(nkgdim))
+    allocate (multFactor(numVarLev))
     multFactor(:) = 1.0d0
     if(vco_1Dvar%Vcode == 5002) then
       shiftLevel = 1
@@ -368,31 +368,31 @@ contains
         end select
     end do
 
-    allocate(bMatSqrtLand(nLonLatPosLand, nkgdim, nkgdim))
-    allocate(bMatSqrtSea(nLonLatPosSea, nkgdim, nkgdim))
+    allocate(bMatSqrtLand(nLonLatPosLand, numVarLev, numVarLev))
+    allocate(bMatSqrtSea(nLonLatPosSea, numVarLev, numVarLev))
 
     !application of the scaling factor for land B-Matrix and compute its sqrt
     do locationIndex = 1, nLonLatPosLand
-      do varLevIndex2 = 1, nkgdim
-        do varLevIndex1 = 1, nkgdim
+      do varLevIndex2 = 1, numVarLev
+        do varLevIndex1 = 1, numVarLev
           bMatLand(locationIndex, varLevIndex1, varLevIndex2) = bMatLand(locationIndex, varLevIndex1, varLevIndex2) * &
                                                                 multFactor(varLevIndex1) * multFactor(varLevIndex2)
         end do
       end do
       bMatSqrtLand(locationIndex, :, :) = bMatLand(locationIndex, :, :)
-      call utl_matsqrt(bMatSqrtLand(locationIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false.)
+      call utl_matsqrt(bMatSqrtLand(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
     end do
 
     !application of the scaling factor for sea B-Matrix and compute its sqrt
     do locationIndex = 1, nLonLatPosSea
-      do varLevIndex2 = 1, nkgdim
-        do varLevIndex1 = 1, nkgdim
+      do varLevIndex2 = 1, numVarLev
+        do varLevIndex1 = 1, numVarLev
           bMatSea(locationIndex, varLevIndex1, varLevIndex2) = bMatSea(locationIndex, varLevIndex1, varLevIndex2) * &
                                                                multFactor(varLevIndex1) * multFactor(varLevIndex2)
         end do
       end do
       bMatSqrtSea(locationIndex, :, :) = bMatSea(locationIndex, :, :)
-      call utl_matsqrt(bMatSqrtSea(locationIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false.)
+      call utl_matsqrt(bMatSqrtSea(locationIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false.)
     end do
 
     if (allocated(bMatLand)) deallocate(bMatLand)
@@ -413,7 +413,7 @@ contains
       call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
     end if
     
-    cvDim_out = nkgdim * var1D_validHeaderCount
+    cvDim_out = numVarLev * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
     initialized = .true.
 
@@ -425,7 +425,7 @@ contains
   !--------------------------------------------------------------------------
   !  bmat1D_readBMatHi
   !--------------------------------------------------------------------------
-  subroutine bmat1D_readBMatHi(bMatFile, nkgdimBMat, nLonLatPos, vco_bMat, bMatrix, latBMat)
+  subroutine bmat1D_readBMatHi(bMatFile, numVarLevBMat, nLonLatPos, vco_bMat, bMatrix, latBMat)
     !
     ! :Purpose: Read static B-Matrix file
     !
@@ -433,7 +433,7 @@ contains
 
     ! Arguments
     character(len=*),         intent(in)     :: bMatFile        ! Filename of the B-Matrix binary file
-    integer,                  intent(out)    :: nkgdimBMat      ! Dimension of the B-Matrix
+    integer,                  intent(out)    :: numVarLevBMat      ! Dimension of the B-Matrix
     integer,                  intent(out)    :: nLonLatPos      ! Number of latitude bands in the B-Matrix
     real(4), allocatable,     intent(out)    :: latBMat(:)      ! latitude bands in the B-Matrix
     type(struct_vco), target, intent(out)    :: vco_bMat        ! Vertical coordinate object of B-Matrix
@@ -458,7 +458,7 @@ contains
 
     ! Read Meta data
     read(nulbgst) extractDate, vco_bMat%nLev_T, vco_bMat%nLev_M, vco_bMat%Vcode, &
-         vco_bMat%ip1_sfc, vco_bMat%ip1_T_2m, vco_bMat%ip1_M_10m, numIncludeAnlVarHi, nkgdimBMat, nLonLatPos
+         vco_bMat%ip1_sfc, vco_bMat%ip1_T_2m, vco_bMat%ip1_M_10m, numIncludeAnlVarHi, numVarLevBMat, nLonLatPos
 
     allocate(vco_bMat%ip1_T(vco_bMat%nLev_T), vco_bMat%ip1_M(vco_bMat%nLev_M))
     if (numIncludeAnlVarHi /= bmat1D_numIncludeAnlVar) then
@@ -468,7 +468,7 @@ contains
     
     allocate(includeAnlVarHi(bmat1D_numIncludeAnlVar))
     allocate(latBMat(nLonLatPos), lonBMat(nLonLatPos))
-    allocate(bMatrix(nLonLatPos, nkgdimBMat, nkgdimBMat))
+    allocate(bMatrix(nLonLatPos, numVarLevBMat, numVarLevBMat))
 
     read(nulbgst) vco_bMat%ip1_T(:), vco_bMat%ip1_M(:), includeAnlVarHi(:)
 
@@ -531,7 +531,7 @@ contains
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
-    integer :: nkgdimHi, nLonLatPosLandHi, nLonLatPosSeaHi
+    integer :: numVarLevHi, nLonLatPosLandHi, nLonLatPosSeaHi
     type(struct_vco), target :: vco_1DvarHi
     real(8), allocatable :: bMatLandHi(:,:,:), bMatSeaHi(:,:,:)
     real(4), allocatable :: latLandHi(:), latSeaHi(:)
@@ -746,24 +746,24 @@ contains
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorMean)
 
-    nkgdim = 0
+    numVarLev = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_includeAnlVar(varIndex))
-      nkgdim = nkgdim + size(currentProfile)
+      numVarLev = numVarLev + size(currentProfile)
     end do
-    write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
-    cvDim_out = nkgdim * var1D_validHeaderCount
+    write(*,*) 'bmat1D_setupBEns: numVarLev', numVarLev
+    cvDim_out = numVarLev * var1D_validHeaderCount
 
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1))
-    allocate (varLevColFromVarLevBmat(nkgdim))
-    allocate (varNameFromVarLevIndexBmat(nkgdim))
-    allocate (multFactor(nkgdim))
+    allocate (varLevColFromVarLevBmat(numVarLev))
+    allocate (varNameFromVarLevIndexBmat(numVarLev))
+    allocate (multFactor(numVarLev))
     multFactor(:) = 1.0d0
     varLevIndexBmat = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       levIndex = 0
       do varLevIndexCol = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
+        if ( trim( col_getVarNameFromVarLev(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
           varLevIndexBmat = varLevIndexBmat + 1
           levIndex = levIndex + 1
           varLevColFromVarLevBmat(varLevIndexBmat) = varLevIndexCol
@@ -796,10 +796,10 @@ contains
     end do
     
     call ens_deallocate(ensembles)
-    allocate(bMatSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
-    allocate(bMatEns(var1D_validHeaderCount,nkgdim,nkgdim))
+    allocate(bMatSqrtEns(var1D_validHeaderCount,numVarLev,numVarLev))
+    allocate(bMatEns(var1D_validHeaderCount,numVarLev,numVarLev))
     bMatEns(:,:,:) = 0.d0
-    allocate(lineVector(1,nkgdim))
+    allocate(lineVector(1,numVarLev))
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector)
     do columnIndex = 1, var1D_validHeaderCount
@@ -815,14 +815,14 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    do varLevIndexBmat =1, nkgdim
+    do varLevIndexBmat =1, numVarLev
       write(*,*) 'bmat1D_setupBEns: variance = ', varLevIndexBmat, &
                  sum(bMatEns(:, varLevIndexBmat, varLevIndexBmat)) / real((nEns-1) * var1D_validHeaderCount)
     end do
 
     deallocate(lineVector)
     deallocate(multFactor)
-    allocate(meanPressureProfile(nkgdim))
+    allocate(meanPressureProfile(numVarLev))
     call lfn_Setup('FifthOrder')
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,varLevIndexBmat,varLevIndexCol,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
@@ -830,7 +830,7 @@ contains
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bMatEns(columnIndex,:,:) = bMatEns(columnIndex,:,:) / (nEns - 1)
       
-      do varLevIndexBmat = 1, nkgdim
+      do varLevIndexBmat = 1, numVarLev
         varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
         varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
         if (varLevel=='SF' .or. varLevel=='OT') then
@@ -843,9 +843,9 @@ contains
 
       ! Apply vertical localization
       if (vLocalize > 0.0d0) then
-        do varLevIndex1 = 1, nkgdim 
+        do varLevIndex1 = 1, numVarLev 
           logP1 = log(meanPressureProfile(varLevIndex1))
-          do varLevIndex2 = 1, nkgdim
+          do varLevIndex2 = 1, numVarLev
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
             zr = abs(logP2 - logP1)
@@ -857,8 +857,8 @@ contains
 
       ! Apply background error correlation scale factor between TG and other variables
       if (scaleFactorEnsTGCorrelation /= 1.0d0) then
-        do varLevIndex1 = 1, nkgdim 
-          do varLevIndex2 = 1, nkgdim
+        do varLevIndex1 = 1, numVarLev 
+          do varLevIndex2 = 1, numVarLev
             if ((varNameFromVarLevIndexBmat(varLevIndex1) == 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) /= 'TG') .or. &
                 (varNameFromVarLevIndexBmat(varLevIndex1) /= 'TG' .and. varNameFromVarLevIndexBmat(varLevIndex2) == 'TG')) then 
                 bMatEns(columnIndex, varLevIndex2, varLevIndex1) = &
@@ -870,14 +870,14 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    do varLevIndexBmat =1, nkgdim
+    do varLevIndexBmat =1, numVarLev
       write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
           sum(bMatEns(:, varLevIndexBmat, varLevIndexBmat)) / real(var1D_validHeaderCount)
     end do
     
     if (copyEmissBEnsFromBHi) then
-      call bmat1D_readBMatHi(oneDBmatHiLand, nkgdimHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
-      call bmat1D_readBMatHi(oneDBmatHiSea, nkgdimHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
+      call bmat1D_readBMatHi(oneDBmatHiLand, numVarLevHi, nLonLatPosLandHi, vco_1DvarHi, bMatLandHi, latLandHi)
+      call bmat1D_readBMatHi(oneDBmatHiSea, numVarLevHi, nLonLatPosSeaHi, vco_1DvarHi, bMatSeaHi, latSeaHi)
       call sse_updateBEnsMatEmissFromBHi(bMatLandHi, bMatSeaHi, bMatEns, latLandHi, latSeaHi, obsSpaceData, var1D_validHeaderIndex, &
                                          var1D_validHeaderCount, bmat1D_includeAnlVar, meanColumn)
     end if
@@ -896,7 +896,7 @@ contains
 
     write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
     do columnIndex = 1, var1D_validHeaderCount
-      call utl_matsqrt(bMatSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+      call utl_matsqrt(bMatSqrtEns(columnIndex, :, :), numVarLev, 1.d0, printInformation_opt=.false. )
     end do
     
     deallocate(varLevColFromVarLevBmat) 
@@ -936,7 +936,7 @@ contains
     integer :: columnIndex, headerIndex
     integer :: taskIndex, dumpedIndex
     integer :: tag, status
-    integer :: numstep, nkgdim, landSea
+    integer :: numstep, numVarLev, landSea
     integer, external ::  fnom, fclos, newdate
     integer              :: obsOffset(0:mmpi_nprocs-1)
     integer              :: countDumpedAllTasks(mmpi_nprocs)
@@ -1001,7 +1001,7 @@ contains
           listColumnDumped(countDumped) = columnIndex
         end if
       end do COLUMN2
-      nkgdim = size(bEns, dim=2)
+      numVarLev = size(bEns, dim=2)
       if (mmpi_myId == 0) then
         nulmat = 0
         ierr = fnom(nulmat, './Bmatrix.bin', 'FTN+SEQ+UNF', 0)
@@ -1010,10 +1010,10 @@ contains
         countDumpedOut = countDumped
         if (doAveraging) countDumpedOut = 1
         write(nulmat) yyyymmdd * 100 + nint(hhmm/100.), vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
-            vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, nkgdim, countDumpedOut
+            vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, numVarLev, countDumpedOut
         write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
-        allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, nkgdim, nkgdim))
-        allocate(tempoBmatrix(nkgdim, nkgdim))
+        allocate(outLats(countDumpedMpiGlobal), outLons(countDumpedMpiGlobal), OutBmatrix(countDumpedMpiGlobal, numVarLev, numVarLev))
+        allocate(tempoBmatrix(numVarLev, numVarLev))
       end if
     end if
     do dumpedIndex = 1, countDumpedMax
@@ -1037,7 +1037,7 @@ contains
           call rpn_comm_recv(latitude, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr)
           call rpn_comm_recv(longitude, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr)
           if (latitude /= MPC_missingValue_R8 .and. longitude /= MPC_missingValue_R8) then
-            call rpn_comm_recv(tempoBmatrix(:,:), nkgdim*nkgdim, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr)
+            call rpn_comm_recv(tempoBmatrix(:,:), numVarLev*numVarLev, 'mpi_real8', taskIndex, tag + 2, 'GRID', status, ierr)
             globalDumpedIndex = dumpedIndex + obsOffset(taskIndex)
             outBmatrix(globalDumpedIndex, :, :) = tempoBmatrix(:, :)
             outLats(globalDumpedIndex) = latitude
@@ -1049,7 +1049,7 @@ contains
         call rpn_comm_send(latitude, 1, 'mpi_real8', 0, tag, 'GRID', ierr)
         call rpn_comm_send(longitude, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr)
         if (columnIndex > 0) then
-          call rpn_comm_send(bEns(columnIndex, :, :), nkgdim*nkgdim, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
+          call rpn_comm_send(bEns(columnIndex, :, :), numVarLev*numVarLev, 'mpi_real8', 0, tag + 2, 'GRID', ierr)
         end if
       end if
     end do
@@ -1103,8 +1103,8 @@ contains
       return
     end if
 
-    allocate(bMatSqrtLandTmp(nLonLatPosLand, nkgdim, nkgdim))
-    allocate(bMatSqrtSeaTmp(nLonLatPosSea, nkgdim, nkgdim))
+    allocate(bMatSqrtLandTmp(nLonLatPosLand, numVarLev, numVarLev))
+    allocate(bMatSqrtSeaTmp(nLonLatPosSea, numVarLev, numVarLev))
 
     bMatSqrtLandTmp(:,:,:) = bMatSqrtLand(:,:,:)
     bMatSqrtSeaTmp(:,:,:) = bMatSqrtSea(:,:,:)
@@ -1130,18 +1130,21 @@ contains
         bMatSqrtLandTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
     end if
 
-    allocate(oneDProfile(nkgdim))
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
+    allocate(oneDProfile(numVarLev))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude, &
+    !$OMP                      surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
       surfaceType = tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
-        oneDProfile(:) = matmul(bMatSqrtSeaTmp(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+        oneDProfile(:) = matmul(bMatSqrtSeaTmp(latitudeBandIndex(1), :, :), &
+                                controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev))
       else ! Land or Sea Ice
         latitudeBandIndex = minloc( abs( latitude - latLand(:)) )
-        oneDProfile(:) = matmul(bMatSqrtLandTmp(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+        oneDProfile(:) = matmul(bMatSqrtLandTmp(latitudeBandIndex(1), :, :), &
+                                controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev))
       end if
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
@@ -1149,8 +1152,8 @@ contains
         currentColumn(:) = currentColumn(:) + oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
       end do
-      if (offset /= nkgdim) then
-        write(*,*) 'bmat1D_bsqrtHi: offset, nkgdim', offset, nkgdim
+      if (offset /= numVarLev) then
+        write(*,*) 'bmat1D_bsqrtHi: offset, numVarLev', offset, numVarLev
         call utl_abort('bmat1D_bSqrtHi: inconsistency between Bmatrix and statevector size')
       end if
     end do
@@ -1191,11 +1194,12 @@ contains
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: 1dvar Bmatrix not initialized'
       return
     end if
-    allocate(oneDProfile(nkgdim))
+    allocate(oneDProfile(numVarLev))
 
     controlVector_in(:) = 0.d0
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude, &
+    !$OMP                      surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
@@ -1204,21 +1208,21 @@ contains
         oneDProfile(offset+1:offset+size(currentColumn)) = currentColumn(:)
         offset = offset + size(currentColumn)
       end do
-      if (offset /= nkgdim) then
-        write(*,*) 'bmat1D_bSqrtHiAd: offset, nkgdim', offset, nkgdim
+      if (offset /= numVarLev) then
+        write(*,*) 'bmat1D_bSqrtHiAd: offset, numVarLev', offset, numVarLev
         call utl_abort('bmat1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radians
       surfaceType =  tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
-        controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
-             controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
+        controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) =  &
+             controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) + &
              matmul(bMatSqrtSea(latitudeBandIndex(1),:,:), oneDProfile)
       else ! Land or Sea Ice
         latitudeBandIndex = minloc( abs( latitude - latLand(:)) )
-        controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
-             controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
+        controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) =  &
+             controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) + &
              matmul(bMatSqrtLand(latitudeBandIndex(1),:,:), oneDProfile)
       end if
     end do
@@ -1251,7 +1255,7 @@ contains
     real(8), allocatable      :: bMatSqrtEnsTmp(:,:,:)
     integer                   :: emissVarIndex, nlevEmiss
 
-    allocate(bMatSqrtEnsTmp(var1D_validHeaderCount, nkgdim, nkgdim))
+    allocate(bMatSqrtEnsTmp(var1D_validHeaderCount, numVarLev, numVarLev))
 
     bMatSqrtEnsTmp(:,:,:) = bMatSqrtEns(:,:,:)
  
@@ -1265,26 +1269,29 @@ contains
       emissVarIndex = 0
       do varIndex = 1, size(bmat1D_includeAnlVar)
         emissVarIndex = emissVarIndex + &
-          col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
+             col_getNumLev(column, vnl_varLevelFromVarname(bmat1D_includeAnlVar(varIndex)), &
+                           varname_opt = trim(bmat1D_includeAnlVar(varIndex)))
       end do
-      bMatSqrtEnsTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex) = inflateEmissErr * &
-        bMatSqrtEnsTmp(:, emissVarIndex - nlevEmiss + 1: emissVarIndex, emissVarIndex - nlevEmiss + 1: emissVarIndex)
+      bMatSqrtEnsTmp(:, emissVarIndex-nlevEmiss+1:emissVarIndex, emissVarIndex-nlevEmiss+1:emissVarIndex) = &
+           inflateEmissErr * &
+           bMatSqrtEnsTmp(:, emissVarIndex-nlevEmiss+1:emissVarIndex, emissVarIndex-nlevEmiss+1:emissVarIndex)
     end if
 
-    allocate(oneDProfile(nkgdim))
+    allocate(oneDProfile(numVarLev))
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      oneDProfile(:) = matmul(bMatSqrtEnsTmp(columnIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+      oneDProfile(:) = matmul(bMatSqrtEnsTmp(columnIndex, :, :), &
+                              controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev))
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
         currentColumn(:) = currentColumn(:) + oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
       end do
-      if (offset /= nkgdim) then
-        write(*,*) 'bmat1D_bsqrtEns: offset, nkgdim', offset, nkgdim
+      if (offset /= numVarLev) then
+        write(*,*) 'bmat1D_bsqrtEns: offset, numVarLev', offset, numVarLev
         call utl_abort('bmat1D_bSqrtEns: inconsistency between Bmatrix and statevector size')
       end if
     end do
@@ -1320,7 +1327,7 @@ contains
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: 1dvar Bmatrix not initialized'
       return
     end if
-    allocate(oneDProfile(nkgdim))
+    allocate(oneDProfile(numVarLev))
 
     controlVector_in(:) = 0.d0
 
@@ -1333,12 +1340,12 @@ contains
         oneDProfile(offset+1:offset+size(currentColumn)) = currentColumn(:)
         offset = offset + size(currentColumn)
       end do
-      if (offset /= nkgdim) then
-        write(*,*) 'bmat1D_bSqrtHiAd: offset, nkgdim', offset, nkgdim
+      if (offset /= numVarLev) then
+        write(*,*) 'bmat1D_bSqrtHiAd: offset, numVarLev', offset, numVarLev
         call utl_abort('bmat1D_bSqrtEnsAd: inconsistency between Bmatrix and statevector size')
       end if
-      controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
-             controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
+      controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) =  &
+             controlVector_in(1+(columnIndex-1)*numVarLev:columnIndex*numVarLev) + &
              matmul(bMatSqrtEns(columnIndex,:,:), oneDProfile)
     end do
     !$OMP END PARALLEL DO

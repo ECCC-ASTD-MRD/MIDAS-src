@@ -265,7 +265,7 @@ contains
     if (hco%global) deallocate(nIndex_vec)
 
     do stepIndex = 1, ens_getNumStep(ensembleStateVector(1)) ! Loop on ensemble time bin
-      do levIndex = 1, ens_getNumK(ensembleStateVector(1)) ! Loop on variables and vertical levels
+      do levIndex = 1, ens_getNumVarLev(ensembleStateVector(1)) ! Loop on variables and vertical levels
 
         ptr4d_r4 => ens_getOneLev_r4(ensembleStateVector(1),levIndex)
           
@@ -360,7 +360,7 @@ contains
       allocate(bandSum(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
       do stepIndex = 1, ens_getNumStep(ensembleStateVector(1))
         !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,horizWaveBandIndex,bandsum,ptr4d_r4)
-        do levIndex = 1, ens_getNumK(ensembleStateVector(1))
+        do levIndex = 1, ens_getNumVarLev(ensembleStateVector(1))
           do memberIndex = 1, nEns
             bandSum(:,:) = 0.d0
             do horizWaveBandIndex = 2, nHorizWaveBand
@@ -746,7 +746,7 @@ contains
       allocate(bandSum(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
       do stepIndex = 1, ens_getNumStep(ensembleStateVector(1))
         !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,vertWaveBandIndex,bandsum,ptr4d_r4)
-        do levIndex = 1, ens_getNumK(ensembleStateVector(1))
+        do levIndex = 1, ens_getNumVarLev(ensembleStateVector(1))
           do memberIndex = 1, ens_getNumMembers(ensembleStateVector(1))
             bandSum(:,:) = 0.d0
             do vertWaveBandIndex = 2, nVertWaveBand

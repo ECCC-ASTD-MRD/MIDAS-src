@@ -32,7 +32,7 @@ MODULE bMatrixHI_mod
   logical             :: initialized = .false.
   integer             :: nj_l,ni_l
   integer             :: AnalGridID ! EZscintID
-  integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2,nkgdimSqrt
+  integer             :: nlev_M,nlev_T,nlev_T_even,numVarLev,numVarLev2,numVarLevSqrt
   integer             :: nla_mpiglobal,nla_mpilocal
   integer             :: cvDim_mpilocal,cvDim_mpiglobal
   integer             :: gstID, gstID2
@@ -240,12 +240,12 @@ CONTAINS
     nspositQ  = 2*nLev_M+1*nLev_T+1
     nspositPS = 2*nLev_M+2*nLev_T+1
     nspositTG = 2*nLev_M+2*nLev_T+2
-    nkgdim = nLev_M*2 + nLev_T*2 + numvar2d
-    nkgdim2 = nkgdim + nLev_T
+    numVarLev = nLev_M*2 + nLev_T*2 + numvar2d
+    numVarLev2 = numVarLev + nLev_T
     if(squareSqrt) then
-      nkgdimSqrt = nkgdim2
+      numVarLevSqrt = numVarLev2
     else
-      nkgdimSqrt = nkgdim
+      numVarLevSqrt = numVarLev
     endif
     nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
     
@@ -253,7 +253,7 @@ CONTAINS
     nj_l = hco_in%nj
     AnalGridID = hco_in%EZscintID
 
-    gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim)
+    gstID  = gst_setup(ni_l,nj_l,ntrunc,numVarLev)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
     if(mmpi_myid == 0) write(*,*) 'BHI:returned value of gstID =',gstID
     if(mmpi_myid == 0) write(*,*) 'BHI:returned value of gstID2=',gstID2
@@ -274,10 +274,10 @@ CONTAINS
         if(jm.le.jn) then
           if(jm == 0) then
             ! only real component for jm=0
-            cvDim_mpilocal = cvDim_mpilocal + 1*nkgdimSqrt
+            cvDim_mpilocal = cvDim_mpilocal + 1*numVarLevSqrt
           else
             ! both real and imaginary components for jm>0
-            cvDim_mpilocal = cvDim_mpilocal + 2*nkgdimSqrt
+            cvDim_mpilocal = cvDim_mpilocal + 2*numVarLevSqrt
           endif
         endif
       enddo
@@ -289,7 +289,7 @@ CONTAINS
 
     allocate(PtoT(nlev_T+1,nlev_M,nj_l))
     allocate(tantheta(nlev_M,nj_l))
-    allocate(rgsig(nj_l,nkgdim))
+    allocate(rgsig(nj_l,numVarLev))
     allocate(tgstdbg(ni_l,nj_l))
     rgsiguu => rgsig(1:nj_l,nspositVO:nspositVO+nlev_M-1)
     rgsigvv => rgsig(1:nj_l,nspositDI:nspositDI+nlev_M-1)
@@ -298,8 +298,8 @@ CONTAINS
     rgsigps => rgsig(1:nj_l,nspositPS)
     allocate(rgsigtb(nj_l,nlev_T))
     allocate(rgsigpsb(nj_l))
-    allocate(corns(nkgdim2,nkgdim2,0:ntrunc))
-    allocate(rstddev(nkgdim2,0:ntrunc))
+    allocate(corns(numVarLev2,numVarLev2,0:ntrunc))
+    allocate(rstddev(numVarLev2,0:ntrunc))
 
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -418,17 +418,17 @@ CONTAINS
     implicit none
 
     ! Locals:
-    real(8) :: eigenval(nkgdim2), eigenvec(nkgdim2,nkgdim2), result(nkgdim2,nkgdim2)
-    real(8) :: eigenvalsqrt(nkgdim2), eigenvec2(nkgdim2,nkgdim2), eigenvalsqrt2(nkgdim2)
+    real(8) :: eigenval(numVarLev2), eigenvec(numVarLev2,numVarLev2), result(numVarLev2,numVarLev2)
+    real(8) :: eigenvalsqrt(numVarLev2), eigenvec2(numVarLev2,numVarLev2), eigenvalsqrt2(numVarLev2)
     integer :: jlat,jn,jk1,jk2,jk3
     integer :: ilwork,info,klatPtoT
     integer :: iulcorvert, ikey, nsize
-    real(8) :: zwork(2*4*nkgdim2)
+    real(8) :: zwork(2*4*numVarLev2)
     real(8) :: ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2
     real(8) :: zfact,zfact2,zcoriolis,zpsips(nLevPtoT)
     real(8) :: zpsi(nlev_M,nlev_M),zfacttb(nj_l,nlev_T),zfactpsb(nj_l)
-    real(8) :: corvert(nkgdim2,nkgdim2)
+    real(8) :: corvert(numVarLev2,numVarLev2)
     real(8),allocatable :: corns_temp(:,:,:)
     logical :: lldebug, lfound_sqrt
     ! standard file variables
@@ -502,13 +502,13 @@ CONTAINS
     do jn = 0, ntrunc
       do jk1 = 1, nlev_T
         do jk2 = 1, nlev_T
-          corns(nkgdim+jk2,nkgdim+jk1,jn) = ztt(jk2,jk1,jn+1)
+          corns(numVarLev+jk2,numVarLev+jk1,jn) = ztt(jk2,jk1,jn+1)
         enddo
       enddo
       do jk1 = 1, nlev_M
         do jk2 = 1, nlev_T
-          corns(       jk1,nkgdim+jk2,jn) = ztpsi(jk2,jk1,jn+1)
-          corns(nkgdim+jk2,       jk1,jn) = ztpsi(jk2,jk1,jn+1)
+          corns(          jk1,numVarLev+jk2,jn) = ztpsi(jk2,jk1,jn+1)
+          corns(numVarLev+jk2,          jk1,jn) = ztpsi(jk2,jk1,jn+1)
         enddo
       enddo
     enddo
@@ -554,8 +554,8 @@ CONTAINS
           zr = abs(zpres2 - zpres1)
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
-            corns(jk1+nkgdim,jk2+nkgdim,jn)  =        &
-                 corns(jk1+nkgdim,jk2+nkgdim,jn)*zcorr
+            corns(jk1+numVarLev,jk2+numVarLev,jn)  =        &
+                 corns(jk1+numVarLev,jk2+numVarLev,jn)*zcorr
           enddo
         enddo
       enddo
@@ -589,8 +589,8 @@ CONTAINS
           zr = abs(zpres2 - zpres1)
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
-            corns(jk1,jk2+nkgdim,jn) = corns(jk1,jk2+nkgdim,jn)*zcorr
-            corns(jk2+nkgdim,jk1,jn) = corns(jk2+nkgdim,jk1,jn)*zcorr
+            corns(jk1,jk2+numVarLev,jn) = corns(jk1,jk2+numVarLev,jn)*zcorr
+            corns(jk2+numVarLev,jk1,jn) = corns(jk2+numVarLev,jk1,jn)*zcorr
           enddo
         enddo
       enddo
@@ -653,8 +653,8 @@ CONTAINS
 
     ! compute total vertical correlations (including for balanced temperature)
     if(.true.) then
-      do jk2 = 1, nkgdim2
-        do jk1 = 1, nkgdim2
+      do jk2 = 1, numVarLev2
+        do jk1 = 1, numVarLev2
           corvert(jk1,jk2) = 0.0d0
           do jn = 0, ntrunc
             corvert(jk1,jk2) = corvert(jk1,jk2)+((2*jn+1)*corns(jk1,jk2,jn))
@@ -674,8 +674,8 @@ CONTAINS
              ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2      &
              ,iextr3)
 
-        ini = nkgdim2
-        inj = nkgdim2
+        ini = numVarLev2
+        inj = numVarLev2
         ink = 1
         ip1 = 0
         ip2 = ntrunc
@@ -693,7 +693,7 @@ CONTAINS
 
       ! Modify RGSIGTB to obtain correct sigma_Tb
       do jk1 = 1, nlev_T
-        zfact = corvert(jk1+nkgdim,jk1+nkgdim)
+        zfact = corvert(jk1+numVarLev,jk1+numVarLev)
         do jlat = 1, nj_l
           zcoriolis = abs(2.d0*ec_Omega*gst_getrmu(jlat,gstID))
           if(zfact.gt.0.0d0.and.zcoriolis.ne.0.0d0) then
@@ -744,19 +744,19 @@ CONTAINS
     enddo
 
     ! compute square-root of corns for each total wavenumber
-    allocate(corns_temp(nkgdim2,nkgdim2,0:ntrunc))
+    allocate(corns_temp(numVarLev2,numVarLev2,0:ntrunc))
     corns_temp(:,:,:)=0.0d0
     do jn = mmpi_myid, ntrunc, mmpi_nprocs
 
-      do jk1 = 1, nkgdim2
-         do jk2 = 1, nkgdim2
+      do jk1 = 1, numVarLev2
+         do jk2 = 1, numVarLev2
             eigenvec(jk2,jk1) = corns(jk2,jk1,jn)
          enddo
       enddo
 
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
-      ilwork = 4*nkgdim2*2
-      call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+      ilwork = 4*numVarLev2*2
+      call dsyev('V','U',numVarLev2,eigenvec,numVarLev2,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
         write(*,*) 'bhi_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
         call utl_abort('BHI_SUCORNS')
@@ -772,7 +772,7 @@ CONTAINS
         write(*,*) 'bhi_sucorns2: modified eigenvalues=',eigenval(:)
       endif
 
-      do jk1 = 1, nkgdim2
+      do jk1 = 1, numVarLev2
         if(eigenval(jk1).lt.1.0d-15) then
           eigenvalsqrt(jk1) = 0.0d0
         else
@@ -782,10 +782,10 @@ CONTAINS
  
       ! Reverse the order of E-Values if old formulation (for compatibility)
       if(.not.squareSqrt) then
-        do jk1 = 1, nkgdim2
-          eigenvalsqrt2(jk1) = eigenvalsqrt(nkgdim2-jk1+1)
-          do jk2 = 1, nkgdim2
-            eigenvec2(jk2,jk1) = eigenvec(jk2,nkgdim2-jk1+1)
+        do jk1 = 1, numVarLev2
+          eigenvalsqrt2(jk1) = eigenvalsqrt(numVarLev2-jk1+1)
+          do jk2 = 1, numVarLev2
+            eigenvec2(jk2,jk1) = eigenvec(jk2,numVarLev2-jk1+1)
           enddo
         enddo
         eigenvalsqrt(:) = eigenvalsqrt2(:)
@@ -794,17 +794,17 @@ CONTAINS
 
       ! compute E * lambda^1/2
       result(:,:) = 0.0d0
-      do jk1 = 1, nkgdimSqrt
-         do jk2 = 1, nkgdim2
+      do jk1 = 1, numVarLevSqrt
+         do jk2 = 1, numVarLev2
             result(jk2,jk1) = eigenvec(jk2,jk1)*eigenvalsqrt(jk1)
          enddo
       enddo
 
       ! compute (E * lambda^1/2) * E^T if new formulation
       if(squareSqrt) then
-        do jk1 = 1, nkgdim2
-          do jk2 = 1, nkgdim2
-            do jk3 = 1, nkgdim2
+        do jk1 = 1, numVarLev2
+          do jk2 = 1, numVarLev2
+            do jk3 = 1, numVarLev2
               corns_temp(jk2,jk1,jn) = corns_temp(jk2,jk1,jn) + result(jk2,jk3)*eigenvec(jk1,jk3)
             enddo
           enddo
@@ -826,7 +826,7 @@ CONTAINS
 
     enddo ! jn
 
-    nsize = nkgdim2*nkgdim2*(ntrunc+1)
+    nsize = numVarLev2*numVarLev2*(ntrunc+1)
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
 
@@ -872,7 +872,7 @@ CONTAINS
 
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = utl_fstecr(corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim2,nkgdim2,1,  &
+        ierr = utl_fstecr(corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,numVarLev2,numVarLev2,1,  &
                        ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
       enddo
 
@@ -901,7 +901,7 @@ CONTAINS
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
 
-    allocate(zcornssrc(nkgdim2,nkgdim2))
+    allocate(zcornssrc(numVarLev2,numVarLev2))
 
     write(*,*) 'READCORNS_SQRT: looking for CORNS_SQRT with NTRUNC =', ntrunc
     do jn = 0, ntrunc
@@ -927,12 +927,12 @@ CONTAINS
         endif
       endif
 
-      if (ini .ne. nkgdim2 .or. inj .ne. nkgdim2) then
+      if (ini .ne. numVarLev2 .or. inj .ne. numVarLev2) then
         call utl_abort('READCORNS2: BG stat levels inconsitencies')
       endif
 
-      do jcol = 1, nkgdim2
-        do jrow = 1, nkgdim2
+      do jcol = 1, numVarLev2
+        do jrow = 1, numVarLev2
           corns(jrow,jcol,jn) = zcornssrc(jrow,jcol)
         enddo
       enddo
@@ -972,16 +972,16 @@ CONTAINS
   END FUNCTION GASPARICOHN
 
 
-  SUBROUTINE BHI_CALCCORR(zgd,pcscl,klev)
+  SUBROUTINE BHI_CALCCORR(zgd,pcscl,numLev)
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: klev
-    real(8), intent(out) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
-    real(8), intent(in)  :: pcscl(klev)
+    integer, intent(in)  :: numLev
+    real(8), intent(out) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numLev)
+    real(8), intent(in)  :: pcscl(numLev)
 
     ! Locals:
-    integer :: jlev, jlat, jlon
+    integer :: levIndex, jlat, jlon
     real(8) :: zr, dlfac, dltemp, dln, dlcsurn, dlc, dlcorr
     ! parameters that define the correlation function
     integer :: ntoar = 3
@@ -995,21 +995,21 @@ CONTAINS
 
     if (kcorrtyp == 1) then
       ! Gaussian correlation
-      do  jlev = 1, klev
-        dlc = 1.d0/dble(pcscl(jlev))
+      do  levIndex = 1, numLev
+        dlc = 1.d0/dble(pcscl(levIndex))
         dlc = 0.5d0*dlc*dlc
         do  jlat = myLatBeg, myLatEnd
           zr = ec_ra * acos(gst_getRmu(jlat,gstID))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = myLonBeg, myLonEnd
-            zgd(jlon,jlat,jlev) = dlcorr
+            zgd(jlon,jlat,levIndex) = dlcorr
           enddo
         enddo
       enddo
     elseif (kcorrtyp == 2) then
       ! Autoregressive (SOAR) correlation
-      do jlev = 1, klev
-        dlc = dltemp/dble(pcscl(jlev))
+      do levIndex = 1, numLev
+        dlc = dltemp/dble(pcscl(levIndex))
         dlcsurn = dlc/dln
         do jlat = myLatBeg, myLatEnd
           zr = ec_ra * acos(gst_getRmu(jlat,gstID))
@@ -1017,7 +1017,7 @@ CONTAINS
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
           do jlon = myLonBeg, myLonEnd
-            zgd(jlon,jlat,jlev) = dlcorr
+            zgd(jlon,jlat,levIndex) = dlcorr
           enddo
         enddo
       enddo
@@ -1442,7 +1442,7 @@ CONTAINS
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
     integer jn,jlat,jk
-    real(8) zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
+    real(8) zsp(0:ntrunc,numVarLev),zgr(nj_l,numVarLev)
     real(8) dlwti(nj_l),zrmu(nj_l)
     real(8)         :: RPORVO   = 6000.D3
     real(8)         :: RPORDI   = 6000.D3
@@ -1461,16 +1461,16 @@ CONTAINS
     do jn = 0, ntrunc
       dlfact = ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
       dlfact2= ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
-      do jk = 1, nkgdim
+      do jk = 1, numVarLev
         zsp(jn,jk) = rstddev(jk,jn)*dlfact*dlfact2
       enddo
     enddo
 
     ! Transform to physical space
-    call gst_zleginv(gstID,zgr,zsp,nkgdim)
+    call gst_zleginv(gstID,zgr,zsp,numVarLev)
 
     ! Truncate in horizontal extent with Gaussian window
-    do jk = 1, nkgdim
+    do jk = 1, numVarLev
       if (jk.ge.nspositVO.and.jk.lt.nspositVO+nlev_M) then
         dtlen = rporvo
       elseif (jk.ge.nspositDI.and.jk.lt.nspositDI+nlev_M) then
@@ -1497,10 +1497,10 @@ CONTAINS
     enddo
 
     ! Transform back to spectral space
-    call gst_zlegdir(gstID,zgr,zsp,nkgdim)
+    call gst_zlegdir(gstID,zgr,zsp,numVarLev)
 
     ! Convert back to correlations
-    do jk = 1, nkgdim
+    do jk = 1, numVarLev
       do jn = 0, ntrunc
          zsp(jn,jk) = zsp(jn,jk)*(2.0d0/(2.0d0*jn+1.0d0))**(0.25d0)
       enddo
@@ -1508,13 +1508,13 @@ CONTAINS
 
     ! PUT BACK INTO RSTDDEV
     do jn = 0, ntrunc
-      do jk = 1, nkgdim
+      do jk = 1, numVarLev
          rstddev(jk,jn) = zsp(jn,jk)
       enddo
     enddo
  
     ! Re-normalize to ensure correlations
-    do jk = 1, nkgdim
+    do jk = 1, numVarLev
       dsummed = 0.d0
       do jn = 0, ntrunc
         dsummed = dsummed+ dble(rstddev(jk,jn)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
@@ -1529,7 +1529,7 @@ CONTAINS
     !     .  BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
     do jn = 0, ntrunc
       dlfact = sqrt(0.5d0)*(1.0d0/((2.0d0*jn+1)/2.0d0))**0.25d0
-      do jk = 1, nkgdim
+      do jk = 1, numVarLev
         rstddev(jk,jn) = rstddev(jk,jn)*dlfact
       enddo
     enddo
@@ -1572,7 +1572,7 @@ CONTAINS
     enddo
 
     ! ... but T'ln(ps') correlations
-    do jk2 = 1, nkgdim
+    do jk2 = 1, numVarLev
       do jk1 = levOffset(5)+1, levOffset(5)+numvar2d
         if ((jk1.ne.nspositPS.or.jk2.lt.nspositTT.or.    &
              jk2.ge.(nspositTT+nlev_T)).and.(jk1.ne.jk2)) then
@@ -1582,7 +1582,7 @@ CONTAINS
     enddo
 
     do jk2 = levOffset(5)+1, levOffset(5)+numvar2d
-      do jk1 = 1, nkgdim
+      do jk1 = 1, numVarLev
         if ((jk2.ne.nspositPS.or.jk1.lt.nspositTT.or.   &
              jk1.ge.(nspositTT+nlev_T)) .and.(jk1.ne.jk2)) then
           corns(jk1,jk2,kn) = 0.0d0
@@ -1657,9 +1657,9 @@ CONTAINS
         call utl_abort('READCORNS2: BG stat levels inconsitencies')
       endif
 
-      do jcol = 1, nkgdim2
+      do jcol = 1, numVarLev2
         rstddev(jcol,jn) = 0.0d0
-        do jrow = 1, nkgdim2
+        do jrow = 1, numVarLev2
           corns(jrow,jcol,jn) = 0.0d0
         enddo
       enddo
@@ -1686,8 +1686,8 @@ CONTAINS
     do jn = 0, ntrunc
 
       ! Re-build of correlation matrix: factorization of corns with convoluted RSTDDEV
-      do jcol = 1, nkgdim
-        do jrow = 1, nkgdim
+      do jcol = 1, numVarLev
+        do jrow = 1, numVarLev
           corns(jrow,jcol,jn) = rstddev(jrow,jn) * corns(jrow,jcol,jn)* rstddev(jcol,jn)
         enddo
       enddo
@@ -2228,7 +2228,7 @@ CONTAINS
     endif
 
     jdim = 0
-    do jlev = 1, nkgdimSqrt
+    do jlev = 1, numVarLevSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -2263,7 +2263,7 @@ CONTAINS
 
     ! Locals:
     real(8),allocatable :: gd_out(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
+    real(8)   :: hiControlVector(nla_mpilocal,2,numVarLevSqrt)
 
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrt: starting'
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2273,7 +2273,7 @@ CONTAINS
       return
     endif
 
-    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
+    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev))
 
     call bhi_cain(controlVector_in,hiControlVector)
     call bhi_spa2gd(hiControlVector,gd_out)
@@ -2304,7 +2304,7 @@ CONTAINS
 
     ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
-    real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
+    real(8)   :: hiControlVector(nla_mpilocal,2,numVarLevSqrt)
 
     if(.not. initialized) then
       if(mmpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
@@ -2314,7 +2314,7 @@ CONTAINS
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
+    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev))
     gd_in(:,:,:) = 0.d0
     if (gsv_varExist(statevector,'HU')) then
       call gvt_transform( statevector, &                          ! INOUT
@@ -2341,7 +2341,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8),          intent(in)    :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
 
     ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
@@ -2403,7 +2403,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
-    real(8),          intent(out)   :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8),          intent(out)   :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
 
     ! Locals:
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
@@ -2526,7 +2526,7 @@ CONTAINS
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
-          do jlev = 1, nkgdimSqrt
+          do jlev = 1, numVarLevSqrt
              do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                 do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
@@ -2675,7 +2675,7 @@ CONTAINS
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
-          do jlev = 1, nkgdimSqrt
+          do jlev = 1, numVarLevSqrt
              do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                 do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
@@ -2833,7 +2833,7 @@ CONTAINS
       do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
-        do jlev = 1, nkgdimSqrt
+        do jlev = 1, numVarLevSqrt
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
               if(jm.le.jn) then
@@ -2963,7 +2963,7 @@ CONTAINS
       do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
-        do jlev = 1, nkgdimSqrt
+        do jlev = 1, numVarLevSqrt
           do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
             do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
               if(jm.le.jn) then
@@ -3022,14 +3022,14 @@ CONTAINS
 
     ! Arguments:
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
-    real(8), intent(out) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(out) :: hiControlVector_out(nla_mpilocal,2,numVarLevSqrt)
 
     ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
     hiControlVector_out(:,:,:) = 0.0d0
-    do jlev = 1, nkgdimSqrt
+    do jlev = 1, numVarLevSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -3059,13 +3059,13 @@ CONTAINS
 
     ! Arguments:
     real(8), intent(out) :: controlVector_out(cvDim_mpilocal)
-    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,numVarLevSqrt)
 
     ! Locals:
     integer :: jdim, jlev, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
-    do jlev = 1, nkgdimSqrt
+    do jlev = 1, numVarLevSqrt
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
           if(jm.le.jn) then
@@ -3094,18 +3094,18 @@ CONTAINS
     IMPLICIT NONE
 
     ! Arguments:
-    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
-    real(8), intent(out) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), intent(in)  :: hiControlVector_in(nla_mpilocal,2,numVarLevSqrt)
+    real(8), intent(out) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
 
     ! Locals:
-    real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,nkgdim)
+    real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,numVarLev)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8), pointer :: zgdpsi(:,:,:),zgdchi(:,:,:)
-    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
     real(8) :: dla2, dl1sa2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
     klatPtoT = 1
@@ -3115,8 +3115,8 @@ CONTAINS
     sptb(:,:,:) = 0.0d0
 
     sq2 = sqrt(2.0d0)
-    allocate(zsp(nkgdimSqrt,2,mymCount))
-    allocate(zsp2(nkgdim2,2,mymCount))
+    allocate(zsp(numVarLevSqrt,2,mymCount))
+    allocate(zsp2(numVarLev2,2,mymCount))
     !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
@@ -3126,7 +3126,7 @@ CONTAINS
           icount = icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do jlev = 1, nkgdimSqrt
+          do jlev = 1, numVarLevSqrt
             zsp(jlev,1,icount) = hiControlVector_in(ila_mpilocal,1,jlev)
             zsp(jlev,2,icount) = hiControlVector_in(ila_mpilocal,2,jlev)
           enddo
@@ -3135,7 +3135,9 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMM('N','N',nkgdim2,2*icount,nkgdimSqrt,1.0d0,corns(1,1,jn),nkgdim2,zsp(1,1,1),nkgdimSqrt,0.0d0,zsp2(1,1,1),nkgdim2)
+        CALL DGEMM('N','N',numVarLev2,2*icount,numVarLevSqrt,1.0d0, &
+                   corns(1,1,jn),numVarLev2,zsp(1,1,1),numVarLevSqrt,0.0d0, &
+                   zsp2(1,1,1),numVarLev2)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -3143,13 +3145,13 @@ CONTAINS
             icount = icount+1
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-            do jlev = 1, nkgdim
+            do jlev = 1, numVarLev
               sp(ila_mpilocal,1,jlev) = zsp2(jlev,1,icount)
               sp(ila_mpilocal,2,jlev) = zsp2(jlev,2,icount)
             enddo
             do jlev = 1, nlev_T
-              sptb(ila_mpilocal,1,jlev) = zsp2(jlev+nkgdim,1,icount)
-              sptb(ila_mpilocal,2,jlev) = zsp2(jlev+nkgdim,2,icount)
+              sptb(ila_mpilocal,1,jlev) = zsp2(jlev+numVarLev,1,icount)
+              sptb(ila_mpilocal,2,jlev) = zsp2(jlev+numVarLev,2,icount)
             enddo
           endif
         enddo
@@ -3162,7 +3164,7 @@ CONTAINS
         ila_mpiglobal = gst_getNind(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
 
-        do jlev = 1, nkgdim
+        do jlev = 1, numVarLev
           sp(ila_mpilocal,1,jlev) = sp(ila_mpilocal,1,jlev)*sq2
           sp(ila_mpilocal,2,jlev) = 0.0d0
         enddo
@@ -3179,7 +3181,7 @@ CONTAINS
     deallocate(zsp2)
 
     !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlev = 1, nkgdim
+    do jlev = 1, numVarLev
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
           gd(jlon,jlat,jlev) = 0.0d0
@@ -3220,7 +3222,7 @@ CONTAINS
         enddo
       enddo
 
-      do jlev = 1, nkgdim
+      do jlev = 1, numVarLev
         do jlon = myLonBeg, myLonEnd
           if(jlev.ne.nspositTG) then
             gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlat,jlev)
@@ -3275,7 +3277,7 @@ CONTAINS
     !$OMP END PARALLEL DO
 
     !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlev = 1, nkgdim
+    do jlev = 1, numVarLev
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
           gd(jlon,jlat,jlev) = 0.0d0
@@ -3288,7 +3290,7 @@ CONTAINS
     call gst_spgd(sp,gd,nlev_M)
 
     !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlev = 1, nkgdim
+    do jlev = 1, numVarLev
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
           gd_out(jlon,jlat,jlev) = gd(jlon,jlat,jlev)
@@ -3304,12 +3306,12 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
-    real(8), intent(in)    :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,numVarLevSqrt)
+    real(8), intent(in)    :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
 
     ! Locals:
     real(8) :: sptb(nla_mpilocal,2,nlev_T_even)
-    real(8) :: sp(nla_mpilocal,2,nkgdim)
+    real(8) :: sp(nla_mpilocal,2,numVarLev)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2, zp
@@ -3317,12 +3319,12 @@ CONTAINS
     integer :: jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8) :: dl1sa2, dla2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
     real(8),pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
-    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
+    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev)
 
     klatPtoT = 1
 
     !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlev = 1, nkgdim
+    do jlev = 1, numVarLev
       do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
           gd(jlon,jlat,jlev) = gd_in(jlon,jlat,jlev)
@@ -3378,7 +3380,7 @@ CONTAINS
         zpsb(jlon,jlat) = zpsb(jlon,jlat)*rgsigpsb(jlat)
       enddo
 
-      do jlev = 1, nkgdim
+      do jlev = 1, numVarLev
         do jlon = myLonBeg, myLonEnd
           if(jlev.ne.nspositTG) then
             gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlat,jlev)
@@ -3410,8 +3412,8 @@ CONTAINS
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
-    allocate(zsp(nkgdimSqrt,2,mymCount))
-    allocate(zsp2(nkgdim2,2,mymCount))
+    allocate(zsp(numVarLevSqrt,2,mymCount))
+    allocate(zsp2(numVarLev2,2,mymCount))
     !$OMP PARALLEL DO PRIVATE(JN,JM,JLEV,ILA_MPILOCAL,ILA_MPIGLOBAL,zsp,zsp2,icount)
     do jn = mynBeg, mynEnd, mynSkip
 
@@ -3421,27 +3423,29 @@ CONTAINS
           icount = icount+1
           ila_mpiglobal = gst_getNind(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do jlev = 1, nkgdim
+          do jlev = 1, numVarLev
             zsp2(jlev,1,icount) = sp(ila_mpilocal,1,jlev)
             zsp2(jlev,2,icount) = sp(ila_mpilocal,2,jlev)
           enddo
           do jlev = 1, nlev_T
-            zsp2(jlev+nkgdim,1,icount) = sptb(ila_mpilocal,1,jlev)
-            zsp2(jlev+nkgdim,2,icount) = sptb(ila_mpilocal,2,jlev)
+            zsp2(jlev+numVarLev,1,icount) = sptb(ila_mpilocal,1,jlev)
+            zsp2(jlev+numVarLev,2,icount) = sptb(ila_mpilocal,2,jlev)
           enddo
         endif
       enddo
 
       if(icount.gt.0) then
 
-        CALL DGEMM('T','N',nkgdimSqrt,2*icount,nkgdim2,1.0d0,corns(1,1,jn),nkgdim2,zsp2(1,1,1),nkgdim2,0.0d0,zsp(1,1,1),nkgdimSqrt)
+        CALL DGEMM('T','N',numVarLevSqrt,2*icount,numVarLev2,1.0d0, &
+                   corns(1,1,jn),numVarLev2,zsp2(1,1,1),numVarLev2,0.0d0, &
+                   zsp(1,1,1),numVarLevSqrt)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
           icount=icount+1
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-          do jlev = 1, nkgdimSqrt
+          do jlev = 1, numVarLevSqrt
             hiControlVector_out(ila_mpilocal,1,jlev) = zsp(jlev,1,icount)
             hiControlVector_out(ila_mpilocal,2,jlev) = zsp(jlev,2,icount)
           enddo
@@ -3455,7 +3459,7 @@ CONTAINS
         ila_mpiglobal = gst_getNIND(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
 
-        do jlev = 1, nkgdimSqrt
+        do jlev = 1, numVarLevSqrt
           hiControlVector_out(ila_mpilocal,1,jlev) = hiControlVector_out(ila_mpilocal,1,jlev)*sq2
           hiControlVector_out(ila_mpilocal,2,jlev) = hiControlVector_out(ila_mpilocal,2,jlev)*sq2
         enddo

@@ -28,7 +28,7 @@ module columnData_mod
   ! Public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
-  public :: col_getNumLev, col_getNumCol, col_getNumK, col_getVarNameFromK
+  public :: col_getNumLev, col_getNumCol, col_getNumVarLev, col_getVarNameFromVarLev
   public :: col_addHeightSfcOffset
   public :: col_getPressure, col_getHeight, col_setHeightSfc, col_copyHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
@@ -38,7 +38,7 @@ module columnData_mod
 
   type struct_columnData
     private
-    integer                   :: nk
+    integer                   :: numVarLev
     integer                   :: numCol
     logical                   :: allocated=.false.
     logical                   :: addHeightSfcOffset = .false.
@@ -324,12 +324,12 @@ contains
       call utl_abort('col_allocate: Nothing to allocate')
     end if
 
-    column%nk = iloc
+    column%numVarLev = iloc
 
     if(column%numCol.le.0) then
       if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
     else         
-      allocate(column%all(column%nk,column%numCol))
+      allocate(column%all(column%numVarLev,column%numCol))
       if ( setToZero ) column%all(:,:)=0.0d0
 
       allocate(column%heightSfc(column%numCol))
@@ -342,7 +342,7 @@ contains
       if ( setToZero ) column%lat(:)=0.0d0
     end if
  
-    if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk
+    if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%numVarLev = ', column%numVarLev
     if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
     if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
@@ -483,9 +483,9 @@ contains
   end function col_getLevIndexFromVarLevIndex
 
   !--------------------------------------------------------------------------
-  ! col_getVarNameFromK
+  ! col_getVarNameFromVarLev
   !--------------------------------------------------------------------------
-  function col_getVarNameFromK(column,kIndex) result(varName)
+  function col_getVarNameFromVarLev(column,varLevIndex) result(varName)
     !
     !:Purpose: Return the variable name for a given value of the
     !          "varsLevs" index.
@@ -494,7 +494,7 @@ contains
 
     ! Arguments:
     type(struct_columnData), intent(in) :: column  ! The `columnData` object
-    integer,                 intent(in) :: kIndex  ! The index into "varsLevs" array
+    integer,                 intent(in) :: varLevIndex  ! The index into "varsLevs" array
     ! Result:
     character(len=4)                    :: varName ! The returned variable name
 
@@ -503,18 +503,18 @@ contains
 
     do varIndex = 1, vnl_numvarmax
       if ( column%varExistList(varIndex) ) then
-        if ( (kIndex >= (column%varOffset(varIndex) + 1)) .and.  &
-            (kIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
+        if ( (varLevIndex >= (column%varOffset(varIndex) + 1)) .and.  &
+            (varLevIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
           varName = vnl_varNameList(varIndex)
           return
         end if
       end if
     end do
 
-    write(*,*) 'col_getVarNameFromK: kIndex out of range: ', kIndex
-    call utl_abort('col_getVarNameFromK')
+    write(*,*) 'col_getVarNameFromVarLev: varLevIndex out of range: ', varLevIndex
+    call utl_abort('col_getVarNameFromVarLev')
 
-  end function col_getVarNameFromK
+  end function col_getVarNameFromVarLev
 
   !--------------------------------------------------------------------------
   ! col_getPressure
@@ -783,7 +783,7 @@ contains
       end if
       value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
-      if (ilev > column%nk .or. ilev < 1) then
+      if (ilev > column%numVarLev .or. ilev < 1) then
         write(*,*) 'varsLevs index = ', ilev
         call utl_abort('col_getElem: varsLevs index out of range')
       end if
@@ -879,9 +879,9 @@ contains
   end function col_getNumCol
 
   !--------------------------------------------------------------------------
-  ! col_getNumK
+  ! col_getNumVarLev
   !--------------------------------------------------------------------------
-  function col_getNumK(column) result(numK)
+  function col_getNumVarLev(column) result(numVarLev)
     !
     !:Purpose: Return the number of variables x levels.
     !
@@ -890,11 +890,11 @@ contains
     ! Arguments:
     type(struct_columnData), intent(in) :: column ! The `columnData` object
     ! Result:
-    integer                             :: numK   ! The returned number of varsLevs
+    integer                             :: numVarLev   ! The returned number of varsLevs
 
-    numK = column%nk
+    numVarLev = column%numVarLev
 
-  end function col_getNumK
+  end function col_getNumVarLev
 
   !--------------------------------------------------------------------------
   ! col_addHeightSfcOffset
@@ -971,7 +971,7 @@ contains
     real(8), pointer                        :: ptrColInOut(:,:)
     real(8), pointer                        :: ptrColIn(:,:)
 
-    if (columnInout%nk /= columnIn%nk) then
+    if (columnInout%numVarLev /= columnIn%numVarLev) then
       call utl_abort('col_add: Number of levels in columnIn and columnInout are not equal')
     end if
 
@@ -1019,7 +1019,7 @@ contains
     type(struct_columnData), intent(in)     :: columnIn  ! Source column to be copied from
     type(struct_columnData), intent(inout)  :: columnOut ! Destination column to be copied into
 
-    if (columnOut%nk /= columnIn%nk) then
+    if (columnOut%numVarLev /= columnIn%numVarLev) then
       call utl_abort('col_copy: Number of levels in columnIn and columnOut are not equal')
     end if
 

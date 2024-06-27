@@ -996,7 +996,7 @@ CONTAINS
     real(8), pointer     :: ens_oneLev(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
-    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1006,10 +1006,10 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
-    do kIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
 
-      levIndex = ens_getLevFromK    (ens,kIndex)
-      varName  = ens_getVarNameFromK(ens,kIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1018,7 +1018,7 @@ CONTAINS
         levTypeIndex = SFindex
       end if
 
-      ens_oneLev => ens_getOneLev_r8(ens,kIndex)
+      ens_oneLev => ens_getOneLev_r8(ens,varLevIndex)
 
       gatheringDone = .false.
 
@@ -1081,7 +1081,7 @@ CONTAINS
 
       end do ! stepIndexAF
       
-    end do ! kIndex
+    end do ! varLevIndex
 
     deallocate(ens1_mpiglobal_tiles)
     deallocate(ens1_mpiglobal)
@@ -1103,7 +1103,7 @@ CONTAINS
     real(4), pointer     :: ens_oneLev(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(4), allocatable :: ens1_mpiglobal(:,:,:)
-    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1113,10 +1113,10 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
-    do kIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
 
-      levIndex = ens_getLevFromK    (ens,kIndex)
-      varName  = ens_getVarNameFromK(ens,kIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1125,7 +1125,7 @@ CONTAINS
         levTypeIndex = SFindex
       end if
 
-      ens_oneLev => ens_getOneLev_r4(ens,kIndex)
+      ens_oneLev => ens_getOneLev_r4(ens,varLevIndex)
 
       gatheringDone = .false.
 
@@ -1188,7 +1188,7 @@ CONTAINS
 
       end do ! stepIndexAF
       
-    end do ! kIndex
+    end do ! varLevIndex
 
     deallocate(ens1_mpiglobal_tiles)
     deallocate(ens1_mpiglobal)
@@ -1211,7 +1211,7 @@ CONTAINS
     real(8), allocatable :: ens1_mpiglobal(:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ens1_mpiglobal_tiles2(:,:,:,:)
-    integer :: memberIndex, levIndex, lonIndex, latIndex, kIndex
+    integer :: memberIndex, levIndex, lonIndex, latIndex, varLevIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1234,10 +1234,10 @@ CONTAINS
     allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
-    do kIndex = 1, ens_getNumK(ens)
+    do varLevIndex = 1, ens_getNumVarLev(ens)
             
-      levIndex = ens_getLevFromK    (ens,kIndex)
-      varName  = ens_getVarNameFromK(ens,kIndex)
+      levIndex = ens_getLevFromVarLev    (ens,varLevIndex)
+      varName  = ens_getVarNameFromVarLev(ens,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1247,7 +1247,7 @@ CONTAINS
       end if
 
       ens1_mpiglobal(:,:,:) = 0.0d0
-      ens_oneLev => ens_getOneLev_r8(ens,kIndex)
+      ens_oneLev => ens_getOneLev_r8(ens,varLevIndex)
 
       do latIndex = adv%myLatBeg, adv%myLatEnd
         do lonIndex = adv%myLonBeg, adv%myLonEnd
@@ -1347,7 +1347,7 @@ CONTAINS
     real(8), pointer     :: field4D(:,:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles(:,:,:)
     real(8), allocatable :: field2D_mpiglobal(:,:)
-    integer :: levIndex, lonIndex, latIndex, kIndex
+    integer :: levIndex, lonIndex, latIndex, varLevIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1366,10 +1366,10 @@ CONTAINS
     allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
 
-    do kIndex = 1, gsv_getNumK(statevector)
+    do varLevIndex = 1, gsv_getNumVarLev(statevector)
 
-      levIndex = gsv_getLevFromK    (statevector,kIndex)
-      varName  = gsv_getVarNameFromK(statevector,kIndex)
+      levIndex = gsv_getLevFromVarLev    (statevector,varLevIndex)
+      varName  = gsv_getVarNameFromVarLev(statevector,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1446,7 +1446,7 @@ CONTAINS
 
       end do ! stepIndexAF
 
-    end do ! kIndex
+    end do ! varLevIndex
 
     deallocate(field2D_mpiglobal_tiles)
     deallocate(field2D_mpiglobal)
@@ -1470,7 +1470,7 @@ CONTAINS
     real(8), allocatable :: field2D_mpiglobal(:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles (:,:,:)
     real(8), allocatable :: field2D_mpiglobal_tiles2(:,:,:)
-    integer :: levIndex, lonIndex, latIndex, kIndex
+    integer :: levIndex, lonIndex, latIndex, varLevIndex
     integer :: lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
     integer :: levTypeIndex, stepIndexAF
@@ -1493,10 +1493,10 @@ CONTAINS
     allocate(field2D_mpiglobal_tiles (adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal_tiles2(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
-    do kIndex = 1, gsv_getNumK(statevector)
+    do varLevIndex = 1, gsv_getNumVarLev(statevector)
             
-      levIndex = gsv_getLevFromK    (statevector,kIndex)
-      varName  = gsv_getVarNameFromK(statevector,kIndex)
+      levIndex = gsv_getLevFromVarLev    (statevector,varLevIndex)
+      varName  = gsv_getVarNameFromVarLev(statevector,varLevIndex)
       if      (vnl_varLevelFromVarname(varName) == 'MM') then
         levTypeIndex = MMindex
       else if (vnl_varLevelFromVarname(varName) == 'TH') then

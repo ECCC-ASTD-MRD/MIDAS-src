@@ -135,7 +135,7 @@ program midas_randomPert
 
   integer :: fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
   integer :: imode, ierr
-  integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
+  integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
   integer :: datePrint, timePrint, randomSeed
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
 
@@ -347,11 +347,11 @@ program midas_randomPert
                     dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false., &
                     hInterpolateDegree_opt='LINEAR')
-  nkgdim = stateVectorPert%nk
-  allocate(ensemble_r4(myLonBega:myLonEnda, myLatBega:myLatEnda, nkgdim, nEns))
+  numVarLev = stateVectorPert%numVarLev
+  allocate(ensemble_r4(myLonBega:myLonEnda, myLatBega:myLatEnda, numVarLev, nEns))
 
   !- 3.2 Allocate auxillary variables
-  allocate(gdmean(myLonBega:myLonEnda, myLatBega:myLatEnda, nkgdim))
+  allocate(gdmean(myLonBega:myLonEnda, myLatBega:myLatEnda, numVarLev))
   allocate(controlVector(cvm_nvadim))
   allocate(controlVector_mpiglobal(cvm_nvadim_mpiglobal))
 
@@ -400,7 +400,7 @@ program midas_randomPert
 
     !- 4.1.3 Copy perturbations to big array and update ensemble sum
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
           ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) &
@@ -420,7 +420,7 @@ program midas_randomPert
   if ( REMOVE_MEAN ) then
 
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
           gdmean(lonIndex, latIndex, levIndex) &
@@ -432,7 +432,7 @@ program midas_randomPert
 
     !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
     do memberIndex = 1, NENS
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
           do lonIndex = myLonBega, myLonEnda
             ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
@@ -449,15 +449,15 @@ program midas_randomPert
   !- 4.3 Smooth variances to horizontally constant values
   if ( smoothVariances ) then
   
-    allocate(pturb_var(myLonBega:myLonEnda, myLatBega:myLatEnda, stateVectorPert%nk))
-    allocate(avg_pturb_var(stateVectorPert%nk), avg_pturb_var_glb(stateVectorPert%nk))
+    allocate(pturb_var(myLonBega:myLonEnda, myLatBega:myLatEnda, stateVectorPert%numVarLev))
+    allocate(avg_pturb_var(stateVectorPert%numVarLev), avg_pturb_var_glb(stateVectorPert%numVarLev))
     pturb_var(:,:,:) = 0.0D0
     avg_pturb_var(:) = 0.0D0
     avg_pturb_var_glb(:) = 0.0D0
   
     do memberIndex = 1, NENS  
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
           do lonIndex = myLonBega, myLonEnda
                pturb_var(lonIndex, latIndex, levIndex) = pturb_var(lonIndex, latIndex, levIndex) &
@@ -469,7 +469,7 @@ program midas_randomPert
     end do
   
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
           pturb_var(lonIndex, latIndex, levIndex) &
@@ -481,7 +481,7 @@ program midas_randomPert
   
     do latIndex = myLatBega, myLatEnda
       do lonIndex = myLonBega, myLonEnda
-        do levIndex = 1, nkgdim
+        do levIndex = 1, numVarLev
           avg_pturb_var(levIndex) = avg_pturb_var(levIndex) + pturb_var(lonIndex, latIndex, levIndex)
         end do
       end do
@@ -490,11 +490,11 @@ program midas_randomPert
     n_grid_point=(lonPerPEa)*(latPerPEa)
     call rpn_comm_allreduce(n_grid_point, n_grid_point_glb, 1,  &
                             "mpi_double_precision", "mpi_sum", "GRID", ierr)
-    call rpn_comm_allreduce(avg_pturb_var, avg_pturb_var_glb, nkgdim,  &
+    call rpn_comm_allreduce(avg_pturb_var, avg_pturb_var_glb, numVarLev,  &
                             "mpi_double_precision", "mpi_sum", "GRID", ierr)
   
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)  
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
           if( pturb_var(lonIndex, latIndex, levIndex) > 0.0d0 ) then
@@ -505,7 +505,7 @@ program midas_randomPert
     end do
     !$OMP END PARALLEL DO
   
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
         avg_pturb_var_glb(levIndex) = sqrt( avg_pturb_var_glb(levIndex) / real(n_grid_point_glb, 8) )
       end if
@@ -513,7 +513,7 @@ program midas_randomPert
 
     !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
     do memberIndex = 1, NENS
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
           do latIndex = myLatBega, myLatEnda
             do lonIndex = myLonBega, myLonEnda
@@ -558,7 +558,7 @@ program midas_randomPert
     ! set perturbations to zero
     !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
     do memberIndex = 1, NENS
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBega, myLatEnda
           do lonIndex = myLonBega, myLonEnda
             if (seaice_ptr(lonIndex, latIndex, 1) >= iceFractionThreshold) then
@@ -602,9 +602,9 @@ program midas_randomPert
     call gsv_getField(stateVectorPert,field)
 
     deallocate(gdmean)
-    allocate(gdmean(myLonBegt:myLonEndt, myLatBegt:myLatEndt, nkgdim))
+    allocate(gdmean(myLonBegt:myLonEndt, myLatBegt:myLatEndt, numVarLev))
     gdmean(:,:,:) = 0.0D0
-    allocate(ensemblePreviousDate_r4(myLonBegt:myLonEndt, myLatBegt:myLatEndt, nkgdim, nEns))
+    allocate(ensemblePreviousDate_r4(myLonBegt:myLonEndt, myLatBegt:myLatEndt, numVarLev, nEns))
 
     do memberIndex = 1, NENS
 
@@ -622,7 +622,7 @@ program midas_randomPert
 
       ! Copy to big array and accumulate sum for computing mean
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
             ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) = &
@@ -638,7 +638,7 @@ program midas_randomPert
 
     ! Finish computing mean and remove it
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBegt, myLatEndt
         do lonIndex = myLonBegt, myLonEndt
           gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) &
@@ -650,7 +650,7 @@ program midas_randomPert
 
     !$OMP PARALLEL DO PRIVATE (memberIndex, levIndex, latIndex, lonIndex)    
     do memberIndex = 1, NENS
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
             ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
@@ -685,7 +685,7 @@ program midas_randomPert
     call gsv_copyMask(stateVectorEnsMean, stateVectorPertInterp)
 
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-    do levIndex = 1, nkgdim
+    do levIndex = 1, numVarLev
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
           field(lonIndex, latIndex, levIndex) = ensemble_r4(lonIndex, latIndex, levIndex, memberIndex)
@@ -702,7 +702,7 @@ program midas_randomPert
     ! Average current and previous perturbations
     if (previousDateFraction > 0.0) then
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
-      do levIndex = 1, nkgdim
+      do levIndex = 1, numVarLev
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
             fieldInterp(lonIndex, latIndex, levIndex) =  &
