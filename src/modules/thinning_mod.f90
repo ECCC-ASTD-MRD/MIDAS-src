@@ -6681,6 +6681,7 @@ contains
     stnIdIntMpi(:,:) = 0
 
     ! loop over all header indices of the specified family and get integer stnId
+    numObsStnId(:) = 0
     countHeader = 0
     call obs_set_current_header_list(obsdat,trim(familyType))
     HEADER: do

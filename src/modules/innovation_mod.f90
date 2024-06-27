@@ -150,9 +150,11 @@ contains
     !
     !- Set (OBS_IPC and OBS_IPT) or OBS_IP columns according to the chosen strategy
     !
-    write(*,*)
-    write(*,*) 'inn_setupObs - Using obsMpiStrategy = ', trim(obsMpiStrategy)
-    call setObsMpiStrategy(obsSpaceData,hco_anl,obsMpiStrategy)
+    if (associated(hco_anl)) then
+      write(*,*)
+      write(*,*) 'inn_setupObs - Using obsMpiStrategy = ', trim(obsMpiStrategy)
+      call setObsMpiStrategy(obsSpaceData,hco_anl,obsMpiStrategy)
+    end if
 
     !
     !- Check if burp files already split
@@ -160,7 +162,7 @@ contains
     if ( obsf_filesSplit() ) then 
       ! local observations files, so just do reallocation to reduce memory used
       call obs_squeeze(obsSpaceData)
-      if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+      if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) .and. trim(innovationMode) /= 'thinning' ) then
         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
       end if
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
