@@ -2672,13 +2672,13 @@ CONTAINS
               gd_send_r4(:,:,:,:) = 0.0
               call gsv_getField(statevector_member_r4,ptr3d_r4)
               !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-              do youridy = 0, (mmpi_npey-1)
-                do youridx = 0, (mmpi_npex-1)
-                  yourid = youridx + youridy*mmpi_npex
-                  gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                             1:ens%statevector_work%allLatPerPE(youridy+1), :, yourid+1) =  &
-                       ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                                ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+              do youridy = 1, mmpi_npey
+                do youridx = 1, mmpi_npex
+                  yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+                  gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                             1:ens%statevector_work%allLatPerPE(youridy), :, yourid) =  &
+                       ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
+                                ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
                                 varLevIndexBeg:varLevIndexEnd)
                 end do
               end do
@@ -2995,14 +2995,14 @@ CONTAINS
 
             call gsv_getField(statevector_member_r4,ptr3d_r4)
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mmpi_npey-1)
-              do youridx = 0, (mmpi_npex-1)
-                yourid = youridx + youridy*mmpi_npex
-                ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+            do youridy = 1, mmpi_npey
+              do youridx = 1, mmpi_npex
+                yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+                ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
+                         ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
                          varLevIndexBeg:varLevIndexEnd) = &
-                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                                1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
+                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
 
               end do
             end do
