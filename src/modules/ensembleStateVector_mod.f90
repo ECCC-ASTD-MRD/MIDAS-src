@@ -2862,7 +2862,7 @@ CONTAINS
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,min(ens%numMembers, mmpi_nprocs)))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
