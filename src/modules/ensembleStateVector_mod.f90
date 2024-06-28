@@ -2672,13 +2672,13 @@ CONTAINS
               gd_send_r4(:,:,:,:) = 0.0
               call gsv_getField(statevector_member_r4,ptr3d_r4)
               !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-              do youridy = 0, (mmpi_npey-1)
-                do youridx = 0, (mmpi_npex-1)
-                  yourid = youridx + youridy*mmpi_npex
-                  gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                             1:ens%statevector_work%allLatPerPE(youridy+1), :, yourid+1) =  &
-                       ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                                ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+              do youridy = 1, mmpi_npey
+                do youridx = 1, mmpi_npex
+                  yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+                  gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                             1:ens%statevector_work%allLatPerPE(youridy), :, yourid) =  &
+                       ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
+                                ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
                                 varLevIndexBeg:varLevIndexEnd)
                 end do
               end do
@@ -2790,14 +2790,15 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
-    integer :: yourid, youridx, youridy
-    integer :: writeFilePE(1000)
+    integer :: yourid, youridx, youridy, procIndex
+    integer :: writeFilePE(ens%numMembers)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
     integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, kCount
+    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName, outFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2861,7 +2862,7 @@ CONTAINS
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,min(ens%numMembers, mmpi_nprocs)))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
@@ -2871,6 +2872,13 @@ CONTAINS
 
     do memberIndex = 1, ens%numMembers
       writeFilePE(memberIndex) = mod(memberIndex-1,mmpi_nprocs)
+    end do
+
+    ! Specify the start of each memory block to read/write for each MPI rank
+    nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+    displacements(1) = 0
+    do procIndex = 2, mmpi_nprocs
+      displacements(procIndex) = displacements(procIndex-1) + nsize
     end do
 
     hco_ens => gsv_getHco(ens%statevector_work)
@@ -2935,54 +2943,74 @@ CONTAINS
             numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
 
             if ( ens%dataKind == 8 ) then
-              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
-              do kCount = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
+              do varLevCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       real(ens%allLev_r8(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                       real(ens%allLev_r8(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
                 end do
               end do
               !$OMP END PARALLEL DO
             else
-              !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
-              do kCount = 1, numLevelsToSend2
+              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
+              do varLevCount = 1, numLevelsToSend2
                 do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
-                       ens%allLev_r4(kCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                       ens%allLev_r4(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
                 end do
               end do
               !$OMP END PARALLEL DO
             end if
 
-            nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mmpi_nprocs > 1) then
-              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
-                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
+
+              ! only send the exact data amount for each task
+              do procIndex = 1, mmpi_nprocs
+                if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                  sendsizes(procIndex) = nsize
+                else
+                  sendsizes(procIndex) = 0
+                end if
+              end do
+
+              ! only receive data on rank that receive data
+              if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                recvsizes(:) = nsize
+              else
+                recvsizes(:) = 0
+              end if
+
+              call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+                                 mmpi_comm_grid, ierr)
+              call utl_tmg_stop(191)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
 
             call gsv_getField(statevector_member_r4,ptr3d_r4)
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mmpi_npey-1)
-              do youridx = 0, (mmpi_npex-1)
-                yourid = youridx + youridy*mmpi_npex
-                ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),  &
+            do youridy = 1, mmpi_npey
+              do youridx = 1, mmpi_npex
+                yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+                ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
+                         ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
                          varLevIndexBeg:varLevIndexEnd) = &
-                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                                1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
+                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
 
               end do
             end do
             !$OMP END PARALLEL DO
 
           end do ! varLevIndexBeg
-          
+
         end if ! MPI communication
-        
+
         ! Write statevector to file
         if (mmpi_myid == writeFilePE(memberIndex)) then
 
