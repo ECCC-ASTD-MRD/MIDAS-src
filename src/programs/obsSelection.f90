@@ -224,16 +224,19 @@ program midas_obsSelection
   type(struct_hco),      pointer :: hco_core => null()
   type(struct_ocm)               :: oceanMask
 
-  logical :: allocHeightSfc
+  logical :: allocHeightSfc, fileExists
   integer :: get_max_rss
   real(8) :: minGridSpacing
   logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
   character(len=12) :: trialFileName
+  character(len=10) :: midasMode
     
   ! Namelist variables
-  logical                        :: doThinning  ! Control whether or not thinning is done
+  logical :: doBgck      !
+  logical :: doBiasCorr  !
+  logical :: doThinning  ! Control whether or not thinning is done
 
-  namelist /namObsSelection/ doThinning
+  namelist /namObsSelection/ doBgck, doBiasCorr, doThinning
 
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
@@ -250,6 +253,8 @@ program midas_obsSelection
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
   ! set default values for namelist variables
+  doBgck     = .true.
+  doBiasCorr = .true.
   doThinning = .false.
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     call utl_tmg_start(181,'low-level--readNML')
@@ -264,6 +269,16 @@ program midas_obsSelection
     if (mmpi_myid == 0) write(*, nml = namObsSelection)
   end if
 
+  ! Set the midasMode based on namelist variables
+  if (doBgck .or. doBiasCorr) then
+    midasMode = 'bgck'
+  else if (doThinning) then
+    ! when only doThinning is true, we can do much less setup
+    midasMode = 'thinning'
+  else
+    call utl_abort('midas-obsSelection: one of doBgck, doBiasCorr, doThinning must be .true.')
+  end if
+
   !
   !- Initialize the ram disk
   !
@@ -275,7 +290,7 @@ program midas_obsSelection
   !     
   !- Initialize observation file names, but don't use datestamp
   !
-  call obsf_setup(dateStampFromObs, 'bgck')
+  call obsf_setup(dateStampFromObs, midasMode)
   
   !
   !- Check if trial fields are stored in separate files for each time step or not.
@@ -284,14 +299,31 @@ program midas_obsSelection
   if (allTrialTimeStepsInOneFile) then
     trialFileName = './trlm'
   else
-    trialFileName = './trlm_01'
+    inquire(file = './trlm_01', exist = fileExists)
+    if (fileExists) then
+      trialFileName = './trlm_01'
+    else
+      trialFileName = 'none'
+    end if
   end if 
    
   !
   !- Initialize the Temporal grid and dateStamp from trial file
   !
 
-  call tim_setup(fileNameForDate_opt = trim(trialFileName))
+  if (trim(trialFileName) == 'none') then
+    call tim_setup()
+    if (tim_getDateStamp() == 0) then
+      if (dateStampFromObs > 0) then
+        ! use dateStamp from obs if not set by env variable
+        call tim_setDateStamp(dateStampFromObs)
+      else
+        call utl_abort('midas-obsSelection: DateStamp was not set')
+      end if
+    end if
+  else
+    call tim_setup(fileNameForDate_opt = trim(trialFileName))
+  end if
 
   !
   !- Initialize constants
@@ -304,195 +336,209 @@ program midas_obsSelection
   !
   !- Initialize the Analysis grid
   !
-  if(mmpi_myid == 0) write(*,*)
-  if(mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for analysis grid')
-  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis') ! IN
+  SETUPGRIDS: if (doBiasCorr .or. doBgck) then
+    if(mmpi_myid == 0) write(*,*)
+    if(mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for analysis grid')
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis') ! IN
   
-  if (hco_anl % global) then
-    hco_core => hco_anl
-  else
-    !- Initialize the core (Non-Extended) analysis grid
-    if (mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for core grid')
-    call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
-  end if
+    if (hco_anl % global) then
+      hco_core => hco_anl
+    else
+      !- Initialize the core (Non-Extended) analysis grid
+      if (mmpi_myid == 0) call msg('midas-obsSelection', 'Set hco parameters for core grid')
+      call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore') ! IN
+    end if
 
-  !     
-  !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-  !
-  call vco_SetupFromFile(vco_anl, './analysisgrid')
+    !     
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
+    !
+    call vco_SetupFromFile(vco_anl, './analysisgrid')
 
-  !
-  !- Compute correct value of minGridSpacing for ORCA025 analysis grid
-  !
-  if (gpos_gridIsOrca(hco_anl%ni, hco_anl%nj, real(hco_anl%lat2d_4,8), real(hco_anl%lon2d_4,8))) then
-    if (mmpi_myid == 0) then
-      write(*,*)
-      call msg('midas_obsSelection', 'Warning: analysis grid is the ORCA025 grid.')
-      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed using ocean mask.')
-      write(*,*)
-    end if    
+    !
+    !- Compute correct value of minGridSpacing for ORCA025 analysis grid
+    !
+    if (gpos_gridIsOrca(hco_anl%ni, hco_anl%nj, real(hco_anl%lat2d_4,8), real(hco_anl%lon2d_4,8))) then
+      if (mmpi_myid == 0) then
+        write(*,*)
+        call msg('midas_obsSelection', 'Warning: analysis grid is the ORCA025 grid.')
+        call msg('midas_obsSelection', 'minGridSpacing has to be recomputed using ocean mask.')
+        write(*,*)
+      end if
     
-    call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid')
-    call ocm_computeMinGridSpacing(oceanMask, hco_anl, minGridSpacing)
-    call ocm_deallocate(oceanMask)
-    hco_anl%minGridSpacing = minGridSpacing      
-    call msg('midas_obsSelection', 'Updated hco_anl%minGridSpacing: '//&
-                                   str(hco_anl%minGridSpacing)//' m')
-  end if
+      call ocm_readMaskFromFile(oceanMask, hco_anl, vco_anl, './analysisgrid')
+      call ocm_computeMinGridSpacing(oceanMask, hco_anl, minGridSpacing)
+      call ocm_deallocate(oceanMask)
+      hco_anl%minGridSpacing = minGridSpacing      
+      call msg('midas_obsSelection', 'Updated hco_anl%minGridSpacing: '//&
+                                     str(hco_anl%minGridSpacing)//' m')
+    end if
 
-  call col_setVco(columnTrlOnAnlIncLev, vco_anl)
-  write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+    call col_setVco(columnTrlOnAnlIncLev, vco_anl)
+    write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+  end if SETUPGRIDS
 
   !
   !- Setup and read observations
   !
-  call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', 'bgck')
+  call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', midasMode)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! if ssmis, compute the surface type ele and update obspacedata
+  if (doBiasCorr .or. doBgck) then
+    call ssbg_computeSsmisSurfaceType(obsSpaceData)
 
-  call ssbg_computeSsmisSurfaceType(obsSpaceData)
+    ! Only for MWHS2 data and if modLSQ option is set to .true. in nambgck namelist, set values for land qualifier
+    ! indice and terrain type based on calculations
+    if (obs_famExist(obsSpaceData, 'TO')) then
+      call mwbg_computeMwhs2SurfaceType(obsSpaceData)
+    end if
 
-  ! Only for MWHS2 data and if modLSQ option is set to .true. in nambgck namelist, set values for land qualifier
-  ! indice and terrain type based on calculations
-  if (obs_famExist(obsSpaceData, 'TO')) then
-    call mwbg_computeMwhs2SurfaceType(obsSpaceData)
+    !
+    !- Basic setup of columnData module
+    !
+    call col_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Memory allocation for background column data
+    !
+    call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
+
+    !
+    !- Initialize the observation error covariances
+    !
+    call oer_setObsErrors(obsSpaceData, 'bgck')
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    ! Initialize list of analyzed variables.
+    !
+    call gsv_setup
+
   end if
-
-  !
-  !- Basic setup of columnData module
-  !
-  call col_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Memory allocation for background column data
-  !
-  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
-
-  !
-  !- Initialize the observation error covariances
-  !
-  call oer_setObsErrors(obsSpaceData, 'bgck')
-
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  ! Initialize list of analyzed variables.
-  !
-  call gsv_setup
 
   ! Apply optional bias corrections
-  if (obs_famExist(obsSpaceData, 'TM')) then
-    call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, &
-                                              vco_anl, columnTrlOnAnlIncLev)
-  end if  
+  if (doBiasCorr) then
+    if (obs_famExist(obsSpaceData, 'TM')) then
+      call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, &
+                                                vco_anl, columnTrlOnAnlIncLev)
+    end if
 
-  if (obs_famExist(obsSpaceData, 'AI')) call bcc_applyAIBcor(obsSpaceData)    
-  if (obs_famExist(obsSpaceData, 'GP')) call bcc_applyGPBcor(obsSpaceData)
-  if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
-    
-  ! Reading trials
-  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
+    if (obs_famExist(obsSpaceData, 'AI')) call bcc_applyAIBcor(obsSpaceData)    
+    if (obs_famExist(obsSpaceData, 'GP')) call bcc_applyGPBcor(obsSpaceData)
+    if (obs_famExist(obsSpaceData, 'UA')) call bcc_applyUABcor(obsSpaceData)
+  end if
 
-  ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
-  if (gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, &
-                      real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
+  if (doBiasCorr .or. doBgck) then
+
+    ! Reading trials
+    call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
+
+    ! assess the value of horizontal grid min GridSpacing for the ORCA025 grid ocean applications
+    if (gpos_gridIsOrca(hco_trl%ni, hco_trl%nj, &
+                        real(hco_trl%lat2d_4,8), real(hco_trl%lon2d_4,8))) then
       
-    if (mmpi_myid == 0) then
-      write(*,*)
-      call msg('midas_obsSelection', 'Warning: trial grid is the ORCA025 grid.')
-      call msg('midas_obsSelection', 'hco_trl%minGridSpacing = '//str(hco_trl%minGridSpacing))
-      call msg('midas_obsSelection', &
-               'hco_trl%minGridSpacing will be replaced by the value computed using ocean mask.')
-      write(*,*)
-    end if  
+      if (mmpi_myid == 0) then
+        write(*,*)
+        call msg('midas_obsSelection', 'Warning: trial grid is the ORCA025 grid.')
+        call msg('midas_obsSelection', 'hco_trl%minGridSpacing = '//str(hco_trl%minGridSpacing))
+        call msg('midas_obsSelection', &
+                 'hco_trl%minGridSpacing will be replaced by the value computed using ocean mask.')
+        write(*,*)
+      end if
     
-    if (.not. hco_equal(hco_anl, hco_trl)) then
-      call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
-      call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
-      call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName))
-      call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
-      call ocm_deallocate(oceanMask)    
-      hco_trl%minGridSpacing = minGridSpacing
-    else
-      call msg('midas_obsSelection', 'Horizontal analysis and trial grids are equal.')
-      hco_trl%minGridSpacing = hco_anl%minGridSpacing
-    end if      
-    call msg('midas_obsSelection', 'Updated hco_trl%minGridSpacing: '//&
-                                   str(hco_trl%minGridSpacing)//' m')
-  end if
+      if (.not. hco_equal(hco_anl, hco_trl)) then
+        call msg('midas_obsSelection', 'Horizontal analysis and trial grids are not equal.')
+        call msg('midas_obsSelection', 'minGridSpacing has to be recomputed for the trial grid.')  
+        call ocm_readMaskFromFile(oceanMask, hco_trl, vco_trl, trim(trialFileName))
+        call ocm_computeMinGridSpacing(oceanMask, hco_trl, minGridSpacing)
+        call ocm_deallocate(oceanMask)    
+        hco_trl%minGridSpacing = minGridSpacing
+      else
+        call msg('midas_obsSelection', 'Horizontal analysis and trial grids are equal.')
+        hco_trl%minGridSpacing = hco_anl%minGridSpacing
+      end if
+      call msg('midas_obsSelection', 'Updated hco_trl%minGridSpacing: '//&
+                                     str(hco_trl%minGridSpacing)//' m')
+    end if
   
-  allocHeightSfc = (vco_trl%Vcode /= 0)
+    allocHeightSfc = (vco_trl%Vcode /= 0)
 
-  call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                    dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
-                    mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
-                    allocHeightSfc_opt = allocHeightSfc, &
-                    hInterpolateDegree_opt = 'LINEAR', beSilent_opt=.false.)
-  call gsv_zero(stateVectorTrialHighRes)
-  call gio_readTrials(stateVectorTrialHighRes)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                      dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                      mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
+                      allocHeightSfc_opt = allocHeightSfc, &
+                      hInterpolateDegree_opt = 'LINEAR', beSilent_opt=.false.)
+    call gsv_zero(stateVectorTrialHighRes)
+    call gio_readTrials(stateVectorTrialHighRes)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Horizontally interpolate trials to trial columns
-  call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                stateVectorTrialHighRes)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    ! Horizontally interpolate trials to trial columns
+    call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                  stateVectorTrialHighRes)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Interpolate trial columns to analysis levels and setup for linearized H
-  call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
-  ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false.)
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false.)
 
-  ! 2.2 Perform the background check
-  !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
+    ! 2.2 Perform the background check
+    !     The routine also calls compute_HBHT and writes to listings & obsSpaceData
 
-  ! Do the conventional data background check
-  call bgck_bgCheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
+    ! Do the conventional data background check
+    call bgck_bgCheck_conv(columnTrlOnAnlIncLev, columnTrlOnTrlLev, hco_anl, obsSpaceData)
 
-  if (obs_famExist(obsSpaceData, 'TO')) then
+    if (obs_famExist(obsSpaceData, 'TO')) then
 
-    ! Satellite radiance bias correction
-    call bcs_calcBias(obsSpaceData, columnTrlOnTrlLev)        ! Fill in OBS_BCOR obsSpaceData column 
-                                                              ! with computed bias correction
-    call bcs_applyBiasCorrection(obsSpaceData, obs_var, 'TO') ! Apply bias correction to OBS
-    call bcs_applyBiasCorrection(obsSpaceData, obs_omp, 'TO') ! Apply bias correction to O-F
+      ! Satellite radiance bias correction
+      call bcs_calcBias(obsSpaceData, columnTrlOnTrlLev)        ! Fill in OBS_BCOR obsSpaceData column 
+                                                                ! with computed bias correction
+      call bcs_applyBiasCorrection(obsSpaceData, obs_var, 'TO') ! Apply bias correction to OBS
+      call bcs_applyBiasCorrection(obsSpaceData, obs_omp, 'TO') ! Apply bias correction to O-F
 
-    ! Do the TO background check
-    call irbg_bgCheckIR(columnTrlOnTrlLev, obsSpaceData)
-    call mwbg_bgCheckMW(obsSpaceData)
-    call csrbg_bgCheckCSR(obsSpaceData)
-    call ssbg_bgCheckSsmis(obsSpaceData)
+      ! Do the TO background check
+      call irbg_bgCheckIR(columnTrlOnTrlLev, obsSpaceData)
+      call mwbg_bgCheckMW(obsSpaceData)
+      call csrbg_bgCheckCSR(obsSpaceData)
+      call ssbg_bgCheckSsmis(obsSpaceData)
+
+    end if
+
+    ! Do the ocean data background check
+    if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
+                                                                columnTrlOnTrlLev, hco_trl)
+
+    ! Do the sea ice data gross background check
+    if (obs_famExist(obsSpaceData, 'GL')) call ocebg_bgCheckSeaIce(obsSpaceData)
 
   end if
-
-  ! Do the ocean data background check
-  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
-                                                              columnTrlOnTrlLev, hco_trl)
-
-  ! Do the sea ice data gross background check
-  if (obs_famExist(obsSpaceData, 'GL')) call ocebg_bgCheckSeaIce(obsSpaceData)
 
   if (doThinning) then
 
-    ! Copy original obs files into another directory
-    call obsf_copyObsDirectory('./obsOriginal', direction = 'TO')
+    if (doBiasCorr .or. doBgck) then
 
-    ! 2.3 Write obs files after background check, but before thinning
-    call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt = .false.)
+      ! Copy original obs files into another directory
+      call obsf_copyObsDirectory('./obsOriginal', direction = 'TO')
+
+      ! 2.3 Write obs files after background check, but before thinning
+      call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt = .false.)
     
-    ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
-    if (obs_famExist(obsSpaceData, 'TO')) then
-      call obsf_updateMissingObsFlags(obsSpaceData)
-      call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+      ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,ATMS,AMSUA,...)
+      if (obs_famExist(obsSpaceData, 'TO')) then
+        call obsf_updateMissingObsFlags(obsSpaceData)
+        call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+      end if
+
+      ! Copy the pre-thinning files into another directory
+      call obsf_copyObsDirectory('./obsBeforeThinning', direction = 'TO')
+
+      ! Copy original obs files back into usual directory
+      call obsf_copyObsDirectory('./obsOriginal', direction = 'FROM')
+
     end if
-
-    ! Copy the pre-thinning files into another directory
-    call obsf_copyObsDirectory('./obsBeforeThinning', direction = 'TO')
-
-    ! Copy original obs files back into usual directory
-    call obsf_copyObsDirectory('./obsOriginal', direction = 'FROM')
 
     ! 2.4 Thinning:  Set bit 11 of flag, one observation type at a time
     call thn_thinHyper(obsSpaceData)
@@ -510,8 +556,11 @@ program midas_obsSelection
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)
-    ! if requested, dump the thinned predictors and coefficients to sqlite
-    call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+
+    if (doBiasCorr) then
+      ! if requested, dump the thinned predictors and coefficients to sqlite
+      call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+    end if
 
   end if
 
@@ -519,22 +568,26 @@ program midas_obsSelection
   ! 3 Write the final results
 
   ! 3.1 Into the listings
-  write(*,*)
-  write(*,*) '> midas-obsSelection: printing the FIRST header and body'
-  do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
-    call obs_prnthdr(obsSpaceData, headerIndex)
-    call obs_prntbdy(obsSpaceData, headerIndex)
-  end do
+  if (doBiasCorr .or. doBgck) then
+    write(*,*)
+    write(*,*) '> midas-obsSelection: printing the FIRST header and body'
+    do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
+      call obs_prnthdr(obsSpaceData, headerIndex)
+      call obs_prntbdy(obsSpaceData, headerIndex)
+    end do
+  end if
 
   ! 3.2 Into the observation files
   write(*,*)
   write(*,*) '> midas-obsSelection: writing to file'
   call obsf_writeFiles(obsSpaceData)
   
-  ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
-  if (obs_famExist(obsSpaceData, 'TO')) then
-    call obsf_updateMissingObsFlags(obsSpaceData)
-    call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+  if (doBiasCorr .or. doBgck) then
+    ! Add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
+    if (obs_famExist(obsSpaceData, 'TO')) then
+      call obsf_updateMissingObsFlags(obsSpaceData)
+      call obsf_addCloudParametersAndEmissivity(obsSpaceData)
+    end if
   end if
 
   ! cleaning the observation files
