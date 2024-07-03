@@ -472,7 +472,6 @@ contains
     integer, allocatable :: headerIndexList(:), levelList(:,:)
     integer, allocatable :: headerIndexListMpi(:,:), levelListMpi(:,:,:)
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
-    integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
     real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), all_dfs(:)
     integer, allocatable :: order(:)
@@ -508,13 +507,11 @@ contains
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
     allocate(headerIndexList(numHeaderMaxMpi))
-    allocate(mpiTaskList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
     allocate(bodyIndexList(numHeaderMaxMpi,nLevelsDfs))
     allocate(stdDevList(numHeaderMaxMpi,nLevelsDfs))
 
     headerIndexList(:) = MPC_missingValue_INT
-    mpiTaskList(:) = MPC_missingValue_INT
     levelList(:,:) = MPC_missingValue_INT
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
@@ -545,7 +542,6 @@ contains
         write(*,*) 'found one observation with all requested ', nlevelsDfs, 'levels/channels available ', headerIndex
         countObs = countObs + 1
         headerIndexList(countObs) = headerIndex
-        mpiTaskList(countObs) = mmpi_myid
         levelList(countObs,:) = vCoordList(1:nLevelsDfs)
         countChannel = 0
         BODY2:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
@@ -565,21 +561,16 @@ contains
 
     call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
-    allocate(mpiTaskListMpi(maxCountObsMpi, mmpi_nprocs))
     allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
     allocate(levelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
     allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
     allocate(stdDevListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
     
-    mpiTaskListMpi(:,:) = MPC_missingValue_INT
     headerIndexListMpi(:,:) = MPC_missingValue_INT
     levelListMpi(:,:,:) = MPC_missingValue_INT
     bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
     stdDevListMpi(:,:,:) = MPC_missingValue_R8
     
-    call rpn_comm_allgather(mpiTaskList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
-                            mpiTaskListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
-
     call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
                             headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
 
@@ -599,7 +590,6 @@ contains
     
     deallocate(bodyIndexList)
     deallocate(levelList)
-    deallocate(mpiTaskList)
     deallocate(headerIndexList)
     deallocate(stdDevList)
     
@@ -623,8 +613,8 @@ contains
     mpiTaskLoop:do procIndex = 1, mmpi_nprocs
       observationLoop:do obsIndex = 1, maxCountObsMpi
         headerIndex = headerIndexListMpi(obsIndex,procIndex)
-        taskIndex = mpiTaskListMpi(obsIndex,procIndex)
-        if (headerIndex == MPC_missingValue_INT .or. taskIndex == MPC_missingValue_INT) cycle
+        if (headerIndex == MPC_missingValue_INT) cycle
+        taskIndex = procIndex - 1
         channelLoop:do channelIndex1 = 1, maxCountChannelMpi
           bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
           channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
@@ -778,7 +768,6 @@ contains
     deallocate(bodyIndexListMpi)
     deallocate(levelListMpi)
     deallocate(headerIndexListMpi)
-    deallocate(mpiTaskListMpi)
     deallocate(stdDevListMpi)
     
     if (allocated(Rsub)) deallocate(Rsub)
