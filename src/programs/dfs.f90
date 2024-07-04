@@ -618,48 +618,47 @@ contains
         channelLoop:do channelIndex1 = 1, maxCountChannelMpi
           bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
           channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
-          if (bodyIndex1 /= MPC_missingValue_INT) then
-            ! We need to initialize the full OBS_WORK column to zero 
-            do bodyIndex2 = 1, obs_numBody(obsSpaceData)
-              call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
-            end do
-            if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-            call msg_memUsage('midas-dfs')
-            call col_zero(columnAnlInc)
-            call oop_Had(columnAnlInc, & !output
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !input
-                initializeLinearization_opt=first)
-            first = .false.
-            call gsv_zero(stateVector)
-            call s2c_ad(stateVector,  & ! output
-                columnAnlInc,         & ! input
-                columnTrlOnAnlIncLev, &
-                obsSpaceData)
-            perturbationVector(:) = 0.d0
-            call bmat_sqrtBT(perturbationVector, & !output
-                localDimension,                  &  
-                stateVector)                       !input
-            call gsv_zero(stateVector)
-            call bmat_sqrtB(perturbationVector, & !input
-                localDimension,                 &
-                stateVector)                      !output
-            call s2c_tl(stateVector,  & !input
-                columnAnlInc,         & !output
-                columnTrlOnAnlIncLev, & 
-                obsSpaceData)
-            call oop_Htl(columnAnlInc, & !input
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !output
-                min_nsim = 1, initializeLinearization_opt = .false.)
+          
+          ! We need to initialize the full OBS_WORK column to zero 
+          do bodyIndex2 = 1, obs_numBody(obsSpaceData)
+            call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
+          end do
+          if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
+          call msg_memUsage('midas-dfs')
+          call col_zero(columnAnlInc)
+          call oop_Had(columnAnlInc, & !output
+              columnTrlOnAnlIncLev,  &
+              obsSpaceData,          & !input
+              initializeLinearization_opt=first)
+          first = .false.
+          call gsv_zero(stateVector)
+          call s2c_ad(stateVector,  & ! output
+              columnAnlInc,         & ! input
+              columnTrlOnAnlIncLev, &
+              obsSpaceData)
+          perturbationVector(:) = 0.d0
+          call bmat_sqrtBT(perturbationVector, & !output
+              localDimension,                  &  
+              stateVector)                       !input
+          call gsv_zero(stateVector)
+          call bmat_sqrtB(perturbationVector, & !input
+              localDimension,                 &
+              stateVector)                      !output
+          call s2c_tl(stateVector,  & !input
+              columnAnlInc,         & !output
+              columnTrlOnAnlIncLev, & 
+              obsSpaceData)
+          call oop_Htl(columnAnlInc, & !input
+              columnTrlOnAnlIncLev,  &
+              obsSpaceData,          & !output
+              min_nsim = 1, initializeLinearization_opt = .false.)
               
-            do channelIndex2 = 1, maxCountChannelMpi
-              bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
-              if (mmpi_myId == taskIndex .and. bodyIndex2 /= MPC_missingValue_INT) then
-                HBHtMatrix(channelIndex1,channelIndex2) = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
-              end if
-            end do
-          end if
+          do channelIndex2 = 1, maxCountChannelMpi
+            bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
+            if (mmpi_myId == taskIndex .and. bodyIndex2 /= MPC_missingValue_INT) then
+              HBHtMatrix(channelIndex1,channelIndex2) = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
+            end if
+          end do
           write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
           call utl_printTime()
         end do channelLoop
