@@ -38,7 +38,7 @@ module bgckMicrowave_mod
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical :: mwbg_siObsRejectTempChan          ! scattering index from obs can reject temperature channels
   logical :: mwbg_siObsEcmwfRejectTempChan     ! scattering index from obs (ecmwf formula) can reject temperature channels
-  logical :: mwbg_ch17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical :: mwbg_atmsCh17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
@@ -105,7 +105,7 @@ module bgckMicrowave_mod
   logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical            :: siObsRejectTempChan           ! scattering index from obs can reject temperature channels
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
-  logical            :: ch17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical            :: atmsCh17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
   logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
@@ -117,7 +117,7 @@ module bgckMicrowave_mod
                     minSiOverWaterThreshold, maxSiOverWaterThreshold, &
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
-                    ch17OmpRejectUpperHuChan, atmsRogueFactor, &
+                    atmsCh17OmpRejectUpperHuChan, atmsRogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
                     useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
@@ -147,7 +147,7 @@ contains
     modLSQ                              = .false.
     siObsRejectTempChan                 = .true.
     siObsEcmwfRejectTempChan            = .true.
-    ch17OmpRejectUpperHuChan            = .true.
+    atmsCh17OmpRejectUpperHuChan            = .true.
     useAtmsCh17OmpThreshRogueCheck      = .false.
     useScatIndexOverWaterObsClearsky    = .false.
     allowClwRejectHuChanAllskyHu        = .false.
@@ -178,7 +178,7 @@ contains
     mwbg_siObsEcmwfRejectTempChan = siObsEcmwfRejectTempChan
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
-    mwbg_ch17OmpRejectUpperHuChan = ch17OmpRejectUpperHuChan
+    mwbg_atmsCh17OmpRejectUpperHuChan = atmsCh17OmpRejectUpperHuChan
     mwbg_allowClwRejectHuChanAllskyHu = allowClwRejectHuChanAllskyHu
     mwbg_useMeanTb183OnlyOverLandInAllskyHu = useMeanTb183OnlyOverLandInAllskyHu
 
@@ -3594,7 +3594,7 @@ contains
       allocate(mwbg_bit7(actualNumChannel))
     
       !   These AMSU-B channels are rejected if ch. 17 O-P fails rogue check over OPEN WATER only
-      if (mwbg_ch17OmpRejectUpperHuChan) then
+      if (mwbg_atmsCh17OmpRejectUpperHuChan) then
         allocate(mwbg_chanRejectForChan2Omp(6))
         mwbg_chanRejectForChan2Omp(:) = (/17, 18, 19, 20, 21, 22/)
       else
