@@ -3898,8 +3898,8 @@ contains
       mwbg_altitudeThreshForTopoFilter(:) = (/2500.0d0, 2250.0d0, 2000.0d0/)
 
       ! Channels excluded from gen_bias_corr in all-sky mode
-      allocate(mwbg_chanIgnoreInAllskyTtGenCoeff(6))
-      mwbg_chanIgnoreInAllskyTtGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
+      allocate(mwbg_chanIgnoreInAllskyHuGenCoeff(6))
+      mwbg_chanIgnoreInAllskyHuGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
 
       numReportWithMissingTb = 0
       allcnt = 0
@@ -6379,7 +6379,7 @@ contains
     scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyTtGenCoeff(:)
+    ! In all-sky mode, turn on bit=23 for channels in mwbg_chanIgnoreInAllskyHuGenCoeff(:)
     ! as cloud-affected radiances over sea when there is mismatch between 
     ! cloudLiquidWaterPathObs and cloudLiquidWaterPathFG (to be used in gen_bias_corr)
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -6392,7 +6392,7 @@ contains
 
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
-      INDXCAN = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
+      INDXCAN = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
       if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
           waterobs .and. INDXCAN /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
