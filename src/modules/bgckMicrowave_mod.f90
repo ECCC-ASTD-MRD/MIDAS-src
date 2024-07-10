@@ -3973,7 +3973,8 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritMwhs2(scatIndexOverWaterObsEcmwf, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
+    call mwbg_flagDataUsingNrlCritMwhs2(scatIndexOverWaterObsEcmwf, &
+                                        SeaIce, grossrej, waterobs, &
                                         iwvreject, cloudobs, precipobs, cldcnt , riwv, zdi, &
                                         headerIndex, sensorIndex, obsSpaceData)
 
@@ -5817,7 +5818,8 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritMwhs2(scatIndexOverWaterObsEcmwf, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(scatIndexOverWaterObsEcmwf, &
+                                            SeaIce, grossrej, waterobs, &
                                             iwvreject, cloudobs, precipobs,  cldcnt, riwv, zdi, &
                                             headerIndex, sensorIndex, obsSpaceData)
     !
@@ -5838,7 +5840,6 @@ contains
     ! Arguments:
     real(8),          intent(in)    :: scatIndexOverWaterObsEcmwf ! ECMWF scattering index from tb89 & tb165
     real(8),          intent(in)    :: SeaIce               ! computed sea-ice fraction from tb23 & tb50
-    logical,          intent(in)    :: useUnbiasedObsForClw ! use unbiased Tb for CLW calculation
     logical,          intent(in)    :: grossrej             ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(in)    :: waterobs             ! if obs over open-water
     integer,          intent(inout) :: cldcnt               ! Number of water point covered by cloud
@@ -5898,14 +5899,14 @@ contains
     riwv = mwbg_realMissing
     if (.not. grossrej) then
       do indx = 1, 5
-        if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. useUnbiasedObsForClw) then
+        if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
           ztb183(indx) = obsTb(indx+10)
         else
           ztb183(indx) = obsTb(indx+10) - obsTbBiasCorr(indx+10)
         end if
       end do
       riwv  = sum(ztb183) / 5.0d0
-      if ( riwv < mean_Tb_183Ghz_min ) iwvreject = .true.
+      if (riwv < mean_Tb_183Ghz_min) iwvreject = .true.
     else
       iwvreject = .true.
     end if
@@ -5914,17 +5915,17 @@ contains
     !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
     !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
 
-    if ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
-    if ( scatIndexOverWaterObsEcmwf > scatec_mwhs2_nrl_LTrej ) precipobs = .true.
+    if (grossrej) newInformationFlag = IBSET(newInformationFlag,11)
+    if (scatIndexOverWaterObsEcmwf > scatec_mwhs2_nrl_LTrej) precipobs = .true.
     if (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) n_cld = 1
     cldcnt  = cldcnt  + n_cld
-    if ( (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) .or. precipobs ) cloudobs = .true.
-    if ( waterobs )  newInformationFlag = IBSET(newInformationFlag,0)
-    if ( iwvreject ) newInformationFlag = IBSET(newInformationFlag,5)
-    if ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
-    if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
-    if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
-    if ( SeaIce >= 0.55d0 ) newInformationFlag = IBSET(newInformationFlag,10)
+    if ((cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) .or. precipobs) cloudobs = .true.
+    if (waterobs)  newInformationFlag = IBSET(newInformationFlag,0)
+    if (iwvreject) newInformationFlag = IBSET(newInformationFlag,5)
+    if (precipobs) newInformationFlag = IBSET(newInformationFlag,4)
+    if (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
+    if (cloudLiquidWaterPathObs > clw_mwhs2_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
+    if (SeaIce >= 0.55d0) newInformationFlag = IBSET(newInformationFlag,10)
 
     if (waterobs .and. cloudLiquidWaterPathObs == mwbg_realMissing) then
       newInformationFlag = IBSET(newInformationFlag,2)
@@ -5932,14 +5933,14 @@ contains
     if (riwv == mwbg_realMissing) newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
-    if ( useUnbiasedObsForClw ) then
+    if (mwbg_useUnbiasedObsForClw) then
       if ( .not. grossrej ) then
         zdi = ztb_amsub3 - ztb_amsub5
       else
         zdi = mwbg_realMissing
       end if
     else
-      if ( .not. grossrej ) then
+      if (.not. grossrej) then
         zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
       else
         zdi = mwbg_realMissing
