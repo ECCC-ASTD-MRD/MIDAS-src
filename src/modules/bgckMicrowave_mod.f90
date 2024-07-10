@@ -5853,11 +5853,12 @@ contains
     integer,          intent(in)    :: sensorIndex          ! numero de satellite (i.e. indice)
 
     ! Locals:
-    integer :: indx, n_cld, newInformationFlag, actualNumChannel
+    integer :: indx, n_cld, newInformationFlag, actualNumChannel, codtyp
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
     real(8) :: cloudLiquidWaterPathObs
     real(8), allocatable :: obsTb(:), obsTbBiasCorr(:)
+    logical :: instrumentIsAllskyHu
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
@@ -5869,9 +5870,14 @@ contains
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
     actualNumChannel = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)
-    
+    if (tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel) then
+      write(*,*) 'mwbg_flagDataUsingNrlCritMwhs2: tvs_coefs(sensorIndex)%coef%fmv_ori_nchn /= actualNumChannel'
+    end if
+
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
+    instrumentIsAllskyHu = tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))
+  
     if (.not. grossrej) then
       allocate(obsTb(actualNumChannel))
       allocate(obsTbBiasCorr(actualNumChannel))
@@ -5906,7 +5912,13 @@ contains
         end if
       end do
       riwv  = sum(ztb183) / 5.0d0
-      if (riwv < mean_Tb_183Ghz_min) iwvreject = .true.
+      if (riwv < mean_Tb_183Ghz_min) then
+        if (instrumentIsAllskyHu .and. mwbg_useMeanTb183OnlyOverLandInAllskyHu) then
+          if (.not. waterobs) iwvreject = .true.
+        else
+          iwvreject = .true.
+        end if
+      end if
     else
       iwvreject = .true.
     end if
@@ -5934,7 +5946,7 @@ contains
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if (mwbg_useUnbiasedObsForClw) then
-      if ( .not. grossrej ) then
+      if (.not. grossrej) then
         zdi = ztb_amsub3 - ztb_amsub5
       else
         zdi = mwbg_realMissing
