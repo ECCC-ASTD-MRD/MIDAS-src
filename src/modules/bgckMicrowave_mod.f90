@@ -3957,10 +3957,9 @@ contains
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterMwhs2 returns scatIndexOverWaterObsEcmwf, scatIndexOverWaterObsClearsky and also does sea-ice
     !          detection missing value for cloudLiquidWaterPathObs, scatIndexOverWaterObsEcmwf, scatIndexOverWaterObsClearsky is mwbg_realMissing (e.g. over
-    !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
-    !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
+    !          land or sea-ice).
     !###############################################################################
-    call mwbg_nrlFilterMwhs2(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+    call mwbg_nrlFilterMwhs2(calcLandQualifierIndice, waterobs, grossrej, &
                              scatIndexOverWaterObsClearsky,scatIndexOverWaterObsEcmwf, &
                              iNumSeaIce, iRej, SeaIce, &
                              headerIndex, sensorIndex, obsSpaceData)
@@ -5461,7 +5460,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterMwhs2(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+  subroutine mwbg_nrlFilterMwhs2(calcLandQualifierIndice, waterobs, grossrej, &
                                  scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
                                  iNumSeaIce, iRej, SeaIce, &
                                  headerIndex, sensorIndex, obsSpaceData)
@@ -5484,7 +5483,6 @@ contains
     ! Arguments:
     integer,          intent(out)   :: iNumSeaIce   ! running counter for number of open water points with sea-ice detected (from algorithm)
     integer,          intent(in)    :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
-    integer,          intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
     integer,          intent(out)   :: iRej         ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej     ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs     ! .true. if open water point (away from coasts and sea-ice)
@@ -5650,8 +5648,8 @@ contains
       write(*,*) ' '
       write(*,*) 'tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice = ', &
                   tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice
-      write(*,*) 'ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,calcTerrainTypeIndice,waterobs =', &
-                  ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,calcTerrainTypeIndice,waterobs
+      write(*,*) 'ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,waterobs =', &
+                  ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,waterobs
     end if
 
   end subroutine mwbg_nrlFilterMwhs2
