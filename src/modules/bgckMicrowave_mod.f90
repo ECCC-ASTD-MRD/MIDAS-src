@@ -3847,7 +3847,7 @@ contains
     logical :: waterobs, grossrej, reportHasMissingTb 
     logical :: cloudobs, iwvreject, precipobs
     logical, allocatable :: qcRejectLogic(:)
-    real(8) :: zdi, scatIndexOverWaterObsEcmwf, scatIndexOverWaterObsClearsky, SeaIce, riwv
+    real(8) :: zdi, scatIndexOverWaterObsEcmwf, scatIndexObsClearsky, SeaIce, riwv
     logical, save :: firstCall = .true.
     integer, save :: numReportWithMissingTb
     integer, save :: allcnt                 ! Number of Tovs obs
@@ -3955,12 +3955,12 @@ contains
     if (count(qcRejectLogic(:)) == actualNumChannel ) grossrej = .true.
 
     !###############################################################################
-    ! STEP 4 ) mwbg_nrlFilterMwhs2 returns scatIndexOverWaterObsEcmwf, scatIndexOverWaterObsClearsky and also does sea-ice
-    !          detection missing value for cloudLiquidWaterPathObs, scatIndexOverWaterObsEcmwf, scatIndexOverWaterObsClearsky is mwbg_realMissing (e.g. over
+    ! STEP 4 ) mwbg_nrlFilterMwhs2 returns scatIndexOverWaterObsEcmwf, scatIndexObsClearsky and also does sea-ice
+    !          detection missing value for cloudLiquidWaterPathObs, scatIndexOverWaterObsEcmwf, scatIndexObsClearsky is mwbg_realMissing (e.g. over
     !          land or sea-ice).
     !###############################################################################
     call mwbg_nrlFilterMwhs2(calcLandQualifierIndice, waterobs, grossrej, &
-                             scatIndexOverWaterObsClearsky,scatIndexOverWaterObsEcmwf, &
+                             scatIndexObsClearsky,scatIndexOverWaterObsEcmwf, &
                              iNumSeaIce, iRej, SeaIce, &
                              headerIndex, sensorIndex, obsSpaceData)
 
@@ -3988,8 +3988,8 @@ contains
     !            iwvreject() = .true. if Mean 183 Ghz [ch. 11-15] Tb < 240K (too dry
     !            for ch.11-13 over land)
     !###############################################################################
-    call mwbg_reviewAllCritforFinalFlagsMwhs2(qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
-                                              precipobs, scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
+    call mwbg_reviewAllCritforFinalFlagsMwhs2(qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, precipobs, &
+                                              scatIndexObsClearsky, scatIndexOverWaterObsEcmwf, &
                                               iwvreject, riwv, &
                                               zdi, allcnt, drycnt, landcnt, &
                                               rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -4079,7 +4079,7 @@ contains
       write(*,*) '       5     Mean 183 Ghz [ch. 11-15] Tb < 240K'
       write(*,*) '       6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)'
       write(*,*) '       7     Dryness Index rejection (for ch. 11)'
-      write(*,*) '       8     scatIndexOverWaterObsClearsky > CMC amsu-b limit (land=0,sea=15,ice=40)'
+      write(*,*) '       8     scatIndexObsClearsky > CMC amsu-b limit (land=0,sea=15,ice=40)'
       write(*,*) '       9     Dryness Index rejection (for ch. 12)'
       write(*,*) '      10     Sea ice > 0.55 detected'
       write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
@@ -5461,7 +5461,7 @@ contains
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterMwhs2(calcLandQualifierIndice, waterobs, grossrej, &
-                                 scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
+                                 scatIndexObsClearsky, scatIndexOverWaterObsEcmwf, &
                                  iNumSeaIce, iRej, SeaIce, &
                                  headerIndex, sensorIndex, obsSpaceData)
     !
@@ -5471,7 +5471,7 @@ contains
     !
     !          NOTES:
     !            - <scatIndexOverWaterObsEcmwf> only computed over open water away from coasts and sea-ice
-    !            - <scatIndexOverWaterObsClearsky> is computed for all points
+    !            - <scatIndexObsClearsky> is computed for all points
     !          REFERENCES: Ben Ruston, NRL Monterey
     !          JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
     !
@@ -5486,7 +5486,7 @@ contains
     integer,          intent(out)   :: iRej         ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,          intent(in)    :: grossrej     ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(inout) :: waterobs     ! .true. if open water point (away from coasts and sea-ice)
-    real(8),          intent(out)   :: scatIndexOverWaterObsClearsky  ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(out)   :: scatIndexObsClearsky  ! Bennartz-Grody scattering index from tb89 & tb165
     real(8),          intent(out)   :: scatIndexOverWaterObsEcmwf     ! ECMWF scattering index from tb89 & tb165
     real(8),          intent(out)   :: SeaIce       ! computed sea-ice fraction from tb23 & tb50
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
@@ -5569,7 +5569,7 @@ contains
     scatIndexOverWaterObs      = mwbg_realMissing
     scatIndexOverWaterFG       = mwbg_realMissing
     scatIndexOverWaterObsEcmwf = mwbg_realMissing
-    scatIndexOverWaterObsClearsky = mwbg_realMissing
+    scatIndexObsClearsky = mwbg_realMissing
     SeaIce   = 0.0d0
 
     ! 2) Validate input parameters:
@@ -5611,10 +5611,10 @@ contains
           scatIndexOverWaterObs = (tb89 - tb165) - (-39.2010d0 + 0.1104d0 * satZenithAngle)
         end if
 
-        scatIndexOverWaterObsClearsky = (tb89 - tb165) - (-39.201d0 + 0.1104d0 * satZenithAngle)
+        scatIndexObsClearsky = (tb89 - tb165) - (-39.201d0 + 0.1104d0 * satZenithAngle)
         scatIndexOverWaterObsEcmwf = (tb89 - tb165) - (-46.94d0 + 0.248d0 * satZenithAngle)
       else
-        scatIndexOverWaterObsClearsky = (tb89 - tb165) - (0.158d0 + 0.0163d0 * satZenithAngle)
+        scatIndexObsClearsky = (tb89 - tb165) - (0.158d0 + 0.0163d0 * satZenithAngle)
       end if
 
     else  ! ier == 1 case
@@ -5648,8 +5648,8 @@ contains
       write(*,*) ' '
       write(*,*) 'tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice = ', &
                   tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice
-      write(*,*) 'ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,waterobs =', &
-                  ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexOverWaterObsClearsky,waterobs
+      write(*,*) 'ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexObsClearsky,waterobs =', &
+                  ier,ice,cloudLiquidWaterPathObs,cloudLiquidWaterPathFG,scatIndexOverWaterObsEcmwf,scatIndexObsClearsky,waterobs
     end if
 
   end subroutine mwbg_nrlFilterMwhs2
@@ -6202,8 +6202,8 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_reviewAllCritforFinalFlagsMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
-                                                  precipobs, scatIndexOverWaterObsClearsky, scatIndexOverWaterObsEcmwf, &
+  subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, precipobs, &
+                                                  scatIndexObsClearsky, scatIndexOverWaterObsEcmwf, &
                                                   iwvreject, riwv, &
                                                   zdi, allcnt, drycnt, landcnt, &
                                                   rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -6221,7 +6221,7 @@ contains
 
     ! Arguments:
     logical,          intent(in)    :: qcRejectLogic(:) ! .true. if channel is rejected
-    real(8),          intent(in)    :: scatIndexOverWaterObsClearsky ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),          intent(in)    :: scatIndexObsClearsky ! Bennartz-Grody scattering index from tb89 & tb165
     real(8),          intent(in)    :: scatIndexOverWaterObsEcmwf    ! ECMWF scattering index from tb89 & tb165
     logical,          intent(in)    :: grossrej         ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,          intent(in)    :: waterobs         ! if obs over open-water
@@ -6300,7 +6300,7 @@ contains
         else                     ! land
           scatbg_rej = scatbg_mwhs2_cmc_LANDrej
         end if
-        if ( scatIndexOverWaterObsClearsky > scatbg_rej ) then
+        if (scatIndexObsClearsky > scatbg_rej) then
           lflagchn(:) = .true.
           newInformationFlag = IBSET(newInformationFlag,8)
         end if
@@ -6319,7 +6319,7 @@ contains
       !    -- reject ch. 11-12 if CLW > clw_mwhs2_nrl_UTrej
       !    -- reject ch. 1, 10-15 if scatIndexOverWaterObsEcmwf > 9  or scatIndexOverWaterObsEcmwf = mwbg_realMissing
       !    -- reject ch. 1, 10-15 if iwvreject = .true.   [ Mean 183 Ghz [ch. 11-15] Tb < 240K ]
-      !    -- reject all channels if scatIndexOverWaterObsClearsky exceeds CMC SEA threshold for AMSU-B
+      !    -- reject all channels if scatIndexObsClearsky exceeds CMC SEA threshold for AMSU-B
 
         if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej )  then
           if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then ! NEVER TRUE SINCE NOT IMPLEMENTED YET
@@ -6347,7 +6347,7 @@ contains
           lflagchn(10:15) = .true.
         end if
         ! Bennartz-Grody SI check thresholds (same as for QC of AMSU-B/MHS)
-        if ( scatIndexOverWaterObsClearsky > scatbg_mwhs2_cmc_SEA ) then
+        if ( scatIndexObsClearsky > scatbg_mwhs2_cmc_SEA ) then
           lflagchn(:) = .true.
           newInformationFlag = IBSET(newInformationFlag,8)
         end if
@@ -6365,7 +6365,7 @@ contains
     if ( ANY(lflagchn(:)) ) flgcnt = flgcnt + 1
 
     ! RESET scatIndexOverWaterObs array to Bennartz-Grody scattering index for output to BURP file
-    scatIndexOverWaterObs = scatIndexOverWaterObsClearsky
+    scatIndexOverWaterObs = scatIndexObsClearsky
     ! Set missing cloudLiquidWaterPathFG and scatIndexOverWaterFG to BURP missing value (mwbg_realMissing)
     if (cloudLiquidWaterPathObs == mwbg_realMissing) cloudLiquidWaterPathFG = mwbg_realMissing
     scatIndexOverWaterFG = mwbg_realMissing
