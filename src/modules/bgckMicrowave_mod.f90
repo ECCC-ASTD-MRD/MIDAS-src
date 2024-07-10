@@ -38,7 +38,8 @@ module bgckMicrowave_mod
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical :: mwbg_siObsRejectTempChan          ! scattering index from obs can reject temperature channels
   logical :: mwbg_siObsEcmwfRejectTempChan     ! scattering index from obs (ecmwf formula) can reject temperature channels
-  logical :: mwbg_atmsCh17OmpRejectUpperHuChan     ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical :: mwbg_atmsCh17OmpRejectUpperHuChan ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical :: mwbg_mwhs2ch10OmpRejectUpperHuChan ! ch.10 omp can reject upper humidity ch 13-15 for mwhs2
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
@@ -107,7 +108,8 @@ module bgckMicrowave_mod
   logical            :: modLSQ                        ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical            :: siObsRejectTempChan           ! scattering index from obs can reject temperature channels
   logical            :: siObsEcmwfRejectTempChan      ! scattering index from obs (ecmwf formula) can reject temperature channels
-  logical            :: atmsCh17OmpRejectUpperHuChan      ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical            :: atmsCh17OmpRejectUpperHuChan  ! ch.17 omp can reject upper humidity ch 20-22 for atms
+  logical            :: mwhs2ch10OmpRejectUpperHuChan ! ch.10 omp can reject upper humidity ch 13-15 for mwhs2
   logical            :: allowClwRejectHuChanAllskyHu  ! allow cloud liquid water to reject HU channels in all-sky HU
   logical            :: useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
   logical            :: debug                         ! debug mode
@@ -120,7 +122,7 @@ module bgckMicrowave_mod
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
                     atmsCh17OmpRejectUpperHuChan, atmsRogueFactor, &
-                    mwhs2RogueFactor, &
+                    mwhs2ch10OmpRejectUpperHuChan, mwhs2RogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
                     useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
@@ -150,7 +152,8 @@ contains
     modLSQ                              = .false.
     siObsRejectTempChan                 = .true.
     siObsEcmwfRejectTempChan            = .true.
-    atmsCh17OmpRejectUpperHuChan            = .true.
+    atmsCh17OmpRejectUpperHuChan        = .true.
+    mwhs2ch10OmpRejectUpperHuChan       = .true.
     useAtmsCh17OmpThreshRogueCheck      = .false.
     useScatIndexOverWaterObsClearsky    = .false.
     allowClwRejectHuChanAllskyHu        = .false.
@@ -184,6 +187,7 @@ contains
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
     mwbg_atmsCh17OmpRejectUpperHuChan = atmsCh17OmpRejectUpperHuChan
+    mwbg_mwhs2ch10OmpRejectUpperHuChan = mwhs2ch10OmpRejectUpperHuChan
     mwbg_allowClwRejectHuChanAllskyHu = allowClwRejectHuChanAllskyHu
     mwbg_useMeanTb183OnlyOverLandInAllskyHu = useMeanTb183OnlyOverLandInAllskyHu
 
@@ -3884,8 +3888,13 @@ contains
     
       ! Channel sets for rejection in test 9
       !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
+      if (mwbg_mwhs2ch10OmpRejectUpperHuChan) then
       allocate(mwbg_chanRejectForChan2Omp(6))
       mwbg_chanRejectForChan2Omp(:) = (/10, 11, 12, 13, 14, 15/)
+      else
+        allocate(mwbg_chanRejectForChan2Omp(3))
+        mwbg_chanRejectForChan2Omp(:) = (/10, 14, 15/)
+      end if
 
     !  Data for TOPOGRAPHY CHECK
     !   Channel AMSUB-3 (mwhs2 ch 11) is rejected for topography > 2500m.
