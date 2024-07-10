@@ -3842,7 +3842,7 @@ contains
                                         !   ilsmOpt = 2 --> use value at central mesh point (obs location)
                                         !   ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
-    integer :: iRej, iNumSeaIce, JI, actualNumChannel
+    integer :: iRej, iNumSeaIce, JI, actualNumChannel, channelIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags, codtyp
     logical :: waterobs, grossrej, reportHasMissingTb 
     logical :: cloudobs, iwvreject, precipobs
@@ -3889,8 +3889,8 @@ contains
       ! Channel sets for rejection in test 9
       !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
       if (mwbg_mwhs2ch10OmpRejectUpperHuChan) then
-      allocate(mwbg_chanRejectForChan2Omp(6))
-      mwbg_chanRejectForChan2Omp(:) = (/10, 11, 12, 13, 14, 15/)
+        allocate(mwbg_chanRejectForChan2Omp(6))
+        mwbg_chanRejectForChan2Omp(:) = (/10, 11, 12, 13, 14, 15/)
       else
         allocate(mwbg_chanRejectForChan2Omp(3))
         mwbg_chanRejectForChan2Omp(:) = (/10, 14, 15/)
@@ -5503,8 +5503,7 @@ contains
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: ier, actualNumChannel
     real(8) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
-    real(8) :: bcor23, bcor31, bcor50, bcor89, bcor165
-    real(8) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(8) :: aa, bcor23, bcor31, bcor50, bcor89, bcor165
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: obsLat, obsLon, satZenithAngle
     real(8), allocatable :: obsTb(:), obsTbBiasCorr(:)
@@ -5595,45 +5594,19 @@ contains
 
     ! 3) Compute parameters:
     if ( ier == 0 ) then
-      cosz = cosd(satZenithAngle)
-
-      if (bcor23 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t23 = tb23
-      else
-        t23 = tb23 - bcor23
-      end if
-      if (bcor31 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t31 = tb31
-      else
-        t31 = tb31 - bcor31
-      end if
-      if (bcor50 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t50 = tb50
-      else
-        t50 = tb50 - bcor50
-      end if
-      if (bcor89 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t89 = tb89
-      else
-        t89 = tb89 - bcor89
-      end if
-      if (bcor165 == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
-        t165 = tb165
-      else
-        t165 = tb165 - bcor165
-      end if
-
-      deltb = t89 - t165
-      t23FG = tb23FG
-      t31FG = tb31FG
+      if (bcor23 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb23 = tb23 - bcor23
+      if (bcor31 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb31 = tb31 - bcor31
+      if (bcor50 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb50 = tb50 - bcor50
+      if (bcor89 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb89 = tb89 - bcor89
+      if (bcor165 /= mwbg_realMissing .and. .not. mwbg_useUnbiasedObsForClw) tb165 = tb165 - bcor165
 
       ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
-      if ( calcLandQualifierIndice == 1 .and. t23 /= mwbg_realMissing ) then  ! water point
+      if ( calcLandQualifierIndice == 1 .and. tb23 /= mwbg_realMissing ) then  ! water point
 
         if ( abs(obsLat) < 50.0d0 ) then
           ice = 0.0d0
         else
-          ice = 2.85d0 + 0.020d0 * t23 - 0.028d0 * t50
+          ice = 2.85d0 + 0.020d0 * tb23 - 0.028d0 * tb50
         end if
 
         SeaIce = ice
@@ -5647,22 +5620,22 @@ contains
 
       ! Compute cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, and Scattering Indices (over open water only)
       if ( waterobs ) then
-        if ( t23 /= mwbg_realMissing ) then
-          if ( t23 < 284.0d0 .and. t31 < 284.0d0 ) then
-            aa = 8.24d0 - (2.622d0 - 1.846d0 * cosz) * cosz
-            cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - t23) - 2.265d0 * dlog(285.0d0 - t31)
-            cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosz
+        if ( tb23 /= mwbg_realMissing ) then
+          if ( tb23 < 284.0d0 .and. tb31 < 284.0d0 ) then
+            aa = 8.24d0 - (2.622d0 - 1.846d0 * cosd(satZenithAngle)) * cosd(satZenithAngle)
+            cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - tb23) - 2.265d0 * dlog(285.0d0 - tb31)
+            cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosd(satZenithAngle)
             if ( cloudLiquidWaterPathObs < 0.0d0 ) cloudLiquidWaterPathObs = 0.0d0
 
-            cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - t23FG) - 2.265d0 * dlog(285.0d0 - t31FG)
-            cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosz
+            cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - tb23FG) - 2.265d0 * dlog(285.0d0 - tb31FG)
+            cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosd(satZenithAngle)
             if ( cloudLiquidWaterPathFG < 0.0d0 ) cloudLiquidWaterPathFG = 0.0d0
           end if
         end if
-        si_ecmwf = deltb - (-46.94d0 + 0.248d0 * satZenithAngle)
-        si_bg    = deltb - (-39.201d0 + 0.1104d0 * satZenithAngle)
+        si_ecmwf = (tb89 - tb165) - (-46.94d0 + 0.248d0 * satZenithAngle)
+        si_bg = (tb89 - tb165) - (-39.201d0 + 0.1104d0 * satZenithAngle)
       else
-        si_bg    = deltb - (0.158d0 + 0.0163d0 * satZenithAngle)
+        si_bg = (tb89 - tb165) - (0.158d0 + 0.0163d0 * satZenithAngle)
       end if
 
     else  ! ier == 1 case
