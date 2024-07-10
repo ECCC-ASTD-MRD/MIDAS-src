@@ -82,6 +82,7 @@ module bgckMicrowave_mod
   integer, allocatable :: mwbg_chanRejectForTopoFilter(:)      ! channels to reject because of topography
   integer, allocatable :: mwbg_bit7(:)                         ! bit=7 check for ATMS and MWHS2, on (=1) or off(=0) 
   real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)             ! rogue factors for atms
+  real(4) :: mwbg_mwhs2RogueFactor(mwbg_maxNumChan)             ! rogue factors for mwhs2
   real(8) :: mwbg_atmsCh17OmpThreshRogueCheck                  ! threshold for atms ch.17 omp in rogue check test
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
@@ -96,6 +97,7 @@ module bgckMicrowave_mod
   real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real(4)            :: cloudySiThresholdBcorr        !
   real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
+  real(4)            :: mwhs2RogueFactor(mwbg_maxNumChan) ! rogue factors for mwhs2
   real(4)            :: atmsCh17OmpThreshRogueCheck   ! threshold for atms ch.17 omp in rogue check test
   logical            :: useAtmsCh17OmpThreshRogueCheck! use ch.17 omp in rogue check for other ATMS humidity channels
   logical            :: useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
@@ -118,6 +120,7 @@ module bgckMicrowave_mod
                     cloudySiThresholdBcorr, rejectWhenSiMissing, &
                     siObsRejectTempChan, siObsEcmwfRejectTempChan, &
                     atmsCh17OmpRejectUpperHuChan, atmsRogueFactor, &
+                    mwhs2RogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
                     useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
@@ -153,6 +156,7 @@ contains
     allowClwRejectHuChanAllskyHu        = .false.
     useMeanTb183OnlyOverLandInAllskyHu  = .true.
     atmsRogueFactor(:)                  = -1.0
+    mwhs2RogueFactor(:)                  = -1.0
     atmsCh17OmpThreshRogueCheck         = 5.0
     skipTestArr(:)                      = .false.
 
@@ -170,6 +174,7 @@ contains
     mwbg_maxSiOverWaterThreshold = real(maxSiOverWaterThreshold,8)
     mwbg_cloudySiThresholdBcorr = real(cloudySiThresholdBcorr,8)
     mwbg_atmsRogueFactor(:) = atmsRogueFactor(:)
+    mwbg_mwhs2RogueFactor(:) = mwhs2RogueFactor(:)
     mwbg_atmsCh17OmpThreshRogueCheck = real(atmsCh17OmpThreshRogueCheck,8)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
@@ -3864,7 +3869,14 @@ contains
       allocate(mwbg_rogueFactor(actualNumChannel+tvs_channelOffset(sensorIndex)))
       mwbg_rogueFactor(:) = (/2.0d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, &
                               9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
-      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) mwbg_rogueFactor(1:3) = 9.9d0
+      if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        do channelIndex = 1, actualNumChannel+tvs_channelOffset(sensorIndex)
+          if (mwbg_mwhs2RogueFactor(channelIndex) /= -1.0) then
+            mwbg_rogueFactor(channelIndex) = real(mwbg_mwhs2RogueFactor(channelIndex),8)
+          end if
+        end do
+      end if
+      write(*,*) 'mwbg_tovCheckMwhs2: mwbg_rogueFactor(:)=', mwbg_rogueFactor(:)
 
       allocate(mwbg_qcIndicator(actualNumChannel))
 
