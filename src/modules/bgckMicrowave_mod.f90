@@ -3364,10 +3364,10 @@ contains
     ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
-    real(8) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
-    real(8) :: sigmaObsErrUsed, clwObsFGaveraged
-    real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
-    logical :: CH2OMPREJCT, IBIT
+    real(8) :: XCHECKVAL, cldPredThresh1, cldPredThresh2, errThresh1, errThresh2
+    real(8) :: sigmaObsErrUsed, scatwObsFGaveraged
+    real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG, ompTb
+    logical :: CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
     character(len=9) :: stnId
     logical, save :: firstCall = .true.
 
@@ -3386,30 +3386,35 @@ contains
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
-    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
-    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
+    scatIndexOverWaterObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
+    scatIndexOverWaterFG = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
     newInformationFlag = obs_headElem_i(obsSpaceData, OBS_INFG, headerIndex)
     stnId = obs_elem_c(obsSpaceData, 'STID', headerIndex)
 
     CH2OMPREJCT = .FALSE.
+    ch2OmpRejectInAllsky = .false.
     BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
+      call oer_chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+
+      if (chanIsAllskyTt) call utl_abort('Mwhs2Test4RogueCheck: all-sky TT does not exist for MWHS2.') 
 
       ! using state-dependent obs error only over water.
       ! obs over sea-ice will be rejected in test 15.
-      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .and. &
-          oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) .and. waterobs) then
-        clwThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
-        clwThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
-        sigmaThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
-        sigmaThresh2 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,2)
-        clwObsFGaveraged = 0.5d0 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
-        if ( cloudLiquidWaterPathObs == mwbg_realMissing ) then
+      if (chanIsAllskyHu .and. waterobs) then
+        cldPredThresh1 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,1)
+        cldPredThresh2 = oer_cldPredThresh(obsChanNumWithOffset,sensorIndex,2)
+        errThresh1 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,1)
+        errThresh2 = oer_errThreshAllsky(obsChanNumWithOffset,sensorIndex,2)
+
+        scatwObsFGaveraged = 0.5 * (scatIndexOverWaterObs + scatIndexOverWaterFG)
+        if (scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
+            scatIndexOverWaterFG == MPC_missingValue_R8) then
           sigmaObsErrUsed = MPC_missingValue_R8
         else
-          sigmaObsErrUsed = calcStateDepObsErr(clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2, &
-                                               clwObsFGaveraged)
+          sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, errThresh1, errThresh2, &
+                                               scatwObsFGaveraged)
         end if
       else
         sigmaObsErrUsed = oer_toverrst(obsChanNumWithOffset,sensorIndex)
@@ -3436,6 +3441,8 @@ contains
 
         call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
 
+        ch2OmpRejectInAllSky = (chanIsAllskyHu .and. obsChanNumWithOffset == 10)
+
         if ( mwbg_debug ) then
           write(*,*) stnId(2:9),'ROGUE CHECK REJECT.NO.', &
                      ' CHANNEL= ',obsChanNumWithOffset, &
@@ -3445,8 +3452,16 @@ contains
         end if
       end if ! if (ompTb /= mwbg_realMissing
 
-      if (obsChanNumWithOffset == 10 .and. ompTb /= mwbg_realMissing .and. ABS(ompTb) > 5.0d0) then
-        CH2OMPREJCT = .TRUE.
+      if (obsChanNumWithOffset == 10 .and. ompTb /= mwbg_realMissing) then
+        if (chanIsAllskyHu) then
+          if (mwbg_useMwhs2Ch10OmpThreshRogueCheck) then
+            if (abs(ompTb) > mwbg_mwhs2Ch10OmpThreshRogueCheck) CH2OMPREJCT = .TRUE.
+          else
+            if (ch2OmpRejectInAllSky) CH2OMPREJCT = .TRUE.
+          end if
+        else
+          if (abs(ompTb) > 5.0d0) CH2OMPREJCT = .TRUE.
+        end if
       end if
     end do BODY
 
