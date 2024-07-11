@@ -41,6 +41,7 @@ module bgckMicrowave_mod
   logical :: mwbg_atmsCh17OmpRejectUpperHuChan ! ch.17 omp can reject upper humidity ch 20-22 for atms
   logical :: mwbg_mwhs2ch10OmpRejectUpperHuChan ! ch.10 omp can reject upper humidity ch 13-15 for mwhs2
   logical :: mwbg_useAtmsCh17OmpThreshRogueCheck ! use ch.17 omp in rogue check for other ATMS humidity channels
+  logical :: mwbg_useMwhs2Ch10OmpThreshRogueCheck ! use ch.10 omp in rogue check for other MWHS2 humidity channels
   logical :: mwbg_useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical :: mwbg_allowClwRejectHuChanAllskyHu ! allow cloud liquid water to reject HU channels in all-sky HU
   logical :: mwbg_useMeanTb183OnlyOverLandInAllskyHu ! use mean of 183 GHz channels for QC only over land in all-sky HU
@@ -85,6 +86,7 @@ module bgckMicrowave_mod
   real(4) :: mwbg_atmsRogueFactor(mwbg_maxNumChan)             ! rogue factors for atms
   real(4) :: mwbg_mwhs2RogueFactor(mwbg_maxNumChan)             ! rogue factors for mwhs2
   real(8) :: mwbg_atmsCh17OmpThreshRogueCheck                  ! threshold for atms ch.17 omp in rogue check test
+  real(8) :: mwbg_mwhs2Ch10OmpThreshRogueCheck                 ! threshold for mwhs2 ch.10 omp in rogue check test
   real(8), allocatable :: mwbg_altitudeThreshForTopoFilter(:)  ! altitude thresholds for topo filtering
   real(8), allocatable :: mwbg_grossValMinThresh(:)            ! gross value min threshold
   real(8), allocatable :: mwbg_grossValMaxThresh(:)            ! gross value max threshold
@@ -100,7 +102,9 @@ module bgckMicrowave_mod
   real(4)            :: atmsRogueFactor(mwbg_maxNumChan) ! rogue factors for atms
   real(4)            :: mwhs2RogueFactor(mwbg_maxNumChan) ! rogue factors for mwhs2
   real(4)            :: atmsCh17OmpThreshRogueCheck   ! threshold for atms ch.17 omp in rogue check test
+  real(4)            :: mwhs2Ch10OmpThreshRogueCheck  ! threshold for mwhs2 ch.10 omp in rogue check test
   logical            :: useAtmsCh17OmpThreshRogueCheck! use ch.17 omp in rogue check for other ATMS humidity channels
+  logical            :: useMwhs2Ch10OmpThreshRogueCheck! use ch.10 omp in rogue check for other MWHS2 humidity channels
   logical            :: useScatIndexOverWaterObsClearsky ! use clear-sky scattering index from obs for QC when comparing against hardcoded values
   logical            :: rejectWhenSiMissing           ! reject if scattering index can not be computed for AMSUB/MHS
   logical            :: useUnbiasedObsForClw          !
@@ -124,6 +128,7 @@ module bgckMicrowave_mod
                     atmsCh17OmpRejectUpperHuChan, atmsRogueFactor, &
                     mwhs2ch10OmpRejectUpperHuChan, mwhs2RogueFactor, &
                     useAtmsCh17OmpThreshRogueCheck, atmsCh17OmpThreshRogueCheck, &
+                    useMwhs2Ch10OmpThreshRogueCheck, mwhs2Ch10OmpThreshRogueCheck, &
                     useScatIndexOverWaterObsClearsky, allowClwRejectHuChanAllskyHu, &
                     useMeanTb183OnlyOverLandInAllskyHu, skipTestArr
                     
@@ -155,12 +160,14 @@ contains
     atmsCh17OmpRejectUpperHuChan        = .true.
     mwhs2ch10OmpRejectUpperHuChan       = .true.
     useAtmsCh17OmpThreshRogueCheck      = .false.
+    useMwhs2Ch10OmpThreshRogueCheck     = .false.
     useScatIndexOverWaterObsClearsky    = .false.
     allowClwRejectHuChanAllskyHu        = .false.
     useMeanTb183OnlyOverLandInAllskyHu  = .true.
     atmsRogueFactor(:)                  = -1.0
     mwhs2RogueFactor(:)                  = -1.0
     atmsCh17OmpThreshRogueCheck         = 5.0
+    mwhs2Ch10OmpThreshRogueCheck        = 5.0
     skipTestArr(:)                      = .false.
 
     call utl_tmg_start(181,'low-level--readNML')
@@ -179,12 +186,14 @@ contains
     mwbg_atmsRogueFactor(:) = atmsRogueFactor(:)
     mwbg_mwhs2RogueFactor(:) = mwhs2RogueFactor(:)
     mwbg_atmsCh17OmpThreshRogueCheck = real(atmsCh17OmpThreshRogueCheck,8)
+    mwbg_mwhs2Ch10OmpThreshRogueCheck = real(mwhs2Ch10OmpThreshRogueCheck,8)
     mwbg_rejectWhenSiMissing = rejectWhenSiMissing
     mwbg_resetQc = resetQc
     mwbg_calcLandQualifierTerrainType = modLSQ
     mwbg_siObsRejectTempChan = siObsRejectTempChan
     mwbg_siObsEcmwfRejectTempChan = siObsEcmwfRejectTempChan
     mwbg_useAtmsCh17OmpThreshRogueCheck = useAtmsCh17OmpThreshRogueCheck
+    mwbg_useMwhs2Ch10OmpThreshRogueCheck = useMwhs2Ch10OmpThreshRogueCheck
     mwbg_useScatIndexOverWaterObsClearsky = useScatIndexOverWaterObsClearsky
     mwbg_atmsCh17OmpRejectUpperHuChan = atmsCh17OmpRejectUpperHuChan
     mwbg_mwhs2ch10OmpRejectUpperHuChan = mwhs2ch10OmpRejectUpperHuChan
