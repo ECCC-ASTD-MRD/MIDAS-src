@@ -182,7 +182,7 @@ program midas_dfs
   
   implicit none
 
-  integer, external :: exdb, exfin,fnom, fclos
+  integer, external :: exdb, exfin, fnom, fclos, get_max_rss
   integer :: ierr, istamp
 
   type(struct_obs),        target :: obsSpaceData
@@ -480,15 +480,15 @@ contains
     integer, allocatable :: order(:),orderForOutput(:,:)
     real(8) :: dfs
     real(8), allocatable :: dfsForOutput(:)
-    logical :: first, llok
+    logical :: llok
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2,stringIndex
     integer :: numHeader, numHeaderMaxMpi, sensorIndex, localDimension
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
     real(8), allocatable :: perturbationVector(:)
     integer :: dfsCount, sizeSelect, nulDfs, nulSelec, nulHBHt
-    character(len=128) :: headerObs1
-    character(len=16) :: headerObs2
-    character(len=128), allocatable :: headerObs1ForOutput(:)
+    integer, parameter :: stringLength=128
+    character(len=stringLength) :: headerObs
+    character(len=stringLength), allocatable :: headerObsForOutput(:)
     integer, allocatable :: stringInt(:), stringIntForOutput(:,:)
     !
     !- 1.  Initialization
@@ -524,7 +524,6 @@ contains
     
     !First step count the number of selected observation for each MPI task
     countObs = 0
-    first = .true.
     countChannel = 0 ! necessary in the case where no obs in the file
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
@@ -615,7 +614,7 @@ contains
     end if
     
     localDimension = cvm_nvadim
-    allocate(perturbationVector(localDimension))
+    allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
     dfsCount = 0
     
@@ -632,37 +631,9 @@ contains
             channelNumber1 = levelList(obsIndex,channelIndex1)
             call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
 
-          end if
-        
-          call msg_memUsage('midas-dfs')
-          call col_zero(columnAnlInc)
-          call oop_Had(columnAnlInc, & !output
-              columnTrlOnAnlIncLev,  &
-              obsSpaceData,          & !input
-              initializeLinearization_opt=first)
-          first = .false.
-          call gsv_zero(stateVector)
-          call s2c_ad(stateVector,  & ! output
-              columnAnlInc,         & ! input
-              columnTrlOnAnlIncLev, &
-              obsSpaceData)
-          perturbationVector(:) = 0.d0
-          call bmat_sqrtBT(perturbationVector, & !output
-              localDimension,                  &  
-              stateVector)                       !input
-          call gsv_zero(stateVector)
-          call bmat_sqrtB(perturbationVector, & !input
-              localDimension,                 &
-              stateVector)                      !output
-          call s2c_tl(stateVector,  & !input
-              columnAnlInc,         & !output
-              columnTrlOnAnlIncLev, & 
-              obsSpaceData)
-          call oop_Htl(columnAnlInc, & !input
-              columnTrlOnAnlIncLev,  &
-              obsSpaceData,          & !output
-              min_nsim = 1, initializeLinearization_opt = .false.)
-          
+          end if          
+          call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData) 
+         
           do channelIndex2 = 1, maxCountChannelMpi
             bodyIndex2 = bodyIndexList(obsIndex,channelIndex2)
             if (bodyIndex2 /= MPC_missingValue_INT) then !useless ?
@@ -673,21 +644,12 @@ contains
           call utl_printTime()
         end do channelLoop1
       
-        headerObs1 = ''
+        headerObs = ''
         dfs = 0.d0
         if (headerIndex /= MPC_missingValue_INT) then
           dfsCount = dfsCount + 1
-          write(headerObs1,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
-              obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
-              obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex),                             &
-              obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
-          headerObs2 = ''
-          if (familyType == 'TO')  then
-            write(headerObs2,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-          end if
-          headerObs1 = trim(headerObs1) // trim(headerObs2)
+          call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
+          
           
           !extraction of the R matrix
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
@@ -729,17 +691,17 @@ contains
           end if
         end if
         
-        allocate(headerObs1ForOutput(mmpi_nprocs))
-        allocate(stringInt(len(headerObs1)))
-        do stringIndex = 1, len(headerObs1)
-          stringInt(stringIndex) = iachar(headerObs1(stringIndex:stringIndex))
+        allocate(headerObsForOutput(mmpi_nprocs))
+        allocate(stringInt(stringLength))
+        do stringIndex = 1, stringLength
+          stringInt(stringIndex) = iachar(headerObs(stringIndex:stringIndex))
         end do
-        allocate(stringIntForOutput(128,mmpi_nprocs))
-        call rpn_comm_gather(stringInt, len(headerObs1), 'mpi_integer', &
-            stringIntForOutput, len(headerObs1), 'mpi_integer', 0, 'grid', ierr)
-        do stringIndex = 1, len(headerObs1)
+        allocate(stringIntForOutput(stringLength,mmpi_nprocs))
+        call rpn_comm_gather(stringInt, stringLength, 'mpi_integer', &
+            stringIntForOutput, stringLength, 'mpi_integer', 0, 'grid', ierr)
+        do stringIndex = 1, stringLength
           do outTaskIndex = 1, mmpi_nprocs
-            headerObs1ForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
+            headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
           end do
         end do
         
@@ -750,8 +712,8 @@ contains
           
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
-              if (len_trim(headerObs1ForOutput(outTaskIndex)) > 0) then
-                write(nulHBHt,'(A)') trim(headerObs1ForOutput(outTaskIndex))
+              if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
+                write(nulHBHt,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex2 = 1, nLevelsDfs
                   channelNumber2 = levelList(obsIndex,channelIndex2)
                   do channelIndex1 = 1, nLevelsDfs
@@ -773,8 +735,8 @@ contains
       
         if (mmpi_myId == 0) then
           do outTaskIndex = 1, mmpi_nprocs
-            if (len_trim(headerObs1ForOutput(outTaskIndex)) > 0) then
-              write(nulDfs,'(A,1x,e14.6)') trim(headerObs1ForOutput(outTaskIndex)), dfsForOutput(outTaskIndex)
+            if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
+              write(nulDfs,'(A,1x,e14.6)') trim(headerObsForOutput(outTaskIndex)), dfsForOutput(outTaskIndex)
             end if
           end do
         end if
@@ -788,8 +750,8 @@ contains
               orderForOutput, sizeSelect, 'mpi_integer', 0, 'grid', ierr)
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
-              if (len_trim(headerObs1ForOutput(outTaskIndex)) > 0) then
-                write(nulSelec,'(A)') trim(headerObs1ForOutput(outTaskIndex))
+              if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
+                write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex1 = 1, size(order)
                   write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
                       levelList(obsIndex,order(channelIndex1)), all_dfs(channelIndex1)
@@ -801,7 +763,7 @@ contains
           deallocate(order)
           deallocate(all_dfs)
         end if
-        deallocate(headerObs1ForOutput)
+        deallocate(headerObsForOutput)
         if (allocated(HBHtMatrixForOutput)) deallocate(HBHtMatrixForOutput)
         if (allocated(all_dfsForOutput)) deallocate(all_dfsForOutput)
         if (allocated(orderForOutput)) deallocate(orderForOutput)
@@ -824,34 +786,7 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
             end do
             if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-            call col_zero(columnAnlInc)
-            call oop_Had(columnAnlInc, & !output
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !input
-                initializeLinearization_opt=first)
-            first = .false.
-            call gsv_zero(stateVector)
-            call s2c_ad(stateVector,  & ! output
-                columnAnlInc,         & ! input
-                columnTrlOnAnlIncLev, &
-                obsSpaceData)
-            perturbationVector(:) = 0.d0
-            call bmat_sqrtBT(perturbationVector, & !output
-                localDimension,                  &  
-                stateVector)                       !input
-            call gsv_zero(stateVector)
-            call bmat_sqrtB(perturbationVector, & !input
-                localDimension,                 &
-                stateVector)                      !output
-            call s2c_tl(stateVector,  & !input
-                columnAnlInc,         & !output
-                columnTrlOnAnlIncLev, & 
-                obsSpaceData)
-            call oop_Htl(columnAnlInc, & !input
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !output
-                min_nsim = 1, initializeLinearization_opt = .false.)
+            call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
               
             do channelIndex2 = 1, maxCountChannelMpi
               bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
@@ -865,16 +800,7 @@ contains
           dfsCount = dfsCount + 1
 
           if (mmpi_myId == taskIndex) then
-            write(headerObs1,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
-                obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
-                obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-                obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-                obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex),                             &
-                obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
-            headerObs2 = ''
-            if (familyType == 'TO')  then
-              write(headerObs2,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-            end if
+            call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
             
             !extraction of the R matrix
             allocate(Rsub(nLevelsDfs,nLevelsDfs))
@@ -916,13 +842,12 @@ contains
             end if
           end if
         
-          call rpn_comm_bcastc(headerObs1, len(headerObs1), 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
-          call rpn_comm_bcastc(headerObs2, len(headerObs2), 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
-          headerObs1 = trim(headerObs1) // trim(headerObs2)
+          call rpn_comm_bcastc(headerObs, stringLength, 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
+
           if (outputHBHt) then
             call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
             if (mmpi_myId == 0) then
-              write(nulHBHt,'(A)') trim(headerObs1)
+              write(nulHBHt,'(A)') trim(headerObs)
               do channelIndex2 = 1, nLevelsDfs
                 channelNumber2 = levelListMpi(obsIndex,channelIndex2,procIndex)
                 do channelIndex1 = 1, nLevelsDfs
@@ -935,12 +860,12 @@ contains
             end if
           end if
           call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-          if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs1), dfs
+          if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
             call rpn_comm_bcast(all_dfs, size(all_dfs), 'MPI_REAL8', taskIndex, 'GRID', ierr)
             call rpn_comm_bcast(order, size(order), 'MPI_INTEGER', taskIndex, 'GRID', ierr)
             if (mmpi_myId == 0) then
-              write(nulSelec,'(A)') trim(headerObs1)
+              write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)
                 write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
                     levelListMpi(obsIndex,order(channelIndex1),procIndex), all_dfs(channelIndex1)
@@ -964,7 +889,6 @@ contains
       ierr = fclos(nuldfs)
     end if
 
-
     if (computeInParallel) then
       deallocate(bodyIndexList)
       deallocate(levelList)
@@ -987,6 +911,87 @@ contains
     
   end subroutine diagDFS
 
+
+!--------------------------------------------------------------------------
+  ! applyHBHtOperator
+  !--------------------------------------------------------------------------
+  subroutine applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
+    !
+    !:Purpose: apply chain of operators HBHt
+    !
+    implicit none
+    ! Arguments
+    type(struct_columnData), intent(inout) :: columnAnlInc
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
+    type(struct_gsv),        intent(inout) :: stateVector
+    real(8),                 intent(inout) :: perturbationVector(:)             
+    type(struct_obs),        intent(inout) :: obsSpaceData ! Observation-related data structure
+    !Local variables
+    integer :: localDimension
+    logical, save :: first=.true.
+    
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    
+    localDimension = size(perturbationvector)
+    call col_zero(columnAnlInc)
+    call oop_Had(columnAnlInc, & !output
+        columnTrlOnAnlIncLev,  &
+        obsSpaceData,          & !input
+        initializeLinearization_opt=first)
+    first = .false.
+    call gsv_zero(stateVector)
+    call s2c_ad(stateVector,  & ! output
+        columnAnlInc,         & ! input
+        columnTrlOnAnlIncLev, &
+        obsSpaceData)
+    perturbationVector(:) = 0.d0
+    call bmat_sqrtBT(perturbationVector, & !output
+        localDimension,                  &  
+        stateVector)                       !input
+    call gsv_zero(stateVector)
+    call bmat_sqrtB(perturbationVector, & !input
+        localDimension,                 &
+        stateVector)                      !output
+    call s2c_tl(stateVector,  & !input
+        columnAnlInc,         & !output
+        columnTrlOnAnlIncLev, & 
+        obsSpaceData)
+    call oop_Htl(columnAnlInc, & !input
+        columnTrlOnAnlIncLev,  &
+        obsSpaceData,          & !output
+        min_nsim = 1, initializeLinearization_opt = .false.)
+    
+  end subroutine applyHBHtOperator
+  
+ !--------------------------------------------------------------------------
+  ! createHeaderString
+  !--------------------------------------------------------------------------
+  subroutine createHeaderString(obsSpaceData, headerIndex, familyType, headerString)
+    !
+    !:Purpose: create header string to be writen into output ascii files
+    !
+    implicit none
+    ! Arguments
+    type(struct_obs), intent(inout) :: obsSpaceData ! Observation-related data structure
+    integer,          intent(in)    :: headerIndex  ! current observation index in header obsSpacedata structure
+    character(len=*), intent(in)    :: familyType
+    character(len=*), intent(out)   :: headerString ! output header string
+    ! local variable
+    character(len=16) :: headerObs
+   
+    write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
+        obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
+        obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+        obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+        obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex),                             &
+        obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+    if (familyType == 'TO')  then
+      write(headerObs,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+      headerString = trim(headerString) // trim(headerObs) 
+    end if
+    
+  end subroutine createHeaderString
+  
   !--------------------------------------------------------------------------
   ! subsetMatrix
   !--------------------------------------------------------------------------
