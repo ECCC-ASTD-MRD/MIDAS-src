@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix memory deallocation problem in rttovScatt tl and ad leading to crash when assimilating water vapour sensitive channels in allsky mode (#931 and !857) 
  * Correct the method for computing R matrix when using simulated observations in `var1D` (#937 and !847)
  * Optional system tests cleanup (#936 and !849)
    * adjointTest was updated and is now mandatory
