@@ -914,7 +914,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
     !
-    !:Purpose: apply chain of operators to appy HBHt (input and output in obsSpaceData OBS_TMP)
+    !:Purpose: apply chain of operators to appy HBHt (input and output in obsSpaceData OBS_WORK)
     !
     implicit none
     ! Arguments
@@ -976,7 +976,7 @@ contains
     ! local variable
     character(len=16) :: headerObs
    
-    write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
+    write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                          &
         obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
         obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
         obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
