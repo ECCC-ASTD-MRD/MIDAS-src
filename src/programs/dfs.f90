@@ -482,7 +482,7 @@ contains
     real(8), allocatable :: dfsForOutput(:)
     logical :: llok
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2,stringIndex
-    integer :: numHeader, numHeaderMaxMpi, sensorIndex, localDimension
+    integer :: numHeader, numHeaderMaxMpi, sensorIndex
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
     real(8), allocatable :: perturbationVector(:)
     integer :: dfsCount, sizeSelect, nulDfs, nulSelec, nulHBHt
@@ -613,7 +613,6 @@ contains
       ierr = fnom(nulDfs, './dfs.dat', 'FTN+FMT+R/W', 0)
     end if
     
-    localDimension = cvm_nvadim
     allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
     dfsCount = 0
@@ -730,9 +729,7 @@ contains
         end if
         
         allocate(dfsForOutput(mmpi_nprocs))
-        call rpn_comm_gather(dfs, 1, 'mpi_real8', &
-            dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
-      
+        call rpn_comm_gather(dfs, 1, 'mpi_real8', dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
         if (mmpi_myId == 0) then
           do outTaskIndex = 1, mmpi_nprocs
             if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
@@ -912,12 +909,12 @@ contains
   end subroutine diagDFS
 
 
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   ! applyHBHtOperator
   !--------------------------------------------------------------------------
   subroutine applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
     !
-    !:Purpose: apply chain of operators HBHt
+    !:Purpose: apply chain of operators to appy HBHt (input and output in obsSpaceData OBS_TMP)
     !
     implicit none
     ! Arguments
