@@ -28,6 +28,7 @@ module humidityLimits_mod
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF, qlim_minValueCLDR
   real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF, qlim_maxValueCLDR
+  real(8) :: qlim_qcThresh
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -79,9 +80,12 @@ contains
     real(8) :: maxValueSF   ! maximum   SF value
     real(8) :: minValueCLDR ! minimum CLDR value
     real(8) :: maxValueCLDR ! maximum CLDR value
+    real(8) :: qcThresh     ! threshold for QC
+
 
     NAMELIST /NAMQLIM/ minValueLWCR, maxValueLWCR, minValueIWCR, maxValueIWCR, &
-                       minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR
+                       minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR, &
+                       qcThresh
 
     if ( nmlAlreadyRead ) return
 
@@ -103,6 +107,8 @@ contains
     minValueCLDR = 0.0d0
     maxValueCLDR = 1.0d0
 
+    qcThresh = 3.0d-8
+    
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mmpi_myid == 0 ) then
         write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
@@ -133,6 +139,8 @@ contains
 
     qlim_minValueCLDR = minValueCLDR
     qlim_maxValueCLDR = maxValueCLDR
+
+    qlim_qcThresh = qcThresh
 
   end subroutine readNameList
 
