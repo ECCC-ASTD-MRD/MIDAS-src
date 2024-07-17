@@ -456,6 +456,9 @@ CONTAINS
     call qlim_saturationLimit(stateVectorAnal)
     if (imposeRttovHuLimits) call qlim_rttovLimit(stateVectorAnal)
 
+    ! Impose limits on QC analysis
+    if (imposeQcLimits) call qlim_applyQcLimit(stateVectorAnal)
+
     if (gsv_varKindExist('CH')) then
       ! Apply boundaries to analysis of CH kind variables as needed.
       call msg('inc_analPostProcessing', &

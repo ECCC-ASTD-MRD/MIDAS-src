@@ -329,14 +329,21 @@ contains
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
           if (mmpi_myid == 0) write(*,*) ''
           if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-          if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if (mmpi_myid == 0 .and. imposeSaturationLimit) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits  ) write(*,*) '              -> Rttov Limit'
+          if (imposeSaturationLimit) call qlim_saturationLimit(ensembleAnl)
+          if (imposeRttovHuLimits  ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
         end if
+      end if
+
+      !- Impose limits on QC *before* recentering, if requested
+      if (qcLimitsBeforeRecenter .and. imposeQcLimits) then
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the QC of analysis ensemble'
+        call qlim_applyQcLimit(ensembleAnl)
       end if
 
       !- Recenter analysis ensemble on supplied analysis
@@ -362,21 +369,30 @@ contains
       end if
 
       !- Impose limits on humidity *after* recentering, if requested
-      if (.not.huLimitsBeforeRecenter) then
+      if (.not. huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
           if (mmpi_myid == 0) write(*,*) ''
           if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-          if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if (mmpi_myid == 0 .and. imposeSaturationLimit) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits  ) write(*,*) '              -> Rttov Limit'
+          if (imposeSaturationLimit) call qlim_saturationLimit(ensembleAnl)
+          if (imposeRttovHuLimits  ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
           if (gsv_isAllocated(stateVectorMeanAnl4D)) then
-            if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorMeanAnl4D)
-            if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (stateVectorMeanAnl4D)
+            if (imposeSaturationLimit) call qlim_saturationLimit(stateVectorMeanAnl4D)
+            if (imposeRttovHuLimits  ) call qlim_rttovLimit     (stateVectorMeanAnl4D)
           end if
+        end if
+      end if
+
+      if (.not. qcLimitsBeforeRecenter .and. imposeQcLimits) then
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the QC of analysis ensemble'
+        call qlim_applyQcLimit(ensembleAnl)
+        if (gsv_isAllocated(stateVectorMeanAnl4D)) then
+          call qlim_applyQcLimit(stateVectorMeanAnl4D)
         end if
       end if
 
