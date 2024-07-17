@@ -823,7 +823,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
        script.
    * `oavar.launch` et `oavar.var_mpi`:
       - Ajout du mode `distribute` pour `-splitobs_mode` pour distribuer
-      les fichiers sur chacune des tuiles MPI plutét que d'utiliser le
+      les fichiers sur chacune des tuiles MPI plutôt que d'utiliser le
       programme `splitobs.Abs` pour ce faire
    * `oavar.check_ensemble`:
       - Adaptation de la manipulation du namelist pour transformer un
