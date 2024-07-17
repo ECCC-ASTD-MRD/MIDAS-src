@@ -260,6 +260,8 @@
   mwAllskyTtInflateByOmp = .true.
   mwAllskyTtInflateByClwDiff = .true.
   readOldSymmetricObsErrFile = .false.
+  instrumentNamesInflateErrAllskyTt(1) = 'amsua'
+  instrumentNamesInflateErrAllskyTt(2) = 'atms'
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.
