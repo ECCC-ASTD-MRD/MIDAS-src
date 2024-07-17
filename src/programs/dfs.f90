@@ -183,7 +183,7 @@ program midas_dfs
   implicit none
 
   integer, external :: exdb, exfin, fnom, fclos, get_max_rss
-  integer :: ierr, istamp
+  integer :: ierr, istamp, obsIndex
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -269,7 +269,13 @@ program midas_dfs
     call utl_tmg_stop(181)
     if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
   end if
-    
+
+  !longitudes in ObsSpaceData are positives
+  do obsIndex = 1, nObsMax
+     if (lonList(obsindex) == MPC_missingValue_R8) cycle
+     if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
+  end do
+  
   if (mmpi_myid == 0) write(*, nml = NAMDFS)
 
   nLevelsDfs = 0
