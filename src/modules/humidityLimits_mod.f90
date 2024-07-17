@@ -22,7 +22,7 @@ module humidityLimits_mod
   private
 
   ! Public procedures
-  public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
+  public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin, qlim_applyQcLimit
   public :: qlim_getMinValueCloud, qlim_getMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
@@ -974,8 +974,8 @@ contains
     real(4), pointer :: qc_ptr_r4(:,:,:,:)
     real(8)          :: qc, qc_modified
     integer          :: lon1, lon2, lat1, lat2
-    integer          :: numLev, numMember, numStep
-    integer          :: lonIndex, latIndex, levIndex, stepIndex
+    integer          :: numLev, numMember, numStep, varLevIndex
+    integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     character(len=4) :: varName
 
     varName = 'QC'
@@ -995,7 +995,7 @@ contains
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, varName)
             qc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-            !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
+            !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, qc, qc_modified)
             do stepIndex = 1, numStep
               do memberIndex = 1, numMember
 
