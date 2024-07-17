@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.0.1]
+
+### Added
+
  * All-sky assimilation for MWHS2 (#942 and !855)
  * More namelist variables in `nambgck` for all-sky ATMS humidity channels (#935 and !844)
    * Small impact on number of all-sky humidity ATMS observations assimilated
