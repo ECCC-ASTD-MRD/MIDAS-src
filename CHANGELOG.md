@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Set lowest threshold for `QC` before writing the analysis and increment files (#944 and !859)
  * All-sky assimilation for MWHS2 (#942 and !855)
 
 ### Changed

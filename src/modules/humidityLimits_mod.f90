@@ -22,12 +22,13 @@ module humidityLimits_mod
   private
 
   ! Public procedures
-  public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
+  public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin, qlim_applyQcLimit
   public :: qlim_getMinValueCloud, qlim_getMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF, qlim_minValueCLDR
   real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF, qlim_maxValueCLDR
+  real(8) :: qlim_qcThresh
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -41,6 +42,12 @@ module humidityLimits_mod
     module procedure qlim_rttovLimit_ens
     module procedure qlim_rttovLimit_col
   end interface qlim_rttovLimit
+
+  ! interface for qlim_applyQcLimit
+  interface qlim_applyQcLimit
+    module procedure qlim_applyQcLimit_gsv
+    module procedure qlim_applyQcLimit_ens
+  end interface qlim_applyQcLimit
 
   ! interface for qlim_setMin
   interface qlim_setMin
@@ -73,9 +80,12 @@ contains
     real(8) :: maxValueSF   ! maximum   SF value
     real(8) :: minValueCLDR ! minimum CLDR value
     real(8) :: maxValueCLDR ! maximum CLDR value
+    real(8) :: qcThresh     ! threshold for QC
+
 
     NAMELIST /NAMQLIM/ minValueLWCR, maxValueLWCR, minValueIWCR, maxValueIWCR, &
-                       minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR
+                       minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR, &
+                       qcThresh
 
     if ( nmlAlreadyRead ) return
 
@@ -97,6 +107,8 @@ contains
     minValueCLDR = 0.0d0
     maxValueCLDR = 1.0d0
 
+    qcThresh = 3.0d-8
+    
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mmpi_myid == 0 ) then
         write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
@@ -127,6 +139,8 @@ contains
 
     qlim_minValueCLDR = minValueCLDR
     qlim_maxValueCLDR = maxValueCLDR
+
+    qlim_qcThresh = qcThresh
 
   end subroutine readNameList
 
@@ -875,6 +889,133 @@ contains
     end if
 
   end subroutine qlim_rttovLimit_ens
+
+  !--------------------------------------------------------------------------
+  ! qlim_applyQcLimit_gsv
+  !--------------------------------------------------------------------------
+  subroutine qlim_applyQcLimit_gsv(statevector)
+    !
+    !:Purpose: To impose limit on QC
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector ! statevector object
+
+    ! Locals:
+    real(8), pointer :: qc_ptr_r8(:,:,:,:)
+    real(4), pointer :: qc_ptr_r4(:,:,:,:)
+    real(8)          :: qc, qc_modified
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
+    integer          :: lonIndex, latIndex, levIndex, stepIndex
+    character(len=4) :: varName
+
+    varName = 'QC'
+    if (.not. gsv_varExist(stateVector,varName)) return
+
+    if (mmpi_myid == 0) write(*,*) 'qlim_applyQcLimit_gsv: applying limits to QC'
+
+    if (statevector%dataKind == 8) then
+      call gsv_getField(statevector, qc_ptr_r8, varName)
+    else
+      call gsv_getField(statevector, qc_ptr_r4, varName)
+    end if
+
+    lon1 = statevector%myLonBeg
+    lon2 = statevector%myLonEnd
+    lat1 = statevector%myLatBeg
+    lat2 = statevector%myLatEnd
+    lev1 = 1
+    lev2 = gsv_getNumLev(statevector,'TH')
+
+    do stepIndex = 1, statevector%numStep
+
+      !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, qc, qc_modified)
+      do levIndex = lev1, lev2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            if (statevector%dataKind == 8) then
+              qc = qc_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
+            else
+              qc = real(qc_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
+            end if
+
+            qc_modified = qc
+            if (qc <  qlim_qcThresh) qc_modified = 0.0d0
+
+            if (statevector%dataKind == 8) then
+              qc_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = qc_modified
+            else
+              qc_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = real(qc_modified,4)
+            end if
+
+          end do ! lonIndex
+        end do ! latIndex
+      end do ! levIndex
+      !$OMP END PARALLEL DO
+
+    end do ! stepIndex
+
+  end subroutine qlim_applyQcLimit_gsv
+
+  !--------------------------------------------------------------------------
+  ! qlim_applyQcLimit_ens
+  !--------------------------------------------------------------------------
+  subroutine qlim_applyQcLimit_ens(ensemble)
+    !
+    !:Purpose: To impose limit on QC
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensemble ! ensemble object
+
+    ! Locals:
+    real(4), pointer :: qc_ptr_r4(:,:,:,:)
+    real(8)          :: qc, qc_modified
+    integer          :: lon1, lon2, lat1, lat2
+    integer          :: numLev, numMember, numStep, varLevIndex
+    integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
+    character(len=4) :: varName
+
+    varName = 'QC'
+    if (.not. ens_varExist(ensemble,varName)) return
+
+    if (mmpi_myid == 0) write(*,*) 'qlim_applyQcLimit_ens: applying limits to QC'
+
+    numLev = ens_getNumLev(ensemble,'TH')
+    numMember = ens_getNumMembers(ensemble)
+    numStep = ens_getNumStep(ensemble)
+    call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
+
+    do latIndex = lat1, lat2
+      do lonIndex = lon1, lon2
+
+        do levIndex = 1, numLev
+            varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, varName)
+            qc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+
+            !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, qc, qc_modified)
+            do stepIndex = 1, numStep
+              do memberIndex = 1, numMember
+
+                  qc = real(qc_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
+
+                  qc_modified = qc
+                  if (qc <  qlim_qcThresh) qc_modified = 0.0d0
+
+                  qc_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(qc_modified,4)
+
+              end do ! memberIndex
+            end do ! stepIndex
+            !$OMP END PARALLEL DO
+
+        end do ! levIndex
+
+      end do ! lonIndex
+    end do ! latIndex
+
+  end subroutine qlim_applyQcLimit_ens
 
   !--------------------------------------------------------------------------
   ! qlim_lintv_minmax

@@ -95,8 +95,10 @@ contains
     real(8)  :: alphaRandomPert      ! Random perturbation additive inflation coeff (0->1)
     real(8)  :: alphaRandomPertSubSample ! Random pert. additive inflation coeff for medium-range fcsts
     logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
+    logical  :: qcLimitsBeforeRecenter   ! Choose to apply limits on QC before recentering
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
+    logical  :: imposeQcLimits         ! switch for choosing to impose limits QC
     real(8)  :: weightRecenter(vco_maxNumLevels)  ! weight applied to recentering increment (between 0 and 1; 0 means no recentering)
     real(8)  :: weightRecenterLand     ! weight applied to recentering increment for land variables
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
@@ -128,7 +130,8 @@ contains
                                    etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
                                    etiket_anlmean_raw, etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, &
                                    numBits, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
-                                   use4Drecentering3Densemble, writeNetCDFInc
+                                   use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,           &
+                                   qcLimitsBeforeRecenter
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -170,8 +173,10 @@ contains
     alphaRandomPert          =  0.0D0
     alphaRandomPertSubSample =  -1.0D0
     huLimitsBeforeRecenter   = .true.
+    qcLimitsBeforeRecenter   = .true.
     imposeSaturationLimit    = .false.
     imposeRttovHuLimits      = .false.
+    imposeQcLimits           = .false.
     weightRecenter(:)        = -1.0D0 ! means no specified values
     weightRecenterLand       = -1.0D0 ! means same recentering for land as other variables
     numMembersToRecenter     = -1     ! means all members recentered by default
@@ -324,14 +329,21 @@ contains
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
           if (mmpi_myid == 0) write(*,*) ''
           if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-          if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if (mmpi_myid == 0 .and. imposeSaturationLimit) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits  ) write(*,*) '              -> Rttov Limit'
+          if (imposeSaturationLimit) call qlim_saturationLimit(ensembleAnl)
+          if (imposeRttovHuLimits  ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
         end if
+      end if
+
+      !- Impose limits on QC *before* recentering, if requested
+      if (qcLimitsBeforeRecenter .and. imposeQcLimits) then
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the QC of analysis ensemble'
+        call qlim_applyQcLimit(ensembleAnl)
       end if
 
       !- Recenter analysis ensemble on supplied analysis
@@ -357,21 +369,30 @@ contains
       end if
 
       !- Impose limits on humidity *after* recentering, if requested
-      if (.not.huLimitsBeforeRecenter) then
+      if (.not. huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
           if (mmpi_myid == 0) write(*,*) ''
           if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
-          if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if (mmpi_myid == 0 .and. imposeSaturationLimit) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits  ) write(*,*) '              -> Rttov Limit'
+          if (imposeSaturationLimit) call qlim_saturationLimit(ensembleAnl)
+          if (imposeRttovHuLimits  ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
           if (gsv_isAllocated(stateVectorMeanAnl4D)) then
-            if ( imposeSaturationLimit ) call qlim_saturationLimit(stateVectorMeanAnl4D)
-            if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (stateVectorMeanAnl4D)
+            if (imposeSaturationLimit) call qlim_saturationLimit(stateVectorMeanAnl4D)
+            if (imposeRttovHuLimits  ) call qlim_rttovLimit     (stateVectorMeanAnl4D)
           end if
+        end if
+      end if
+
+      if (.not. qcLimitsBeforeRecenter .and. imposeQcLimits) then
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the QC of analysis ensemble'
+        call qlim_applyQcLimit(ensembleAnl)
+        if (gsv_isAllocated(stateVectorMeanAnl4D)) then
+          call qlim_applyQcLimit(stateVectorMeanAnl4D)
         end if
       end if
 
