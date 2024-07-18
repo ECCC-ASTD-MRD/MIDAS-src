@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Updated var/EnVar/gdps system test configuration and reference data to IC-4 level (#930 and !860)
 
 ### Fixed
 
@@ -46,7 +46,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Updated var/EnVar/gdps system test configuration and reference data to IC-4 level (#930 and !860)
  * Minimize MPI communications when writing ensemble members (#934 and !853)
  * Use `varLev` instead of `k` to improve variable naming (#939 and !852)
  * Declare all constants in `mathPhysConstants_mod.f90` as `parameter` (#940 and !851)
