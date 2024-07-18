@@ -5520,7 +5520,7 @@ contains
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: ier, actualNumChannel, codtyp
-    real(8) :: aa, ice, tb89, tb165, bcor89, bcor165
+    real(8) :: ice, tb89, tb165, bcor89, bcor165
     real(8) :: tb89FG, tb89FgClear, tb165FG, tb165FgClear
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
