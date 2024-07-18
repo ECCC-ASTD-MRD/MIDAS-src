@@ -900,7 +900,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(inout) :: statevector ! statevector object
 
     ! Locals:
     real(8), pointer :: qc_ptr_r8(:,:,:,:)
@@ -968,7 +968,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensemble
+    type(struct_ens), intent(inout) :: ensemble ! ensemble object
 
     ! Locals:
     real(4), pointer :: qc_ptr_r4(:,:,:,:)
