@@ -2793,13 +2793,11 @@ CONTAINS
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), displacements(mmpi_nprocs)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
-    integer, allocatable :: writeFilePE(:), memberIndexFromMemberVarLev(:)
-    integer, allocatable :: varLevIndexFromMemberVarLev(:), batchIndexFromMemberVarLev(:)
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2, lastWriteFilePE
-    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount, varLevIndex, memberVarLevIndex
+    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numBatches, varLevGroupSize
+    integer :: memberIndex, memberBegIndex, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2881,64 +2879,6 @@ CONTAINS
     end if
     varLevGroupSize = numVarLev/numVarLevBatches
 
-    ! Determine which MPI tasks write which members/varLev to minimize file writing
-    allocate(batchIndexFromMemberVarLev(ens%numMembers*numVarLev))
-    allocate(writeFilePE(ens%numMembers*numVarLev))
-    allocate(varLevIndexFromMemberVarLev(ens%numMembers*numVarLev))
-    allocate(memberIndexFromMemberVarLev(ens%numMembers*numVarLev))
-    varLevLoop: do varLevIndex = 1, numVarLev
-      memberLoop: do memberIndex = 1, ens%numMembers
-        memberVarLevIndex = ((varLevIndex-1)*ens%numMembers) + memberIndex
-        varLevIndexFromMemberVarLev(memberVarLevIndex) = varLevIndex
-        memberIndexFromMemberVarLev(memberVarLevIndex) = memberIndex
-
-        if (memberVarLevIndex == 1) then
-          ! Very first member/varLev
-          writeFilePE(memberVarLevIndex) = 0
-          batchIndexFromMemberVarLev(memberVarLevIndex) = 1
-        else
-          ! Increment MPI task ID and keep same batch
-          writeFilePE(memberVarLevIndex) = writeFilePE(memberVarLevIndex-1) + 1
-          batchIndexFromMemberVarLev(memberVarLevIndex) = batchIndexFromMemberVarLev(memberVarLevIndex-1)
-        end if
-
-        ! Decide if we need to move to the next batch
-        if (memberIndex == 1) then
-          if (writeFilePE(memberVarLevIndex) == 0) then
-            ! First MPI task writing member 1, try to fit all others in this batch
-            lastWriteFilePE = ens%numMembers - 1
-          else
-            ! Check if we can fit this full state vector in this batch
-            if (lastWriteFilePE + ens%numMembers < mmpi_nprocs) then
-              lastWriteFilePE = lastWriteFilePE + ens%numMembers
-            end if
-            ! If numMembers > nprocs, move to next batch
-            if (ens%numMembers > mmpi_nprocs) then
-              writeFilePE(memberVarLevIndex) = 0
-              batchIndexFromMemberVarLev(memberVarLevIndex) = batchIndexFromMemberVarLev(memberVarLevIndex-1) + 1
-              lastWriteFilePE = ens%numMembers - 1
-            end if
-          end if
-          ! Ensure we limit ourselves to the total number of MPI tasks
-          lastWriteFilePE = min(lastWriteFilePE, mmpi_nprocs - 1)
-        end if
-
-        ! Move to next batch if we reached lastWriteFilePE
-        if (writeFilePE(memberVarLevIndex) == lastWriteFilePE + 1) then
-          writeFilePE(memberVarLevIndex) = 0
-          batchIndexFromMemberVarLev(memberVarLevIndex) = batchIndexFromMemberVarLev(memberVarLevIndex-1) + 1
-          lastWriteFilePE = min(ens%numMembers - memberIndex, mmpi_nprocs - 1)
-        end if
-
-        if (mmpi_myid == 0) then
-          write(*,*) 'ens_writeEnsemble: batchIndex, memberIndex, varLevIndex, memberVarLevIndex, writeFilePE = ', &
-               batchIndexFromMemberVarLev(memberVarLevIndex), memberIndex, varLevIndex, memberVarLevIndex, &
-               writeFilePE(memberVarLevIndex)
-        end if
-
-      end do memberLoop
-    end do varLevLoop
-
     ! Memory allocation
     allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(ens%numMembers, mmpi_nprocs)))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,mmpi_nprocs))
@@ -2948,7 +2888,7 @@ CONTAINS
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
     ! Specify the start of each memory block to read/write for each MPI rank
-    nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+    nsize = lonPerPEmax*latPerPEmax*varLevGroupSize
     displacements(1) = 0
     do procIndex = 2, mmpi_nprocs
       displacements(procIndex) = displacements(procIndex-1) + nsize
@@ -3074,7 +3014,7 @@ CONTAINS
                        ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
                        varLevIndexBeg:varLevIndexEnd) = &
                    gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                              1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
+                              1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
 
             end do
           end do
@@ -3152,10 +3092,6 @@ CONTAINS
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
-    deallocate(batchIndexFromMemberVarLev)
-    deallocate(writeFilePE)
-    deallocate(varLevIndexFromMemberVarLev)
-    deallocate(memberIndexFromMemberVarLev)
 
     call msg_memUsage('ens_writeEnsemble')
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
