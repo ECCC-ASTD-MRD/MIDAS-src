@@ -19,6 +19,7 @@ set -x
 ## basename of the toplevel directory to '${HOME}/data_maestro/ords/midas-bld'.
 
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
+MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR:-true}
 MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
@@ -91,7 +92,11 @@ MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
 MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
 __install_always_midas=true
 
-__build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+    __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
+else
+    __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld
+fi
 __keep_jobsubmit_ofile=false
 __ordsoumet_wallclock=${__ordsoumet_wallclock:-20}
 

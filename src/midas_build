@@ -123,10 +123,15 @@ function printHeader {
         echo "| * ${__t}"
     done
     echo "| code version : ${__revstring}"
+    echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
     echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| optimization report : ${MIDAS_COMPILE_OPTIMIZE_REPORT}"
-    echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
+    if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
+    else
+        echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld"
+    fi
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
         ##   only then the build dir can be removed
@@ -183,7 +188,7 @@ make depend || exit 1
 ##=========================================================
 ## testing target validity on frontend first
 
-__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}"
+__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
 __job_test_target="make -n ${__target} ${__job_opt}"
 
 ##-- lauching dry-run to test target
@@ -244,6 +249,7 @@ export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
 export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
+export MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
 export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
 export MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT}
 export MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET}
@@ -343,7 +349,11 @@ then
     [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir}
     for __abs in ${__abs_exist_list}; do
         typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
-        typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${ORDENV_PLAT}/
+        if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${ORDENV_PLAT}/
+        else
+            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld/${ORDENV_PLAT}/
+        fi
         find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \;
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
@@ -390,7 +400,8 @@ then
             echo "(in your environment, profile or config.dot.sh)"
             echo " ... cleaning build directory "
             make clean MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} \
-                MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE}
+                 MIDAS_COMPILE_VERBOSE=${MIDAS_COMPILE_VERBOSE} \
+                 MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}
         fi
     else
         echo

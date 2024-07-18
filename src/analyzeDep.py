@@ -140,7 +140,10 @@ if not buildDir:
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     proc.wait()
     ec_arch=proc.stdout.readlines()[-1].strip().decode(encoding)
-    buildDir = relCompDir+'midas_bld-'+version+'/'+ec_arch
+    if os.environ.get('MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR') == 'true':
+        buildDir = relCompDir+'midas_bld-'+version+'/'+ec_arch
+    else:
+        buildDir = relCompDir+'midas_bld'+'/'+ec_arch
     print(f'Next time call with\n\t--path {buildDir}')
 
     if not os.path.isdir(buildDir):
