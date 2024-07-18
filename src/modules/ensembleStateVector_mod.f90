@@ -2832,6 +2832,13 @@ CONTAINS
       ip3 = 0
     end if
 
+    ! Determine if ensemble is full fields (if yes, will be converted from K to C)
+    if (present(containsFullField_opt)) then
+      containsFullField = containsFullField_opt
+    else
+      containsFullField = (.not. ens%meanIsRemoved)
+    end if
+
     if (present(writeNetCDF_opt)) then
       writeNetCDF = writeNetCDF_opt
     else
@@ -2860,6 +2867,19 @@ CONTAINS
     numStep     = ens%statevector_work%numStep
 
     ens%ensPathName = trim(ensPathName)
+
+    if ( mmpi_nprocs < ens%numMembers ) then
+      numVarLevBatches = numVarLev
+      if ( mod(ens%numMembers, mmpi_nprocs) == 0 ) then
+        numBatches = ens%numMembers/mmpi_nprocs
+      else
+        numBatches = ens%numMembers/mmpi_nprocs + 1
+      end if
+    else
+      numBatches = 1
+      numVarLevBatches = mmpi_nprocs/ens%numMembers
+    end if
+    varLevGroupSize = numVarLev/numVarLevBatches
 
     ! Determine which MPI tasks write which members/varLev to minimize file writing
     allocate(batchIndexFromMemberVarLev(ens%numMembers*numVarLev))
@@ -2920,9 +2940,8 @@ CONTAINS
     end do varLevLoop
 
     ! Memory allocation
-    numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,min(ens%numMembers, mmpi_nprocs)))
-    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(ens%numMembers, mmpi_nprocs)))
+    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -2940,7 +2959,7 @@ CONTAINS
 
     if (mmpi_myid == 0) then
       write(*,*)
-      write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*) 'ens_writeEnsemble: dateStampList=', dateStampList(1:numStep)
       write(*,*)
     end if
 
@@ -2978,96 +2997,91 @@ CONTAINS
       statevector_member_r4%dateOriginList(1) = ens%statevector_work%dateOriginList(stepIndex)
       statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
+
       ! if it exists, copy over mask from work statevector to member being written
       call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
       ! copy over height surface to member being written
       if (writeHeightSfc) then
         call gsv_copyHeightSfc(statevectorHeightSfc,stateVector_member_r4)
       end if
-      
-      do memberIndex = 1, ens%numMembers
 
-        !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
-        if (writeFilePE(memberIndex) == 0) then
+      batchLoop: do batchIndex = 1, numBatches
+        memberBegIndex = (batchIndex-1)*mmpi_nprocs + 1
+        varLevLoop: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
+          varLevIndexEnd = min(numVarLev,varLevIndexBeg+varLevGroupSize-1)
+          numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
-          batchIndex = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
-
-          do varLevIndexBeg = 1, numVarLev, numLevelsToSend
-            varLevIndexEnd = min(numVarLev,varLevIndexBeg+numLevelsToSend-1)
-            numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
-
-            if ( ens%dataKind == 8 ) then
-              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
-              do varLevCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                  yourid = writeFilePE(memberIndex2)
+          if ( ens%dataKind == 8 ) then
+            !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
+            do varLevCount = 1, numLevelsToSend
+              do yourid = 0, mmpi_nprocs-1
+                memberIndex = memberBegIndex + yourid
+                if ( memberIndex <= ens%numMembers ) then
                   gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
-                       real(ens%allLev_r8(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
-                end do
-              end do
-              !$OMP END PARALLEL DO
-            else
-              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
-              do varLevCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                  yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
-                       ens%allLev_r4(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
-                end do
-              end do
-              !$OMP END PARALLEL DO
-            end if
-
-            if (mmpi_nprocs > 1) then
-              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
-
-              ! only send the exact data amount for each task
-              do procIndex = 1, mmpi_nprocs
-                if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-                  sendsizes(procIndex) = nsize
-                else
-                  sendsizes(procIndex) = 0
+                     real(ens%allLev_r8(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex,stepIndex,:,:),4)
                 end if
-              end do
-
-              ! only receive data on rank that receive data
-              if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-                recvsizes(:) = nsize
-              else
-                recvsizes(:) = 0
-              end if
-
-              call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                                 mmpi_comm_grid, ierr)
-              call utl_tmg_stop(191)
-            else
-              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
-            end if
-
-            call gsv_getField(statevector_member_r4,ptr3d_r4)
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 1, mmpi_npey
-              do youridx = 1, mmpi_npex
-                yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
-                ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
-                         ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
-                         varLevIndexBeg:varLevIndexEnd) = &
-                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
-
               end do
             end do
             !$OMP END PARALLEL DO
+          else
+            !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
+            do varLevCount = 1, numLevelsToSend
+              do yourid = 0, mmpi_nprocs-1
+                memberIndex = memberBegIndex + yourid
+                if ( memberIndex <= ens%numMembers ) then
+                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                       ens%allLev_r4(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex,stepIndex,:,:)
+                end if
+              end do
+            end do
+            !$OMP END PARALLEL DO
+          end if
 
-          end do ! varLevIndexBeg
+          if (mmpi_nprocs > 1) then
+            nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
 
-        end if ! MPI communication
+            ! only send the exact data amount for each task
+            do procIndex = 1, mmpi_nprocs
+              if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                sendsizes(procIndex) = nsize
+              else
+                sendsizes(procIndex) = 0
+              end if
+            end do
 
-        ! Write statevector to file
-        if (mmpi_myid == writeFilePE(memberIndex)) then
+            ! only receive data on rank that receive data
+            if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+              recvsizes(:) = nsize
+            else
+              recvsizes(:) = 0
+            end if
 
+            call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+            call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                               gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+                               mmpi_comm_grid, ierr)
+            call utl_tmg_stop(191)
+          else
+            gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
+          end if
+
+          call gsv_getField(statevector_member_r4,ptr3d_r4)
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 1, mmpi_npey
+            do youridx = 1, mmpi_npex
+              yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+              ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
+                       ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
+                       varLevIndexBeg:varLevIndexEnd) = &
+                   gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                              1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
+
+            end do
+          end do
+          !$OMP END PARALLEL DO
+
+          ! Write statevector to file
+          memberIndex = memberBegIndex + mmpi_myid
           call msg_memUsage('ens_writeEnsemble')
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
@@ -3086,19 +3100,11 @@ CONTAINS
             call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
                                  ensFileNamePrefix_opt = ensFileNamePrefix, &
                                  shouldExist_opt = .false., &
-				 ensembleFileExtLength_opt = ensFileExtLength, &
+                                 ensembleFileExtLength_opt = ensFileExtLength, &
                                  fileMemberIndex1_opt = ens%fileMemberIndex1)
           end if
 
-          ! Determine if ensemble is full fields (if yes, will be converted from K to C)
-          if (present(containsFullField_opt)) then
-            containsFullField = containsFullField_opt
-          else
-            containsFullField = (.not. ens%meanIsRemoved)
-          end if
-
           etiketStr = etiket
-
           if (present(etiketAppendMemberNumber_opt)) then
             if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
               write(ensFileExtLengthStr,"(I1)") ensFileExtLength
@@ -3112,7 +3118,7 @@ CONTAINS
               end if
             end if
           end if
-          
+
           ! The routine 'gio_writeToFile' ignores the supplied
           ! argument for the etiket, here 'etiketStr', if
           ! 'statevector_member_r4%etiket' is different from
@@ -3123,16 +3129,16 @@ CONTAINS
           call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
                                typvar_opt = typvar, numBits_opt = numBits_opt,               &
                                containsFullField_opt = containsFullField,                    &
-                               writeHeightSfc_opt = writeHeightSfc)
-          
+                               writeHeightSfc_opt = writeHeightSfc,                          &
+                               varLevIndexBeg_opt = varLevIndexBeg,                          &
+                               varLevIndexEnd_opt = varLevIndexEnd)
+
           if (writeNetCDF) then
             call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName), &
                                        containsFullField_opt = containsFullField)
-	  end if
-
-        end if ! locally written one member
-
-      end do ! memberIndex
+          end if
+        end do varLevLoop
+      end do batchLoop
 
       ! deallocate the needed statevector objects
       call gsv_deallocate(statevector_member_r4)
