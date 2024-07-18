@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * All-sky assimilation for MWHS2 (#942 and !855)
 
 ### Changed
 
@@ -26,7 +26,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * All-sky assimilation for MWHS2 (#942 and !855)
  * More namelist variables in `nambgck` for all-sky ATMS humidity channels (#935 and !844)
    * Small impact on number of all-sky humidity ATMS observations assimilated
  * Added new program dfs.f90 to compute DFS and to perform channel selection (#904 and !840)
