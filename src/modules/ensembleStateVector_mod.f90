@@ -2948,7 +2948,7 @@ CONTAINS
       varLevGroupIndex = 1
       batchLoop: do batchIndex = 1, numBatches
         memberBegIndex = (batchIndex-1)*mmpi_nprocs + 1
-        varLevLoop1: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
+        varLevLoop: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
           varLevIndexEnd = min(numVarLev,varLevIndexBeg+varLevGroupSize-1)
           numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
@@ -2975,50 +2975,50 @@ CONTAINS
             end do
             !$OMP END PARALLEL DO
           end if
-        end do varLevLoop1
 
-        if (mmpi_nprocs > 1) then
-          nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+          if (mmpi_nprocs > 1) then
+            nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
 
-          ! only send the exact data amount for each task
-          do procIndex = 1, mmpi_nprocs
-            if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-              sendsizes(procIndex) = nsize
+            ! only send the exact data amount for each task
+            do procIndex = 1, mmpi_nprocs
+              if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+                sendsizes(procIndex) = nsize
+              else
+                sendsizes(procIndex) = 0
+              end if
+            end do
+
+            ! only receive data on rank that receive data
+            if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+              recvsizes(:) = nsize
             else
-              sendsizes(procIndex) = 0
+              recvsizes(:) = 0
             end if
-          end do
 
-          ! only receive data on rank that receive data
-          if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-            recvsizes(:) = nsize
+            call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+            call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                               gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+                               mmpi_comm_grid, ierr)
+            call utl_tmg_stop(191)
           else
-            recvsizes(:) = 0
+            gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
           end if
 
-          call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-          call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                             gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                             mmpi_comm_grid, ierr)
-          call utl_tmg_stop(191)
-        else
-          gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
-        end if
+          call gsv_getField(statevector_member_r4,ptr3d_r4)
+          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 1, mmpi_npey
+            do youridx = 1, mmpi_npex
+              yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+              ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx), &
+                       ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy), &
+                       varLevIndexBeg:varLevIndexEnd) = &
+                       gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                                  1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
 
-        call gsv_getField(statevector_member_r4,ptr3d_r4)
-        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-        do youridy = 1, mmpi_npey
-          do youridx = 1, mmpi_npex
-            yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
-            ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
-                     ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
-                     varLevIndexBeg:varLevIndexEnd) = &
-                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
-
+            end do
           end do
-        end do
-        !$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
+        end do varLevLoop
 
         call msg_memUsage('ens_writeEnsemble')
 
@@ -3040,48 +3040,55 @@ CONTAINS
             end if
             ensFileExtLength = 4
           else
-            call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
-                                 ensFileNamePrefix_opt = ensFileNamePrefix, &
-                                 shouldExist_opt = .false., &
-                                 ensembleFileExtLength_opt = ensFileExtLength, &
-                                 fileMemberIndex1_opt = ens%fileMemberIndex1)
+            call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                    memberIndex_opt = memberIndex,                &
+                                    ensFileNamePrefix_opt = ensFileNamePrefix)
           end if
+          ensFileExtLength = 4
+        else
+          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
+                               ensFileNamePrefix_opt = ensFileNamePrefix,               &
+                               shouldExist_opt = .false.,                               &
+                               ensembleFileExtLength_opt = ensFileExtLength,            &
+                               fileMemberIndex1_opt = ens%fileMemberIndex1)
+        end if
 
-          etiketStr = etiket
-          if (present(etiketAppendMemberNumber_opt)) then
-            if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
-              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
-              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
-              ! 12 is the maximum length of an etiket for RPN fstd files
-              maximumBaseEtiketLength = 12 - ensFileExtLength
-              if (len(trim(etiketStr)) >= maximumBaseEtiketLength) then
-                etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
-              else
-                etiketStr = trim(etiketStr) // trim(memberIndexStr)
-              end if
+        etiketStr = etiket
+        if (present(etiketAppendMemberNumber_opt)) then
+          if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
+            write(ensFileExtLengthStr,"(I1)") ensFileExtLength
+            write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
+            ! 12 is the maximum length of an etiket for RPN fstd files
+            maximumBaseEtiketLength = 12 - ensFileExtLength
+            if (len(trim(etiketStr)) >= maximumBaseEtiketLength) then
+              etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
+            else
+              etiketStr = trim(etiketStr) // trim(memberIndexStr)
             end if
           end if
+        end if
 
-          ! The routine 'gio_writeToFile' ignores the supplied
-          ! argument for the etiket, here 'etiketStr', if
-          ! 'statevector_member_r4%etiket' is different from
-          ! 'UNDEFINED'.  So we must define it explicitely in the
-          ! 'statevector_member_r4'.
-          statevector_member_r4%etiket = etiketStr
+        ! The routine 'gio_writeToFile' ignores the supplied
+        ! argument for the etiket, here 'etiketStr', if
+        ! 'statevector_member_r4%etiket' is different from
+        ! 'UNDEFINED'.  So we must define it explicitely in the
+        ! 'statevector_member_r4'.
+        statevector_member_r4%etiket = etiketStr
 
-          call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
-                               typvar_opt = typvar, numBits_opt = numBits_opt,               &
-                               containsFullField_opt = containsFullField,                    &
-                               writeHeightSfc_opt = writeHeightSfc,                          &
-                               varLevIndexBeg_opt = varLevIndexBeg,                          &
-                               varLevIndexEnd_opt = varLevIndexEnd,                          &
-                               doWriteTicTacToc_opt = ( varLevIndexBeg == 1 ) ) ! We do write the 'tic-tac-toc' only the first time we write that statevector
+        call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, &
+                             typvar_opt = typvar, numBits_opt = numBits_opt,               &
+                             containsFullField_opt = containsFullField,                    &
+                             writeHeightSfc_opt = writeHeightSfc,                          &
+                             varLevIndexBeg_opt = varLevIndexBeg,                          &
+                             varLevIndexEnd_opt = varLevIndexEnd,                          &
+                             doWriteTicTacToc_opt = ( varLevIndexBeg == 1 ) ) ! We do write the 'tic-tac-toc' only the first time we write that statevector
 
-          if (writeNetCDF) then
-            call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName), &
-                                       containsFullField_opt = containsFullField)
-          end if
-        end do varLevLoop2
+        if (writeNetCDF) then
+          call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
+                                     containsFullField_opt = containsFullField, &
+                                     varLevIndexBeg_opt = varLevIndexBeg,       &
+                                     varLevIndexEnd_opt = varLevIndexEnd)
+        end if
 
         varLevGroupIndex = varLevGroupIndex + 1
       end do batchLoop
