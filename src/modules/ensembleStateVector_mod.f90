@@ -2796,8 +2796,8 @@ CONTAINS
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numBatches, varLevGroupSize
-    integer :: memberIndex, memberBegIndex, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
+    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numBatches, varLevGroupSize, varLevGroupIndex
+    integer :: memberIndex, memberBegIndex, stepIndex, varLevIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2955,8 +2955,8 @@ CONTAINS
           if ( ens%dataKind == 8 ) then
             !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
             do varLevCount = 1, numLevelsToSend
-              do yourid = 0, mmpi_nprocs-1
-                memberIndex = mod(memberBegIndex + yourid - 1, ens%numMembers) + 1
+              do memberIndex = memberBegIndex, min(ens%numMembers, batchIndex*mmpi_nprocs)
+                yourid = memberIndex - memberBegIndex
                 varLevIndex = varLevCount + varLevIndexBeg - 1 + (varLevGroupIndex-1)*varLevGroupSize
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
@@ -2966,8 +2966,8 @@ CONTAINS
           else
             !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
             do varLevCount = 1, numLevelsToSend
-              do yourid = 0, mmpi_nprocs-1
-                memberIndex = mod(memberBegIndex + yourid - 1, ens%numMembers) + 1
+              do memberIndex = memberBegIndex, min(ens%numMembers, batchIndex*mmpi_nprocs)
+                yourid = memberIndex - memberBegIndex
                 varLevIndex = varLevCount+varLevIndexBeg-1 + (varLevGroupIndex-1)*varLevGroupSize
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
@@ -3020,10 +3020,12 @@ CONTAINS
         end do
         !$OMP END PARALLEL DO
 
+        call msg_memUsage('ens_writeEnsemble')
+
+        ! Write statevector to file
+        memberIndex = mmpi_myid + memberBegIndex
+        call msg_memUsage('ens_writeEnsemble')
         varLevLoop2: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
-          ! Write statevector to file
-          memberIndex = mod(memberBegIndex + mmpi_myid - 1, ens%numMembers) + 1
-          call msg_memUsage('ens_writeEnsemble')
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
             if ( typvar == 'R' ) then
@@ -3080,6 +3082,8 @@ CONTAINS
                                        containsFullField_opt = containsFullField)
           end if
         end do varLevLoop2
+
+        varLevGroupIndex = varLevGroupIndex + 1
       end do batchLoop
 
       ! deallocate the needed statevector objects
@@ -3094,6 +3098,27 @@ CONTAINS
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
+
+    ! If 'varLevGroups>1' then only some MPI process (the first
+    ! ens%numMembers) have to collect the different batches together.
+    if ( varLevGroups > 1 ) then
+      ! We have to make sure that all the intermediate files '*_mpiid_*'
+      ! are written to disk before regrouping it.
+      call utl_tmg_start(192,'ens_writeEnsemble-barrier')
+      call rpn_comm_barrier('GRID', ierr)
+      call utl_tmg_stop(192)
+
+      call utl_tmg_start(193,'ens_writeEnsemble-combine_files')
+      if ( mmpi_myid < ens%numMembers ) then
+        ! We must reset the memberIndex with 'mmpi_myid'
+        memberIndex = mmpi_myid + 1
+        call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar,   &
+                                 memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
+        call gio_collectMpiDistributedFiles(ensFileName, '_batch_',                    &
+                                            startIndex = 2, endIndex = varLevGroups)
+      end if
+      call utl_tmg_stop(193)
+    end if
 
     call msg_memUsage('ens_writeEnsemble')
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
