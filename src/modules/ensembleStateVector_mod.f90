@@ -20,6 +20,7 @@ module ensembleStateVector_mod
   use utilities_mod
   use varNameList_mod
   use codePrecision_mod
+  use message_mod
 
   implicit none
   save
@@ -2796,8 +2797,8 @@ CONTAINS
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numBatches, varLevGroupSize, varLevGroupIndex
-    integer :: memberIndex, memberBegIndex, stepIndex, varLevIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
+    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
+    integer :: memberIndex, memberIndexBeg, memberIndexEnd, stepIndex, varLevIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
@@ -2866,17 +2867,20 @@ CONTAINS
 
     ens%ensPathName = trim(ensPathName)
 
-    if ( mmpi_nprocs < ens%numMembers ) then
-      numVarLevBatches = numVarLev
-      if ( mod(ens%numMembers, mmpi_nprocs) == 0 ) then
-        numBatches = ens%numMembers/mmpi_nprocs
-      else
-        numBatches = ens%numMembers/mmpi_nprocs + 1
-      end if
+    if ( mod(ens%numMembers, mmpi_nprocs) == 0 ) then
+      numBatches = ens%numMembers/mmpi_nprocs
     else
-      numBatches = 1
-      numVarLevBatches = mmpi_nprocs/ens%numMembers
+      numBatches = ens%numMembers/mmpi_nprocs + 1
     end if
+
+    if ( mod(mmpi_nprocs, ens%numMembers) == 0 ) then
+      numVarLevBatches = mmpi_nprocs/ens%numMembers
+    else
+      numVarLevBatches = mmpi_nprocs/ens%numMembers + 1
+    end if
+
+    numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
+
     varLevGroupSize = numVarLev/numVarLevBatches
 
     ! Memory allocation
@@ -2947,28 +2951,31 @@ CONTAINS
 
       varLevGroupIndex = 1
       batchLoop: do batchIndex = 1, numBatches
-        memberBegIndex = (batchIndex-1)*mmpi_nprocs + 1
-        varLevLoop: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
-          varLevIndexEnd = min(numVarLev,varLevIndexBeg+varLevGroupSize-1)
+        memberIndexBeg = (batchIndex-1)*numMemberPerBatch + 1
+        memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
+
+        varLevGroupLoop: do varLevGroupIndex = 1, numVarLevBatches
+          varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
+          varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
           numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
           if ( ens%dataKind == 8 ) then
-            !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
+            !$OMP PARALLEL DO PRIVATE(varLevCount,varLevIndex,memberIndex,yourid)
             do varLevCount = 1, numLevelsToSend
-              do memberIndex = memberBegIndex, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                yourid = memberIndex - memberBegIndex
-                varLevIndex = varLevCount + varLevIndexBeg - 1 + (varLevGroupIndex-1)*varLevGroupSize
+              varLevIndex = varLevCount + varLevIndexBeg - 1
+              do memberIndex = memberIndexBeg, memberIndexEnd
+                yourid = memberIndex - memberIndexBeg
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
               end do
             end do
             !$OMP END PARALLEL DO
           else
-            !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex,yourid)
+            !$OMP PARALLEL DO PRIVATE(varLevCount,varLevIndex,memberIndex,yourid)
             do varLevCount = 1, numLevelsToSend
-              do memberIndex = memberBegIndex, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                yourid = memberIndex - memberBegIndex
-                varLevIndex = varLevCount+varLevIndexBeg-1 + (varLevGroupIndex-1)*varLevGroupSize
+              varLevIndex = varLevCount + varLevIndexBeg - 1
+              do memberIndex = memberIndexBeg, memberIndexEnd
+                yourid = memberIndex - memberIndexBeg
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
               end do
@@ -3018,27 +3025,20 @@ CONTAINS
             end do
           end do
           !$OMP END PARALLEL DO
-        end do varLevLoop
+        end do varLevGroupLoop
 
         call msg_memUsage('ens_writeEnsemble')
 
         ! Write statevector to file
-        memberIndex = mmpi_myid + memberBegIndex
+        memberIndex = mmpi_myid + memberIndexBeg
         call msg_memUsage('ens_writeEnsemble')
-        varLevLoop2: do varLevIndexBeg = 1, numVarLev, varLevGroupSize
 
-          if ( typvar == 'A' .or. typvar == 'R' ) then
-            if ( typvar == 'R' ) then
-              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                      memberIndex_opt = memberIndex,  &
-                                      ensFileNamePrefix_opt = ensFileNamePrefix, &
-                                      ensFileNameSuffix_opt = 'inc')
-            else
-              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                      memberIndex_opt = memberIndex,  &
-                                      ensFileNamePrefix_opt = ensFileNamePrefix)
-            end if
-            ensFileExtLength = 4
+        if ( typvar == 'A' .or. typvar == 'R' ) then
+          if ( typvar == 'R' ) then
+            call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                    memberIndex_opt = memberIndex,                &
+                                    ensFileNamePrefix_opt = ensFileNamePrefix,    &
+                                    ensFileNameSuffix_opt = 'inc')
           else
             call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
                                     memberIndex_opt = memberIndex,                &
@@ -3051,6 +3051,10 @@ CONTAINS
                                shouldExist_opt = .false.,                               &
                                ensembleFileExtLength_opt = ensFileExtLength,            &
                                fileMemberIndex1_opt = ens%fileMemberIndex1)
+        end if
+
+        if ( numVarLevBatches > 1 ) then
+          ensFileName = trim(ensFileName) // '_batch_' // str(mmpi_myid/ens%numMembers)
         end if
 
         etiketStr = etiket
