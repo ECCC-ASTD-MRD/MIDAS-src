@@ -2949,7 +2949,6 @@ CONTAINS
         call gsv_copyHeightSfc(statevectorHeightSfc,stateVector_member_r4)
       end if
 
-      varLevGroupIndex = 1
       batchLoop: do batchIndex = 1, numBatches
         memberIndexBeg = (batchIndex-1)*numMemberPerBatch + 1
         memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
@@ -3098,7 +3097,6 @@ CONTAINS
                                      varLevIndexEnd_opt = varLevIndexEnd)
         end if
 
-        varLevGroupIndex = varLevGroupIndex + 1
       end do batchLoop
 
       ! deallocate the needed statevector objects
