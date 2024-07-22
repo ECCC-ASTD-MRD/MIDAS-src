@@ -2982,50 +2982,55 @@ CONTAINS
             end do
             !$OMP END PARALLEL DO
           end if
+        end do varLevGroupLoop
 
-          if (mmpi_nprocs > 1) then
-            nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+        if (mmpi_nprocs > 1) then
+          nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
 
-            ! only send the exact data amount for each task
-            do procIndex = 1, mmpi_nprocs
-              if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-                sendsizes(procIndex) = nsize
-              else
-                sendsizes(procIndex) = 0
-              end if
-            end do
-
-            ! only receive data on rank that receive data
-            if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-              recvsizes(:) = nsize
+          ! only send the exact data amount for each task
+          do procIndex = 1, mmpi_nprocs
+            if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+              sendsizes(procIndex) = nsize
             else
-              recvsizes(:) = 0
+              sendsizes(procIndex) = 0
             end if
+          end do
 
-            call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-            call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                               gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                               mmpi_comm_grid, ierr)
-            call utl_tmg_stop(191)
+          ! only receive data on rank that receive data
+          if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+            recvsizes(:) = nsize
           else
-            gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
+            recvsizes(:) = 0
           end if
 
-          call gsv_getField(statevector_member_r4,ptr3d_r4)
-          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-          do youridy = 1, mmpi_npey
-            do youridx = 1, mmpi_npex
-              yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
-              ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx), &
-                       ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy), &
-                       varLevIndexBeg:varLevIndexEnd) = &
-                       gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                                  1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
+          call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+          call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                             gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+                             mmpi_comm_grid, ierr)
+          call utl_tmg_stop(191)
+        else
+          gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
+        end if
 
-            end do
+        call gsv_getField(statevector_member_r4,ptr3d_r4)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid,varLevGroupIndex,varLevIndexBeg,varLevIndexEnd,numLevelsToSend)
+        do youridy = 1, mmpi_npey
+          do youridx = 1, mmpi_npex
+            yourid = (youridx-1) + (youridy-1)*mmpi_npex ! yourid starts at 0
+
+            varLevGroupIndex = yourid/ens%numMembers + 1
+            varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
+            varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
+            numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
+
+            ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx), &
+                     ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy), &
+                     varLevIndexBeg:varLevIndexEnd) = &
+                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid + 1)
           end do
-          !$OMP END PARALLEL DO
-        end do varLevGroupLoop
+        end do
+        !$OMP END PARALLEL DO
 
         call msg_memUsage('ens_writeEnsemble')
 
