@@ -655,7 +655,6 @@ contains
           dfsCount = dfsCount + 1
           call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
           
-          
           !extraction of the R matrix
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
           if (familyType == 'TO') then
@@ -720,9 +719,9 @@ contains
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
                 write(nulHBHt,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex2 = 1, nLevelsDfs
-                  channelNumber2 = levelList(obsIndex,channelIndex2)
+                  channelNumber2 = vcoordList(channelIndex2)
                   do channelIndex1 = 1, nLevelsDfs
-                    channelNumber1 = levelList(obsIndex,channelIndex1)
+                    channelNumber1 = vcoordList(channelIndex1)
                     write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
                         channelNumber2, HBHtMatrixForOutput(channelIndex1,channelIndex2,outTaskIndex)
                   end do
@@ -757,7 +756,7 @@ contains
                 write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex1 = 1, size(order)
                   write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
-                      levelList(obsIndex,order(channelIndex1)), all_dfs(channelIndex1)
+                      vcoordList(order(channelIndex1)), all_dfs(channelIndex1)
                 end do
                 write(nulSelec,*)
               end if
