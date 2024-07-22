@@ -3012,22 +3012,23 @@ CONTAINS
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
         end if
 
+        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
+        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
+        varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
+        numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
+
         call gsv_getField(statevector_member_r4,ptr3d_r4)
         !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid,varLevGroupIndex,varLevIndexBeg,varLevIndexEnd,numLevelsToSend)
         do youridy = 1, mmpi_npey
           do youridx = 1, mmpi_npex
-            yourid = (youridx-1) + (youridy-1)*mmpi_npex ! yourid starts at 0
-
-            varLevGroupIndex = yourid/ens%numMembers + 1
-            varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
-            varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
-            numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
+            yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
 
             ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx), &
                      ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy), &
                      varLevIndexBeg:varLevIndexEnd) = &
                      gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid + 1)
+                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -3035,11 +3036,6 @@ CONTAINS
         call msg_memUsage('ens_writeEnsemble')
 
         ! Write statevector to file
-        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
-        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
-        varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
-        varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
-        call msg_memUsage('ens_writeEnsemble')
 
         if ( typvar == 'A' .or. typvar == 'R' ) then
           if ( typvar == 'R' ) then
