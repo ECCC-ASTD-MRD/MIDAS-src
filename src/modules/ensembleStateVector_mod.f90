@@ -3030,7 +3030,10 @@ CONTAINS
         call msg_memUsage('ens_writeEnsemble')
 
         ! Write statevector to file
-        memberIndex = mmpi_myid + memberIndexBeg
+        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
+        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
+        varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
         call msg_memUsage('ens_writeEnsemble')
 
         if ( typvar == 'A' .or. typvar == 'R' ) then
@@ -3054,7 +3057,7 @@ CONTAINS
         end if
 
         if ( numVarLevBatches > 1 ) then
-          ensFileName = trim(ensFileName) // '_batch_' // str(mmpi_myid/ens%numMembers)
+          ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
         end if
 
         etiketStr = etiket
