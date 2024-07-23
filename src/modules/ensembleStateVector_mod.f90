@@ -2884,7 +2884,7 @@ CONTAINS
     varLevGroupSize = numVarLev/numVarLevBatches
 
     ! Memory allocation
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(ens%numMembers, mmpi_nprocs)))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(numVarLevBatches*ens%numMembers, mmpi_nprocs)))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
@@ -2963,8 +2963,8 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
-                yourid = memberIndex - memberIndexBeg + (varLevGroupIndex-1)*ens%numMembers
-                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid) = &
                      real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
               end do
             end do
@@ -2974,8 +2974,8 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
-                yourid = memberIndex - memberIndexBeg + (varLevGroupIndex-1)*ens%numMembers
-                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid) = &
                      ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
               end do
             end do
@@ -2984,11 +2984,11 @@ CONTAINS
         end do varLevGroupLoop
 
         if (mmpi_nprocs > 1) then
-          nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+          nsize = lonPerPEmax*latPerPEmax*varLevGroupSize
 
           ! only send the exact data amount for each task
           do procIndex = 1, mmpi_nprocs
-            if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+            if ( procIndex <= min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
               sendsizes(procIndex) = nsize
             else
               sendsizes(procIndex) = 0
@@ -2996,7 +2996,7 @@ CONTAINS
           end do
 
           ! only receive data on rank that receive data
-          if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
+          if ( mmpi_myid < min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
             recvsizes(:) = nsize
           else
             recvsizes(:) = 0
