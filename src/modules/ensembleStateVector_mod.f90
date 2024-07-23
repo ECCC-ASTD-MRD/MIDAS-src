@@ -3033,6 +3033,10 @@ CONTAINS
 
         call msg_memUsage('ens_writeEnsemble')
 
+        if (mmpi_myid >= numVarLevBatches*ens%numMembers) then
+          cycle batchLoop
+        end if
+
         ! Write statevector to file
 
         if ( typvar == 'A' .or. typvar == 'R' ) then
