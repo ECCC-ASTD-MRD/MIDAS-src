@@ -2873,15 +2873,14 @@ CONTAINS
       numBatches = ens%numMembers/mmpi_nprocs + 1
     end if
 
-    if ( mod(mmpi_nprocs, ens%numMembers) == 0 ) then
-      numVarLevBatches = mmpi_nprocs/ens%numMembers
-    else
-      numVarLevBatches = mmpi_nprocs/ens%numMembers + 1
-    end if
-
     numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
 
-    varLevGroupSize = numVarLev/numVarLevBatches
+    numVarLevBatches = mmpi_nprocs/ens%numMembers
+    if ( mod(numVarLev, numVarLevBatches) == 0 ) then
+      varLevGroupSize = numVarLev/numVarLevBatches
+    else
+      varLevGroupSize = numVarLev/numVarLevBatches + 1
+    end if
 
     ! Memory allocation
     allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(numVarLevBatches*ens%numMembers, mmpi_nprocs)))
