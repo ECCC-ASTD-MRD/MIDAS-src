@@ -3043,26 +3043,8 @@ CONTAINS
         end if
 
         ! Write statevector to file
-
-        if ( typvar == 'A' .or. typvar == 'R' ) then
-          if ( typvar == 'R' ) then
-            call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                    memberIndex_opt = memberIndex,                &
-                                    ensFileNamePrefix_opt = ensFileNamePrefix,    &
-                                    ensFileNameSuffix_opt = 'inc')
-          else
-            call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                    memberIndex_opt = memberIndex,                &
-                                    ensFileNamePrefix_opt = ensFileNamePrefix)
-          end if
-          ensFileExtLength = 4
-        else
-          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
-                               ensFileNamePrefix_opt = ensFileNamePrefix,               &
-                               shouldExist_opt = .false.,                               &
-                               ensembleFileExtLength_opt = ensFileExtLength,            &
-                               fileMemberIndex1_opt = ens%fileMemberIndex1)
-        end if
+        call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, &
+                                 memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
 
         if ( numVarLevBatches > 1 ) then
           ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
@@ -3120,7 +3102,7 @@ CONTAINS
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
 
-    ! If 'varLevGroups>1' then only some MPI process (the first
+    ! If 'varLevGroups>1' then only some MPI processes (the first
     ! ens%numMembers) have to collect the different batches together.
     if ( varLevGroups > 1 ) then
       ! We have to make sure that all the intermediate files '*_mpiid_*'
@@ -3145,6 +3127,46 @@ CONTAINS
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
 
   end subroutine ens_writeEnsemble
+
+  !--------------------------------------------------------------------------
+  ! generateEnsFileName
+  !--------------------------------------------------------------------------
+  subroutine generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, memberIndex,  &
+                                 ensFileNamePrefix, fileMemberIndex1)
+    !
+    ! :Purpose: Generate the ensemble file name by calling the appropriate routine from 'fileNames_mod'
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(out) :: ensFileName
+    integer,          intent(out) :: ensFileExtLength
+    character(len=*), intent(in)  :: ensPathName
+    character(len=*), intent(in)  :: typvar
+    integer,          intent(in)  :: memberIndex
+    character(len=*), intent(in)  :: ensFileNamePrefix
+    integer,          intent(in)  :: fileMemberIndex1
+
+    if ( typvar == 'A' .or. typvar == 'R' ) then
+      if ( typvar == 'R' ) then
+        call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                memberIndex_opt = memberIndex,  &
+                                ensFileNamePrefix_opt = ensFileNamePrefix, &
+                                ensFileNameSuffix_opt = 'inc')
+      else
+        call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                memberIndex_opt = memberIndex,  &
+                                ensFileNamePrefix_opt = ensFileNamePrefix)
+      end if
+    else
+      call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
+                           ensFileNamePrefix_opt = ensFileNamePrefix, &
+                           shouldExist_opt = .false., &
+                           ensembleFileExtLength_opt = ensFileExtLength, &
+                           fileMemberIndex1_opt = fileMemberIndex1)
+    end if
+
+  end subroutine generateEnsFileName
 
   !--------------------------------------------------------------------------
   ! ens_applyMaskLAM

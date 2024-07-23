@@ -32,7 +32,7 @@ module gridStateVectorFileIO_mod
   public :: gio_setup
   public :: gio_readFromFile, gio_readTrials, gio_readFile
   public :: gio_readMaskFromFile, gio_getMaskLAM
-  public :: gio_writeToFile, gio_writeToFileNetCDF
+  public :: gio_writeToFile, gio_writeToFileNetCDF, gio_collectMpiDistributedFiles
   public :: gio_fileUnitsToStateUnits
 
   logical :: initialized = .false.
@@ -2101,7 +2101,7 @@ module gridStateVectorFileIO_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
-    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' calling 'fstFile%write()' modifies 'fstFile'
+    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'
     character(len=*), intent(in) :: etiket
 
     ! Locals:
@@ -2274,6 +2274,103 @@ module gridStateVectorFileIO_mod
     end if
 
   end subroutine writeTicTacToc
+
+  !--------------------------------------------------------------------------
+  ! gio_collectMpiDistributedFiles
+  !--------------------------------------------------------------------------
+  subroutine gio_collectMpiDistributedFiles(fileName, mpiSuffix, startIndex, endIndex)
+    !
+    ! :Purpose: Create a single file from MPI-distributed RPN standard files
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: fileName
+    character(len=*), intent(in) :: mpiSuffix
+    integer,          intent(in) :: startIndex
+    integer,          intent(in) :: endIndex
+
+    ! Locals:
+    logical            :: success
+    integer            :: index, ierr
+    character(len=256) :: fileNameTmp
+    type(fst_file)     :: fstFile
+
+    if ( outputFormat == 'XDF' ) then
+      ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
+      ! So to avoid reopening and reclosing the same file each iteration, we create a 'fstFile' handle
+      ! that will be used later in 'appendMpiDistributedFile_XDF'
+      success = fstFile%open(fileName, options = 'R/W')
+      if (.not. success) then
+        call utl_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
+      end if
+    else if ( outputFormat /= 'RSF' ) then
+      call utl_abort('gio_collectMpiDistributedFiles: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+    end if
+
+    do index = startIndex, endIndex
+      fileNameTmp = trim(fileName) // mpiSuffix // str(index)
+
+      if ( outputFormat == 'XDF' ) then
+        call appendMpiDistributedFile_XDF(fileNameTmp, fstFile)
+      else if ( outputFormat == 'RSF' ) then
+        ierr = utl_copyFile(fileNameTmp, fileName, concatenate_opt = .true.)
+      end if
+    end do ! procIndex
+
+    if ( outputFormat == 'XDF' ) then
+      success = fstFile%close()
+      if (.not. success) then
+        call utl_abort('gio_collectMpiDistributedFiles: problem closing output file ' // trim(fileName))
+      end if
+    end if
+
+  end subroutine gio_collectMpiDistributedFiles
+
+  !--------------------------------------------------------------------------
+  ! appendMpiDistributedFile_XDF
+  !--------------------------------------------------------------------------
+  subroutine appendMpiDistributedFile_XDF(inputFileName, fstFile)
+    !
+    ! :Purpose: Append the content of a MPI-distributed RPN standard
+    !           file to another in XDF format
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in)    :: inputFileName
+    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'
+
+    ! Locals:
+    logical            :: success
+    integer            :: ierr
+    type(fst_file)     :: fstFileOut
+    type(fst_record)   :: fstRecord
+    type(fst_query)    :: fstQuery
+
+    success = fstFileOut%open(inputFileName, options = 'R/O')
+    if (.not. success) then
+      call utl_abort('appendMpiDistributedFiles_XDF: problem opening output file ' // trim(inputFileName))
+    end if
+
+    ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
+    fstQuery = fstFileOut%new_query()
+    do while (fstQuery%read_next(fstRecord))
+      success = fstFile%write(fstRecord, rewrite = FST_SKIP)
+      if (.not. success) then
+        call utl_abort('appendMpiDistributedFiles_XDF: problem writing to file ' // trim(inputFileName) &
+                       // ' the record ' // fstRecord%nomvar // ' ' // str(fstRecord%ip1))
+      end if
+    end do
+    call fstQuery%free()
+
+    success = fstFileOut%close()
+    if (.not. success) then
+      call utl_abort('appendMpiDistributedFiles_XDF: problem closing output file ' // trim(inputFileName))
+    end if
+    ierr = clib_remove(inputFileName)
+
+  end subroutine appendMpiDistributedFile_XDF
 
   !--------------------------------------------------------------------------
   ! gio_fileUnitsToStateUnits
