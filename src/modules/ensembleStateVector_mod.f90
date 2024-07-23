@@ -3018,7 +3018,7 @@ CONTAINS
         numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
         call gsv_getField(statevector_member_r4,ptr3d_r4)
-        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid,varLevGroupIndex,varLevIndexBeg,varLevIndexEnd,numLevelsToSend)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
         do youridy = 1, mmpi_npey
           do youridx = 1, mmpi_npex
             yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
