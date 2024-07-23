@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Reading netCDF subroutine is fixed (#947 and !862)
 
 ### Removed
 
