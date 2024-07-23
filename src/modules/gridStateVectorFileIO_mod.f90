@@ -651,13 +651,14 @@ module gridStateVectorFileIO_mod
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp
     integer :: imode, ierr, newdate, prntdate, prnttime
-    integer :: recordDimID, numberRecords, timeCounterID
+    integer :: recordDimID, numberRecords, timeCounterID, dimTimeCounterID
     character(len = nf90_max_name) :: recordDimName
     integer, parameter  :: referenceDateORCA025 = 19500101 ! reference date for netCDF output files
     integer :: refDateStamp, currentDateStamp
     logical :: foundRequiredState
     integer :: timeIndexToRead
-
+    integer :: nDims, nVars, nGlobalAtts, unlimDimID
+    
     write(*,*) 'gio_readFileNetCDF: Start reading: ', trim(fileName)
 
     if (stateVector%numStep > 1) then
@@ -687,17 +688,24 @@ module gridStateVectorFileIO_mod
     ! Open the file
     call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
 
-    ! Read time_counter variable to verify if the required stepIndex is in the file
-    ! Get ID of unlimited dimension
-    call utl_checkNetCDFstatus(nf90_inquire(ncid, unlimiteddimid = recordDimID))
-    ! What is the name of the unlimited dimension, how many records are there?
-    call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, recordDimID, &
+    ! Inquire the file attributes, dimensions 
+    call utl_checkNetCDFstatus(nf90_inquire(ncid, nDims, nVars, nGlobalAtts, unlimDimId))
+    write(*,*)'gio_readFileNetCDF: nDims, nVars, nGlobalAtts, unlimDimId: ', nDims, nVars, nGlobalAtts, unlimDimId
+    
+    ! Inquire time dimension 'time_counter'
+    call utl_checkNetCDFstatus(nf90_inq_dimid(ncid, 'time_counter', dimTimeCounterID))
+    write(*,*)'gio_readFileNetCDF: time dimension ID: ', dimTimeCounterID
+    
+    ! Inquire dimension using time dimension ID 'dimTimeCounterID'. how many records are there?
+    call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimTimeCounterID, &
                                                       name = recordDimName, &
                                                       len = numberRecords))
-    write(*,*)'gio_readFileNetCDF: unlimited dimension: ', trim(recordDimName), &
-              ' (', numberRecords, ' currently)'
+
+   write(*,*)'gio_readFileNetCDF: time variable: ', trim(recordDimName), &
+              ' (', numberRecords, ' currently in the file)'
 
     allocate(netCDFTimes(numberRecords))
+    ! Inquire time_counter variable to verify if the required stepIndex is in the file
     call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'time_counter', timeCounterID))
     call utl_checkNetCDFstatus(nf90_get_var(ncid, timeCounterID, netCDFTimes, &
 				            start = (/            1/), &
@@ -763,6 +771,9 @@ module gridStateVectorFileIO_mod
 
     deallocate(fileField2D)
 
+    ! Read in an oceanMask if it is present in the file
+    call gio_readMaskFromFile(statevector, trim(filename)//'_fst')
+    
     call msg('gio_readFileNetCDF', 'Completed for time step: '//str(timeIndexToRead))
 
   end subroutine gio_readFileNetCDF
