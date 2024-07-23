@@ -2875,7 +2875,12 @@ CONTAINS
 
     numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
 
-    numVarLevBatches = mmpi_nprocs/ens%numMembers
+    if ( mmpi_nprocs > ens%numMembers ) then
+      numVarLevBatches = mmpi_nprocs/ens%numMembers
+    else
+      numVarLevBatches = 1
+    end if
+
     if ( mod(numVarLev, numVarLevBatches) == 0 ) then
       varLevGroupSize = numVarLev/numVarLevBatches
     else
