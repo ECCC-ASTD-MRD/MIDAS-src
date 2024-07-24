@@ -2278,7 +2278,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_collectMpiDistributedFiles
   !--------------------------------------------------------------------------
-  subroutine gio_collectMpiDistributedFiles(fileName, mpiSuffix, startIndex, endIndex)
+  subroutine gio_collectMpiDistributedFiles(fileName, suffix, startIndex, endIndex)
     !
     ! :Purpose: Create a single file from MPI-distributed RPN standard files
     !
@@ -2286,7 +2286,7 @@ module gridStateVectorFileIO_mod
 
     ! Arguments:
     character(len=*), intent(in) :: fileName
-    character(len=*), intent(in) :: mpiSuffix
+    character(len=*), intent(in) :: suffix
     integer,          intent(in) :: startIndex
     integer,          intent(in) :: endIndex
 
@@ -2300,7 +2300,7 @@ module gridStateVectorFileIO_mod
       ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
       ! So to avoid reopening and reclosing the same file each iteration, we create a 'fstFile' handle
       ! that will be used later in 'appendMpiDistributedFile_XDF'
-      success = fstFile%open(fileName, options = 'R/W')
+      success = fstFile%open(trim(fileName), options = 'R/W')
       if (.not. success) then
         call utl_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
       end if
@@ -2309,13 +2309,15 @@ module gridStateVectorFileIO_mod
     end if
 
     do index = startIndex, endIndex
-      fileNameTmp = trim(fileName) // mpiSuffix // str(index)
+      fileNameTmp = trim(fileName) // trim(suffix) // str(index)
 
       if ( outputFormat == 'XDF' ) then
         call appendMpiDistributedFile_XDF(fileNameTmp, fstFile)
       else if ( outputFormat == 'RSF' ) then
         ierr = utl_copyFile(fileNameTmp, fileName, concatenate_opt = .true.)
       end if
+
+      ierr = clib_remove(fileNameTmp)
     end do ! procIndex
 
     if ( outputFormat == 'XDF' ) then
@@ -2343,12 +2345,11 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical            :: success
-    integer            :: ierr
     type(fst_file)     :: fstFileOut
     type(fst_record)   :: fstRecord
     type(fst_query)    :: fstQuery
 
-    success = fstFileOut%open(inputFileName, options = 'R/O')
+    success = fstFileOut%open(trim(inputFileName), options = 'R/O')
     if (.not. success) then
       call utl_abort('appendMpiDistributedFiles_XDF: problem opening output file ' // trim(inputFileName))
     end if
@@ -2368,7 +2369,6 @@ module gridStateVectorFileIO_mod
     if (.not. success) then
       call utl_abort('appendMpiDistributedFiles_XDF: problem closing output file ' // trim(inputFileName))
     end if
-    ierr = clib_remove(inputFileName)
 
   end subroutine appendMpiDistributedFile_XDF
 
