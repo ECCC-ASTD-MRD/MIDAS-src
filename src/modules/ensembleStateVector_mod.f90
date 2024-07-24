@@ -2785,6 +2785,7 @@ CONTAINS
     logical, optional,          intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
+    integer, parameter :: ensFileExtLengthMax = 9
     type(struct_gsv) :: statevector_member_r4
     type(struct_gsv) :: statevectorHeightSfc, statevectorHeightSfc_tiles
     type(struct_hco), pointer :: hco_ens
@@ -2803,7 +2804,7 @@ CONTAINS
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
-    character(len=10) :: memberIndexStr ! this is the member number in a character string
+    character(len=ensFileExtLengthMax) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
     logical :: containsFullField, writeNetCDF, writeHeightSfc
@@ -3053,6 +3054,9 @@ CONTAINS
         etiketStr = etiket
         if (present(etiketAppendMemberNumber_opt)) then
           if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
+            if ( ensFileExtLength > ensFileExtLengthMax ) then
+              call utl_abort('ens_writeEnsemble: the ensemble file length ' // str(ensFileExtLength) // ' is greater than the maximum allowed of ' // str(ensFileExtLengthMax))
+            end if
             write(ensFileExtLengthStr,"(I1)") ensFileExtLength
             write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
             ! 12 is the maximum length of an etiket for RPN fstd files
@@ -3158,6 +3162,7 @@ CONTAINS
                                 memberIndex_opt = memberIndex,  &
                                 ensFileNamePrefix_opt = ensFileNamePrefix)
       end if
+      ensFileExtLength = 4
     else
       call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
                            ensFileNamePrefix_opt = ensFileNamePrefix, &
