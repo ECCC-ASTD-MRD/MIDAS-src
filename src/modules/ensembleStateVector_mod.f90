@@ -3016,8 +3016,9 @@ CONTAINS
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
         end if
 
-        if ( mmpi_myid >= min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
-          ! We have no data to process in that case and so we can go to the next batch
+        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
+        if ( memberIndex > ens%numMembers ) then
+          write(*,*) 'Ervig: ens_writeEnsemble: do nothing, go to next batch '
           cycle batchLoop
         end if
 
