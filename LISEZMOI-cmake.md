@@ -7,17 +7,16 @@ compilation et l'installation restent le plus proche possible du système
 actuellement utilisé.
 
 Un script (cado) permettant de simplifier l'utilisation de cmake a également
-été installé: il est surtout utile si un lien symbolique est utilisé pour le
-répertoire de compilation. La façon plus traditionnelle est également proposée.
+été installé: il permet de rester dans le dépôt git pour compiler et
+installer. La façon plus traditionnelle est également proposée.
 
 Les variables utilisées pour configurer les répertoires de build et
 d'installation sont ${MIDAS_COMPILE_DIR_MAIN} et ${MIDAS_ABS_LEAFDIR}, tels
 que définis dans le fichier de configuration.
 
-L'utilisation est la suivante, surtout si un lien symbolique pour le
-répertoire de compilation est utilisé:
+L'utilisation avec le script cado est la suivante:
 ```
-. ./src/config-cmake.dot.sh
+. ./src/config.dot.sh
 cado cmake # configuration
 cado build -j # compilation
 cado install # installation (binaires et scripts)
@@ -26,10 +25,9 @@ cado package # pour générer le package SSM
 
 L'utilisation traditionnelle avec cmake est la suivante :
 ```
-. ./src/config-cmake.dot.sh
-mkdir build
-cd build
-cmake .. # configuration
+. ./src/config.dot.sh
+cd compiledir
+cmake $MIDAS_SOURCE_DIR # configuration
 make -j # compilation
 make install # installation (binaires et scripts)
 make package # pour générer le package SSM
@@ -53,9 +51,9 @@ Les changements sont les suivants:
   Ces fichiers permettent d'indiquer quoi et comment compiler les sources
   On peut regarder src/modules/CMakeLists.txt, qui montre un exemple simple
 
-- le fichier src/config.dot.sh a été copié dans config-cmake.dot.sh et modifié, notamment pour
-  ne plus utiliser makedepf90, ou traduire les options habituellement
-  envoyées aux outils comme s.f90. Exemple:
+- modification du fichier src/config.dot.sh, notamment pour ne plus utiliser
+  makedepf90, ou traduire les options habituellement envoyées aux outils
+  comme s.f90. Exemple:
 ```
 -    FOPTMIZ=4
 +    FOPTMIZ="-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
@@ -67,6 +65,9 @@ Les changements sont les suivants:
   src/modules/codePrecision_mod.ftn90 -> src/modules/codePrecision_mod.F90
   src/modules/rttovInterfaces_mod.ftn90 -> src/modules/rttovInterfaces_mod.F90
 ```
+
+- effacer les fichiers Makefile et les fichiers permettant de terminer les
+  dépendances
 
 - ajout du répertoire `.ssm.d`, qui pourrait être utilisé pour l'installation
   de MIDAS avec la commande `make package`
