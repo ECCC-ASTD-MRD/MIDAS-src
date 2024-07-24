@@ -3,7 +3,7 @@ VERSION    :
 BUILD      : Release
 DESCRIPTION: The Modular and Integrated Data Assimilation System
 SUMMARY    : 
-MAINTAINER : ervig.lapalme@c.gc.ca
+MAINTAINER : ervig.lapalme@ec.gc.ca, mark.buehner@ec.gc.ca, jean-francois.caron@ec.gc.ca
 URL        : https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas
 
 # Dependencies 
@@ -16,4 +16,3 @@ rpncomm      >= 4.6.3
 random 	     >= 1.1.0
 sqlite3      >= 3.26.0
 hdf5         >= 1.12.0
-
