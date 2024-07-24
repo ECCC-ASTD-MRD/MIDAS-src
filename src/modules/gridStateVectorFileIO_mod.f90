@@ -2357,7 +2357,7 @@ module gridStateVectorFileIO_mod
     ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
     fstQuery = fstFileOut%new_query()
     do while (fstQuery%read_next(fstRecord))
-      success = fstFile%write(fstRecord, rewrite = FST_SKIP)
+      success = fstFile%write(fstRecord)
       if (.not. success) then
         call utl_abort('appendMpiDistributedFiles_XDF: problem writing to file ' // trim(inputFileName) &
                        // ' the record ' // fstRecord%nomvar // ' ' // str(fstRecord%ip1))
