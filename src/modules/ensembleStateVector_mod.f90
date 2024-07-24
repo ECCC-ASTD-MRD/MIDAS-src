@@ -2967,8 +2967,8 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
-                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers
-                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid) = &
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid + 1) = &
                      real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
               end do
             end do
@@ -2978,8 +2978,8 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
-                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers
-                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid) = &
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
               end do
             end do
