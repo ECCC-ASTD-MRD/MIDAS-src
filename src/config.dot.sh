@@ -34,6 +34,7 @@ MIDAS_COMPILE_OPTIMIZE_REPORT=${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}
 ###########################################################
 ##  SSM Packaging configuration
 ##
+# TODO: this is now in the MANIFEST file
 MIDAS_SSM_DESCRIPTION=${MIDAS_SSM_DESCRIPTION:-"The Modular and Integrated Data Assimilation System"}
 MIDAS_SSM_GITREPO=${MIDAS_SSM_GITREPO:-https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas.git}
 MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER:-ervig.lapalme@ec.gc.ca}
@@ -80,6 +81,7 @@ else
     fi
 fi
 set -x
+export MIDAS_SOURCE_DIR=${__toplevel}
 export MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
 
 ###########################################################
@@ -117,7 +119,7 @@ fi
 
 # Set the optimization level
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
-    FOPTMIZ=4
+    FOPTMIZ="-O3 -fast-transcendentals -no-prec-div -fpic -ip -no-prec-sqrt"
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     return 1
@@ -129,11 +131,6 @@ fi
 echo "... loading rpn/code-tools/20250521/env/inteloneapi-2022.1.2"
 . r.load.dot rpn/code-tools/20250521/env/inteloneapi-2022.1.2
 
-## for hdf5
-HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
-
-## for rmn, vgrid, rpncomm
-VGRID_LIBNAME="vgrid"
 echo "... loading eccc/mrd/rpn/libs/20250604-beta"
 . r.load.dot eccc/mrd/rpn/libs/20250604-beta
 echo "... loading hdf5"
@@ -151,13 +148,9 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 echo "... loading eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}"
 . r.load.dot eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}
 
-## loading makedep90
-echo "... loading makedepf90"
-. ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
-
-COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
-OPTF="-stand f08 -diag-disable=5268 -check noarg_temp_created -no-wrap-margin -warn all -warn noexternal"
-OPTF="${OPTF} -qmkl"
+COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL}"
+OPTF="-stand f08 -diag-disable=5268 -check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="-qmkl ${OPTF} -warn noexternal"
 
 # add compiler option to produce reports on code optimization and deactivate cleaning
 if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
@@ -168,8 +161,8 @@ if [ "${MIDAS_COMPILE_OPTIMIZE_REPORT:-no}" = yes ]; then
 fi
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-    FOPTMIZ=0
-    COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
+    FOPTMIZ=-O0
+    COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -g -ftrapuv"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
 else
@@ -179,7 +172,7 @@ fi
 
 if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
     echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
-    FOPTMIZ=0
+    FOPTMIZ="-O0"
     [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
         echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
         echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
@@ -194,28 +187,18 @@ if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
     COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
 fi
 
-GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
-GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"
-
-## check makedepf90 install
-if ! which makedepf90
-then
-    echo "<!> makedepf90 unavailable on the system."
-    __status=false
-fi
-
 ## loading docopt for analyzeDep.py
 ## https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/252
 . ssmuse-sh -x comm/eccc/arqi/modules-python/1.0
 
+# Shortcut commands for cmake and make
+alias cado=${PWD}/cado
+
+# Autocomplete for commands
+source ./_cado
 
 export COMPF
 export FOPTMIZ
-export GPP_OPTS
-
-export LIBIRC
-export HDF5_LIBS
-export VGRID_LIBNAME
 
 export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
