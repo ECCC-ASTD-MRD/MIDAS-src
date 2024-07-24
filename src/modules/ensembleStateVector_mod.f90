@@ -3016,6 +3016,11 @@ CONTAINS
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
         end if
 
+        if ( mmpi_myid >= min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
+          ! We have no data to process in that case and so we can go to the next batch
+          cycle batchLoop
+        end if
+
         memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
         varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
@@ -3038,10 +3043,6 @@ CONTAINS
         !$OMP END PARALLEL DO
 
         call msg_memUsage('ens_writeEnsemble')
-
-        if (mmpi_myid >= numVarLevBatches*ens%numMembers) then
-          cycle batchLoop
-        end if
 
         ! Write statevector to file
         call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, &
