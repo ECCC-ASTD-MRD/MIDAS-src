@@ -3017,7 +3017,8 @@ CONTAINS
         end if
 
         memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
-        if ( memberIndex > ens%numMembers ) then
+        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevBatches ) then
           write(*,*) 'Ervig: ens_writeEnsemble: do nothing, go to next batch '
           cycle batchLoop
         end if
