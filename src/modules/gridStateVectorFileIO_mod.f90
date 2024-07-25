@@ -1824,7 +1824,7 @@ module gridStateVectorFileIO_mod
         interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
         threadId = mod(varLevIndex-1, numThreadsForWriting)
-        levIndices(threadId) = varLevIndex
+        levIndices(threadId) = levIndex
         interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
         if (statevector%dataKind == 8) then
