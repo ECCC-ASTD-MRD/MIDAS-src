@@ -1556,9 +1556,10 @@ module gridStateVectorFileIO_mod
     type(fst_file), allocatable   :: fstFiles(:)
     type(fst_record), allocatable :: fstRecords(:)
     integer, allocatable :: levIndices(:)
+    logical, allocatable :: interpolationToPhysicsGrid(:)
     character(len=256) :: fileNameTmp
     character(len=4) :: nomvar
-    logical :: success, interpolationToPhysicsGrid
+    logical :: success
 
     call msg('gio_writeToFile', 'START')
 
@@ -1605,6 +1606,7 @@ module gridStateVectorFileIO_mod
     allocate(fstFiles(0:numThreadsForWriting-1))
     allocate(fstRecords(0:numThreadsForWriting-1))
     allocate(levIndices(0:numThreadsForWriting-1))
+    allocate(interpolationToPhysicsGrid(0:numThreadsForWriting-1))
 
     if (present(ip3_opt)) then
       fstRecords(:)%ip3 = ip3_opt
@@ -1823,6 +1825,7 @@ module gridStateVectorFileIO_mod
 
         threadId = mod(varLevIndex-1, numThreadsForWriting)
         levIndices(threadId) = varLevIndex
+        interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
         if (statevector%dataKind == 8) then
           call gsv_getField(statevector,field_r8,nomvar)
@@ -1950,7 +1953,7 @@ module gridStateVectorFileIO_mod
             !$OMP PARALLEL DO PRIVATE(thread)
             do thread = 0, threadId
               call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
-                   statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid)
+                   statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid(thread))
             end do
             !$OMP END PARALLEL DO
           end if
@@ -1989,6 +1992,7 @@ module gridStateVectorFileIO_mod
     deallocate(fstFiles)
     deallocate(fstRecords)
     deallocate(levIndices)
+    deallocate(interpolationToPhysicsGrid)
 
     !
     !- 4.  Ending
