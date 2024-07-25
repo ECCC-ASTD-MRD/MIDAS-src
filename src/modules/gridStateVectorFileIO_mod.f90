@@ -1946,7 +1946,7 @@ module gridStateVectorFileIO_mod
             end where
           end if
 
-          if ( (threadId == numThreadsForWriting-1) .or. (levIndex == nlev) ) then
+          if ( (threadId == numThreadsForWriting-1) .or. (varLevIndex == varLevIndexEnd) ) then
             !- Writing to file
             ! if 'threadId == numThreadsForWriting-1', we write all threads,
             ! if not then we write only the threads that have been initialized
