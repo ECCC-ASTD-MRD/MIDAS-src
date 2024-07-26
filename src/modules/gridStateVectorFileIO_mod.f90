@@ -1541,7 +1541,7 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField, doWriteTicTacToc
-    integer :: stepIndex, ierr, levIndex, varLevIndex, nlev
+    integer :: stepIndex, ierr, levIndex, varLevIndex
     integer :: yourid, nsize, youridy, youridx, threadId, thread, numThreadsForWriting
     real(4) :: factor_r4
     character(len=4)          :: varLevel
@@ -1819,7 +1819,6 @@ module gridStateVectorFileIO_mod
       nomvar = trim(gsv_getVarNameFromVarLev(statevector,varLevIndex))
 
       if (gsv_varExist(statevector,nomvar)) then
-        nlev = gsv_getNumLevFromVarName(statevector,nomvar)
         levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
         interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
