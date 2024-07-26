@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Allow the user to omit the version identifier in the build directory name by setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
  * Set lowest threshold for `QC` before writing the analysis and increment files (#944 and !859)
  * All-sky assimilation for MWHS2 (#942 and !855)
 

@@ -6,8 +6,16 @@
 
 
 revnum := $(shell $(VERSION_SCRIPT))
+ifndef MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR
+MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR := true
+endif
 
+ifeq ($(MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR), true)
 DIR_TARGET := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(revnum)/$(EC_ARCH)
+else
+DIR_TARGET := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld/$(EC_ARCH)
+endif
+
 
 MAKETARGET = $(MAKE) --no-print-directory -C $@ -f $(CURDIR)/Makefile \
 				SRC_ROOT=$(CURDIR) VERSION=$(revnum) \

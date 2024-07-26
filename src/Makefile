@@ -117,6 +117,14 @@ endif
 ifndef MIDAS_COMPILE_JOBNAME
 MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
 endif
+ifndef MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR
+MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR := true
+endif
+ifeq ($(MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR), true)
+    midas_build_dir := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)
+else
+    midas_build_dir := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld
+endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
@@ -124,12 +132,12 @@ endif
 
 
 clean:	#> delete current build directory (keep installed programs) 
-	rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)
+	rm -rf $(midas_build_dir)
 
 cleanall:	#> delete ALL build directories (keep installed programs) 
-	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*"
+	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld*"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
-		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*
+		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld*
 
 cleaninst:	#> delete ALL installed programs
 	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(MIDAS_ABS_LEAFDIR)"
@@ -138,13 +146,13 @@ cleaninst:	#> delete ALL installed programs
 
 ## specific cleaning target 
 cleanabs:  #> delete all absolutes in current build directory
-	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.Abs
+	rm -f $(midas_build_dir)/*/*/*.Abs
 
 cleanobj:  #> delete all objects in current build directory
-	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{o,mod}
+	rm -f $(midas_build_dir)/*/*/*.{o,mod}
 
 cleandep:	#> delete all dependency files in current build directory
-	rm -f $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/*/*/*.{inc,f90} 
+	rm -f $(midas_build_dir)/*/*/*.{inc,f90}
 
 cleanlst:	#> delete all listings
 	rm -f  $(MIDAS_COMPILE_JOBNAME).*.{out,o}
@@ -216,7 +224,7 @@ endif
 MIDAS_SSM_PKGNAME ?= midas
 
 __ssm_target_version := $(MIDAS_SSM_TARGET)/$(MIDAS_SSM_VERSION)
-__ssm_workdir_base := $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-$(VERSION)/ssm_build
+__ssm_workdir_base := $(midas_build_dir)/ssm_build
 __ssm_fullname := $(MIDAS_SSM_PKGNAME)_$(MIDAS_SSM_VERSION)_$(ORDENV_PLAT)
 __ssm_workdir := $(__ssm_workdir_base)/$(__ssm_fullname)
 
