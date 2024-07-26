@@ -1535,8 +1535,8 @@ module gridStateVectorFileIO_mod
     logical,          optional, intent(in) :: writeHeightSfc_opt
     integer,          optional, intent(in) :: numBits_opt
     logical,          optional, intent(in) :: containsFullField_opt
-    integer,          optional, intent(in) :: varLevIndexBeg_opt
-    integer,          optional, intent(in) :: varLevIndexEnd_opt
+    integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's
+    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's
     logical,          optional, intent(in) :: doWriteTicTacToc_opt
 
     ! Locals:
@@ -2595,8 +2595,8 @@ module gridStateVectorFileIO_mod
     character(len=*),           intent(in) :: fileNameTemplate ! template for increment file name
     integer,          optional, intent(in) :: stepIndex_opt    ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
-    integer,          optional, intent(in) :: varLevIndexBeg_opt
-    integer,          optional, intent(in) :: varLevIndexEnd_opt
+    integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's
+    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's
 
     ! Locals:
     logical :: iDoWriting, containsFullField
