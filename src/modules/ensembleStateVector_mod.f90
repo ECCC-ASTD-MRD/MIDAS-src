@@ -3047,8 +3047,10 @@ CONTAINS
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
         ! Decide if whether or not, this MPI process needs to process data
         if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevBatches ) then
-          write(*,*) 'Ervig: ens_writeEnsemble: do nothing, go to next batch '
+          write(*,*) 'ens_writeEnsemble: do nothing, go to next batch '
           cycle batchLoop
+        else
+          write(*,*) 'ens_writeEnsemble: process member ', memberIndex, ' for varLevGroupIndex = ', varLevGroupIndex
         end if
 
         ! We now compute the start and end of the 'varLev's to process in this batch
