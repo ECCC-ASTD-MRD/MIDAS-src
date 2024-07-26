@@ -2868,23 +2868,41 @@ CONTAINS
 
     ens%ensPathName = trim(ensPathName)
 
+    ! We split the writing of the ensemble members in a number of batches.
     if ( mod(ens%numMembers, mmpi_nprocs) == 0 ) then
       numBatches = ens%numMembers/mmpi_nprocs
     else
+      ! We must add 1 to 'ens%numMembers/mmpi_nprocs' if
+      ! 'ens%numMembers' is not divisible by 'mmpi_nprocs' to
+      ! distribute almost equally the ensemble members on all the
+      ! batches with the last batch to have a little less members to
+      ! process.
       numBatches = ens%numMembers/mmpi_nprocs + 1
     end if
 
+    ! If 'mmpi_nprocs > ens%numMembers', then we will have one batch that will contain all the members.
+    ! If 'mmpi_nprocs < ens%numMembers', then the members will be splitted into batches of 'mmpi_nprocs' members.
     numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
 
+    ! We will splitt all the 'varLev's to write into batches only if
+    ! there are less ensemble members than MPI processes.
     if ( mmpi_nprocs > ens%numMembers ) then
       numVarLevBatches = mmpi_nprocs/ens%numMembers
     else
+      ! If 'mmpi_nprocs > ens%numMembers', then we will process all
+      ! the 'varLev's in one batch.
       numVarLevBatches = 1
     end if
 
+    ! The variable 'varLevGroupSize' is the number of 'varLev's
+    ! considered in each 'varLev' batch.
     if ( mod(numVarLev, numVarLevBatches) == 0 ) then
       varLevGroupSize = numVarLev/numVarLevBatches
     else
+      ! We must add 1 to 'numVarLev/numVarLevBatches' if 'numVarLev'
+      ! is not divisible by 'numVarLevBatches' to distribute almost
+      ! equally the 'varLev' on all the 'varLev' batches with the last
+      ! batch to have a little less 'varLev's to process.
       varLevGroupSize = numVarLev/numVarLevBatches + 1
     end if
 
@@ -2955,10 +2973,12 @@ CONTAINS
       end if
 
       batchLoop: do batchIndex = 1, numBatches
+        ! Compute the member index of the first and last member of each batch each containing 'numMemberPerBatch' members
         memberIndexBeg = (batchIndex-1)*numMemberPerBatch + 1
         memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
 
         varLevGroupLoop: do varLevGroupIndex = 1, numVarLevBatches
+          ! Compute the 'varLev' index of the first and last of each 'varLev' batch which are of size 'varLevGroupSize'
           varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
           varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
           numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
@@ -2968,6 +2988,7 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
+                ! the 'yourid' is the index of the MPI process which will receive the data for that ensemble batch
                 yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid + 1) = &
                      real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
@@ -2979,6 +3000,7 @@ CONTAINS
             do varLevCount = 1, numLevelsToSend
               varLevIndex = varLevCount + varLevIndexBeg - 1
               do memberIndex = memberIndexBeg, memberIndexEnd
+                ! the 'yourid' is the index of the MPI process which will receive the data for that ensemble batch
                 yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
                 gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
                      ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
@@ -3016,15 +3038,18 @@ CONTAINS
           gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
         end if
 
+        ! Here, each MPI process has received the data it needs from
+        ! 'mmpi_myid', we identify the 'memberIndex' and the
+        ! 'varLevGroupIndex' that this MPI process will be processing.
         memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        ! Decide if whether or not, this MPI process needs to process data
         if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevBatches ) then
           write(*,*) 'Ervig: ens_writeEnsemble: do nothing, go to next batch '
           cycle batchLoop
         end if
 
-        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
-        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        ! We now compute the start and end of the 'varLev's to process in this batch
         varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
         varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
         numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
@@ -3050,6 +3075,10 @@ CONTAINS
         call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, &
                                  memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
 
+        ! If a member is written to disk in different 'varLev'
+        ! batches, then we add '_batch_' to its file name.  The
+        ! different batches will be collected together at the end of
+        ! the routine with 'gio_collectMpiDistributedFiles'.
         if ( numVarLevBatches > 1 ) then
           ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
         end if
