@@ -1,14 +1,13 @@
 ### Mandatory checklist:
 
-<!--For each point below, choose 'YES' or 'NO' -->
-
-* new functionality?  **YES/NO**
-* fix bug in existing functionality? **YES/NO**
-* changes to namelist variables? (addition/removal/modification) **YES/NO**
-* changes to input and output files? (new file/filename change/removal of file) **YES/NO**
-* change to results (contents of output files)? **YES/NO**
-* changes respect the coding standards (follow link below to "Coding standards Top 10")? **YES/NO**
-
+* [ ] new functionality?
+* [ ] fix bug in existing functionality?
+* [ ] changes to namelist variables? (addition/removal/modification)
+* [ ] changes to input and output files? (new file/filename change/removal of file)
+* [ ] change to results (contents of output files)?
+* [ ] all the programs run correctly when compiled with debug options enabled
+    * see the [documentation for that variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/tree/main/src#configuring-the-compilation-and-linking-process)
+* [ ] changes respect the coding standards (follow link below to "Coding standards Top 10")?
     * https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
 
 ### Description of changes:
