@@ -2979,8 +2979,8 @@ CONTAINS
 
         varLevGroupLoop: do varLevGroupIndex = 1, numVarLevBatches
           ! Compute the 'varLev' index of the first and last of each 'varLev' batch which are of size 'varLevGroupSize'
-          varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
-          varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
+          varLevIndexBeg = (varLevGroupIndex - 1)*varLevGroupSize + 1
+          varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize - 1)
           numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
           if ( ens%dataKind == 8 ) then
