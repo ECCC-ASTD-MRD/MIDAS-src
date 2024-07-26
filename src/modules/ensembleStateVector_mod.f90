@@ -3039,7 +3039,9 @@ CONTAINS
         end if
 
         ! Here, each MPI process has received the data it needs from
-        ! 'mmpi_myid', we identify the 'memberIndex' and the
+        ! other MPI processes in the array 'gd_recv_r4'.
+
+        ! With 'mmpi_myid', we identify the 'memberIndex' and the
         ! 'varLevGroupIndex' that this MPI process will be processing.
         memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
