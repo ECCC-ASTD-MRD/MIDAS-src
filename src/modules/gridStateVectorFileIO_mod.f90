@@ -1818,110 +1818,106 @@ module gridStateVectorFileIO_mod
     do varLevIndex = varLevIndexBeg, varLevIndexEnd
       nomvar = trim(gsv_getVarNameFromVarLev(statevector,varLevIndex))
 
-      if (gsv_varExist(statevector,nomvar)) then
-        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
+      levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
 
-        threadId = mod(varLevIndex-varLevIndexBeg, numThreadsForWriting)
-        levIndices(threadId) = levIndex
-        interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
+      threadId = mod(varLevIndex-varLevIndexBeg, numThreadsForWriting)
+      levIndices(threadId) = levIndex
+      interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
-        if (statevector%dataKind == 8) then
-          call gsv_getField(statevector,field_r8,nomvar)
-          gd_send_r4(1:statevector%lonPerPE,   &
-                     1:statevector%latPerPE) = &
-                     real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
-                          statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex),4)
-        else
-          call gsv_getField(statevector,field_r4,nomvar)
-          gd_send_r4(1:statevector%lonPerPE,   &
-                     1:statevector%latPerPE) = &
-                field_r4(statevector%myLonBeg:statevector%myLonEnd, &
-                         statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex)
-        end if
+      if (statevector%dataKind == 8) then
+        call gsv_getField(statevector,field_r8,nomvar)
+        gd_send_r4(1:statevector%lonPerPE,   &
+                   1:statevector%latPerPE) = &
+                   real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                        statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex),4)
+      else
+        call gsv_getField(statevector,field_r4,nomvar)
+        gd_send_r4(1:statevector%lonPerPE,   &
+                   1:statevector%latPerPE) = &
+                   field_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                            statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex)
+      end if
 
-        nsize = statevector%lonPerPEmax*statevector%latPerPEmax
-        if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
-          call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
-          call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                               gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
-          call utl_tmg_stop(183)
-        else
-          ! just copy when either nprocs is 1 or data is global
-          gd_recv_r4(:,:,1) = gd_send_r4(:,:)
-        end if
+      nsize = statevector%lonPerPEmax*statevector%latPerPEmax
+      if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
+        call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
+        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+        call utl_tmg_stop(183)
+      else
+        ! just copy when either nprocs is 1 or data is global
+        gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+      end if
 
-        if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
-          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-          do youridy = 0, (mmpi_npey-1)
-            do youridx = 0, (mmpi_npex-1)
-              yourid = youridx + youridy*mmpi_npex
-              work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
-                        statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1),threadID) = &
-                    gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
-                               1:statevector%allLatPerPE(youridy+1), yourid+1)
-            end do
+      if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey-1)
+          do youridx = 0, (mmpi_npex-1)
+            yourid = youridx + youridy*mmpi_npex
+            work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                 statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1),threadID) = &
+                 gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
+                 1:statevector%allLatPerPE(youridy+1), yourid+1)
           end do
-          !$OMP END PARALLEL DO
-        else if ( .not. statevector%mpi_local ) then
-          work2d_r4(:,:,threadId) = gd_recv_r4(:,:,1)
+        end do
+        !$OMP END PARALLEL DO
+      else if ( .not. statevector%mpi_local ) then
+        work2d_r4(:,:,threadId) = gd_recv_r4(:,:,1)
+      end if
+
+      ! now do writing
+      if (iDoWriting) then
+
+        ! Set the ip1 value
+        if (vnl_varLevelFromVarname(nomvar) == 'MM') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_M(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'TH') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_T(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'SF') then
+          fstRecords(threadId)%ip1 = 0
+        else if (vnl_varLevelFromVarname(nomvar) == 'SFTH') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_T_2m
+        else if (vnl_varLevelFromVarname(nomvar) == 'SFMM') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_M_10m
+        else if (vnl_varLevelFromVarname(nomvar) == 'OT') then
+          fstRecords(threadId)%ip1 = vco_ip1_other(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'DP') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_depth(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'SS') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_seaLevel
+        else
+          varLevel = vnl_varLevelFromVarname(nomvar)
+          write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
+          call utl_abort('gio_writeToFile')
         end if
 
-        ! now do writing
-        if (iDoWriting) then
+        ! Set the output variable name
+        fstRecords(threadId)%nomvar = nomvar
+        if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
+          if (HUcontainsLQ_opt) fstRecords(threadId)%nomvar = 'LQ'
+        end if
 
-          ! Set the ip1 value
-          if (vnl_varLevelFromVarname(nomvar) == 'MM') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_M(levIndex)
-          else if (vnl_varLevelFromVarname(nomvar) == 'TH') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_T(levIndex)
-          else if (vnl_varLevelFromVarname(nomvar) == 'SF') then
-            fstRecords(threadId)%ip1 = 0
-          else if (vnl_varLevelFromVarname(nomvar) == 'SFTH') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_T_2m
-          else if (vnl_varLevelFromVarname(nomvar) == 'SFMM') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_M_10m
-          else if (vnl_varLevelFromVarname(nomvar) == 'OT') then
-            fstRecords(threadId)%ip1 = vco_ip1_other(levIndex)
-          else if (vnl_varLevelFromVarname(nomvar) == 'DP') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_depth(levIndex)
-          else if (vnl_varLevelFromVarname(nomvar) == 'SS') then
-            fstRecords(threadId)%ip1 = statevector%vco%ip1_seaLevel
-          else
-            varLevel = vnl_varLevelFromVarname(nomvar)
-            write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
-            call utl_abort('gio_writeToFile')
-          end if
+        if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then
+          ! Impose lower limits
+          if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
+               work2d_r4(:,:,threadId) = max(work2d_r4(:,:,threadId), &
+               real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
+        end if
 
-          ! Set the output variable name
-          fstRecords(threadId)%nomvar = nomvar
-          if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
-            if (HUcontainsLQ_opt) fstRecords(threadId)%nomvar = 'LQ'
-          end if
+        ! Set the conversion factor
+        if (unitConversion) then
 
-          if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then
-            ! Impose lower limits
-            if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
-                 work2d_r4(:,:,threadId) = max(work2d_r4(:,:,threadId), &
-                                               real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
-          end if
- 
-          ! Set the conversion factor
-          if (unitConversion) then
-
-            if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-              factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-            else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-                 trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
-              factor_r4 = 0.01 ! Pa -> hPa
-            else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
-              if ( gsv_conversionVarKindCHtoMicrograms ) then
-                ! Apply inverse transform of unit conversion
-                if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
-                  factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                       vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
-                else
-                  factor_r4 = 1.0 ! no conversion
-                end if
+          if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+            factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
+          else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
+               trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
+            factor_r4 = 0.01 ! Pa -> hPa
+          else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
+            if ( gsv_conversionVarKindCHtoMicrograms ) then
+              ! Apply inverse transform of unit conversion
+              if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
+                factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
+                     vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
               else
                 factor_r4 = 1.0 ! no conversion
               end if
@@ -1931,33 +1927,34 @@ module gridStateVectorFileIO_mod
           else
             factor_r4 = 1.0 ! no conversion
           end if
+        else
+          factor_r4 = 1.0 ! no conversion
+        end if
 
-          if (present(scaleFactor_opt)) factor_r4 = factor_r4 * real(scaleFactor_opt,4)
+        if (present(scaleFactor_opt)) factor_r4 = factor_r4 * real(scaleFactor_opt,4)
 
-          !- Scale
-          work2d_r4(:,:,threadId) = factor_r4 * work2d_r4(:,:,threadId)
+        !- Scale
+        work2d_r4(:,:,threadId) = factor_r4 * work2d_r4(:,:,threadId)
 
-          !- Convert Kelvin to Celcius only if full field
-          if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
-            where (work2d_r4(:,:,threadId) > 100.0)
-              work2d_r4(:,:,threadId) = work2d_r4(:,:,threadId) - mpc_k_c_degree_offset_r4
-            end where
-          end if
+        !- Convert Kelvin to Celcius only if full field
+        if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
+          where (work2d_r4(:,:,threadId) > 100.0)
+            work2d_r4(:,:,threadId) = work2d_r4(:,:,threadId) - mpc_k_c_degree_offset_r4
+          end where
+        end if
 
-          if ( (threadId == numThreadsForWriting-1) .or. (varLevIndex == varLevIndexEnd) ) then
-            !- Writing to file
-            ! if 'threadId == numThreadsForWriting-1', we write all threads,
-            ! if not then we write only the threads that have been initialized
-            !$OMP PARALLEL DO PRIVATE(thread)
-            do thread = 0, threadId
-              call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
-                   statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid(thread))
-            end do
-            !$OMP END PARALLEL DO
-          end if
-        end if ! iDoWriting
-
-      end if ! varExist
+        if ( (threadId == numThreadsForWriting-1) .or. (varLevIndex == varLevIndexEnd) ) then
+          !- Writing to file
+          ! if 'threadId == numThreadsForWriting-1', we write all threads,
+          ! if not then we write only the threads that have been initialized
+          !$OMP PARALLEL DO PRIVATE(thread)
+          do thread = 0, threadId
+            call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
+                 statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid(thread))
+          end do
+          !$OMP END PARALLEL DO
+        end if
+      end if ! iDoWriting
 
     end do ! varLevIndex
 
