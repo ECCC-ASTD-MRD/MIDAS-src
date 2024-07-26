@@ -1820,7 +1820,6 @@ module gridStateVectorFileIO_mod
 
       if (gsv_varExist(statevector,nomvar)) then
         levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
-        interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
         threadId = mod(varLevIndex-varLevIndexBeg, numThreadsForWriting)
         levIndices(threadId) = levIndex
