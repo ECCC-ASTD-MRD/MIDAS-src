@@ -2284,10 +2284,10 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: fileName
-    character(len=*), intent(in) :: suffix
-    integer,          intent(in) :: startIndex
-    integer,          intent(in) :: endIndex
+    character(len=*), intent(in) :: fileName   ! Input file name
+    character(len=*), intent(in) :: suffix     ! suffix to insert between the 'fileName' and the indices
+    integer,          intent(in) :: startIndex ! start index of the files to collect
+    integer,          intent(in) :: endIndex   ! end index of the files to collect
 
     ! Locals:
     logical            :: success
