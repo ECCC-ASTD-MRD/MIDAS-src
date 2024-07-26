@@ -2339,8 +2339,9 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)    :: inputFileName
-    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'
+    character(len=*), intent(in)    :: inputFileName ! The input file which will be appended to 'fstFile'.
+    type(fst_file),   intent(inout) :: fstFile ! The output file to which the 'inputFileName' will be appended.
+                                               ! We must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'.
 
     ! Locals:
     logical            :: success
