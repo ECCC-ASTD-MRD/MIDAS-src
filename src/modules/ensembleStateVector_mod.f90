@@ -2889,7 +2889,7 @@ CONTAINS
     if ( mmpi_nprocs > ens%numMembers ) then
       numVarLevBatches = mmpi_nprocs/ens%numMembers
     else
-      ! If 'mmpi_nprocs > ens%numMembers', then we will process all
+      ! If 'mmpi_nprocs < ens%numMembers', then we will process all
       ! the 'varLev's in one batch.
       numVarLevBatches = 1
     end if
