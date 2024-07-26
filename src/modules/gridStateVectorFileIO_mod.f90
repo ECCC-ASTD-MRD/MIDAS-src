@@ -2758,87 +2758,84 @@ module gridStateVectorFileIO_mod
     do varLevIndex = varLevIndexBeg, varLevIndexEnd
       nomvar = trim(gsv_getVarNameFromVarLev(stateVector,varLevIndex))
  
-      if (gsv_varExist(statevector, nomvar)) then
+      call msg('gio_writeToFileNetCDF', 'Writing variable: '//nomvar)
+      select case(trim(nomvar))
+      case('TM')
+        varID = varIDs%TM
+      case('SALW')
+        varID = varIDs%SALW
+      case('UUW')
+        varID = varIDs%UUW
+      case('VVW')
+        varID = varIDs%VVW
+      case('SSH')
+        varID = varIDs%SSH
+      case default
+        call utl_abort('gio_writeToFileNetCDF: requested vnl_varNameList does not exist '//&
+                       trim(nomvar))
+      end select
+      write(*,*) 'gio_writeToFileNetCDF: varID: ', varID , nomvar
 
-        call msg('gio_writeToFileNetCDF', 'Writing variable: '//nomvar)
-	select case(trim(nomvar))
-          case('TM')
-            varID = varIDs%TM
-          case('SALW')
-            varID = varIDs%SALW
-	  case('UUW')
-            varID = varIDs%UUW
-	  case('VVW')
-            varID = varIDs%VVW
-	  case('SSH')
-            varID = varIDs%SSH
-          case default
-            call utl_abort('gio_writeToFileNetCDF: requested vnl_varNameList does not exist '//&
-                            trim(nomvar))
-        end select
-        write(*,*) 'gio_writeToFileNetCDF: varID: ', varID , nomvar
-	
-        nlev = gsv_getNumLevFromVarName(stateVector,nomvar)
-        levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
+      nlev = gsv_getNumLevFromVarName(stateVector,nomvar)
+      levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
 
-        if (stateVector%dataKind == 8) then
-          call gsv_getField(stateVector, field_r8, nomvar)
-          gd_send_r4(1:stateVector%lonPerPE,  &
-                     1:stateVector%latPerPE) =  &
-              real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
-                            stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
-        else
-          call gsv_getField(stateVector, field_r4, nomvar)
-          gd_send_r4(1:stateVector%lonPerPE,  &
-                     1:stateVector%latPerPE) =  &
-              field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
-                       stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
-        end if
+      if (stateVector%dataKind == 8) then
+        call gsv_getField(stateVector, field_r8, nomvar)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+                   1:stateVector%latPerPE) =  &
+            real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
+                          stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
+      else
+        call gsv_getField(stateVector, field_r4, nomvar)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+                   1:stateVector%latPerPE) =  &
+            field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
+                     stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
+      end if
 
-        nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
-        if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
-          call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                               gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
-        else
-          ! just copy when either nprocs is 1 or data is global
-          gd_recv_r4(:,:,1) = gd_send_r4(:,:)
-        end if
+      nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
+      if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
+        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+                             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+      else
+        ! just copy when either nprocs is 1 or data is global
+        gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+      end if
 
-        if (mmpi_myid == 0 .and. stateVector%mpi_local) then
-          !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-          do youridy = 0, (mmpi_npey - 1)
-            do youridx = 0, (mmpi_npex - 1)
-              yourid = youridx + youridy * mmpi_npex
-              work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
-                        stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
-                  gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
-                             1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
-            end do
+      if (mmpi_myid == 0 .and. stateVector%mpi_local) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey - 1)
+          do youridx = 0, (mmpi_npex - 1)
+            yourid = youridx + youridy * mmpi_npex
+            work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
+                      stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
+                gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
+                           1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
           end do
-          !$OMP END PARALLEL DO
-        else if (.not. stateVector%mpi_local) then
-          work2d_r4(:,:) = gd_recv_r4(:,:,1)
+        end do
+        !$OMP END PARALLEL DO
+      else if (.not. stateVector%mpi_local) then
+        work2d_r4(:,:) = gd_recv_r4(:,:,1)
+      end if
+
+      ! now do writing
+      if (iDoWriting) then
+
+        !- Convert Kelvin to Celcius only if full field
+        if (containsFullField .and. trim(nomvar) == 'TT' &
+	                      .or.  trim(nomvar) == 'TM') then
+          where (work2d_r4(:,:) > 100.0)
+            work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+          end where
         end if
 
-        ! now do writing
-        if (iDoWriting) then
+        !- Writing to file
+        call utl_checkNetCDFstatus(nf90_put_var(ncid, varID, work2d_r4, &
+                                   start = (/ 1,  1, levIndex, 1/),     &
+                                   count = (/ni, nj,        1, 1/)),    &
+                                   'gio_writeToFileNetCDF', 'nf90_put_var')
 
-          !- Convert Kelvin to Celcius only if full field
-          if (containsFullField .and. trim(nomvar) == 'TT' &
-	                        .or.  trim(nomvar) == 'TM') then
-            where (work2d_r4(:,:) > 100.0)
-              work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
-            end where
-          end if
-
-          !- Writing to file
-          call utl_checkNetCDFstatus(nf90_put_var(ncid, varID, work2d_r4, &
-                                     start = (/ 1,  1, levIndex, 1/),     &
-                                     count = (/ni, nj,        1, 1/)),    &
-                                     'gio_writeToFileNetCDF', 'nf90_put_var')
-
-        end if ! iDoWriting
-      end if ! varExist
+      end if ! iDoWriting
     end do ! varLevIndex
 
     deallocate(work2d_r4)
