@@ -14,6 +14,9 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-}" = yes -o -n "${MIDAS_COMPILE_CODECOV
     ## 'maestro/suites/midas_system_tests/resources/resources.def'
     typeset -r check_result_catchup_expected_value=9
     typeset -r clean_unittest_catchup_expected_value=9
+    # and we want to use 2 OpenMP threads and 11G of memory for task '/Tests/letkf/glb_15km/UnitTest/run'
+    typeset -r letkf_glb15km_num_threads_expected_value=4
+    typeset -r letkf_glb15km_memory_expected_value=22G
 else
     ## If neither of these environment variable above are set, we want
     ## to run the 'check' and 'clean' tasks in the 'UnitTest' module
@@ -22,6 +25,9 @@ else
     ## 'maestro/suites/midas_system_tests/resources/resources.def'
     typeset -r check_result_catchup_expected_value=2
     typeset -r clean_unittest_catchup_expected_value=2
+    # and we want to use 2 OpenMP threads and 11G of memory for task '/Tests/letkf/glb_15km/UnitTest/run'
+    typeset -r letkf_glb15km_num_threads_expected_value=2
+    typeset -r letkf_glb15km_memory_expected_value=11G
 fi
 
 
@@ -46,14 +52,18 @@ if [ "$(grep -c '^CLEAN_UNITTEST_CATCHUP=' ${resources_file})" -ne 1 ]; then
     exit
 fi
 
-## If the variables 'CHECK_RESULTS_CATCHUP' and
-## 'CLEAN_UNITTEST_CATCHUP' both have already the expected value, then
-## we don't need to change the file
+## If the variables 'CHECK_RESULTS_CATCHUP', 'CLEAN_UNITTEST_CATCHUP',
+## 'LETKF_GLB15KM_NUM_THREADS' and 'LETKF_GLB15KM_MEMORY' all have
+## already the expected value, then we don't need to change the file.
 typeset -r check_result_catchup=$(awk -F= '/^CHECK_RESULTS_CATCHUP=/ {print $2}' ${resources_file})
 typeset -r clean_unittest_catchup=$(awk -F= '/^CLEAN_UNITTEST_CATCHUP=/ {print $2}' ${resources_file})
+typeset -r letkf_glb15km_num_threads=$(awk -F= '/^LETKF_GLB15KM_NUM_THREADS=/ {print $2}' ${resources_file})
+typeset -r letkf_glb15km_memory=$(awk -F= '/^LETKF_GLB15KM_MEMORY=/ {print $2}' ${resources_file})
 if [ "${check_result_catchup}"   -eq "${check_result_catchup_expected_value}" -a \
-     "${clean_unittest_catchup}" -eq "${clean_unittest_catchup_expected_value}" ]; then
-    ## echo "Both variables 'CHECK_RESULTS_CATCHUP' and 'CLEAN_UNITTEST_CATCHUP' are already set"
+     "${clean_unittest_catchup}" -eq "${clean_unittest_catchup_expected_value}" -a \
+     "${letkf_glb15km_num_threads}" -eq "${letkf_glb15km_num_threads_expected_value}" -a \
+     "${letkf_glb15km_memory}" = "${letkf_glb15km_memory_expected_value}" ]; then
+    ## echo "All variables 'CHECK_RESULTS_CATCHUP', 'CLEAN_UNITTEST_CATCHUP', 'LETKF_GLB15KM_NUM_THREADS' and 'LETKF_GLB15KM_MEMORY' are all already set"
     ## echo "to ${check_result_catchup_expected_value} and ${clean_unittest_catchup_expected_value}"
     ## echo "respectively in '${resources_file}'."
     ## echo "We will not modify the resources file"
@@ -70,4 +80,16 @@ fi
 if [ "${clean_unittest_catchup}" -ne "${clean_unittest_catchup_expected_value}" ]; then
     echo "Set 'CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}' in ${resources_file}"
     sed -i "s/^CLEAN_UNITTEST_CATCHUP=[1-9]$/CLEAN_UNITTEST_CATCHUP=${clean_unittest_catchup_expected_value}/" ${resources_file}
+fi
+
+## If 'LETKF_GLB15KM_NUM_THREADS' is not set to 9, then update it
+if [ "${letkf_glb15km_num_threads}" -ne "${letkf_glb15km_num_threads_expected_value}" ]; then
+    echo "Set 'LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}' in ${resources_file}"
+    sed -i "s/^LETKF_GLB15KM_NUM_THREADS=[1-9]$/LETKF_GLB15KM_NUM_THREADS=${letkf_glb15km_num_threads_expected_value}/" ${resources_file}
+fi
+
+## If 'LETKF_GLB15KM_MEMORY' is not set to 9, then update it
+if [ "${letkf_glb15km_memory}" != "${letkf_glb15km_memory_expected_value}" ]; then
+    echo "Set 'LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}' in ${resources_file}"
+    sed -i "s/^LETKF_GLB15KM_MEMORY=[0-9]\+[MGT]$/LETKF_GLB15KM_MEMORY=${letkf_glb15km_memory_expected_value}/" ${resources_file}
 fi

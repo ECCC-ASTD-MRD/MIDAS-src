@@ -208,7 +208,8 @@ Note that the values of `CHECK_RESULTS_CATCHUP` and
 according to the values of `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` because
 we want to avoid running the task `check` and `clean` from the
 `UnitTest` module since it is expected that activating the debug
-options will change the results of the programs.
+options will change the results of the programs.  We also increase the
+memory request for the task `/Tests/letkf/glb_15km/UnitTest/run`.
 
 ### Preparing interactive mode without changing any configuration (advanced)
 
