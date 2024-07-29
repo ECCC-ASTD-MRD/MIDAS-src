@@ -2800,7 +2800,7 @@ CONTAINS
     integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
-    character(len=256) :: ensFileName, outFileName
+    character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
     character(len=10) :: memberIndexStr ! this is the member number in a character string
@@ -3072,8 +3072,7 @@ CONTAINS
                                writeHeightSfc_opt = writeHeightSfc)
           
           if (writeNetCDF) then
-	    outFileName = trim(ensFileName) // '.nc'
-            call gio_writeToFileNetCDF(statevector_member_r4, outFileName, &
+            call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName), &
                                        containsFullField_opt = containsFullField)
 	  end if
 

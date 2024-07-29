@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Corrected netCDF filenames for LETKF increments (#952 and !865)
  * Reading netCDF subroutine is fixed (#947 and !862)
 
 ### Removed
