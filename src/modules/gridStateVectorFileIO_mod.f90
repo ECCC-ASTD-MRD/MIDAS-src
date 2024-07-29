@@ -761,7 +761,6 @@ module gridStateVectorFileIO_mod
 				              start = (/ 1,  1, levIndex, timeIndexToRead/),&
 				              count = (/ni, nj,        1,               1/)))
 
-      write(*,*) 'min/maxval = ', minval(fileField2D), maxval(fileField2D)
       field_r4_ptr(:,:, varLevIndex, 1) = fileField2D(:,:,1,1)
 
     end do k_loop
