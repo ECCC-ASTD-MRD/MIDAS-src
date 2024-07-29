@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Added missing file open/close in bCovarSetupChem_mod.f90 (#949 and !864)
+   * Also fixed incorrect intent for ni/nj/nk in utl_fstlir
  * Corrected netCDF filenames for LETKF increments (#952 and !865)
  * Reading netCDF subroutine is fixed (#947 and !862)
 
