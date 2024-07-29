@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Allow the user to omit the version identifier in the build directory name by setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
+ * Allow user to omit version identifier in build directory name by setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
  * Set lowest threshold for `QC` before writing the analysis and increment files (#944 and !859)
  * All-sky assimilation for MWHS2 (#942 and !855)
 
@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Added missing file open/close in bCovarSetupChem_mod.f90 (#949 and !864)
-   * Also fixed incorrect intent for ni/nj/nk in utl_fstlir
+ * Dynamically compute dimensions of `procIndexesSendMpiGlobal` (#950 and !866)
+ * Added missing file open/close in `bCovarSetupChem_mod.f90` (#949 and !864)
+   * Also fixed incorrect intent for `ni/nj/nk` in `utl_fstlir`
  * Corrected netCDF filenames for LETKF increments (#952 and !865)
  * Reading netCDF subroutine is fixed (#947 and !862)
 
