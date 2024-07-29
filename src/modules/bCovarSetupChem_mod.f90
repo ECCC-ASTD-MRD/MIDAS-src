@@ -73,6 +73,7 @@ module bCovarSetupChem_mod
                             
   integer, external   :: get_max_rss
   integer             :: nulbgst=0
+  character(len=12) :: bFileName = './bgchemcov'
 
   ! Background error covariance matrix elements.
   ! One could add an additional dimension to corns  
@@ -174,7 +175,7 @@ module bCovarSetupChem_mod
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
     real(8), pointer    :: pressureProfile_T(:)
-        
+       
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt, &
                       stddevMode,IncludeAnlVarKindCH,getPhysSpaceHCorrel, &
 		      CrossCornsVarKindCH,WritePhysSpaceStats, &
@@ -472,7 +473,6 @@ module bCovarSetupChem_mod
     ! Locals:
     integer :: ierr, fnom, fstouv, fstfrm, fclos
     logical :: lExists
-    character(len=12) :: bFileName = './bgchemcov'
     type(struct_vco),pointer :: vco_file => null()
 
     inquire(file=bFileName,exist=lExists)
@@ -1487,7 +1487,7 @@ module bCovarSetupChem_mod
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
     logical, allocatable :: lfound_sqrt(:)
-    
+
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
   
@@ -1527,7 +1527,7 @@ module bCovarSetupChem_mod
     allocate(lfound_sqrt(bgStats%numvar3d+bgStats%numvar2d))
     if (ReadWrite_sqrt) then
       ! if desired, read precomputed sqrt of corns
-      call readcorns(lfound_sqrt,bgStats%ntrunc,'CORNS_SQRT')
+      call bcsc_readcorns(lfound_sqrt,bgStats%ntrunc,'CORNS_SQRT')
     else
       lfound_sqrt(:)=.false.
     end if
@@ -1635,7 +1635,7 @@ module bCovarSetupChem_mod
     integer :: ilwork,info,jnum,nvlev,ierr
     real(8) :: zwork(2*4*bgStats%numVarLev)
     real(8) :: eigenvalmax
-    integer iulcorvert
+    integer :: iulcorvert
     ! Standard file variables
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
@@ -1674,7 +1674,7 @@ module bCovarSetupChem_mod
 
       if (varIndex == 1) then
         allocate(lfound(numvartot))
-        call readcorns(lfound,0,'CORVERTI') 
+        call bcsc_readcorns(lfound,0,'CORVERTI') 
       end if
       
       if (.not.lfound(varIndex)) then
@@ -1855,9 +1855,9 @@ module bCovarSetupChem_mod
   end subroutine writecorns
 
   !--------------------------------------------------------------------------
-  ! readcorns
+  ! bcsc_readcorns
   !--------------------------------------------------------------------------
-  subroutine readcorns(lfound,nmat,cletiket)
+  subroutine bcsc_readcorns(lfound,nmat,cletiket)
 
     implicit none
 
@@ -1867,14 +1867,25 @@ module bCovarSetupChem_mod
     character(len=*), intent(in)  :: cletiket
 
     ! Locals:
-    integer :: jn, icornskey,varIndex,jnum,jstart,numvartot
+    integer :: jn, icornskey, varIndex, jnum, jstart, numvartot
     real(8), allocatable :: zcornssrc(:,:)
     ! standard file variables
-    integer :: ini,inj,ink
-    integer :: ip1,ip2,ip3
+    integer :: ini, inj, ink, ierr
+    integer :: ip1, ip2, ip3
     integer :: idateo
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
+    integer :: fnom, fstouv, fstfrm, fclos
+
+    ! Open background stats file
+    nulbgst = 0
+    ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
+    if (ierr == 0) then
+      ierr =  fstouv(nulbgst,'RND+OLD')
+    else
+      call utl_abort('bcsc_readcorns: Problem in opening the background ' // &
+	               'chemical constituent stat file')
+    end if
 
     if (nmat == 0) then
       numvartot=bgStats%numvar3d
@@ -1886,8 +1897,8 @@ module bCovarSetupChem_mod
     else if (nmat == bgStats%ntrunc) then
       numvartot=bgStats%numvar3d+bgStats%numvar2d
     end if
-    
-    write(*,*) 'readcorns: ', trim(cletiket), &
+
+    write(*,*) 'bcsc_readcorns: ', trim(cletiket), &
                ' being searched for number of matrices -1 =',nmat
 
     idateo = -1
@@ -1895,9 +1906,9 @@ module bCovarSetupChem_mod
     ip3 = bgStats%ntrunc
     cltypvar = 'X'
 
-    lfound(:)=.false.    
+    lfound(:)=.false.
     VARCYCLE: do varIndex = 1, numvartot
-   
+
       if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) then
         jstart=1
         jnum=bgStats%numVarLev
@@ -1913,19 +1924,19 @@ module bCovarSetupChem_mod
         ip2 = jn
 
         ! Looking for FST record parameters..
-  
+ 
         icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket, &
 	                       ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(icornskey  < 0 ) then
-          write(*,*) 'readcorns: matrix not found in stats file for variable ', &
+          write(*,*) 'bcsc_readcorns: matrix not found in stats file for variable ', &
 	              clnomvar
           deallocate(zcornssrc)
           cycle VARCYCLE
         end if
 
         if (ini /= jnum .or. inj /= jnum) then
-	  call utl_abort('readcorns: BG stat levels inconsitencies')
+	  call utl_abort('bcsc_readcorns: BG stat levels inconsitencies')
 	end if
 
         if (nmat > 0) then
@@ -1947,8 +1958,11 @@ module bCovarSetupChem_mod
       if (any(CrossCornsVarKindCH(:) /= '') .and. nmat > 0) exit
 
     end do VARCYCLE
-    
-  end subroutine readcorns
+
+    ierr = fstfrm(nulbgst)
+    ierr = fclos(nulbgst)
+
+  end subroutine bcsc_readcorns
 
   !--------------------------------------------------------------------------
   ! gaspariCohn

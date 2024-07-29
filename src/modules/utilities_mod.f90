@@ -203,9 +203,9 @@ contains
     ! Arguments:
     real(8),          intent(inout) :: fld8(*)
     integer,          intent(in)    :: iun
-    integer,          intent(in)    :: ni
-    integer,          intent(in)    :: nj
-    integer,          intent(in)    :: nk
+    integer,          intent(inout) :: ni
+    integer,          intent(inout) :: nj
+    integer,          intent(inout) :: nk
     integer,          intent(in)    :: datev
     integer,          intent(in)    :: ip1
     integer,          intent(in)    :: ip2
@@ -255,9 +255,9 @@ contains
     ! Arguments:
     real(4),          intent(inout) :: fld_r4(*)
     integer,          intent(in)    :: iun
-    integer,          intent(in)    :: ni
-    integer,          intent(in)    :: nj
-    integer,          intent(in)    :: nk
+    integer,          intent(inout) :: ni
+    integer,          intent(inout) :: nj
+    integer,          intent(inout) :: nk
     integer,          intent(in)    :: datev
     integer,          intent(in)    :: ip1
     integer,          intent(in)    :: ip2
