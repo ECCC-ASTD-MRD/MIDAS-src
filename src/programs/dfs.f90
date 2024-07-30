@@ -621,6 +621,16 @@ contains
     
     allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
+
+    if (doChannelSelection) then
+      sizeSelect = nLevelsDfs
+      if (maxSelect > 0) then
+        sizeSelect = maxSelect
+      end if
+      allocate(all_dfs(sizeSelect))
+      allocate(order(sizeSelect))
+    end if
+    
     dfsCount = 0
     
     if (computeInParallel) then
@@ -659,9 +669,9 @@ contains
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
           if (familyType == 'TO') then
             sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
-            call rmat_getRmatrix(sensorIndex,        &
-                levelList(obsIndex,:),  &
-                stdDevList(obsIndex,:), &
+            call rmat_getRmatrix(sensorIndex, &
+                levelList(obsIndex,:),        &
+                stdDevList(obsIndex,:),       &
                 Rsub)
           else
             Rsub(:,:) = 0.d0
@@ -675,24 +685,9 @@ contains
          
           !calculate the selection of channels 
           if (doChannelSelection) then
-            sizeSelect = nLevelsDfs
-            if (maxSelect > 0) then
-              sizeSelect = maxSelect
-            end if
-            allocate(all_dfs(sizeSelect))
-            allocate(order(sizeSelect))
             call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
           end if
           deallocate(Rsub)
-        else
-          if (doChannelSelection) then
-            sizeSelect = nLevelsDfs
-            if (maxSelect > 0) then
-              sizeSelect = maxSelect
-            end if
-            allocate(all_dfs(sizeSelect))
-            allocate(order(sizeSelect))
-          end if
         end if
         
         allocate(headerObsForOutput(mmpi_nprocs))
@@ -824,24 +819,9 @@ contains
          
             !calculate the selection of channels 
             if (doChannelSelection) then
-              sizeSelect = nLevelsDfs
-              if (maxSelect > 0) then
-                sizeSelect = maxSelect
-              end if
-              allocate(all_dfs(sizeSelect))
-              allocate(order(sizeSelect))
               call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
             end if
             deallocate(Rsub)
-          else
-            if (doChannelSelection) then
-              sizeSelect = nLevelsDfs
-              if (maxSelect > 0) then
-                sizeSelect = maxSelect
-              end if
-              allocate(all_dfs(sizeSelect))
-              allocate(order(sizeSelect))
-            end if
           end if
         
           call rpn_comm_bcastc(headerObs, stringLength, 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
