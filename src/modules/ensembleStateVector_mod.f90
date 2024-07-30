@@ -45,6 +45,9 @@ module ensembleStateVector_mod
   public :: ens_varNamesList, ens_applyMaskLAM
   public :: ens_copyHeightSfc
   
+  ! Namelist variables
+  integer            :: maxNumVarLevBatches ! Maximum number of batches for parallel writing of ensemble
+
   type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
   end type struct_oneLev_r4
@@ -74,6 +77,46 @@ module ensembleStateVector_mod
   end type struct_ens
 
 CONTAINS
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMENSSTATE
+    !
+    implicit none
+
+    ! Locals:
+    integer       :: ierr
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMENSSTATE/ maxNumVarLevBatches
+
+    if (firstCall) then
+      
+      ! set the default values
+      maxNumVarLevBatches = 4
+
+      ! read the namelist block if it exists
+      if (.not. utl_isNamelistPresent('NAMENSSTATE','./flnml')) then
+        if (mmpi_myid == 0) then
+          call msg('readNml (ens)', 'namensstate is missing in the namelist. The default values will be taken.')
+        end if
+      else
+        ! Read namelist NAMENSSTATE
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namensstate, iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        call utl_tmg_stop(181)
+      end if
+      if (mmpi_myid == 0) write(*,nml=namensstate)
+
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
   !--------------------------------------------------------------------------
   ! ens_isAllocated
@@ -2818,6 +2861,8 @@ CONTAINS
 
     !- 1. Initial setup
 
+    call readNml()
+    
     nullify(varNamesInEns)
     if (present(varNames_opt)) then
       allocate(varNamesInEns(size(varNames_opt)))
@@ -2887,7 +2932,7 @@ CONTAINS
     ! We will splitt all the 'varLev's to write into batches only if
     ! there are less ensemble members than MPI processes.
     if ( mmpi_nprocs > ens%numMembers ) then
-      numVarLevBatches = mmpi_nprocs/ens%numMembers
+      numVarLevBatches = min(maxNumVarLevBatches, mmpi_nprocs/ens%numMembers)
     else
       ! If 'mmpi_nprocs < ens%numMembers', then we will process all
       ! the 'varLev's in one batch.
@@ -3083,7 +3128,7 @@ CONTAINS
         ! batches, then we add '_batch_' to its file name.  The
         ! different batches will be collected together at the end of
         ! the routine with 'gio_collectMpiDistributedFiles'.
-        if ( numVarLevBatches > 1 ) then
+        if ( numVarLevBatches > 1 .and. varLevGroupIndex > 1 ) then
           ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
         end if
 

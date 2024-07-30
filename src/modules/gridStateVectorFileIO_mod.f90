@@ -2566,9 +2566,9 @@ module gridStateVectorFileIO_mod
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namstio, iostat=ierr)
         if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
-        if (mmpi_myid == 0) write(*,nml=namstio)
         call utl_tmg_stop(181)
       end if
+      if (mmpi_myid == 0) write(*,nml=namstio)
 
       if ( outputFormat /= 'XDF' .and. outputFormat /= 'RSF' ) then
         call utl_abort('readNml (gio): ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
