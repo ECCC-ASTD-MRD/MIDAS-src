@@ -2615,10 +2615,20 @@ contains
       end do
     end do
 
-    
     ! Figure out which mpi tasks I will need to send my results to
-    allocate(procIndexesSendMpiGlobal(numLatLonMpiGlobal,10))
+    ! -- First just do counting for allocating procIndexesSendMpiGlobal
     allocate(numProcsSendMpiGlobal(numLatLonMpiGlobal))
+    numProcsSendMpiGlobal(:) = 0
+    do latLonIndex = 1, numLatLonMpiGlobal
+      do procIndex = 1, mmpi_nprocs
+        if ( any( (latIndexesSendMpiGlobal(latLonIndex) == allLatIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) .and.  &
+                  (lonIndexesSendMpiGlobal(latLonIndex) == allLonIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) ) ) then
+          numProcsSendMpiGlobal(latLonIndex) = numProcsSendMpiGlobal(latLonIndex) + 1
+        end if
+      end do
+    end do
+    ! -- Now allocate and store values in procIndexesSendMpiGlobal
+    allocate(procIndexesSendMpiGlobal(numLatLonMpiGlobal,maxval(numProcsSendMpiGlobal(:))))
     procIndexesSendMpiGlobal(:,:) = -1
     numProcsSendMpiGlobal(:) = 0
     do latLonIndex = 1, numLatLonMpiGlobal
