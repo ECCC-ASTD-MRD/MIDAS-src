@@ -621,6 +621,7 @@ contains
     
     allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
+    HBHtMatrix(:,:) = MPC_missingValue_R8
 
     if (doChannelSelection) then
       sizeSelect = nLevelsDfs
@@ -667,6 +668,7 @@ contains
           
           !extraction of the R matrix
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
+          Rsub(:,:) = MPC_missingValue_R8
           if (familyType == 'TO') then
             sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
             call rmat_getRmatrix(sensorIndex, &
@@ -750,8 +752,8 @@ contains
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
                 write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex1 = 1, size(order)
-                  write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
-                      vcoordList(order(channelIndex1)), all_dfs(channelIndex1)
+                  write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, orderForOutput(channelIndex1,outTaskIndex), &
+                      vcoordList(orderForOutput(channelIndex1,outTaskIndex)), all_dfsForOutput(channelIndex1,outTaskIndex)
                 end do
                 write(nulSelec,*)
               end if
