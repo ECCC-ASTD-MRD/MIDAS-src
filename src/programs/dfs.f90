@@ -751,7 +751,7 @@ contains
             do outTaskIndex = 1, mmpi_nprocs
               if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
                 write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
-                do channelIndex1 = 1, size(order)
+                do channelIndex1 = 1, sizeSelect
                   write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, orderForOutput(channelIndex1,outTaskIndex), &
                       vcoordList(orderForOutput(channelIndex1,outTaskIndex)), all_dfsForOutput(channelIndex1,outTaskIndex)
                 end do
@@ -759,8 +759,6 @@ contains
               end if
             end do
           end if
-          deallocate(order)
-          deallocate(all_dfs)
         end if
         deallocate(headerObsForOutput)
         if (allocated(HBHtMatrixForOutput)) deallocate(HBHtMatrixForOutput)
@@ -846,8 +844,8 @@ contains
           call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
-            call rpn_comm_bcast(all_dfs, size(all_dfs), 'MPI_REAL8', taskIndex, 'GRID', ierr)
-            call rpn_comm_bcast(order, size(order), 'MPI_INTEGER', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(all_dfs, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(order, sizeSelect, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)
@@ -856,8 +854,6 @@ contains
               end do
               write(nulSelec,*)
             end if
-            deallocate(order)
-            deallocate(all_dfs)
           end if
           if (dfsCount == nDfsMax) exit mpiTaskLoop
         end do observationLoop2
