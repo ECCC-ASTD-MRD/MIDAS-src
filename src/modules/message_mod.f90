@@ -5,7 +5,9 @@ module message_mod
   !           Also provides string representation for some intrinsic types.
   !
   use midasMpi_mod
+  use clibInterfaces_mod
   use utilities_mod
+  use ramDisk_mod
 
   implicit none
   save
@@ -39,7 +41,7 @@ module message_mod
   end interface
 
   ! private module variables
-  integer, parameter    :: msg_lineLen = 70
+  integer, parameter    :: msg_lineLen = 100
   integer, parameter    :: msg_num2strBufferLen = 200
   integer, parameter    :: msg_indent = 4
 
@@ -127,11 +129,55 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
-    integer :: usageMb
-    integer, external :: get_max_rss
+    integer            :: pgmUsageMb, fasttmpUsageMb
+    integer, external  :: get_max_rss
 
-    usageMb = get_max_rss()/1024
-    call msg( origin, 'Memory Used: '//str(usageMb)//' Mb', verb_opt, mpiAll_opt)
+    pgmUsageMb = get_max_rss()/1024
+    fasttmpUsageMb = 0
+
+    if (ram_getRamDiskDir() /= ' ') then
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*')
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*/*')
+      fasttmpUsageMb = fasttmpUsageMb + sizeOfFiles(trim(ram_getRamDiskDir()) // '/*/*/*')
+    end if
+
+    if (fasttmpUsageMb == 0) then      
+      call msg(origin, 'Memory Used: '//str(pgmUsageMb)//' Mb', verb_opt, mpiAll_opt)
+    else
+      call msg(origin, 'Memory Used: '//str(pgmUsageMb + fasttmpUsageMb)//' Mb ' // &
+               '(including '//str(fasttmpUsageMb)//' Mb from fasttmp)', &
+               verb_opt, mpiAll_opt)
+    end if
+    
+  contains
+
+    function sizeOfFiles(path) result(usageMb)
+      implicit none
+
+      ! Arguments:
+      character(len=*), intent(in) :: path
+      ! Result:
+      integer                      :: usageMb
+
+      ! Locals
+      integer            :: returnCode, fileIndex, numFiles, fileSize
+      integer, parameter :: maxNumFiles = 100
+      character(len=256) :: fileList(maxNumFiles)
+      logical, parameter :: verbose = .false.
+
+      usageMb = 0
+      returnCode = clib_glob(fileList,numFiles,trim(path),maxNumFiles)
+      if (returnCode == 1) then
+        do fileIndex = 1, numFiles
+          if (clib_isFile(trim(fileList(fileIndex))) == clib_ok) then
+            fileSize = clib_size(fileList(fileIndex))/1024/1024
+            usageMb = usageMb + fileSize
+            if(verbose) write(*,*) 'msg_memUsage: ', trim(fileList(fileIndex)), usageMb
+          end if
+        end do
+      end if
+
+    end function sizeOfFiles
 
   end subroutine msg_memUsage
 
