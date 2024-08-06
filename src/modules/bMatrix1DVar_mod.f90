@@ -5,6 +5,7 @@ module bMatrix1DVar_mod
   !:Purpose: contains all 1Dvar B matrices.
   !
   use mathPhysConstants_mod
+  use message_mod
   use columnData_mod
   use columnVariableTransforms_mod
   use controlVector_mod
@@ -57,7 +58,6 @@ module bMatrix1DVar_mod
 
   real(4), allocatable :: latLand(:), lonLand(:), latSea(:), lonSea(:)
   integer              :: nLonLatPosLand, nLonLatPosSea
-  integer, external    :: get_max_rss
   integer,          parameter :: numMasterBmat = 2
   character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI', 'ENS' /)
   character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_ENS' /)
@@ -285,7 +285,7 @@ contains
     end if
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_setupBHi', mpiAll_opt=.false.)
 
     do levelIndex = 1, vco_maxNumLevels
       if( scaleFactorHI(levelIndex) > 0.0d0 ) then 
@@ -418,7 +418,7 @@ contains
     initialized = .true.
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_setupBHi', mpiAll_opt=.false.)
 
   end subroutine bmat1D_setupBHi
 
@@ -537,7 +537,7 @@ contains
     real(4), allocatable :: latLandHi(:), latSeaHi(:)
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_setupBEns', mpiAll_opt=.false.)
 
     if (nEns <= 0) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
@@ -909,7 +909,7 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
     
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_setupBEns', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
     
   end subroutine bmat1D_setupBEns
@@ -946,8 +946,8 @@ contains
     real(8), allocatable :: outLats(:),outLons(:), outBmatrix(:,:,:)
 
     if (mmpi_myid == 0) write(*,*) 'dumpBmatrices: Starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    
+    call msg_memUsage('dumpBmatrices', mpiAll_opt=.false.)
+
     countDumped = 0
     COLUMN1: do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -1096,7 +1096,7 @@ contains
     integer                   :: emissVarIndex, nlevEmiss
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bsqrtHi', mpiAll_opt=.false.)
 
     if (.not. initialized) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: 1Dvar B matrix not initialized'
@@ -1162,7 +1162,7 @@ contains
     deallocate(bMatSqrtLandTmp)
     deallocate(bMatSqrtSeaTmp)
     deallocate(oneDProfile)
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bsqrtHi', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
 
   end subroutine bmat1D_bSqrtHi
@@ -1189,7 +1189,7 @@ contains
     integer :: surfaceType, offset
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bsqrtHiAd', mpiAll_opt=.false.)
     if (.not. initialized) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: 1dvar Bmatrix not initialized'
       return
@@ -1229,7 +1229,7 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bsqrtHiAd', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: done'
 
   end subroutine bmat1D_bSqrtHiAd
@@ -1322,7 +1322,7 @@ contains
     integer :: offset
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bSqrtEnsAd', mpiAll_opt=.false.)
     if (.not. initialized) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: 1dvar Bmatrix not initialized'
       return
@@ -1351,7 +1351,7 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('bmat1D_bSqrtEnsAd', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
 
   end subroutine bmat1D_bSqrtEnsAd

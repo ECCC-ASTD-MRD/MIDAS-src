@@ -8,6 +8,7 @@ module var1D_mod
   use gridStatevector_mod
   use horizontalCoord_mod
   use midasMpi_mod 
+  use message_mod
   use obsSpaceData_mod
   use timeCoord_mod
   use verticalCoord_mod
@@ -28,7 +29,6 @@ module var1D_mod
 
   ! Private module variables
   logical              :: initialized = .false.
-  integer, external    :: get_max_rss
 
 contains
 
@@ -49,7 +49,7 @@ contains
     integer :: bodyStart, bodyEnd, bodyIndex
 
     if(mmpi_myid == 0) write(*,*) 'var1D_setup: Starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) call msg_memUsage('var1D_setup')
 
     !we want to count how many obs are really assimilable to minimize controlvector size
     var1D_validHeaderCount = 0
@@ -141,7 +141,7 @@ contains
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+      call msg_memUsage('var1D_transferColumnToYGrid')
     end if
 
     write(*,*) 'var1D_transferColumnToYGrid: start of lat-lon dissemination'

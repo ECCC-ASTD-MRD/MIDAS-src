@@ -7,6 +7,7 @@ MODULE ensembleObservations_mod
   !           nearest observations within the local volume.
   !
   use kdTree2_mod
+  use message_mod
   use columnData_mod
   use tovsNL_mod
   use rttov_types, only: rttov_transmission, rttov_profile
@@ -45,7 +46,6 @@ MODULE ensembleObservations_mod
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
   integer, parameter   :: maxNumLocalObsSearch = 500000
-  integer, external    :: get_max_rss
   logical              :: psvObsAssim
   integer              :: numSimObsFam
   integer              :: numPsvObsFam
@@ -271,7 +271,7 @@ CONTAINS
 
     ensObs%allocated = .true.
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('eob_allocate')
 
   end subroutine eob_allocate
 
@@ -359,7 +359,7 @@ CONTAINS
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('eob_zero')
 
   end subroutine eob_zero
 
@@ -514,7 +514,7 @@ CONTAINS
     real(4), allocatable :: tempBuffer(:,:)
     
     write(*,*) 'eob_allGather: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('eob_allGather')
 
     if (ensObs%mpiglobal) then
       call utl_abort('eob_allGather: Input eob object is already mpiglobal')
@@ -766,7 +766,7 @@ CONTAINS
     call utl_tmg_stop(10)
 
     write(*,*) 'eob_allGather: finished'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('eob_allGather')
 
   end subroutine eob_allGather
 
@@ -1046,7 +1046,7 @@ CONTAINS
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
       write(*,*) 'eob_getLocalBodyIndices: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('eob_getLocalBodyIndices')
       allocate(positionArray(3,ensObs%numObs))
       do bodyIndex = 1, ensObs%numObs
         positionArray(1,bodyIndex) = ec_ra * sin(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
@@ -1055,7 +1055,7 @@ CONTAINS
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
       write(*,*) 'eob_getLocalBodyIndices: done creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('eob_getLocalBodyIndices')
     end if
 
     ! do the search

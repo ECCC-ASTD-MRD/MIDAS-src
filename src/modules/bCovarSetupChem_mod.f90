@@ -71,8 +71,6 @@ module bCovarSetupChem_mod
   
   character(len=15) :: bcsc_mode
                             
-  integer, external   :: get_max_rss
-  
   ! Background error covariance files
   character(len=11) :: bFileName = './bgchemcov'                  ! Input
   character(len=25) :: bFileNameOut = './bCovarSetupChem_out.fst' ! Optional output

@@ -57,8 +57,6 @@ MODULE bMatrixDiff_mod
   integer             :: myLonBeg, myLonEnd
   integer             :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
-  integer,external    :: get_max_rss
-
   integer             :: nulbgst = 0
 
 CONTAINS
@@ -98,7 +96,7 @@ CONTAINS
 
     call utl_tmg_start(65,'----B_DIFF_Setup')
     if(mmpi_myid == 0) call msg('bdiff_setup', 'Starting')
-    if(mmpi_myid == 0) call msg('bdiff_setup', 'Memory Used: '//str(get_max_rss()/1024)//'Mb')
+    call msg_memUsage('bdiff_setup', mpiAll_opt=.false.)
 
     ! default values for namelist variables
     corr_len(:) = 10.0
@@ -263,7 +261,7 @@ CONTAINS
 
     call bdiff_rdstats(hco_in, vco_in)
 
-    if(mmpi_myid == 0) write(*,*) 'bdiff_setup: Memory Used: ', get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('bdiff_setup', mpiAll_opt=.false.)
 
     if(mmpi_myid == 0) call msg('bdiff_setup', 'Completed')
 
@@ -489,7 +487,7 @@ CONTAINS
 
     call bdiff_copyToStatevector( statevector, gd_out )
 
-    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bdiff_bSqrt', mpiAll_opt=.false.)
     if(mmpi_myid == 0) write(*,*) myName//': done'
 
   end subroutine bdiff_bSqrt
@@ -534,7 +532,7 @@ CONTAINS
 
     call bdiff_cainad(gd_out, controlVector_out)
 
-    if ( mmpi_myid == 0) write(*,*) myName//': Memory Used: ', get_max_rss()/1024,'Mb'
+    call msg_memUsage('bdiff_bSqrtAd', mpiAll_opt=.false.)
     if ( mmpi_myid == 0) write(*,*) myNAme//': done'
 
   end subroutine bdiff_bSqrtAd

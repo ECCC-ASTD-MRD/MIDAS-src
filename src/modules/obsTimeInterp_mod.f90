@@ -7,6 +7,7 @@ module obsTimeInterp_mod
   !
   use midasMpi_mod
   use utilities_mod
+  use message_mod
   use timecoord_mod
   use obsSpaceData_mod
   use obsFamilyList_mod
@@ -30,8 +31,6 @@ module obsTimeInterp_mod
   end type struct_oti
 
   integer, parameter :: maxNumWrites = 50
-
-  integer, external :: get_max_rss
 
 contains
 
@@ -325,7 +324,7 @@ contains
 
     deallocate(timeInterpWeightMax)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('oti_setupMpiGlobal')
 
   end subroutine oti_setupMpiGlobal
 

@@ -8,6 +8,7 @@ module bMatrixEnsemble_mod
   !           limited-area applications.
   !
   use midasMpi_mod
+  use message_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -162,7 +163,7 @@ module bMatrixEnsemble_mod
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
-  integer, external    :: get_max_rss, omp_get_thread_num
+  integer, external    :: omp_get_thread_num
 
 CONTAINS
 
@@ -1315,7 +1316,7 @@ CONTAINS
     character(len=30) :: transform
 
     write(*,*) 'setupEnsemble: Start'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('setupEnsemble')
 
     !- 1. Memory allocation
     allocate(bEns(instanceIndex)%ensPerts(bEns(instanceIndex)%nHorizWaveBand,bEns(instanceIndex)%nVertWaveBand))
@@ -1769,7 +1770,7 @@ CONTAINS
     if (immediateReturn) return
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ben_bSqrt', mpiAll_opt=.false.)
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -1855,7 +1856,7 @@ CONTAINS
                           stateVectorRef_opt=stateVectorRef_opt)   ! IN
     end if
 
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ben_bSqrt', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: done'
 
   end subroutine ben_BSqrt
@@ -1897,7 +1898,7 @@ CONTAINS
     end if
 
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ben_bSqrtAd', mpiAll_opt=.false.)
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -1979,7 +1980,7 @@ CONTAINS
 
     if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
 
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ben_bSqrtAd', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'ben_bsqrtAd: done'
 
   end subroutine ben_BSqrtAd

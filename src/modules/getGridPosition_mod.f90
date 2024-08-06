@@ -11,6 +11,7 @@ module getGridPosition_mod
   !
   use kdTree2_mod
   use mathPhysConstants_mod
+  use message_mod
   use physicsFunctions_mod
   use utilities_mod
 
@@ -22,7 +23,6 @@ module getGridPosition_mod
   public :: gpos_getPositionXY, gpos_gridIsOrca
 
   integer, parameter :: maxNumLocalGridPointsSearch = 3000
-  integer, external  :: get_max_rss
 
   type(kdtree2), pointer :: tree => null()
 
@@ -286,7 +286,7 @@ contains
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
       write(*,*) 'gpos_xyfll_unstructGrid: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('gpos_xyfll_unstructGrid')
       ierr = ezgprm(gdid, grtyp, ni, nj, ig1, ig2, ig3, ig4)
 
       startXIndex = 1
@@ -333,7 +333,7 @@ contains
       end do
       tree => kdtree2_create(positionArray, sort = .true., rearrange = .true.) 
       write(*,*) 'gpos_xyfll_unstructGrid: done creating kdtree'
-      write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+      call msg_memUsage('gpos_xyfll_unstructGrid')
 
     else
 
