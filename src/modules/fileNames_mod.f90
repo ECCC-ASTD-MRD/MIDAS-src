@@ -79,7 +79,7 @@ contains
       write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
       fileNamePattern = './' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
-      if (returnCode /= 1) then
+      if (returnCode /= clib_ok) then
         if (shouldExist) then
           call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
         else

@@ -167,7 +167,7 @@ module message_mod
 
       usageMb = 0
       returnCode = clib_glob(fileList,numFiles,trim(path),maxNumFiles)
-      if (returnCode == 1) then
+      if (returnCode == clib_ok) then
         do fileIndex = 1, numFiles
           if (clib_isFile(trim(fileList(fileIndex))) == clib_ok) then
             fileSize = clib_size(fileList(fileIndex))/1024/1024
@@ -175,6 +175,8 @@ module message_mod
             if(verbose) write(*,*) 'msg_memUsage: ', trim(fileList(fileIndex)), usageMb
           end if
         end do
+      else if(verbose) then
+        write(*,*) 'msg_memUsage: WARNING: Error returned by clib_glob!'
       end if
 
     end function sizeOfFiles
