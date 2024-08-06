@@ -144,6 +144,7 @@ program midas_diagHBHt
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -282,7 +283,6 @@ contains
     ! Locals:
     integer :: dateStampFromObs
     type(struct_vco),pointer :: vco_anl => null()
-    integer :: get_max_rss
 
     write(*,*)
     write(*,*) '-----------------------------------'
@@ -318,7 +318,7 @@ contains
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     !- Initialize the Analysis grid
@@ -341,19 +341,19 @@ contains
                             './analysisgrid') ! IN
 
     call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     !- Basic setup of columnData module
     !
     call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     !- Memory allocation for background column data
@@ -364,13 +364,13 @@ contains
     !- Initialize the observation error covariances
     !
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
     call bmat_setup(hco_anl,hco_core,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
     !
     ! - Initialize the gridded variable transform module
@@ -380,7 +380,7 @@ contains
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
     
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
 
   end subroutine var_setup
 
@@ -404,7 +404,7 @@ contains
     real(8) ,allocatable :: random_vector(:)
     real(8) ,allocatable :: local_random_vector(:)
     integer :: index_body, local_dimension, jj, ierr, dateprnt, timeprnt, nrandseed, istat
-    integer ,external :: newdate, get_max_rss
+    integer ,external :: newdate
     real(8) ,external :: gasdev
 
     !
@@ -446,7 +446,7 @@ contains
     do jj = 1, cvm_nvadim_mpiglobal
       random_vector(jj) = rng_gaussian()
     enddo
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-diagHBHt')
     !- Extract only the subvector for this processor
     call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
          random_vector)      ! IN

@@ -159,6 +159,7 @@ program midas_dfs
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -347,7 +348,6 @@ contains
     ! Locals:
     integer :: dateStampFromObs
     type(struct_vco), pointer :: vco_anl => null()
-    integer, external :: get_max_rss
 
     write(*,*)
     write(*,*) '-----------------------------------'
@@ -384,8 +384,7 @@ contains
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
+    call msg_memUsage('midas-dfs')
     !
     !- Initialize the Analysis grid
     !
@@ -406,20 +405,20 @@ contains
     call vco_SetupFromFile(vco_anl, './analysisgrid') ! IN
 
     call col_setVco(columnTrlOnAnlIncLev, vco_anl)
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
 
     !
     !- Setup and read observations
     !
     obsMpiStrategy = 'LIKESPLITFILES'
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
 
     !
     !- Basic setup of columnData module
     !
     call col_setup
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
 
     !
     !- Memory allocation for background column data
@@ -430,13 +429,13 @@ contains
     !- Initialize the observation error covariances
     !
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
 
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
     call bmat_setup(hco_anl, hco_core, vco_anl)
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
 
     !
     ! - Initialize the gridded variable transform module
@@ -445,7 +444,7 @@ contains
     call gvt_setupRefFromTrialFiles('HU')
     call gvt_setupRefFromTrialFiles('height')
     
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
     write(*,*) 'dfs_setup: exiting...'
     call utl_printTime()
     
@@ -482,7 +481,6 @@ contains
     integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
     integer :: numHeader, numHeaderMaxMpi, sensorIndex, localDimension
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
-    integer, external :: get_max_rss
     real(8), allocatable :: perturbationVector(:)
     integer :: dfsCount, sizeSelect, nulDfs, nulSelec, nulHBHt
     character(len=128) :: headerObs1
@@ -636,7 +634,7 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
             end do
             if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+            call msg_memUsage('midas-dfs')
             call col_zero(columnAnlInc)
             call oop_Had(columnAnlInc, & !output
                 columnTrlOnAnlIncLev,  &
@@ -792,7 +790,7 @@ contains
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(stateVector)
     
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-dfs')
     write(*,*)
     write(*,*) 'Computing DFS from selected observations end'
     

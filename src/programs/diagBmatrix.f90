@@ -92,6 +92,7 @@ program midas_diagBmatrix
  
   use version_mod
   use midasMpi_mod
+  use message_mod
   use controlVector_mod
   use gridVariableTransforms_mod
   use varNameList_mod
@@ -132,7 +133,7 @@ program midas_diagBmatrix
 
   real(8) :: centralValue, centralValueLocal
 
-  integer :: fnom, fstopc, newdate, get_max_rss
+  integer :: fnom, fstopc, newdate
   integer :: ierr, nsize, iseed, nultxt
   integer :: ensIndex, index, varLevIndex, numVarLev, levIndex, lonIndex, latIndex
   integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
@@ -245,7 +246,7 @@ program midas_diagBmatrix
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-diagBmatrix')
 
   ! Initialize the vertical coordinate from the statistics file
   call vco_SetupFromFile( vco_anl,        & ! OUT
@@ -266,7 +267,7 @@ program midas_diagBmatrix
   if ( gsv_varExist(varName='HU') ) call gvt_setupRefFromTrialFiles('HU')
   
   ! Setup of the L matrix done in bmat_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-diagBmatrix')
 
   !
   !==============================================
@@ -509,7 +510,7 @@ program midas_diagBmatrix
 
   end if ! if any oneobs selected
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-diagBmatrix')
 
   !
   !==============================================
@@ -791,7 +792,7 @@ program midas_diagBmatrix
 
   call gsv_deallocate(statevector)
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-diagBmatrix')
 
   ! MPI, tmg finalize
   call utl_tmg_stop(0)

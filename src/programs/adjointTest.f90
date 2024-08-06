@@ -71,6 +71,7 @@ program midas_adjointTest
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -104,7 +105,7 @@ program midas_adjointTest
 
   integer :: ierr, cvDim
   integer :: idate, itime, dateStamp
-  integer, external :: newdate, get_max_rss
+  integer, external :: newdate
   
   character(len=20) :: test     ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   integer           :: testdate ! yyyymmddhh date
@@ -189,7 +190,7 @@ program midas_adjointTest
 
   write(*,*)
   write(*,*) '> midas-adjointTest: setup - END'
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-adjointTest')
 
   !- 1.11 Variable transforms
   call gvt_Setup(hco_anl, hco_core, vco_anl)

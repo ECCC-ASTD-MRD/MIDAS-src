@@ -225,7 +225,6 @@ program midas_obsSelection
   type(struct_ocm)               :: oceanMask
 
   logical :: allocHeightSfc, fileExists
-  integer :: get_max_rss
   real(8) :: minGridSpacing
   logical :: allTrialTimeStepsInOneFile ! if .true. all trial field time steps are stored in one file
   character(len=12) :: trialFileName
@@ -374,14 +373,14 @@ program midas_obsSelection
     end if
 
     call col_setVco(columnTrlOnAnlIncLev, vco_anl)
-    write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-obsSelection')
   end if SETUPGRIDS
 
   !
   !- Setup and read observations
   !
   call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', midasMode)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsSelection')
 
   ! if ssmis, compute the surface type ele and update obspacedata
   if (doBiasCorr .or. doBgck) then
@@ -397,7 +396,7 @@ program midas_obsSelection
     !- Basic setup of columnData module
     !
     call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-obsSelection')
 
     !
     !- Memory allocation for background column data
@@ -409,7 +408,7 @@ program midas_obsSelection
     !
     call oer_setObsErrors(obsSpaceData, 'bgck')
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-obsSelection')
 
     !
     ! Initialize list of analyzed variables.
@@ -472,12 +471,12 @@ program midas_obsSelection
                       hInterpolateDegree_opt = 'LINEAR', beSilent_opt=.false.)
     call gsv_zero(stateVectorTrialHighRes)
     call gio_readTrials(stateVectorTrialHighRes)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-obsSelection')
 
     ! Horizontally interpolate trials to trial columns
     call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                   stateVectorTrialHighRes)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-obsSelection')
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)

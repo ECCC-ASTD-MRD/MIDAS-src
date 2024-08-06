@@ -108,6 +108,7 @@ program midas_ensembleH
   !
   use version_mod
   use midasMpi_mod
+  use message_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -143,7 +144,7 @@ program midas_ensembleH
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  integer :: get_max_rss, fstopc, ierr
+  integer :: fstopc, ierr
   integer :: memberIndex, dateStampFromObs
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
@@ -172,7 +173,7 @@ program midas_ensembleH
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-ensembleH')
   call utl_printTime()
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -227,7 +228,7 @@ program midas_ensembleH
   call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile(vco_ens, ensFileName)
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensembleH')
 
   ! read in the observations
   call inn_setupObs(obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode)
@@ -238,7 +239,7 @@ program midas_ensembleH
   call col_setup
   call col_setVco(column, vco_ens)
   call col_allocate(column, obs_numheader(obsSpaceData))
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensembleH')
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, midasMode) ! IN
@@ -330,7 +331,7 @@ program midas_ensembleH
 
     write(*,*) ''
     write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('midas-ensembleH')
 
     ! copy 1 member to a stateVector
     call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
@@ -400,14 +401,14 @@ program midas_ensembleH
   !
   !- MPI, tmg finalize
   !  
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensembleH')
   call utl_tmg_stop(0)
   call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensembleH')
 
   !
   !- 7.  Ending

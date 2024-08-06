@@ -141,6 +141,7 @@ program midas_ensPostProcess
 
   use version_mod
   use midasMpi_mod
+  use message_mod
   use fileNames_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
@@ -166,7 +167,7 @@ program midas_ensPostProcess
   integer, allocatable :: dateStampList(:)
   integer :: ierr, stepIndex
   logical :: targetGridFileExists
-  integer, external :: get_max_rss, fstopc
+  integer, external :: fstopc
 
   integer :: nEns             ! ensemble size
   logical :: readTrlEnsemble  ! activate reading of trial ensemble
@@ -186,7 +187,7 @@ program midas_ensPostProcess
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-ensPostProcess')
   call utl_printTime()
 
   ! Read the namelists
@@ -335,14 +336,14 @@ program midas_ensPostProcess
   !
   !- 5. MPI, tmg finalize
   !  
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensPostProcess')
   call utl_tmg_stop(0)
   call utl_printTime()
 
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-ensPostProcess')
 
   if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
   if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-ensPostProcess ENDS'

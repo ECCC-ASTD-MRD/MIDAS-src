@@ -90,6 +90,7 @@ program midas_genCoeff
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -105,7 +106,7 @@ program midas_genCoeff
 
   implicit none
 
-  integer, external :: exdb,exfin,fnom, fclos, get_max_rss
+  integer, external :: exdb,exfin,fnom, fclos
   integer :: ierr,istamp
 
   type(struct_obs),         target :: obsSpaceData
@@ -157,12 +158,12 @@ program midas_genCoeff
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-genCoeff')
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev( columnTrlOnAnlIncLev, obsSpaceData, hco_core, &
                                    stateVectorTrialHighRes )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-genCoeff')
 
   call utl_tmg_start(110,'--BiasCorrection')
 
@@ -173,7 +174,7 @@ program midas_genCoeff
 
   call utl_tmg_stop(110)
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-genCoeff')
 
   ! Compute observation innovations
   call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
@@ -267,7 +268,7 @@ contains
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-genCoeff')
     !
     !- Initialize the Analysis grid
     !
@@ -290,27 +291,27 @@ contains
                             './analysisgrid') ! IN
 
     call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-genCoeff')
 
     !
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-genCoeff')
 
     !
     !- Basic setup of columnData module
     !
     call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-genCoeff')
 
     !
     !- Initialize the observation error covariances
     !
     if (.not. bcs_mimicSatbcor) call oer_setObsErrors(obsSpaceData, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-genCoeff')
 
- end subroutine gencoeff_setup
+  end subroutine gencoeff_setup
 
 
 

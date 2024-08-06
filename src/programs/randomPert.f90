@@ -107,6 +107,7 @@ program midas_randomPert
   use version_mod
   use midasMpi_mod
   use ramDisk_mod
+  use message_mod
   use controlVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -137,7 +138,7 @@ program midas_randomPert
   integer :: imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, numVarLev
   integer :: datePrint, timePrint, randomSeed
-  integer :: get_max_rss, n_grid_point, n_grid_point_glb
+  integer :: n_grid_point, n_grid_point_glb
 
   integer :: latPerPEa, latPerPEmaxa, myLatBega, myLatEnda
   integer :: lonPerPEa, lonPerPEmaxa, myLonBega, myLonEnda
@@ -186,7 +187,7 @@ program midas_randomPert
   call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-randomPert')
   call utl_printTime()
 
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -231,7 +232,7 @@ program midas_randomPert
     call utl_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
   end if
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
 
   !
   !- 2.  Initialization
@@ -313,7 +314,7 @@ program midas_randomPert
   !- 2.5 Initialize the B_hi matrix
   call bmat_setup(hco_anl, hco_anlcore, vco_anl)
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
 
   !- 2.6 Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_anlcore,vco_anl)
@@ -355,7 +356,7 @@ program midas_randomPert
   allocate(controlVector(cvm_nvadim))
   allocate(controlVector_mpiglobal(cvm_nvadim_mpiglobal))
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
 
   !
   !- 4. Compute an ensemble of random perturbations
@@ -755,7 +756,7 @@ program midas_randomPert
                          containsFullField_opt=.true., typvar_opt=typvarOut)
   end if
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
 
   !
   !- 5.  Memory deallocations
@@ -768,7 +769,7 @@ program midas_randomPert
   deallocate(controlVector)  
   deallocate(controlVector_mpiglobal)  
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
   call utl_tmg_stop(0)
   call utl_printTime()
 
@@ -778,7 +779,7 @@ program midas_randomPert
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-randomPert')
 
   !
   !- 7.  Ending

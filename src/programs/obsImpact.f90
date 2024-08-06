@@ -149,6 +149,7 @@ program midas_obsImpact
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -181,7 +182,6 @@ program midas_obsImpact
   type(struct_hco),        pointer :: hco_trl => null()
   type(struct_vco),        pointer :: vco_trl => null()
   type(struct_hco),        pointer :: hco_core => null()
-  integer,external    :: get_max_rss
   logical             :: allocHeightSfc
 
   istamp = exdb('OBSIMPACT','DEBUT','NON')
@@ -242,7 +242,7 @@ program midas_obsImpact
   !- Initialize variables of the model states
   !
   call gsv_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
   !
   !- Initialize the Analysis grid
   !
@@ -266,19 +266,19 @@ program midas_obsImpact
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   !
   !- Setup and read observations
   !
   call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   !
   !- Basic setup of columnData module
   !
   call col_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   !
   !- Memory allocation for background column data
@@ -289,7 +289,7 @@ program midas_obsImpact
   !- Initialize the observation error covariances
   !
   call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
@@ -302,18 +302,18 @@ program midas_obsImpact
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorTrialHighRes )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   !
   !- Initialize the background-error covariance, also sets up control vector module (cvm)
   !
   call bmat_setup(hco_anl,hco_core,vco_anl)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-obsImpact')
 
   !
   ! - Initialize the gridded variable transform module
