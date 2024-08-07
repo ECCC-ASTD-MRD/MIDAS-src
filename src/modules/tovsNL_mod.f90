@@ -85,6 +85,7 @@ module tovsNL_mod
   use interpolation_mod
   use surfaceEmissivity_mod
   use clibInterfaces_mod
+  use ramDisk_mod
 
   implicit none
   save
@@ -100,7 +101,7 @@ module tovsNL_mod
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances, tvs_countRadiancesScatt
   public :: tvs_ChangedStypValue
-  public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
+  public :: tvs_getHIREmissivities, tvs_getOtherEmissivities
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
@@ -174,8 +175,8 @@ module tovsNL_mod
   type(rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
-
-  logical :: tvs_mpiTask0ReadCoeffs 
+  
+  logical :: tvs_copyCoefficientFileToRamDisk
   real(8) :: tvs_cloudScaleFactor 
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
@@ -384,6 +385,13 @@ contains
     logical, allocatable :: logicalBuffer(:)
     integer, allocatable :: sensorTotalNumberOfProfiles(:)
     character(len=32) :: hydroTableFileName
+    character(len=300) :: filePrefix
+    character(len=400) :: fileName
+    character(len=512) :: fullNameWithPath, path
+    logical :: fileExists
+    integer :: extensionIndex, endPath
+    integer,parameter :: nExtensions = 4
+    character(len=4), parameter :: extensionList(nExtensions) = ['.bin', '.h5 ', '.H5 ', '.dat'] 
 
     if (tvs_nsensors == 0) return
 
@@ -664,17 +672,31 @@ contains
         errorStatus = errorStatus_success
         call utl_tmg_start(16,'----RttovSetup')
         write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)',  sensorIndex,tvs_nchan(sensorIndex)
-        if ( tvs_mpiTask0ReadCoeffs ) then
-          call tvs_rttov_read_coefs(errorStatus, tvs_coefs(sensorIndex), tvs_opts(sensorIndex), & 
-               tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
-        else
-          call rttov_read_coefs(                               &
-               errorStatus,                                    &! out
-               tvs_coefs(sensorIndex),                         &
-               tvs_opts(sensorIndex),                          &
-               instrument=tvs_listSensors(:,sensorIndex),      &! in
-               channels=tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) ) ! in option
+        
+        path = './'
+        if (tvs_copyCoefficientFileToRamdisk) then
+          call rttov_coeffname(errorStatus, tvs_listSensors(:,sensorIndex), 'rtcoef', filePrefix)
+          do extensionIndex = 1, nExtensions
+            fileName = trim(path) // trim(filePrefix) // trim(extensionList(extensionIndex))
+            inquire(file=fileName, exist=fileExists)
+            if (fileExists) then
+              fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
+              endPath = index(fullNameWithPath, '/', back=.true.)
+              path = fullNameWithPath(1:endPath-1)
+              exit
+            end if
+          end do
         end if
+        
+        write(*,*) 'tvs_setupAlloc: calling rttov_read_coefs with path= ',trim(path)
+        call rttov_read_coefs(                              &
+            errorStatus,                                    &! out
+            tvs_coefs(sensorIndex),                         &
+            tvs_opts(sensorIndex),                          &
+            instrument=tvs_listSensors(:,sensorIndex),      &! in
+            path=path,                                      &
+            channels=tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) ) ! in option
+        
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
@@ -806,7 +828,7 @@ contains
     logical :: isAzimuthValid(tvs_maxNumberOfSensors) ! Indicate if azimuth angle is valid
     logical :: userDefinedDoAzimuthCorrection ! Indicate if user defined azimuth correction is to be used
     logical :: userDefinedIsAzimuthValid ! Indicate if user defined azimuth angle is valid
-    logical :: mpiTask0ReadCoeffs ! Choose to read coeffs only on task 0 and broadcast
+    logical :: copyCoefficientFileToRamDisk ! Copy RTTOV coefficient files to ramdisk
     logical :: mwInstrumUsingCLW_tl ! Choose to use CLW increment in TL/AD if exists as state variable
     logical :: mwInstrumUsingHydrometeors_tl ! Choose to all hydomet variables in TL/AD if exist as state variables
     real(8) :: cloudScaleFactor  ! Scale factor applied to model produced clouds to account for bias
@@ -825,7 +847,7 @@ contains
     namelist /NAMTOV/ channelsUsingHydrometeors
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
-    namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs, computeJacobian
+    namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
 
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
@@ -861,7 +883,7 @@ contains
     regLimitExtrap = .true.
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
-    mpiTask0ReadCoeffs = .true.
+    copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false. 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -902,7 +924,7 @@ contains
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
     tvs_cloudScaleFactor = cloudScaleFactor 
     tvs_mwAllskyAssim = mwAllskyAssim
-    tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
+    tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     !  1.4 Validate namelist values
@@ -4389,7 +4411,6 @@ contains
 
   end subroutine emi_sea
 
-
   !--------------------------------------------------------------------------
   !  tvs_getCommonChannelSet
   !--------------------------------------------------------------------------
@@ -4456,889 +4477,6 @@ contains
     deallocate(listGlobal)
 
   end subroutine tvs_getCommonChannelSet
-
-
-  !--------------------------------------------------------------------------
-  !  tvs_rttov_read_coefs
-  !--------------------------------------------------------------------------
-  subroutine tvs_rttov_read_coefs(errorStatus, coefs, opts, channels, instrument)
-    !
-    ! :Purpose: MPI wrapper for rttov_read_coefs
-    !           the coefficient files are read by MPI task 0
-    !           and then broadcasted to the other tasks according to the selected
-    !           channels. Argument channels is mandatory (it is optional in rttov_setup)
-    !           optional argument channels_rec was removed (it is useful only in principal component mode)
-    !           other optionnal arguments were removed :
-    !                          *  form_coef, to specify format
-    !                          *  form_scaer,        
-    !                          *  form_sccld,        
-    !                          *  form_pccoef,       
-    !                          *  file_coef, to specify filename
-    !                          *  file_scaer,        
-    !                          *  file_sccld,        
-    !                          *  file_pccoef,       
-    !                          *  file_id_coef, to specify fortran unit number
-    !                          *  file_id_scaer,     
-    !                          *  file_id_sccld,     
-    !                          *  file_id_pccoef,
-    !                          *  path,  to specify the path to look for coefficient files
-    !
-    !           if necessary these arguments could be  added (ask S. Heilliette)
-    !           also this subroutine will work only for clear sky radiance computations
-    !           if somebody wants to do realistic cloud or aerosol affected radiance simulations
-    !           some changes are needed. Ask me in that case. (S. Heilliette) 
-    !           It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
-    !           No check will be done (options for task 0 will be used for all tasks). 
-    !           Only differences in channel lists are accounted for.
-    !
-    implicit none
-
-    ! Arguments:
-    integer(kind=jpim),  intent(out) :: errorStatus   ! Error status
-    type(rttov_coefs),   intent(out) :: coefs         ! Rttov coefficient structure
-    type(rttov_options), intent(in)  :: opts          ! Rttov option structure
-    integer(kind=jpim),  intent(in)  :: channels(:)   ! Channel list
-    integer(kind=jpim),  intent(in)  :: instrument(3) ! Instrument vector
-
-    ! Locals:
-    real(8), allocatable :: bigArray(:,:,:,:)
-    integer :: i, j, ichan, ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
-    logical :: associated0
-    integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
-    integer, allocatable :: nlte_chans(:) 
-
-    write(*,*) 'tvs_rttov_read_coefs: Starting'
-
-    ! First step: we should determine a common set of channels among MPI tasks
-    call tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
-
-    ! Second step: mpi task 0 will do the job
-    if ( mmpi_myid == 0 ) then
-      call rttov_read_coefs (         &
-          errorStatus,                &! out
-          coefs,                      &
-          opts,                       &
-          instrument=instrument,      &! in
-          channels=listAll(1:countUniqueChannel)  )     ! in option
-      if (errorStatus /= errorStatus_success) then
-        write(*,*) 'tvs_rttov_read_coefs: failure in rttov_read_coefs while reading RTTOV coefficient file', instrument, errorStatus
-        call utl_abort('tvs_rttov_read_coefs')
-      end if
-    else
-      call rttov_nullify_coef(coefs % coef)
-    end if
-
-    ! Third step: common (i.e. independent from the channel list) parameters are simply broadcasted to other processors
-    ! Scalar and fixed size arrays and  strings first
-    coefs % initialised = .true.                                                    ! Logical flag for initialization
-    call rpn_comm_bcast(coefs % coef % id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
-    call rpn_comm_bcast(coefs % coef % id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)     ! OK
-    call rpn_comm_bcast(coefs % coef % id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)    ! OK
-    call rpn_comm_bcast(coefs % coef % id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  ! OK 
-    call rpn_comm_bcast(coefs % coef % id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)! OK
-    call rpn_comm_bcast(coefs % coef % id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK
-
-    call rpn_comm_bcast(coefs % coef % fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs % coef % fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs % coef % fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-    call rpn_comm_bcast(coefs % coef % fmv_ori_nchn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
-
-    call rpn_comm_bcast(coefs % coef % nmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Mixed Gases
-    call rpn_comm_bcast(coefs % coef % nwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Water Vapour
-    call rpn_comm_bcast(coefs % coef % nozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Ozone
-    call rpn_comm_bcast(coefs % coef % nwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of variables/predictors for WV continuum
-    call rpn_comm_bcast(coefs % coef % nco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CO2
-    call rpn_comm_bcast(coefs % coef % nn2o , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of variables/predictors for N2O
-    call rpn_comm_bcast(coefs % coef % nco, 1, 'MPI_INTEGER', 0, 'GRID', ierr)             ! number of variables/predictors for CO
-    call rpn_comm_bcast(coefs % coef % nch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CH4
-    call rpn_comm_bcast(coefs % coef % nso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for SO2
-
-    call rpn_comm_bcast(coefs % coef % nlevels, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of levels(pres/absorber) same for all gases
-    call rpn_comm_bcast(coefs % coef % nlayers, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of layers(pres/absorber) nlevels-1
-    call rpn_comm_bcast(coefs % coef % pmc_nlay, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % pmc_nvar, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % IncZeeman, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include Zeeman effect for this sensor
-    call rpn_comm_bcast(coefs % coef % solarcoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include solar reflection
-    call rpn_comm_bcast(coefs % coef % nltecoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)        ! Flag to include nlte corrections
-    call rpn_comm_bcast(coefs % coef % pmc_shift, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-
-    call rpn_comm_bcast(coefs % coef % ncmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
-    call rpn_comm_bcast(coefs % coef % ncwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
-    call rpn_comm_bcast(coefs % coef % ncozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
-    call rpn_comm_bcast(coefs % coef % ncwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
-    call rpn_comm_bcast(coefs % coef % ncco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
-    call rpn_comm_bcast(coefs % coef % ncn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
-    call rpn_comm_bcast(coefs % coef % ncco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
-    call rpn_comm_bcast(coefs % coef % ncch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
-    call rpn_comm_bcast(coefs % coef % ncso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
-
-    call rpn_comm_bcast(coefs % coef % nccmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
-    call rpn_comm_bcast(coefs % coef % nccwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
-    call rpn_comm_bcast(coefs % coef % nccozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
-    call rpn_comm_bcast(coefs % coef % nccwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
-    call rpn_comm_bcast(coefs % coef % nccco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
-    call rpn_comm_bcast(coefs % coef % nccn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
-    call rpn_comm_bcast(coefs % coef % nccco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
-    call rpn_comm_bcast(coefs % coef % nccch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
-    call rpn_comm_bcast(coefs % coef % nccso2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for SO2
-
-    call rpn_comm_bcast(coefs % coef % ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-
-    call rpn_comm_bcast(coefs % coef % id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) ! OK 
-    call rpn_comm_bcastc(coefs % coef % id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr)  ! OK 
-    call rpn_comm_bcastc(coefs % coef % id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) !OK
-    do i=1, 100
-      call rpn_comm_bcastc(coefs % coef % line_by_line(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
-      call rpn_comm_bcastc(coefs % coef % readme_srf(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
-    end do
-    call rpn_comm_bcastc(coefs % coef % fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !OK
-    call rpn_comm_bcast(coefs % coef % fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4)) !ok
-    call rpn_comm_bcast(coefs % coef % fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4)) !ok
-    call rpn_comm_bcast(coefs % coef % fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km) !ok
-
-    call rpn_comm_bcast(coefs % coef % pmc_lengthcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % pmc_tempcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % pmc_betaplus1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    ! FASTEM section
-    call rpn_comm_bcast(coefs % coef % ssirem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % iremis_version, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % iremis_ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % iremis_angle0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % iremis_tskin0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    call rpn_comm_bcast(coefs % coef % ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
-    ! then variable size vectors
-    ! this one must be done first because it is used to dimension other ones ....
-    if (mmpi_myid > 0) allocate(coefs % coef % fmv_lvl(coefs % coef % fmv_gas))
-    call rpn_comm_bcast(coefs % coef % fmv_lvl, coefs % coef % fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (mmpi_myid > 0) then
-      if (coefs % coef % nltecoef) allocate(coefs % coef % nlte_coef)
-      allocate(coefs % coef % fmv_gas_id(coefs % coef % fmv_gas))
-      allocate(coefs % coef % fmv_gas_pos(ngases_max)) !size is from rttov consts
-      allocate(coefs % coef % fmv_var(coefs % coef % fmv_gas))
-      allocate(coefs % coef % fmv_coe(coefs % coef % fmv_gas)) ! number of coefficients by gas (fmv_gas)
-      allocate(coefs % coef % fmv_ncorr(coefs % coef % fmv_gas)) ! number of coefs by gas for correction term (fmv_gas) (v13 only)
-      allocate(coefs % coef % ws_npoint(coefs % coef % ws_nomega))
-      allocate(coefs % coef % ws_k_omega(coefs % coef % ws_nomega))
-      allocate(coefs % coef % ref_prfl_p(coefs % coef % nlevels ))
-      allocate(coefs % coef % ref_prfl_t(coefs % coef % nlevels, coefs % coef % fmv_gas ))
-      allocate(coefs % coef % ref_prfl_mr(coefs % coef % nlevels, coefs % coef % fmv_gas ))
-      allocate(coefs % coef % bkg_prfl_mr(coefs % coef % nlevels, coefs % coef % fmv_gas ))
-      allocate(coefs % coef % lim_prfl_p(coefs % coef % nlevels ))
-      allocate(coefs % coef % lim_prfl_tmax(coefs % coef % fmv_lvl(gas_id_mixed) ))
-      allocate(coefs % coef % lim_prfl_tmin(coefs % coef % fmv_lvl(gas_id_mixed) ))
-      allocate(coefs % coef % lim_prfl_gmax(coefs % coef % fmv_lvl(gas_id_mixed), coefs % coef % fmv_gas ))
-      allocate(coefs % coef % lim_prfl_gmin(coefs % coef % fmv_lvl(gas_id_mixed), coefs % coef % fmv_gas ))
-      allocate(coefs % coef % env_prfl_tmax(coefs % coef % nlevels ))
-      allocate(coefs % coef % env_prfl_tmin(coefs % coef % nlevels ))
-      allocate(coefs % coef % env_prfl_gmax(coefs % coef % nlevels, coefs % coef % fmv_gas ))
-      allocate(coefs % coef % env_prfl_gmin(coefs % coef % nlevels, coefs % coef % fmv_gas ))
-      allocate(coefs % coef % dpp(0:coefs % coef % nlayers))
-      allocate(coefs % coef % dp(coefs % coef % nlayers))
-      allocate(coefs % coef % tstar(coefs % coef % nlayers))
-      allocate(coefs % coef % tstar_r(coefs % coef % nlayers))
-      allocate(coefs % coef % tstar_wsum_r(0:coefs % coef % nlayers))
-      if (coefs % coef % fmv_model_ver == 8) &
-           allocate(coefs % coef % tstarmod_wsum_r(coefs % coef % nlayers))
-      if (coefs % coef % fmv_model_ver <= 9) &
-           allocate(coefs % coef % tstar_uwsum_r(0:coefs % coef % nlayers))
-      allocate(coefs % coef % wstar(coefs % coef % nlayers))
-      allocate(coefs % coef % wstar_r(coefs % coef % nlayers))
-      allocate(coefs % coef % wstar_wsum_r(0:coefs % coef % nlayers))
-      allocate(coefs % coef % wtstar_wsum_r(0:coefs % coef % nlayers))
-    end if
-
-    call broadcastI41dArray( coefs % coef % fmv_gas_id )
-    call broadcastI41dArray( coefs % coef % fmv_gas_pos )
-    call broadcastI41dArray( coefs % coef % fmv_var )
-    call broadcastI41dArray( coefs % coef % fmv_coe )
-    call broadcastI41dArray( coefs % coef % fmv_ncorr )
-    call broadcastR81dArray( coefs % coef % ws_npoint )
-    call broadcastR81dArray( coefs % coef % ws_k_omega )
-    call broadcastR81dArray( coefs % coef % ref_prfl_p )
-    call broadcastR82dArray( coefs % coef % ref_prfl_t )
-    call broadcastR82dArray( coefs % coef % ref_prfl_mr )
-    call broadcastR82dArray( coefs % coef % bkg_prfl_mr )
-    call broadcastR81dArray( coefs % coef % lim_prfl_p )
-    call broadcastR81dArray( coefs % coef % lim_prfl_tmax )
-    call broadcastR81dArray( coefs % coef % lim_prfl_tmin )
-    call broadcastR82dArray( coefs % coef % lim_prfl_gmax )
-    call broadcastR82dArray( coefs % coef % lim_prfl_gmin )
-    call broadcastR81dArray( coefs % coef % env_prfl_tmax )
-    call broadcastR81dArray( coefs % coef % env_prfl_tmin )
-    call broadcastR82dArray( coefs % coef % env_prfl_gmax )
-    call broadcastR82dArray( coefs % coef % env_prfl_gmin )
-    call broadcastR81dArray( coefs % coef % dp )
-    call broadcastR81dArray( coefs % coef % dpp )
-    call broadcastR81dArray( coefs % coef % tstar ) 
-    call broadcastR81dArray( coefs % coef % tstar_r )
-    call broadcastR81dArray( coefs % coef % tstar_wsum_r )
-    if (coefs % coef % fmv_model_ver == 8) &
-         call broadcastR81dArray( coefs % coef % tstarmod_wsum_r )
-    if (coefs % coef % fmv_model_ver <= 9) &
-         call broadcastR81dArray( coefs % coef % tstar_uwsum_r )
-    call broadcastR81dArray( coefs % coef % wstar )
-    call broadcastR81dArray( coefs % coef % wstar_r )
-    call broadcastR81dArray( coefs % coef % wstar_wsum_r )
-    call broadcastR81dArray( coefs % coef % wtstar_wsum_r )
-    if (coefs % coef % nozone > 0) then
-      if (mmpi_myid > 0) then
-        allocate(coefs % coef % to3star(coefs % coef % nlayers))
-        allocate(coefs % coef % ostar(coefs % coef % nlayers))
-        allocate(coefs % coef % to3star_r(coefs % coef % nlayers))
-        allocate(coefs % coef % ostar_r(coefs % coef % nlayers))
-        allocate(coefs % coef % ostar_wsum_r(0:coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % to3star, size(coefs % coef % to3star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % ostar, size(coefs % coef % ostar) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % to3star_r, size(coefs % coef % to3star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % ostar_r, size(coefs % coef % ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % ostar_wsum_r, size(coefs % coef % ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-    end if
-    if ( coefs % coef % nco2 > 0) then
-      if (mmpi_myid>0) then
-        allocate(coefs % coef % co2star(coefs % coef % nlayers))
-        allocate(coefs % coef % co2star_r(coefs % coef % nlayers))
-        allocate(coefs % coef % co2star_wsum_r(0:coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % co2star, size(coefs % coef % co2star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % co2star_r, size(coefs % coef % co2star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % co2star_wsum_r, size(coefs % coef % co2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-    end if
-    if ( coefs % coef % nn2o > 0) then
-      if (mmpi_myid>0) then
-        allocate(coefs % coef % n2ostar(coefs % coef % nlayers))
-        allocate(coefs % coef % n2ostar_r(coefs % coef % nlayers))
-        allocate(coefs % coef % n2ostar_wsum_r(0:coefs % coef % nlayers))
-        allocate(coefs % coef % n2otstar_wsum_r(0:coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % n2ostar, size(coefs % coef % n2ostar) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % n2ostar_r, size(coefs % coef % n2ostar_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % n2ostar_wsum_r, size(coefs % coef % n2ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % n2otstar_wsum_r, size(coefs % coef % n2otstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-    end if
-    if ( coefs % coef % nco > 0) then
-      if (mmpi_myid>0) then
-        allocate(coefs % coef % costar(coefs % coef % nlayers))
-        allocate(coefs % coef % costar_r(coefs % coef % nlayers))
-        allocate(coefs % coef % costar_wsum_r(0:coefs % coef % nlayers))
-        allocate(coefs % coef % cotstar_wsum_r(0:coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % costar, size(coefs % coef % costar) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % costar_r, size(coefs % coef % costar_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % costar_wsum_r, size(coefs % coef % costar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % cotstar_wsum_r, size(coefs % coef % cotstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-    end if
-    if ( coefs % coef % nch4 > 0) then
-      if (mmpi_myid>0) then
-        allocate(coefs % coef % ch4star(coefs % coef % nlayers))
-        allocate(coefs % coef % ch4star_r(coefs % coef % nlayers))
-        allocate(coefs % coef % ch4star_wsum_r(0:coefs % coef % nlayers))
-        allocate(coefs % coef % ch4tstar_wsum_r(coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % ch4star, size(coefs % coef % ch4star) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % ch4star_r, size(coefs % coef % ch4star_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % ch4star_wsum_r, size(coefs % coef % ch4star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-      call rpn_comm_bcast(coefs % coef % ch4tstar_wsum_r, size(coefs % coef % ch4tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
-    end if
-    if (coefs % coef % nso2 > 0) then
-      if (mmpi_myid>0) then
-        allocate(coefs % coef % so2star(coefs % coef % nlayers))
-        allocate(coefs % coef % so2star_r(coefs % coef % nlayers))
-        allocate(coefs % coef % so2star_wsum_r(0:coefs % coef % nlayers))
-        allocate(coefs % coef % so2tstar_wsum_r(coefs % coef % nlayers))
-      end if
-      call rpn_comm_bcast(coefs % coef % so2star, size(coefs % coef % so2star) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % so2star_r, size(coefs % coef % so2star_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % so2star_wsum_r, size(coefs % coef % so2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % so2tstar_wsum_r, size(coefs % coef % so2tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr)
-    end if
-    ! Fourth step: channel dependent parameters are extracted according to the channel list and sent to each MPI task
-    coefs % coef % fmv_chn = size( channels )
-
-    if (mmpi_myid == 0) deallocate ( coefs % coef % ff_ori_chn)
-    allocate (coefs % coef % ff_ori_chn(coefs % coef % fmv_chn))
-    coefs % coef % ff_ori_chn =  channels
-
-    do i=1,  coefs % coef % fmv_chn
-      loopj2:do j=1, countUniqueChannel
-        if (listAll(j) == channels(i)) then
-          indexchan(i) = j
-          exit loopj2
-        end if
-      end do loopj2
-    end do
-    
-    ! 1D arrays first
-    call extractI41dArray(coefs % coef % pw_val_chn, countUniqueChannel,indexchan)
-    call extractI41dArray(coefs % coef % ff_val_chn, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ff_cwn, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ff_bco, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ff_bcs, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs % coef % ff_gam, countUniqueChannel,indexchan)
-    call extractI41dArray(coefs % coef % tt_val_chn, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs % coef % tt_a0, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs % coef % tt_a1, countUniqueChannel,indexchan) 
-    call extractI41dArray(coefs % coef % ss_val_chn, countUniqueChannel,indexchan) 
-    call extractR81dArray(coefs % coef % ss_solar_spectrum, countUniqueChannel,indexchan)
-    if ( coefs % coef % fmv_model_ver > 9) then
-      call extractR81dArray(coefs % coef % ss_rayleigh_ext, countUniqueChannel,indexchan)
-    end if
-    call extractCmplx81dArray(coefs % coef % woc_waopc_ow, countUniqueChannel, indexchan) 
-    call extractCmplx81dArray(coefs % coef % woc_waopc_fw, countUniqueChannel, indexchan)
-  
-    call extractI41dArray(coefs % coef % fastem_polar, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % pol_phi, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ssirem_a0, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ssirem_a1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ssirem_a2, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ssirem_xzn1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % ssirem_xzn2, countUniqueChannel,indexchan)
-
-    call extractR81dArray(coefs % coef % planck1, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % planck2, countUniqueChannel,indexchan)
-    if (coefs % coef % id_sensor == sensor_id_mw .or. coefs % coef % id_sensor == sensor_id_po) &
-         call extractR81dArray(coefs % coef % frequency_ghz, countUniqueChannel,indexchan)
-
-    call extractR81dArray(coefs % coef % pmc_pnominal, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % pmc_ppmc, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % pol_fac_v, countUniqueChannel,indexchan)
-    call extractR81dArray(coefs % coef % pol_fac_h, countUniqueChannel,indexchan)
-
-    ! 2D arrays
-    call extractR82dArray(coefs % coef % iremis_coef,coefs % coef % iremis_ncoef,countUniqueChannel,indexchan)
-    ! 3D arrays
-    call extractR83dArray(coefs % coef % pmc_coef,coefs % coef % pmc_nlay,countUniqueChannel,coefs % coef % pmc_nvar,indexchan)
-
-    ! then coefficients. It is more complicated with RTTOV12
-    call dispatch_fast_coef(errorStatus, coefs % coef % thermal, coefs % coef % fmv_gas_id, coefs % coef % fmv_coe, coefs % coef % fmv_model_ver, &
-         coefs % coef % nlayers, coefs % coef % fmv_gas)
-    if (coefs % coef % fmv_model_ver > 9) THEN
-      call dispatch_fast_coef(errorStatus, coefs % coef % thermal_corr, coefs % coef % fmv_gas_id, coefs % coef % fmv_ncorr, coefs % coef % fmv_model_ver, &
-           coefs % coef % nlayers, coefs % coef % fmv_gas)
-    end if
-    if (coefs % coef % solarcoef) then
-      call dispatch_fast_coef(errorStatus, coefs % coef % solar, coefs % coef % fmv_gas_id, coefs % coef % fmv_coe, coefs % coef % fmv_model_ver, &
-           coefs % coef % nlayers, coefs % coef % fmv_gas)
-      if (coefs % coef % fmv_model_ver > 9) THEN
-        call dispatch_fast_coef(errorStatus, coefs % coef % solar_corr, coefs % coef % fmv_gas_id, coefs % coef % fmv_ncorr, coefs % coef % fmv_model_ver, &
-             coefs % coef % nlayers, coefs % coef % fmv_gas)
-      end if
-    end if
-
-    if (coefs % coef % nltecoef) then
-
-      call rpn_comm_bcast(coefs % coef % nlte_coef % ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % nsol, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % nsat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % nchan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % start_chan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-
-      allocate(nlte_chans(coefs % coef % fmv_chn)) ! Index of selected channels in nlte_coefs array in the file
-
-      nlte_count = 0  ! Number of NLTE channels being read in
-      nlte_start = 0  ! Index (in input channel list) of first NLTE channel being read in
-      do i = 1, coefs % coef % fmv_chn
-        if (channels(i) >= coefs % coef % nlte_coef % start_chan .and. &
-             channels(i) < coefs % coef % nlte_coef % start_chan + coefs % coef % nlte_coef % nchan) then
-          nlte_count = nlte_count + 1
-          nlte_chans(nlte_count) = channels(i) - coefs % coef % nlte_coef % start_chan + 1
-          if (nlte_count == 1) nlte_start = i
-        end if
-      end do
-
-      coefs % coef % nltecoef = ( nlte_count > 0)
-
-      nlte_file_nchan  = coefs % coef % nlte_coef % nchan
-
-      ! Reset NLTE channel variables according to input channel limit
-      coefs % coef % nlte_coef % start_chan  = nlte_start
-      coefs % coef % nlte_coef % nchan      = nlte_count
-
-      if (mmpi_myid > 0) then
-         allocate (coefs % coef % nlte_coef % sec_sat(coefs % coef % nlte_coef % nsat) )
-         allocate (coefs % coef % nlte_coef % sol_zen_angle(coefs % coef % nlte_coef % nsol) )
-         allocate (coefs % coef % nlte_coef % sat_zen_angle(coefs % coef % nlte_coef % nsat) )
-         allocate (coefs % coef % nlte_coef % cos_sol(coefs % coef % nlte_coef % nsol) )
-      end if
-      call rpn_comm_bcast(coefs % coef % nlte_coef % sec_sat, coefs % coef % nlte_coef % nsat, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % sol_zen_angle, coefs % coef % nlte_coef % nsol, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % sat_zen_angle, coefs % coef % nlte_coef % nsat, 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs % coef % nlte_coef % cos_sol, coefs % coef % nlte_coef % nsol, 'MPI_REAL8', 0, 'GRID', ierr)
-
-      allocate(bigArray(coefs % coef % nlte_coef % ncoef, coefs % coef % nlte_coef % nsat, &
-           coefs % coef % nlte_coef % nsol, nlte_file_nchan) )
-
-      if (mmpi_myid == 0) then
-         do ichan = 1, nlte_file_nchan
-            do isol = 1, coefs % coef % nlte_coef % nsol
-               do isat = 1, coefs % coef % nlte_coef % nsat
-                  do I=1, coefs % coef % nlte_coef % ncoef
-                     bigArray(i, isat, isol, ichan) = coefs % coef % nlte_coef % coef(i,isat,isol,ichan)
-                  end do
-               end do
-            end do
-         end do
-         deallocate( coefs % coef % nlte_coef % coef )
-      end if
-
-      call rpn_comm_bcast(bigArray, size(bigArray), 'MPI_REAL8', 0, 'GRID', ierr)
-      allocate(coefs % coef % nlte_coef % coef(coefs % coef % nlte_coef % ncoef, coefs % coef % nlte_coef % nsat, &
-           coefs % coef % nlte_coef % nsol, nlte_count))
-      coefs % coef % nlte_coef % coef(:,:,:,:) = bigArray(:,:,:,nlte_chans(1:nlte_count))
-      deallocate(nlte_chans, bigArray)
-       
-    end if
-
-    if (mmpi_myid==0 .and. associated(coefs % coef % bounds) )  deallocate(coefs % coef % bounds)
-  
-    !allocate bounds array to store opdep calculation layer limits
-    !1st dim: upper boundary layer [ub](above which coefs all zeros), lower boundary layer [lb]
-    !4th dim: thermal layer limits, solar layer limits
-    allocate(coefs % coef % bounds(2, coefs % coef % fmv_gas, coefs % coef % fmv_chn, 2))
-    call set_fastcoef_level_bounds(coefs % coef, coefs % coef % thermal, thermal = .true._jplm)
-    ! if the solar_fast_coefficients section is not present then point the solar coefs to the thermal coefs
-    if (coefs % coef % solarcoef) then
-      call set_fastcoef_level_bounds(coefs % coef, coefs % coef % solar, thermal = .false._jplm)
-    else
-      coefs % coef % solar => coefs % coef % thermal
-      coefs % coef % solar_corr => coefs % coef % thermal_corr
-      coefs % coef % bounds(:,:,:,2) = coefs % coef % bounds(:,:,:,1)
-    end if
-
-    coefs % coef % ff_val_bc = any(coefs % coef % ff_bco(:) /= 0.0d0) .or. any(coefs % coef % ff_bcs(:) /= 1.d0)
-    coefs % coef % ff_val_gam = any(coefs % coef % ff_gam(:) /= 1.d0)
-
-    ! surface water reflectance for visible/near-ir channels
-    if (any(coefs % coef % ss_val_chn == 2)) then
-      if ( mmpi_myid==0) deallocate(coefs % coef % refl_visnir_ow, &
-           coefs % coef % refl_visnir_fw, stat = errorStatus)
-      allocate(coefs % coef % refl_visnir_ow(coefs % coef % fmv_chn), &
-           coefs % coef % refl_visnir_fw(coefs % coef % fmv_chn), stat = errorStatus)
-      call rttov_refl_water_interp(coefs % coef % ff_cwn, coefs % coef % refl_visnir_ow, coefs % coef % refl_visnir_fw)
-    end if
-
-    if (coefs % coef % pmc_shift .and. mmpi_myid > 0) then
-      allocate(coefs % coef % pmc_ppmc(coefs % coef % fmv_chn), stat = errorStatus)
-    else
-      nullify(coefs % coef % pmc_pnominal, coefs % coef % pmc_coef, coefs % coef % pmc_ppmc)
-    end if
-
-    contains
-
-    subroutine nullify_gas_coef_pointers(fast_coef)
-      implicit none
-
-      ! Arguments:
-      type(rttov_fast_coef), intent(inout) :: fast_coef
-
-      nullify (fast_coef % mixedgas,&
-           fast_coef % watervapour, &
-           fast_coef % ozone,       &
-           fast_coef % wvcont,      &
-           fast_coef % co2,         &
-           fast_coef % n2o,         &
-           fast_coef % co,          &
-           fast_coef % ch4,         &
-           fast_coef % so2)
-    end subroutine nullify_gas_coef_pointers
-
-    subroutine dispatch_fast_coef(err, fast_coef, gas_ids, ncoefs, version, nlayers, ngas)
-      implicit none
-
-      ! Arguments:
-      integer,                        intent(out)   :: err
-      type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-      integer(jpim),                  intent(in)    :: gas_ids(:)
-      integer(jpim),                  intent(in)    :: ncoefs(:)
-      integer(jpim),                  intent(in)    :: version
-      integer(jpim),                  intent(in)    :: nlayers
-      integer(jpim),                  intent(in)    :: ngas
-
-      ! Locals:
-      integer(jpim) :: channelIndex, gasIndex, layerIndex, coefIndex
-      real(8), allocatable :: bigArray(:,:,:,:)
-      logical :: allocated0
-
-      allocate(bigArray(countUniqueChannel,maxval(ncoefs),ngas,nlayers), stat=err)
-      bigArray(:,:,:,:) = 0.0d0
-
-      if (mmpi_myid > 0) then
-        allocate(fast_coef(countUniqueChannel) )
-        do channelIndex = 1, countUniqueChannel
-          allocate(fast_coef(channelIndex) % gasarray(ngas))
-          do gasIndex = 1, ngas
-            allocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef( ncoefs(gasIndex), nlayers))
-          end do
-        end do
-      end if
-
-      do channelIndex = 1, countUniqueChannel
-        do gasIndex = 1, ngas
-          call broadcastR82dArray( fast_coef(channelIndex) % gasarray(gasIndex) % coef )
-        end do
-      end do
-
-      do channelIndex = 1, countUniqueChannel  
-        do gasIndex = 1, ngas
-          associated0 = associated( fast_coef(channelIndex) % gasarray(gasIndex) % coef )
-          call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-          if (associated0) then
-            do layerIndex=1, nlayers
-              do coefIndex=1, ncoefs(gasIndex)
-                bigArray(channelIndex,coefIndex,gasIndex,layerIndex) = fast_coef(channelIndex) % gasarray(gasIndex) % coef(coefIndex,layerIndex)
-              end do
-            end do
-          end if
-        end do
-      end do
-
-      do channelIndex = 1, countUniqueChannel
-        do gasIndex = 1, ngas
-          associated0 = associated(fast_coef(channelIndex) % gasarray(gasIndex) % coef)
-          if (associated0) deallocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef)
-        end do
-        deallocate(fast_coef(channelIndex) % gasarray)
-      end do
-      deallocate(fast_coef)
-      allocate(fast_coef(coefs % coef % fmv_chn))
-      do channelIndex = 1, coefs % coef % fmv_chn
-        allocate(fast_coef(channelIndex) % gasarray(ngas))
-        call nullify_gas_coef_pointers( fast_coef(channelIndex) )
-        do gasIndex = 1, ngas
-          if (any( bigArray(indexchan(channelIndex),:,gasIndex,:) /= 0.) ) then
-            allocate(fast_coef(channelIndex) % gasarray(gasIndex) % coef( ncoefs(gasIndex), nlayers))
-            do layerIndex=1, nlayers
-              do coefIndex=1, ncoefs(gasIndex)
-                fast_coef(channelIndex) % gasarray(gasIndex) % coef(coefIndex,layerIndex)  = bigArray(indexchan(channelIndex),coefIndex,gasIndex,layerIndex)
-              end do
-            end do
-          end if
-          call set_pointers(fast_coef(channelIndex), gasIndex, gas_ids(gasIndex))
-        end do
-      end do
-
-      deallocate(bigArray, stat=err)
-
-    end subroutine dispatch_fast_coef
-
-  end subroutine tvs_rttov_read_coefs
-
-
-  subroutine extractI41dArray(array,oldSize,index)
-    implicit none
-
-    ! Arguments:
-    integer, pointer, intent(inout) :: array(:)
-    integer,          intent(in)    :: oldSize
-    integer,          intent(in)    :: index(:)
-
-    ! Locals:
-    integer :: newSize, tmpI41d(oldSize), ierr, trueSize
-
-    if (mmpi_myid == 0) then
-      if (associated(array)) then
-        trueSize = size(array)
-      else
-        trueSize = 0
-      end if
-    end if
-    ierr = 0
-    call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, trueSize
-      call utl_abort('extractI41dArray')
-    end if
-    if (trueSize < 1) return
-    
-    if (trueSize /= oldSize) then
-      write(*,*) 'extractI41dArray: should not happen ', trueSize, oldSize
-    end if
-    
-    newSize = size( index )
-
-    if (mmpi_myid > 0) allocate(array(oldSize))
-    ierr = 0
-    call rpn_comm_bcast(array, oldSize, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, array(:)
-      call utl_abort('extractI41dArray')
-    end if
-    tmpI41d = array
-    deallocate(array)
-    allocate(array(newSize))
-    array( : ) =  tmpI41d( index(:) )
-  end subroutine extractI41dArray
-  
-  subroutine extractR81dArray(array,oldSize,index)
-    implicit none
-
-    ! Arguments:
-    real(8), pointer, intent(inout) :: array(:)
-    integer,          intent(in)    :: oldSize
-    integer,          intent(in)    :: index(:)
-
-    ! Locals:
-    integer :: newSize, ierr, trueSize
-    real(8) :: tmpR81d(oldSize)
-    
-    if (mmpi_myid == 0) then
-      if (associated(array)) then
-        trueSize = size(array)
-      else
-        trueSize = 0
-      end if
-    end if
-    ierr = 0
-    call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, trueSize
-      call utl_abort('extractR81dArray')
-    end if
-    if (trueSize < 1) return
-    
-    if (trueSize /= oldSize) then
-      write(*,*) 'extractR81dArray: should not happen ', trueSize, oldSize
-    end if
-    
-    newSize = size( index )
-
-    if (mmpi_myid > 0) allocate(array(oldSize))
-    ierr = 0
-    call rpn_comm_bcast(array, oldSize, 'MPI_REAL8', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, array(:)
-      call utl_abort('extractR81dArray')
-    end if
-    tmpR81d = array
-    deallocate(array )
-    allocate(array(newSize))
-    array( : ) =  tmpR81d( index(:) )
-  end subroutine extractR81dArray
-
-
-  subroutine extractR82dArray(array,oldSize1,oldSize2,index)
-    !second dimension is for channels
-    implicit none
-
-    ! Arguments:
-    real(8), pointer, intent(inout) :: array(:,:)
-    integer,          intent(in)    :: oldSize1
-    integer,          intent(in)    :: oldSize2
-    integer,          intent(in)    :: index(:)
-
-    ! Locals:
-    integer :: newSize, ierr, trueSize,i
-    real(8) :: tmpR82d(oldSize1,oldsize2)
-    
-    if (mmpi_myid == 0) then
-      if (associated(array)) then
-        trueSize = size(array)
-      else
-        trueSize = 0
-      end if
-    end if
-    ierr = 0
-    call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, trueSize
-      call utl_abort('extractR82dArray')
-    end if
-    if (trueSize < 1) return
-    
-    if (trueSize /= oldSize1 * oldSize2) then
-      write(*,*) 'extractR82dArray: should not happen ', trueSize, oldSize1, oldSize2
-    end if
-
-    newSize = size( index )
-
-    if (mmpi_myid > 0) allocate(array(oldSize1,oldSize2) )
-    ierr = 0
-    call rpn_comm_bcast(array, oldSize1*oldSize2, 'MPI_REAL8', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, array(:,:)
-      call utl_abort('extractR82dArray')
-    end if
-    tmpR82d = array
-    deallocate(array )
-    allocate(array(oldSize1,newSize))
-    do i=1, newSize
-      array( :,i) =  tmpR82d(:, index(i) )
-    end do
-  end subroutine extractR82dArray
-
-  subroutine extractR83dArray(array,oldSize1,oldSize2,oldSize3,index)
-    !second dimension is for channels
-    implicit none
-
-    ! Arguments:
-    real(8), pointer, intent(inout) :: array(:,:,:)
-    integer,          intent(in) :: oldSize1
-    integer,          intent(in) :: oldSize2
-    integer,          intent(in) :: oldSize3
-    integer,          intent(in) :: index(:)
-
-    ! Locals:
-    integer :: newSize, ierr, trueSize,i
-    real(8) :: tmpR83d(oldSize1,oldSize2,oldSize3)
-    
-    if (mmpi_myid == 0) then
-      if (associated(array)) then
-        trueSize = size(array)
-      else
-        trueSize = 0
-      end if
-    end if
-    ierr = 0
-    call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, trueSize
-      call utl_abort('extractR83dArray')
-    end if
-    if (trueSize < 1) return
-
-    if (trueSize /= oldSize1 * oldSize2 * oldSize3) then
-      write(*,*) 'extractR83dArray: should not happen ', trueSize, oldSize1, oldSize2, oldSize3
-    end if
-  
-    newSize = size( index )
-  
-    if (mmpi_myid > 0) allocate(array(oldSize1,oldSize2, oldSIze3) )
-    ierr = 0
-    call rpn_comm_bcast(array, oldSize1*oldSize2*oldSize3, 'MPI_REAL8', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, array(:,:,:)
-      call utl_abort('extractR83dArray')
-    end if
-    tmpR83d = array
-    deallocate(array )
-    allocate(array(oldSize1,newSize,oldSize3))
-    do i=1, newSize
-      array( :,i,:) =  tmpR83d(:, index(i),: )
-    end do
-  end subroutine extractR83dArray
-
-  subroutine extractCmplx81dArray(array,oldSize,index)
-    implicit none
-
-    ! Arguments:
-    complex(kind=8), pointer, intent(inout) :: array(:)
-    integer,                  intent(in) :: oldSize
-    integer,                  intent(in) :: index(:)
-
-    ! Locals:
-    integer :: newSize, ierr, trueSize
-    complex(kind=8) :: tmpCx81d(oldSize)
-
-    if (mmpi_myid == 0) then
-      if (associated(array)) then
-        trueSize = size(array)
-      else
-        trueSize = 0
-      end if
-    end if
-    ierr = 0
-    call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, trueSize
-      call utl_abort('extractCmplx81dArray')
-    end if
-    if (trueSize < 1) return
-  
-    if (trueSize /= oldSize) then
-      write(*,*) 'extractCmplx81dArray: should not happen ', trueSize, oldSize
-    end if
-
-    newSize = size( index )
-    
-    if (mmpi_myid > 0) allocate(array(oldSize))
-    ierr = 0
-    call rpn_comm_bcast(array, oldSize, 'MPI_COMPLEX8', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, array(:)
-      call utl_abort('extractCmplx81dArray')
-    end if
-    tmpCx81d = array
-    deallocate(array)
-    allocate(array(newSize))
-    array( : ) =  tmpCx81d( index(:) )
-  end subroutine extractCmplx81dArray
-  
-
-  subroutine broadcastR82dArray(array)
-    implicit none
-
-    ! Arguments:
-    real(kind=8), pointer, intent(inout) :: array(:,:)
-
-    ! Locals:
-    logical :: associated0
-    integer :: ierr
-
-    associated0 = associated(array)
-    call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, associated0
-      call utl_abort('broadcastR82dArray')
-    end if
-    ierr = 0
-    if (associated0) call rpn_comm_bcast(array, size(array) , 'MPI_REAL8', 0, 'GRID', ierr)
-    if (ierr /= 0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, size(array,dim=1), size(array,dim=2)
-      call utl_abort('broadcastR82dArray')
-    end if
-   
-  end subroutine broadcastR82dArray
-
-  subroutine broadcastR81dArray(array)
-    implicit none
-
-    ! Arguments:
-    real(kind=8), pointer, intent(inout) :: array(:)
-
-    ! Locals:
-    logical :: associated0
-    integer :: ierr
-    
-    associated0 = associated(array)
-    call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    if (ierr/=0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, associated0
-      call utl_abort('broadcastR81dArray')
-    end if
-    ierr = 0
-    if (associated0) call rpn_comm_bcast(array, size(array) , 'MPI_REAL8', 0, 'GRID', ierr)
-    if (ierr/=0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, size(array)
-      call utl_abort('broadcastR81dArray')
-    end if
-    
-  end subroutine broadcastR81dArray
-
-
-  subroutine broadcastI41dArray(array)
-    implicit none
-
-    ! Arguments:
-    integer(kind=4), pointer, intent(inout) :: array(:)
-
-    ! Locals:
-    logical :: associated0
-    integer :: ierr
-
-    associated0 = associated(array)
-    call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    if (ierr/=0) then
-      write(*,*) 'error 1 in rpn_comm_bcast', ierr, associated0
-      call utl_abort('broadcastI41dArray')
-    end if
-    ierr = 0
-    if (associated0) call rpn_comm_bcast(array, size(array) , 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (ierr/=0) then
-      write(*,*) 'error 2 in rpn_comm_bcast', ierr, size(array)
-      call utl_abort('broadcastI41dArray')
-    end if
-
-  end subroutine broadcastI41dArray
 
   !--------------------------------------------------------------------------
   !   tvs_printDetailledOmfStatistics
