@@ -682,6 +682,7 @@ contains
             if (fileExists) then
               fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
               path = ram_getRamDiskDir()
+              if (trim(path) == '') path = '.'
               exit
             end if
           end do
