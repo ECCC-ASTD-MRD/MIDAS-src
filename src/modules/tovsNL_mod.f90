@@ -389,7 +389,7 @@ contains
     character(len=400) :: fileName
     character(len=512) :: fullNameWithPath, path
     logical :: fileExists
-    integer :: extensionIndex, endPath
+    integer :: extensionIndex
     integer,parameter :: nExtensions = 4
     character(len=4), parameter :: extensionList(nExtensions) = ['.bin', '.h5 ', '.H5 ', '.dat'] 
 
@@ -681,8 +681,7 @@ contains
             inquire(file=fileName, exist=fileExists)
             if (fileExists) then
               fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
-              endPath = index(fullNameWithPath, '/', back=.true.)
-              path = fullNameWithPath(1:endPath-1)
+              path = ram_getRamDiskDir()
               exit
             end if
           end do
