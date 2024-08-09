@@ -673,22 +673,20 @@ contains
         call utl_tmg_start(16,'----RttovSetup')
         write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)',  sensorIndex,tvs_nchan(sensorIndex)
         
-        path = './'
         if (tvs_copyCoefficientFileToRamdisk) then
           call rttov_coeffname(errorStatus, tvs_listSensors(:,sensorIndex), 'rtcoef', filePrefix)
           do extensionIndex = 1, nExtensions
-            fileName = trim(path) // trim(filePrefix) // trim(extensionList(extensionIndex))
+            fileName = './' // trim(filePrefix) // trim(extensionList(extensionIndex))
             inquire(file=fileName, exist=fileExists)
             if (fileExists) then
               fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
-              path = ram_getRamDiskDir()
-              if (trim(path) == '') path = '.'
+              path = ram_getRamDiskDir() // './'
               exit
             end if
           end do
         end if
         
-        write(*,*) 'tvs_setupAlloc: calling rttov_read_coefs with path= ',trim(path)
+        write(*,*) 'tvs_setupAlloc: calling rttov_read_coefs with path= ', trim(path)
         call rttov_read_coefs(                              &
             errorStatus,                                    &! out
             tvs_coefs(sensorIndex),                         &
@@ -700,6 +698,10 @@ contains
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
+        end if
+
+        if (tvs_copyCoefficientFileToRamdisk) then
+          errorStatus = ram_remove(fullNameWithPath)
         end if
        
         if (runObsOperatorWithHydrometeors) then
