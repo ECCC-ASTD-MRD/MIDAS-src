@@ -680,10 +680,12 @@ contains
             inquire(file=fileName, exist=fileExists)
             if (fileExists) then
               fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
-              path = ram_getRamDiskDir() // './'
+              path = trim(ram_getRamDiskDir()) // './'
               exit
             end if
           end do
+        else
+          path = './'
         end if
         
         write(*,*) 'tvs_setupAlloc: calling rttov_read_coefs with path= ', trim(path)
