@@ -68,8 +68,8 @@ module tovsNL_mod
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
   use midasMpi_mod
+  use message_mod
   use codtyp_mod
-  use mpi
   use utilities_mod
   use obsSpaceData_mod
   use obsSubSpaceData_mod
@@ -203,9 +203,6 @@ module tovsNL_mod
   logical :: useUofWIREmiss       ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical :: useMWEmissivityAtlas ! Flag to activate use of RTTOV built-in MW emissivity Atlases
   integer :: mWAtlasId            ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
-
-  ! External procedures
-  integer, external :: get_max_rss
 
 contains
 
@@ -2926,7 +2923,7 @@ contains
     logical :: runObsOperatorWithHydrometeors
 
     if ( .not. beSilent ) write(*,*) 'tvs_rttov: Starting'
-    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not. beSilent ) call msg_memUsage('tvs_rttov')
 
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
 
@@ -3496,7 +3493,7 @@ contains
         deallocate(transmission % tau_levels) 
       end if
       
-      if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
+      if ( .not. beSilent ) call msg_memUsage('tvs_rttov')
 
     end do sensor_loop
     
@@ -5556,7 +5553,7 @@ contains
     real(8), allocatable, save :: cloudProfileToStore(:,:)
 
     if ( .not. beSilent ) write(*,*) 'updateCloudInTovsProfile: Starting'
-    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not. beSilent ) call msg_memUsage('updateCloudInTovsProfile')
 
     profileCount = size(sensorTovsIndexes)
 
@@ -5607,8 +5604,7 @@ contains
     profileCount = size(sensorTovsIndexes)
 
     if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting', profileCount
-    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
+    if ( .not. beSilent ) call msg_memUsage('updateCloudInTovsCloudProfile')
 
     if ( trim(mode) == 'save' ) then 
       if (allocated(rainFluxProfileToStore)) deallocate(rainFluxProfileToStore)

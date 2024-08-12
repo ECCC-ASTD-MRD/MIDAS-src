@@ -1463,6 +1463,7 @@ module ObsSpaceData_mod
   !          * ``HeaderIndex``, etc. is necessarily a row index
   !
    use codePrecision_mod
+   use message_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod
    use IndexListDepot_mod
@@ -2981,7 +2982,6 @@ contains
       integer, allocatable :: all_numHeader_mpilocal(:), all_numBody_mpilocal(:)
       real(pre_obsReal), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
       integer :: ierr
-      integer :: get_max_rss
       integer :: numHeader_mpilocalmax,numBody_mpilocalmax
       integer :: numHeader_mpiGlobal,numBody_mpiGlobal
       integer :: numHeader_mpilocal, numBody_mpilocal
@@ -2992,7 +2992,7 @@ contains
       integer :: charIndex,activeIndex,columnIndex
 
       write(*,*) 'Entering obs_expandToMpiGlobal'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       if(.not. obsdat%mpi_local)then
          call obs_abort('OBS_EXPANDTOMPIGLOBAL has been called, but the ' &
@@ -3086,7 +3086,7 @@ contains
                            all_headerIndex_mpiglobal,numHeader_mpilocalmax,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(headerIndex_mpiglobal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make the header primary key mpiglobal
       allocate(headerPrimaryKey_mpilocal(numHeader_mpilocalmax))
@@ -3129,7 +3129,7 @@ contains
                            all_intHeaders_mpilocal,nsize,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(intHeaders_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make header-level real data mpiglobal
       allocate(realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax))
@@ -3154,7 +3154,7 @@ contains
                            all_realHeaders_mpilocal,nsize,pre_obsMpiReal, &
                            0,"GRID",ierr)
       deallocate(realHeaders_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make station-id data mpiglobal
       allocate(intStnid_mpilocal(len(obsdat%cstnid(1)),numHeader_mpilocalmax))
@@ -3177,7 +3177,7 @@ contains
                            all_intStnid_mpilocal,nsize,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(intStnid_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make obs family data mpiglobal
       allocate(intFamily_mpilocal(len(obsdat%cfamily(1)),numHeader_mpilocalmax))
@@ -3200,7 +3200,7 @@ contains
                            all_intFamily_mpilocal,nsize,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(intFamily_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! gather the lists of mpiglobal body indices on proc 0 to know where everything goes
       call rpn_comm_allreduce(obsdat%numBody,numBody_mpilocalmax,1,"mpi_integer","mpi_max","GRID",ierr)
@@ -3220,7 +3220,7 @@ contains
                            all_BodyIndex_mpiglobal,numBody_mpilocalmax,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(bodyIndex_mpiglobal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make body primary key mpiglobal
       allocate(bodyPrimaryKey_mpilocal(numBody_mpilocalmax))
@@ -3263,7 +3263,7 @@ contains
                            all_intBodies_mpilocal,nsize,"mpi_integer", &
                            0,"GRID",ierr)
       deallocate(intBodies_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! make body-level real data mpiglobal
       allocate(realBodies_mpilocal(odc_numActiveColumn(obsdat%realBodies),numBody_mpilocalmax))
@@ -3288,7 +3288,7 @@ contains
                            all_realBodies_mpilocal,nsize,pre_obsMpiReal, &
                            0,"GRID",ierr)
       deallocate(realBodies_mpilocal)
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       ! destroy object's mpilocal data and allocate mpiglobal data
       call obs_deallocate(obsdat)
@@ -3300,7 +3300,7 @@ contains
           call obs_allocate(obsdat,0,0)
       endif
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
 
       if(myid_mpi == 0) then
 
@@ -3397,7 +3397,7 @@ contains
       deallocate(all_intBodies_mpilocal)
       deallocate(all_realBodies_mpilocal)
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_expandToMpiGlobal')
       obsdat%mpi_local = .false.
       write(*,*) 'Leaving obs_expandToMpiGlobal'
       return
@@ -4743,9 +4743,8 @@ contains
       integer :: bodyIndexBeg, bodyIndexEnd
       integer :: nprocs_mpi, myid_mpi, ierr, nsize, target_ip
       logical :: needToRedistribute, needToRedistribute_mpiglobal
-      integer :: get_max_rss
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_MpiRedistribute')
       write(*,*) '============= Enter obs_MpiRedistribute =============='
       write(*,*) 'redistribute data according to mpi task ID stored in column :', &
                  ocn_ColumnNameList_IH(target_ip_index)
@@ -4965,7 +4964,7 @@ contains
       deallocate(int_send)
       deallocate(int_recv)
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_MpiRedistribute')
 
       ! Do communication for bodyPrimaryKey
 
@@ -5177,7 +5176,7 @@ contains
       deallocate(numBodyPE_mpilocal)
       deallocate(numBodyPE_mpiglobal)
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_MpiRedistribute')
 
       ! reallocate obsdat_inout to the new size and copy over redistributed data
       call obs_deallocate(obsdat_inout)
@@ -5186,7 +5185,7 @@ contains
       call obs_finalize(obsdat_tmp)
 
       write(*,*) '============= Leave obs_MpiRedistribute =============='
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('obs_MpiRedistribute')
 
       return
    end subroutine obs_MpiRedistribute

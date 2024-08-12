@@ -8,6 +8,7 @@ module calcStatsLam_mod
   !
   use mathPhysConstants_mod
   use earthConstants_mod
+  use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use lamSpectralTransform_mod
@@ -36,8 +37,6 @@ module calcStatsLam_mod
   type(struct_hco), pointer :: hco_ens => null() ! Ensemble horizontal grid parameters
   type(struct_hco), pointer :: hco_bhi => null() ! B matrix horizontal grid parameters
   type(struct_vco), pointer :: vco_bhi => null() ! B matrix vertical grid parameters
-
-  integer,external   :: get_max_rss
 
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
@@ -136,7 +135,7 @@ contains
 
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_setup')
 
     !
     !- 1. Initialized the info on the ensemble
@@ -430,7 +429,7 @@ contains
     initialized = .true.
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_setup')
     write(*,*) 'csl_setup: Done!'
 
   end subroutine csl_setup
@@ -459,7 +458,7 @@ contains
 
     write(*,*)
     write(*,*) 'csl_computeBhi: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_computeBhi')
 
     allocate(SpVertCorrel(bhi%nVarLev,bhi%nVarLev,0:nTrunc))
     allocate(TotVertCorrel(bhi%nVarLev,bhi%nVarLev))
@@ -553,7 +552,7 @@ contains
     deallocate(HorizScale)
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_computeBhi')
     write(*,*) 'csl_computeBhi: Done!'
 
   end subroutine csl_computeBhi
@@ -580,7 +579,7 @@ contains
 
     write(*,*)
     write(*,*) 'csl_toolbox: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_toolbox')
 
     !
     !- 1.  Tool selection
@@ -671,7 +670,7 @@ contains
     call ens_deallocate(ensPerts)
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csl_toolbox')
     write(*,*) 'csl_toolbox: Done!'
 
   end subroutine csl_toolbox
@@ -709,8 +708,8 @@ contains
     character(len=24) :: kind
 
     write(*,*)
-    write(*,*) 'CalcSpectralStats: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'calcSpectralStats: Starting...'
+    call msg_memUsage('calcSpectralStats')
 
     !
     !- 1. Setup the (LAM) spectral transform
@@ -879,8 +878,8 @@ contains
     end if ! mmpi_myid == 0
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'CalcSpectralStats: Done!'
+    call msg_memUsage('calcSpectralStats')
+    write(*,*) 'calcSpectralStats: Done!'
 
   end subroutine calcSpectralStats
 
@@ -906,8 +905,8 @@ contains
     type(struct_lst)  :: lst_norm ! Spectral transform Parameters
 
     write(*,*)
-    write(*,*) 'NormalizePowerSpectrum: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'normalizePowerSpectrum: Starting...'
+    call msg_memUsage('normalizePowerSpectrum')
 
     !
     !- 1. Setup the (LAM) spectral transform
@@ -995,8 +994,8 @@ contains
     deallocate(GridState)
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'NormalizePowerSpectrum: Done!'
+    call msg_memUsage('normalizePowerSpectrum')
+    write(*,*) 'normalizePowerSpectrum: Done!'
 
   end subroutine normalizePowerSpectrum
 
@@ -1081,8 +1080,8 @@ contains
     integer           :: k1, k2, totwvnb
 
     write(*,*)
-    write(*,*) 'CalcTotVertCorrel: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'calcTotVertCorrel: Starting...'
+    call msg_memUsage('calcTotVertCorrel')
 
     !
     !- 1.  Calculate the total Normalized Covariance Matrix
@@ -1118,8 +1117,8 @@ contains
     deallocate(TotVertCov)
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'CalcTotVertCorrel: Done!'
+    call msg_memUsage('calcTotVertCorrel')
+    write(*,*) 'calcTotVertCorrel: Done!'
 
   end subroutine calcTotVertCorrel
 
@@ -1245,8 +1244,8 @@ contains
     integer :: fstouv, fnom, fstfrm, fclos, iunstats
 
     write(*,*)
-    write(*,*) 'CalcVertCorrel: Starting...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'calcVertCorrel: Starting...'
+    call msg_memUsage('calcVertCorrel')
 
     allocate(vertCorrel(bhi%nVarLev,bhi%nVarLev))
     vertCorrel(:,:) = 0.d0
@@ -1310,8 +1309,8 @@ contains
 
     deallocate(VertCorrel)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'CalcVertCorrel: Done!'
+    call msg_memUsage('calcVertCorrel')
+    write(*,*) 'calcVertCorrel: Done!'
 
   end subroutine calcVertCorrel
 

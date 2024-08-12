@@ -7,6 +7,7 @@ module oMinusF_mod
   use codePrecision_mod
   use ramDisk_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -62,7 +63,7 @@ module oMinusF_mod
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
       character(len=10) :: trialFileName
-      integer :: dateStampFromObs, get_max_rss
+      integer :: dateStampFromObs
 
       write(*,*) " ---------------------------------------"
       write(*,*) " ---  START OF SUBROUTINE oMinusF    ---"
@@ -153,7 +154,7 @@ module oMinusF_mod
                          beSilent_opt=.false. )
       call gsv_zero( stateVectorTrialHighRes )
       call gio_readTrials( stateVectorTrialHighRes )
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('omf_oMinusF')
 
       ! Horizontally interpolate trials to trial columns
       call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
@@ -161,7 +162,7 @@ module oMinusF_mod
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('omf_oMinusF')
 
       !
       !- 2.  O-F computation
@@ -218,7 +219,7 @@ module oMinusF_mod
       character(len=48)  :: obsMpiStrategy
       character(len=3)   :: obsColumnMode
       integer, allocatable :: dateStampList(:)      
-      integer :: datestamp, get_max_rss, memberIndex
+      integer :: datestamp, memberIndex
 
       write(*,*) " -----------------------------------------"
       write(*,*) " ---  START OF SUBROUTINE oMinusFens   ---"
@@ -292,7 +293,7 @@ module oMinusF_mod
       call col_setup
       call col_setVco(columTrlOnTrlLev, vco_ens)
       call col_allocate(columTrlOnTrlLev, obs_numheader(obsSpaceData))
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+      call msg_memUsage('omf_oMinusF')
 
       !- 1.12 Memory allocation for background column data
       if ( addHBHT ) then
@@ -338,7 +339,7 @@ module oMinusF_mod
       
       write(*,*)
       write(*,*) '> omf_oMinusFens: setup - END'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('omf_oMinusFens')
 
       !
       !- 2.  O-F computation
@@ -346,8 +347,8 @@ module oMinusF_mod
       do memberIndex = 1, nEns
         write(*,*) ''
         write(*,*) 'oMinusFens: compute O-P for ensemble member ', memberIndex
-        write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-        
+        call msg_memUsage('omf_oMinusFens')
+
         !- 2.1 Copy selected member to a stateVector
         call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
         call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &

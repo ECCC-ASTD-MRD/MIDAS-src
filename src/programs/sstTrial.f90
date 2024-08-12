@@ -69,6 +69,7 @@ program midas_sstTrial
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -78,7 +79,7 @@ program midas_sstTrial
   
   implicit none
 
-  integer, external :: exdb, exfin, get_max_rss
+  integer, external :: exdb, exfin
   integer :: ierr, istamp
 
   type(struct_hco), pointer :: hco_anl => null()
@@ -194,7 +195,7 @@ program midas_sstTrial
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'SSTtrial_setup: memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-sstTrial')
 
     !
     !- Initialize the Analysis grid

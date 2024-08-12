@@ -8,6 +8,7 @@ module enkf_mod
   use mpi                 ! this is the mpi library module
   use midasMpi_mod
   use utilities_mod
+  use message_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use verticalCoord_mod
@@ -88,8 +89,6 @@ module enkf_mod
     logical  :: readEnsMeanFromFile    = .false.
     integer  :: numFullEns             = 0
   end type struct_enkfNML
-
-  integer, external :: get_max_rss
 
 contains
 
@@ -340,7 +339,7 @@ contains
 
     write(*,*)
     write(*,*) 'enkf_LETKFanalyses: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_LETKFanalyses')
 
     useModulatedEns = (enkfNML%numRetainedEigen > 0)
     if ( useModulatedEns ) then
@@ -759,7 +758,7 @@ contains
     call gsv_deallocate(stateVectorMeanTrl)
 
     write(*,*) 'enkf_LETKFanalyses: done'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_LETKFanalyses')
     write(*,*)
 
     call utl_tmg_stop(131)
@@ -2507,7 +2506,7 @@ contains
     myLatEndHalo = wInterpInfo%myLatEndHalo
 
     write(*,*) 'enkf_LETKFsetupMpiDistribution: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_LETKFsetupMpiDistribution')
 
     ! First, count the number of grid points where weights needed locally (for recv-ing)
     ! Note, this includes the "halo" needed for interpolation
@@ -2658,7 +2657,7 @@ contains
     end if
 
     write(*,*) 'enkf_LETKFsetupMpiDistribution: done'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_LETKFsetupMpiDistribution')
 
   end subroutine enkf_LETKFsetupMpiDistribution
 
@@ -2779,7 +2778,7 @@ contains
     write(*,*) 'enkf_setupInterpInfo: number of local gridpts where weights computed = ',  &
                ( 1 + ceiling(real(myLonEndHalo - myLonBegHalo) / real(weightLatLonStep)) ) *  &
                ( 1 + ceiling(real(myLatEndHalo - myLatBegHalo) / real(weightLatLonStep)) )
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_setupInterpInfo')
 
     wInterpInfo%latLonStep   = weightLatLonStep
     wInterpInfo%myLonBegHalo = myLonBegHalo
@@ -2937,7 +2936,7 @@ contains
       ! no interpolation, all weights are computed
       wInterpInfo%numIndexes(:,:) = 0
     end if
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('enkf_setupInterpInfo')
 
   end subroutine enkf_setupInterpInfo
 

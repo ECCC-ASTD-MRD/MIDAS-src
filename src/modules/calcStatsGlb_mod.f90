@@ -8,6 +8,7 @@ module calcStatsGlb_mod
   !
   use codePrecision_mod
   use midasMpi_mod
+  use message_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
@@ -51,7 +52,6 @@ module calcStatsGlb_mod
   integer :: gstID_numVarLevEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
   integer, allocatable :: nip1_M(:),nip1_T(:)
   real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
-  integer,external    :: get_max_rss
 
   integer :: nvar3d, nvar2d, nvar
   integer, allocatable :: varLevOffset(:)
@@ -469,14 +469,14 @@ module calcStatsGlb_mod
     allocate(rstddev(numVarLevEns,0:ntrunc))
 
     write(*,*) 'Initializing ensemble arrays to claim memory'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
     ensPerturbations(:,:,:,:) = 0.0
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
     ensBalPerturbations(:,:,:,:) = 0.0
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
 
     call readEnsemble(ensPerturbations)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
 
     call removeMean(ensPerturbations)
 
@@ -493,10 +493,10 @@ module calcStatsGlb_mod
     call normalize3d(ensPerturbations,stddev3d)
 
     call calcPtoT(ensPerturbations,PtoT)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
 
     call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
 
 !    call removeBalancedChi(ensPerturbations,theta2)
 
@@ -536,7 +536,7 @@ module calcStatsGlb_mod
     call writeStddevBal(stddevZonAvgBal,stddev3dBal)
 
     call writeSpStats(ptot,theta1)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLegacy')
 
   end subroutine csg_computeBhiLegacy
 
@@ -611,7 +611,7 @@ module calcStatsGlb_mod
     if (writeGridDescriptors) call csg_writeGridDescriptors
     
     call readEnsemble(ensPerturbations)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('csg_computeBhiLatBands')
 
     call removeMean(ensPerturbations)
 
@@ -1059,8 +1059,8 @@ module calcStatsGlb_mod
     call ens_deallocate(ensPerts)
 
     write(*,*)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'csl_toolbox: Done!'
+    call msg_memUsage('csg_toolbox')
+    write(*,*) 'csg_toolbox: Done!'
 
   end subroutine csg_toolbox
 
@@ -2606,7 +2606,7 @@ module calcStatsGlb_mod
     real(8) :: dnens
 
     write(*,*) 'started computing the stddev...'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('calcStddev3d')
 
     stddev3d(:,:,:) = 0.0d0
     dnens = 1.0d0/dble(nens-1)
@@ -2889,7 +2889,7 @@ module calcStatsGlb_mod
     type(struct_gsv) :: stateVector
 
     write(*,*) 'Before reading the ensemble:'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('readEnsemble')
 
     numStep = 1
     allocate(dateStampList(numStep))
@@ -2949,7 +2949,7 @@ module calcStatsGlb_mod
     call ens_deallocate(ensPerts)
     
     write(*,*) 'After reading the ensemble:'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('readEnsemble')
 
     write(*,*) 'finished reading ensemble members...'
 

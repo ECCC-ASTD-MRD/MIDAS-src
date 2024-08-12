@@ -31,8 +31,6 @@ module gridBinning_mod
     integer           :: numBins2d
   end type struct_gbi
 
-  integer, external  :: get_max_rss
-
   ! Control parameter for the level of listing output
   logical, parameter :: verbose = .true.
 

@@ -132,6 +132,7 @@ program midas_var1D
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -156,7 +157,6 @@ program midas_var1D
 
   integer :: istamp, exdb, exfin
   integer :: ierr, dateStampFromObs
-  integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
   real(8), allocatable :: controlVectorIncrSum(:)
@@ -281,26 +281,26 @@ program midas_var1D
                          './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev, vco_anl)
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Setup and read observations
   call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Basic setup of columnData module
   call col_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Memory allocation for background column data
   call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Initialize list of analyzed variables.
   call gsv_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
@@ -313,11 +313,11 @@ program midas_var1D
                     beSilent_opt=.false.)
   call gsv_zero(stateVectorTrialHighRes)
   call gio_readTrials(stateVectorTrialHighRes)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
   call bmat1D_bsetup(vco_anl, hco_anl, obsSpaceData)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Initialize the gridded variable transform module
   call gvt_setup(hco_anl, hco_core, vco_anl)
@@ -332,7 +332,7 @@ program midas_var1D
     call utl_abort('aborting in VAR1D')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
   call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
@@ -374,7 +374,7 @@ program midas_var1D
   controlVectorIncr(:) = 0.0d0
   call min_minimize( outerLoopIndex, columnTrlOnAnlIncLev, obsSpaceData, controlVectorIncrSum, &
                      controlVectorIncr, numIterMaxInnerLoop )
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! Compute satellite bias correction increment and write to file
   ! Is is still necessary ? (will do nothing, but does it make sense in 1DVar mode ?)
@@ -389,7 +389,7 @@ program midas_var1D
 
   ! output the analysis increment
   call inc_writeIncrement(stateVectorIncr)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-var1D')
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev, bmat1D_includeAnlVar)

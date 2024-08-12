@@ -69,7 +69,7 @@ contains
 
     ! Locals:
     character(len=20) :: nameDimFile
-    integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
+    integer :: ierr, fnom, fclos, unitDimFile, mxstn, mxobs
     logical :: obsDimFileExists
 
     write(*,FMT=9000)
@@ -86,7 +86,7 @@ contains
     !- Specify the active observation-array columns
     !
     call obs_class_initialize(obsColumnMode)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('inn_setupobs')
     !
     !- Allocate memory for observation arrays
     !
@@ -103,7 +103,7 @@ contains
     else
       call obs_initialize(obsSpaceData, mpi_local_opt=obsf_filesSplit())
     end if
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('inn_setupobs')
 
     !
     !- Set up the list of elements to be assimilated and flags for rejection
@@ -165,7 +165,7 @@ contains
       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) .and. trim(innovationMode) /= 'thinning' ) then
         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
       end if
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('inn_setupobs')
     else
       ! complete set of obs on each MPI process, only keep subset according to OBS_IP
       call obs_reduceToMpiLocal(obsSpaceData)
@@ -455,7 +455,7 @@ contains
     
     ! Locals:
     real(8) :: Jo
-    integer :: destObsColumn, get_max_rss
+    integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode 
     logical, save :: lgpdata = .false.
 
@@ -470,7 +470,7 @@ contains
     if ( .not. beSilent ) then
       write(*,*)
       write(*,*) '--Starting subroutine inn_computeInnovation--'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('inn_computeInnovation')
     end if
 
     if ( present(filterObsAndInitOer_opt) ) then
@@ -649,7 +649,7 @@ contains
     if (.not.beSilent) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
     if ( .not. beSilent ) then
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('inn_computeInnovation')
       write(*,*) '--Done subroutine inn_computeInnovation--'
     end if
 

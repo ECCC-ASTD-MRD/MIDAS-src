@@ -5,6 +5,7 @@ module fsoi_mod
   !:Purpose: Observation impact (FSOI) library.
   !
   use midasMpi_mod
+  use message_mod
   use codePrecision_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -39,7 +40,6 @@ module fsoi_mod
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr
   type(struct_columnData), pointer :: column_ptr
   real(8),allocatable :: vhat(:)
-  integer,external    :: get_max_rss
   integer             :: fso_nsim, nvadim_mpilocal
 
   type(struct_hco), pointer :: hco_anl => null()
@@ -590,7 +590,7 @@ module fsoi_mod
 
       if (mmpi_myid == 0) then
         write(*,*) 'simvar: entering for simulation ',fso_nsim
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call msg_memUsage('simvar')
         call flush(6)
       end if
 

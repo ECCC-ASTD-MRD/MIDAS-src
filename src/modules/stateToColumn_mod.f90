@@ -10,6 +10,7 @@ module stateToColumn_mod
   use earthConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use midasMpi_mod
+  use message_mod
   use codePrecision_mod
   use gridStateVector_mod
   use obsSpaceData_mod
@@ -98,8 +99,6 @@ module stateToColumn_mod
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
 
-  integer, external :: get_max_rss
-
 contains 
 
 
@@ -130,7 +129,7 @@ contains
     write(*,*) ' '
     write(*,*) 'pressureProfileMonotonicityCheck: START'
     write(*,*) ' '
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('pressureProfileMonotonicityCheck')
 
     numWrites = 0
 
@@ -221,7 +220,7 @@ contains
     write(*,*) ' '
     write(*,*) 'latlonChecksAnlGrid: STARTING'
     write(*,*) ' '
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('latlonChecksAnlGrid')
 
     !
     !-    Get the Analysis Grid structure
@@ -382,7 +381,7 @@ contains
     namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('s2c_setupInterpInfo')
 
     write(*,*) 's2c_setupInterpInfo: inputStateVectorType=', inputStateVectorType
 
@@ -632,7 +631,7 @@ contains
       write(*,*) 's2c_setupInterpInfo, height3D_M_r4='
       write(*,*) height3D_M_r4(1,1,:)
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('s2c_setupInterpInfo')
     end if ! doSlantPath 
 
     ! get observation lat-lon and footprint radius onto all mpi tasks
@@ -962,7 +961,7 @@ contains
 
         write(*,*) 's2c_setupInterpInfo: start creating kdtree for inputStateVectorType=', &
                    inputStateVectorType
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call msg_memUsage('s2c_setupInterpInfo')
 
         allocate(positionArray(3,statevector%hco%ni*statevector%hco%nj))
 
@@ -991,7 +990,7 @@ contains
 
         write(*,*) 's2c_setupInterpInfo: done creating kdtree for inputStateVectorType = ', &
                    inputStateVectorType
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call msg_memUsage('s2c_setupInterpInfo')
 
       end if
     end if
@@ -1095,7 +1094,7 @@ contains
 
     deallocate(allHeaderIndex)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('s2c_setupInterpInfo')
 
     ! now that we know the size, allocate main arrays for storing interpolation information
     write(*,*) 's2c_setupInterpInfo: numGridptTotal = ', numGridptTotal
@@ -1174,7 +1173,7 @@ contains
 
     interpInfo%initialized = .true.
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('s2c_setupInterpInfo')
     write(*,*) 's2c_setupInterpInfo: FINISHED'
 
   end subroutine s2c_setupInterpInfo
@@ -1715,7 +1714,7 @@ contains
 
     if (.not. beSilent) then
       write(*,*) 's2c_nl: STARTING'
-      write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
+      call msg_memUsage('s2c_nl')
     end if
 
     if (.not. gsv_isAllocated(stateVector)) then 
@@ -2084,7 +2083,7 @@ contains
 
     if ( .not. beSilent ) then
       write(*,*) 's2c_nl: FINISHED'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('s2c_nl')
     end if
 
     call utl_tmg_stop(34)

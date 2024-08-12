@@ -31,9 +31,6 @@ module timeCoord_mod
   integer :: datestamp = 0  ! datestamp is usually the centre of time window
   logical :: initialized = .false.
 
-  ! External procedures
-  integer, external :: get_max_rss
-
 contains
 
   subroutine tim_readNml()

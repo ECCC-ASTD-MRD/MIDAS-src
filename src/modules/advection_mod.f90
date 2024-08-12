@@ -8,6 +8,7 @@ MODULE advection_mod
   !
   use ramDisk_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use ensembleStateVector_mod
@@ -57,8 +58,6 @@ MODULE advection_mod
     logical :: singleTimeStepIndexSource
     type(struct_adv_timeStep), allocatable :: timeStep(:)
   end type struct_adv
-
-  integer, external  :: get_max_rss
 
   integer, parameter :: MMindex = 1
   integer, parameter :: THindex = 2
@@ -370,8 +369,8 @@ CONTAINS
     !
     !- 4.  Perform the advection (backward and/or forward) 
     !
-    if (mmpi_myid == 0) write(*,*) 'setupAdvectAmplitude: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mmpi_myid == 0) write(*,*) 'adv_setup: starting'
+    call msg_memUsage('adv_setup')
 
     allocate(numSubStep(adv%nj))
     allocate(uu_steeringFlow_mpiGlobal(numStepSteeringFlow, adv%ni, adv%nj))
@@ -379,7 +378,7 @@ CONTAINS
 
     allocate(uu_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mmpi_nprocs))
     allocate(vv_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mmpi_nprocs))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('adv_setup')
 
     if ( nLevType >= THindex ) then
       allocate(xposMM_r4(numStepSteeringFlow,myLonBeg:myLonEnd,myLatBeg:myLatEnd,adv%nLev_M))
@@ -392,7 +391,7 @@ CONTAINS
 
     do levIndex = 1, nLev ! loop over levels
       
-      if (mmpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
+      if (mmpi_myid == 0) write(*,*) 'adv_setup: levIndex = ', levIndex
 
       call processSteeringFlow(levTypeIndex, levIndex,                                         & ! IN
                                uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! OUT
@@ -543,7 +542,7 @@ CONTAINS
       call gsv_deallocate(statevector_steeringFlow)
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('adv_setup')
     if (mmpi_myid == 0) write(*,*) 'adv_setup: done'
 
   end SUBROUTINE adv_setup

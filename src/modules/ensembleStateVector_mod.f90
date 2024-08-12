@@ -7,6 +7,7 @@ module ensembleStateVector_mod
   !
   use ramDisk_mod
   use midasMpi_mod
+  use message_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -43,8 +44,6 @@ module ensembleStateVector_mod
   public :: ens_varNamesList, ens_applyMaskLAM
   public :: ens_copyHeightSfc
   
-  integer,external   :: get_max_rss
-
   type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
   end type struct_oneLev_r4
@@ -188,7 +187,7 @@ CONTAINS
       ens%hco_core => hco_comp
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_allocate')
 
   end subroutine ens_allocate
 
@@ -221,7 +220,7 @@ CONTAINS
       ens%allLev_ensMean_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
     end do
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_allocateMean')
 
   end subroutine ens_allocateMean
 
@@ -254,7 +253,7 @@ CONTAINS
       ens%allLev_ensStdDev_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
     end do
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_allocateStdDev')
 
   end subroutine ens_allocateStdDev
 
@@ -2319,7 +2318,7 @@ CONTAINS
     integer, parameter :: numLevelsToSend = 10
 
     write(*,*) 'ens_readEnsemble: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_readEnsemble')
 
     if ( .not. ens%allocated ) then
       call utl_abort('ens_readEnsemble: ensemble object not allocated!')
@@ -2538,7 +2537,7 @@ CONTAINS
                               hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
                               allocHeightSfc_opt= allocHeightSfc)
           end if
-          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call msg_memUsage('ens_readEnsemble')
 
           !  Read the file
           call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex, &
@@ -2748,7 +2747,7 @@ CONTAINS
     deallocate(stepIndexFromMemberStep)
     deallocate(memberIndexFromMemberStep)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_readEnsemble')
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
 
   end subroutine ens_readEnsemble
@@ -2809,7 +2808,7 @@ CONTAINS
     logical :: containsFullField, writeNetCDF, writeHeightSfc
 
     write(*,*) 'ens_writeEnsemble: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_writeEnsemble')
 
     if ( .not. ens%allocated ) then
       call utl_abort('ens_writeEnsemble: ensemble object not allocated!')
@@ -3014,7 +3013,7 @@ CONTAINS
         ! Write statevector to file
         if (mmpi_myid == writeFilePE(memberIndex)) then
 
-          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call msg_memUsage('ens_writeEnsemble')
 
           if ( typvar == 'A' .or. typvar == 'R' ) then
             if ( typvar == 'R' ) then
@@ -3093,7 +3092,7 @@ CONTAINS
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('ens_writeEnsemble')
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
 
   end subroutine ens_writeEnsemble

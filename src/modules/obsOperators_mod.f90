@@ -8,6 +8,7 @@ module obsOperators_mod
   use codePrecision_mod
   use earthConstants_mod
   use mathPhysConstants_mod
+  use message_mod
   use obsSpaceData_mod
   use columnData_mod 
   use bufr_mod
@@ -31,8 +32,6 @@ module obsOperators_mod
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_hydro_nl
   public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl, oop_ice_nl, oop_raDvel_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs, oop_iceScaling
-
-  integer, external :: get_max_rss
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
@@ -1674,12 +1673,12 @@ contains
     ! .    -----------------------------------------------------------------------------
     call tvs_fillProfiles(columnTrl,obsSpaceData,datestamp,"nl",beSilent)
 
-    if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not.beSilent ) call msg_memUsage('oop_tovs_nl')
 
     ! 2.   Compute radiance
     ! .    ----------------
     call tvs_rttov(obsSpaceData,bgckMode,beSilent)
-    if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not.beSilent ) call msg_memUsage('oop_tovs_nl')
 
     ! 3.   Compute the residuals
     ! .    ----------------------------

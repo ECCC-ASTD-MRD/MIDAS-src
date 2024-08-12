@@ -33,6 +33,7 @@ module bMatrixChem_mod
   !    bchm_reduce*   MPI manipulations related to contol vector(s)
   !
   use midasMpi_mod
+  use message_mod
   use gridStateVector_mod
   use gridVariableTransforms_mod
   use globalSpectralTransform_mod
@@ -64,9 +65,7 @@ module bMatrixChem_mod
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
                             
-  integer, external   :: get_max_rss
-
-  ! Bacgkround error covariance matrix elements.
+  ! Background error covariance matrix elements.
   ! One could add an additional dimension to corns  
   ! for separate block-univariate correlation matrices.
   ! This would also permit merging of bmatrixhi_mod and bmatrixchem_mod
@@ -196,7 +195,7 @@ module bMatrixChem_mod
     if (.not.initialized) return
 
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrt: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bchm_bSqrt', mpiAll_opt=.false.)
 
     allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev))
 
@@ -229,7 +228,7 @@ module bMatrixChem_mod
     
     deallocate(gd_out)
 
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bchm_bSqrt', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrt: done'
 
   end subroutine bchm_bSqrt
@@ -262,7 +261,7 @@ module bMatrixChem_mod
     end if
 
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrtad: starting'
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bchm_bSqrtAd', mpiAll_opt=.false.)
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%numVarLev))
 
@@ -295,7 +294,7 @@ module bMatrixChem_mod
 
     deallocate(gd_in)
 
-    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bchm_bSqrtAd', mpiAll_opt=.false.)
     if (mmpi_myid == 0) write(*,*) 'bchm_bsqrtad: done'
 
   end subroutine bchm_bSqrtAd

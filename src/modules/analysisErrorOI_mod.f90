@@ -37,7 +37,6 @@ module analysisErrorOI_mod
    integer, pointer :: procIndex(:)
   end type struct_neighborhood
 
-  integer, external :: get_max_rss
   integer, parameter :: maxNumLocalGridptsSearch = 1500
 
 contains
@@ -235,7 +234,7 @@ contains
     call gsv_deallocate(statevectorLcorr)
 
     write(*,*) 'aer_analysisError: done creating kdtree for stateVectorTrlErrorStd'
-    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('aer_analysisError')
 
     ! Go through all observations a first time to get
     ! the number of influential observations
@@ -272,7 +271,7 @@ contains
     deallocate(numObs)
 
     write(*,*) 'aer_analysisError:: obs found'
-    write(*,*) 'Memory Used: ',get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('aer_analysisError')
 
     ! compute analysis error standard deviation
     call aer_computeAnlErrorStd(obsSpaceData, stateVectorAnlErrorStd, stateVectorTrlErrorStd, &
@@ -411,7 +410,7 @@ contains
 
     ! create kdtree
     write(*,*) 'findObs: start creating kdtree for stateVectorTrlErrorStd'
-    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('findObs')
 
     allocate(positionArray(3, stateVectorTrlErrorStd%hco%ni * stateVectorTrlErrorStd%hco%nj))
     allocate(lonInRad(stateVectorTrlErrorStd%hco%ni, stateVectorTrlErrorStd%hco%nj))

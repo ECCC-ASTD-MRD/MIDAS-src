@@ -68,6 +68,7 @@ program midas_extractBmatrixFor1Dvar
   !
   use version_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -92,7 +93,7 @@ program midas_extractBmatrixFor1Dvar
   real(8), allocatable :: controlVector(:)
   integer, parameter :: nmaxLevs = 100
   real(4) :: latitude, longitude
-  integer, external :: fclos, fnom, fstopc, newdate, get_max_rss
+  integer, external :: fclos, fnom, fstopc, newdate
   integer :: ierr
   integer :: varIndex, numVarLev, levIndex1, lonIndex, latIndex, levIndex2
   integer :: varLevIndex1, varLevIndex2, columnProcIdLocal, columnProcIdGlobal, nulmat, varCount
@@ -181,7 +182,7 @@ program midas_extractBmatrixFor1Dvar
     !- Iniatilized the core (Non-Extended) analysis grid
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-extractBmatrixFor1Dvar')
 
   ! Initialize the vertical coordinate from the statistics file
   call vco_SetupFromFile( vco_anl,        & ! OUT
@@ -198,7 +199,7 @@ program midas_extractBmatrixFor1Dvar
   !- Initialize the gridded variable transform module
   call gvt_setup(hco_anl, hco_core, vco_anl)
   call gvt_setupRefFromTrialFiles('HU')
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-extractBmatrixFor1Dvar')
 
   !
   !==============================================
@@ -325,12 +326,10 @@ program midas_extractBmatrixFor1Dvar
   deallocate(Bmatrix)
   deallocate(controlVector)
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
   call gsv_deallocate(statevector)
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  
+  call msg_memUsage('midas-extractBmatrixFor1Dvar')
+
   ! MPI, tmg finalize
   call utl_printTime()
   call utl_tmg_stop(0)

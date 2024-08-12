@@ -107,6 +107,7 @@ program midas_sstBias
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -121,7 +122,7 @@ program midas_sstBias
   
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos, get_max_rss
+  integer, external :: exdb, exfin, fnom, fclos
   integer :: ierr, istamp
 
   type(struct_obs), target    :: obsSpaceData
@@ -221,7 +222,7 @@ program midas_sstBias
     !- Initialize variables of the model states
     !
     call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-sstBias')
 
     !
     !- Initialize the Analysis grid
@@ -241,7 +242,7 @@ program midas_sstBias
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-sstBias')
 
     !- Basic setup of columnData module
     call col_setup

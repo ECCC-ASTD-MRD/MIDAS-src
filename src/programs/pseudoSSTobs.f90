@@ -122,7 +122,7 @@ program midas_pseudoSSTobs
 
   implicit none
 
-  integer, external :: exdb, exfin, get_max_rss
+  integer, external :: exdb, exfin
   integer :: ierr, istamp
 
   type(struct_hco), pointer   :: hco_anl => null()

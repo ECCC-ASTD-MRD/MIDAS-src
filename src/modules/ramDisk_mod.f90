@@ -220,8 +220,12 @@ contains
     ! Result:
     character(len=512) :: fullWorkingPath
 
-    if ( ram_disk_dir_exists ) then
-      fullWorkingPath = trim(ram_disk_dir) // '/'
+    if ( initialized ) then
+      if ( ram_disk_dir_exists ) then
+        fullWorkingPath = trim(ram_disk_dir) // '/'
+      else
+        fullWorkingPath = ' '
+      end if
     else
       fullWorkingPath = ' '
     end if

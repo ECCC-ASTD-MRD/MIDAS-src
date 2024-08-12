@@ -35,7 +35,6 @@ module gridStateVectorFileIO_mod
   public :: gio_writeToFile, gio_writeToFileNetCDF
   public :: gio_fileUnitsToStateUnits
 
-  integer, external :: get_max_rss
   logical :: initialized = .false.
 
   ! Namelist variables
@@ -257,7 +256,7 @@ module gridStateVectorFileIO_mod
     end if
 
     call utl_tmg_stop(160)
-    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('gio_readFromFile')
     write(*,*) 'gio_readFromFile: END'
 
   end subroutine gio_readFromFile
@@ -828,7 +827,7 @@ module gridStateVectorFileIO_mod
     logical :: foundVarNameInFile, ignoreDate
 
     write(*,*) 'gio_readFileFst: starting'
-    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+    call msg_memUsage('gio_readFileFst')
 
     vco_file => gsv_getVco(stateVector)
 
@@ -1240,7 +1239,7 @@ module gridStateVectorFileIO_mod
     ! Read in an oceanMask if it is present in the file
     call gio_readMaskFromFile(statevector, trim(filename))
 
-    write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
+    call msg_memUsage('gio_readFileFst')
     write(*,*) 'gio_readFileFst: Completed'
 
   end subroutine gio_readFileFst
@@ -1333,7 +1332,7 @@ module gridStateVectorFileIO_mod
     if ( mmpi_myid == 0 ) then
       write(*,*) ''
       write(*,*) 'gio_readTrials: START'
-      write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
+      call msg_memUsage('gio_readTrials')
     end if
  
     !
@@ -1420,8 +1419,8 @@ module gridStateVectorFileIO_mod
       if (stepIndexToRead /= -1) then
         dateStamp = stateVectorTrial_ptr%dateStampList(stepIndexToRead)
         write(*,*) 'gio_readTrials: reading background for time step: ', stepIndexToRead, dateStamp
-        write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
-       
+        call msg_memUsage('gio_readTrials')
+
         if (allTrialTimeStepsInOneFile) then
           fileName = trim(trialFileName)
         else
@@ -1490,7 +1489,7 @@ module gridStateVectorFileIO_mod
                        trim(stateVectorTrial_ptr%mpi_distribution))
       end if
 
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('gio_readTrials')
 
       if (gsv_isAllocated(stateVector_1step_r4) .and. batchIndex == numBatch) then
         call gsv_deallocate(stateVector_1step_r4)
@@ -1503,7 +1502,7 @@ module gridStateVectorFileIO_mod
       call gsv_deallocate( stateVectorTrial )
     end if
 
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg_memUsage('gio_readTrials')
     write(*,*) 'gio_readTrials: Completed'
     write(*,*) ''
 

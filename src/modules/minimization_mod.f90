@@ -6,6 +6,7 @@ module minimization_mod
   !           subroutine that evaluates the cost function and its gradient.
   !
   use codePrecision_mod
+  use message_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use verticalCoord_mod
@@ -48,7 +49,6 @@ module minimization_mod
 
   integer             :: nmtra,nwork
   integer             :: nvadim_mpilocal ! for mpi
-  integer,external    :: get_max_rss
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
   character(len=20)   :: preconFileNameOut = './pm1q'  
@@ -190,14 +190,13 @@ CONTAINS
 
     ! Locals:
     type(struct_columnData) :: columnAnlInc
-    integer                 :: get_max_rss
 
     call utl_tmg_start(90,'--Minimization')
 
-    write(*,*) '--------------------------------'
-    write(*,*) '--Starting subroutine minimize--'
-    write(*,*) '--------------------------------'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) '------------------------------------'
+    write(*,*) '--Starting subroutine min_minimize--'
+    write(*,*) '------------------------------------'
+    call msg_memUsage('min_minimize')
 
     initializeForOuterLoop = .true.
     outerLoopIndex = outerLoopIndex_in
@@ -245,7 +244,7 @@ CONTAINS
 
     deallocate(controlVectorIncrSumZero)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('min_minimize')
     write(*,*) '--Done subroutine minimize--'
 
     call utl_tmg_stop(90)
@@ -521,7 +520,7 @@ CONTAINS
 
     if ( lwrthess ) then
       ! Write out the Hessian to file
-      if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('min_minimize', mpiAll_opt=.false.)
 
       ! zero array for writing to hessian
       if ( .not. allocated(controlVectorIncrSumZero) ) then
@@ -536,7 +535,7 @@ CONTAINS
 
       deallocate(controlVectorIncrSumZero)
 
-      if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('min_minimize', mpiAll_opt=.false.)
     endif
 
     if ( lwrthess ) then
@@ -591,7 +590,7 @@ CONTAINS
 
        if(mmpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
-         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+         call msg_memUsage('simvar')
          call utl_printTime(reset_opt = (min_nsim==1))
        endif
 

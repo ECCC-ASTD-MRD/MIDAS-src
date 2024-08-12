@@ -39,8 +39,6 @@ module oceanMask_mod
     type(struct_hco), pointer :: hco
   end type struct_ocm
 
-  integer, external  :: get_max_rss
-
   contains
 
   !--------------------------------------------------------------------------
@@ -229,7 +227,7 @@ module oceanMask_mod
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
       write(*,*) 'ocm_farFromLand: start creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('ocm_farFromLand')
 
       numTotalLandPoints = count(.not. oceanMask%mask(:,:,levIndex))
       allocate(positionArray(3,numTotalLandPoints))
@@ -247,7 +245,7 @@ module oceanMask_mod
       end do
       tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
       write(*,*) 'ocm_farFromLand: done creating kdtree'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call msg_memUsage('ocm_farFromLand')
 
     end if
 

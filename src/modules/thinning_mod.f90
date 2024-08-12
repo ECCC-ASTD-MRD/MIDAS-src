@@ -9,6 +9,7 @@ module thinning_mod
   !           single fortran module.
   !
   use midasMpi_mod
+  use message_mod
   use bufr_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -31,8 +32,6 @@ module thinning_mod
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
   public :: thn_thinSatSST
-
-  integer, external :: get_max_rss
 
 contains
 
@@ -431,11 +430,11 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_csr)
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinCSR')
     call utl_tmg_start(114,'--ObsThinning')
     call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
     call utl_tmg_stop(114)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinCSR')
 
   end subroutine thn_thinCSR
 
@@ -481,11 +480,11 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_scat)
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinScat')
     call utl_tmg_start(114,'--ObsThinning')
     call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
     call utl_tmg_stop(114)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinScat')
 
   end subroutine thn_thinScat
 
@@ -532,18 +531,18 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinTovs')
     call utl_tmg_stop(114)
 
   end subroutine thn_thinTovs
@@ -594,19 +593,19 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('airs'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('iasi'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('cris'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinHyper')
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('crisfsr'))
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('thn_thinHyper')
     call utl_tmg_stop(114)
 
   end subroutine thn_thinHyper

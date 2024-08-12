@@ -209,7 +209,7 @@ program midas_letkf
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: dateStampFromObs, ierr
-  integer :: get_max_rss, fstopc
+  integer :: fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
@@ -248,7 +248,7 @@ program midas_letkf
 
   call utl_readNml()
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage('midas-letkf')
 
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -334,7 +334,7 @@ program midas_letkf
     call utl_abort('midas-letkf: vertical coordinate does not contain nwp nor ocean fields')
   end if
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-letkf')
 
   !- 2.5 Read in the observations and other obs-related set up
 
@@ -366,12 +366,12 @@ program midas_letkf
   if (useModulatedEns) call eob_setLatLonObs(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-letkf')
   call col_setup
   call col_setVco(column, vco_ens)
   call col_allocate(column, obs_numheader(obsSpaceData),  &
                     setToZero_opt=.true.)
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-letkf')
 
   !- 2.7 Read the sfc height from ensemble member 1 - only if we are doing NWP
   if (nwpFields) then
@@ -487,7 +487,7 @@ program midas_letkf
   
       write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+      call msg_memUsage('midas-letkf')
       call utl_printTime(reset_opt = (memberIndex==1))
 
       ! copy 1 member to a stateVector
@@ -806,7 +806,7 @@ program midas_letkf
   !
   !- 8. MPI, tmg finalize
   !  
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-letkf')
   call utl_tmg_stop(0)
   call utl_printTime()
 
@@ -821,7 +821,7 @@ program midas_letkf
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call msg_memUsage('midas-letkf')
 
   if (mmpi_myid == 0) write(*,*) ' --------------------------------'
   if (mmpi_myid == 0) write(*,*) ' MIDAS-LETKF ENDS'

@@ -8,6 +8,7 @@ MODULE bMatrixHI_mod
   !           the Global version. A separate module exists for limited-area applications.
   !
   use midasMpi_mod
+  use message_mod
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod
@@ -96,9 +97,6 @@ MODULE bMatrixHI_mod
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
 
-  integer,external    :: get_max_rss
-
-
 CONTAINS
 
   SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT, mode_opt)
@@ -122,7 +120,7 @@ CONTAINS
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
     if(mmpi_myid == 0) write(*,*) 'bhi_setup: starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
@@ -301,7 +299,7 @@ CONTAINS
     allocate(corns(numVarLev2,numVarLev2,0:ntrunc))
     allocate(rstddev(numVarLev2,0:ntrunc))
 
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
     zps = 101000.D0
     call czp_fetch1DLevels(vco_anl, zps, &
@@ -329,7 +327,7 @@ CONTAINS
     call BHI_rdspPtoT
 
     call BHI_readcorns2
-    if(mmpi_myid == 0) write(*,*) 'Memory Used (after readcorns2): ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
     call BHI_sutg
 
@@ -344,7 +342,7 @@ CONTAINS
     call BHI_scalestd
 
     call BHI_sucorns2
-    if(mmpi_myid == 0) write(*,*) 'Memory Used (after sucorns2): ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
@@ -2266,7 +2264,7 @@ CONTAINS
     real(8)   :: hiControlVector(nla_mpilocal,2,numVarLevSqrt)
 
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrt: starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_bSqrt', mpiAll_opt=.false.)
 
     if(.not. initialized) then
       if(mmpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
@@ -2288,7 +2286,7 @@ CONTAINS
 
     deallocate(gd_out)
 
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_bSqrt', mpiAll_opt=.false.)
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrt: done'
 
   END SUBROUTINE BHI_bSqrt
@@ -2312,7 +2310,7 @@ CONTAINS
     endif
 
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_bSqrtAd', mpiAll_opt=.false.)
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,numVarLev))
     gd_in(:,:,:) = 0.d0
@@ -2330,7 +2328,7 @@ CONTAINS
 
     deallocate(gd_in)
 
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('bhi_bSqrtAd', mpiAll_opt=.false.)
     if(mmpi_myid == 0) write(*,*) 'bhi_bsqrtad: done'
 
   END SUBROUTINE BHI_bSqrtAd
