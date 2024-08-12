@@ -675,14 +675,14 @@ contains
         
         path = './'
         fullNameWithPath = 'NOTFOUND'
-        if (tvs_copyCoefficientFileToRamdisk) then
+        if (tvs_copyCoefficientFileToRamdisk .and. ram_getRamDiskDir() /= ' ') then
           call rttov_coeffname(errorStatus, tvs_listSensors(:,sensorIndex), 'rtcoef', filePrefix)
           do extensionIndex = 1, nExtensions
             fileName = './' // trim(filePrefix) // trim(extensionList(extensionIndex))
             inquire(file=fileName, exist=fileExists)
             if (fileExists) then
               fullNameWithPath = ram_fullWorkingPath(fileName) ! copy to ramdisk and return path on ramdisk
-              path = trim(ram_getRamDiskDir()) // './'
+              path = trim(ram_getRamDiskDir())
               exit
             end if
           end do
