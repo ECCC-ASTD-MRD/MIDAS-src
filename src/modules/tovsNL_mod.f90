@@ -671,8 +671,9 @@ contains
         
         errorStatus = errorStatus_success
         call utl_tmg_start(16,'----RttovSetup')
-        write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)',  sensorIndex,tvs_nchan(sensorIndex)
+        write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex)
         
+        path = './'
         if (tvs_copyCoefficientFileToRamdisk) then
           call rttov_coeffname(errorStatus, tvs_listSensors(:,sensorIndex), 'rtcoef', filePrefix)
           do extensionIndex = 1, nExtensions
@@ -684,8 +685,7 @@ contains
               exit
             end if
           end do
-        else
-          path = './'
+          call utl_abort('tvs_setupAlloc: unable to find coefficient file starting with ' // trim(filePrefix))
         end if
         
         write(*,*) 'tvs_setupAlloc: calling rttov_read_coefs with path= ', trim(path)
