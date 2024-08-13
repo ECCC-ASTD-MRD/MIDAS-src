@@ -705,7 +705,7 @@ contains
           call utl_abort('tvs_setupAlloc')
         end if
 
-        if (tvs_copyCoefficientFileToRamdisk) then
+        if (tvs_copyCoefficientFileToRamdisk .and. ram_getRamDiskDir() /= ' ') then
           errorStatus = ram_remove(fullNameWithPath)
         end if
        
