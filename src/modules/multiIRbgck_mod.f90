@@ -6,7 +6,7 @@ module multiIRbgck_mod
   !           control.
   !
   use rttovInterfaces_mod
-  use tovsNL_mod
+  use tovs_mod
   use rttov_const, only : inst_id_iasi
   use rttov_types, only :   &
        rttov_coefs         ,&

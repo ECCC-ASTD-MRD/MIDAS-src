@@ -27,7 +27,7 @@ module var1DIdealize_mod
     use humidityLimits_mod
     use obsoperators_mod
     use obsErrors_mod
-    use tovsNL_mod
+    use tovs_mod
     use tovsLin_mod
     use surfaceEmissivity_mod
   

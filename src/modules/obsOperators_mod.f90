@@ -16,7 +16,7 @@ module obsOperators_mod
   use gps_mod
   use midasMpi_mod
   use timeCoord_mod
-  use tovsNL_mod
+  use tovs_mod
   use utilities_mod
   use tovsLin_mod
   use verticalCoord_mod

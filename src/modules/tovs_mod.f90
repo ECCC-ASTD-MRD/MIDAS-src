@@ -1,9 +1,8 @@
 
-module tovsNL_mod
-  ! MODULE tovsNL_mod (prefix='tvs' category='5. Observation operators')
+module tovs_mod
+  ! MODULE tovs_mod (prefix='tvs' category='5. Observation operators')
   !
-  !:Purpose:  Derived types, public variables and procedures related to the
-  !           nonlinear version of RTTOV
+  !:Purpose:  Derived types, public variables and procedures related to RTTOV
   !
   use rttovInterfaces_mod
   use rttov_types, only :              &
@@ -5236,4 +5235,4 @@ contains
   end subroutine tvs_rttovScatt
   
 
-end module tovsNL_mod
+end module tovs_mod

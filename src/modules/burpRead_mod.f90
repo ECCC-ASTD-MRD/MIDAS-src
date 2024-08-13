@@ -16,7 +16,7 @@ module burpRead_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use obsFilter_mod
-  use tovsNL_mod
+  use tovs_mod
   use kdTree2_mod
   use codtyp_mod
 

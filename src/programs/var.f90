@@ -269,7 +269,7 @@ program midas_var
   use increment_mod
   use biasCorrectionSat_mod
   use varQC_mod
-  use tovsNL_mod
+  use tovs_mod
   use stateToColumn_mod
   use obsFilter_mod
   

@@ -24,7 +24,7 @@ module tovsLin_mod
       errorStatus_success
   use parkind1, only : jpim, jprb, jplm
   use verticalCoord_mod
-  use tovsNL_mod
+  use tovs_mod
   use utilities_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod

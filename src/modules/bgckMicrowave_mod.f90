@@ -9,7 +9,7 @@ module bgckMicrowave_mod
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
-  use tovsNL_mod
+  use tovs_mod
   use obsErrors_mod
   use codtyp_mod
   use rttov_const, only : surftype_seaice

@@ -10,7 +10,7 @@ module rMatrix_mod
   use rttov_const, only: errorstatus_success
   use utilities_mod
   use obsSpaceData_mod
-  use tovsNL_mod
+  use tovs_mod
   use mathPhysConstants_mod
 
   implicit none

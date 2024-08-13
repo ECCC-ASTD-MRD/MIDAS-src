@@ -11,7 +11,7 @@ module slantProfileLatLon_mod
   use utilities_mod
   use obsSpaceData_mod
   use horizontalCoord_mod
-  use tovsNL_mod
+  use tovs_mod
   use codtyp_mod
   use getGridPosition_mod
   use radialVelocity_mod

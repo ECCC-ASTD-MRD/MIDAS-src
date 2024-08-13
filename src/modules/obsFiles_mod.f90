@@ -26,7 +26,7 @@ module obsFiles_mod
   use burpRead_mod
   use biasCorrectionConv_mod
   use clibInterfaces_mod
-  use tovsNL_mod 
+  use tovs_mod 
   use ensembleObservations_mod
 
   implicit none

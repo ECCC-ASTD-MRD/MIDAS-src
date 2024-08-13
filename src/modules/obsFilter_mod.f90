@@ -11,7 +11,7 @@ module obsFilter_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr_mod
-  use tovsNL_mod
+  use tovs_mod
   use gps_mod
   use utilities_mod
   use varNameList_mod
