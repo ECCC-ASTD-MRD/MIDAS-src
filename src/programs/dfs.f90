@@ -182,7 +182,7 @@ program midas_dfs
   
   implicit none
 
-  integer, external :: exdb, exfin, fnom, fclos, get_max_rss
+  integer, external :: exdb, exfin, fnom, fclos
   integer :: ierr, istamp, obsIndex
 
   type(struct_obs),        target :: obsSpaceData
@@ -769,7 +769,7 @@ contains
         deallocate(stringIntforOutput)
         if (dfsCount == nDfsMax) exit observationLoop1
       end do observationLoop1
-    else
+    else ! if (computeInParallel)
       mpiTaskLoop:do procIndex = 1, mmpi_nprocs
         observationLoop2:do obsIndex = 1, maxCountObsMpi
           headerIndex = headerIndexListMpi(obsIndex,procIndex)
@@ -900,17 +900,19 @@ contains
     !:Purpose: apply chain of operators to appy HBHt (input and output in obsSpaceData OBS_WORK)
     !
     implicit none
+    
     ! Arguments
-    type(struct_columnData), intent(inout) :: columnAnlInc
-    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev
-    type(struct_gsv),        intent(inout) :: stateVector
-    real(8),                 intent(inout) :: perturbationVector(:)             
-    type(struct_obs),        intent(inout) :: obsSpaceData ! Observation-related data structure
+    type(struct_columnData), intent(inout) :: columnAnlInc          ! Analysis increment as a column
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev  ! Trial field interpolated on the analysis increment as a column
+    type(struct_gsv),        intent(inout) :: stateVector           ! State vector
+    real(8),                 intent(inout) :: perturbationVector(:) ! Vector of perturbations            
+    type(struct_obs),        intent(inout) :: obsSpaceData          ! Observation-related data structure
+
     !Local variables
-    integer :: localDimension
+    integer       :: localDimension
     logical, save :: first=.true.
     
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('midas-dfs')
     
     localDimension = size(perturbationvector)
     call col_zero(columnAnlInc)
@@ -951,11 +953,13 @@ contains
     !:Purpose: create header string to be writen into output ascii files
     !
     implicit none
+    
     ! Arguments
     type(struct_obs), intent(inout) :: obsSpaceData ! Observation-related data structure
-    integer,          intent(in)    :: headerIndex  ! current observation index in header obsSpacedata structure
-    character(len=*), intent(in)    :: familyType
-    character(len=*), intent(out)   :: headerString ! output header string
+    integer,          intent(in)    :: headerIndex  ! Current observation index in header obsSpacedata structure
+    character(len=*), intent(in)    :: familyType   ! Observation family
+    character(len=*), intent(out)   :: headerString ! Output header string
+
     ! local variable
     character(len=16) :: headerObs
    
