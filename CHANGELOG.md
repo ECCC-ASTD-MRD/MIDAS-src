@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added `copyCoefficientsToRamDisk` to NAMTOV namelist (default is .true.) and removed `mpiTask0ReadCoeffs` (#954 (closed) and !868)
- * Include fasttmp (i.e. ramDisk) memory usage in `msg_memUsage` (#954 and !867)
+ * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
+ * Include fasttmp (i.e. ramDisk) memory usage in `msg_memUsage` (#953 and !867)
  * A bullet has been added to the merge request template to encourage developers to test programs in debug mode (#951 and !863)
  * Allow user to omit version identifier in build directory name by setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
  * Set lowest threshold for `QC` before writing the analysis and increment files (#944 and !859)
