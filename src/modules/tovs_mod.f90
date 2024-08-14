@@ -65,8 +65,6 @@ module tovs_mod
        min_reflectivity            ,&
        min_radiance_radar
   use parkind1, only : jpim, jplm, jprb
-  use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
-  use rttov_solar_refl_mod, only : rttov_refl_water_interp
   use midasMpi_mod
   use message_mod
   use codtyp_mod
@@ -125,22 +123,16 @@ module tovs_mod
 
   ! Protected module variables
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
-  logical, protected :: tvs_useO3Climatology ! Determine if ozone model field or climatology is used
+  
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
   integer, public, protected :: tvs_nobtov ! Number of tovs observations (FOVs)
   integer, public, protected :: tvs_nsensors ! Number of individual sensors.
-  integer, protected         :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
-  integer, protected :: tvs_numMWInstrumUsingCLW
-  integer, protected :: tvs_numMWInstrumUsingHydrometeors
-  logical, protected :: tvs_mwInstrumUsingCLW_tl
-  logical, protected :: tvs_mwInstrumUsingHydrometeors_tl
   logical, public, protected :: tvs_mwAllskyAssim
   logical, public, protected :: tvs_computeJacobian ! Compute Jacobian for brightness temperature
   integer, public, protected :: tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
   integer, public, protected :: tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
   integer, public, protected :: tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer, public, protected :: tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
-  integer, protected :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
   character(len=15), public, protected :: tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15), public, protected :: tvs_instrumentName(tvs_maxNumberOfSensors)
   integer, public, protected, allocatable :: tvs_listSensors(:,:)     ! Sensor list
@@ -156,9 +148,7 @@ module tovs_mod
   type(surface_params), public, protected, allocatable :: tvs_surfaceParameters(:) ! surface parameters
   type(rttov_transmission), public, protected , allocatable :: tvs_transmission(:) ! transmittances all profiles for HIR quality control
   type(rttov_coefs), public, protected, allocatable         :: tvs_coefs(:)      ! rttov coefficients
-  type(rttov_options), public, protected, allocatable       :: tvs_opts(:)       ! rttov options
-  type(rttov_scatt_coef), protected, allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
-  type(rttov_options_scatt), protected, allocatable :: tvs_opts_scatt(:) ! rttovscatt options
+  type(rttov_options), public, protected, allocatable       :: tvs_opts(:)       ! rttov options  
   type(rttov_radiance), public, protected, allocatable      :: tvs_radiance(:)   ! radiances organized by profile
 
   ! Private module parameters
@@ -168,6 +158,15 @@ module tovs_mod
   real(8), parameter :: microg2kg   = 1.0d-9 ! units conversion from micrograms/kg to kg/kg
 
   ! Private module variables
+  logical :: tvs_useO3Climatology ! Determine if ozone model field or climatology is used
+  integer        :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
+  integer :: tvs_numMWInstrumUsingCLW
+  integer :: tvs_numMWInstrumUsingHydrometeors
+  logical :: tvs_mwInstrumUsingCLW_tl
+  logical :: tvs_mwInstrumUsingHydrometeors_tl
+  integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
+  type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
+  type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
   integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:,:) ! Provides RttovScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
   type(rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
@@ -4925,7 +4924,7 @@ contains
     type (rttov_radiance2)    :: radiance2               
     type (rttov_geometry)          :: angles (size(profiles))
     type (rttov_profile_scatt_aux) :: scatt_aux  
-    type(rttov_options)    :: opts
+    type (rttov_options)    :: opts
     character (len=80) :: errMessage
     character (len=15) :: NameOfRoutine = 'tvs_rttovScatt '
 
