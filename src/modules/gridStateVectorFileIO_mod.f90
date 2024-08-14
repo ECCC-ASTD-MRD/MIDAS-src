@@ -650,7 +650,7 @@ module gridStateVectorFileIO_mod
     real(4), pointer     :: field_r4_ptr(:,:,:,:)
     integer :: dateStamp
     integer :: imode, ierr, newdate, prntdate, prnttime
-    integer :: recordDimID, numberRecords, timeCounterID, dimTimeCounterID
+    integer :: numberRecords, timeCounterID, dimTimeCounterID
     character(len = nf90_max_name) :: recordDimName
     integer, parameter  :: referenceDateORCA025 = 19500101 ! reference date for netCDF output files
     integer :: refDateStamp, currentDateStamp

@@ -2925,8 +2925,8 @@ contains
     integer :: rttov_err_stat ! rttov error return code
     integer :: nthreads,max_nthreads
     integer :: sensorIndex, tovsIndex
-    integer :: channelIndex, channelNumber
-    integer :: hydroSensorIndex, hydroChannelsCount
+    integer :: channelIndex
+    integer :: hydroChannelsCount
     integer :: profileCount
     integer :: profileIndex, levelIndex, jj, btIndex
     integer :: instrum
@@ -2943,7 +2943,7 @@ contains
     real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     logical, pointer      :: lchannelSubset(:,:)
     integer               :: profileIndex2, tb1, tb2
-    integer :: istart, iend, bodyIndex, headerIndex
+    integer :: bodyIndex
     real(8) :: clearMwRadiance
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
