@@ -2933,7 +2933,7 @@ contains
     real(8), allocatable  :: surfem1(:), surfem1Scatt(:)
     integer, allocatable  :: frequencies(:)
     real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
-    logical, pointer      :: lchannelSubset(:,:)
+    logical, allocatable  :: lchannelSubset(:,:)
     integer               :: profileIndex2, tb1, tb2
     integer :: bodyIndex
     real(8) :: clearMwRadiance
@@ -5179,16 +5179,16 @@ contains
     implicit none
     
     ! Arguments:
-    logical, intent(in)             :: runObsOperatorWithHydrometeors ! flag to control rttovScatt use in linearized RTTOV
-    integer, intent(in)             :: sensorIndex                    ! sensor Index in NAMTOV namelist section
-    integer, intent(out)            :: btCount                        ! number of BTs simulated using Rttov
-    integer, intent(out)            :: btCountScatt                   ! number of BTs simulated using RttovScatt
-    integer, intent(out)            :: hydroChannelsCount             ! number of channels simulated using RttovScatt
-    integer, intent(out)            :: profileCount                   ! number of profiles for the current sensor
-    integer, intent(out)            :: sensorTovsIndexes(:)           ! 
-    logical, pointer, intent(inout) :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
-    type(struct_obs), intent(inout) :: obsSpaceData                   ! obsSpaceData structure
-    logical, intent(in), optional   :: irBgckMode_opt                 ! irBgckMode_opt
+    logical, intent(in)               :: runObsOperatorWithHydrometeors ! flag to control rttovScatt use in linearized RTTOV
+    integer, intent(in)               :: sensorIndex                    ! sensor Index in NAMTOV namelist section
+    integer, intent(out)              :: btCount                        ! number of BTs simulated using Rttov
+    integer, intent(out)              :: btCountScatt                   ! number of BTs simulated using RttovScatt
+    integer, intent(out)              :: hydroChannelsCount             ! number of channels simulated using RttovScatt
+    integer, intent(out)              :: profileCount                   ! number of profiles for the current sensor
+    integer, intent(out)              :: sensorTovsIndexes(:)           ! 
+    logical, allocatable, intent(out) :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
+    type(struct_obs), intent(inout)   :: obsSpaceData                   ! obsSpaceData structure
+    logical, intent(in), optional     :: irBgckMode_opt                 ! irBgckMode_opt
 
     ! Locals:
     integer :: tovsIndex, hydroSensorIndex, channelIndex, irBgckMode
@@ -5295,7 +5295,7 @@ contains
     end if
 
     if (tvs_bodyIndexFromBtIndexScatt(sensorIndex,1) == -1 .and. btCountScatt > 0) then
-      if (associated(lChannelSubset)) deallocate(lChannelSubset)
+      if (allocated(lChannelSubset)) deallocate(lChannelSubset)
       allocate(lChannelSubset(profileCount,tvs_nchan(sensorIndex)))
       call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, tvs_chanProfScatt(sensorIndex,1:btCountScatt), &
           lchannel_subset_opt = lChannelSubset, iptobs_cma_opt = tvs_bodyIndexFromBtIndexScatt(sensorIndex,:), &
@@ -5341,7 +5341,7 @@ contains
     integer :: instrum
     integer :: sensorType   !sensor type(1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
     integer :: errorStatus
-    logical, pointer     :: lChannelSubset(:,:)
+    logical, allocatable :: lChannelSubset(:,:)
     real(8), allocatable :: surfem1(:)
     real(8), allocatable :: surfem1Scatt(:)
     integer, allocatable  :: frequencies(:)
@@ -5848,7 +5848,7 @@ contains
     real(8), allocatable :: clw_ad(:,:),clwScatt_ad(:,:)
     real(8), allocatable :: ciw_ad(:,:), rf_ad(:,:), sf_ad(:,:)
     logical, allocatable :: surfTypeIsWater(:)
-    logical, pointer :: lChannelSubset(:,:)
+    logical, allocatable :: lChannelSubset(:,:)
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:)
     real(8), pointer :: tg_column(:),p_column(:),o3_column(:),clw_column(:)
     real(8), pointer :: ciw_column(:), rf_column(:),sf_column(:)
@@ -6420,7 +6420,7 @@ contains
     integer                            :: errorstatus
     logical                            :: runObsOperatorWithHydrometeors_k
     logical, pointer                   :: calcemis(:)
-    logical, pointer                   :: lChannelSubset(:,:)
+    logical, allocatable               :: lChannelSubset(:,:)
 
     if (tvs_nobtov == 0) return ! exit if there are not tovs data
   
