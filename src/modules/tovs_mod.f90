@@ -142,7 +142,6 @@ module tovs_mod
   integer, public, protected, allocatable :: tvs_headerIndex(:)       ! Observation position in obsSpaceData header for each profile
   integer, public, protected, allocatable :: tvs_tovsIndex(:)         ! Index in TOVS structures for each observation header in obsSpaceData
   integer, public, protected, allocatable :: tvs_nchanMpiGlobal(:)    ! Number of channels per instrument (global)
-  integer, protected, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
   logical, public, protected, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
   logical, public, protected, allocatable :: tvs_isReallyPresentMpiGLobal(:) ! Logical flag to identify instruments really assimilated (global)
   type(surface_params), public, protected, allocatable :: tvs_surfaceParameters(:) ! surface parameters
@@ -159,12 +158,13 @@ module tovs_mod
 
   ! Private module variables
   logical :: tvs_useO3Climatology ! Determine if ozone model field or climatology is used
-  integer        :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
+  integer :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
   integer :: tvs_numMWInstrumUsingCLW
   integer :: tvs_numMWInstrumUsingHydrometeors
   logical :: tvs_mwInstrumUsingCLW_tl
   logical :: tvs_mwInstrumUsingHydrometeors_tl
   integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
+  integer, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
