@@ -2124,7 +2124,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine oer_profIsAllsky(obsSpaceData, headerIndex, profIsAllsky)
     !
-    !:Purpose: Determine if the tovs profile is all-sky. 
+    !:Purpose: Determine if the tovs profile has all-sky channel ready for assimilation. 
     !
     implicit none
     
@@ -2139,10 +2139,10 @@ contains
     integer :: channelNumber, channelIndex, codtyp
     integer :: tovsIndex, sensorIndex, instrumId
     character(len=9) :: instrumName
-    logical :: surfTypeIsWater, stateDependentObsErrUsed
+    logical :: surfTypeIsWater
 
-    bodyIndexBeg = obs_headElem_i(obsSpaceData,obs_rln,headerIndex)
-    bodyIndexEnd = obs_headElem_i(obsSpaceData,obs_nlv,headerIndex) + bodyIndexBeg - 1
+    bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+    bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
     codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
@@ -2152,28 +2152,29 @@ contains
     profIsAllsky = .false.
 
     ! all-sky radiances are only over ocean
-    if (.not. tvs_mwAllskyAssim .or. .not. surfTypeIsWater .or. .not. tvs_isIdBurpTovs(codtyp)) return
+    if (.not. tvs_mwAllskyAssim .or. .not. surfTypeIsWater .or. &
+        .not. tvs_isIdBurpTovs(codtyp)) then
+      return
+    end if
 
-    ! check if state dependent obs error is used
-    stateDependentObsErrUsed = .false.
+    ! if instrument is in all-sky mode
+    if (.not. (tvs_isInstrumAllskyTtAssim(instrumId) .or. &
+               tvs_isInstrumAllskyHuAssim(instrumId))) then
+      return
+    end if
+
+    ! check if there is a channel where: 1-state dependent obs error is used; and 2-flagged for assimilation
     body_loop: do bodyIndex = bodyIndexBeg, bodyIndexEnd
       call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                          channelNumber, channelIndex)
       channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
 
-      if (oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
-        stateDependentObsErrUsed = .true.
+      if (oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .and. &
+          obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+        profIsAllsky = .true.
         exit body_loop
       end if
     end do body_loop
-    if (.not. stateDependentObsErrUsed) return
-    
-    instrumName = codtyp_get_name(codtyp)
-
-    if (tvs_isInstrumAllskyTtAssim(instrumId) .or. &
-        tvs_isInstrumAllskyHuAssim(instrumId)) then
-      profIsAllsky = .true.
-    end if
    
   end subroutine oer_profIsAllsky
 
