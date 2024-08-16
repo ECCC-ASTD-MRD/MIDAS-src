@@ -5188,7 +5188,7 @@ contains
     integer,              intent(out)    :: sensorTovsIndexes(:)           ! 
     logical, allocatable, intent(out)    :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
     type(struct_obs),     intent(inout)  :: obsSpaceData                   ! obsSpaceData structure
-    logical, optional     intent(in)     :: irBgckMode_opt                 ! irBgckMode_opt
+    logical, optional,    intent(in)     :: irBgckMode_opt                 ! irBgckMode_opt
 
     ! Locals:
     integer :: tovsIndex, hydroSensorIndex, channelIndex, irBgckMode
