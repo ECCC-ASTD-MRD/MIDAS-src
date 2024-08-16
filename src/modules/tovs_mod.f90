@@ -5179,16 +5179,16 @@ contains
     implicit none
     
     ! Arguments:
-    logical, intent(in)               :: runObsOperatorWithHydrometeors ! flag to control rttovScatt use in linearized RTTOV
-    integer, intent(in)               :: sensorIndex                    ! sensor Index in NAMTOV namelist section
-    integer, intent(out)              :: btCount                        ! number of BTs simulated using Rttov
-    integer, intent(out)              :: btCountScatt                   ! number of BTs simulated using RttovScatt
-    integer, intent(out)              :: hydroChannelsCount             ! number of channels simulated using RttovScatt
-    integer, intent(out)              :: profileCount                   ! number of profiles for the current sensor
-    integer, intent(out)              :: sensorTovsIndexes(:)           ! 
-    logical, allocatable, intent(out) :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
-    type(struct_obs), intent(inout)   :: obsSpaceData                   ! obsSpaceData structure
-    logical, intent(in), optional     :: irBgckMode_opt                 ! irBgckMode_opt
+    logical,              intent(in)     :: runObsOperatorWithHydrometeors ! flag to control rttovScatt use in linearized RTTOV
+    integer,              intent(in)     :: sensorIndex                    ! sensor Index in NAMTOV namelist section
+    integer,              intent(out)    :: btCount                        ! number of BTs simulated using Rttov
+    integer,              intent(out)    :: btCountScatt                   ! number of BTs simulated using RttovScatt
+    integer,              intent(out)    :: hydroChannelsCount             ! number of channels simulated using RttovScatt
+    integer,              intent(out)    :: profileCount                   ! number of profiles for the current sensor
+    integer,              intent(out)    :: sensorTovsIndexes(:)           ! 
+    logical, allocatable, intent(out)    :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
+    type(struct_obs),     intent(inout)  :: obsSpaceData                   ! obsSpaceData structure
+    logical, optional     intent(in)     :: irBgckMode_opt                 ! irBgckMode_opt
 
     ! Locals:
     integer :: tovsIndex, hydroSensorIndex, channelIndex, irBgckMode
