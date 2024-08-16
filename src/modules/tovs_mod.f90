@@ -164,7 +164,6 @@ module tovs_mod
   logical :: tvs_mwInstrumUsingCLW_tl
   logical :: tvs_mwInstrumUsingHydrometeors_tl
   integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
-  integer, allocatable :: tvs_ichanMpiGlobal(:,:)  ! List of channels per instrument  (global)
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
@@ -381,6 +380,7 @@ contains
     logical :: runObsOperatorWithHydrometeors
     logical, allocatable :: logicalBuffer(:)
     integer, allocatable :: sensorTotalNumberOfProfiles(:)
+    integer, allocatable :: ichanMpiGlobal(:,:)  ! List of channels per instrument
     character(len=32) :: hydroTableFileName
     character(len=300) :: filePrefix
     character(len=400) :: fileName
@@ -405,7 +405,6 @@ contains
     allocate(tvs_tovsIndex(obs_numheader(obsSpaceData)))
     allocate(tvs_isReallyPresent(tvs_nsensors))
     allocate(tvs_nchanMpiGlobal(tvs_nsensors))
-    allocate(tvs_ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors))
     allocate(tvs_isReallyPresentMpiGlobal(tvs_nsensors))
     allocate(sensorTotalNumberOfProfiles(tvs_nsensors))
 
@@ -538,12 +537,14 @@ contains
     end do
 
     write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
-
+    
+    allocate(ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors))
     do sensorIndex = 1, tvs_nsensors
-      call tvs_getCommonChannelSet(tvs_ichan(:,sensorIndex),tvs_nchanMpiGlobal(sensorIndex), tvs_ichanMpiGlobal(:,sensorIndex))
+      call tvs_getCommonChannelSet(tvs_ichan(:,sensorIndex),tvs_nchanMpiGlobal(sensorIndex), ichanMpiGlobal(:,sensorIndex))
       write(*,*) 'sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
     end do
-
+    deallocate(ichanMpiGlobal)
+    
     if (mmpi_myid ==0) then
       allocate(logicalBuffer(mmpi_nprocs))
     else
@@ -562,7 +563,7 @@ contains
     end do
     
     deallocate(logicalBuffer)
-
+    
     if ( tvs_debug .and. mmpi_myid == 0 ) then
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)'
@@ -1088,7 +1089,6 @@ contains
     deallocate (tvs_tovsIndex)
     deallocate (tvs_isReallyPresent)
     deallocate (tvs_nchanMpiGlobal)
-    deallocate (tvs_ichanMpiGlobal)
     deallocate (tvs_chanProf)
     deallocate (tvs_chanProfScatt)
     deallocate (tvs_bodyIndexFromBtIndex)
