@@ -46,7 +46,7 @@ module obsErrors_mod
 
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky, oer_profIsAllsky
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
   ! TOVS OBS ERRORS
@@ -2118,6 +2118,64 @@ contains
     if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
 
   end subroutine oer_chanIsAllsky
+
+  !--------------------------------------------------------------------------
+  ! oer_profIsAllsky
+  !--------------------------------------------------------------------------
+  subroutine oer_profIsAllsky(obsSpaceData, headerIndex, profIsAllsky)
+    !
+    !:Purpose: Determine if the tovs profile is all-sky. 
+    !
+    implicit none
+    
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: headerIndex
+    logical,          intent(out) :: profIsAllsky ! .true. if tovs profile is all-sky
+
+    ! Locals:
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
+    integer :: channelNumber_withOffset
+    integer :: channelNumber, channelIndex, codtyp
+    integer :: tovsIndex, sensorIndex, instrumId
+    character(len=9) :: instrumName
+    logical :: surfTypeIsWater, stateDependentObsErrUsed
+
+    bodyIndexBeg = obs_headElem_i(obsSpaceData,obs_rln,headerIndex)
+    bodyIndexEnd = obs_headElem_i(obsSpaceData,obs_nlv,headerIndex) + bodyIndexBeg - 1
+    codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
+    surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
+
+    profIsAllsky = .false.
+
+    ! all-sky radiances are only over ocean
+    if (.not. tvs_mwAllskyAssim .or. .not. surfTypeIsWater .or. .not. tvs_isIdBurpTovs(codtyp)) return
+
+    ! check if state dependent obs error is used
+    stateDependentObsErrUsed = .false.
+    body_loop: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+      call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                         channelNumber, channelIndex)
+      channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+      if (oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) then
+        stateDependentObsErrUsed = .true.
+        exit body_loop
+      end if
+    end do body_loop
+    if (.not. stateDependentObsErrUsed) return
+    
+    instrumName = codtyp_get_name(codtyp)
+
+    if (tvs_isInstrumAllskyTtAssim(instrumId) .or. &
+        tvs_isInstrumAllskyHuAssim(instrumId)) then
+      profIsAllsky = .true.
+    end if
+   
+  end subroutine oer_profIsAllsky
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
