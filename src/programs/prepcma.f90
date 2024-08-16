@@ -371,7 +371,7 @@ contains
     integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: iblock, codeType, ilat, incr, ipres, nblocksum, npres, nsize, num_stn
-    logical :: count_obs, allRejected
+    logical :: count_obs, allRejected, tovsProfWithAllskyChanForAssim
     real(4) :: lat_r4, lon_r4
     real(8) :: pressure, rannum
     real(8), allocatable :: latcenter(:), latmin(:), latmax(:), ranvals(:)
@@ -454,6 +454,12 @@ contains
           end if
         end do body_loop
         if (allRejected) cycle header_loop
+
+        ! skip this header if it is tovs profile with all-sky channel flagged for assimilation.
+        if (cfam == 'TO') then
+          call oer_profWithAllskyChanForAssim(obsSpaceData, headerIndex, tovsProfWithAllskyChanForAssim)
+          if (tovsProfWithAllskyChanForAssim) cycle header_loop
+        end if
 
         lat_r4 = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
         lon_r4 = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
