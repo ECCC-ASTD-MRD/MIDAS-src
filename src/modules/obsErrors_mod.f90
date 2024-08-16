@@ -46,7 +46,7 @@ module obsErrors_mod
 
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky, oer_profIsAllsky
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky, oer_profWithAllskyChanForAssim
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
   ! TOVS OBS ERRORS
@@ -2120,9 +2120,9 @@ contains
   end subroutine oer_chanIsAllsky
 
   !--------------------------------------------------------------------------
-  ! oer_profIsAllsky
+  ! oer_profWithAllskyChanForAssim
   !--------------------------------------------------------------------------
-  subroutine oer_profIsAllsky(obsSpaceData, headerIndex, profIsAllsky)
+  subroutine oer_profWithAllskyChanForAssim(obsSpaceData, headerIndex, profWithAllskyChanForAssim)
     !
     !:Purpose: Determine if the tovs profile has all-sky channel ready for assimilation. 
     !
@@ -2131,7 +2131,8 @@ contains
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
     integer,          intent(in)  :: headerIndex
-    logical,          intent(out) :: profIsAllsky ! .true. if tovs profile is all-sky
+    logical,          intent(out) :: profWithAllskyChanForAssim ! .true. if tovs profile has all-sky 
+                                                                ! channel ready for assimilation
 
     ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
@@ -2149,7 +2150,7 @@ contains
     instrumId = tvs_instruments(sensorIndex)
     surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
 
-    profIsAllsky = .false.
+    profWithAllskyChanForAssim = .false.
 
     ! all-sky radiances are only over ocean
     if (.not. tvs_mwAllskyAssim .or. .not. surfTypeIsWater .or. &
@@ -2171,12 +2172,12 @@ contains
 
       if (oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .and. &
           obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-        profIsAllsky = .true.
+        profWithAllskyChanForAssim = .true.
         exit body_loop
       end if
     end do body_loop
    
-  end subroutine oer_profIsAllsky
+  end subroutine oer_profWithAllskyChanForAssim
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
