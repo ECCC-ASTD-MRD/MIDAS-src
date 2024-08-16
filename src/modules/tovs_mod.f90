@@ -735,7 +735,7 @@ contains
         end if
       end do
 
-    end if
+    end if !if ( radiativeTransferCode == 'RTTOV' )
   
     write(*,*) 'Leaving tvs_setupAlloc'
 
@@ -1080,7 +1080,7 @@ contains
       deallocate(tvs_coefs)
       deallocate(tvs_listSensors)
       deallocate(tvs_opts)
-    end if
+    end if ! if ( radiativeTransferCode == 'RTTOV' )
 
     deallocate (tvs_nchan)
     deallocate (tvs_ichan)
@@ -2919,7 +2919,7 @@ contains
     integer :: channelIndex
     integer :: hydroChannelsCount
     integer :: profileCount
-    integer :: profileIndex, levelIndex, jj, btIndex
+    integer :: profileIndex, levelIndex, tovsIndex, btIndex
     integer :: instrum
     integer :: sensorType        ! sensor type (1=infrared; 2=microwave; 3=high resolution; 4=polarimetric)
     integer, allocatable :: sensorTovsIndexes(:)
@@ -2994,7 +2994,7 @@ contains
         call utl_abort('tvs_rttov_tl: RTTOV scatt does not support the inclusion of surface emissivity in the analysis variable or read from ObsSpaceData')
       end if
 
-      if ( btCount > 0) then
+      if (btCount > 0) then
         call rttov_alloc_direct(         &
             allocStatus,                 &
             asw=1,                       &
@@ -3013,7 +3013,7 @@ contains
         if (useUofWIREmiss) then
           allocate(uOfWLandWSurfaceEmissivity(btCount))
         end if
-        if ( tvs_isInstrumHyperSpectral(instrum) ) then
+        if (tvs_isInstrumHyperSpectral(instrum)) then
           !     get Hyperspectral IR emissivities
           surfem1(:) = 0.
           if ( bgckMode ) then
@@ -3024,6 +3024,7 @@ contains
         end if
         
         call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        
         if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
           if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
           if ( .not. tvs_atlas(sensorIndex) % init) then
@@ -3055,7 +3056,7 @@ contains
           end if
               
           do profileIndex=1, profileCount !loop on profiles
-            jj = sensorTovsIndexes(profileIndex)
+            tovsIndex = sensorTovsIndexes(profileIndex)
             do btIndex=1, btCount !loop on channels
               if (tvs_chanProf(btIndex,sensorIndex) % prof==profileIndex) then
                 ! surftype: 0 land, 1 sea, 2 sea-ice
@@ -3072,7 +3073,7 @@ contains
                 ! other information that could be useful for quality control can be found in the in the profile_qc structure
                 ! Now we have the 'traditionnal' emissivity in surfem1(:)
                 ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-                if (tvs_profiles_nl(jj) % skin % surftype == surftype_land .and. &
+                if (tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
                     uOfWLandWSurfaceEmissivity(btIndex) > 0.5 ) then
                   emissivity_local(btIndex) % emis_in = uOfWLandWSurfaceEmissivity(btIndex)
                 else
@@ -3107,12 +3108,12 @@ contains
           end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
-        end if        
+        end if
         !   2.3  Compute radiance with rttov_direct
 
         rttov_err_stat = 0 
 
-        if( bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
+        if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum)) then
           write(*,*) 'for bgck IR: call rttov_parallel_direct for each profile...'
 
           ! allocate transmitance structure for 1 profile
@@ -3124,7 +3125,7 @@ contains
           if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error in rttov_alloc_rad')
           ! allocate chanprof for 1 profile
           allocate(chanprof1(tvs_nchan(sensorIndex)))
-          do  channelIndex = 1, tvs_nchan(sensorIndex)
+          do channelIndex = 1, tvs_nchan(sensorIndex)
             chanprof1(channelIndex) % prof = 1
             chanprof1(channelIndex) % chan = channelIndex
           end do
@@ -3175,7 +3176,7 @@ contains
         else
 
           ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData 
-          if ( runObsOperatorWithClw  .and. obs_columnActive_RB(obsSpaceData, OBS_BTCL)) then
+          if (runObsOperatorWithClw  .and. obs_columnActive_RB(obsSpaceData, OBS_BTCL)) then
             
             ! set the cloud profile in tvs_profiles_nl to zero
             call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
@@ -3227,11 +3228,12 @@ contains
             write(*,*) 'Error in rttov_parallel_direct',rttov_err_stat
             call utl_abort('tvs_rttov')
           end if
-        end if
+        end if !
         !    2.4  Store hx in the structure tvs_radiance
         if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
         end if
+        
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(btIndex,sensorIndex) % prof
           channelIndex = tvs_chanProf(btIndex,sensorIndex) % chan
@@ -3287,9 +3289,9 @@ contains
           deallocate(uOfWLandWSurfaceEmissivity)
         end if
         deallocate(surfem1)
-      end if
+      end if ! if (btCount > 0)
       
-      if ( btCountScatt > 0) then
+      if (btCountScatt > 0) then
          
         allocate(surfem1Scatt(btCountScatt))
         allocate(frequencies (btCountScatt))
@@ -3442,7 +3444,7 @@ contains
         deallocate(frequencies)
         deallocate(transmission % tau_total)
         deallocate(transmission % tau_levels) 
-      end if
+      end if ! if (btCountScatt > 0)
       
       if ( .not. beSilent ) call msg_memUsage('tvs_rttov')
 
@@ -5164,7 +5166,6 @@ contains
     
   end subroutine tvs_rttovScatt
 
-
   !--------------------------------------------------------------------------
   !  tvs_setupPointers
   !--------------------------------------------------------------------------
@@ -5466,7 +5467,8 @@ contains
                                    init=.true.,      &  
                                    flux_conversion=[1,2,0,0,0])
       if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error in rttov_alloc_scatt_prof')
-      do profileIndex = 1, profileCount
+      
+      profileLoop:do profileIndex = 1, profileCount
         profilesdata_tl(profileIndex) % gas_units = gas_unit_specconc ! all gas profiles should be provided in kg/kg
         profilesdata_tl(profileIndex) % nlevels   =  nlv_T
         profilesdata_tl(profileIndex) % nlayers   =  nlv_T - 1
@@ -5523,7 +5525,7 @@ contains
           end if ! surfTypeIsWater
 
           cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = 0.d0   ! no perturbation on cloud fraction as it is a binary variable (or or 1.0) in this implementation
-        end if ! runObsOperatorWithHydrometeors_tl
+        end if ! if (runObsOperatorWithHydrometeors_tl)
         
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
@@ -5554,7 +5556,7 @@ contains
           end do
           cld_profiles_tl(profileIndex) % ph (nlv_T+1) = profilesdata_tl(profileIndex) % s2m % p
         end if
-      end do
+      end do profileLoop
 
       deallocate(sensorHeaderIndexes)
       deallocate(surfTypeIsWater) 
@@ -5678,9 +5680,9 @@ contains
         if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation 1 error in rttov_alloc_tl')
         deallocate(surfem1)
  
-      end if
+      end if ! if (btCount > 0)
       
-      if (btCountScatt >0) then 
+      if (btCountScatt > 0) then 
         call rttov_alloc_tl(                  &
             allocStatus,                      &  
             asw=1,                            &
@@ -5775,7 +5777,7 @@ contains
             emissivity=emissivity_localScatt, &
             emissivity_tl=emissivity_tlScatt )
         if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation error 2 in rttov_alloc_tl')
-      end if
+      end if  ! if (btCountScatt > 0)
       
       call rttov_alloc_scatt_prof (allocStatus,                 &
                                    profileCount,                &
@@ -6074,7 +6076,7 @@ contains
             emissivity=emissivity_local)
         if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error 1 in rttov_alloc_ad')
         deallocate(surfem1)
-      end if
+      end if ! if (btCount > 0)
 
       if (btCountScatt > 0) then
         call rttov_alloc_ad(                   &
@@ -6174,7 +6176,7 @@ contains
         if (allocStatus /= 0) call utl_abort('tvs_rttov_ad: memory deallocation error 2 in rttov_alloc_ad')
         deallocate(surfem1Scatt)
         deallocate(frequencies)
-      end if
+      end if !if (btCountScatt > 0)
 
       !   2.0  Store adjoints in columnData object
       tt_ad(:,:) = 0.d0
@@ -6546,7 +6548,7 @@ contains
             emissivity_k=emissivity_k)
         if (allocStatus /= 0) call utl_abort('tvs_rttov_k: memory deallocation error in rttov_alloc_k')
         deallocate(surfem1)
-      end if
+      end if  !if (btCount > 0)
       
       if (btCountScatt > 0) then
         call utl_abort("tvs_rttov_k: jacobians not (yet) available when rttov_scatt is used !")
