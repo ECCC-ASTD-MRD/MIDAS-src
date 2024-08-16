@@ -166,8 +166,8 @@ module tovs_mod
   integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
-  integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)! Provides Rttov bodyIndex in ObsSpaceData based on btIndex for each sensor
-  integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:,:) ! Provides RttovScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
+  integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
+  integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:,:) ! Provides RTTOVScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
   type(rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
@@ -213,7 +213,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nobtov  ! value of `nobtov`
+    integer, intent(in) :: nobtov  ! value of `nobtov` .i.e number of radiance profiles on the current MPI task
 
     tvs_nobtov = nobtov
 
@@ -242,7 +242,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: maxChannelNumber
+    integer, intent(in) :: maxChannelNumber  ! maximum number of channels for all sensors 
 
     allocate(tvs_emissivity(maxChannelNumber,tvs_nobtov))
 
@@ -253,21 +253,21 @@ contains
   !--------------------------------------------------------------------------
   subroutine validateRttovVariable(value, variableName, obsSpaceData, headerIndex, minimum_opt, maximum_opt) 
     !
-    ! :Purpose:  check variable for validity for RTTOV-13, 
+    ! :Purpose:  check variable validity for RTTOV, 
     !            if invalid replace by acceptable value and reject
     !
     implicit none
 
     ! Arguments:
-    real(8),           intent(inout) :: value           ! Value of the RTTOV input variable to check for validity
+    real(8),           intent(inout) :: value           ! value of the RTTOV input variable to check for validity
     character(len=*),  intent(in)    :: variableName    ! Name of the checked variable for output in listings
     type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData object
-    integer,           intent(in)    :: headerIndex     ! Index of the observation in obsSpaceData header table 
+    integer,           intent(in)    :: headerIndex     ! observation index in obsSpaceData header table 
     real(8), optional, intent(in)    :: minimum_opt     ! Minimum acceptable value
     real(8), optional, intent(in)    :: maximum_opt     ! Maximum acceptable value
 
     ! Locals:
-    real(8)                         :: minimum, maximum
+    real(8)                          :: minimum, maximum
 
     if (present(minimum_opt)) then
       minimum = minimum_opt
@@ -298,7 +298,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine validateRttovProfile(profile, profileName, minimum, maximum, obsSpaceData, headerIndex) 
     !
-    ! :Purpose:  check profile for validity for RTTOV-13, 
+    ! :Purpose:  check profile validity for RTTOV, 
     !            if invalid replace by acceptable value(s) and reject
     !
     implicit none
@@ -308,8 +308,8 @@ contains
     character(len=*), intent(in)    :: profileName   ! Name of the checked profile for output in listings
     real(8),          intent(in)    :: minimum       ! Minimum acceptable value
     real(8),          intent(in)    :: maximum       ! Maximum acceptable value
-    type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData object
-    integer,          intent(in)    :: headerIndex   ! Index of the observation in obsSpaceData header table
+    type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData structure
+    integer,          intent(in)    :: headerIndex   ! observation index in obsSpaceData header table
 
     ! Locals:
     logical                         :: ltest(size(profile))
@@ -344,8 +344,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
-    integer,          intent(in)    :: headerIndex  ! Index of the observation in obsSpaceData header table
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData structure
+    integer,          intent(in)    :: headerIndex  ! observation index in obsSpaceData header table
 
     ! Locals:
     integer :: bodyIndex
@@ -368,7 +368,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData structure
     
     ! Locals:
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
@@ -752,9 +752,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_profile),       pointer,           intent(inout) :: profiles(:)
-    character(len=*),                             intent(in)    :: profileType
-    type(rttov_profile_cloud), pointer, optional, intent(inout) :: cld_profiles_opt(:)
+    type(rttov_profile),       pointer,           intent(inout) :: profiles(:)         ! pointer to profile structures
+    character(len=*),                             intent(in)    :: profileType         ! profile type ('nl' or 'tlad')
+    type(rttov_profile_cloud), pointer, optional, intent(inout) :: cld_profiles_opt(:) ! Do we also need cloud profiles (for all sky assimilation) ?
 
     select case( trim( profileType) )
       case('nl')
@@ -772,7 +772,7 @@ contains
   !--------------------------------------------------------------------------
   ! tvs_allocTransmission
   !--------------------------------------------------------------------------
-  subroutine tvs_allocTransmission(nlevels)
+  subroutine tvs_allocTransmission(nlv_T)
     !
     ! :Purpose: Allocate the global rttov transmission structure used
     !           when this is needed for some purpose (e.g. used in 
@@ -782,20 +782,20 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: nlevels 
+    integer, intent(in) :: nlv_T ! number of model thermodynamical vertical levels
 
     ! Locals:
-    integer :: jo, isens, nc
+    integer :: obsIndex, sensorIndex, nchannels
 
     if (allocated(tvs_transmission)) deallocate(tvs_transmission)
     allocate(tvs_transmission(tvs_nobtov))
 
-    do jo = 1, tvs_nobtov
-      isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
+    do obsIndex = 1, tvs_nobtov
+      sensorIndex = tvs_lsensor(obsIndex)
+      nchannels = tvs_nchan(sensorIndex)
       ! allocate transmittance from surface and from pressure levels
-      allocate(tvs_transmission(jo) % tau_total(nc))
-      allocate(tvs_transmission(jo) % tau_levels(nlevels,nc))
+      allocate(tvs_transmission(obsIndex) % tau_total(nchannels))
+      allocate(tvs_transmission(obsIndex) % tau_levels(nlv_T,nchannels))
     end do
 
   end subroutine tvs_allocTransmission
@@ -805,7 +805,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_setup
     !
-    ! :Purpose: to read namelist NAMTOV, initialize the observation error covariance and setup RTTOV-12.
+    ! :Purpose: to read namelist NAMTOV, initialize the observation error covariance and setup RTTOV.
     !
     implicit none
 
@@ -1043,7 +1043,7 @@ contains
 
     ! Locals:
     integer :: allocStatus
-    integer :: sensorIndex,obsIndex,nl
+    integer :: sensorIndex,obsIndex,nlv_T
 
     write(*,*) 'tvs_cleanup: Starting'
 
@@ -1058,12 +1058,12 @@ contains
       deallocate(tvs_radiance)
       do obsIndex = 1, tvs_nobtov
         sensorIndex = tvs_lsensor(obsIndex)
-        nl = tvs_coefs(sensorIndex) % coef % nlevels
+        nlv_T = tvs_coefs(sensorIndex) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(obsIndex),nl, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(obsIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
             tvs_opts(sensorIndex), asw=0,coefs=tvs_coefs(sensorIndex), init=.false. ) ! asw =0 deallocation
         if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_nl')
-        call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(obsIndex),nl, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(obsIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(sensorIndex),asw=0,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =0 deallocation
         if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_tlad')
       end do
@@ -1103,7 +1103,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_deallocateProfilesNlTlAd
     !
-    ! :Purpose: release memory used by RTTOV-12.
+    ! :Purpose: release memory used by RTTOV.
     !
     implicit none
 
@@ -1123,11 +1123,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine sensors
     !
-    !:Purpose: Initialisation of the RTTOV-10 platform, satellite
+    !:Purpose: Initialisation of the RTTOV platform, satellite
     !          and instrument ID's. Also set burp to RTTOV channel
     !          mapping offset.
     !          To verify and transfom the sensor information contained in the
-    !          NAMTOV namelist into the variables required by RTTTOV-7:
+    !          NAMTOV namelist into the variables required by RTTTOV:
     !          platform, satellite and instrument ID's.
     !
     implicit none
@@ -1146,7 +1146,7 @@ contains
     integer          :: listoffset(0:ninst-1)  ! Corresponding list of channel offset values
     namelist /NAMCHANOFFSET/ listoffset, listinstrum
 
-    !  1.0 Go through sensors and set RTTOV-10 variables
+    !  1.0 Go through sensors and set RTTOV variables
 
     do sensorIndex=1, tvs_nsensors
       tvs_platforms  (sensorIndex) = -1
@@ -1180,7 +1180,7 @@ contains
     !  1.1 Set platforms and satellites
 
     ! N.B.: Special cases for satellites TERRA and AQUA.
-    !       For consistency with the RTTOV-10 nomenclature, rename:
+    !       For consistency with the RTTOV nomenclature, rename:
     !       TERRA  to  eos1
     !       AQUA   to  eos2
     !       NPP    to  jpss0
@@ -1232,7 +1232,7 @@ contains
     !   1.2 Set instruments,
     !     also set channel offset, which is in fact a channel mapping between
     !     the channel number in BURP files and the channel number used in
-    !     RTTOV-10.
+    !     RTTOV.
 
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instrumentName(sensorIndex)(1:10) == 'GOESIMAGER') then !cas particulier
@@ -1254,11 +1254,11 @@ contains
       tvs_channelOffset(sensorIndex) = ioffset1b(tvs_instruments(sensorIndex))
     end do
 
-    !    1.3 Print the RTTOV-12 related variables
+    !    1.3 Print the RTTOV related variables
 
     if (mmpi_myid == 0) then
       write(*,*)
-      write(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV-12:'
+      write(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV:'
       write(*,'(3X,A)') '  ----------------------------------------'
       write(*,*)
       write(*,'(6X,A,I3)')   'Number of sensors       : ', tvs_nsensors
@@ -1282,8 +1282,8 @@ contains
     implicit none
 
     ! Argument:
-    integer, intent(out) :: idatypListSize
-    integer, intent(out) :: idatypList(:)
+    integer, intent(out) :: idatypListSize ! number of BUFR codtyp in the list
+    integer, intent(out) :: idatypList(:)  ! list of radiance BUFR codtyp
     
     ! Locals:
     logical, save :: first=.true.
@@ -1295,9 +1295,9 @@ contains
     character(len=22) :: inst_names(ninst) ! List of instrument names for all radiance types
     namelist /namtovsinst/ inst_names
 
+    idatypList(:) = MPC_missingValue_int
     if (tvs_nsensors == 0) then
       ! no tovs data will be read, therefore false
-      idatypList(:) = MPC_missingValue_int
       idatypListSize = 0      
       return
     end if
@@ -1330,7 +1330,6 @@ contains
       first = .false.
     end if
 
-    idatypList(:) = MPC_missingValue_int
     idatypList(1:ninst_tovs) = list_inst(1:ninst_tovs)
     idatypListSize = ninst_tovs
 
@@ -1347,7 +1346,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: idatyp
+    integer, intent(in) :: idatyp  ! BUFR codtyp
     
     ! Locals:
     logical, save :: first=.true.
@@ -1415,7 +1414,7 @@ contains
     implicit none
 
     ! Argument:
-    integer, intent(in) :: idatyp
+    integer, intent(in) :: idatyp ! BUFR codtyp
     
     ! Locals:
     logical, save :: first=.true.
@@ -1482,7 +1481,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: idburp ! Input codtyp
+    integer,          intent(in) :: idburp ! Input BURP codtyp
     character(len=*), intent(in) :: cinst  ! Input instrument name
 
     if (tvs_nsensors == 0) then
@@ -1579,7 +1578,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrum     ! input Rttov instrument code
+    integer, intent(in) :: instrum     ! input RTTOV instrument code
 
     ! Locals:
     integer :: ierr, instrumentIndex 
@@ -1632,7 +1631,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_isNameHyperSpectral
   !--------------------------------------------------------------------------
-  logical function tvs_isNameHyperSpectral(cinstrum)
+  logical function tvs_isNameHyperSpectral(instrumentName)
     !
     ! :Purpose: given an instrument name
     !           returns if it is an hyperspectral one
@@ -1641,7 +1640,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: cinstrum
+    character(len=*), intent(in) :: instrumentName ! Instrument name
 
     !Locals:
     integer :: ierr, i 
@@ -1675,7 +1674,7 @@ contains
 
     tvs_isNameHyperSpectral = .false.
 
-    call up2low(cinstrum, name2)
+    call up2low(instrumentName, name2)
 
     do i=1, ninst_hir
       if ( trim(name2) == name_inst(i)) then
@@ -1697,7 +1696,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrum ! input Rttov instrument code
+    integer, intent(in) :: instrum ! input RTTOV instrument code
 
     ! Locals:
     integer :: ierr, instrumentIndex 
@@ -1757,7 +1756,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
     ! Result:
     logical             :: idExist
 
@@ -1784,7 +1783,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
     ! Result:
     logical             :: idExist
 
@@ -1802,7 +1801,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
     ! Result:
     integer             :: hydrometeorsIndex
 
@@ -1829,7 +1828,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
     ! Result:
     logical             :: allskyTtAssim
 
@@ -1847,7 +1846,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
     ! Result:
     logical             :: allskyHuAssim
 
@@ -1860,10 +1859,10 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_mapInstrum(instrumburp,instrum)
     !
-    ! :Purpose:  Map burp satellite instrument (element #2019) to RTTOV-7 instrument.
+    ! :Purpose:  Map BUFR satellite instrument (element #2019) to RTTOV instrument.
     !            A negative value is returned, if no match in found.
     !
-    ! :Table of  RTTOV-7 instrument identifier:
+    ! :Table of  RTTOV instrument identifier:
     !
     ! ==================  =====================  ==================
     ! Instrument          Instrument identifier  Sensor type
@@ -1897,12 +1896,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: instrumburp  ! burp satellite instrument (element #2019)
-    integer, intent(out) :: instrum      ! RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+    integer, intent(in)  :: instrumburp  ! BUFR satellite instrument (element #2019)
+    integer, intent(out) :: instrum      ! RTTOV instrument ID numbers (e.g. 3 for  AMSUA)
   
     ! Locals:  
     integer instrumentIndex, numinstburp
-    integer, parameter :: mxinstrumburp   = 100
+    integer, parameter :: mxinstrumburp = 100
     logical, save :: first = .true.
     integer :: ier
 
@@ -1962,7 +1961,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_isNameGeostationary
   !--------------------------------------------------------------------------
-  logical function tvs_isNameGeostationary(cinstrum)
+  logical function tvs_isNameGeostationary(instrumentName)
     !
     ! :Purpose: given an instrument name following BUFR convention
     !           returns if it is a Geostationnary Imager
@@ -1971,7 +1970,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: cinstrum
+    character(len=*), intent(in) :: instrumentName ! Instrument name
 
     !Locals:
     integer :: ierr, i 
@@ -2007,7 +2006,7 @@ contains
     
     tvs_isNameGeostationary = .false.
     do i=1, ninst_geo
-      if ( trim(cinstrum) == trim(name_inst(i)) ) then
+      if ( trim(instrumentName) == trim(name_inst(i)) ) then
         tvs_isNameGeostationary= .true.
         exit
       end if
@@ -2020,15 +2019,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_mapSat(isatBURP,iplatform,isat)
     !
-    ! :Purpose:  Map burp satellite identifier (element #1007)
-    !            to RTTOV-7 platform and satellite.
+    ! :Purpose:  Map BUFR satellite identifier (element #1007)
+    !            to RTTOV platform and satellite.
     !            Negative values are returned, if no match in found.
     !
-    ! :Table of  RTTOV-7 platform identifier:
+    ! :Table of  RTTOV platform identifier:
     !
-    ! ========          ===========================
-    ! Platform          RTTOV-7 platform identifier
-    ! ========          ===========================
+    ! ========          =========================
+    ! Platform          RTTOV platform identifier
+    ! ========          =========================
     !     NOAA               1
     !     DMSP               2
     ! METEOSAT               3
@@ -2049,22 +2048,22 @@ contains
     ! ========          ===========================
     !
     ! :Example: 
-    !          NOAA15, which has a burp satellite identifier value of 206,
+    !          NOAA15, which has a BUFR satellite identifier value of 206,
     !          is mapped into the following:
-    !          RTTOV-7 platform  =  1,
-    !          RTTOV-7 satellite = 15.
+    !          RTTOV platform  =  1,
+    !          RTTOV satellite = 15.
     !
     ! :Arguments:
-    !     :isatBURP: BURP satellite identifier
-    !     :iplatform: RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
-    !     :isat: RTTOV-7 satellite ID numbers (e.g. 15)
+    !     :isatBURP: BUFR satellite identifier
+    !     :iplatform: RTTOV platform ID numbers (e.g. 1 for  NOAA)
+    !     :isat: RTTOV satellite ID numbers (e.g. 15)
     !
     implicit none
     
     ! Arguments:
-    integer, intent(in)  :: isatburp   ! BURP satellite identifier
-    integer, intent(out) :: iplatform  ! RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
-    integer, intent(out) :: isat       ! RTTOV-7 satellite ID numbers (e.g. 15)
+    integer, intent(in)  :: isatburp   ! BUFR satellite identifier
+    integer, intent(out) :: iplatform  ! RTTOV platform ID numbers (e.g. 1 for  NOAA)
+    integer, intent(out) :: isat       ! RTTOV satellite ID numbers (e.g. 15)
 
     ! Locals:
     integer           :: satelliteIndex, ierr
@@ -2138,13 +2137,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer,              intent(in)  :: sensorTovsIndexes(:)
-    type(struct_obs),     intent(in)  :: obsSpaceData
-    type(rttov_chanprof), intent(out) :: chanprof(:)
-    logical,    optional, intent(out) :: lchannel_subset_opt(:,:)
-    integer,    optional, intent(out) :: iptobs_cma_opt(:)
-    integer,    optional, intent(in)  :: channelList_opt(:)
-    logical,    optional, intent(in)  :: excludeChannelsFromList_opt
+    integer,              intent(in)  :: sensorTovsIndexes(:)       ! indexes of radiance observations for the currently processed sensor
+    type(struct_obs),     intent(in)  :: obsSpaceData               ! obsSpaceData structure
+    type(rttov_chanprof), intent(out) :: chanprof(:)                ! chanprof RTTOV structure
+    logical,    optional, intent(out) :: lchannel_subset_opt(:,:)   ! logical array for channel selection by profile for RttovScatt
+    integer,    optional, intent(out) :: iptobs_cma_opt(:)          ! list of observation locations in obsSpace Data body table 
+    integer,    optional, intent(in)  :: channelList_opt(:)         ! list of channel to select or exclude
+    logical,    optional, intent(in)  :: excludeChannelsFromList_opt! .true. to exclude channels from list; .false. to select them  
 
     ! Locals:
     integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
@@ -2208,7 +2207,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:) ! pointer to radiance observations in obsSpaceData header
+    integer,           intent(in)    :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
     type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
     
     ! Locals:
@@ -2240,7 +2239,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:) ! pointer to radiance observations in obsSpaceData header
+    integer,           intent(in)    :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
     type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
     integer,           intent(in)    :: scattChannelList(:)  ! list of channel numbers to process using RttovScatt
     integer,           intent(in)    :: sensorIndex          ! sensor index in NAMTOV namelist section
@@ -2281,8 +2280,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in) :: headerIndex
-    type(struct_obs), intent(in) :: obsSpaceData
+    integer,          intent(in) :: headerIndex  ! observation index in obsSpaceData header table
+    type(struct_obs), intent(in) :: obsSpaceData ! obsSpaceData structure
     
     ! Locals:
     integer :: terrainType
@@ -2309,9 +2308,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: sensorTovsIndexes(:)
-    type(struct_obs), intent(in)  :: obsSpaceData
-    real(8),          intent(out) :: surfem(:)
+    integer,          intent(in)  :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    type(struct_obs), intent(in)  :: obsSpaceData         ! obsSpaceData structure
+    real(8),          intent(out) :: surfem(:)            ! surface emissivity
 
     ! Locals:
     integer :: count, profileIndex, iobs, istart, iend, bodyIndex, headerIndex
@@ -2345,12 +2344,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof), intent(in)  :: chanprof(:)
-    integer,              intent(in)  :: sensorTovsIndexes(:)
-    integer,              intent(in)  :: sensorType
-    integer,              intent(in)  :: instrument
-    real(8),              intent(out) :: surfem(:)
-    logical,              intent(out) :: calcemis(:)
+    type(rttov_chanprof), intent(in)  :: chanprof(:)         ! chanprof RTTOV structure
+    integer,              intent(in)  :: sensorTovsIndexes(:)! indexes of radiance observations for the currently processed sensor
+    integer,              intent(in)  :: sensorType          ! RTTOV sensor type
+    integer,              intent(in)  :: instrument          ! RTTOV instrument code
+    real(8),              intent(out) :: surfem(:)           ! surface emissivity
+    logical,              intent(out) :: calcemis(:)         ! flag to request emissivity computation by RTTOV
     
     ! Locals:
     integer :: radiance_index, profileIndex, iobs, surfaceType
@@ -2392,11 +2391,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in)    :: columnTrl    ! Column structure
+    type(struct_columnData), intent(in)    :: columnTrl    ! trial field column structure
     type(struct_obs),        intent(inout) :: obsSpaceData ! obsSpaceData structure
     integer,                 intent(in)    :: datestamp    ! CMC date stamp
-    character(len=*),        intent(in)    :: profileType
-    logical,                 intent(in)    :: beSilent     ! To control verbosity
+    character(len=*),        intent(in)    :: profileType  ! profile type (could be 'nl' or 'tlad')
+    logical,                 intent(in)    :: beSilent     ! verbosity flag
 
     ! Locals:
     integer :: instrum, iplatform
@@ -2866,7 +2865,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData     ! obsSpaceData structure
-    integer,          intent(in) :: headerIndex      ! location in header
+    integer,          intent(in) :: headerIndex      ! observation index in obsSpaceData header table
     ! Result:
     real(8)                      :: correctedAzimuth ! corrected azimuth (function result)
 
@@ -2907,7 +2906,7 @@ contains
     ! Arguments:
     type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical,           intent(in)    :: beSilent        ! flag to control verbosity
+    logical,           intent(in)    :: beSilent        ! verbosity flag
 
     ! Locals:
     integer :: nlv_T
@@ -3467,11 +3466,11 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),                 intent(in)  :: originalEmissivity(:)
-    type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)
-    integer,                 intent(in)  :: sensorIndex
-    type(rttov_chanprof),    intent(in)  :: chanprof(:)
-    integer,                 intent(in)  :: sensorTovsIndexes(:)
+    real(8),                 intent(in)  :: originalEmissivity(:) ! initial emissivity (typically 0.75 over land)
+    type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)  ! emissivity from atlas where possible
+    integer,                 intent(in)  :: sensorIndex           ! sensor Index 
+    type(rttov_chanprof),    intent(in)  :: chanprof(:)           ! chanprof RTTOV structure
+    integer,                 intent(in)  :: sensorTovsIndexes(:)  ! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
     integer :: returnCode
@@ -3546,10 +3545,10 @@ contains
 
     ! Arguments:
     real(8), intent(out) :: emiss(nchn,np) ! emissivities (0.-1.)
-    real(8), intent(in)  :: wind(np) ! wind: surface wind speed (m/s)
-    real(8), intent(in)  :: angle(np) ! angle: viewing angle (deg)
-    integer, intent(in)  :: nchn ! number of channels to process
-    integer, intent(in)  :: np     !number of locations
+    real(8), intent(in)  :: wind(np)       ! surface wind speed (m/s)
+    real(8), intent(in)  :: angle(np)      ! viewing angle (deg)
+    integer, intent(in)  :: nchn           ! number of channels to process
+    integer, intent(in)  :: np             ! number of locations
     integer, intent(in)  :: mchannel(nchn) ! vector of channel indices to process
 
     ! Locals:
@@ -3778,7 +3777,7 @@ contains
     integer, intent(in)  :: sensorindex            ! Sensor number
     integer, intent(in)  :: nprf                   ! Number of profiles
     integer, intent(in)  :: nchannels_max          ! Total number of observations treated
-    integer, intent(in)  :: sensorTovsIndexes( nprf )         ! Profile position number
+    integer, intent(in)  :: sensorTovsIndexes(nprf)! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
     integer :: jc,jn
@@ -3864,12 +3863,12 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: ilat(nprf)   ! y-coordinate of profile
-    integer, intent(out) :: ilon(nprf)   ! x-coordinate of profile 
-    integer, intent(in)  :: nprf         ! number of profiles
-    real(8), intent(in)  :: latitudes(nprf)   ! latitude (-90s to 90n)
-    real(8), intent(in)  :: longitudes(nprf)   ! longitude (0 to 360)
-    integer, intent(in)  :: sensorTovsIndexes(nprf) ! observation index
+    integer, intent(out) :: ilat(nprf)              ! y-coordinate of profile
+    integer, intent(out) :: ilon(nprf)              ! x-coordinate of profile 
+    integer, intent(in)  :: nprf                    ! number of profiles
+    real(8), intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
+    real(8), intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
+    integer, intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
     character(len=20)  :: cfile3,cfile5
@@ -4351,16 +4350,16 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getCommonChannelSet
   !--------------------------------------------------------------------------
-  subroutine tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
+  subroutine tvs_getCommonChannelSet(channels, countUniqueChannel, listAll)
     !
     !:Purpose: get common channels among all MPI tasks
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: channels(:)
-    integer, intent(out) :: countUniqueChannel
-    integer, intent(out) :: listAll(:)
+    integer, intent(in)  :: channels(:)        ! input channel list
+    integer, intent(out) :: countUniqueChannel ! number of unique channels
+    integer, intent(out) :: listAll(:)         ! output list of unque channels
 
     ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
@@ -4618,10 +4617,10 @@ contains
     implicit none
     
     ! Arguments:
-    integer,      intent(in) :: sensorTovsIndexes(:)
-    integer,      intent(in) :: nlv_T
-    character(*), intent(in) :: mode         ! save or restore
-    logical,      intent(in) :: beSilent     ! flag to control verbosity
+    integer,      intent(in) :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    integer,      intent(in) :: nlv_T                ! number of model vertical thermodynamical levels
+    character(*), intent(in) :: mode                 ! save or restore
+    logical,      intent(in) :: beSilent             ! flag to control verbosity
 
     ! Locals:
     integer :: profileIndex, profileCount
@@ -4663,10 +4662,10 @@ contains
     implicit none
     
     ! Arguments:
-    integer,      intent(in) :: sensorTovsIndexes(:)
-    integer,      intent(in) :: nlv_T
-    character(*), intent(in) :: mode         ! save or restore
-    logical,      intent(in) :: beSilent     ! flag to control verbosity
+    integer,      intent(in) :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    integer,      intent(in) :: nlv_T                ! number of model vertical thermodynamical levels   
+    character(*), intent(in) :: mode                 ! save or restore
+    logical,      intent(in) :: beSilent             ! flag to control verbosity
 
     ! Locals:
     integer :: profileIndex, profileCount
@@ -4739,11 +4738,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer,          intent(in)  :: headerIndex
-    integer,          intent(in)  :: bodyIndex
-    integer,          intent(out) :: channelNumber
-    integer,          intent(out) :: channelIndex
+    type(struct_obs), intent(in)  :: obsSpaceData  ! obsSpaceData structure
+    integer,          intent(in)  :: headerIndex   ! observation index in obsSpaceData header table
+    integer,          intent(in)  :: bodyIndex     ! observation index in obsSpaceData body table
+    integer,          intent(out) :: channelNumber ! channel number
+    integer,          intent(out) :: channelIndex  ! channel index in tvs_ichan
 
     ! Locals:
     integer :: tovsIndex, sensorIndex
@@ -4773,12 +4772,12 @@ contains
     type(rttov_emissivity), pointer, intent(in)    :: jacobian_emiss(:)        ! Surface Emissivity Jacobian
     integer,                         intent(in)    :: bodyIndexFromBtIndex(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
     integer,                         intent(in)    :: btCount                  ! Total number of simulated radiances
-    type(struct_obs),                intent(in)    :: obsSpaceData             ! ObsSpaceData Object
+    type(struct_obs),                intent(in)    :: obsSpaceData             ! ObsSpaceData structure
     character(len=15),               intent(in)    :: satelliteName            ! Satellite Name
     character(len=15),               intent(in)    :: instrumentName           ! Instrument Name
     type (rttov_profile), pointer,   intent(in)    :: profiles(:)              ! Input profiles from background state
     type (rttov_chanprof),           intent(in)    :: chanprof(:)              ! Chanprof structure    
-    integer,                         intent(in)    :: sensorTovsIndexes(:)     ! Sensor Tovs indexes
+    integer,                         intent(in)    :: sensorTovsIndexes(:)     ! indexes of radiance observations for the currently processed sensor
    
     ! Locals:
     character(len=4)               :: cmyidx, cmyidy, strNumLev
@@ -5181,14 +5180,14 @@ contains
     ! Arguments:
     logical,              intent(in)     :: runObsOperatorWithHydrometeors ! flag to control rttovScatt use in linearized RTTOV
     integer,              intent(in)     :: sensorIndex                    ! sensor Index in NAMTOV namelist section
-    integer,              intent(out)    :: btCount                        ! number of BTs simulated using Rttov
+    integer,              intent(out)    :: btCount                        ! number of BTs simulated using RTTOV
     integer,              intent(out)    :: btCountScatt                   ! number of BTs simulated using RttovScatt
     integer,              intent(out)    :: hydroChannelsCount             ! number of channels simulated using RttovScatt
     integer,              intent(out)    :: profileCount                   ! number of profiles for the current sensor
-    integer,              intent(out)    :: sensorTovsIndexes(:)           ! 
+    integer,              intent(out)    :: sensorTovsIndexes(:)           ! indexes of radiance observations for the currently processed sensor
     logical, allocatable, intent(out)    :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
     type(struct_obs),     intent(inout)  :: obsSpaceData                   ! obsSpaceData structure
-    logical, optional,    intent(in)     :: irBgckMode_opt                 ! irBgckMode_opt
+    logical, optional,    intent(in)     :: irBgckMode_opt                 ! background check mode option
 
     ! Locals:
     integer :: tovsIndex, hydroSensorIndex, channelIndex, irBgckMode
@@ -5824,9 +5823,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout)    :: columnAnlInc
-    type(struct_columnData), intent(in)       :: columnTrlOnAnlIncLev
-    type(struct_obs),        intent(inout)    :: obsSpaceData
+    type(struct_columnData), intent(inout)    :: columnAnlInc         ! column structure for pertubation profile 
+    type(struct_columnData), intent(in)       :: columnTrlOnAnlIncLev ! column structure for background profile
+    type(struct_obs),        intent(inout)    :: obsSpaceData         ! obsSpaceData structure
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
