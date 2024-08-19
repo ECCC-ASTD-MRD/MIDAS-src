@@ -380,8 +380,8 @@ contains
     integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
     integer :: tovsIndex, sensorIndex
-    integer :: numHeaderPerTovsSensorBeforeThin(tvs_nsensors), numHeaderPerTovsSensorAfterThin(tvs_nsensors)
-    integer :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(tvs_nsensors), numHeaderPerTovsSensorAfterThin_mpiGlobal(tvs_nsensors)
+    integer, allocatable :: numHeaderPerTovsSensorBeforeThin(:,:), numHeaderPerTovsSensorAfterThin(:,:)
+    integer, allocatable :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:), numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:)
 
 
     ! box size that is used for observation thinning 
@@ -430,10 +430,15 @@ contains
 
     nrep_count = 0
     nobs_count = 0
-    numHeaderPerTovsSensorBeforeThin = 0
-    numHeaderPerTovsSensorBeforeThin_mpiGlobal = 0
-    numHeaderPerTovsSensorAfterThin = 0
-    numHeaderPerTovsSensorAfterThin_mpiGlobal = 0
+
+    allocate(numHeaderPerTovsSensorBeforeThin(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsSensorBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsSensorAfterThin(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsSensorAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
+    numHeaderPerTovsSensorBeforeThin(:,:) = 0
+    numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:) = 0
+    numHeaderPerTovsSensorAfterThin(:,:) = 0
+    numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:) = 0
 
     allocate(nstation(nblocksum, npres))
     allocate(keep_ai(nblocksum, npres))
@@ -497,7 +502,7 @@ contains
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
           tovsIndex = tvs_tovsIndex(headerIndex)
           sensorIndex = tvs_lsensor(tovsIndex)
-          numHeaderPerTovsSensorBeforeThin(sensorIndex) = numHeaderPerTovsSensorBeforeThin(sensorIndex) + 1
+          numHeaderPerTovsSensorBeforeThin(iblock,sensorIndex) = numHeaderPerTovsSensorBeforeThin(iblock,sensorIndex) + 1
         end if
 
       end if
@@ -514,10 +519,10 @@ contains
                             'mpi_integer','mpi_sum', 'GRID', ierr)
 
     if (cfam=='TO') then
-      do sensorIndex = 1, tvs_nsensors
-        call rpn_comm_allreduce(numHeaderPerTovsSensorBeforeThin(sensorIndex), numHeaderPerTovsSensorBeforeThin_mpiGlobal(sensorIndex), 1, &
-                                "mpi_integer", "mpi_sum", "grid", ierr)
-      end do
+      nsize = nblocksum * tvs_nsensors
+      
+      call rpn_comm_allreduce(numHeaderPerTovsSensorBeforeThin, numHeaderPerTovsSensorBeforeThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
     end if
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
@@ -530,7 +535,7 @@ contains
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
-                    numHeaderPerTovsSensorBeforeThin(sensorIndex), numHeaderPerTovsSensorBeforeThin_mpiGlobal(sensorIndex)
+                    sum(numHeaderPerTovsSensorBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex))
       end do
     end if
 
@@ -577,7 +582,7 @@ contains
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
           tovsIndex = tvs_tovsIndex(headerIndex)
           sensorIndex = tvs_lsensor(tovsIndex)
-          numHeaderPerTovsSensorAfterThin(sensorIndex) = numHeaderPerTovsSensorAfterThin(sensorIndex) + 1
+          numHeaderPerTovsSensorAfterThin(iblock,sensorIndex) = numHeaderPerTovsSensorAfterThin(iblock,sensorIndex) + 1
         end if
       else
         ! reject the profile
@@ -599,10 +604,10 @@ contains
                             'mpi_integer','mpi_sum', 'GRID', ierr)
     
     if (cfam=='TO') then
-      do sensorIndex = 1, tvs_nsensors
-        call rpn_comm_allreduce(numHeaderPerTovsSensorAfterThin(sensorIndex), numHeaderPerTovsSensorAfterThin_mpiGlobal(sensorIndex), 1, &
-                                "mpi_integer", "mpi_sum", "grid", ierr)
-      end do
+      nsize = nblocksum * tvs_nsensors
+
+      call rpn_comm_allreduce(numHeaderPerTovsSensorAfterThin, numHeaderPerTovsSensorAfterThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
     end if
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
          nrep_count_thin, nrep_count_thin_mpiGlobal
@@ -613,7 +618,7 @@ contains
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
-                    numHeaderPerTovsSensorAfterThin(sensorIndex), numHeaderPerTovsSensorAfterThin_mpiGlobal(sensorIndex)
+                    sum(numHeaderPerTovsSensorAfterThin(:,sensorIndex)), sum(numHeaderPerTovsSensorAfterThin_mpiGlobal(:,sensorIndex))
       end do
     end if
 
@@ -627,6 +632,11 @@ contains
     deallocate(nstationMpiGlobal)
     deallocate(keep_ai)
     deallocate(ai_indices)
+
+    deallocate(numHeaderPerTovsSensorBeforeThin)
+    deallocate(numHeaderPerTovsSensorBeforeThin_mpiGlobal)
+    deallocate(numHeaderPerTovsSensorAfterThin)
+    deallocate(numHeaderPerTovsSensorAfterThin_mpiGlobal)
 
   end subroutine thinning_fam
 
