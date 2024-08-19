@@ -201,7 +201,8 @@ program midas_dfs
   integer, parameter :: nObsMax=10
 
   integer :: nLevelsDfs, levelIndex
-  !Namelist variables:
+  
+  ! Namelist variables:
   character(len=2) :: familyType                 ! familyType to consider (TO, UA, AI, RO, etc... one at a time)
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
   integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
@@ -214,8 +215,8 @@ program midas_dfs
   integer :: dayList(nObsMax)                    ! list of dates (yyyymmdd) to select specific observations
   integer :: timeList(nObsMax)                   ! list of hours (HHMM) to select specific observations
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
-  logical :: computeInParallel                   ! if .true. computation performed in parallel with possible interaction between observations due to horizontal correlation from the B matrix
-                                                 ! if .false. (default) observation processed one at a time without interaction between obs (slow) 
+  logical :: computeInParallel                   ! if .true. computation performed in parallel
+                                                 ! if .false. (default) observation processed one at a time (slow) 
   NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
@@ -270,10 +271,10 @@ program midas_dfs
     if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
   end if
 
-  !longitudes in ObsSpaceData are positives
+  ! Longitudes in ObsSpaceData are positives
   do obsIndex = 1, nObsMax
-     if (lonList(obsindex) == MPC_missingValue_R8) cycle
-     if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
+    if (lonList(obsindex) == MPC_missingValue_R8) cycle
+    if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
   end do
   
   if (mmpi_myid == 0) write(*, nml = NAMDFS)
@@ -528,7 +529,7 @@ contains
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
     
-    !First step count the number of selected observation for each MPI task
+    ! First step count the number of selected observation for each MPI task
     countObs = 0
     countChannel = 0 ! necessary in the case where no obs in the file
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
@@ -666,7 +667,7 @@ contains
           dfsCount = dfsCount + 1
           call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
           
-          !extraction of the R matrix
+          ! Extraction of the R matrix
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
           Rsub(:,:) = MPC_missingValue_R8
           if (familyType == 'TO') then
@@ -682,10 +683,10 @@ contains
             end do
           end if
 
-          !computation of total dfs
+          ! Computation of total dfs
           dfs = computeDfs(HBHtMatrix, Rsub)
          
-          !calculate the selection of channels 
+          ! Calculate the selection of channels 
           if (doChannelSelection) then
             call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
           end if
@@ -713,22 +714,21 @@ contains
           
           if (mmpi_myId == 0) then
             do outTaskIndex = 1, mmpi_nprocs
-              if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
-                write(nulHBHt,'(A)') trim(headerObsForOutput(outTaskIndex))
-                do channelIndex2 = 1, nLevelsDfs
-                  channelNumber2 = vcoordList(channelIndex2)
-                  do channelIndex1 = 1, nLevelsDfs
-                    channelNumber1 = vcoordList(channelIndex1)
-                    write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
+              if (len_trim(headerObsForOutput(outTaskIndex)) == 0) cycle
+              write(nulHBHt,'(A)') trim(headerObsForOutput(outTaskIndex))
+              do channelIndex2 = 1, nLevelsDfs
+                channelNumber2 = vcoordList(channelIndex2)
+                do channelIndex1 = 1, nLevelsDfs
+                  channelNumber1 = vcoordList(channelIndex1)
+                  write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
                         channelNumber2, HBHtMatrixForOutput(channelIndex1,channelIndex2,outTaskIndex)
-                  end do
                 end do
-                write(nulHBHt,*)
-              end if
+              end do
+              write(nulHBHt,*)
             end do
           end if
         
-        end if
+        end if ! if (outputHBHt)
         
         allocate(dfsForOutput(mmpi_nprocs))
         call rpn_comm_gather(dfs, 1, 'mpi_real8', dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
@@ -759,7 +759,7 @@ contains
               end if
             end do
           end if
-        end if
+        end if ! if (doChannelSelection)
         deallocate(headerObsForOutput)
         if (allocated(HBHtMatrixForOutput)) deallocate(HBHtMatrixForOutput)
         if (allocated(all_dfsForOutput)) deallocate(all_dfsForOutput)
@@ -769,7 +769,9 @@ contains
         deallocate(stringIntforOutput)
         if (dfsCount == nDfsMax) exit observationLoop1
       end do observationLoop1
-    else ! if (computeInParallel)
+     
+     else ! if (computeInParallel)
+      
       mpiTaskLoop:do procIndex = 1, mmpi_nprocs
         observationLoop2:do obsIndex = 1, maxCountObsMpi
           headerIndex = headerIndexListMpi(obsIndex,procIndex)
@@ -799,7 +801,7 @@ contains
           if (mmpi_myId == taskIndex) then
             call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
             
-            !extraction of the R matrix
+            ! Extraction of the R matrix
             allocate(Rsub(nLevelsDfs,nLevelsDfs))
             if (familyType == 'TO') then
               sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
@@ -814,10 +816,10 @@ contains
               end do
             end if
 
-            !computation of total dfs
+            ! Computation of total dfs
             dfs = computeDfs(HBHtMatrix, Rsub)
          
-            !calculate the selection of channels 
+            ! Calculate the selection of channels 
             if (doChannelSelection) then
               call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
             end if
@@ -841,6 +843,7 @@ contains
               write(nulHBHt,*)
             end if
           end if
+
           call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
@@ -858,7 +861,8 @@ contains
           if (dfsCount == nDfsMax) exit mpiTaskLoop
         end do observationLoop2
       end do mpiTaskLoop
-    end if
+    end if ! if (computeInParallel)
+
     if (mmpi_myId == 0) then
       if (outputHbHt) then
         ierr = fclos(nulhbht)
@@ -869,12 +873,12 @@ contains
       ierr = fclos(nuldfs)
     end if
 
-    if (computeInParallel) then
-      deallocate(bodyIndexList)
-      deallocate(levelList)
-      deallocate(headerIndexList)
-      deallocate(stdDevList)
-    end if
+    
+    if (allocated(bodyIndexList))  deallocate(bodyIndexList)
+    if (allocated(levelList))  deallocate(levelList)
+    if (allocated(headerIndexList))  deallocate(headerIndexList)
+    if (allocated(stdDevList))  deallocate(stdDevList)
+    
     
     if (allocated(Rsub)) deallocate(Rsub)
     if (allocated(all_dfs)) deallocate(all_dfs)
@@ -897,7 +901,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
     !
-    !:Purpose: apply chain of operators to appy HBHt (input and output in obsSpaceData OBS_WORK)
+    !:Purpose: apply chain of operators to apply HBHt (input and output in obsSpaceData OBS_WORK)
     !
     implicit none
     
@@ -908,9 +912,9 @@ contains
     real(8),                 intent(inout) :: perturbationVector(:) ! Vector of perturbations            
     type(struct_obs),        intent(inout) :: obsSpaceData          ! Observation-related data structure
 
-    !Local variables
+    ! Locals
     integer       :: localDimension
-    logical, save :: first=.true.
+    logical, save :: firstCall=.true.
     
     call msg_memUsage('midas-dfs')
     
@@ -919,8 +923,8 @@ contains
     call oop_Had(columnAnlInc, & !output
         columnTrlOnAnlIncLev,  &
         obsSpaceData,          & !input
-        initializeLinearization_opt=first)
-    first = .false.
+        initializeLinearization_opt=firstCall)
+    firstCall = .false.
     call gsv_zero(stateVector)
     call s2c_ad(stateVector,  & ! output
         columnAnlInc,         & ! input
@@ -960,7 +964,7 @@ contains
     character(len=*), intent(in)    :: familyType   ! Observation family
     character(len=*), intent(out)   :: headerString ! Output header string
 
-    ! local variable
+    ! Locals
     character(len=16) :: headerObs
    
     write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                          &
@@ -1009,7 +1013,7 @@ contains
     ! Result
     real(8)             :: dfs        ! Degrees of freedom for signal
     
-    ! Local variables
+    ! Locals
     integer :: nbLevels, levelIndex
     real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
 
@@ -1121,13 +1125,14 @@ contains
     !:Purpose: is the observation in the list of specifically selected observations ?
     !          if empty list it is always
     !
+    implicit none
 
     ! Arguments
     integer, intent(in) :: headerIndex ! Position in the header of obsSpaceData
     !Result
     logical             :: selected
     
-    ! Local variables
+    ! Locals
     integer            :: obsIndex
     real(8)            :: latitude, longitude, satelliteZenithAngle
     integer            :: date, hour
