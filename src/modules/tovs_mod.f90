@@ -107,12 +107,12 @@ module tovs_mod
   public :: tvs_rttov_tl, tvs_rttov_ad, tvs_rttov_k
   
   type surface_params
-    real(8)              :: albedo   ! surface albedo (0-1)
-    real(8)              :: ice      ! ice cover (0-1)
-    real(8)              :: snow     ! snow cover (0-1)
-    real(8)              :: pcnt_wat ! water percentage in pixel containing profile (0-1)
-    real(8)              :: pcnt_reg ! water percentage in an area around profile (0-1)
-    integer              :: ltype    ! surface type (1,...,20)
+    real(8)   :: albedo   ! surface albedo (0-1)
+    real(8)   :: ice      ! ice cover (0-1)
+    real(8)   :: snow     ! snow cover (0-1)
+    real(8)   :: pcnt_wat ! water percentage in pixel containing profile (0-1)
+    real(8)   :: pcnt_reg ! water percentage in an area around profile (0-1)
+    integer   :: ltype    ! surface type (1,...,20)
   end type surface_params
 
   ! Public module parameters
@@ -317,12 +317,12 @@ contains
     
     ltest(:) = (profile(:) > maximum .or. profile(:) < minimum)
     
-    if ( any(ltest) ) then
+    if (any(ltest)) then
       write(*,*) 'validateRttovProfile: !!! WARNING !!!'
       write(*,*) 'validateRttovProfile: some INVALID ' // trim(profileName)
       write(*,*) 'validateRttovProfile: headerIndex ', headerIndex, " !"
       do levelIndex = 1, size(profile)
-        if ( ltest(levelIndex) ) then
+        if (ltest(levelIndex)) then
           write(*,*) 'validateRttovProfile: ', profile(levelIndex), &
               'should be between ', minimum, ' and ', maximum
           profile(levelIndex) = max(minimum, min(profile(levelIndex), maximum) )
@@ -426,7 +426,7 @@ contains
 
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         call rejectObs(obsSpaceData, headerIndex)
         cycle HEADER   ! Proceed to the next headerIndex
@@ -451,9 +451,9 @@ contains
       !    find sensor number for this obs.
       nosensor = 0
       do sensorIndex = 1, tvs_nsensors
-        if ( iplatform == tvs_platforms  (sensorIndex) .and. &
-             isat      == tvs_satellites (sensorIndex) .and. &
-             instrum   == tvs_instruments(sensorIndex)      ) then
+        if (iplatform == tvs_platforms  (sensorIndex) .and. &
+            isat      == tvs_satellites (sensorIndex) .and. &
+            instrum   == tvs_instruments(sensorIndex)      ) then
           nosensor = sensorIndex
           exit
         end if
@@ -475,16 +475,16 @@ contains
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
         if (nosensor > 0) then
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex )
-            if ( channelIndex == 0 ) then
+            if (channelIndex == 0) then
               tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
               tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
             end if
             
-            if ( tvs_debug .and. mmpi_myid == 0 .and. &
-                 trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
+            if (tvs_debug .and. mmpi_myid == 0 .and. &
+                 trim(tvs_instrumentName(nosensor)) == 'AMSUA') then
               write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
                    tvs_satelliteName(nosensor), channelNumber, channelIndex
             end if
@@ -500,24 +500,24 @@ contains
     tvs_maxNumberOfRadiances = maxval(tvs_nchan(:) * sensorTotalNumberOfProfiles(:))
     deallocate(sensorTotalNumberOfProfiles)
 
-    if ( .not. tvs_userDefinedDoAzimuthCorrection) then 
+    if (.not. tvs_userDefinedDoAzimuthCorrection) then 
       ! tvs_doAzimuthCorrection user defined values will be overwriten by the old default values 
       do sensorIndex = 1, tvs_nsensors
         tvs_doAzimuthCorrection(sensorIndex) = ( tvs_platforms(sensorIndex) /= platform_id_eos .and. &
              ( tvs_instruments(sensorIndex) == inst_id_amsua .or. tvs_instruments(sensorIndex) == inst_id_mhs )  )     
       end do
-      if ( mmpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_doAzimuthCorrection user defined values overwriten by the old default values'
+      if (mmpi_myId == 0) write(*,*) ' tvs_setupAlloc: Warning tvs_doAzimuthCorrection user defined values overwriten by the old default values'
     end if
 
-    if ( .not. tvs_userDefinedIsAzimuthValid ) then 
+    if (.not. tvs_userDefinedIsAzimuthValid) then 
       ! tvs_isAzimuthValid  user defined values will be overwriten by the current default values 
       do sensorIndex = 1, tvs_nsensors
         tvs_isAzimuthValid(sensorIndex) = .not. ( tvs_isInstrumGeostationary(tvs_instruments(sensorIndex)) )
       end do
-      if ( mmpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values'
+      if (mmpi_myId == 0) write(*,*) ' tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values'
     end if
 
-    if ( mmpi_myId == 0 ) then
+    if (mmpi_myId == 0) then
       write(*,*) ' tvs_setupAlloc: platform satellite id tvs_doAzimuthCorrection tvs_isAzimuthValid'
       do sensorIndex = 1, tvs_nsensors
         write(*,'(18x,a,1x,a,1x,i2,1x,L1,10x,L1)') inst_name(tvs_instruments(sensorIndex)), &
@@ -529,7 +529,7 @@ contains
     ! Sort list of channels in ascending order.Also force at least one channel, if none are found.
     do sensorIndex = 1, tvs_nsensors
       call isort(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex))
-      if ( tvs_nchan(sensorIndex) == 0 ) then
+      if (tvs_nchan(sensorIndex) == 0) then
         tvs_isReallyPresent(sensorIndex) = .false.
         tvs_nchan(sensorIndex) = 1
         tvs_ichan(1,sensorIndex) = 1
@@ -545,17 +545,17 @@ contains
     end do
     deallocate(ichanMpiGlobal)
     
-    if (mmpi_myid ==0) then
+    if (mmpi_myid == 0) then
       allocate(logicalBuffer(mmpi_nprocs))
     else
       allocate(logicalBuffer(1))
     end if
     
     do sensorIndex = 1, tvs_nsensors
-      call rpn_comm_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
-      if (mmpi_myid ==0) then
+      call rpn_comm_gather(tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
+      if (mmpi_myid == 0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
-        do taskIndex=1, mmpi_nprocs
+        do taskIndex = 1, mmpi_nprocs
           tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
@@ -564,7 +564,7 @@ contains
     
     deallocate(logicalBuffer)
     
-    if ( tvs_debug .and. mmpi_myid == 0 ) then
+    if (tvs_debug .and. mmpi_myid == 0) then
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)'
         write(*,*) sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)
@@ -578,14 +578,14 @@ contains
 
     !  3. Initialize TOVS radiance transfer model
 
-    if ( radiativeTransferCode == 'RTTOV' ) then
+    if (radiativeTransferCode == 'RTTOV') then
 
       write(*,'(//,10x,A)') '-rttov_setup: initializing the TOVS radiative transfer model'
 
       allocate(tvs_coefs(tvs_nsensors))
       allocate(tvs_listSensors(3,tvs_nsensors))
       allocate(tvs_opts(tvs_nsensors))
-      if (tvs_numMWInstrumUsingHydrometeors  > 0) then
+      if (tvs_numMWInstrumUsingHydrometeors > 0) then
         allocate(tvs_opts_scatt(tvs_nsensors))
         allocate(tvs_coef_scatt(tvs_nsensors))
       end if
@@ -735,7 +735,7 @@ contains
         end if
       end do
 
-    end if !if ( radiativeTransferCode == 'RTTOV' )
+    end if !if (radiativeTransferCode == 'RTTOV')
   
     write(*,*) 'Leaving tvs_setupAlloc'
 
@@ -756,7 +756,7 @@ contains
     character(len=*),                             intent(in)    :: profileType         ! profile type ('nl' or 'tlad')
     type(rttov_profile_cloud), pointer, optional, intent(inout) :: cld_profiles_opt(:) ! Do we also need cloud profiles (for all sky assimilation) ?
 
-    select case( trim( profileType) )
+    select case(trim( profileType))
       case('nl')
         profiles => tvs_profiles_nl
         if (present(cld_profiles_opt)) cld_profiles_opt => tvs_cld_profiles_nl
@@ -850,7 +850,7 @@ contains
     tvs_useSfcEmissObsSpace = .false.
 
     ! return if the NAMTOV does not exist
-    if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
+    if (.not. utl_isNamelistPresent('NAMTOV','./flnml')) then
       write(*,*)
       write(*,*) 'tvs_setup: Namelist block NAMTOV is missing in the namelist.'
       write(*,*) '           Skipping tvs_setup.'
@@ -926,8 +926,8 @@ contains
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     !  1.4 Validate namelist values
     
-    if ( tvs_nsensors == 0 ) then
-      if(mmpi_myid==0) then 
+    if (tvs_nsensors == 0) then
+      if (mmpi_myid == 0) then 
         write(*,*) ' ====================================================='
         write(*,*) ' tvs_setup: Number of sensors is zero, skipping setup'
         write(*,*) ' ====================================================='
@@ -935,19 +935,19 @@ contains
       return
     end if
 
-    if ( radiativeTransferCode /= 'RTTOV' ) then
+    if (radiativeTransferCode /= 'RTTOV') then
       write(*,'(A)') ' Invalid radiation model name'
       call utl_abort('tvs_setup')
     end if
 
-    if ( tvs_nsensors > tvs_maxNumberOfSensors ) then
+    if (tvs_nsensors > tvs_maxNumberOfSensors) then
       write(*,'(A)') ' Number of sensors (tvs_nsensors) is greater than maximum allowed (tvs_maxNumberOfSensors)'
       call utl_abort('tvs_setup')
     end if
 
     !  1.5 Print the content of this NAMELIST
 
-    if(mmpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,'(A)') 
       write(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
       write(*,'(3X,A)') '  ----------------------------------------------------'
@@ -977,8 +977,8 @@ contains
     instrumentIdsUsingCLW(:) = -1
     do instrumentIndex = 1, tvs_nsensors
       instrumentIdsUsingCLW(instrumentIndex) = tvs_getInstrumentId(instrumentNamesUsingCLW(instrumentIndex))
-      if ( instrumentNamesUsingCLW(instrumentIndex) /= '***UNDEFINED***' ) then
-        if ( instrumentIdsUsingCLW(instrumentIndex) == -1 ) then
+      if (instrumentNamesUsingCLW(instrumentIndex) /= '***UNDEFINED***') then
+        if (instrumentIdsUsingCLW(instrumentIndex) == -1) then
           write(*,*) instrumentIndex, instrumentNamesUsingCLW(instrumentIndex)
           call utl_abort('tvs_setup: Unknown instrument name to use CLW')
         end if
@@ -993,8 +993,8 @@ contains
     do instrumentIndex = 1, tvs_nsensors
       instrumentIdsUsingHydrometeors(instrumentIndex) = &
                   tvs_getInstrumentId(instrumentNamesUsingHydrometeors(instrumentIndex))
-      if ( instrumentNamesUsingHydrometeors(instrumentIndex) /= '***UNDEFINED***' ) then
-        if ( instrumentIdsUsingHydrometeors(instrumentIndex) == -1 ) then
+      if (instrumentNamesUsingHydrometeors(instrumentIndex) /= '***UNDEFINED***') then
+        if (instrumentIdsUsingHydrometeors(instrumentIndex) == -1) then
           write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
           call utl_abort('tvs_setup: Unknown instrument name to use hydrometeors')
         end if
@@ -1020,7 +1020,7 @@ contains
     tvs_numMWInstrumUsingCLW = numMWInstrumToUseCLW
     tvs_numMWInstrumUsingHydrometeors = numMWInstrumToUsehydrometeors
 
-    if ( mmpi_myid == 0 ) then
+    if (mmpi_myid == 0) then
       write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
       write(*,*) 'tvs_setup: Number of instruments to use CLW: ', numMWInstrumToUseCLW
 
@@ -1047,7 +1047,7 @@ contains
 
     write(*,*) 'tvs_cleanup: Starting'
 
-    if ( radiativeTransferCode == 'RTTOV' ) then
+    if (radiativeTransferCode == 'RTTOV') then
 
       !___ radiance by profile
 
@@ -1080,7 +1080,7 @@ contains
       deallocate(tvs_coefs)
       deallocate(tvs_listSensors)
       deallocate(tvs_opts)
-    end if ! if ( radiativeTransferCode == 'RTTOV' )
+    end if ! if (radiativeTransferCode == 'RTTOV')
 
     deallocate (tvs_nchan)
     deallocate (tvs_ichan)
@@ -1109,7 +1109,7 @@ contains
 
     write(*,*) 'tvs_deallocateProfilesNlTlAd: Starting'
 
-    if ( radiativeTransferCode == 'RTTOV' ) then
+    if (radiativeTransferCode == 'RTTOV') then
       if (allocated(tvs_profiles_nl))   deallocate(tvs_profiles_nl)
       if (allocated(tvs_profiles_tlad)) deallocate(tvs_profiles_tlad)
     end if
@@ -1137,7 +1137,7 @@ contains
     integer ipos1, ipos2
     integer numerosat, ierr, kindex
     character(len=15) :: tempocsatid
-    logical, save :: first=.true.
+    logical, save :: firstCall=.true.
     integer, save :: ioffset1b(0:ninst-1)
     character(len=15) :: tempo_inst
 
@@ -1155,8 +1155,8 @@ contains
       tvs_channelOffset(sensorIndex) = -1
     end do
 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMCHANOFFSET', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMCHANOFFSET', './flnml')) then
         call utl_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
       end if
       ! read the namelist
@@ -1169,12 +1169,12 @@ contains
         call utl_abort('sensors')
       end if
       do instrumentIndex=0, ninst - 1
-        if ( listinstrum(instrumentIndex) /= 'XXXXXXXX' ) then
+        if (listinstrum(instrumentIndex) /= 'XXXXXXXX') then
           ioffset1b( tvs_getInstrumentId( listinstrum(instrumentIndex) ) )  = listoffset(instrumentIndex)
         end if
       end do
       call utl_tmg_stop(181)
-      first = .false.
+      firstCall = .false.
     end if
 
     !  1.1 Set platforms and satellites
@@ -1188,17 +1188,17 @@ contains
     !       HMWARI    to  himawari
     !       FY-3C    to  FY3-3
     do sensorIndex = 1, tvs_nsensors
-      if    ( tvs_satelliteName(sensorIndex) == 'TERRA' ) then
+      if      (tvs_satelliteName(sensorIndex) == 'TERRA') then
         tempocsatid = 'eos1'
-      else if ( tvs_satelliteName(sensorIndex) == 'AQUA'  ) then
+      else if (tvs_satelliteName(sensorIndex) == 'AQUA') then
         tempocsatid = 'eos2'
-      else if ( tvs_satelliteName(sensorIndex) == 'NPP'  ) then
+      else if (tvs_satelliteName(sensorIndex) == 'NPP') then
         tempocsatid = 'jpss0'
-      else if ( tvs_satelliteName(sensorIndex) == 'JPSS'  ) then
+      else if (tvs_satelliteName(sensorIndex) == 'JPSS') then
         tempocsatid = 'jpss0'
-      else if ( tvs_satelliteName(sensorIndex)(1:6) == 'HMWARI'  ) then
+      else if (tvs_satelliteName(sensorIndex)(1:6) == 'HMWARI') then
         tempocsatid = 'himawari' // trim(tvs_satelliteName(sensorIndex) (7:15))
-      else if ( tvs_satelliteName(sensorIndex) == 'FY-3C'  ) then
+      else if (tvs_satelliteName(sensorIndex) == 'FY-3C') then
         TEMPOCSATID = 'FY3-3'
       else
         call up2low(tvs_satelliteName(sensorIndex),tempocsatid)
@@ -1206,12 +1206,12 @@ contains
       do platformIndex = 1, nplatforms
         ipos1 = len_trim(platform_name(platformIndex))
         ipos2 = index(tempocsatid,platform_name(platformIndex)(1:ipos1))
-        if ( ipos2 == 1 ) then
+        if (ipos2 == 1) then
           tvs_platforms(sensorIndex) = platformIndex
           kindex = platformIndex
         end if
       end do
-      if ( tvs_platforms(sensorIndex) < 0 ) then
+      if (tvs_platforms(sensorIndex) < 0) then
         write(*,'(A)') ' Satellite ' // trim(tempocsatid) // ' not supported.'
         call utl_abort('SENSORS')
       else
@@ -1219,7 +1219,7 @@ contains
         ipos2 = len_trim(tempocsatid)
         read(tempocsatid(ipos1+1:ipos2),*,IOSTAT=ierr) numerosat
         numerosat = abs ( numerosat )
-        if ( ierr /= 0) then
+        if (ierr /= 0) then
           write(*,'(A,1x,i6,1x,i3,1x,i3,1x,A15)') 'Problem while reading satellite number', &
                ierr, ipos1, ipos2, tempocsatid
           call utl_abort('SENSORS')
@@ -1235,19 +1235,19 @@ contains
     !     RTTOV.
 
     do sensorIndex = 1, tvs_nsensors
-      if ( tvs_instrumentName(sensorIndex)(1:10) == 'GOESIMAGER') then !cas particulier
+      if (tvs_instrumentName(sensorIndex)(1:10) == 'GOESIMAGER') then !cas particulier
         tvs_instruments(sensorIndex) = inst_id_goesim
-      else if ( tvs_satelliteName(sensorIndex)(1:5) == 'MTSAT') then !autre cas particulier
+      else if (tvs_satelliteName(sensorIndex)(1:5) == 'MTSAT') then   ! autre cas particulier
         tvs_instruments(sensorIndex) = inst_id_gmsim
-      else 
+      else                                                            ! cas general                 
         call up2low(tvs_instrumentName(sensorIndex),tempo_inst)
         do instrumentIndex = 0, ninst -1 
-          if ( trim(tempo_inst) == trim(inst_name(instrumentIndex))) then
+          if (trim(tempo_inst) == trim(inst_name(instrumentIndex))) then
             tvs_instruments(sensorIndex) = instrumentIndex
           end if
         end do
       end if
-      if ( tvs_instruments(sensorIndex) < 0 ) then
+      if (tvs_instruments(sensorIndex) < 0) then
         write(*,'(A)') ' INSTRUMENT '// trim( tvs_instrumentName(sensorIndex)) // ' not supported.'
         call utl_abort('SENSORS')
       end if
@@ -1286,7 +1286,7 @@ contains
     integer, intent(out) :: idatypList(:)  ! list of radiance BUFR codtyp
     
     ! Locals:
-    logical, save :: first=.true.
+    logical, save :: firstCall=.true.
     integer, save :: ninst_tovs
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
@@ -1302,8 +1302,8 @@ contains
       return
     end if
 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
         call utl_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
       ninst_tovs = 0
@@ -1315,7 +1315,7 @@ contains
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
-        if (inst_names(instrumentIndex) == 'XXXXXX' ) then
+        if (inst_names(instrumentIndex) == 'XXXXXX') then
           ninst_tovs = instrumentIndex - 1
           exit
         else
@@ -1326,8 +1326,8 @@ contains
           end if
         end if
       end do
-      if ( ninst_tovs == 0 ) call utl_abort('tvs_getAllIdBurpTovs: Empty namtovsinst namelist')
-      first = .false.
+      if (ninst_tovs == 0) call utl_abort('tvs_getAllIdBurpTovs: Empty namtovsinst namelist')
+      firstCall = .false.
     end if
 
     idatypList(1:ninst_tovs) = list_inst(1:ninst_tovs)
@@ -1349,7 +1349,7 @@ contains
     integer, intent(in) :: idatyp  ! BUFR codtyp
     
     ! Locals:
-    logical, save :: first=.true.
+    logical, save :: firstCall=.true.
     integer, save :: ninst_tovs
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
@@ -1364,8 +1364,8 @@ contains
       return
     end if
 
-    if (first) then
-       if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+    if (firstCall) then
+       if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
         call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
       call utl_tmg_start(181,'low-level--readNML')
@@ -1377,7 +1377,7 @@ contains
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       call utl_tmg_stop(181)
       do instrumentIndex=1, ninst
-        if (inst_names(instrumentIndex) == 'XXXXXX' ) then
+        if (inst_names(instrumentIndex) == 'XXXXXX') then
           ninst_tovs= instrumentIndex - 1
           exit
         else
@@ -1389,13 +1389,13 @@ contains
         end if
       end do
       if ( ninst_tovs == 0 ) call utl_abort('tvs_isIdBurpTovs: Empty namtovsinst namelist')
-      first = .false.
+      firstCall = .false.
     end if
-
+    
     tvs_isIdBurpTovs = .false.
 
     do instrumentIndex = 1, ninst_tovs
-      if (idatyp == list_inst(instrumentIndex) ) then
+      if (idatyp == list_inst(instrumentIndex)) then
         tvs_isIdBurpTovs = .true.
         exit
       end if
@@ -1417,7 +1417,7 @@ contains
     integer, intent(in) :: idatyp ! BUFR codtyp
     
     ! Locals:
-    logical, save :: first=.true.
+    logical, save :: firstCall=.true.
     integer, save :: ninst_hyper
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(ninst)
@@ -1432,8 +1432,8 @@ contains
       return
     end if
 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMHYPER', './flnml')) then
         call utl_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
       ninst_hyper = 0
@@ -1457,13 +1457,13 @@ contains
         end if
       end do
       if ( ninst_hyper == 0 ) call utl_abort('tvs_isIdBurpHyperSpectral: Empty namhyper namelist')
-      first = .false.
+      firstCall = .false.
     end if
 
     tvs_isIdBurpHyperSpectral = .false.
 
     do instrumentIndex = 1, ninst_hyper
-      if (idatyp == list_inst(instrumentIndex) ) then
+      if (idatyp == list_inst(instrumentIndex)) then
         tvs_isIdBurpHyperSpectral = .true.
         exit
       end if
@@ -1515,9 +1515,9 @@ contains
     length = len_trim(name)
     call up2low(name(1:length),tempo_name(1:length))
 
-    if ( index(tempo_name(1:length),'npp') /= 0 ) then
+    if (index(tempo_name(1:length),'npp') /= 0) then
       tvs_getPlatformId = platform_id_jpss
-    else if ( index(tempo_name(1:length),'hmwari') /= 0 ) then
+    else if (index(tempo_name(1:length),'hmwari') /= 0) then
       tvs_getPlatformId = platform_id_himawari
     else
       do platformIndex = 1, nplatforms
@@ -1551,15 +1551,15 @@ contains
     tvs_getInstrumentId = -1
     length = len_trim(name)
     call up2low(name(1:length),tempo_name(1:length))
-    if ( trim(tempo_name(1:length)) == 'goesim' ) then
+    if (trim(tempo_name(1:length)) == 'goesim') then
       tvs_getInstrumentId = inst_id_goesim
-    else if ( trim(tempo_name(1:length)) == 'gmsim' ) then
+    else if (trim(tempo_name(1:length)) == 'gmsim') then
       tvs_getInstrumentId = inst_id_gmsim
-    else if ( trim(tempo_name(1:length)) == 'mtsatim' ) then
+    else if (trim(tempo_name(1:length)) == 'mtsatim') then
       tvs_getInstrumentId = inst_id_mtsatim
     else
       do instrumentIndex = 0, ninst - 1
-        if (trim(inst_name(instrumentIndex)) == tempo_name(1:length) ) then
+        if (trim(inst_name(instrumentIndex)) == tempo_name(1:length)) then
           tvs_getInstrumentId = instrumentIndex
           exit
         end if
@@ -1583,14 +1583,14 @@ contains
     ! Locals:
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_hir
-    logical, save :: first = .true.
+    logical, save :: firstCall = .true.
 
     ! Namelist variables:
     character (len=8) :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
     
-    if (first) then
-      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMHYPER', './flnml')) then
         call utl_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
       end if
       call utl_tmg_start(181,'low-level--readNML')
@@ -1613,14 +1613,14 @@ contains
           exit
         end if
       end do
-      first = .false.
+      firstCall = .false.
       if (ninst_hir == 0) then
         write(*,*) 'tvs_isInstrumHyperSpectral: Warning : empty namhyper namelist !'
       end if
     end if
     tvs_isInstrumHyperSpectral = .false.
-    do instrumentIndex =1, ninst_hir
-      if ( instrum == list_inst(instrumentIndex)) then
+    do instrumentIndex = 1, ninst_hir
+      if (instrum == list_inst(instrumentIndex)) then
         tvs_isInstrumHyperSpectral = .true.
         exit
       end if
@@ -1643,16 +1643,16 @@ contains
     character(len=*), intent(in) :: instrumentName ! Instrument name
 
     !Locals:
-    integer :: ierr, i 
+    integer :: ierr, instrumentIndex 
     integer, save :: ninst_hir
-    logical, save :: lfirst = .true.
+    logical, save :: firstCall = .true.
     character (len=8) :: name2
 
     ! Namelist variables:
     character (len=8),save  :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
 
-    if (lfirst) then
+    if (firstCall) then
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
       call utl_tmg_start(181,'low-level--readNML')
@@ -1660,13 +1660,13 @@ contains
       if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       call utl_tmg_stop(181)
-      do i=1, maxsize
-        if (name_inst(i) == 'XXXXXXX') then
-          ninst_hir = i -1
+      do instrumentIndex = 1, maxsize
+        if (name_inst(instrumentIndex) == 'XXXXXXX') then
+          ninst_hir = instrumentIndex -1
           exit
         end if
       end do
-      lfirst = .false.
+      firstCall = .false.
       if (ninst_hir == 0) then
         write(*,*) 'tvs_isNameHyperSpectral: Warning : empty namhyper namelist !'
       end if
@@ -1676,8 +1676,8 @@ contains
 
     call up2low(instrumentName, name2)
 
-    do i=1, ninst_hir
-      if ( trim(name2) == name_inst(i)) then
+    do instrumentIndex = 1, ninst_hir
+      if (trim(name2) == name_inst(instrumentIndex)) then
         tvs_isNameHyperSpectral = .true.
         exit
       end if
@@ -1701,14 +1701,14 @@ contains
     ! Locals:
     integer :: ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_geo
-    logical, save :: first = .true.
+    logical, save :: firstCall = .true.
 
     ! Namelist variables:
     character(len=8) :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEO/ name_inst
 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMGEO', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMGEO', './flnml')) then
         call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
       end if
       ninst_geo = 0
@@ -1731,14 +1731,14 @@ contains
           exit
         end if
       end do
-      first = .false.
+      firstCall = .false.
       if (ninst_geo == 0) then
         write(*,*) 'tvs_isInstrumGeostationary: Warning : empty namgeo namelist !'
       end if
     end if
     tvs_isInstrumGeostationary = .false.
-    do instrumentIndex=1, ninst_geo
-      if ( instrum == list_inst(instrumentIndex)) then
+    do instrumentIndex = 1, ninst_geo
+      if (instrum == list_inst(instrumentIndex)) then
         tvs_isInstrumGeostationary = .true.
         exit
       end if
@@ -1765,7 +1765,7 @@ contains
 
     idExist = .false.
     do instrumentIndex = 1, tvs_numMWInstrumUsingCLW
-      if ( instrumId == instrumentIdsUsingCLW(instrumentIndex) ) then
+      if (instrumId == instrumentIdsUsingCLW(instrumentIndex)) then
         idExist = .true.
         exit
       end if
@@ -1810,7 +1810,7 @@ contains
 
     hydrometeorsIndex = -1
     do instrumentIndex = 1, tvs_numMWInstrumUsingHydrometeors
-      if ( instrumId == instrumentIdsUsingHydrometeors(instrumentIndex) ) then
+      if (instrumId == instrumentIdsUsingHydrometeors(instrumentIndex)) then
         hydrometeorsIndex = instrumentIndex
         exit
       end if
@@ -1902,8 +1902,8 @@ contains
     ! Locals:  
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp = 100
-    logical, save :: first = .true.
-    integer :: ier
+    logical, save :: firstCall = .true.
+    integer :: ierr
 
     ! Namelist variables:
     integer, save ::   listburp(mxinstrumburp)           ! List of instrument ID values from obs file
@@ -1914,8 +1914,8 @@ contains
 
     !   1.0 Find instrument
 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMINST', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMINST', './flnml')) then
         call utl_abort('tvs_mapInstrum: NAMINST namelist section should be now in flnml_static !')
       end if
       
@@ -1925,8 +1925,8 @@ contains
 
       ! read the namelist
       call utl_tmg_start(181,'low-level--readNML')
-      read(utl_flnml_static, nml=NAMINST, iostat=ier)
-      if (ier /= 0) then
+      read(utl_flnml_static, nml=NAMINST, iostat=ierr)
+      if (ierr /= 0) then
         write(*,*) 'Error while reading NAMINST namelist section in flnml_static file !'
         call utl_abort('tvs_mapInstrum')
       end if
@@ -1934,7 +1934,7 @@ contains
 
       ! figure out how many valid elements in the lists
       do instrumentIndex=1, mxinstrumburp
-        if(listburp(instrumentIndex) == -1) then
+        if (listburp(instrumentIndex) == -1) then
           numinstburp = instrumentIndex - 1
           exit
         end if
@@ -1945,12 +1945,12 @@ contains
       write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
       write(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
       write(*,*) 'tvs_mapInstrum: listinstrum    = ',listinstrum(1:numinstburp)
-      first=.false.
+      firstCall = .false.
     end if
 
     instrum = -1
-    do instrumentIndex=1, mxinstrumburp
-      if ( instrumburp == listburp(instrumentIndex) ) then
+    do instrumentIndex = 1, mxinstrumburp
+      if (instrumburp == listburp(instrumentIndex)) then
         instrum = tvs_getInstrumentId( listinstrum(instrumentIndex) )
         exit
       end if
@@ -1973,16 +1973,16 @@ contains
     character(len=*), intent(in) :: instrumentName ! Instrument name
 
     !Locals:
-    integer :: ierr, i 
+    integer :: ierr, instrumentIndex
     integer, save :: ninst_geo
-    logical, save :: lfirst = .true.
+    logical, save :: firstCall = .true.
 
     ! Namelist variables:
-    character (len=8),save :: name_inst(maxsize) ! List of instrument names for geostationary
+    character (len=8), save :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEOBUFR/ name_inst
 
-    if (lfirst) then
-      if ( utl_isNamelistPresent('NAMGEOBUFR', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMGEOBUFR', './flnml')) then
         call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
       end if
       ninst_geo = 0
@@ -1992,21 +1992,21 @@ contains
       if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
       if (mmpi_myid == 0) write(*,nml=namgeobufr)
       call utl_tmg_stop(181)
-      do i=1, maxsize
-        if (name_inst(i) == 'XXXXXXXX') then
-          ninst_geo = i - 1
+      do instrumentIndex = 1, maxsize
+        if (name_inst(instrumentIndex) == 'XXXXXXXX') then
+          ninst_geo = instrumentIndex - 1
           exit
         end if
       end do
-      lfirst = .false.
+      firstCall = .false.
       if (ninst_geo == 0) then
         write(*,*) 'tvs_isNameGeostationary: Warning : empty namgeobufr namelist !' 
       end if
     end if
     
     tvs_isNameGeostationary = .false.
-    do i=1, ninst_geo
-      if ( trim(instrumentName) == trim(name_inst(i)) ) then
+    do instrumentIndex = 1, ninst_geo
+      if (trim(instrumentName) == trim(name_inst(instrumentIndex))) then
         tvs_isNameGeostationary= .true.
         exit
       end if
@@ -2067,7 +2067,7 @@ contains
 
     ! Locals:
     integer           :: satelliteIndex, ierr
-    logical, save     :: first=.true.
+    logical, save     :: firstCall=.true.
     integer, parameter:: mxsatburp = 100
     integer, save     :: numsatburp
 
@@ -2079,8 +2079,8 @@ contains
     namelist /NAMSAT/ listburp, listplat, listsat
 
     !     Fill tables from namelist at the first call 
-    if (first) then
-      if ( utl_isNamelistPresent('NAMSAT', './flnml') ) then
+    if (firstCall) then
+      if (utl_isNamelistPresent('NAMSAT', './flnml')) then
         call utl_abort('tvs_mapSat: NAMSAT namelist section should be now in flnml_static !')
       end if
       ! set the default values
@@ -2098,27 +2098,27 @@ contains
 
       !  Figure out how many valid elements in the lists
       do satelliteIndex=1, mxsatburp
-        if(listburp(satelliteIndex) == -1) then
+        if (listburp(satelliteIndex) == -1) then
           numsatburp = satelliteIndex - 1
           exit
         end if
       end do
-      if(numsatburp >= mxsatburp) then
+      if (numsatburp >= mxsatburp) then
         call utl_abort('tvs_mapSat: exceeded maximum number of platforms')
       end if
       write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
       write(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
       write(*,*) 'tvs_mapSat: listsat    = ',listsat(1:numsatburp)
       write(*,*) 'tvs_mapSat: listplat   = ',listplat(1:numsatburp)
-      first = .false.
+      firstCall = .false.
     end if
 
     !   Find platform and satellite
 
     iplatform = -1
     isat      = -1
-    do satelliteIndex=1, numsatburp
-      if ( isatburp == listburp(satelliteIndex) ) then
+    do satelliteIndex = 1, numsatburp
+      if (isatburp == listburp(satelliteIndex)) then
         iplatform = tvs_getPlatformId( listplat(satelliteIndex) )
         isat = listsat (satelliteIndex)
         exit
@@ -2147,14 +2147,14 @@ contains
 
     ! Locals:
     integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
-    integer :: ChannelIndex
+    integer :: channelIndex
     logical :: isChannelInList, excludeChannelsFromList, selected
 
     ! Build the list of channels/profiles indices
     count = 0
 
     excludeChannelsFromList = .false.
-    if ( present(excludeChannelsFromList_opt) ) then
+    if (present(excludeChannelsFromList_opt)) then
       excludeChannelsFromList = excludeChannelsFromList_opt
     end if
     
@@ -2165,7 +2165,7 @@ contains
       headerIndex = tvs_headerIndex(iobs)
       if (headerIndex > 0) then
         istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        iend= obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
+        iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
         do bodyIndex = istart, iend
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
@@ -2185,7 +2185,7 @@ contains
                 chanprof(count) % prof = profileIndex
                 chanprof(count) % chan = channelIndex
                 if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = bodyIndex
-                if (present( lchannel_subset_opt )) lchannel_subset_opt(profileIndex,channelIndex) = .true.
+                if (present(lchannel_subset_opt)) lchannel_subset_opt(profileIndex,channelIndex) = .true.
               end if
             else
               write(*,*) 'tvs_getChanProf: strange channel number', channelNumber
@@ -2222,7 +2222,7 @@ contains
         BODY:do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
-          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
         end do BODY
       end if
     end do
@@ -2256,7 +2256,7 @@ contains
         BODY:do
           bodyIndex = obs_getBodyIndex(obsSpaceData)
           if (bodyIndex < 0) exit BODY
-          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
             channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
             channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
@@ -2324,7 +2324,7 @@ contains
         istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
         do bodyIndex = istart, iend
-          if(obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             count = count + 1
             surfem ( count ) = obs_bodyElem_r(obsSpaceData,OBS_SEM,bodyIndex)
           end if
@@ -2919,7 +2919,7 @@ contains
     integer :: channelIndex
     integer :: hydroChannelsCount
     integer :: profileCount
-    integer :: profileIndex, levelIndex, tovsIndex, btIndex
+    integer :: profileIndex, levelIndex, btIndex
     integer :: instrum
     integer :: sensorType        ! sensor type (1=infrared; 2=microwave; 3=high resolution; 4=polarimetric)
     integer, allocatable :: sensorTovsIndexes(:)
@@ -3480,11 +3480,11 @@ contains
     integer :: btCount, profileCount
     integer :: profileIndex, btIndex, tovsIndex
     
-    btCount = size( originalEmissivity )
+    btCount = size(originalEmissivity)
     if (useMWEmissivityAtlas) then
 
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
-      if ( .not. tvs_atlas(sensorIndex) % init) then
+      if (.not. tvs_atlas(sensorIndex) % init) then
         call rttov_setup_emis_atlas( returnCode, &! out
              tvs_opts(sensorIndex),              &! in
              tvs_profiles_nl(1) % date(2),       &! in
@@ -3513,15 +3513,15 @@ contains
 
       profileCount = size( sensorTovsIndexes )
 
-      do profileIndex=1, profileCount !loop on profiles
+      do profileIndex = 1, profileCount !loop on profiles
         tovsIndex = sensorTovsIndexes(profileIndex)
-        do btIndex=1, btCount !loop on channels
-          if (chanprof(btIndex) % prof==profileIndex) then
+        do btIndex = 1, btCount !loop on channels
+          if (chanprof(btIndex) % prof == profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
-            if ( tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
-                 mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
-                 mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
+            if (tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
+                mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
+                mWAtlasSurfaceEmissivity(btIndex) <= 1.d0) then ! check for missing values
               updatedEmissivity(btIndex) % emis_in = mWAtlasSurfaceEmissivity(btIndex)
             else
               updatedEmissivity(btIndex) % emis_in = originalEmissivity(btIndex)
@@ -3538,7 +3538,7 @@ contains
   !--------------------------------------------------------------------------
   !  comp_ir_emiss
   !--------------------------------------------------------------------------
-  subroutine comp_ir_emiss (emiss, wind, angle, nchn, np, mchannel)
+  subroutine comp_ir_emiss (emiss, wind, angle, nChannels, nProfiles, mchannel)
     !
     ! :Purpose: Computes water infrared emissivity for a specific set of
     !           channel indices, wind speed and zenith angle.
@@ -3546,19 +3546,19 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: emiss(nchn,np) ! emissivities (0.-1.)
-    real(8), intent(in)  :: wind(np)       ! surface wind speed (m/s)
-    real(8), intent(in)  :: angle(np)      ! viewing angle (deg)
-    integer, intent(in)  :: nchn           ! number of channels to process
-    integer, intent(in)  :: np             ! number of locations
-    integer, intent(in)  :: mchannel(nchn) ! vector of channel indices to process
+    real(8), intent(out) :: emiss(nChannels,nProfiles) ! emissivities (0.-1.)
+    real(8), intent(in)  :: wind(nProfiles)            ! surface wind speed (m/s)
+    real(8), intent(in)  :: angle(nProfiles)           ! viewing angle (deg)
+    integer, intent(in)  :: nChannels                  ! number of channels to process
+    integer, intent(in)  :: nProfiles                  ! number of locations
+    integer, intent(in)  :: mchannel(nChannels)        ! vector of channel indices to process
 
     ! Locals:
     integer, parameter :: MaxWn = 19
-    integer, parameter :: Nparm=3
-    integer, parameter :: MaxChan=19
+    integer, parameter :: Nparm = 3
+    integer, parameter :: MaxChan = 19
 
-    real (8),parameter :: Theta(Nparm,MaxWn) = (/ &
+    real(8), parameter :: Theta(Nparm,MaxWn) = [  &
          1700.381d0, 25.28534d0, 144.1023d0,      &
          1738.149d0, 25.67787d0, 146.6139d0,      & 
          1769.553d0, 26.05250d0, 148.6586d0,      &
@@ -3577,9 +3577,9 @@ contains
          2099.714d0, 29.91868d0, 178.4015d0,      &
          1857.644d0, 29.13640d0, 160.9822d0,      &
          1610.696d0, 26.48602d0, 142.2768d0,      &
-         1503.969d0, 24.97931d0, 133.4392d0 /)
+         1503.969d0, 24.97931d0, 133.4392d0 ]
 
-    real (8),parameter ::  C(Nparm,2,MaxWn) = (/                                 &  
+    real(8), parameter ::  C(Nparm,2,MaxWn) = [                                  &  
          0.9715104043561414d0,-1.2034233230944147D-06, -5.8742655960993913D-07,  &
          0.9263932848727608d0,-9.4908630939690859D-04, 2.2831134823358876D-05,   &
          0.9732503924722753d0,-1.2007007329295099D-06, -5.8767355551283423D-07,  &
@@ -3617,29 +3617,29 @@ contains
          0.9828819693848310d0,-7.4086701870172759D-07, -6.2949258820534062D-07,  &
          0.9329616683158125d0,-1.0728027288012200D-03, 2.7209071863380586D-05,   &
          0.9767410313266288d0,-9.1750038410238915D-07, -7.9177921107781349D-07,  &
-         0.9192775350344998d0,-1.0369254272157462D-03, 2.8000594542037504D-05 /)
+         0.9192775350344998d0,-1.0369254272157462D-03, 2.8000594542037504D-05 ]
 
-    real (8) a(MaxChan),b(MaxChan),cc(MaxChan)  ! local variable
-    real (8) ww
-    integer Index,Ichan,IP
+    real(8) :: a(MaxChan), b(MaxChan), cc(MaxChan)
+    real(8) :: ww
+    integer :: bandIndex, channelIndex, profileIndex
 
-    do Ichan = 1 , Nchn
+    do channelIndex = 1 , nChannels
 
-      Index = Mchannel(Ichan)
+      bandIndex = Mchannel(channelIndex)
 
-      do IP=1,NP
+      do profileIndex = 1, nProfiles
 
-        ww = wind(IP)
-        a(Ichan) = c(1,1,Index) + c(2,1,Index) * ww    &  
-             + c(3,1,Index) * ww * ww
-        b(Ichan) = c(1,2,Index) + c(2,2,Index) * ww    &
-             + c(3,2,Index)* ww * ww
+        ww = wind(profileIndex)
+        a(channelIndex) = c(1,1,bandIndex) + c(2,1,bandIndex) * ww    &  
+             + c(3,1,bandIndex) * ww * ww
+        b(channelIndex) = c(1,2,bandIndex) + c(2,2,bandIndex) * ww    &
+             + c(3,2,bandIndex)* ww * ww
 
-        cc(Ichan) = Theta(1,Index) + Theta(2,Index) * ww
+        cc(channelIndex) = Theta(1,bandIndex) + Theta(2,bandIndex) * ww
 
-        emiss(Ichan,IP) = a(Ichan) + (b(Ichan) - a(Ichan)) *   & 
-             exp(( (theta(3,Index) - 60.d0)**2.d0              &
-             - (angle(IP) - theta(3,Index))**2.d0 ) / CC(Ichan))
+        emiss(channelIndex,profileIndex) = a(channelIndex) + (b(channelIndex) - a(channelIndex)) *   & 
+             exp(( (theta(3,bandIndex) - 60.d0)**2.d0              &
+             - (angle(profileIndex) - theta(3,bandIndex))**2.d0 ) / CC(channelIndex))
        
       end do
       
@@ -3670,29 +3670,29 @@ contains
 
     ! Locals
     integer :: nplon, jdlo1, jdlo2, jlon1, jlon2
-    integer :: nx, ilat1, ilat2, ilon1, ilon2, jn, ii, jj
+    integer :: nx, ilat1, ilat2, ilon1, ilon2, profileIndex, lonIndex, latIndex
    
-    profiles : do jn = 1,nprf
+    profiles : do profileIndex = 1, nprf
 
       nplon = 0
 
       ! normal limits
 
-      ilat1=max(ilat(jn)-ireduc,1)
-      ilat2=min(ilat(jn)+ireduc,klat)
-      ilon1=max(ilon(jn)-ireduc,1)
-      ilon2=min(ilon(jn)+ireduc,klon)
+      ilat1=max(ilat(profileIndex)-ireduc,1)
+      ilat2=min(ilat(profileIndex)+ireduc,klat)
+      ilon1=max(ilon(profileIndex)-ireduc,1)
+      ilon2=min(ilon(profileIndex)+ireduc,klon)
 
       if (ilon1 == 1 .or. ilon2 == klon) then
         ! border cases for longitudes
-        jdlo1 = ilon(jn)-ireduc
-        jdlo2 = ilon(jn)+ireduc
+        jdlo1 = ilon(profileIndex)-ireduc
+        jdlo2 = ilon(profileIndex)+ireduc
 
-        if ( jdlo1 <= 0 ) then
+        if (jdlo1 <= 0) then
           nplon = 1
           jlon1 = klon + jdlo1
           jlon2 = klon
-        else if ( jdlo2 > klon ) then
+        else if (jdlo2 > klon) then
           nplon = 1
           jlon1 = 1
           jlon2 = jdlo2 - klon
@@ -3700,26 +3700,26 @@ contains
       end if
 
       nx = 0
-      f_low(jn) = 0.d0
+      f_low(profileIndex) = 0.d0
      
-      do jj = ilat1, ilat2
+      do latIndex = ilat1, ilat2
 
-        do ii = ilon1, ilon2
+        do lonIndex = ilon1, ilon2
           nx = nx + 1
-          f_low(jn) = f_low(jn) + f_high(ii,jj)         
+          f_low(profileIndex) = f_low(profileIndex) + f_high(lonIndex,latIndex)         
         end do
         
         if (nplon == 1) then
           ! additional cases at border 1-klon
-          do ii = jlon1, jlon2
+          do lonIndex = jlon1, jlon2
             nx = nx + 1
-            f_low(jn) = f_low(jn) + f_high(ii,jj)         
+            f_low(profileIndex) = f_low(profileIndex) + f_high(lonIndex,latIndex)         
           end do
         end if
 
       end do
       
-      f_low(jn) = f_low(jn) / dble(nx)
+      f_low(profileIndex) = f_low(profileIndex) / dble(nx)
 
     end do profiles
 
@@ -3782,7 +3782,7 @@ contains
     integer, intent(in)  :: sensorTovsIndexes(nprf)! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
-    integer :: jc,jn
+    integer :: channelIndex,profileIndex
     integer :: ilat(nprf), ilon(nprf)
     real(8) :: latitudes(nprf), longitudes(nprf), satzang(nprf)
     real(8) :: wind_sfc(nprf), f_low(nprf), waven(nchn), em_oc(nchn,nprf), emi_mat(nchn,20)
@@ -3792,10 +3792,10 @@ contains
     ! longitudes(nprf) -- longitude (0 to 360)
     ! satzang(nprf) -- satellite zenith angle (deg)
 
-    do jn = 1, nprf
-      latitudes(jn)  = tvs_profiles_nl(sensorTovsIndexes(jn)) % latitude
-      longitudes(jn) = tvs_profiles_nl(sensorTovsIndexes(jn)) % longitude
-      satzang(jn)    = tvs_profiles_nl(sensorTovsIndexes(jn)) % zenangle
+    do profileIndex = 1, nprf
+      latitudes(profileIndex)  = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % latitude
+      longitudes(profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % longitude
+      satzang(profileIndex)    = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % zenangle
     end do
 
     !  Assign surface properties from grid to profiles
@@ -3803,8 +3803,8 @@ contains
 
 
     !  Find the sensor bands (central) wavenumbers
-    do jc = 1, nchn      
-      waven(jc) = tvs_coefs(sensorIndex) % coef % ff_cwn(jc)
+    do channelIndex = 1, nchn      
+      waven(channelIndex) = tvs_coefs(sensorIndex) % coef % ff_cwn(channelIndex)
     end do
 
 
@@ -3814,15 +3814,15 @@ contains
 
     ! Refine water emissivities
 
-    do jn = 1, nprf
+    do profileIndex = 1, nprf
       !       find surface wind
-      wind_sfc(jn) = min(sqrt(tvs_profiles_nl(sensorTovsIndexes(jn)) % s2m %u**2 + tvs_profiles_nl(sensorTovsIndexes(jn)) % s2m % v**2 + 1.d-12),15.d0)
+      wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % s2m %u**2 + tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % s2m % v**2 + 1.d-12),15.d0)
     end do
 
     !     find new ocean emissivities     
 
-    do jc = 1, nchn
-      em_oc(jc,:)= emi_mat(jc,17)
+    do channelIndex = 1, nchn
+      em_oc(channelIndex,:)= emi_mat(channelIndex,17)
     end do
     
     call emi_sea (em_oc, waven,satzang,wind_sfc,nprf,nchn)
@@ -3830,26 +3830,26 @@ contains
 
     ! Get surface emissivities
 
-    do jn = 1, nprf
+    do profileIndex = 1, nprf
       !       set albedo to 0.6 where snow is present
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo = 0.6
+      if ( tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo = 0.6
       !       if albedo too high no water
-      if ( tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo >= 0.55 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat = 0.
+      if ( tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo >= 0.55 ) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat = 0.
       !       if water and CMC ice present then sea ice
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % ice > 0.001 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype = 20
+      if ( tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ice > 0.001 ) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype = 20
       !       if land and CMC snow present then snow
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype = 15
-      do jc=1,nchn
-        surfem1((jn-1)*nchn+jc) =  tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat * em_oc(jc,jn)  +   &
-             ( 1.d0 - tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat ) * emi_mat(jc,tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype)
+      if ( tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype = 15
+      do channelIndex=1,nchn
+        surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat * em_oc(channelIndex,profileIndex)  +   &
+             ( 1.d0 - tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype)
       end do
     end do
 
     ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
     call pcnt_box (f_low, waterFraction,nprf,ilat,ilon,kslat,kslon,7)
 
-    do jn = 1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_reg = f_low(jn)
+    do profileIndex = 1, nprf
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_reg = f_low(profileIndex)
     end do
 
   end subroutine emis_getIrEmissivity
@@ -3888,7 +3888,7 @@ contains
     integer            :: ig14,ig24,ig34,ig44
     integer            :: ig15,ig25,ig35,ig45
     integer            :: swa,lng,dltf,ubc,ex1,ex2,ex3
-    integer            :: jn
+    integer            :: profileIndex
     character(len=1)   :: typvar
     character(len=1)   :: grtyp3,grtyp4,grtyp5
     character(len=2)   :: nomvar, snowvar
@@ -3918,13 +3918,13 @@ contains
     alat = dble(kslat)/180.d0
     alon = dble(kslon)/360.d0
 
-    do jn=1, nprf
+    do profileIndex=1, nprf
 
       ! get lat and lon within limits if necessary
-      zzlat = min(latitudes(jn),89.999d0)
+      zzlat = min(latitudes(profileIndex),89.999d0)
       zzlat = max(Zzlat,-89.999d0)
       
-      zzlon = min(longitudes(jn),359.999d0)
+      zzlon = min(longitudes(profileIndex),359.999d0)
       zzlon = max(zzlon,0.d0)
 
       !  Find in which surface field pixel is located the observation profile
@@ -3933,14 +3933,14 @@ contains
       !         N-S : starts at N pole and excludes S pole
       !         W-E : starts at longitude 0 and excludes longitude 360
 
-      ilat(jn) = max( nint((zzlat + 90.d0) * alat),1) 
-      ilon(jn) = nint(zzlon * alon) + 1
-      if (ilon(jn) > kslon) ilon(jn) = 1
+      ilat(profileIndex) = max( nint((zzlat + 90.d0) * alat),1) 
+      ilon(profileIndex) = nint(zzlon * alon) + 1
+      if (ilon(profileIndex) > kslon) ilon(profileIndex) = 1
 
       !  Assign surface caracteristics to observation profiles
 
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype    = surfaceType(ilon(jn),ilat(jn))
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat = waterFraction(ilon(jn),ilat(jn))
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype    = surfaceType(ilon(profileIndex),ilat(profileIndex))
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat = waterFraction(ilon(profileIndex),ilat(profileIndex))
 
     end do
 
@@ -4117,10 +4117,10 @@ contains
 
     ! assign surface caracteristics to observation profiles
 
-    do jn=1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % ice    = glace_intrpl(jn,1)
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow   = neige_intrpl(jn,1)
-      tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo = alb_intrpl(jn,1)
+    do profileIndex = 1, nprf
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ice    = glace_intrpl(profileIndex,1)
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow   = neige_intrpl(profileIndex,1)
+      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo = alb_intrpl(profileIndex,1)
     end do
 
     deallocate(glace,neige,alb)
@@ -4181,7 +4181,7 @@ contains
     real(8), intent(out) :: emi_mat(nchn, 20) ! emissivity (0.0-1.0)
 
     ! Locals:
-    integer          :: i, nc, nt
+    integer          :: bandIndex, channelIndex, typeIndex
     real(8)          :: dum
 
     ! CERES bands central wavenumber (covers 3.7 micron to 71.4 mic)
@@ -4233,17 +4233,18 @@ contains
          0.964d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0,  &
          0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0, 0.979d0  /)
 
-    do nt = 1, 20
-      do nc = 1, nchn
-        if ( waven(nc) > mid(1) ) then
-          emi_mat(nc,nt) = emi_tab(1,nt)
-        else if ( waven(nc) < mid(nb) ) then
-          emi_mat(nc,nt) = emi_tab(nb,nt)
+    do typeIndex = 1, 20
+      do channelIndex = 1, nchn
+        if ( waven(channelIndex) > mid(1) ) then
+          emi_mat(channelIndex,typeIndex) = emi_tab(1,typeIndex)
+        else if ( waven(channelIndex) < mid(nb) ) then
+          emi_mat(channelIndex,typeIndex) = emi_tab(nb,typeIndex)
         else
-          do i = 1, nb - 1
-            if ( waven(nc) <= mid(i) .and. waven(nc) >= mid(i + 1) ) then
-              dum = ( waven(nc) - mid(i) ) / ( mid(i + 1) - mid(i) )
-              emi_mat(nc,nt) = emi_tab(i,nt) + ( emi_tab(i + 1,nt) - emi_tab(i,nt) ) * dum
+          do bandIndex = 1, nb - 1
+            if ( waven(channelIndex) <= mid(bandIndex) .and. waven(channelIndex) >= mid(bandIndex + 1) ) then
+              dum = ( waven(channelIndex) - mid(bandIndex) ) / ( mid(bandIndex + 1) - mid(bandIndex) )
+              emi_mat(channelIndex,typeIndex) = emi_tab(bandIndex,typeIndex) + &
+                  (emi_tab(bandIndex + 1,typeIndex) - emi_tab(bandIndex,typeIndex)) * dum
               exit
             end if
           end do
@@ -4257,10 +4258,10 @@ contains
   !--------------------------------------------------------------------------
   !  emi_sea
   !--------------------------------------------------------------------------
-  subroutine emi_sea(em_oc, wnum, angle, wind, np, nc)
+  subroutine emi_sea(em_oc, wnum, angle, wind, nProfiles, nChannels)
     !
     ! :Purpose: GET OCEAN SURFACE EMISSIVITY
-    ! :Note:    IMEM(NC), set to zero initially, on next call IMEM will have the
+    ! :Note:    IMEM(NCHANNELS), set to zero initially, on next call IMEM will have the
     !           right boundary channel to save search time in interpolation.
     !           IOPT=1 means activate IMEM option (all calls ask for same channels)
     !
@@ -4277,42 +4278,42 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out)   :: em_oc(nc,np) ! Ocean emissivities (0.-1.)
-    real(8), intent(in)    :: wnum(nc)     ! Channel wavenumbers (cm-1)
-    real(8), intent(in)    :: angle(np)    ! Viewing angle (deg)
-    real(8), intent(in)    :: wind(np)     ! Surface wind speed (m/s)
-    integer, intent(in)    :: np           ! Number of profiles
-    integer, intent(in)    :: nc           ! Number of channels
+    real(8), intent(out)   :: em_oc(nChannels,nProfiles) ! Ocean emissivities (0.-1.)
+    real(8), intent(in)    :: wnum(nChannels)            ! Channel wavenumbers (cm-1)
+    real(8), intent(in)    :: angle(nProfiles)           ! Viewing angle (deg)
+    real(8), intent(in)    :: wind(nProfiles)            ! Surface wind speed (m/s)
+    integer, intent(in)    :: nProfiles                  ! Number of profiles
+    integer, intent(in)    :: nChannels                  ! Number of channels
 
     ! Locals:
-    integer     :: i, k, l
-    integer     :: imem(nc) 
+    integer     :: channelIndex, bandIndex, profileIndex
+    integer     :: imem(nChannels) 
     integer     :: mchan(2)
     real(8)     :: dum
-    real(8)     :: emi2(2,np)
+    real(8)     :: emi2(2,nProfiles)
 
     ! Masuda's 19 wavelengths converted to wavenumber
-    real(8), parameter :: refw(19)=(/ 2857.1d0, 2777.7d0, 2702.7d0, 2631.6d0, 2564.1d0, &
-         2500.0d0, 2439.0d0, 1250.0d0, 1190.5d0, 1136.3d0,                           &
-         1087.0d0, 1041.7d0, 1000.0d0, 952.38d0, 909.09d0,                           &
-         869.57d0, 833.33d0, 800.00d0, 769.23d0/)
+    real(8), parameter :: refw(19)=[ 2857.1d0, 2777.7d0, 2702.7d0, 2631.6d0, 2564.1d0, &
+         2500.0d0, 2439.0d0, 1250.0d0, 1190.5d0, 1136.3d0,                             &
+         1087.0d0, 1041.7d0, 1000.0d0, 952.38d0, 909.09d0,                             &
+         869.57d0, 833.33d0, 800.00d0, 769.23d0]
 
     ! imem options
     imem(:) = 0
 
-    do I = 1, nc
+    do channelIndex = 1, nChannels
 
       !  out of range
-      if ( wnum(I) < 645.d0 .or. wnum(I) > refw(1) ) then
-        write(*,'(A,1x,e12.4)') ' fatal: wavenumber out of range in emi_sea', wnum(I)
+      if ( wnum(channelIndex) < 645.d0 .or. wnum(channelIndex) > refw(1) ) then
+        write(*,'(A,1x,e12.4)') ' fatal: wavenumber out of range in emi_sea', wnum(channelIndex)
         stop
-      else if ( wnum(I) <= refw(19) .and. wnum(I) > 645.d0 ) then
+      else if ( wnum(channelIndex) <= refw(19) .and. wnum(channelIndex) > 645.d0 ) then
         !  extrapolated from 769 cm-1 to 645 cm-1: NOT FROM REAL DATA
         !  nevertheless thought to be much better than unity
         !  this is a region of relatively rapid emissivity change
         !  worst estimates for 700-645 cm-1, but these channels do not
         !  see the surface (strong co2 absorption).
-        imem(I) = 18
+        imem(channelIndex) = 18
       else
         !  CAUTION interpolation on large interval 1250-2439 cm-1
         !  where no data is available except that of ASTER. ASTER
@@ -4321,27 +4322,25 @@ contains
         !  with peak-to-peak variation of 1.5% in that narrow range.
         !  Worst estimates would be between 1400-1800 cm-1 in HIRS ch 12
         !  which only in very cold atmospheres sees the surface.
-        do k = 1, 18
-          if ( wnum(I) > refw(k + 1) .and. wnum(I) <= refw(k) ) then
-            imem(I) = k
+        do bandIndex = 1, 18
+          if ( wnum(channelIndex) > refw(bandIndex + 1) .and. wnum(channelIndex) <= refw(bandIndex) ) then
+            imem(channelIndex) = bandIndex
           end if
         end do
 
       end if
    
-      mchan(1)= imem(I)
-      mchan(2)= imem(I) + 1
+      mchan(1) = imem(channelIndex)
+      mchan(2) = imem(channelIndex) + 1
+ 
+      dum = ( wnum(channelIndex) - refw(mchan(1)) ) / ( refw(mchan(2)) - refw(mchan(1)) )
 
-      dum = ( wnum(I) - refw(mchan(1)) ) / ( refw(mchan(2)) - refw(mchan(1)) )
-
-      call COMP_IR_EMISS(emi2, wind,angle,2,np,mchan)
+      call comp_ir_emiss(emi2, wind, angle, 2, nProfiles, mchan)
 
       ! interpolation/extrapolation in wavenumber 
 
-      do L = 1, np
-  
-        em_oc(I,L) = emi2(1,L) + ( emi2(2,L) - emi2(1,L) ) * dum
-          
+      do profileIndex = 1, nProfiles
+        em_oc(channelIndex,profileIndex) = emi2(1,profileIndex) + ( emi2(2,profileIndex) - emi2(1,profileIndex) ) * dum
       end do
 
     end do
@@ -4365,7 +4364,7 @@ contains
 
     ! Locals:
     integer :: channelsb(tvs_maxChannelNumber)
-    integer :: ierr, i, j
+    integer :: ierr, allChannelIndex, channelIndex
     integer, allocatable :: listGlobal(:)
     logical :: found
      
@@ -4374,7 +4373,7 @@ contains
       call utl_abort('tvs_getCommonChannelSet')
     end if
 
-    if (mmpi_myid ==0) then
+    if (mmpi_myid == 0) then
       allocate(listGlobal(mmpi_nprocs*tvs_maxChannelNumber))
     else
       allocate(listGlobal(1))
@@ -4390,20 +4389,20 @@ contains
     call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
          tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
     countUniqueChannel = 0
-    if ( mmpi_myid == 0 ) then
+    if (mmpi_myid == 0) then
       call isort(listGlobal, mmpi_nprocs*tvs_maxChannelNumber)
-      do i=1, mmpi_nprocs * tvs_maxChannelNumber
-        if (listGlobal(i) > 0) then
+      do allChannelIndex = 1, mmpi_nprocs * tvs_maxChannelNumber
+        if (listGlobal(allChannelIndex) > 0) then
           found = .false.
-          LOOPJ: do j=countUniqueChannel,1,-1
-            if (listGlobal(i) == listAll(j) ) then
+          LOOPJ: do channelIndex = countUniqueChannel, 1, -1
+            if (listGlobal(allChannelIndex) == listAll(channelIndex) ) then
               found =.true.
               exit LOOPJ
             end if
           end do LOOPJ
-          if (.not.found) then
+          if (.not. found) then
             countUniqueChannel = countUniqueChannel + 1
-            listAll(countUniqueChannel) = listGlobal(i)
+            listAll(countUniqueChannel) = listGlobal(allChannelIndex)
           end if
         end if
       end do
@@ -4444,7 +4443,7 @@ contains
 
     write(*,*) 'tvs_printDetailledOmfStatistics: Starting'
 
-    if ( tvs_nobtov == 0) return    ! exit if there are not tovs data
+    if (tvs_nobtov == 0) return    ! exit if there are not tovs data
 
     ! 1.  Computation of (hx - z)/sigma for tovs data only
 
@@ -4464,12 +4463,12 @@ contains
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( .not. tvs_isIdBurpTovs(idatyp) ) then
+      if (.not. tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'tvs_printDetailledOmfStatistics: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
       tovsIndex = tvs_tovsIndex(headerIndex)
-      if ( tovsIndex == -1 ) cycle HEADER
+      if (tovsIndex == -1) cycle HEADER
        
       sensorIndex = tvs_lsensor(tovsIndex)
 
@@ -4482,19 +4481,19 @@ contains
         if (bodyIndex < 0) exit BODY
         
         ! Only consider if flagged for assimilation
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) cycle BODY                
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY                
 
-        call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                                            rttovChannelNumber, channelIndex )
+        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                           rttovChannelNumber, channelIndex )
         bufrChannelNumber = rttovChannelNumber + tvs_channelOffset(sensorIndex)
-        if ( channelIndex == 0 ) then
+        if (channelIndex == 0) then
           write(*,'(A)') '  tvs_printDetailledOmfStatistics: error with channel number'
           call utl_abort(' tvs_printDetailledOmfStatistics')
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
              tvs_radiance(tovsIndex) % bt(channelIndex)
-        if ( tvs_debug ) then
+        if (tvs_debug) then
           obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' rttovChannelNumber,sim,obs,diff= ', &
                rttovChannelNumber, tvs_radiance(tovsIndex) % bt(channelIndex), &
@@ -4503,7 +4502,7 @@ contains
 
         sigmaObs = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
 
-        if ( sigmaObs == MPC_missingValue_R8) cycle body
+        if (sigmaObs == MPC_missingValue_R8) cycle body
 
         count = count + 1
         inobsch(bufrChannelNumber,sensorIndex) = inobsch(bufrChannelNumber,sensorIndex) + 1
@@ -4524,7 +4523,7 @@ contains
     ! printout of mean jo and normalized average for each sensor.
 
     nchanperline = 18
-    if ( count > 0 ) then
+    if (count > 0) then
       write(*,*)
       write(*,*)
       write(*,'(10x,A)') '- tvs_printDetailledOmfStatistics: computing jo and residuals to tovs  observations'
@@ -4538,17 +4537,17 @@ contains
       do sensorIndex = 1, tvs_nsensors
         incanjo = 0
         do channelIndex = 0, tvs_maxChannelNumber
-          if ( inobsch(channelIndex, sensorIndex) /= 0 ) then
+          if (inobsch(channelIndex, sensorIndex) /= 0) then
             incanjo = incanjo + 1
             lcanjo(incanjo) = channelIndex
           end if
         end do
-        if ( incanjo /= 0 ) then
+        if (incanjo /= 0) then
           write(*,"(/1x,'sensor #',i2,'. platform: ',a, 'instrument: ',a)") &
                sensorIndex, tvs_satelliteName(sensorIndex), tvs_instrumentName(sensorIndex)
           do startChannel = 1, incanjo, nchanperline
             endChannel = min(startChannel + nchanperline - 1 , incanjo)
-            if ( startChannel == 1 ) then
+            if (startChannel == 1) then
               write(*,"(1x,'channel',t13,'   all',17i6)") (lcanjo(channelIndex), channelIndex=startChannel+1, endChannel)
             else
               write(*,"(1x,'channel',t13,18i6)") (lcanjo(channelIndex), channelIndex=startChannel, endChannel)
@@ -4581,24 +4580,24 @@ contains
     integer, intent(in)  :: channelNumber_in ! Channel number
 
     ! Locals:
-    logical, save              :: first =.true.
+    logical, save              :: firstCall =.true.
     integer                    :: channelNumber, sensorIndex, channelIndex 
     integer, allocatable, save :: savedChannelIndexes(:,:)
 
-    if (first) then
+    if (firstCall) then
       allocate(savedChannelIndexes(tvs_nsensors, tvs_maxChannelNumber ))
       savedChannelIndexes(:,:) = -1
       do sensorIndex = 1, tvs_nsensors
-        channels:do channelNumber = 1,  tvs_maxChannelNumber
-          indexes: do channelIndex =1, tvs_nchan(sensorIndex)
-            if ( channelNumber == tvs_ichan(channelIndex,sensorIndex) ) then
+        channels:do channelNumber = 1, tvs_maxChannelNumber
+          indexes: do channelIndex = 1, tvs_nchan(sensorIndex)
+            if (channelNumber == tvs_ichan(channelIndex,sensorIndex)) then
               savedChannelIndexes(sensorIndex,channelNumber) = channelIndex
               exit indexes
             end if
           end do indexes
         end do channels
       end do
-      first = .false.
+      firstCall = .false.
     end if
 
     channelIndex_out = savedChannelIndexes(idsat,channelNumber_in)
@@ -4628,12 +4627,12 @@ contains
     integer :: profileIndex, profileCount
     real(8), allocatable, save :: cloudProfileToStore(:,:)
 
-    if ( .not. beSilent ) write(*,*) 'updateCloudInTovsProfile: Starting'
-    if ( .not. beSilent ) call msg_memUsage('updateCloudInTovsProfile')
+    if (.not. beSilent) write(*,*) 'updateCloudInTovsProfile: Starting'
+    if (.not. beSilent) call msg_memUsage('updateCloudInTovsProfile')
 
     profileCount = size(sensorTovsIndexes)
 
-    if ( trim(mode) == 'save' ) then 
+    if (trim(mode) == 'save') then 
       if (allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
       allocate(cloudProfileToStore(nlv_T,profileCount))
 
@@ -4642,7 +4641,7 @@ contains
         tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_getMinValueCloud('LWCR') 
       end do
 
-    else if ( trim(mode) == 'restore' ) then 
+    else if (trim(mode) == 'restore') then 
       do profileIndex = 1, profileCount
         tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = cloudProfileToStore(:,profileIndex)
       end do
@@ -4651,7 +4650,6 @@ contains
 
     else
       call utl_abort('updateCloudInTovsProfile: mode should be either "save" or "restore"')
-
     end if
 
   end subroutine updateCloudInTovsProfile
@@ -4679,10 +4677,10 @@ contains
 
     profileCount = size(sensorTovsIndexes)
 
-    if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting', profileCount
-    if ( .not. beSilent ) call msg_memUsage('updateCloudInTovsCloudProfile')
+    if (.not. beSilent) write(*,*) 'updateCloudInTovsCloudProfile: Starting', profileCount
+    if (.not. beSilent) call msg_memUsage('updateCloudInTovsCloudProfile')
 
-    if ( trim(mode) == 'save' ) then 
+    if (trim(mode) == 'save') then 
       if (allocated(rainFluxProfileToStore)) deallocate(rainFluxProfileToStore)
       if (allocated(snowFluxProfileToStore)) deallocate(snowFluxProfileToStore)
       if (allocated(clwProfileToStore)) deallocate(clwProfileToStore)
@@ -4707,7 +4705,7 @@ contains
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
       end do
 
-    else if ( trim(mode) == 'restore' ) then 
+    else if (trim(mode) == 'restore') then 
       do profileIndex = 1, profileCount
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = rainFluxProfileToStore(:,profileIndex)
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = snowFluxProfileToStore(:,profileIndex)
@@ -4724,7 +4722,6 @@ contains
 
     else
       call utl_abort('updateCloudInTovsCloudProfile: mode should be either "save" or "restore"')
-
     end if
 
   end subroutine updateCloudInTovsCloudProfile
@@ -4923,7 +4920,7 @@ contains
     ! Variables for emissivity calculations
     type (eddington_sfc_type) :: sfc_terms ! Downward radiance source terms, Upward radiance source terms, Total transmittancs
     type (rttov_radiance2)    :: radiance2               
-    type (rttov_geometry)          :: angles (size(profiles))
+    type (rttov_geometry)     :: angles (size(profiles))
     type (rttov_profile_scatt_aux) :: scatt_aux  
     type (rttov_options)    :: opts
     character (len=80) :: errMessage
@@ -4980,19 +4977,19 @@ contains
     ! Check inputs
     ! ------------
     do iprof = 1, nprofiles
-      if (  profiles(iprof) % s2m % p /= cld_profiles(iprof) % ph(nlevels+1)  ) then
+      if (profiles(iprof) % s2m % p /= cld_profiles(iprof) % ph(nlevels+1)) then
         errorstatus = errorstatus_fatal
         write( errMessage, '( "Surface pressure and lowest half level should be identical")' )
       end if
-      if ( cld_profiles(iprof) % nhydro /= coef_scatt % nhydro ) then
+      if (cld_profiles(iprof) % nhydro /= coef_scatt % nhydro) then
         errorstatus = errorstatus_fatal
         write( errMessage, '( "Number of hydrometeors differs between inputs and scattering coefficients ")' )
       end if
-      if ( cld_profiles(iprof) % nhydro_frac /= coef_scatt % nhydro .and. &
-          cld_profiles(iprof) % nhydro_frac /= 1_JPIM ) then
+      if (cld_profiles(iprof) % nhydro_frac /= coef_scatt % nhydro .and. &
+          cld_profiles(iprof) % nhydro_frac /= 1_JPIM) then
         errorstatus = errorstatus_fatal
         write( errMessage, '( "Number of hydrometeor fractions should be 1 or nhydro ")' )
-      endif
+      end if
       if (errorstatus == errorstatus_fatal) then
         call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
         return
@@ -5043,9 +5040,9 @@ contains
         calcemis   = calcemis,  &! in
         emissivity = emissivity) ! inout
 
-    if ( errorstatus == errorstatus_fatal ) Then
-      write( errMessage, '( "error in rttov_direct")' )
-      call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
+    if (errorstatus == errorstatus_fatal) Then
+      write(errMessage, '( "error in rttov_direct")')
+      call rttov_errorreport(errorstatus_fatal, errMessage, NameOfRoutine)
       return
     end if
     
@@ -5073,8 +5070,8 @@ contains
         angles,                &! out
         scatt_aux)              ! inout
     
-    if ( errorstatus == errorstatus_fatal ) Then
-      write( errMessage, '( "error in rttov_iniscatt")' )
+    if (errorstatus == errorstatus_fatal) Then
+      write(errMessage, '( "error in rttov_iniscatt")' )
       call rttov_errorreport (errorstatus_fatal, errMessage, NameOfRoutine)
       return
     end if
@@ -5134,7 +5131,6 @@ contains
       radiance % clear (:)             = min_radiance_radar
       
       do ichan = 1, nchannels
-        
         iprof            = chanprof(ichan) % prof
         zlayers(nlevels) = profiles(iprof) % elevation
         
@@ -5656,7 +5652,7 @@ contains
           bodyIndex = tvs_bodyIndexFromBtIndex(btIndex,sensorIndex)
           call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex, &
               radiancedata_tl % bt(btIndex) )
-          if ( tvs_debug ) then
+          if (tvs_debug) then
             obsOMP = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
             write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                 tvs_chanProf(btIndex,sensorIndex) % chan, radiancedata_tl % bt(btIndex), obsOMP
@@ -6284,7 +6280,7 @@ contains
       !     .  2.1  Store adjoints in columnData object
       !     .       -----------------------------------
 
-      do  profileIndex = 1 , profileCount 
+      do profileIndex = 1, profileCount 
         p_column  => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'P_T')
         tt_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'TT')
         hu_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'HU')
