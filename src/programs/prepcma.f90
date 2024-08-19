@@ -103,6 +103,7 @@ program midas_prepcma
   use regions_mod
   use burpRead_mod
   use gridStateVectorFileIO_mod
+  use rttov_const, only : inst_name, platform_name
 
   implicit none
 
@@ -371,13 +372,17 @@ contains
     integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: iblock, codeType, ilat, incr, ipres, nblocksum, npres, nsize, num_stn
-    logical :: count_obs, allRejected, tovsProfWithAllskyChanForAssim
+    logical :: count_obs, allRejected
     real(4) :: lat_r4, lon_r4
     real(8) :: pressure, rannum
     real(8), allocatable :: latcenter(:), latmin(:), latmax(:), ranvals(:)
     integer, allocatable :: nblockoffset(:), nlonblock(:)
     integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
+    integer :: tovsIndex, sensorIndex
+    integer :: numHeaderPerTovsSensorBeforeThin(tvs_nsensors), numHeaderPerTovsSensorAfterThin(tvs_nsensors)
+    integer :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(tvs_nsensors), numHeaderPerTovsSensorAfterThin_mpiGlobal(tvs_nsensors)
+
 
     ! box size that is used for observation thinning 
     ! (the numerator is an approximate distance in km)
@@ -425,6 +430,10 @@ contains
 
     nrep_count = 0
     nobs_count = 0
+    numHeaderPerTovsSensorBeforeThin = 0
+    numHeaderPerTovsSensorBeforeThin_mpiGlobal = 0
+    numHeaderPerTovsSensorAfterThin = 0
+    numHeaderPerTovsSensorAfterThin_mpiGlobal = 0
 
     allocate(nstation(nblocksum, npres))
     allocate(keep_ai(nblocksum, npres))
@@ -455,12 +464,6 @@ contains
         end do body_loop
         if (allRejected) cycle header_loop
 
-        ! skip this header if it is tovs profile with all-sky channel flagged for assimilation.
-        if (cfam == 'TO') then
-          call oer_profWithAllskyChanForAssim(obsSpaceData, headerIndex, tovsProfWithAllskyChanForAssim)
-          if (tovsProfWithAllskyChanForAssim) cycle header_loop
-        end if
-
         lat_r4 = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
         lon_r4 = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
         call reg_locatestn(lsc%r0_rad, lat_r4, lon_r4, &
@@ -490,6 +493,13 @@ contains
           ai_indices(nrep_count, 2) = iblock
           ai_indices(nrep_count, 3) = ipres 
         end if
+
+        if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
+          tovsIndex = tvs_tovsIndex(headerIndex)
+          sensorIndex = tvs_lsensor(tovsIndex)
+          numHeaderPerTovsSensorBeforeThin(sensorIndex) = numHeaderPerTovsSensorBeforeThin(sensorIndex) + 1
+        end if
+
       end if
     end do header_loop
 
@@ -503,11 +513,26 @@ contains
     call rpn_comm_allreduce(nobs_count, nobs_count_mpiGlobal, 1,  &
                             'mpi_integer','mpi_sum', 'GRID', ierr)
 
+    if (cfam=='TO') then
+      do sensorIndex = 1, tvs_nsensors
+        call rpn_comm_allreduce(numHeaderPerTovsSensorBeforeThin(sensorIndex), numHeaderPerTovsSensorBeforeThin_mpiGlobal(sensorIndex), 1, &
+                                "mpi_integer", "mpi_sum", "grid", ierr)
+      end do
+    end if
+
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
          nrep_count, nrep_count_mpiGlobal
     allocate(ranvals(nrep_count))
     write(*,*) 'total number of ', cfam, ' observations (local and mpiglobal): ',  &
          nobs_count, nobs_count_mpiGlobal
+
+    if (cfam=='TO') then
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
+                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    numHeaderPerTovsSensorBeforeThin(sensorIndex), numHeaderPerTovsSensorBeforeThin_mpiGlobal(sensorIndex)
+      end do
+    end if
 
     n_count_thin = 0
     do iblock = 1, nblocksum
@@ -548,6 +573,12 @@ contains
       if (rannum <= keep_ai(iblock,ipres)) then
         nrep_count_thin = nrep_count_thin + 1
         nobs_count_thin = nobs_count_thin + obs_headElem_i(obsSpaceData, obs_nlv, headerIndex)
+
+        if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
+          tovsIndex = tvs_tovsIndex(headerIndex)
+          sensorIndex = tvs_lsensor(tovsIndex)
+          numHeaderPerTovsSensorAfterThin(sensorIndex) = numHeaderPerTovsSensorAfterThin(sensorIndex) + 1
+        end if
       else
         ! reject the profile
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
@@ -567,10 +598,24 @@ contains
     call rpn_comm_allreduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 1,  &
                             'mpi_integer','mpi_sum', 'GRID', ierr)
     
+    if (cfam=='TO') then
+      do sensorIndex = 1, tvs_nsensors
+        call rpn_comm_allreduce(numHeaderPerTovsSensorAfterThin(sensorIndex), numHeaderPerTovsSensorAfterThin_mpiGlobal(sensorIndex), 1, &
+                                "mpi_integer", "mpi_sum", "grid", ierr)
+      end do
+    end if
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
          nrep_count_thin, nrep_count_thin_mpiGlobal
     write(*,*) 'True remaining number of ', cfam, ' observations (local, mpiGlobal): ',  &
          nobs_count_thin, nobs_count_thin_mpiGlobal
+
+    if (cfam=='TO') then
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
+                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    numHeaderPerTovsSensorAfterThin(sensorIndex), numHeaderPerTovsSensorAfterThin_mpiGlobal(sensorIndex)
+      end do
+    end if
 
     deallocate(ranvals)
     deallocate(latmin)
