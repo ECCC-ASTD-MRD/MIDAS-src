@@ -169,20 +169,20 @@ module tovs_mod
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
   integer, allocatable :: tvs_bodyIndexFromBtIndexScatt(:,:) ! Provides RTTOVScatt bodyIndex in ObsSpaceData based on btIndex for each sensor
   type(rttov_emis_atlas_data), allocatable :: tvs_atlas(:)     ! Emissivity atlases
-  integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
-  integer instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
+  integer :: instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
+  integer :: instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
   
   logical :: tvs_copyCoefficientFileToRamDisk
   real(8) :: tvs_cloudScaleFactor 
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
-  logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
-  logical tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
-  logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
-  logical tvs_userDefinedDoAzimuthCorrection
-  logical tvs_userDefinedIsAzimuthValid
-  logical tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
+  logical :: tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
+  logical :: tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
+  logical :: tvs_isAzimuthValid(tvs_maxNumberOfSensors)
+  logical :: tvs_userDefinedDoAzimuthCorrection
+  logical :: tvs_userDefinedIsAzimuthValid
+  logical :: tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
 
-  character(len=8) radiativeTransferCode             ! RadiativeTransferCode : TOVS radiation model used
+  character(len=8) :: radiativeTransferCode             ! RadiativeTransferCode : TOVS radiation model used
   real(8), allocatable :: tvs_emissivityFromTrl(:,:) ! Surface emissivities extracted from trial
   type(rttov_chanprof), allocatable :: tvs_chanProf(:,:)
   type(rttov_chanprof), allocatable :: tvs_chanProfScatt(:,:)
@@ -810,7 +810,7 @@ contains
     implicit none
 
     ! Locals:
-    integer  sensorIndex, ierr
+    integer :: sensorIndex, ierr
     integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
@@ -1133,9 +1133,9 @@ contains
     implicit none
 
     ! Locals:
-    integer sensorIndex, instrumentIndex, platformIndex
-    integer ipos1, ipos2
-    integer numerosat, ierr, kindex
+    integer :: sensorIndex, instrumentIndex, platformIndex
+    integer :: ipos1, ipos2
+    integer :: numerosat, ierr, kindex
     character(len=15) :: tempocsatid
     logical, save :: firstCall=.true.
     integer, save :: ioffset1b(0:ninst-1)
@@ -1900,7 +1900,7 @@ contains
     integer, intent(out) :: instrum      ! RTTOV instrument ID numbers (e.g. 3 for  AMSUA)
   
     ! Locals:  
-    integer instrumentIndex, numinstburp
+    integer :: instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp = 100
     logical, save :: firstCall = .true.
     integer :: ierr
@@ -4429,15 +4429,15 @@ contains
 
     ! Locals:
     integer :: sensorIndex, channelIndex, tovsIndex
-    real(8) zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(8) zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(8) :: zjoch(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(8) :: zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(pre_obsReal) :: zdtb, obsPRM
-    integer nchanperline, startChannel, endChannel
-    integer count, incanjo
-    integer idatyp
-    integer rttovChannelNumber, bufrChannelNumber
-    integer inobsch(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    integer lcanjo(tvs_maxChannelNumber)
+    integer :: nchanperline, startChannel, endChannel
+    integer :: count, incanjo
+    integer :: idatyp
+    integer :: rttovChannelNumber, bufrChannelNumber
+    integer :: inobsch(0:tvs_maxChannelNumber, tvs_maxNumberOfSensors)
+    integer :: lcanjo(tvs_maxChannelNumber)
     integer :: headerIndex, bodyIndex
     real(8) :: sigmaObs
 
