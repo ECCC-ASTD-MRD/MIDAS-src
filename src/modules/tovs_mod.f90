@@ -350,6 +350,7 @@ contains
       if (bodyIndex < 0) exit BODY
       call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
     end do BODY
+    
   end subroutine rejectObs
   
   !--------------------------------------------------------------------------
@@ -917,6 +918,7 @@ contains
     tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
+    
     !  1.4 Validate namelist values
     
     if (tvs_nsensors == 0) then
@@ -2487,9 +2489,9 @@ contains
 
     call tvs_getProfile(profiles, profileType, cld_profiles)
 
-!
-!     1.    Set index for model's lowest level and model top
-!     .     ------------------------------------------------
+    !
+    !     1.    Set index for model's lowest level and model top
+    !     .     ------------------------------------------------
     
     nlv_M = col_getNumLev(columnTrl,'MM')
     nlv_T = col_getNumLev(columnTrl,'TH')
@@ -3523,6 +3525,7 @@ contains
     else
       updatedEmissivity(:) % emis_in = originalEmissivity(:)
     end if
+    
   end subroutine tvs_getMWemissivityFromAtlas
 
   !--------------------------------------------------------------------------
@@ -4242,7 +4245,6 @@ contains
       end do
     end do
 
-
   end subroutine ceres_ematrix
 
   !--------------------------------------------------------------------------
@@ -4334,7 +4336,6 @@ contains
       end do
 
     end do
-
 
   end subroutine emi_sea
 
@@ -4600,7 +4601,9 @@ contains
 
   end subroutine tvs_getLocalChannelIndexFromChannelNumber
 
-
+  !--------------------------------------------------------------------------
+  !  updateCloudInTovsProfile
+  !--------------------------------------------------------------------------
   subroutine updateCloudInTovsProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
     !
     ! :Purpose: Modify the cloud in tvs_profiles_nl structure of rttov.
@@ -4644,7 +4647,9 @@ contains
 
   end subroutine updateCloudInTovsProfile
 
-
+  !--------------------------------------------------------------------------
+  !  updateCloudInTovsCloudProfile
+  !--------------------------------------------------------------------------
   subroutine updateCloudInTovsCloudProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
     !
     ! :Purpose: Modify the cloud in tvs_cld_profiles_nl structure of rttovScatt.
@@ -4833,6 +4838,7 @@ contains
     end do
 
     err = fclos(iunit)
+    
   end subroutine tvs_writeJacobianAscii
 
   !--------------------------------------------------------------------------
@@ -6372,7 +6378,7 @@ contains
   end subroutine tvs_rttov_ad
 
   !--------------------------------------------------------------------------
-  !  tvs_rttov_K
+  !  tvs_rttov_k
   !--------------------------------------------------------------------------
   subroutine tvs_rttov_k(columnTrlOnAnlIncLev, obsSpaceData)
     !
@@ -6551,6 +6557,7 @@ contains
       deallocate( tvs_chanProfScatt )
     end if
     write(*,*) 'tvs_rttov_k: finished'
+    
   end subroutine tvs_rttov_k
 
 end module tovs_mod
