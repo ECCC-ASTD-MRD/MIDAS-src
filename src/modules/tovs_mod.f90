@@ -875,7 +875,8 @@ contains
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     copyCoefficientFileToRamDisk = .true.
-    computeJacobian = .false. 
+    computeJacobian = .false.
+    
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
     call utl_tmg_start(181,'low-level--readNML')
@@ -1359,7 +1360,7 @@ contains
     end if
 
     if (firstCall) then
-       if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
+      if (utl_isNamelistPresent('NAMTOVSINST', './flnml')) then
         call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
       end if
       call utl_tmg_start(181,'low-level--readNML')
@@ -1559,6 +1560,7 @@ contains
         end if
       end do
     end if
+    
   end function tvs_getInstrumentId
 
   !--------------------------------------------------------------------------
@@ -3101,6 +3103,7 @@ contains
         else
           emissivity_local(:) % emis_in = surfem1(:)
         end if
+        
         !   2.3  Compute radiance with rttov_direct
 
         rttov_err_stat = 0 
@@ -3221,6 +3224,7 @@ contains
             call utl_abort('tvs_rttov')
           end if
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
+        
         !    2.4  Store hx in the structure tvs_radiance
         if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
@@ -3310,7 +3314,7 @@ contains
             btCountScatt,                                  &  ! number of calculated channels
             tvs_chanProfScatt(1:btCountScatt,sensorIndex), &  ! channels and profile numbers
             frequencies,                                   &  ! array, frequency number for each channel
-            lchannelSubset )                                 ! OPTIONAL array of logical flags to indicate a subset of channels
+            lchannelSubset )                                  ! OPTIONAL array of logical flags to indicate a subset of channels
         deallocate(lchannelSubset)
         call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
         
@@ -3904,7 +3908,6 @@ contains
     write(*,*) ' <RETURN CODES> SHOULD NOT BE NEGATIVE'
     write(*,*) '---------------------------------------------------'
 
-
     ! --- FOR CERES VARIABLES -------------
     !  Get number of pixels per degree of lat or lon
 
@@ -3946,7 +3949,6 @@ contains
     cfile3 = 'sfc4airs'          ! for ice fraction and snow cover
     cfile5 = 'sfc4airs_newalb'   ! for albedo
 
-
     ! fnom: make the connections with the external files name
     ! success = 0
     write(*,*) 
@@ -3956,7 +3958,6 @@ contains
     iz1 = fnom(iun5,cfile5,'RND+R/O',0)
     write(*,*) 'file = sfc4airs_newalb  : fnom   : return = ', iz1
 
-
     ! fstouv: open the standard files
     ! success = number of records found in the file
     write(*,*) 
@@ -3964,7 +3965,6 @@ contains
     write(*,*) 'file = sfc4airs         : fstouv : return = ', ix2
     iz2 = fstouv(iun5,'RND')
     write(*,*) 'file = sfc4airs_newalb  : fstouv : return = ', iz2
-
 
     ! fstinf: locate the records that matches the search keys
     ! success = handle of the record found after the search
@@ -3986,7 +3986,6 @@ contains
     iz3 = fstinf(iun5,ni5,nj5,nk5,-1,'',-1,-1,-1,'','AL')
     write(*,*) 'variable = AL           : fstinf : return = ', iz3
 
-
     ! fstprm: get the description informations of the record given the key
     ! success = 0
     ! desired output = nix,njx,grtypx,igxx,ig1x,ig2x,ig3x,ig4x
@@ -4007,12 +4006,10 @@ contains
          ig15,ig25,ig35,ig45,swa,lng,dltf,ubc,ex1,ex2,ex3)
     write(*,*) 'variable = AL           : fstprm : return = ', iz4
 
-
     ! allocation of the field on the grid
     allocate (glace(ni3,nj3))
     allocate (neige(ni4,nj4))
     allocate (alb  (ni5,nj5))
-
 
     ! utl_fstlir: read records data (field on the grid) given the key
     ! success = handle of the record
@@ -4036,7 +4033,6 @@ contains
 
     call int_cxgaig('L',ig1OBS,ig2OBS,ig3OBS,ig4OBS,zig1,zig2,zig3,zig4)
 
-
     ! int_EZGDEF: define the grid of the observations profiles (output grid)
     ! of type Y containing the lat-lon of profiles
     ! success = token to identify the grid
@@ -4045,7 +4041,6 @@ contains
     iv7 = int_ezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,longitudes,latitudes)
     write(*,*) 'apply to all variables  : int_EZGDEF : return = ', iv7
     
-
     ! EZQKDEF: define the grid of the records data (input grid)
     ! success = token to identify the grid
     ! desired output = token
@@ -4086,7 +4081,6 @@ contains
     iz10 = int_hInterpScalar(alb_intrpl,alb,interpDegree='NEAREST')
     write(*,*) 'variable = AL           : int_hInterpScalar  : return = ', iz10
 
-
     ! fstfrm: close the standard files
     ! success = 0
     write(*,*) 
@@ -4096,7 +4090,6 @@ contains
     iz11 = fstfrm(iun5)
     write(*,*) 'file = sfc4airs_newalb  : fstfrm : return = ', iz11
  
-
     ! fclos: release the connections with the external files name
     ! success = 0
 
@@ -4510,7 +4503,6 @@ contains
     !   2.  Close up, print summary
     !   .   -----------------------
 
-
     ! printout of mean jo and normalized average for each sensor.
 
     nchanperline = 18
@@ -4554,7 +4546,6 @@ contains
     end if
 
   end subroutine  tvs_printDetailledOmfStatistics
-
 
   !--------------------------------------------------------------------------
   !  tvs_getLocalChannelIndexFromChannelNumber
@@ -5229,7 +5220,6 @@ contains
     write(*,*) "tvs_setupPointers: profileCount= ", profileCount
     if (profileCount == 0) return
 
-
     if (irBgckMode) then
       btCount = profileCount * tvs_nchan(sensorIndex)
       btCountScatt = 0
@@ -5355,7 +5345,7 @@ contains
     logical :: runObsOperatorWithClw_tl
     logical :: runObsOperatorWithHydrometeors_tl
     real(8) :: obsOMP
-    type (rttov_profile), pointer :: profiles(:)
+    type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
@@ -5389,15 +5379,13 @@ contains
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
     Vcode = vco_anl % Vcode
-    
-  
+      
     !     1.  Get number of threads available and allocate memory for some variables
     !     .   ---------------------------------------------------------------------- 
 
     allocate(sensorTovsIndexes(tvs_nobtov))
     
     ! 2.  Computation of hx for tovs data only
-
     
     ! Loop over all sensors specified by user
 
