@@ -182,8 +182,8 @@ program midas_dfs
   
   implicit none
 
-  integer, external :: exdb, exfin,fnom, fclos
-  integer :: ierr, istamp
+  integer, external :: exdb, exfin, fnom, fclos
+  integer :: ierr, istamp, obsIndex
 
   type(struct_obs),        target :: obsSpaceData
   type(struct_columnData), target :: columnTrlOnAnlIncLev
@@ -201,7 +201,8 @@ program midas_dfs
   integer, parameter :: nObsMax=10
 
   integer :: nLevelsDfs, levelIndex
-  !Namelist variables:
+  
+  ! Namelist variables:
   character(len=2) :: familyType                 ! familyType to consider (TO, UA, AI, RO, etc... one at a time)
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
   integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
@@ -214,8 +215,9 @@ program midas_dfs
   integer :: dayList(nObsMax)                    ! list of dates (yyyymmdd) to select specific observations
   integer :: timeList(nObsMax)                   ! list of hours (HHMM) to select specific observations
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
- 
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList
+  logical :: computeInParallel                   ! if .true. computation performed in parallel
+                                                 ! if .false. (default) observation processed one at a time (slow) 
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -254,6 +256,7 @@ program midas_dfs
   dayList(:) = MPC_missingValue_INT
   timeList(:) = MPC_missingValue_INT
   satZenList(:) = MPC_missingValue_R8
+  computeInParallel = .false.
   
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
@@ -267,7 +270,13 @@ program midas_dfs
     call utl_tmg_stop(181)
     if (ierr /= 0) call utl_abort('midas-dfs: Error reading namelist')
   end if
-    
+
+  ! Longitudes in ObsSpaceData are positives
+  do obsIndex = 1, nObsMax
+    if (lonList(obsindex) == MPC_missingValue_R8) cycle
+    if (lonList(obsIndex) < 0. ) lonList(obsIndex) = lonList(obsIndex) + 360.d0
+  end do
+  
   if (mmpi_myid == 0) write(*, nml = NAMDFS)
 
   nLevelsDfs = 0
@@ -468,23 +477,26 @@ contains
     type(struct_gsv)        :: stateVector
     type(struct_vco), pointer :: vco_anl
     integer :: headerIndex, bodyIndex1, bodyIndex2, obsIndex, taskIndex
-    integer :: bodyIndexBeg, bodyIndexEnd, ierr, procIndex
+    integer :: bodyIndexBeg, bodyIndexEnd, ierr, procIndex, outTaskIndex
     integer, allocatable :: headerIndexList(:), levelList(:,:)
     integer, allocatable :: headerIndexListMpi(:,:), levelListMpi(:,:,:)
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
-    integer, allocatable :: mpiTaskList(:), mpiTaskListMpi(:,:)
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
-    real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), all_dfs(:)
-    integer, allocatable :: order(:)
+    real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), dfsIncremental(:)
+    real(8), allocatable :: HBHtMatrixForOutput(:,:,:), dfsIncrementalForOutput(:,:)
+    integer, allocatable :: order(:),orderForOutput(:,:)
     real(8) :: dfs
-    logical :: first, llok
-    integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2
-    integer :: numHeader, numHeaderMaxMpi, sensorIndex, localDimension
+    real(8), allocatable :: dfsForOutput(:)
+    logical :: llok
+    integer :: channelNumber1, channelNumber2, channelIndex1, channelIndex2,stringIndex
+    integer :: numHeader, numHeaderMaxMpi, sensorIndex
     integer :: countObs, sumCountObsMpi, maxCountObsMpi, countChannel, maxCountChannelMpi
     real(8), allocatable :: perturbationVector(:)
     integer :: dfsCount, sizeSelect, nulDfs, nulSelec, nulHBHt
-    character(len=128) :: headerObs1
-    character(len=16) :: headerObs2
+    integer, parameter :: stringLength=128
+    character(len=stringLength) :: headerObs
+    character(len=stringLength), allocatable :: headerObsForOutput(:)
+    integer, allocatable :: stringInt(:), stringIntForOutput(:,:)
     !
     !- 1.  Initialization
 
@@ -508,20 +520,17 @@ contains
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
     allocate(headerIndexList(numHeaderMaxMpi))
-    allocate(mpiTaskList(numHeaderMaxMpi))
     allocate(levelList(numHeaderMaxMpi,nLevelsDfs))
     allocate(bodyIndexList(numHeaderMaxMpi,nLevelsDfs))
     allocate(stdDevList(numHeaderMaxMpi,nLevelsDfs))
 
     headerIndexList(:) = MPC_missingValue_INT
-    mpiTaskList(:) = MPC_missingValue_INT
     levelList(:,:) = MPC_missingValue_INT
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
     
-    !First step count the number of selected observation for each MPI task
+    ! First step count the number of selected observation for each MPI task
     countObs = 0
-    first = .true.
     countChannel = 0 ! necessary in the case where no obs in the file
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
@@ -545,7 +554,6 @@ contains
         write(*,*) 'found one observation with all requested ', nlevelsDfs, 'levels/channels available ', headerIndex
         countObs = countObs + 1
         headerIndexList(countObs) = headerIndex
-        mpiTaskList(countObs) = mmpi_myid
         levelList(countObs,:) = vCoordList(1:nLevelsDfs)
         countChannel = 0
         BODY2:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
@@ -565,43 +573,39 @@ contains
 
     call rpn_comm_allReduce(countChannel, maxCountChannelMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
 
-    allocate(mpiTaskListMpi(maxCountObsMpi, mmpi_nprocs))
-    allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
-    allocate(levelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
-    allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
-    allocate(stdDevListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+    if (.not. computeInParallel) then
+      allocate(headerIndexListMpi(maxCountObsMpi, mmpi_nprocs))
+      allocate(levelListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+      allocate(bodyIndexListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
+      allocate(stdDevListMpi(maxCountObsMpi, maxCountChannelMpi, mmpi_nprocs))
     
-    mpiTaskListMpi(:,:) = MPC_missingValue_INT
-    headerIndexListMpi(:,:) = MPC_missingValue_INT
-    levelListMpi(:,:,:) = MPC_missingValue_INT
-    bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
-    stdDevListMpi(:,:,:) = MPC_missingValue_R8
+      headerIndexListMpi(:,:) = MPC_missingValue_INT
+      levelListMpi(:,:,:) = MPC_missingValue_INT
+      bodyIndexListMpi(:,:,:) = MPC_missingValue_INT
+      stdDevListMpi(:,:,:) = MPC_missingValue_R8
     
-    call rpn_comm_allgather(mpiTaskList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
-                            mpiTaskListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
+      call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
+                              headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
 
-    call rpn_comm_allgather(headerIndexList(1:maxCountObsMpi), maxCountObsMpi, 'mpi_integer', &
-                            headerIndexListMpi, maxCountObsMpi, 'mpi_integer', 'grid', ierr)
+      call rpn_comm_allgather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
+                              levelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
 
-    call rpn_comm_allgather(levelList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-        maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-        levelListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
+      call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+                              maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
+                              bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
 
-    call rpn_comm_allgather(bodyIndexList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-        maxCountObsMpi * maxCountChannelMpi, 'mpi_integer',  &
-        bodyIndexListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_integer', 'grid', ierr)
+      call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
+                              maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
+                              stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
 
-    call rpn_comm_allgather(stdDevList(1:maxCountObsMpi,1:maxCountChannelMpi), &
-        maxCountObsMpi * maxCountChannelMpi, 'mpi_real8',  &
-        stdDevListMpi, maxCountObsMpi * maxCountChannelMpi, 'mpi_real8', 'grid', ierr)
-
-    call rpn_comm_barrier('GRID', ierr)
+      call rpn_comm_barrier('GRID', ierr)
     
-    deallocate(bodyIndexList)
-    deallocate(levelList)
-    deallocate(mpiTaskList)
-    deallocate(headerIndexList)
-    deallocate(stdDevList)
+      deallocate(bodyIndexList)
+      deallocate(levelList)
+      deallocate(headerIndexList)
+      deallocate(stdDevList)
+    end if
     
     if (mmpi_myId == 0) then
       if (outputHbHt) then
@@ -616,52 +620,172 @@ contains
       ierr = fnom(nulDfs, './dfs.dat', 'FTN+FMT+R/W', 0)
     end if
     
-    localDimension = cvm_nvadim
-    allocate(perturbationVector(localDimension))
+    allocate(perturbationVector(cvm_nvadim))
     allocate(HBHtMatrix(nLevelsDfs,nLevelsDfs))
+    HBHtMatrix(:,:) = MPC_missingValue_R8
+
+    if (doChannelSelection) then
+      sizeSelect = nLevelsDfs
+      if (maxSelect > 0) then
+        sizeSelect = maxSelect
+      end if
+      allocate(dfsIncremental(sizeSelect))
+      allocate(order(sizeSelect))
+    end if
+    
     dfsCount = 0
-    mpiTaskLoop:do procIndex = 1, mmpi_nprocs
-      observationLoop:do obsIndex = 1, maxCountObsMpi
-        headerIndex = headerIndexListMpi(obsIndex,procIndex)
-        taskIndex = mpiTaskListMpi(obsIndex,procIndex)
-        if (headerIndex == MPC_missingValue_INT .or. taskIndex == MPC_missingValue_INT) cycle
-        channelLoop:do channelIndex1 = 1, maxCountChannelMpi
-          bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
-          channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
-          if (bodyIndex1 /= MPC_missingValue_INT) then
+    
+    if (computeInParallel) then
+      observationLoop1:do obsIndex = 1, maxCountObsMpi
+        channelLoop1:do channelIndex1 = 1, maxCountChannelMpi
+          ! We need to initialize the full OBS_WORK column to zero 
+          do bodyIndex2 = 1, obs_numBody(obsSpaceData)
+            call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
+          end do
+          headerIndex = headerIndexList(obsIndex)
+          if (headerIndex /= MPC_missingValue_INT) then
+            bodyIndex1 = bodyIndexList(obsIndex,channelIndex1)
+            channelNumber1 = levelList(obsIndex,channelIndex1)
+            call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
+
+          end if          
+          call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData) 
+         
+          do channelIndex2 = 1, maxCountChannelMpi
+            bodyIndex2 = bodyIndexList(obsIndex,channelIndex2)
+            if (bodyIndex2 /= MPC_missingValue_INT) then !useless ?
+              HBHtMatrix(channelIndex1,channelIndex2) = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
+            end if
+          end do
+          write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
+          call utl_printTime()
+        end do channelLoop1
+      
+        headerObs = ''
+        dfs = 0.d0
+        if (headerIndex /= MPC_missingValue_INT) then
+          dfsCount = dfsCount + 1
+          call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
+          
+          ! Extraction of the R matrix
+          allocate(Rsub(nLevelsDfs,nLevelsDfs))
+          Rsub(:,:) = MPC_missingValue_R8
+          if (familyType == 'TO') then
+            sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
+            call rmat_getRmatrix(sensorIndex, &
+                levelList(obsIndex,:),        &
+                stdDevList(obsIndex,:),       &
+                Rsub)
+          else
+            Rsub(:,:) = 0.d0
+            do channelIndex2 = 1, nLevelsDfs
+              Rsub(channelIndex2,channelIndex2) = stdDevList(obsIndex,channelIndex2) ** 2
+            end do
+          end if
+
+          ! Computation of total dfs
+          dfs = computeDfs(HBHtMatrix, Rsub)
+         
+          ! Calculate the selection of channels 
+          if (doChannelSelection) then
+            call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
+          end if
+          deallocate(Rsub)
+        end if
+        
+        allocate(headerObsForOutput(mmpi_nprocs))
+        allocate(stringInt(stringLength))
+        do stringIndex = 1, stringLength
+          stringInt(stringIndex) = iachar(headerObs(stringIndex:stringIndex))
+        end do
+        allocate(stringIntForOutput(stringLength,mmpi_nprocs))
+        call rpn_comm_gather(stringInt, stringLength, 'mpi_integer', &
+            stringIntForOutput, stringLength, 'mpi_integer', 0, 'grid', ierr)
+        do stringIndex = 1, stringLength
+          do outTaskIndex = 1, mmpi_nprocs
+            headerObsForOutput(outTaskIndex)(stringIndex:stringIndex) = achar(stringIntForOutput(stringIndex,outTaskIndex))
+          end do
+        end do
+        
+        if (outputHBHt) then
+          allocate(HBHtMatrixForOutput(nLevelsDfs,nLevelsDfs,mmpi_nprocs))
+          call rpn_comm_gather(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'mpi_real8', &
+              HBHtMatrixForOutput, nLevelsDfs*nLevelsDfs, 'mpi_real8', 0, 'grid', ierr)
+          
+          if (mmpi_myId == 0) then
+            do outTaskIndex = 1, mmpi_nprocs
+              if (len_trim(headerObsForOutput(outTaskIndex)) == 0) cycle
+              write(nulHBHt,'(A)') trim(headerObsForOutput(outTaskIndex))
+              do channelIndex2 = 1, nLevelsDfs
+                channelNumber2 = vcoordList(channelIndex2)
+                do channelIndex1 = 1, nLevelsDfs
+                  channelNumber1 = vcoordList(channelIndex1)
+                  write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
+                        channelNumber2, HBHtMatrixForOutput(channelIndex1,channelIndex2,outTaskIndex)
+                end do
+              end do
+              write(nulHBHt,*)
+            end do
+          end if
+        
+        end if ! if (outputHBHt)
+        
+        allocate(dfsForOutput(mmpi_nprocs))
+        call rpn_comm_gather(dfs, 1, 'mpi_real8', dfsForOutput, 1, 'mpi_real8', 0, 'grid', ierr)
+        if (mmpi_myId == 0) then
+          do outTaskIndex = 1, mmpi_nprocs
+            if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
+              write(nulDfs,'(A,1x,e14.6)') trim(headerObsForOutput(outTaskIndex)), dfsForOutput(outTaskIndex)
+            end if
+          end do
+        end if
+      
+        if (doChannelSelection) then
+          allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
+          call rpn_comm_gather(dfsIncremental, sizeSelect, 'mpi_real8', &
+              dfsIncrementalForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
+          allocate(orderForOutput(sizeSelect,mmpi_nprocs))
+          call rpn_comm_gather(order, sizeSelect, 'mpi_integer', &
+              orderForOutput, sizeSelect, 'mpi_integer', 0, 'grid', ierr)
+          if (mmpi_myId == 0) then
+            do outTaskIndex = 1, mmpi_nprocs
+              if (len_trim(headerObsForOutput(outTaskIndex)) > 0) then
+                write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
+                do channelIndex1 = 1, sizeSelect
+                  write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, orderForOutput(channelIndex1,outTaskIndex), &
+                      vcoordList(orderForOutput(channelIndex1,outTaskIndex)), dfsIncrementalForOutput(channelIndex1,outTaskIndex)
+                end do
+                write(nulSelec,*)
+              end if
+            end do
+          end if
+        end if ! if (doChannelSelection)
+        deallocate(headerObsForOutput)
+        if (allocated(HBHtMatrixForOutput)) deallocate(HBHtMatrixForOutput)
+        if (allocated(dfsIncrementalForOutput)) deallocate(dfsIncrementalForOutput)
+        if (allocated(orderForOutput)) deallocate(orderForOutput)
+        deallocate(dfsForOutput)
+        deallocate(stringInt)
+        deallocate(stringIntforOutput)
+        if (dfsCount == nDfsMax) exit observationLoop1
+      end do observationLoop1
+     
+     else ! if (computeInParallel)
+      
+      mpiTaskLoop:do procIndex = 1, mmpi_nprocs
+        observationLoop2:do obsIndex = 1, maxCountObsMpi
+          headerIndex = headerIndexListMpi(obsIndex,procIndex)
+          if (headerIndex == MPC_missingValue_INT) cycle
+          taskIndex = procIndex - 1
+          channelLoop2:do channelIndex1 = 1, maxCountChannelMpi
+            bodyIndex1 = bodyIndexListMpi(obsIndex,channelIndex1,procIndex)
+            channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
             ! We need to initialize the full OBS_WORK column to zero 
             do bodyIndex2 = 1, obs_numBody(obsSpaceData)
               call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex2, 0.d0)
             end do
             if (mmpi_myId == taskIndex) call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex1, 1.d0)
-            call msg_memUsage('midas-dfs')
-            call col_zero(columnAnlInc)
-            call oop_Had(columnAnlInc, & !output
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !input
-                initializeLinearization_opt=first)
-            first = .false.
-            call gsv_zero(stateVector)
-            call s2c_ad(stateVector,  & ! output
-                columnAnlInc,         & ! input
-                columnTrlOnAnlIncLev, &
-                obsSpaceData)
-            perturbationVector(:) = 0.d0
-            call bmat_sqrtBT(perturbationVector, & !output
-                localDimension,                  &  
-                stateVector)                       !input
-            call gsv_zero(stateVector)
-            call bmat_sqrtB(perturbationVector, & !input
-                localDimension,                 &
-                stateVector)                      !output
-            call s2c_tl(stateVector,  & !input
-                columnAnlInc,         & !output
-                columnTrlOnAnlIncLev, & 
-                obsSpaceData)
-            call oop_Htl(columnAnlInc, & !input
-                columnTrlOnAnlIncLev,  &
-                obsSpaceData,          & !output
-                min_nsim = 1, initializeLinearization_opt = .false.)
+            call applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
               
             do channelIndex2 = 1, maxCountChannelMpi
               bodyIndex2 = bodyIndexListMpi(obsIndex,channelIndex2,procIndex)
@@ -669,102 +793,76 @@ contains
                 HBHtMatrix(channelIndex1,channelIndex2) = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex2)
               end if
             end do
-          end if
-          write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
-          call utl_printTime()
-        end do channelLoop
-        dfsCount = dfsCount + 1
+            write(*,*) 'diagDfs: computed column ', channelIndex1, 'of HBHt'
+            call utl_printTime()
+          end do channelLoop2
+          dfsCount = dfsCount + 1
 
-        if (mmpi_myId == taskIndex) then
-          write(headerObs1,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                            &
-              obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
-              obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex),                             &
-              obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
-          headerObs2 = ''
-          if (familyType == 'TO')  then
-            write(headerObs2,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-          end if
-          
-          !extraction of the R matrix
-          allocate(Rsub(nLevelsDfs,nLevelsDfs))
-          if (familyType == 'TO') then
-            sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
-            call rmat_getRmatrix(sensorIndex,        &
-                levelListMpi(obsIndex,:,procIndex),  &
-                stdDevListMpi(obsIndex,:,procIndex), &
-                Rsub)
-          else
-            Rsub(:,:) = 0.d0
-            do channelIndex2 = 1, nLevelsDfs
-              Rsub(channelIndex2,channelIndex2) = stdDevListMpi(obsIndex,channelIndex2,procIndex) ** 2
-            end do
-          end if
-
-          !computation of total dfs
-          dfs = computeDfs(HBHtMatrix, Rsub)
-         
-          !calculate the selection of channels 
-          if (doChannelSelection) then
-            sizeSelect = nLevelsDfs
-            if (maxSelect > 0) then
-              sizeSelect = maxSelect
-            end if
-            allocate(all_dfs(sizeSelect))
-            allocate(order(sizeSelect))
-            call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
-          end if
-          deallocate(Rsub)
-        else
-          if (doChannelSelection) then
-            sizeSelect = nLevelsDfs
-            if (maxSelect > 0) then
-              sizeSelect = maxSelect
-            end if
-            allocate(all_dfs(sizeSelect))
-            allocate(order(sizeSelect))
-          end if
-        end if
-        
-        call rpn_comm_bcastc(headerObs1, len(headerObs1), 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
-        call rpn_comm_bcastc(headerObs2, len(headerObs2), 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
-        headerObs1 = trim(headerObs1) // trim(headerObs2)
-        if (outputHBHt) then
-          call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-          if (mmpi_myId == 0) then
-            write(nulHBHt,'(A)') trim(headerObs1)
-            do channelIndex2 = 1, nLevelsDfs
-              channelNumber2 = levelListMpi(obsIndex,channelIndex2,procIndex)
-              do channelIndex1 = 1, nLevelsDfs
-                channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
-                write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
-                    channelNumber2, HBHtMatrix(channelIndex1,channelIndex2)
+          if (mmpi_myId == taskIndex) then
+            call createHeaderString(obsSpaceData, headerIndex, familyType, headerObs)
+            
+            ! Extraction of the R matrix
+            allocate(Rsub(nLevelsDfs,nLevelsDfs))
+            if (familyType == 'TO') then
+              sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
+              call rmat_getRmatrix(sensorIndex,        &
+                  levelListMpi(obsIndex,:,procIndex),  &
+                  stdDevListMpi(obsIndex,:,procIndex), &
+                  Rsub)
+            else
+              Rsub(:,:) = 0.d0
+              do channelIndex2 = 1, nLevelsDfs
+                Rsub(channelIndex2,channelIndex2) = stdDevListMpi(obsIndex,channelIndex2,procIndex) ** 2
               end do
-            end do
-            write(nulHBHt,*)
+            end if
+
+            ! Computation of total dfs
+            dfs = computeDfs(HBHtMatrix, Rsub)
+         
+            ! Calculate the selection of channels 
+            if (doChannelSelection) then
+              call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
+            end if
+            deallocate(Rsub)
           end if
-        end if
-        call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
-        if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs1), dfs
-        if (doChannelSelection) then
-          call rpn_comm_bcast(all_dfs, size(all_dfs), 'MPI_REAL8', taskIndex, 'GRID', ierr)
-          call rpn_comm_bcast(order, size(order), 'MPI_INTEGER', taskIndex, 'GRID', ierr)
-          if (mmpi_myId == 0) then
-            write(nulSelec,'(A)') trim(headerObs1)
-            do channelIndex1 = 1, size(order)
-              write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
-                  levelListMpi(obsIndex,order(channelIndex1),procIndex), all_dfs(channelIndex1)
-            end do
-            write(nulSelec,*)
+        
+          call rpn_comm_bcastc(headerObs, stringLength, 'MPI_CHARACTER', taskIndex, 'GRID', ierr)
+
+          if (outputHBHt) then
+            call rpn_comm_bcast(HBHtMatrix, nLevelsDfs*nLevelsDfs, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            if (mmpi_myId == 0) then
+              write(nulHBHt,'(A)') trim(headerObs)
+              do channelIndex2 = 1, nLevelsDfs
+                channelNumber2 = levelListMpi(obsIndex,channelIndex2,procIndex)
+                do channelIndex1 = 1, nLevelsDfs
+                  channelNumber1 = levelListMpi(obsIndex,channelIndex1,procIndex)
+                  write(nulHBHt,'(A4,1x,2(i12,1x),e14.6)') 'HBHt', channelNumber1, &
+                      channelNumber2, HBHtMatrix(channelIndex1,channelIndex2)
+                end do
+              end do
+              write(nulHBHt,*)
+            end if
           end if
-          deallocate(order)
-          deallocate(all_dfs)
-        end if
-        if (dfsCount == nDfsMax) exit mpiTaskLoop
-      end do observationLoop
-    end do mpiTaskLoop
-    
+
+          call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+          if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
+          if (doChannelSelection) then
+            call rpn_comm_bcast(dfsIncremental, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(order, sizeSelect, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
+            if (mmpi_myId == 0) then
+              write(nulSelec,'(A)') trim(headerObs)
+              do channelIndex1 = 1, size(order)
+                write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
+                    levelListMpi(obsIndex,order(channelIndex1),procIndex), dfsIncremental(channelIndex1)
+              end do
+              write(nulSelec,*)
+            end if
+          end if
+          if (dfsCount == nDfsMax) exit mpiTaskLoop
+        end do observationLoop2
+      end do mpiTaskLoop
+    end if ! if (computeInParallel)
+
     if (mmpi_myId == 0) then
       if (outputHbHt) then
         ierr = fclos(nulhbht)
@@ -774,15 +872,16 @@ contains
       end if
       ierr = fclos(nuldfs)
     end if
+
     
-    deallocate(bodyIndexListMpi)
-    deallocate(levelListMpi)
-    deallocate(headerIndexListMpi)
-    deallocate(mpiTaskListMpi)
-    deallocate(stdDevListMpi)
+    if (allocated(bodyIndexList))  deallocate(bodyIndexList)
+    if (allocated(levelList))  deallocate(levelList)
+    if (allocated(headerIndexList))  deallocate(headerIndexList)
+    if (allocated(stdDevList))  deallocate(stdDevList)
+    
     
     if (allocated(Rsub)) deallocate(Rsub)
-    if (allocated(all_dfs)) deallocate(all_dfs)
+    if (allocated(dfsIncremental)) deallocate(dfsIncremental)
     if (allocated(order)) deallocate(order)
     if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
     
@@ -796,6 +895,91 @@ contains
     
   end subroutine diagDFS
 
+
+  !--------------------------------------------------------------------------
+  ! applyHBHtOperator
+  !--------------------------------------------------------------------------
+  subroutine applyHBHtOperator(columnAnlInc, columnTrlOnAnlIncLev, stateVector, perturbationVector, obsSpaceData)
+    !
+    !:Purpose: apply chain of operators to apply HBHt (input and output in obsSpaceData OBS_WORK)
+    !
+    implicit none
+    
+    ! Arguments
+    type(struct_columnData), intent(inout) :: columnAnlInc          ! Analysis increment as a column
+    type(struct_columnData), intent(inout) :: columnTrlOnAnlIncLev  ! Trial field interpolated on the analysis increment as a column
+    type(struct_gsv),        intent(inout) :: stateVector           ! State vector
+    real(8),                 intent(inout) :: perturbationVector(:) ! Vector of perturbations            
+    type(struct_obs),        intent(inout) :: obsSpaceData          ! Observation-related data structure
+
+    ! Locals
+    integer       :: localDimension
+    logical, save :: firstCall=.true.
+    
+    call msg_memUsage('midas-dfs')
+    
+    localDimension = size(perturbationvector)
+    call col_zero(columnAnlInc)
+    call oop_Had(columnAnlInc, & !output
+        columnTrlOnAnlIncLev,  &
+        obsSpaceData,          & !input
+        initializeLinearization_opt=firstCall)
+    firstCall = .false.
+    call gsv_zero(stateVector)
+    call s2c_ad(stateVector,  & ! output
+        columnAnlInc,         & ! input
+        columnTrlOnAnlIncLev, &
+        obsSpaceData)
+    perturbationVector(:) = 0.d0
+    call bmat_sqrtBT(perturbationVector, & !output
+        localDimension,                  &  
+        stateVector)                       !input
+    call gsv_zero(stateVector)
+    call bmat_sqrtB(perturbationVector, & !input
+        localDimension,                 &
+        stateVector)                      !output
+    call s2c_tl(stateVector,  & !input
+        columnAnlInc,         & !output
+        columnTrlOnAnlIncLev, & 
+        obsSpaceData)
+    call oop_Htl(columnAnlInc, & !input
+        columnTrlOnAnlIncLev,  &
+        obsSpaceData,          & !output
+        min_nsim = 1, initializeLinearization_opt = .false.)
+    
+  end subroutine applyHBHtOperator
+  
+ !--------------------------------------------------------------------------
+  ! createHeaderString
+  !--------------------------------------------------------------------------
+  subroutine createHeaderString(obsSpaceData, headerIndex, familyType, headerString)
+    !
+    !:Purpose: create header string to be writen into output ascii files
+    !
+    implicit none
+    
+    ! Arguments
+    type(struct_obs), intent(inout) :: obsSpaceData ! Observation-related data structure
+    integer,          intent(in)    :: headerIndex  ! Current observation index in header obsSpacedata structure
+    character(len=*), intent(in)    :: familyType   ! Observation family
+    character(len=*), intent(out)   :: headerString ! Output header string
+
+    ! Locals
+    character(len=16) :: headerObs
+   
+    write(headerString,"('# ',A12,1x,2e14.6,1x,i8.8,1x,i4.4)")                          &
+        obs_elem_c(obsSpaceData, 'STID', headerIndex),                                  &
+        obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+        obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
+        obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex),                             &
+        obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+    if (familyType == 'TO')  then
+      write(headerObs,'(1x,e14.6)') obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+      headerString = trim(headerString) // trim(headerObs) 
+    end if
+    
+  end subroutine createHeaderString
+  
   !--------------------------------------------------------------------------
   ! subsetMatrix
   !--------------------------------------------------------------------------
@@ -829,7 +1013,7 @@ contains
     ! Result
     real(8)             :: dfs        ! Degrees of freedom for signal
     
-    ! Local variables
+    ! Locals
     integer :: nbLevels, levelIndex
     real(8), allocatable :: dMatrix(:,:), inverse(:,:), hk(:,:)
 
@@ -941,13 +1125,14 @@ contains
     !:Purpose: is the observation in the list of specifically selected observations ?
     !          if empty list it is always
     !
+    implicit none
 
     ! Arguments
     integer, intent(in) :: headerIndex ! Position in the header of obsSpaceData
     !Result
     logical             :: selected
     
-    ! Local variables
+    ! Locals
     integer            :: obsIndex
     real(8)            :: latitude, longitude, satelliteZenithAngle
     integer            :: date, hour

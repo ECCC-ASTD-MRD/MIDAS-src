@@ -656,9 +656,14 @@
 
  <FAMILY  name="dfs">
    <SUBMITS sub_name="chanSelectCris"/>
-  <FAMILY  name="chanSelectCris">
+   <FAMILY  name="chanSelectCris">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
-  </FAMILY>
+   </FAMILY>
+   <SUBMITS sub_name="chanSelectCrisInParallel"/>
+   <FAMILY  name="chanSelectCrisInParallel">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+   </FAMILY>
  </FAMILY> 
 </MODULE>
