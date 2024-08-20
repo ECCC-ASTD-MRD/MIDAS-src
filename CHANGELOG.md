@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduction of a new logical variable `computeInParallel` in NAMDFS namelist section (#941 and !870)
  * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
  * Include fasttmp (i.e. ramDisk) memory usage in `msg_memUsage` (#953 and !867)
  * A bullet has been added to the merge request template to encourage developers to test programs in debug mode (#951 and !863)
