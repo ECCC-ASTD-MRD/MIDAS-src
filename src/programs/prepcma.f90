@@ -379,10 +379,12 @@ contains
     integer, allocatable :: nblockoffset(:), nlonblock(:)
     integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
-    integer :: tovsIndex, sensorIndex
+    integer :: tovsIndex, sensorIndex, sensorIndex2, numInstNameUniqueList, numMatchFound, matchFoundIndex
+    integer :: numHeadersFound, numHeadersFound_mpiGlobal
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin(:,:), numHeaderPerTovsSensorAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:), numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:)
-
+    integer, allocatable :: matchIndexList(:)
+    character(len=8) :: instNameUniqueList(tvs_nsensors)
 
     ! box size that is used for observation thinning 
     ! (the numerator is an approximate distance in km)
@@ -538,6 +540,44 @@ contains
                     sum(numHeaderPerTovsSensorBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex))
       end do
     end if
+
+    if (cfam=='TO') then
+      ! Create a unique list of instruments
+      instNameUniqueList(:) = ''
+      numInstNameUniqueList = 1
+      instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(1)))
+      loopSensor1: do sensorIndex = 1, tvs_nsensors
+        do sensorIndex2 = 1, numInstNameUniqueList
+          if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex)))) then
+            cycle loopSensor1
+          end if
+        end do
+
+        numInstNameUniqueList = numInstNameUniqueList + 1
+        instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+      end do loopSensor1
+
+      if (mmpi_myid == 0) then
+        do sensorIndex2 = 1, numInstNameUniqueList
+
+          matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+          if (matchIndexList(1) > 0) then
+            numMatchFound = size(matchIndexList)
+            numHeadersFound = 0
+            numHeadersFound_mpiGlobal = 0
+            do matchFoundIndex = 1, numMatchFound
+              numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
+              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
+            end do
+
+            write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
+                        numHeadersFound, numHeadersFound_mpiGlobal
+
+          end if
+        end do
+      end if ! mmpi_myid == 0
+
+    end if ! cfam=='TO'
 
     n_count_thin = 0
     do iblock = 1, nblocksum
