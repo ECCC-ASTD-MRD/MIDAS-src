@@ -482,8 +482,8 @@ contains
     integer, allocatable :: headerIndexListMpi(:,:), levelListMpi(:,:,:)
     integer, allocatable :: bodyIndexList(:,:), bodyIndexListMpi(:,:,:)
     real(8), allocatable :: stdDevList(:,:), stdDevListMpi(:,:,:)
-    real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), all_dfs(:)
-    real(8), allocatable :: HBHtMatrixForOutput(:,:,:), all_dfsForOutput(:,:)
+    real(8), allocatable :: HBHtMatrix(:,:), Rsub(:,:), dfsIncremental(:)
+    real(8), allocatable :: HBHtMatrixForOutput(:,:,:), dfsIncrementalForOutput(:,:)
     integer, allocatable :: order(:),orderForOutput(:,:)
     real(8) :: dfs
     real(8), allocatable :: dfsForOutput(:)
@@ -629,7 +629,7 @@ contains
       if (maxSelect > 0) then
         sizeSelect = maxSelect
       end if
-      allocate(all_dfs(sizeSelect))
+      allocate(dfsIncremental(sizeSelect))
       allocate(order(sizeSelect))
     end if
     
@@ -688,7 +688,7 @@ contains
          
           ! Calculate the selection of channels 
           if (doChannelSelection) then
-            call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
+            call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
           end if
           deallocate(Rsub)
         end if
@@ -741,9 +741,9 @@ contains
         end if
       
         if (doChannelSelection) then
-          allocate(all_dfsForOutput(sizeSelect,mmpi_nprocs))
-          call rpn_comm_gather(all_dfs, sizeSelect, 'mpi_real8', &
-              all_dfsForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
+          allocate(dfsIncrementalForOutput(sizeSelect,mmpi_nprocs))
+          call rpn_comm_gather(dfsIncremental, sizeSelect, 'mpi_real8', &
+              dfsIncrementalForOutput, sizeSelect, 'mpi_real8', 0, 'grid', ierr)
           allocate(orderForOutput(sizeSelect,mmpi_nprocs))
           call rpn_comm_gather(order, sizeSelect, 'mpi_integer', &
               orderForOutput, sizeSelect, 'mpi_integer', 0, 'grid', ierr)
@@ -753,7 +753,7 @@ contains
                 write(nulSelec,'(A)') trim(headerObsForOutput(outTaskIndex))
                 do channelIndex1 = 1, sizeSelect
                   write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, orderForOutput(channelIndex1,outTaskIndex), &
-                      vcoordList(orderForOutput(channelIndex1,outTaskIndex)), all_dfsForOutput(channelIndex1,outTaskIndex)
+                      vcoordList(orderForOutput(channelIndex1,outTaskIndex)), dfsIncrementalForOutput(channelIndex1,outTaskIndex)
                 end do
                 write(nulSelec,*)
               end if
@@ -762,7 +762,7 @@ contains
         end if ! if (doChannelSelection)
         deallocate(headerObsForOutput)
         if (allocated(HBHtMatrixForOutput)) deallocate(HBHtMatrixForOutput)
-        if (allocated(all_dfsForOutput)) deallocate(all_dfsForOutput)
+        if (allocated(dfsIncrementalForOutput)) deallocate(dfsIncrementalForOutput)
         if (allocated(orderForOutput)) deallocate(orderForOutput)
         deallocate(dfsForOutput)
         deallocate(stringInt)
@@ -821,7 +821,7 @@ contains
          
             ! Calculate the selection of channels 
             if (doChannelSelection) then
-              call selectChannels(HBHtMatrix, Rsub, all_dfs, order, maxSelect)
+              call selectChannels(HBHtMatrix, Rsub, dfsIncremental, order, maxSelect)
             end if
             deallocate(Rsub)
           end if
@@ -847,13 +847,13 @@ contains
           call rpn_comm_bcast(dfs, 1, 'MPI_REAL8', taskIndex, 'GRID', ierr)
           if (mmpi_myId == 0) write(nulDfs,'(A,1x,e14.6)') trim(headerObs), dfs
           if (doChannelSelection) then
-            call rpn_comm_bcast(all_dfs, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
+            call rpn_comm_bcast(dfsIncremental, sizeSelect, 'MPI_REAL8', taskIndex, 'GRID', ierr)
             call rpn_comm_bcast(order, sizeSelect, 'MPI_INTEGER', taskIndex, 'GRID', ierr)
             if (mmpi_myId == 0) then
               write(nulSelec,'(A)') trim(headerObs)
               do channelIndex1 = 1, size(order)
                 write(nulSelec,'(3(i5,1x),e14.6)')  channelIndex1, order(channelIndex1), &
-                    levelListMpi(obsIndex,order(channelIndex1),procIndex), all_dfs(channelIndex1)
+                    levelListMpi(obsIndex,order(channelIndex1),procIndex), dfsIncremental(channelIndex1)
               end do
               write(nulSelec,*)
             end if
@@ -881,7 +881,7 @@ contains
     
     
     if (allocated(Rsub)) deallocate(Rsub)
-    if (allocated(all_dfs)) deallocate(all_dfs)
+    if (allocated(dfsIncremental)) deallocate(dfsIncremental)
     if (allocated(order)) deallocate(order)
     if (allocated(HBHtMatrix)) deallocate(HBHtMatrix)
     
