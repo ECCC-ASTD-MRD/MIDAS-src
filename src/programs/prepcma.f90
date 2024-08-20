@@ -610,13 +610,13 @@ contains
               write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
                          ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
                          ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
-              call utl_abort('thining_fam: the sums do not match')
+              call utl_abort('thining_fam: the sums do not match before thinning')
             end if
           end if
         end do
         
         ! print counts per block per sensor
-        write(*,'(a39)',advance='no') 'before thinning global TO counts       '
+        write(*,'(a39)',advance='no') 'before thinning global instName        '
         do sensorIndex2 = 1, numInstNameUniqueList
           write(*,'(a8,1x)',advance='no') trim(instNameUniqueList(sensorIndex2))
         end do
@@ -725,6 +725,70 @@ contains
                     sum(numHeaderPerTovsSensorAfterThin(:,sensorIndex)), sum(numHeaderPerTovsSensorAfterThin_mpiGlobal(:,sensorIndex))
       end do
     end if
+
+    if (cfam=='TO' .and. mmpi_myid == 0) then
+      ! compute counts per block per sensor
+      numHeadersFoundInBlock(:,:) = 0
+      numHeadersFoundInBlock_mpiGlobal(:,:) = 0
+      do sensorIndex2 = 1, numInstNameUniqueList
+        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+        if (matchIndexList(1) > 0) then
+          numMatchFound = size(matchIndexList)
+
+          do matchFoundIndex = 1, numMatchFound
+            numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
+                                                        numHeaderPerTovsSensorAfterThin(:,matchIndexList(matchFoundIndex))
+            numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
+                                                        numHeaderPerTovsSensorAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
+          end do
+        end if
+      end do ! sensorIndex2
+
+      ! check the sum over all blocks match the counts per sensor 
+      do sensorIndex2 = 1, numInstNameUniqueList
+        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+        if (matchIndexList(1) > 0) then
+          numMatchFound = size(matchIndexList)
+
+          numHeadersFound_mpiGlobal = 0
+          do matchFoundIndex = 1, numMatchFound
+            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+          end do
+
+          if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
+            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
+                       ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
+                       ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+            call utl_abort('thining_fam: the sums do not match after thinning')
+          end if
+        end if
+      end do
+
+      ! print counts per block per sensor
+      write(*,'(a39)',advance='no') 'after thinning global TO instName      '
+      do sensorIndex2 = 1, numInstNameUniqueList
+        write(*,'(a8,1x)',advance='no') trim(instNameUniqueList(sensorIndex2))
+      end do
+      write(*,*)
+
+      do iblock = 1, nblocksum
+        write(*,'(a32,i6,a)',advance='no') 'after thinning global TO counts ', iblock, ':'
+
+        do sensorIndex2 = 1, numInstNameUniqueList
+          write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
+        end do
+        write(*,*)
+        
+      end do ! iblock
+
+      ! print max of all block for sensor
+      write(*,'(a39)',advance='no') 'after thinning global TO counts MAX  '
+      do sensorIndex2 = 1, numInstNameUniqueList
+        write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+      end do
+      write(*,*)
+
+    end if ! cfam=='TO' .and. mmpi_myid == 0
 
     deallocate(ranvals)
     deallocate(latmin)
