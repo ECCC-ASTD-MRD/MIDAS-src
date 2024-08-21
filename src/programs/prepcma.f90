@@ -418,10 +418,10 @@ contains
     real(8), allocatable :: keep_ai(:,:)
     integer :: tovsIndex, sensorIndex, sensorIndex2, numInstNameUniqueList, numMatchFound, matchFoundIndex
     integer :: numHeadersFound, numHeadersFound_mpiGlobal
-    integer, allocatable :: numHeaderPerTovsSensorBeforeThin(:,:), numHeaderPerTovsSensorAfterThin(:,:)
-    integer, allocatable :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:), numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:)
+    integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
+    integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
     integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
-    logical :: printSumNumHeaderPerTovsSensor, doTovsPerSensor
+    logical :: printSumNumHeaderPerTovsInst, doTovsPerInst
     character(len=codtyp_name_length) :: instName1, instName2
     character(len=codtyp_name_length) :: instNameUniqueList(tvs_nsensors)
 
@@ -472,15 +472,15 @@ contains
     nrep_count = 0
     nobs_count = 0
 
-    printSumNumHeaderPerTovsSensor = .false.
-    allocate(numHeaderPerTovsSensorBeforeThin(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsSensorBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsSensorAfterThin(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsSensorAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
-    numHeaderPerTovsSensorBeforeThin(:,:) = 0
-    numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:) = 0
-    numHeaderPerTovsSensorAfterThin(:,:) = 0
-    numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:) = 0
+    printSumNumHeaderPerTovsInst = .false.
+    allocate(numHeaderPerTovsInstBeforeThin(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsInstBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsInstAfterThin(nblocksum,tvs_nsensors))
+    allocate(numHeaderPerTovsInstAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
+    numHeaderPerTovsInstBeforeThin(:,:) = 0
+    numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:) = 0
+    numHeaderPerTovsInstAfterThin(:,:) = 0
+    numHeaderPerTovsInstAfterThin_mpiGlobal(:,:) = 0
 
     allocate(nstation(nblocksum, npres))
     allocate(keep_ai(nblocksum, npres))
@@ -497,11 +497,11 @@ contains
       end if
     end if
 
-    doTovsPerSensor = .false.
+    doTovsPerInst = .false.
     instName1 = ''
     instName2 = ''
     if (present(codtyp_opt)) then
-      doTovsPerSensor = .true.
+      doTovsPerInst = .true.
       instName1 = codtyp_get_name(codtyp_opt)
       if (present(codtyp2_opt)) then
         instName2 = codtyp_get_name(codtyp2_opt)
@@ -570,7 +570,7 @@ contains
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
           tovsIndex = tvs_tovsIndex(headerIndex)
           sensorIndex = tvs_lsensor(tovsIndex)
-          numHeaderPerTovsSensorBeforeThin(iblock,sensorIndex) = numHeaderPerTovsSensorBeforeThin(iblock,sensorIndex) + 1
+          numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) = numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) + 1
         end if
 
       end if
@@ -589,7 +589,7 @@ contains
     if (cfam=='TO') then
       nsize = nblocksum * tvs_nsensors
       
-      call rpn_comm_allreduce(numHeaderPerTovsSensorBeforeThin, numHeaderPerTovsSensorBeforeThin_mpiGlobal, nsize, &
+      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
                               "mpi_integer", "mpi_sum", "grid", ierr)
     end if
 
@@ -603,7 +603,7 @@ contains
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
-                    sum(numHeaderPerTovsSensorBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex))
+                    sum(numHeaderPerTovsInstBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex))
       end do
     end if
 
@@ -612,7 +612,7 @@ contains
       instNameUniqueList(:) = ''
       numInstNameUniqueList = 1
       loopSensor1: do sensorIndex = 1, tvs_nsensors
-        if (sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) > 0) then
+        if (sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex)) > 0) then
           instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
           exit loopSensor1
         end if
@@ -621,7 +621,7 @@ contains
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         do sensorIndex2 = 1, numInstNameUniqueList
           if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
-              sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) == 0) then
+              sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex)) == 0) then
             cycle loopSensor2
           end if
         end do
@@ -633,7 +633,7 @@ contains
       if (mmpi_myid == 0) then
         write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
       
-        if (doTovsPerSensor .and. (numInstNameUniqueList /= 1 .or. &
+        if (doTovsPerInst .and. (numInstNameUniqueList /= 1 .or. &
             trim(instNameUniqueList(1)) /= instName1 .or. &
             trim(instNameUniqueList(1)) /= instName2)) then
           write(*,*) 'instName1=', instName1, ', instName2=', instName2
@@ -645,7 +645,7 @@ contains
     end if ! cfam=='TO'
     
     if (cfam=='TO' .and. mmpi_myid == 0) then
-      if (printSumNumHeaderPerTovsSensor) then
+      if (printSumNumHeaderPerTovsInst) then
         do sensorIndex2 = 1, numInstNameUniqueList
           matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
           if (matchIndexList(1) > 0) then
@@ -653,8 +653,8 @@ contains
             numHeadersFound = 0
             numHeadersFound_mpiGlobal = 0
             do matchFoundIndex = 1, numMatchFound
-              numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
-              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
+              numHeadersFound = numHeadersFound + sum(numHeaderPerTovsInstBeforeThin(:,matchIndexList(matchFoundIndex)))
+              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
             end do
 
             write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', trim(instNameUniqueList(sensorIndex2)), ':', &
@@ -676,9 +676,9 @@ contains
 
           do matchFoundIndex = 1, numMatchFound
             numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
-                                                        numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex))
+                                                        numHeaderPerTovsInstBeforeThin(:,matchIndexList(matchFoundIndex))
             numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
-                                                        numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
+                                                        numHeaderPerTovsInstBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
           end do
         end if
       end do ! sensorIndex2
@@ -691,7 +691,7 @@ contains
 
           numHeadersFound_mpiGlobal = 0
           do matchFoundIndex = 1, numMatchFound
-            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
           end do
 
           if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
@@ -772,7 +772,7 @@ contains
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
           tovsIndex = tvs_tovsIndex(headerIndex)
           sensorIndex = tvs_lsensor(tovsIndex)
-          numHeaderPerTovsSensorAfterThin(iblock,sensorIndex) = numHeaderPerTovsSensorAfterThin(iblock,sensorIndex) + 1
+          numHeaderPerTovsInstAfterThin(iblock,sensorIndex) = numHeaderPerTovsInstAfterThin(iblock,sensorIndex) + 1
         end if
       else
         ! reject the profile
@@ -796,7 +796,7 @@ contains
     if (cfam=='TO') then
       nsize = nblocksum * tvs_nsensors
 
-      call rpn_comm_allreduce(numHeaderPerTovsSensorAfterThin, numHeaderPerTovsSensorAfterThin_mpiGlobal, nsize, &
+      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
                               "mpi_integer", "mpi_sum", "grid", ierr)
     end if
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
@@ -808,7 +808,7 @@ contains
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
-                    sum(numHeaderPerTovsSensorAfterThin(:,sensorIndex)), sum(numHeaderPerTovsSensorAfterThin_mpiGlobal(:,sensorIndex))
+                    sum(numHeaderPerTovsInstAfterThin(:,sensorIndex)), sum(numHeaderPerTovsInstAfterThin_mpiGlobal(:,sensorIndex))
       end do
     end if
 
@@ -823,9 +823,9 @@ contains
 
           do matchFoundIndex = 1, numMatchFound
             numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
-                                                        numHeaderPerTovsSensorAfterThin(:,matchIndexList(matchFoundIndex))
+                                                        numHeaderPerTovsInstAfterThin(:,matchIndexList(matchFoundIndex))
             numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
-                                                        numHeaderPerTovsSensorAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
+                                                        numHeaderPerTovsInstAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
           end do
         end if
       end do ! sensorIndex2
@@ -838,7 +838,7 @@ contains
 
           numHeadersFound_mpiGlobal = 0
           do matchFoundIndex = 1, numMatchFound
-            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsInstAfterThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
           end do
 
           if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
@@ -887,10 +887,10 @@ contains
     deallocate(keep_ai)
     deallocate(ai_indices)
 
-    deallocate(numHeaderPerTovsSensorBeforeThin)
-    deallocate(numHeaderPerTovsSensorBeforeThin_mpiGlobal)
-    deallocate(numHeaderPerTovsSensorAfterThin)
-    deallocate(numHeaderPerTovsSensorAfterThin_mpiGlobal)
+    deallocate(numHeaderPerTovsInstBeforeThin)
+    deallocate(numHeaderPerTovsInstBeforeThin_mpiGlobal)
+    deallocate(numHeaderPerTovsInstAfterThin)
+    deallocate(numHeaderPerTovsInstAfterThin_mpiGlobal)
 
   end subroutine thinning_fam
 
