@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Merge of tovsNL_mod.f90 and tovsLin_mod.f90 into tovs_mod.f90 (#956 and !871)
+ * Merge of `tovsNL_mod` and `tovsLin_mod` into `tovs_mod` (#956 and !871)
  * Updated var/EnVar/gdps system test configuration and reference data to IC-4 level (#930 and !860)
 
 ### Fixed
