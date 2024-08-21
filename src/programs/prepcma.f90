@@ -103,6 +103,7 @@ program midas_prepcma
   use regions_mod
   use burpRead_mod
   use gridStateVectorFileIO_mod
+  use codtyp_mod
   use rttov_const, only : inst_name, platform_name
 
   implicit none
@@ -353,7 +354,7 @@ program midas_prepcma
 
 contains
 
-  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam)
+  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam, codtyp_opt, codtyp2_opt)
     !
     ! :Purpose: thin the observations of the selected family
     !
@@ -364,6 +365,8 @@ contains
     real(8),           intent(in)    :: n_pmax(:)   ! pressure levels that separate vertical layers for the thinning
     integer,           intent(in)    :: n_target    ! maximum desired amount of data per 3-D box
     character(len=2),  intent(in)    :: cfam        ! family type
+    integer, optional, intent(in)    :: codtyp_opt
+    integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
     type(struct_reg) :: lsc
@@ -371,7 +374,7 @@ contains
     integer :: nobs_count, nobs_count_mpiGlobal, nobs_count_thin, nobs_count_thin_mpiGlobal
     integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
-    integer :: iblock, codeType, ilat, incr, ipres, nblocksum, npres, nsize, num_stn
+    integer :: iblock, codtyp, ilat, incr, ipres, nblocksum, npres, nsize, numHeader
     logical :: count_obs, allRejected
     real(4) :: lat_r4, lon_r4
     real(8) :: pressure, rannum
@@ -384,8 +387,9 @@ contains
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin(:,:), numHeaderPerTovsSensorAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:), numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:)
     integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
-    logical :: printSumNumHeaderPerTovsSensor
-    character(len=8) :: instNameUniqueList(tvs_nsensors)
+    logical :: printSumNumHeaderPerTovsSensor, doTovsPerSensor
+    character(len=codtyp_name_length) :: instName1, instName2
+    character(len=codtyp_name_length) :: instNameUniqueList(tvs_nsensors)
 
     ! box size that is used for observation thinning 
     ! (the numerator is an approximate distance in km)
@@ -394,7 +398,7 @@ contains
     real(8), parameter :: r1_dum = 1.0
     real(8), parameter :: rz_dum = 1.0
    
-    num_stn = obs_numheader(obsSpaceData)
+    numHeader = obs_numheader(obsSpaceData)
     npres = size(n_pmax,1) 
     write(*,*) 'Start thinning for ', cfam, ' data'
     ! at this stage we still have many radiance channels 
@@ -451,15 +455,41 @@ contains
     ! keep_ai = 1 corresponds to no thinning
     keep_ai(:,:) = 1.0
 
-    allocate(ai_indices(num_stn,3))
+    allocate(ai_indices(numHeader,3))
 
-    header_loop: do headerIndex = 1, num_stn
-      codeType= obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
-      if ( (cfam=='AI' .and. (codeType==42  .or. codeType==128 .or. &
-                              codeType==157 .or. codeType==177)) .or. &
-           (cfam=='SC' .and. codeType==254) .or. &
-           (cfam=='SW' .and. (codeType==88  .or. codeType==188)) .or. &
-           (cfam=='TO' .and. tvs_isIdBurpTovs(codeType)) ) then
+    if (cfam /='TO') then
+      if (present(codtyp_opt)) then
+        call utl_abort('thining_fam: codtyp_opt argument only allowed for TO family')
+      end if
+    end if
+
+    doTovsPerSensor = .false.
+    instName1 = ''
+    instName2 = ''
+    if (present(codtyp_opt)) then
+      doTovsPerSensor = .true.
+      instName1 = codtyp_get_name(codtyp_opt)
+      if (present(codtyp2_opt)) then
+        instName2 = codtyp_get_name(codtyp2_opt)
+      end if
+    end if
+
+    header_loop: do headerIndex = 1, numHeader
+      codtyp = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
+      if ( (cfam=='AI' .and. (codtyp==42  .or. codtyp==128 .or. &
+                              codtyp==157 .or. codtyp==177)) .or. &
+           (cfam=='SC' .and. codtyp==254) .or. &
+           (cfam=='SW' .and. (codtyp==88  .or. codtyp==188)) .or. &
+           (cfam=='TO' .and. tvs_isIdBurpTovs(codtyp)) ) then
+
+        ! skip this header if does not match the supplied codtyp(s)
+        if (present(codtyp_opt)) then
+          if (present(codtyp2_opt)) then
+            if (codtyp /= codtyp_opt .and. codtyp /= codtyp2_opt) cycle header_loop
+          else
+            if (codtyp /= codtyp_opt) cycle header_loop
+          end if
+        end if
 
         ! skip this header if all observations already rejected
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
@@ -565,11 +595,20 @@ contains
         numInstNameUniqueList = numInstNameUniqueList + 1
         instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
       end do loopSensor1
-    end if ! cfam=='TO'
 
-    if (cfam=='TO' .and. mmpi_myid == 0) then
-      write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
-    end if
+      if (mmpi_myid == 0) then
+        write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
+      
+        if (doTovsPerSensor .and. (numInstNameUniqueList /= 1 .or. &
+            trim(instNameUniqueList(1)) /= instName1 .or. &
+            trim(instNameUniqueList(1)) /= instName2)) then
+          write(*,*) 'instName1=', instName1, ', instName2=', instName2
+
+          call utl_abort('thining_fam: instNameUniqueList does not match instName1/2')
+        end if
+
+      end if
+    end if ! cfam=='TO'
     
     if (cfam=='TO' .and. mmpi_myid == 0) then
       if (printSumNumHeaderPerTovsSensor) then
@@ -584,7 +623,7 @@ contains
               numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
             end do
 
-            write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
+            write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', trim(instNameUniqueList(sensorIndex2)), ':', &
                         numHeadersFound, numHeadersFound_mpiGlobal
 
           end if
@@ -622,7 +661,7 @@ contains
           end do
 
           if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
-            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
+            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', trim(instNameUniqueList(sensorIndex2)), &
                         ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
                         ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
             call utl_abort('thining_fam: the sums do not match before thinning')
@@ -769,7 +808,7 @@ contains
           end do
 
           if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
-            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
+            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', trim(instNameUniqueList(sensorIndex2)), &
                        ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
                        ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
             call utl_abort('thining_fam: the sums do not match after thinning')
