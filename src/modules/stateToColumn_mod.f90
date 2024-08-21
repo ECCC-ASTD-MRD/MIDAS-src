@@ -22,7 +22,7 @@ module stateToColumn_mod
   use gridVariableTransforms_mod
   use varNameList_mod
   use slantProfileLatLon_mod
-  use tovsNL_mod
+  use tovs_mod
   use codtyp_mod
   use getGridPosition_mod
   use kdTree2_mod

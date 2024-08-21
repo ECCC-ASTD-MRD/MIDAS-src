@@ -26,7 +26,6 @@ public
 #include "rttov_setup_emis_atlas.interface"
 #include "rttov_read_coefs.interface"
 #include "rttov_dealloc_coefs.interface"
-#include "rttov_nullify_coef.interface"
 #include "rttov_parallel_tl.interface"
 #include "rttov_parallel_ad.interface"
 #include "rttov_parallel_k.interface"

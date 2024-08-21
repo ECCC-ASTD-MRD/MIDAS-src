@@ -9,7 +9,7 @@ MODULE ensembleObservations_mod
   use kdTree2_mod
   use message_mod
   use columnData_mod
-  use tovsNL_mod
+  use tovs_mod
   use rttov_types, only: rttov_transmission, rttov_profile
   use parkind1, only: jpim, jprb
   use midasMpi_mod

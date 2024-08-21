@@ -8,7 +8,7 @@ module obsErrors_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use obsSubSpaceData_mod
-  use tovsNL_mod
+  use tovs_mod
   use codtyp_mod
   use bufr_mod
   use utilities_mod

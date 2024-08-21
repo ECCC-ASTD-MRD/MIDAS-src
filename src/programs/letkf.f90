@@ -165,7 +165,7 @@ program midas_letkf
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use columnData_mod
-  use tovsNL_mod
+  use tovs_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use oceanMask_mod

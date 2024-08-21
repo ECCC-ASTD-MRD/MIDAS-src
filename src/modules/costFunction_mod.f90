@@ -7,7 +7,7 @@ module costFunction_mod
   use midasMpi_mod
   use obsSpaceData_mod
   use rttov_const, only : inst_name, platform_name
-  use tovsNL_mod
+  use tovs_mod
   use utilities_mod
   use obserrors_mod
   use codtyp_mod

@@ -11,7 +11,7 @@ module obsDiagFiles_mod
   use mathPhysConstants_mod
   use utilities_mod
   use ramDisk_mod
-  use tovsNL_mod
+  use tovs_mod
   use rttov_const, only : ninst
   use codtyp_mod
   use sqliteUtilities_mod

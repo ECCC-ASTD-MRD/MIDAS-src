@@ -15,7 +15,7 @@ module biasCorrectionSat_mod
   use controlVector_mod
   use midasMpi_mod
   use rttov_const, only : ninst
-  use tovsNL_mod
+  use tovs_mod
   use timeCoord_mod
   use columnData_mod
   use codePrecision_mod

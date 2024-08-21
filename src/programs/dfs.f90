@@ -177,7 +177,7 @@ program midas_dfs
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod
-  use tovsNL_mod
+  use tovs_mod
   use rMatrix_mod
   
   implicit none

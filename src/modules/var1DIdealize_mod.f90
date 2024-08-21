@@ -27,8 +27,7 @@ module var1DIdealize_mod
     use humidityLimits_mod
     use obsoperators_mod
     use obsErrors_mod
-    use tovsNL_mod
-    use tovsLin_mod
+    use tovs_mod
     use surfaceEmissivity_mod
   
     implicit none
@@ -529,7 +528,7 @@ module var1DIdealize_mod
     if (tvs_computeJacobian) then 
       call tvs_fillProfiles(columnTruthOnTrlLev, obsSpaceData, datestamp, "nl", beSilent)
 
-      call tvslin_rttov_k(columnTruthOnTrlLev, obsSpaceData)
+      call tvs_rttov_k(columnTruthOnTrlLev, obsSpaceData)
     end if
 
     write(*,*) 'var1Di_simulateObservation: Finished '

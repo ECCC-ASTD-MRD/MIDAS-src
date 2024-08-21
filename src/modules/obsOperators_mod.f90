@@ -16,9 +16,8 @@ module obsOperators_mod
   use gps_mod
   use midasMpi_mod
   use timeCoord_mod
-  use tovsNL_mod
+  use tovs_mod
   use utilities_mod
-  use tovsLin_mod
   use verticalCoord_mod
   use varNameList_mod
   use obsOperatorsChem_mod
@@ -2243,7 +2242,7 @@ contains
       !     2.   Compute radiance
       !     .    ----------------
       !
-      call tvslin_rttov_tl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
+      call tvs_rttov_tl(columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
 
 
     end subroutine oop_Hto
@@ -3002,7 +3001,7 @@ contains
       datestamp = tim_getDatestamp()
       call tvs_fillProfiles(columnTrlOnAnlIncLev,obsSpaceData,datestamp,"tlad",.false.)
 
-      call tvslin_rttov_ad(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)
+      call tvs_rttov_ad(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData)
 
     end subroutine oop_HTto
 
