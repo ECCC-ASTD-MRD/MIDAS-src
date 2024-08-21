@@ -123,11 +123,15 @@ program midas_prepcma
   integer, parameter :: nsc_target = 10
   integer, parameter :: nsw_target = 6
   integer, parameter :: nto_target = 6 
+  integer :: numTovsInstNameList, sensorIndex
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
   real(8) :: nsw_pmax(npres_sw) = (/ 60000.0, 110000.0/)
   ! For a scalar array, no layer selection will be done
   real(8) :: nsc_pmax(1) = (/ 0.0 /)
   real(8) :: nto_pmax(1) = (/ 0.0 /)
+  character(len=codtyp_name_length) :: tovsInstName
+  character(len=codtyp_name_length) :: tovsInstNameList(tvs_nsensors)
+  logical :: tovsInstAlreadyProcessed(tvs_nsensors)
 
   ! Namelist variables:
   character(len=256) :: cmahdr        ! should not be used anymore
@@ -146,12 +150,14 @@ program midas_prepcma
   logical :: obsClean                 ! choose to remove rejected observations from files
   logical :: writeObsFiles            ! choose to update the (burp or sqlite) observation files
   logical :: writeAsciiCmaFiles       ! choose to write ascii output
+  logical :: thinTovsPerInst          ! choose to thin tovs per instrument
 
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
                         suprep, rejectOutsideTimeWindow, &
                         thinning, thinningConv, thinningRadiance, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
-                        obsClean, writeObsFiles, writeAsciiCmaFiles
+                        obsClean, writeObsFiles, writeAsciiCmaFiles, &
+                        thinTovsPerInst
 
   call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 
@@ -183,7 +189,8 @@ program midas_prepcma
   rejectHighLatIR         = .true.
   obsClean                = .true.
   writeObsFiles           = .false.
-  writeAsciiCmaFiles       = .false.
+  writeAsciiCmaFiles      = .false.
+  thinTovsPerInst         = .false.
 
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namprepcma, iostat=ierr)
@@ -279,7 +286,34 @@ program midas_prepcma
     ! perform thinning for scatterometer observations
     if (thinningConv)     call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
     ! perform thinning for radiance observations
-    if (thinningRadiance) call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+    if (thinningRadiance) then
+      ! thinning per instrument
+      if (thinTovsPerInst) then
+        tovsInstAlreadyProcessed(:) = .false.
+        call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
+
+        loopSensor0: do sensorIndex = 1, numTovsInstNameList
+          tovsInstName = trim(tovsInstNameList(sensorIndex))
+
+          if (tovsInstAlreadyProcessed(sensorIndex) == .true.) cycle loopSensor0
+
+          if (trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs') then
+            call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO', &
+                              codtyp_opt=codtyp_get_codtyp('amsub'), &
+                              codtyp2_opt=codtyp_get_codtyp('mhs'))
+
+            tovsInstAlreadyProcessed(utl_findloc(tovsInstNameList,'amsub')) = .true.
+            tovsInstAlreadyProcessed(utl_findloc(tovsInstNameList,'mhs')) = .true.
+          else
+            call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO', &
+                              codtyp_opt=codtyp_get_codtyp(tovsInstName))
+
+            tovsInstAlreadyProcessed(sensorIndex) = .true.
+          end if
+        end do loopSensor0
+      else
+        call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+      end if
   end if
 
   !- Write the results
@@ -577,24 +611,24 @@ contains
       ! Create a unique list of instruments with non-zero number of headers
       instNameUniqueList(:) = ''
       numInstNameUniqueList = 1
-      loopSensor0: do sensorIndex = 1, tvs_nsensors
+      loopSensor1: do sensorIndex = 1, tvs_nsensors
         if (sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) > 0) then
           instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
-          exit loopSensor0
+          exit loopSensor1
         end if
-      end do loopSensor0
+      end do loopSensor1
 
-      loopSensor1: do sensorIndex = 1, tvs_nsensors
+      loopSensor2: do sensorIndex = 1, tvs_nsensors
         do sensorIndex2 = 1, numInstNameUniqueList
           if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
               sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) == 0) then
-            cycle loopSensor1
+            cycle loopSensor2
           end if
         end do
 
         numInstNameUniqueList = numInstNameUniqueList + 1
         instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
-      end do loopSensor1
+      end do loopSensor2
 
       if (mmpi_myid == 0) then
         write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
@@ -859,5 +893,34 @@ contains
     deallocate(numHeaderPerTovsSensorAfterThin_mpiGlobal)
 
   end subroutine thinning_fam
+
+  subroutine getTovsInstNameList(numInstNameUniqueList, instNameUniqueList)
+    !
+    ! :Purpose: Create a unique list of tovs instrument names.
+    !
+    implicit none
+
+    ! Arguments:
+    integer           , intent(out) :: numInstNameUniqueList
+    character(len=*), intent(inout) :: instNameUniqueList(:)
+
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2
+
+    instNameUniqueList(:) = ''
+    numInstNameUniqueList = 1
+    instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(1)))
+
+    loopSensor3: do sensorIndex = 1, size(instNameUniqueList)
+      do sensorIndex2 = 1, numInstNameUniqueList
+        if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex)))) then
+          cycle loopSensor3
+        end if
+      end do
+
+      numInstNameUniqueList = numInstNameUniqueList + 1
+      instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+    end do loopSensor3
+  end subroutine getTovsInstNameList
 
 end program
