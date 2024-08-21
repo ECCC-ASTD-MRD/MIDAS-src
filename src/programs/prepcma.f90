@@ -384,7 +384,7 @@ contains
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin(:,:), numHeaderPerTovsSensorAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,:), numHeaderPerTovsSensorAfterThin_mpiGlobal(:,:)
     integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
-
+    logical :: printSumNumHeaderPerTovsSensor
     character(len=8) :: instNameUniqueList(tvs_nsensors)
 
     ! box size that is used for observation thinning 
@@ -434,6 +434,7 @@ contains
     nrep_count = 0
     nobs_count = 0
 
+    printSumNumHeaderPerTovsSensor = .false.
     allocate(numHeaderPerTovsSensorBeforeThin(nblocksum,tvs_nsensors))
     allocate(numHeaderPerTovsSensorBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
     allocate(numHeaderPerTovsSensorAfterThin(nblocksum,tvs_nsensors))
@@ -567,26 +568,28 @@ contains
     end if ! cfam=='TO'
 
     if (cfam=='TO' .and. mmpi_myid == 0) then
-      write(*,*) 'maziar: numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
+      write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
     end if
     
     if (cfam=='TO' .and. mmpi_myid == 0) then
-      do sensorIndex2 = 1, numInstNameUniqueList
-        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
-        if (matchIndexList(1) > 0) then
-          numMatchFound = size(matchIndexList)
-          numHeadersFound = 0
-          numHeadersFound_mpiGlobal = 0
-          do matchFoundIndex = 1, numMatchFound
-            numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
-            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
-          end do
+      if (printSumNumHeaderPerTovsSensor) then
+        do sensorIndex2 = 1, numInstNameUniqueList
+          matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+          if (matchIndexList(1) > 0) then
+            numMatchFound = size(matchIndexList)
+            numHeadersFound = 0
+            numHeadersFound_mpiGlobal = 0
+            do matchFoundIndex = 1, numMatchFound
+              numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
+              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
+            end do
 
-          write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
-                      numHeadersFound, numHeadersFound_mpiGlobal
+            write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
+                        numHeadersFound, numHeadersFound_mpiGlobal
 
-        end if
-      end do
+          end if
+        end do
+      end if
 
       ! compute counts per block per sensor
       allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueList))
@@ -657,8 +660,8 @@ contains
     do iblock = 1, nblocksum
       do ipres = 1, npres
         if (nstationMpiGlobal(iblock,ipres) .ge. 1) then
-          if (mmpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
-                     nstationMpiGlobal(iblock,ipres)
+          !if (mmpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
+          !           nstationMpiGlobal(iblock,ipres)
           if (nstationMpiGlobal(iblock,ipres) > n_target) then
             keep_ai(iblock,ipres) = dble(n_target) / dble(nstationMpiGlobal(iblock,ipres))
             n_count_thin = n_count_thin + n_target
