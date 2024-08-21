@@ -543,13 +543,20 @@ contains
     end if
 
     if (cfam=='TO') then
-      ! Create a unique list of instruments
+      ! Create a unique list of instruments with non-zero number of headers
       instNameUniqueList(:) = ''
       numInstNameUniqueList = 1
-      instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(1)))
+      loopSensor0: do sensorIndex = 1, tvs_nsensors
+        if (sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) > 0) then
+          instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+          exit loopSensor0
+        end if
+      end do loopSensor0
+
       loopSensor1: do sensorIndex = 1, tvs_nsensors
         do sensorIndex2 = 1, numInstNameUniqueList
-          if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex)))) then
+          if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
+              sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,sensorIndex)) == 0) then
             cycle loopSensor1
           end if
         end do
@@ -557,91 +564,94 @@ contains
         numInstNameUniqueList = numInstNameUniqueList + 1
         instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
       end do loopSensor1
-
-      if (mmpi_myid == 0) then
-        do sensorIndex2 = 1, numInstNameUniqueList
-          matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
-          if (matchIndexList(1) > 0) then
-            numMatchFound = size(matchIndexList)
-            numHeadersFound = 0
-            numHeadersFound_mpiGlobal = 0
-            do matchFoundIndex = 1, numMatchFound
-              numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
-              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
-            end do
-
-            write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
-                        numHeadersFound, numHeadersFound_mpiGlobal
-
-          end if
-        end do
-
-        ! compute counts per block per sensor
-        allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueList))
-        allocate(numHeadersFoundInBlock_mpiGlobal(nblocksum,numInstNameUniqueList))
-        numHeadersFoundInBlock(:,:) = 0
-        numHeadersFoundInBlock_mpiGlobal(:,:) = 0
-        do sensorIndex2 = 1, numInstNameUniqueList
-          matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
-          if (matchIndexList(1) > 0) then
-            numMatchFound = size(matchIndexList)
-
-            do matchFoundIndex = 1, numMatchFound
-              numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
-                                                          numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex))
-              numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
-                                                          numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
-            end do
-          end if
-        end do ! sensorIndex2
-
-        ! check the sum over all blocks match the counts per sensor 
-        do sensorIndex2 = 1, numInstNameUniqueList
-          matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
-          if (matchIndexList(1) > 0) then
-            numMatchFound = size(matchIndexList)
-
-            numHeadersFound_mpiGlobal = 0
-            do matchFoundIndex = 1, numMatchFound
-              numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
-            end do
-
-            if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
-              write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
-                         ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
-                         ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
-              call utl_abort('thining_fam: the sums do not match before thinning')
-            end if
-          end if
-        end do
-        
-        ! print counts per block per sensor
-        write(*,'(a39)',advance='no') 'before thinning global instName        '
-        do sensorIndex2 = 1, numInstNameUniqueList
-          write(*,'(a8,1x)',advance='no') trim(instNameUniqueList(sensorIndex2))
-        end do
-        write(*,*)
-
-        do iblock = 1, nblocksum
-          write(*,'(a32,i6,a)',advance='no') 'before thinning global TO counts', iblock, ':'
-
-          do sensorIndex2 = 1, numInstNameUniqueList
-            write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
-          end do
-          write(*,*)
-          
-        end do ! iblock
-
-        ! print max of all block for sensor
-        write(*,'(a39)',advance='no') 'before thinning global TO counts MAX  '
-        do sensorIndex2 = 1, numInstNameUniqueList
-          write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
-        end do
-        write(*,*)
-
-      end if ! mmpi_myid == 0
-
     end if ! cfam=='TO'
+
+    if (cfam=='TO' .and. mmpi_myid == 0) then
+      write(*,*) 'maziar: numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
+    end if
+    
+    if (cfam=='TO' .and. mmpi_myid == 0) then
+      do sensorIndex2 = 1, numInstNameUniqueList
+        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+        if (matchIndexList(1) > 0) then
+          numMatchFound = size(matchIndexList)
+          numHeadersFound = 0
+          numHeadersFound_mpiGlobal = 0
+          do matchFoundIndex = 1, numMatchFound
+            numHeadersFound = numHeadersFound + sum(numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex)))
+            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))
+          end do
+
+          write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for all ', instNameUniqueList(sensorIndex2), ':', &
+                      numHeadersFound, numHeadersFound_mpiGlobal
+
+        end if
+      end do
+
+      ! compute counts per block per sensor
+      allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueList))
+      allocate(numHeadersFoundInBlock_mpiGlobal(nblocksum,numInstNameUniqueList))
+      numHeadersFoundInBlock(:,:) = 0
+      numHeadersFoundInBlock_mpiGlobal(:,:) = 0
+      do sensorIndex2 = 1, numInstNameUniqueList
+        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+        if (matchIndexList(1) > 0) then
+          numMatchFound = size(matchIndexList)
+
+          do matchFoundIndex = 1, numMatchFound
+            numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
+                                                        numHeaderPerTovsSensorBeforeThin(:,matchIndexList(matchFoundIndex))
+            numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
+                                                        numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex))
+          end do
+        end if
+      end do ! sensorIndex2
+
+      ! check the sum over all blocks match the counts per sensor 
+      do sensorIndex2 = 1, numInstNameUniqueList
+        matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+        if (matchIndexList(1) > 0) then
+          numMatchFound = size(matchIndexList)
+
+          numHeadersFound_mpiGlobal = 0
+          do matchFoundIndex = 1, numMatchFound
+            numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsSensorBeforeThin_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+          end do
+
+          if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
+            write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', instNameUniqueList(sensorIndex2), &
+                        ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
+                        ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+            call utl_abort('thining_fam: the sums do not match before thinning')
+          end if
+        end if
+      end do
+      
+      ! print counts per block per sensor
+      write(*,'(a39)',advance='no') 'before thinning global instName        '
+      do sensorIndex2 = 1, numInstNameUniqueList
+        write(*,'(a8,1x)',advance='no') trim(instNameUniqueList(sensorIndex2))
+      end do
+      write(*,*)
+
+      do iblock = 1, nblocksum
+        write(*,'(a32,i6,a)',advance='no') 'before thinning global TO counts', iblock, ':'
+
+        do sensorIndex2 = 1, numInstNameUniqueList
+          write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
+        end do
+        write(*,*)
+        
+      end do ! iblock
+
+      ! print max of all block for sensor
+      write(*,'(a39)',advance='no') 'before thinning global TO counts MAX  '
+      do sensorIndex2 = 1, numInstNameUniqueList
+        write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+      end do
+      write(*,*)
+
+    end if ! cfam=='TO' .and. mmpi_myid == 0
 
     n_count_thin = 0
     do iblock = 1, nblocksum
