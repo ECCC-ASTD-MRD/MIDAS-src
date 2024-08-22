@@ -46,7 +46,7 @@ module ensembleStateVector_mod
   public :: ens_copyHeightSfc
   
   ! Namelist variables
-  integer            :: maxNumVarLevBatches ! Maximum number of batches for parallel writing of ensemble
+  integer            :: maxVarLevGroups ! Maximum number of batches for parallel writing of ensemble
 
   type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
@@ -91,12 +91,12 @@ CONTAINS
     integer       :: ierr
     logical, save :: firstCall = .true.
 
-    NAMELIST /NAMENSSTATE/ maxNumVarLevBatches
+    NAMELIST /NAMENSSTATE/ maxVarLevGroups
 
     if (firstCall) then
-      
+
       ! set the default values
-      maxNumVarLevBatches = 4
+      maxVarLevGroups = 4
 
       ! read the namelist block if it exists
       if (.not. utl_isNamelistPresent('NAMENSSTATE','./flnml')) then
@@ -2841,7 +2841,7 @@ CONTAINS
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy, procIndex
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numVarLev, numStep, numLevelsToSend, numVarLevBatches, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
+    integer :: numVarLev, numStep, numLevelsToSend, numVarLevGroups, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
     integer :: memberIndex, memberIndexBeg, memberIndexEnd, stepIndex, varLevIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
@@ -2862,7 +2862,7 @@ CONTAINS
     !- 1. Initial setup
 
     call readNml()
-    
+
     nullify(varNamesInEns)
     if (present(varNames_opt)) then
       allocate(varNamesInEns(size(varNames_opt)))
@@ -2932,27 +2932,27 @@ CONTAINS
     ! We will splitt all the 'varLev's to write into batches only if
     ! there are less ensemble members than MPI processes.
     if ( mmpi_nprocs > ens%numMembers ) then
-      numVarLevBatches = min(maxNumVarLevBatches, mmpi_nprocs/ens%numMembers)
+      numVarLevGroups = min(maxVarLevGroups, mmpi_nprocs/ens%numMembers)
     else
       ! If 'mmpi_nprocs < ens%numMembers', then we will process all
       ! the 'varLev's in one batch.
-      numVarLevBatches = 1
+      numVarLevGroups = 1
     end if
 
     ! The variable 'varLevGroupSize' is the number of 'varLev's
     ! considered in each 'varLev' batch.
-    if ( mod(numVarLev, numVarLevBatches) == 0 ) then
-      varLevGroupSize = numVarLev/numVarLevBatches
+    if ( mod(numVarLev, numVarLevGroups) == 0 ) then
+      varLevGroupSize = numVarLev/numVarLevGroups
     else
-      ! We must add 1 to 'numVarLev/numVarLevBatches' if 'numVarLev'
-      ! is not divisible by 'numVarLevBatches' to distribute almost
+      ! We must add 1 to 'numVarLev/numVarLevGroups' if 'numVarLev'
+      ! is not divisible by 'numVarLevGroups' to distribute almost
       ! equally the 'varLev' on all the 'varLev' batches with the last
       ! batch to have a little less 'varLev's to process.
-      varLevGroupSize = numVarLev/numVarLevBatches + 1
+      varLevGroupSize = numVarLev/numVarLevGroups + 1
     end if
 
     ! Memory allocation
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(numVarLevBatches*ens%numMembers, mmpi_nprocs)))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(numVarLevGroups*ens%numMembers, mmpi_nprocs)))
     allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
@@ -3022,7 +3022,7 @@ CONTAINS
         memberIndexBeg = (batchIndex-1)*numMemberPerBatch + 1
         memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
 
-        varLevGroupLoop: do varLevGroupIndex = 1, numVarLevBatches
+        varLevGroupLoop: do varLevGroupIndex = 1, numVarLevGroups
           ! Compute the 'varLev' index of the first and last of each 'varLev' batch which are of size 'varLevGroupSize'
           varLevIndexBeg = (varLevGroupIndex - 1)*varLevGroupSize + 1
           varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize - 1)
@@ -3060,7 +3060,7 @@ CONTAINS
 
           ! only send the exact data amount for each task
           do procIndex = 1, mmpi_nprocs
-            if ( procIndex <= min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
+            if ( procIndex <= min(ens%numMembers*numVarLevGroups, batchIndex*mmpi_nprocs) ) then
               sendsizes(procIndex) = nsize
             else
               sendsizes(procIndex) = 0
@@ -3068,7 +3068,7 @@ CONTAINS
           end do
 
           ! only receive data on rank that receive data
-          if ( mmpi_myid < min(ens%numMembers*numVarLevBatches, batchIndex*mmpi_nprocs) ) then
+          if ( mmpi_myid < min(ens%numMembers*numVarLevGroups, batchIndex*mmpi_nprocs) ) then
             recvsizes(:) = nsize
           else
             recvsizes(:) = 0
@@ -3091,7 +3091,7 @@ CONTAINS
         memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
         ! Decide if whether or not, this MPI process needs to process data
-        if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevBatches ) then
+        if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevGroups ) then
           write(*,*) 'ens_writeEnsemble: do nothing, go to next batch '
           cycle batchLoop
         else
@@ -3128,7 +3128,7 @@ CONTAINS
         ! batches, then we add '_batch_' to its file name.  The
         ! different batches will be collected together at the end of
         ! the routine with 'gio_collectMpiDistributedFiles'.
-        if ( numVarLevBatches > 1 .and. varLevGroupIndex > 1 ) then
+        if ( numVarLevGroups > 1 .and. varLevGroupIndex > 1 ) then
           ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
         end if
 
@@ -3187,9 +3187,9 @@ CONTAINS
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
 
-    ! If 'varLevGroups>1' then only some MPI processes (the first
+    ! If 'numVarLevGroups>1' then only some MPI processes (the first
     ! ens%numMembers) have to collect the different batches together.
-    if ( varLevGroups > 1 ) then
+    if ( numVarLevGroups > 1 ) then
       ! We have to make sure that all the intermediate files '*_mpiid_*'
       ! are written to disk before regrouping it.
       call utl_tmg_start(192,'ens_writeEnsemble-barrier')
@@ -3203,7 +3203,7 @@ CONTAINS
         call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar,   &
                                  memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
         call gio_collectMpiDistributedFiles(ensFileName, '_batch_',                    &
-                                            startIndex = 2, endIndex = varLevGroups)
+                                            startIndex = 2, endIndex = numVarLevGroups)
       end if
       call utl_tmg_stop(193)
     end if

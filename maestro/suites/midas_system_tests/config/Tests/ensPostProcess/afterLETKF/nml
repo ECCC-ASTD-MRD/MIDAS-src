@@ -27,7 +27,7 @@
    DSTEPOBSINC = 6.0d0
 /
  &NAMENSSTATE
-   maxNumVarLevBatches = 4
+   maxVarLevGroups = 4
 /
  &NAMSTIO
    outputFormat = 'XDF'
