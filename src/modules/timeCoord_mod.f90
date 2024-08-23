@@ -112,7 +112,7 @@ contains
       tim_dstepobsinc = tim_windowsize 
     end if
      
-    if (tim_referenceTime == 'middle') then
+    if (tim_referenceTime == 'middle' .or. trim(tim_referenceTime) == 'end') then
 
       tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
       tim_nstepobsinc = 2 * nint(((tim_windowsize - tim_dstepobsinc) / 2.d0) / tim_dstepobsinc) + 1
@@ -120,11 +120,6 @@ contains
     else if (trim(tim_referenceTime) == 'start') then
 
       tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs), 1)
-      tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
-
-    else if (trim(tim_referenceTime) == 'end') then
-
-      tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs) + 1, 1)
       tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
 
     end if
