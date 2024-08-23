@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Ocean LETKF input/output and timing bug fix (#960 and !872)  
  * Dynamically compute dimensions of `procIndexesSendMpiGlobal` (#950 and !866)
  * Added missing file open/close in `bCovarSetupChem_mod.f90` (#949 and !864)
    * Also fixed incorrect intent for `ni/nj/nk` in `utl_fstlir`
