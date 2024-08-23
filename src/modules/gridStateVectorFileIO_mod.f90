@@ -32,7 +32,7 @@ module gridStateVectorFileIO_mod
   public :: gio_setup
   public :: gio_readFromFile, gio_readTrials, gio_readFile
   public :: gio_readMaskFromFile, gio_getMaskLAM
-  public :: gio_writeToFile, gio_writeToFileNetCDF
+  public :: gio_writeToFile, gio_writeToFileNetCDF, gio_collectMpiDistributedFiles
   public :: gio_fileUnitsToStateUnits
 
   logical :: initialized = .false.
@@ -1514,9 +1514,10 @@ module gridStateVectorFileIO_mod
   ! gio_writeToFile
   !--------------------------------------------------------------------------
   subroutine gio_writeToFile(statevector_in, fileName, etiket_in, &
-                             scaleFactor_opt, ip3_opt, stepIndex_opt, typvar_opt,&
+                             scaleFactor_opt, ip3_opt, stepIndex_opt, typvar_opt, &
                              HUcontainsLQ_opt, unitConversion_opt, &
-                             writeHeightSfc_opt, numBits_opt, containsFullField_opt)
+                             writeHeightSfc_opt, numBits_opt, containsFullField_opt, &
+                             varLevIndexBeg_opt, varLevIndexEnd_opt, doWriteTicTacToc_opt)
     !
     ! :Purpose: Write a statevector object to an RPN standard file.
     !
@@ -1534,14 +1535,18 @@ module gridStateVectorFileIO_mod
     logical,          optional, intent(in) :: writeHeightSfc_opt
     integer,          optional, intent(in) :: numBits_opt
     logical,          optional, intent(in) :: containsFullField_opt
+    integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's (default is 1)
+    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's (default is 'gsv_getNumVarLev(statevector)')
+    logical,          optional, intent(in) :: doWriteTicTacToc_opt ! decide whether or not we write the tic-tac-toc record in the file (default '.true.')
 
     ! Locals:
-    logical :: iDoWriting, unitConversion, containsFullField
-    integer :: stepIndex, ierr, levIndex, nlev, varIndex, numThreadsForWriting
-    integer :: yourid, nsize, youridy, youridx, threadId, thread
+    logical :: iDoWriting, unitConversion, containsFullField, doWriteTicTacToc
+    integer :: stepIndex, ierr, levIndex, varLevIndex
+    integer :: yourid, nsize, youridy, youridx, threadId, thread, numThreadsForWriting
     real(4) :: factor_r4
     character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
+    integer :: varLevIndexBeg, varLevIndexEnd
     real(4), allocatable :: work2d_r4(:,:,:) ! last dimension is along the thread id
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
@@ -1551,9 +1556,10 @@ module gridStateVectorFileIO_mod
     type(fst_file), allocatable   :: fstFiles(:)
     type(fst_record), allocatable :: fstRecords(:)
     integer, allocatable :: levIndices(:)
+    logical, allocatable :: interpolationToPhysicsGrid(:)
     character(len=256) :: fileNameTmp
     character(len=4) :: nomvar
-    logical :: success, interpolationToPhysicsGrid
+    logical :: success
 
     call msg('gio_writeToFile', 'START')
 
@@ -1600,6 +1606,7 @@ module gridStateVectorFileIO_mod
     allocate(fstFiles(0:numThreadsForWriting-1))
     allocate(fstRecords(0:numThreadsForWriting-1))
     allocate(levIndices(0:numThreadsForWriting-1))
+    allocate(interpolationToPhysicsGrid(0:numThreadsForWriting-1))
 
     if (present(ip3_opt)) then
       fstRecords(:)%ip3 = ip3_opt
@@ -1634,6 +1641,27 @@ module gridStateVectorFileIO_mod
     end if
     ! the data will be 'real(4)' arrays and so it is 32 bits data
     fstRecords(:)%data_bits = 32
+
+    if ( present(varLevIndexBeg_opt) .and. present(varLevIndexEnd_opt) ) then
+      varLevIndexBeg = varLevIndexBeg_opt
+      varLevIndexEnd = varLevIndexEnd_opt
+    else
+      if ( present(varLevIndexBeg_opt) ) then
+        call utl_abort('gio_writeToFile: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
+      end if
+      if ( present(varLevIndexEnd_opt) ) then
+        call utl_abort('gio_writeToFile: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
+      end if
+
+      varLevIndexBeg = 1
+      varLevIndexEnd = gsv_getNumVarLev(statevector)
+    end if
+
+    if (present(doWriteTicTacToc_opt)) then
+      doWriteTicTacToc = doWriteTicTacToc_opt
+    else
+      doWriteTicTacToc = .true.
+    end if
 
     ! initialization of parameters for writing to file
     if (statevector%dateOriginList(stepIndex) /= mpc_missingValue_int) then
@@ -1710,7 +1738,7 @@ module gridStateVectorFileIO_mod
       end do
 
       !- Write TicTacToc in the final output file
-      if ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local) then
+      if (doWriteTicTacToc .and. ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local)) then
         call writeTicTacToc(statevector, fstFiles(0), fstRecords(0)%etiket)
       endif
 
@@ -1787,155 +1815,148 @@ module gridStateVectorFileIO_mod
       end if
     end if
 
-    do varIndex = 1, vnl_numvarmax 
- 
-      if (gsv_varExist(statevector,vnl_varNameList(varIndex))) then
+    do varLevIndex = varLevIndexBeg, varLevIndexEnd
+      nomvar = trim(gsv_getVarNameFromVarLev(statevector,varLevIndex))
 
-        nlev = statevector%varNumLev(varIndex)
-        interpolationToPhysicsGrid = interpToPhysicsGrid .and. statevector%onPhysicsGrid(varIndex)
+      levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
 
-        do levIndex = 1, nlev
-          threadId = mod(levIndex-1, numThreadsForWriting)
-          levIndices(threadId) = levIndex
+      threadId = mod(varLevIndex-varLevIndexBeg, numThreadsForWriting)
+      levIndices(threadId) = levIndex
+      interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
-          if (statevector%dataKind == 8) then
-            call gsv_getField(statevector,field_r8,vnl_varNameList(varIndex))
-            gd_send_r4(1:statevector%lonPerPE,  &
-                       1:statevector%latPerPE) =  &
-                real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
-                              statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex),4)
-          else
-            call gsv_getField(statevector,field_r4,vnl_varNameList(varIndex))
-            gd_send_r4(1:statevector%lonPerPE,  &
-                       1:statevector%latPerPE) =  &
-                field_r4(statevector%myLonBeg:statevector%myLonEnd, &
-                         statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex)
-          end if
+      if (statevector%dataKind == 8) then
+        call gsv_getField(statevector,field_r8,nomvar)
+        gd_send_r4(1:statevector%lonPerPE,   &
+                   1:statevector%latPerPE) = &
+                   real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
+                        statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex),4)
+      else
+        call gsv_getField(statevector,field_r4,nomvar)
+        gd_send_r4(1:statevector%lonPerPE,   &
+                   1:statevector%latPerPE) = &
+                   field_r4(statevector%myLonBeg:statevector%myLonEnd, &
+                            statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex)
+      end if
 
-          nsize = statevector%lonPerPEmax*statevector%latPerPEmax
-          if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
-            call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
-            call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
-            call utl_tmg_stop(183)
-          else
-            ! just copy when either nprocs is 1 or data is global
-            gd_recv_r4(:,:,1) = gd_send_r4(:,:)
-          end if
+      nsize = statevector%lonPerPEmax*statevector%latPerPEmax
+      if ((mmpi_nprocs > 1) .and. (statevector%mpi_local)) then
+        call utl_tmg_start(183,'low-level--gio_writeToFile-gather')
+        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+        call utl_tmg_stop(183)
+      else
+        ! just copy when either nprocs is 1 or data is global
+        gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+      end if
 
-          if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mmpi_npey-1)
-              do youridx = 0, (mmpi_npex-1)
-                yourid = youridx + youridy*mmpi_npex
-                work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
-                            statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1),threadID) = &
-                    gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
-                               1:statevector%allLatPerPE(youridy+1), yourid+1)
-              end do
-            end do
-            !$OMP END PARALLEL DO
-          else if ( .not. statevector%mpi_local ) then
-            work2d_r4(:,:,threadId) = gd_recv_r4(:,:,1)
-          end if
+      if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey-1)
+          do youridx = 0, (mmpi_npex-1)
+            yourid = youridx + youridy*mmpi_npex
+            work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                 statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1),threadID) = &
+                 gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
+                 1:statevector%allLatPerPE(youridy+1), yourid+1)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( .not. statevector%mpi_local ) then
+        work2d_r4(:,:,threadId) = gd_recv_r4(:,:,1)
+      end if
 
-          ! now do writing
-          if (iDoWriting) then
+      ! now do writing
+      if (iDoWriting) then
 
-            ! Set the ip1 value
-            if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'MM') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_M(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_T(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
-              fstRecords(threadId)%ip1 = 0
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFTH') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_T_2m
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFMM') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_M_10m
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'OT') then
-              fstRecords(threadId)%ip1 = vco_ip1_other(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_depth(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SS') then
-              fstRecords(threadId)%ip1 = statevector%vco%ip1_seaLevel
-            else
-              varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
-              write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
-              call utl_abort('gio_writeToFile')
-            end if
+        ! Set the ip1 value
+        if (vnl_varLevelFromVarname(nomvar) == 'MM') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_M(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'TH') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_T(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'SF') then
+          fstRecords(threadId)%ip1 = 0
+        else if (vnl_varLevelFromVarname(nomvar) == 'SFTH') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_T_2m
+        else if (vnl_varLevelFromVarname(nomvar) == 'SFMM') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_M_10m
+        else if (vnl_varLevelFromVarname(nomvar) == 'OT') then
+          fstRecords(threadId)%ip1 = vco_ip1_other(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'DP') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_depth(levIndex)
+        else if (vnl_varLevelFromVarname(nomvar) == 'SS') then
+          fstRecords(threadId)%ip1 = statevector%vco%ip1_seaLevel
+        else
+          varLevel = vnl_varLevelFromVarname(nomvar)
+          write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
+          call utl_abort('gio_writeToFile')
+        end if
 
-            ! Set the output variable name
-            nomvar = trim(vnl_varNameList(varIndex))
-            fstRecords(threadId)%nomvar = nomvar
-            if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
-               if (HUcontainsLQ_opt) fstRecords(threadId)%nomvar = 'LQ'
-            end if
+        ! Set the output variable name
+        fstRecords(threadId)%nomvar = nomvar
+        if (trim(nomvar) == 'HU' .and. present(HUcontainsLQ_opt)) then
+          if (HUcontainsLQ_opt) fstRecords(threadId)%nomvar = 'LQ'
+        end if
 
-            if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then
-              ! Impose lower limits
-              if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
-                work2d_r4(:,:,threadId) = max(work2d_r4(:,:,threadId), &
-                                     real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
-            end if
- 
-            ! Set the conversion factor
-            if (unitConversion) then
+        if (vnl_varKindFromVarname(trim(nomvar)) == 'CH' .and. containsFullField) then
+          ! Impose lower limits
+          if (gsv_minValVarKindCH(vnl_varListIndex(nomvar)) > 1.01 * mpc_missingValue_r8) &
+               work2d_r4(:,:,threadId) = max(work2d_r4(:,:,threadId), &
+               real(gsv_minValVarKindCH(vnl_varListIndex(trim(nomvar)))))
+        end if
 
-              if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-                factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
-              else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-                       trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
-                factor_r4 = 0.01 ! Pa -> hPa
-              else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
-                if ( gsv_conversionVarKindCHtoMicrograms ) then
-                  ! Apply inverse transform of unit conversion
-                  if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
-                    factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
-                                vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
-                  else
-                    factor_r4 = 1.0 ! no conversion
-                  end if
-                else
-                  factor_r4 = 1.0 ! no conversion
-                end if
+        ! Set the conversion factor
+        if (unitConversion) then
+
+          if (trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+            factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
+          else if (trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
+               trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS') then
+            factor_r4 = 0.01 ! Pa -> hPa
+          else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then
+            if ( gsv_conversionVarKindCHtoMicrograms ) then
+              ! Apply inverse transform of unit conversion
+              if ( trim(nomvar) == 'TO3' .or. trim(nomvar) == 'O3L' ) then
+                factor_r4 = 1.0E-9 * mpc_molar_mass_dry_air_r4 / &
+                     vnl_varMassFromVarName(trim(nomvar)) ! micrograms/kg -> vmr
               else
                 factor_r4 = 1.0 ! no conversion
               end if
             else
               factor_r4 = 1.0 ! no conversion
             end if
+          else
+            factor_r4 = 1.0 ! no conversion
+          end if
+        else
+          factor_r4 = 1.0 ! no conversion
+        end if
 
-            if (present(scaleFactor_opt)) factor_r4 = factor_r4 * real(scaleFactor_opt,4)
+        if (present(scaleFactor_opt)) factor_r4 = factor_r4 * real(scaleFactor_opt,4)
 
-            !- Scale
-            work2d_r4(:,:,threadId) = factor_r4 * work2d_r4(:,:,threadId)
+        !- Scale
+        work2d_r4(:,:,threadId) = factor_r4 * work2d_r4(:,:,threadId)
 
-            !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
-              where (work2d_r4(:,:,threadId) > 100.0)
-                work2d_r4(:,:,threadId) = work2d_r4(:,:,threadId) - mpc_k_c_degree_offset_r4
-              end where
-            end if
+        !- Convert Kelvin to Celcius only if full field
+        if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')) then
+          where (work2d_r4(:,:,threadId) > 100.0)
+            work2d_r4(:,:,threadId) = work2d_r4(:,:,threadId) - mpc_k_c_degree_offset_r4
+          end where
+        end if
 
-            if ( (threadId == numThreadsForWriting-1) .or. (levIndex == nlev) ) then
-              !- Writing to file
-              ! if 'threadId == numThreadsForWriting-1', we write all threads,
-              ! if not then we write only the threads that have been initialized
-              !$OMP PARALLEL DO PRIVATE(thread)
-              do thread = 0, threadId
-                call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
-                                      statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid)
-              end do
-              !$OMP END PARALLEL DO
-            end if
-          end if ! iDoWriting
+        if ( (threadId == numThreadsForWriting-1) .or. (varLevIndex == varLevIndexEnd) ) then
+          !- Writing to file
+          ! if 'threadId == numThreadsForWriting-1', we write all threads,
+          ! if not then we write only the threads that have been initialized
+          !$OMP PARALLEL DO PRIVATE(thread)
+          do thread = 0, threadId
+            call writeFieldToFile(fstFiles(thread), fstRecords(thread), levIndices(thread), &
+                 statevector, work2d_r4(:,:,thread), interpolationToPhysicsGrid(thread))
+          end do
+          !$OMP END PARALLEL DO
+        end if
+      end if ! iDoWriting
 
-        end do ! levIndex
-
-      end if ! varExist
-
-    end do ! varIndex
+    end do ! varLevIndex
 
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
@@ -1966,6 +1987,7 @@ module gridStateVectorFileIO_mod
     deallocate(fstFiles)
     deallocate(fstRecords)
     deallocate(levIndices)
+    deallocate(interpolationToPhysicsGrid)
 
     !
     !- 4.  Ending
@@ -2078,7 +2100,7 @@ module gridStateVectorFileIO_mod
 
     ! Arguments:
     type(struct_gsv), intent(in) :: statevector
-    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' calling 'fstFile%write()' modifies 'fstFile'
+    type(fst_file),   intent(inout) :: fstFile ! we must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'
     character(len=*), intent(in) :: etiket
 
     ! Locals:
@@ -2251,6 +2273,104 @@ module gridStateVectorFileIO_mod
     end if
 
   end subroutine writeTicTacToc
+
+  !--------------------------------------------------------------------------
+  ! gio_collectMpiDistributedFiles
+  !--------------------------------------------------------------------------
+  subroutine gio_collectMpiDistributedFiles(fileName, suffix, startIndex, endIndex)
+    !
+    ! :Purpose: Create a single file from MPI-distributed RPN standard files
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: fileName   ! Input file name
+    character(len=*), intent(in) :: suffix     ! suffix to insert between the 'fileName' and the indices
+    integer,          intent(in) :: startIndex ! start index of the files to collect
+    integer,          intent(in) :: endIndex   ! end index of the files to collect
+
+    ! Locals:
+    logical            :: success
+    integer            :: index, ierr
+    character(len=256) :: fileNameTmp
+    type(fst_file)     :: fstFile
+
+    if ( outputFormat == 'XDF' ) then
+      ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
+      ! So to avoid reopening and reclosing the same file each iteration, we create a 'fstFile' handle
+      ! that will be used later in 'appendMpiDistributedFile_XDF'
+      success = fstFile%open(trim(fileName), options = 'R/W')
+      if (.not. success) then
+        call utl_abort('gio_collectMpiDistributedFiles: problem opening output file ' // trim(fileName))
+      end if
+    else if ( outputFormat /= 'RSF' ) then
+      call utl_abort('gio_collectMpiDistributedFiles: ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
+    end if
+
+    do index = startIndex, endIndex
+      fileNameTmp = trim(fileName) // trim(suffix) // str(index)
+
+      if ( outputFormat == 'XDF' ) then
+        call appendMpiDistributedFile_XDF(fileNameTmp, fstFile)
+      else if ( outputFormat == 'RSF' ) then
+        ierr = utl_copyFile(fileNameTmp, fileName, concatenate_opt = .true.)
+      end if
+
+      ierr = clib_remove(fileNameTmp)
+    end do ! index
+
+    if ( outputFormat == 'XDF' ) then
+      success = fstFile%close()
+      if (.not. success) then
+        call utl_abort('gio_collectMpiDistributedFiles: problem closing output file ' // trim(fileName))
+      end if
+    end if
+
+  end subroutine gio_collectMpiDistributedFiles
+
+  !--------------------------------------------------------------------------
+  ! appendMpiDistributedFile_XDF
+  !--------------------------------------------------------------------------
+  subroutine appendMpiDistributedFile_XDF(inputFileName, fstFile)
+    !
+    ! :Purpose: Append the content of a MPI-distributed RPN standard
+    !           file to another in XDF format
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in)    :: inputFileName ! The input file which will be appended to 'fstFile'.
+    type(fst_file),   intent(inout) :: fstFile ! The output file to which the 'inputFileName' will be appended.
+                                               ! We must use 'intent(inout)' since calling 'fstFile%write()' modifies 'fstFile'.
+
+    ! Locals:
+    logical            :: success
+    type(fst_file)     :: fstFileOut
+    type(fst_record)   :: fstRecord
+    type(fst_query)    :: fstQuery
+
+    success = fstFileOut%open(trim(inputFileName), options = 'R/O')
+    if (.not. success) then
+      call utl_abort('appendMpiDistributedFiles_XDF: problem opening output file ' // trim(inputFileName))
+    end if
+
+    ! We cannot concatenate several 'XDF' files, we will create a new file using FST functions
+    fstQuery = fstFileOut%new_query()
+    do while (fstQuery%read_next(fstRecord))
+      success = fstFile%write(fstRecord)
+      if (.not. success) then
+        call utl_abort('appendMpiDistributedFiles_XDF: problem writing to file ' // trim(inputFileName) &
+                       // ' the record ' // fstRecord%nomvar // ' ' // str(fstRecord%ip1))
+      end if
+    end do
+    call fstQuery%free()
+
+    success = fstFileOut%close()
+    if (.not. success) then
+      call utl_abort('appendMpiDistributedFiles_XDF: problem closing output file ' // trim(inputFileName))
+    end if
+
+  end subroutine appendMpiDistributedFile_XDF
 
   !--------------------------------------------------------------------------
   ! gio_fileUnitsToStateUnits
@@ -2446,9 +2566,9 @@ module gridStateVectorFileIO_mod
         call utl_tmg_start(181,'low-level--readNML')
         read(utl_flnml, nml=namstio, iostat=ierr)
         if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
-        if (mmpi_myid == 0) write(*,nml=namstio)
         call utl_tmg_stop(181)
       end if
+      if (mmpi_myid == 0) write(*,nml=namstio)
 
       if ( outputFormat /= 'XDF' .and. outputFormat /= 'RSF' ) then
         call utl_abort('readNml (gio): ''outputFormat'' can only be ''XDF'' or ''RSF'' and not ''' // outputFormat // '''')
@@ -2463,8 +2583,9 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, &
-                                   stepIndex_opt, containsFullField_opt)
+  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate,     &
+                                   stepIndex_opt, containsFullField_opt, &
+                                   varLevIndexBeg_opt, varLevIndexEnd_opt)
     !
     ! :Purpose: Write a statevector object to a netCDF file.
     !
@@ -2475,15 +2596,19 @@ module gridStateVectorFileIO_mod
     character(len=*),           intent(in) :: fileNameTemplate ! template for increment file name
     integer,          optional, intent(in) :: stepIndex_opt    ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
+    integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's
+    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's
 
     ! Locals:
     logical :: iDoWriting, containsFullField
     integer :: ierr, ncid, stepIndex
     integer :: ni, nj, nk
     integer :: varID
-    integer :: levIndex, nlev, varIndex
+    integer :: levIndex, nlev, varIndex, varLevIndex
     integer :: yourid, nsize, youridy, youridx
+    integer :: varLevIndexBeg, varLevIndexEnd
     character(len=4), pointer :: varNamesToRead(:)
+    character(len=4) :: nomvar
     real(4), allocatable :: work2d_r4(:,:)
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:)
@@ -2536,6 +2661,21 @@ module gridStateVectorFileIO_mod
       containsFullField = .false.
     end if
     call msg('gio_writeToFileNetCDF', 'containsFullField = '//str(containsFullField))
+
+    if ( present(varLevIndexBeg_opt) .and. present(varLevIndexEnd_opt) ) then
+      varLevIndexBeg = varLevIndexBeg_opt
+      varLevIndexEnd = varLevIndexEnd_opt
+    else
+      if ( present(varLevIndexBeg_opt) ) then
+        call utl_abort('gio_writeToFile: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
+      end if
+      if ( present(varLevIndexEnd_opt) ) then
+        call utl_abort('gio_writeToFile: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
+      end if
+
+      varLevIndexBeg = 1
+      varLevIndexEnd = gsv_getNumVarLev(stateVector)
+    end if
 
     ! if step index not specified, choose anltime (usually center of window)
     if (present(stepIndex_opt)) then
@@ -2615,92 +2755,88 @@ module gridStateVectorFileIO_mod
       allocate(work2d_r4(1,1))
     end if
 
-    do varIndex = 1, vnl_numvarmax 
+    do varLevIndex = varLevIndexBeg, varLevIndexEnd
+      nomvar = trim(gsv_getVarNameFromVarLev(stateVector,varLevIndex))
  
-      if (gsv_varExist(statevector, vnl_varNameList(varIndex))) then
+      call msg('gio_writeToFileNetCDF', 'Writing variable: '//nomvar)
+      select case(trim(nomvar))
+      case('TM')
+        varID = varIDs%TM
+      case('SALW')
+        varID = varIDs%SALW
+      case('UUW')
+        varID = varIDs%UUW
+      case('VVW')
+        varID = varIDs%VVW
+      case('SSH')
+        varID = varIDs%SSH
+      case default
+        call utl_abort('gio_writeToFileNetCDF: requested vnl_varNameList does not exist '//&
+                       trim(nomvar))
+      end select
+      write(*,*) 'gio_writeToFileNetCDF: varID: ', varID , nomvar
 
-        call msg('gio_writeToFileNetCDF', 'Writing variable: '//vnl_varNameList(varIndex))
-	select case(trim(vnl_varNameList(varIndex)))
-          case('TM')
-            varID = varIDs%TM
-          case('SALW')
-            varID = varIDs%SALW
-	  case('UUW')
-            varID = varIDs%UUW
-	  case('VVW')
-            varID = varIDs%VVW
-	  case('SSH')
-            varID = varIDs%SSH
-          case default
-            call utl_abort('gio_writeToFileNetCDF: requested vnl_varNameList does not exist '//&
-                            trim(vnl_varNameList(varIndex)))
-        end select
-        write(*,*) 'gio_writeToFileNetCDF: varID: ', varID , vnl_varNameList(varIndex)  
-	
-        nlev = statevector%varNumLev(varIndex)
+      nlev = gsv_getNumLevFromVarName(stateVector,nomvar)
+      levIndex = gsv_getLevFromVarLev(statevector,varLevIndex)
 
-        do levIndex = 1, nlev
+      if (stateVector%dataKind == 8) then
+        call gsv_getField(stateVector, field_r8, nomvar)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+                   1:stateVector%latPerPE) =  &
+            real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
+                          stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
+      else
+        call gsv_getField(stateVector, field_r4, nomvar)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+                   1:stateVector%latPerPE) =  &
+            field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
+                     stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
+      end if
 
-          if (stateVector%dataKind == 8) then
-            call gsv_getField(stateVector, field_r8, vnl_varNameList(varIndex))
-            gd_send_r4(1:stateVector%lonPerPE,  &
-                       1:stateVector%latPerPE) =  &
-                real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
-                              stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
-          else
-            call gsv_getField(stateVector, field_r4, vnl_varNameList(varIndex))
-            gd_send_r4(1:stateVector%lonPerPE,  &
-                       1:stateVector%latPerPE) =  &
-                field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
-                         stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
-          end if
+      nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
+      if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
+        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+                             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+      else
+        ! just copy when either nprocs is 1 or data is global
+        gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+      end if
 
-          nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
-          if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
-            call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
-          else
-            ! just copy when either nprocs is 1 or data is global
-            gd_recv_r4(:,:,1) = gd_send_r4(:,:)
-          end if
+      if (mmpi_myid == 0 .and. stateVector%mpi_local) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey - 1)
+          do youridx = 0, (mmpi_npex - 1)
+            yourid = youridx + youridy * mmpi_npex
+            work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
+                      stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
+                gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
+                           1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if (.not. stateVector%mpi_local) then
+        work2d_r4(:,:) = gd_recv_r4(:,:,1)
+      end if
 
-          if (mmpi_myid == 0 .and. stateVector%mpi_local) then
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mmpi_npey - 1)
-              do youridx = 0, (mmpi_npex - 1)
-                yourid = youridx + youridy * mmpi_npex
-                work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
-                          stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
-                    gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
-                               1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
-              end do
-            end do
-            !$OMP END PARALLEL DO
-          else if (.not. stateVector%mpi_local) then
-            work2d_r4(:,:) = gd_recv_r4(:,:,1)
-          end if
+      ! now do writing
+      if (iDoWriting) then
 
-          ! now do writing
-          if (iDoWriting) then
+        !- Convert Kelvin to Celcius only if full field
+        if (containsFullField .and. trim(nomvar) == 'TT' &
+	                      .or.  trim(nomvar) == 'TM') then
+          where (work2d_r4(:,:) > 100.0)
+            work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+          end where
+        end if
 
-            !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. trim(vnl_varNameList(varIndex)) == 'TT' &
-	                          .or.  trim(vnl_varNameList(varIndex)) == 'TM') then
-              where (work2d_r4(:,:) > 100.0)
-                work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
-              end where
-            end if
+        !- Writing to file
+        call utl_checkNetCDFstatus(nf90_put_var(ncid, varID, work2d_r4, &
+                                   start = (/ 1,  1, levIndex, 1/),     &
+                                   count = (/ni, nj,        1, 1/)),    &
+                                   'gio_writeToFileNetCDF', 'nf90_put_var')
 
-            !- Writing to file      
-            call utl_checkNetCDFstatus(nf90_put_var(ncid, varID, work2d_r4, &
-                                       start = (/ 1,  1, levIndex, 1/), &
-                                       count = (/ni, nj,        1, 1/)), &
-                                       'gio_writeToFileNetCDF', 'nf90_put_var')
-
-          end if ! iDoWriting
-        end do ! levIndex
-      end if ! varExist
-    end do ! varIndex
+      end if ! iDoWriting
+    end do ! varLevIndex
 
     deallocate(work2d_r4)
     deallocate(gd_send_r4)
@@ -2710,7 +2846,7 @@ module gridStateVectorFileIO_mod
       ! close netCDF file after writing increments
       call utl_checkNetCDFstatus(nf90_close(ncid))
     end if
-    
+
     !
     !- 4.  Ending
     !

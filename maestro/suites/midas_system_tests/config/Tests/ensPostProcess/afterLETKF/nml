@@ -26,6 +26,12 @@
    DSTEPOBS    = 1.0d0
    DSTEPOBSINC = 6.0d0
 /
+ &NAMENSSTATE
+   maxVarLevGroups = 4
+/
+ &NAMSTIO
+   outputFormat = 'XDF'
+/
  &NAMSTATE
    RHUMIN  = 1.0D-07
    abortOnMpiImbalance = .false.

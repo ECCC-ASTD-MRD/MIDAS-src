@@ -20,6 +20,7 @@ module ensembleStateVector_mod
   use utilities_mod
   use varNameList_mod
   use codePrecision_mod
+  use message_mod
 
   implicit none
   save
@@ -44,6 +45,9 @@ module ensembleStateVector_mod
   public :: ens_varNamesList, ens_applyMaskLAM
   public :: ens_copyHeightSfc
   
+  ! Namelist variables
+  integer            :: maxVarLevGroups ! Maximum number of groups for parallel writing of ensemble
+
   type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
   end type struct_oneLev_r4
@@ -73,6 +77,46 @@ module ensembleStateVector_mod
   end type struct_ens
 
 CONTAINS
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMENSSTATE
+    !
+    implicit none
+
+    ! Locals:
+    integer       :: ierr
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMENSSTATE/ maxVarLevGroups
+
+    if (firstCall) then
+
+      ! set the default values
+      maxVarLevGroups = 4
+
+      ! read the namelist block if it exists
+      if (.not. utl_isNamelistPresent('NAMENSSTATE','./flnml')) then
+        if (mmpi_myid == 0) then
+          call msg('readNml (ens)', 'namensstate is missing in the namelist. The default values will be taken.')
+        end if
+      else
+        ! Read namelist NAMENSSTATE
+        call utl_tmg_start(181,'low-level--readNML')
+        read(utl_flnml, nml=namensstate, iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (ens): Error reading namelist')
+        call utl_tmg_stop(181)
+      end if
+      if (mmpi_myid == 0) write(*,nml=namensstate)
+
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
   !--------------------------------------------------------------------------
   ! ens_isAllocated
@@ -2373,17 +2417,18 @@ CONTAINS
             ! If numMembers > nprocs, move to next batch
             if (numMembers > mmpi_nprocs) then
               readFilePE(memberStepIndex) = 0              
-              batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+              batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1) + 1
               lastReadFilePE = numMembers - 1
             end if
           end if
           ! Ensure we limit ourselves to the total number of MPI tasks
-          lastReadFilePE = min(lastreadFilePE, mmpi_nprocs - 1)
+          lastReadFilePE = min(lastReadFilePE, mmpi_nprocs - 1)
         end if
+
         ! Move to next batch if we reached lastReadFilePE
         if (readFilePE(memberStepIndex) == lastReadFilePE + 1) then
           readFilePE(memberStepIndex) = 0
-          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1) + 1
           lastReadFilePE = min(numMembers - memberIndex, mmpi_nprocs - 1)
         end if
 
@@ -2783,6 +2828,7 @@ CONTAINS
     logical, optional,          intent(in)    :: writeHeightSfc_opt
 
     ! Locals:
+    integer, parameter :: ensFileExtLengthMax = 9
     type(struct_gsv) :: statevector_member_r4
     type(struct_gsv) :: statevectorHeightSfc, statevectorHeightSfc_tiles
     type(struct_hco), pointer :: hco_ens
@@ -2794,15 +2840,14 @@ CONTAINS
     integer, allocatable :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy, procIndex
-    integer :: writeFilePE(ens%numMembers)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
-    integer :: numVarLev, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
+    integer :: numVarLev, numStep, numLevelsToSend, numVarLevGroups, numMemberPerBatch, numBatches, varLevGroupSize, varLevGroupIndex
+    integer :: memberIndex, memberIndexBeg, memberIndexEnd, stepIndex, varLevIndex, varLevIndexBeg, varLevIndexEnd, varLevCount
     integer :: ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
     character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
     !! The two next declarations are sufficient until we reach 10^10 members
-    character(len=10) :: memberIndexStr ! this is the member number in a character string
+    character(len=ensFileExtLengthMax) :: memberIndexStr ! this is the member number in a character string
     character(len=10) :: ensFileExtLengthStr ! this is a string containing the same number as 'ensFileExtLength'
     character(len=4), pointer :: varNamesInEns(:)
     logical :: containsFullField, writeNetCDF, writeHeightSfc
@@ -2816,6 +2861,8 @@ CONTAINS
 
     !- 1. Initial setup
 
+    call readNml()
+
     nullify(varNamesInEns)
     if (present(varNames_opt)) then
       allocate(varNamesInEns(size(varNames_opt)))
@@ -2828,6 +2875,13 @@ CONTAINS
       ip3 = ip3_opt
     else
       ip3 = 0
+    end if
+
+    ! Determine if ensemble is full fields (if yes, will be converted from K to C)
+    if (present(containsFullField_opt)) then
+      containsFullField = containsFullField_opt
+    else
+      containsFullField = (.not. ens%meanIsRemoved)
     end if
 
     if (present(writeNetCDF_opt)) then
@@ -2859,22 +2913,56 @@ CONTAINS
 
     ens%ensPathName = trim(ensPathName)
 
+    ! We split the writing of the ensemble members in a number of batches.
+    if ( mod(ens%numMembers, mmpi_nprocs) == 0 ) then
+      numBatches = ens%numMembers/mmpi_nprocs
+    else
+      ! We must add 1 to 'ens%numMembers/mmpi_nprocs' if
+      ! 'ens%numMembers' is not divisible by 'mmpi_nprocs' to
+      ! distribute almost equally the ensemble members on all the
+      ! batches with the last batch to have a little less members to
+      ! process.
+      numBatches = ens%numMembers/mmpi_nprocs + 1
+    end if
+
+    ! If 'mmpi_nprocs > ens%numMembers', then we will have one batch that will contain all the members.
+    ! If 'mmpi_nprocs < ens%numMembers', then the members will be splitted into batches of 'mmpi_nprocs' members.
+    numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
+
+    ! We will split all the 'varLev's to write into groups only if
+    ! there are less ensemble members than MPI processes.
+    if ( mmpi_nprocs > ens%numMembers ) then
+      ! In that case, a subset of 'varLev's will be processed and
+      ! written to disk in parallel by each MPI task.
+      numVarLevGroups = min(maxVarLevGroups, mmpi_nprocs/ens%numMembers)
+    else
+      ! If 'mmpi_nprocs < ens%numMembers', then we will process all
+      ! the 'varLev's in a single group.
+      numVarLevGroups = 1
+    end if
+
+    ! The variable 'varLevGroupSize' is the number of 'varLev's
+    ! considered in each 'varLev' group.
+    if ( mod(numVarLev, numVarLevGroups) == 0 ) then
+      varLevGroupSize = numVarLev/numVarLevGroups
+    else
+      ! We must add 1 to 'numVarLev/numVarLevGroups' if 'numVarLev'
+      ! is not divisible by 'numVarLevGroups' to distribute almost
+      ! equally the 'varLev' on all the 'varLev' groups with the last
+      ! group to have a little less 'varLev's to process.
+      varLevGroupSize = numVarLev/numVarLevGroups + 1
+    end if
+
     ! Memory allocation
-    numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,min(ens%numMembers, mmpi_nprocs)))
-    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mmpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,min(numVarLevGroups*ens%numMembers, mmpi_nprocs)))
+    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,varLevGroupSize,mmpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
-    do memberIndex = 1, ens%numMembers
-      writeFilePE(memberIndex) = mod(memberIndex-1,mmpi_nprocs)
-    end do
-
     ! Specify the start of each memory block to read/write for each MPI rank
-    nsize = lonPerPEmax*latPerPEmax*numLevelsToSend
+    nsize = lonPerPEmax*latPerPEmax*varLevGroupSize
     displacements(1) = 0
     do procIndex = 2, mmpi_nprocs
       displacements(procIndex) = displacements(procIndex-1) + nsize
@@ -2885,7 +2973,7 @@ CONTAINS
 
     if (mmpi_myid == 0) then
       write(*,*)
-      write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*) 'ens_writeEnsemble: dateStampList=', dateStampList(1:numStep)
       write(*,*)
     end if
 
@@ -2923,161 +3011,170 @@ CONTAINS
       statevector_member_r4%dateOriginList(1) = ens%statevector_work%dateOriginList(stepIndex)
       statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
+
       ! if it exists, copy over mask from work statevector to member being written
       call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
       ! copy over height surface to member being written
       if (writeHeightSfc) then
         call gsv_copyHeightSfc(statevectorHeightSfc,stateVector_member_r4)
       end if
-      
-      do memberIndex = 1, ens%numMembers
 
-        !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
-        if (writeFilePE(memberIndex) == 0) then
+      batchLoop: do batchIndex = 1, numBatches
+        ! Compute the member index of the first and last member of each batch each containing 'numMemberPerBatch' members
+        memberIndexBeg = (batchIndex-1)*numMemberPerBatch + 1
+        memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
 
-          batchIndex = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
+        varLevGroupLoop: do varLevGroupIndex = 1, numVarLevGroups
+          ! Compute the 'varLev' index of the first and last of each 'varLev' group which are of size 'varLevGroupSize'
+          varLevIndexBeg = (varLevGroupIndex - 1)*varLevGroupSize + 1
+          varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize - 1)
+          numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
 
-          do varLevIndexBeg = 1, numVarLev, numLevelsToSend
-            varLevIndexEnd = min(numVarLev,varLevIndexBeg+numLevelsToSend-1)
-            numLevelsToSend2 = varLevIndexEnd - varLevIndexBeg + 1
-
-            if ( ens%dataKind == 8 ) then
-              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
-              do varLevCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                  yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
-                       real(ens%allLev_r8(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
-                end do
-              end do
-              !$OMP END PARALLEL DO
-            else
-              !$OMP PARALLEL DO PRIVATE(varLevCount,memberIndex2,yourid)
-              do varLevCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
-                  yourid = writeFilePE(memberIndex2)
-                  gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
-                       ens%allLev_r4(varLevCount+varLevIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)
-                end do
-              end do
-              !$OMP END PARALLEL DO
-            end if
-
-            if (mmpi_nprocs > 1) then
-              nsize = lonPerPEmax*latPerPEmax*numLevelsToSend2
-
-              ! only send the exact data amount for each task
-              do procIndex = 1, mmpi_nprocs
-                if ( procIndex <= min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-                  sendsizes(procIndex) = nsize
-                else
-                  sendsizes(procIndex) = 0
-                end if
-              end do
-
-              ! only receive data on rank that receive data
-              if ( mmpi_myid < min(ens%numMembers, batchIndex*mmpi_nprocs) ) then
-                recvsizes(:) = nsize
-              else
-                recvsizes(:) = 0
-              end if
-
-              call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
-              call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
-                                 gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
-                                 mmpi_comm_grid, ierr)
-              call utl_tmg_stop(191)
-            else
-              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
-            end if
-
-            call gsv_getField(statevector_member_r4,ptr3d_r4)
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 1, mmpi_npey
-              do youridx = 1, mmpi_npex
-                yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
-                ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx),  &
-                         ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy),  &
-                         varLevIndexBeg:varLevIndexEnd) = &
-                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
-                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend2, yourid)
-
+          if ( ens%dataKind == 8 ) then
+            !$OMP PARALLEL DO PRIVATE(varLevCount,varLevIndex,memberIndex,yourid)
+            do varLevCount = 1, numLevelsToSend
+              varLevIndex = varLevCount + varLevIndexBeg - 1
+              do memberIndex = memberIndexBeg, memberIndexEnd
+                ! the 'yourid' is the index of the MPI process which will receive the data for that ensemble batch
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid + 1) = &
+                     real(ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),4)
               end do
             end do
             !$OMP END PARALLEL DO
+          else
+            !$OMP PARALLEL DO PRIVATE(varLevCount,varLevIndex,memberIndex,yourid)
+            do varLevCount = 1, numLevelsToSend
+              varLevIndex = varLevCount + varLevIndexBeg - 1
+              do memberIndex = memberIndexBeg, memberIndexEnd
+                ! the 'yourid' is the index of the MPI process which will receive the data for that ensemble batch
+                yourid = memberIndex + (varLevGroupIndex-1)*ens%numMembers - memberIndexBeg
+                gd_send_r4(1:lonPerPE,1:latPerPE,varLevCount,yourid+1) = &
+                     ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+              end do
+            end do
+            !$OMP END PARALLEL DO
+          end if
+        end do varLevGroupLoop
 
-          end do ! varLevIndexBeg
+        if (mmpi_nprocs > 1) then
+          nsize = lonPerPEmax*latPerPEmax*varLevGroupSize
 
-        end if ! MPI communication
+          ! only send the exact data amount for each task
+          do procIndex = 1, mmpi_nprocs
+            if ( procIndex <= min(ens%numMembers*numVarLevGroups, batchIndex*mmpi_nprocs) ) then
+              sendsizes(procIndex) = nsize
+            else
+              sendsizes(procIndex) = 0
+            end if
+          end do
+
+          ! only receive data on rank that receive data
+          if ( mmpi_myid < min(ens%numMembers*numVarLevGroups, batchIndex*mmpi_nprocs) ) then
+            recvsizes(:) = nsize
+          else
+            recvsizes(:) = 0
+          end if
+
+          call utl_tmg_start(191,'ens_WriteEnsemble-alltoallv')
+          call mpi_alltoallv(gd_send_r4, sendsizes, displacements, mmpi_datyp_real4, &
+                             gd_recv_r4, recvsizes, displacements, mmpi_datyp_real4, &
+                             mmpi_comm_grid, ierr)
+          call utl_tmg_stop(191)
+        else
+          gd_recv_r4(:,:,1:numLevelsToSend,1) = gd_send_r4(:,:,1:numLevelsToSend,1)
+        end if
+
+        ! Here, each MPI process has received the data it needs from
+        ! other MPI processes in the array 'gd_recv_r4'.
+
+        ! With 'mmpi_myid', we identify the 'memberIndex' and the
+        ! 'varLevGroupIndex' that this MPI process will be processing.
+        memberIndex = mod(mmpi_myid, ens%numMembers) + memberIndexBeg
+        varLevGroupIndex = mmpi_myid/ens%numMembers + 1
+        ! Decide if whether or not, this MPI process needs to process data
+        if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevGroups ) then
+          write(*,*) 'ens_writeEnsemble: do nothing, go to next batch'
+          cycle batchLoop
+        else
+          write(*,*) 'ens_writeEnsemble: process member ', memberIndex, ' for varLevGroupIndex = ', varLevGroupIndex
+        end if
+
+        ! We now compute the start and end of the 'varLev's to process
+        varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
+        varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
+        numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
+
+        call gsv_getField(statevector_member_r4,ptr3d_r4)
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 1, mmpi_npey
+          do youridx = 1, mmpi_npex
+            yourid = (youridx-1) + (youridy-1)*mmpi_npex + 1
+
+            ptr3d_r4(ens%statevector_work%allLonBeg(youridx):ens%statevector_work%allLonEnd(youridx), &
+                     ens%statevector_work%allLatBeg(youridy):ens%statevector_work%allLatEnd(youridy), &
+                     varLevIndexBeg:varLevIndexEnd) = &
+                     gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx),  &
+                                1:ens%statevector_work%allLatPerPE(youridy), 1:numLevelsToSend, yourid)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+
+        call msg_memUsage('ens_writeEnsemble')
 
         ! Write statevector to file
-        if (mmpi_myid == writeFilePE(memberIndex)) then
+        call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, &
+                                 memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
 
-          call msg_memUsage('ens_writeEnsemble')
+        ! If a member is written to disk in different 'varLev'
+        ! groups, then we add '_group_' to its file name.  The
+        ! different groups will be collected together at the end of
+        ! the routine with 'gio_collectMpiDistributedFiles'.
+        if ( numVarLevGroups > 1 .and. varLevGroupIndex > 1 ) then
+          ensFileName = trim(ensFileName) // '_group_' // str(varLevGroupIndex)
+        end if
 
-          if ( typvar == 'A' .or. typvar == 'R' ) then
-            if ( typvar == 'R' ) then
-              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                      memberIndex_opt = memberIndex,  &
-                                      ensFileNamePrefix_opt = ensFileNamePrefix, &
-                                      ensFileNameSuffix_opt = 'inc')
+        etiketStr = etiket
+        if (present(etiketAppendMemberNumber_opt)) then
+          if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
+            if ( ensFileExtLength > ensFileExtLengthMax ) then
+              call utl_abort('ens_writeEnsemble: the ensemble file length ' // str(ensFileExtLength) // ' is greater than the maximum allowed of ' // str(ensFileExtLengthMax))
+            end if
+            write(ensFileExtLengthStr,"(I1)") ensFileExtLength
+            write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
+            ! 12 is the maximum length of an etiket for RPN fstd files
+            maximumBaseEtiketLength = 12 - ensFileExtLength
+            if (len(trim(etiketStr)) >= maximumBaseEtiketLength) then
+              etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
             else
-              call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
-                                      memberIndex_opt = memberIndex,  &
-                                      ensFileNamePrefix_opt = ensFileNamePrefix)
-            end if
-            ensFileExtLength = 4
-          else
-            call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
-                                 ensFileNamePrefix_opt = ensFileNamePrefix, &
-                                 shouldExist_opt = .false., &
-				 ensembleFileExtLength_opt = ensFileExtLength, &
-                                 fileMemberIndex1_opt = ens%fileMemberIndex1)
-          end if
-
-          ! Determine if ensemble is full fields (if yes, will be converted from K to C)
-          if (present(containsFullField_opt)) then
-            containsFullField = containsFullField_opt
-          else
-            containsFullField = (.not. ens%meanIsRemoved)
-          end if
-
-          etiketStr = etiket
-
-          if (present(etiketAppendMemberNumber_opt)) then
-            if (etiketAppendMemberNumber_opt .and. etiketStr /= 'UNDEFINED') then
-              write(ensFileExtLengthStr,"(I1)") ensFileExtLength
-              write(memberIndexStr,'(I0.' // trim(ensFileExtLengthStr) // ')') memberIndex
-              ! 12 is the maximum length of an etiket for RPN fstd files
-              maximumBaseEtiketLength = 12 - ensFileExtLength
-              if (len(trim(etiketStr)) >= maximumBaseEtiketLength) then
-                etiketStr = etiketStr(1:maximumBaseEtiketLength) // trim(memberIndexStr)
-              else
-                etiketStr = trim(etiketStr) // trim(memberIndexStr)
-              end if
+              etiketStr = trim(etiketStr) // trim(memberIndexStr)
             end if
           end if
-          
-          ! The routine 'gio_writeToFile' ignores the supplied
-          ! argument for the etiket, here 'etiketStr', if
-          ! 'statevector_member_r4%etiket' is different from
-          ! 'UNDEFINED'.  So we must define it explicitely in the
-          ! 'statevector_member_r4'.
-          statevector_member_r4%etiket = etiketStr
+        end if
 
-          call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
-                               typvar_opt = typvar, numBits_opt = numBits_opt,               &
-                               containsFullField_opt = containsFullField,                    &
-                               writeHeightSfc_opt = writeHeightSfc)
-          
-          if (writeNetCDF) then
-            call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName), &
-                                       containsFullField_opt = containsFullField)
-	  end if
+        ! The routine 'gio_writeToFile' ignores the supplied
+        ! argument for the etiket, here 'etiketStr', if
+        ! 'statevector_member_r4%etiket' is different from
+        ! 'UNDEFINED'.  So we must define it explicitely in the
+        ! 'statevector_member_r4'.
+        statevector_member_r4%etiket = etiketStr
 
-        end if ! locally written one member
+        call gio_writeToFile(statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, &
+                             typvar_opt = typvar, numBits_opt = numBits_opt,               &
+                             containsFullField_opt = containsFullField,                    &
+                             writeHeightSfc_opt = writeHeightSfc,                          &
+                             varLevIndexBeg_opt = varLevIndexBeg,                          &
+                             varLevIndexEnd_opt = varLevIndexEnd,                          &
+                             doWriteTicTacToc_opt = ( varLevIndexBeg == 1 ) ) ! We do write the 'tic-tac-toc' only the first time we write that statevector
 
-      end do ! memberIndex
+        if (writeNetCDF) then
+          call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
+                                     containsFullField_opt = containsFullField, &
+                                     varLevIndexBeg_opt = varLevIndexBeg,       &
+                                     varLevIndexEnd_opt = varLevIndexEnd)
+        end if
+
+      end do batchLoop
 
       ! deallocate the needed statevector objects
       call gsv_deallocate(statevector_member_r4)
@@ -3092,10 +3189,72 @@ CONTAINS
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
 
+    ! If 'numVarLevGroups>1' then only some MPI processes (the first
+    ! ens%numMembers) have to collect the different groups together.
+    if ( numVarLevGroups > 1 ) then
+      ! We have to make sure that all the intermediate files '*_group_*'
+      ! are written to disk before regrouping it.
+      call utl_tmg_start(192,'ens_writeEnsemble-barrier')
+      call rpn_comm_barrier('GRID', ierr)
+      call utl_tmg_stop(192)
+
+      call utl_tmg_start(193,'ens_writeEnsemble-combine_files')
+      if ( mmpi_myid < ens%numMembers ) then
+        ! We must reset the memberIndex with 'mmpi_myid'
+        memberIndex = mmpi_myid + 1
+        call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar,   &
+                                 memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
+        call gio_collectMpiDistributedFiles(ensFileName, '_group_',                    &
+                                            startIndex = 2, endIndex = numVarLevGroups)
+      end if
+      call utl_tmg_stop(193)
+    end if
+
     call msg_memUsage('ens_writeEnsemble')
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
 
   end subroutine ens_writeEnsemble
+
+  !--------------------------------------------------------------------------
+  ! generateEnsFileName
+  !--------------------------------------------------------------------------
+  subroutine generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar, memberIndex,  &
+                                 ensFileNamePrefix, fileMemberIndex1)
+    !
+    ! :Purpose: Generate the ensemble file name by calling the appropriate routine from 'fileNames_mod'
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(out) :: ensFileName       ! output file name generated by the command
+    integer,          intent(out) :: ensFileExtLength  ! output file extension length generated from the inputs
+    character(len=*), intent(in)  :: ensPathName       ! path to the ensemble files
+    character(len=*), intent(in)  :: typvar            ! typvar of the output fields
+    integer,          intent(in)  :: memberIndex       ! index of the member to be written
+    character(len=*), intent(in)  :: ensFileNamePrefix ! prefix for the file name
+    integer,          intent(in)  :: fileMemberIndex1  ! index of the member to look for to obtain the pattern of the ensemble files
+
+    if ( typvar == 'A' .or. typvar == 'R' ) then
+      if ( typvar == 'R' ) then
+        call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                memberIndex_opt = memberIndex,  &
+                                ensFileNamePrefix_opt = ensFileNamePrefix, &
+                                ensFileNameSuffix_opt = 'inc')
+      else
+        call fln_ensAnlFileName(ensFileName, ensPathName, tim_getDateStamp(), &
+                                memberIndex_opt = memberIndex,  &
+                                ensFileNamePrefix_opt = ensFileNamePrefix)
+      end if
+      ensFileExtLength = 4
+    else
+      call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt = memberIndex, &
+                           ensFileNamePrefix_opt = ensFileNamePrefix, &
+                           shouldExist_opt = .false., &
+                           ensembleFileExtLength_opt = ensFileExtLength, &
+                           fileMemberIndex1_opt = fileMemberIndex1)
+    end if
+
+  end subroutine generateEnsFileName
 
   !--------------------------------------------------------------------------
   ! ens_applyMaskLAM
