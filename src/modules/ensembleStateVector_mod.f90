@@ -46,7 +46,7 @@ module ensembleStateVector_mod
   public :: ens_copyHeightSfc
   
   ! Namelist variables
-  integer            :: maxVarLevGroups ! Maximum number of batches for parallel writing of ensemble
+  integer            :: maxVarLevGroups ! Maximum number of groups for parallel writing of ensemble
 
   type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
@@ -2929,25 +2929,27 @@ CONTAINS
     ! If 'mmpi_nprocs < ens%numMembers', then the members will be splitted into batches of 'mmpi_nprocs' members.
     numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
 
-    ! We will split all the 'varLev's to write into batches only if
+    ! We will split all the 'varLev's to write into groups only if
     ! there are less ensemble members than MPI processes.
     if ( mmpi_nprocs > ens%numMembers ) then
+      ! In that case, a subset of 'varLev's will be processed and
+      ! written to disk in parallel by each MPI task.
       numVarLevGroups = min(maxVarLevGroups, mmpi_nprocs/ens%numMembers)
     else
       ! If 'mmpi_nprocs < ens%numMembers', then we will process all
-      ! the 'varLev's in one batch.
+      ! the 'varLev's in a single group.
       numVarLevGroups = 1
     end if
 
     ! The variable 'varLevGroupSize' is the number of 'varLev's
-    ! considered in each 'varLev' batch.
+    ! considered in each 'varLev' group.
     if ( mod(numVarLev, numVarLevGroups) == 0 ) then
       varLevGroupSize = numVarLev/numVarLevGroups
     else
       ! We must add 1 to 'numVarLev/numVarLevGroups' if 'numVarLev'
       ! is not divisible by 'numVarLevGroups' to distribute almost
-      ! equally the 'varLev' on all the 'varLev' batches with the last
-      ! batch to have a little less 'varLev's to process.
+      ! equally the 'varLev' on all the 'varLev' groups with the last
+      ! group to have a little less 'varLev's to process.
       varLevGroupSize = numVarLev/numVarLevGroups + 1
     end if
 
@@ -3023,7 +3025,7 @@ CONTAINS
         memberIndexEnd = min(ens%numMembers, batchIndex*numMemberPerBatch)
 
         varLevGroupLoop: do varLevGroupIndex = 1, numVarLevGroups
-          ! Compute the 'varLev' index of the first and last of each 'varLev' batch which are of size 'varLevGroupSize'
+          ! Compute the 'varLev' index of the first and last of each 'varLev' group which are of size 'varLevGroupSize'
           varLevIndexBeg = (varLevGroupIndex - 1)*varLevGroupSize + 1
           varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize - 1)
           numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
@@ -3092,13 +3094,13 @@ CONTAINS
         varLevGroupIndex = mmpi_myid/ens%numMembers + 1
         ! Decide if whether or not, this MPI process needs to process data
         if ( memberIndex > ens%numMembers .or. varLevGroupIndex > numVarLevGroups ) then
-          write(*,*) 'ens_writeEnsemble: do nothing, go to next batch '
+          write(*,*) 'ens_writeEnsemble: do nothing, go to next batch'
           cycle batchLoop
         else
           write(*,*) 'ens_writeEnsemble: process member ', memberIndex, ' for varLevGroupIndex = ', varLevGroupIndex
         end if
 
-        ! We now compute the start and end of the 'varLev's to process in this batch
+        ! We now compute the start and end of the 'varLev's to process
         varLevIndexBeg = (varLevGroupIndex-1)*varLevGroupSize + 1
         varLevIndexEnd = min(numVarLev, varLevIndexBeg+varLevGroupSize-1)
         numLevelsToSend = varLevIndexEnd - varLevIndexBeg + 1
@@ -3125,11 +3127,11 @@ CONTAINS
                                  memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
 
         ! If a member is written to disk in different 'varLev'
-        ! batches, then we add '_batch_' to its file name.  The
-        ! different batches will be collected together at the end of
+        ! groups, then we add '_group_' to its file name.  The
+        ! different groups will be collected together at the end of
         ! the routine with 'gio_collectMpiDistributedFiles'.
         if ( numVarLevGroups > 1 .and. varLevGroupIndex > 1 ) then
-          ensFileName = trim(ensFileName) // '_batch_' // str(varLevGroupIndex)
+          ensFileName = trim(ensFileName) // '_group_' // str(varLevGroupIndex)
         end if
 
         etiketStr = etiket
@@ -3188,9 +3190,9 @@ CONTAINS
     deallocate(datestamplist)
 
     ! If 'numVarLevGroups>1' then only some MPI processes (the first
-    ! ens%numMembers) have to collect the different batches together.
+    ! ens%numMembers) have to collect the different groups together.
     if ( numVarLevGroups > 1 ) then
-      ! We have to make sure that all the intermediate files '*_batch_*'
+      ! We have to make sure that all the intermediate files '*_group_*'
       ! are written to disk before regrouping it.
       call utl_tmg_start(192,'ens_writeEnsemble-barrier')
       call rpn_comm_barrier('GRID', ierr)
@@ -3202,7 +3204,7 @@ CONTAINS
         memberIndex = mmpi_myid + 1
         call generateEnsFileName(ensFileName, ensFileExtLength, ensPathName, typvar,   &
                                  memberIndex, ensFileNamePrefix, ens%fileMemberIndex1)
-        call gio_collectMpiDistributedFiles(ensFileName, '_batch_',                    &
+        call gio_collectMpiDistributedFiles(ensFileName, '_group_',                    &
                                             startIndex = 2, endIndex = numVarLevGroups)
       end if
       call utl_tmg_stop(193)
