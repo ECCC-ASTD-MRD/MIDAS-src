@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Optimize the write of the ensemble members by distributing the writing of all `varLev`s across all the MPI processes (#943 and !858)
+   * A new namelist, `NAMENSSTATE`, was introduced containing the variable `maxVarLevGroups` to control the maximum number of `varLev`s groups.
  * Merge of `tovsNL_mod` and `tovsLin_mod` into `tovs_mod` (#956 and !871)
  * Updated `var/EnVar/gdps` system test configuration and reference data to IC-4 level (#930 and !860)
 
