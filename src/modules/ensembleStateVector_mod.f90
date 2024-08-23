@@ -2929,7 +2929,7 @@ CONTAINS
     ! If 'mmpi_nprocs < ens%numMembers', then the members will be splitted into batches of 'mmpi_nprocs' members.
     numMemberPerBatch = min(mmpi_nprocs, ens%numMembers)
 
-    ! We will splitt all the 'varLev's to write into batches only if
+    ! We will split all the 'varLev's to write into batches only if
     ! there are less ensemble members than MPI processes.
     if ( mmpi_nprocs > ens%numMembers ) then
       numVarLevGroups = min(maxVarLevGroups, mmpi_nprocs/ens%numMembers)
@@ -3190,7 +3190,7 @@ CONTAINS
     ! If 'numVarLevGroups>1' then only some MPI processes (the first
     ! ens%numMembers) have to collect the different batches together.
     if ( numVarLevGroups > 1 ) then
-      ! We have to make sure that all the intermediate files '*_mpiid_*'
+      ! We have to make sure that all the intermediate files '*_batch_*'
       ! are written to disk before regrouping it.
       call utl_tmg_start(192,'ens_writeEnsemble-barrier')
       call rpn_comm_barrier('GRID', ierr)

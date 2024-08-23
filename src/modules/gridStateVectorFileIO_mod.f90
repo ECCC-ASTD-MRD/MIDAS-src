@@ -1536,7 +1536,7 @@ module gridStateVectorFileIO_mod
     integer,          optional, intent(in) :: numBits_opt
     logical,          optional, intent(in) :: containsFullField_opt
     integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's (default is 1)
-    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's (default is 'gsv_getNumVarLev(statevector)'
+    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's (default is 'gsv_getNumVarLev(statevector)')
     logical,          optional, intent(in) :: doWriteTicTacToc_opt ! decide whether or not we write the tic-tac-toc record in the file (default '.true.')
 
     ! Locals:
@@ -2317,7 +2317,7 @@ module gridStateVectorFileIO_mod
       end if
 
       ierr = clib_remove(fileNameTmp)
-    end do ! procIndex
+    end do ! index
 
     if ( outputFormat == 'XDF' ) then
       success = fstFile%close()
