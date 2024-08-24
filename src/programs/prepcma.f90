@@ -434,7 +434,7 @@ contains
     integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: iblock, codtyp, ilat, incr, ipres, nblocksum, npres, nsize, numHeader
-    logical :: count_obs, allRejected
+    logical :: count_obs, allRejected, beSilent
     real(4) :: lat_r4, lon_r4
     real(8) :: pressure, rannum
     real(8), allocatable :: latcenter(:), latmin(:), latmax(:), ranvals(:)
@@ -449,6 +449,7 @@ contains
     logical :: doTovsPerInst, ifAbort
     character(len=codtyp_name_length) :: instName1, instName2
     character(len=codtyp_name_length) :: instNameUniqueList(tvs_nsensors)
+    logical, save :: firstCall = .true.
 
     ! box size that is used for observation thinning 
     ! (the numerator is an approximate distance in km)
@@ -456,7 +457,9 @@ contains
     ! next two parameters are not used in this program
     real(8), parameter :: r1_dum = 1.0
     real(8), parameter :: rz_dum = 1.0
-    
+
+    beSilent = (.not. firstCall) 
+
     numHeader = obs_numheader(obsSpaceData)
     npres = size(n_pmax,1) 
     write(*,*) 'Start thinning for ', cfam, ' data'
@@ -480,17 +483,17 @@ contains
     allocate(nlonblock(nsize))
     allocate(nblockoffset(nsize))
 
-    call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax)
+    call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax, beSilent_opt=beSilent)
     if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ',lsc%nlatband
     do ilat = 1, lsc%nlatband
-      if (mmpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
+      if (.not. beSilent .and. mmpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
     end do
     call reg_getblock(lsc%nlatband, lsc%r0_rad, latmin, latmax, nlonblock)
     nblocksum = 0
     do ilat = 1, lsc%nlatband
       nblockoffset(ilat) = nblocksum
       nblocksum = nblocksum + nlonblock(ilat)
-      if (mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
+      if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
     end do 
     if (mmpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
 
@@ -938,6 +941,8 @@ contains
       end if ! mmpi_myid
 
     end if ! cfam=='TO'
+
+    if (firstCall) firstCall = .false.
 
     deallocate(ranvals)
     deallocate(latmin)
