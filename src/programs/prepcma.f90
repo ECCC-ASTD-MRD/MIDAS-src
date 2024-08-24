@@ -124,6 +124,7 @@ program midas_prepcma
   integer, parameter :: nsw_target = 6
   integer, parameter :: nto_target = 6 
   integer :: numTovsInstNameList, sensorIndex, numMatchFound, matchFoundIndex
+  integer :: maxNumHeaderPerInst
   integer, allocatable :: matchIndexList(:)
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
   real(8) :: nsw_pmax(npres_sw) = (/ 60000.0, 110000.0/)
@@ -135,6 +136,9 @@ program midas_prepcma
   logical, allocatable :: tovsInstAlreadyProcessed(:)
 
   ! Namelist variables:
+  integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst
+  character(len=codtyp_name_length) :: tovsInstNamesWithMaxNumHeaders(tvs_maxNumberOfSensors) ! List of TOVS inst names 
+                                      ! to prescribe max number of headers
   character(len=256) :: cmahdr        ! should not be used anymore
   character(len=256) :: cmabdy        ! should not be used anymore
   character(len=256) :: cmadim        ! should not be used anymore
@@ -158,7 +162,8 @@ program midas_prepcma
                         thinning, thinningConv, thinningRadiance, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
                         obsClean, writeObsFiles, writeAsciiCmaFiles, &
-                        thinTovsPerInst
+                        thinTovsPerInst, tovsInstNamesWithMaxNumHeaders, &
+                        maxNumHeadersForTovsInst
 
   call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 
@@ -192,6 +197,8 @@ program midas_prepcma
   writeObsFiles           = .false.
   writeAsciiCmaFiles      = .false.
   thinTovsPerInst         = .false.
+  tovsInstNamesWithMaxNumHeaders(:) = 'NOT_DEFINED'
+  maxNumHeadersForTovsInst(:) = nto_target
 
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namprepcma, iostat=ierr)
@@ -300,10 +307,12 @@ program midas_prepcma
 
           if (tovsInstAlreadyProcessed(sensorIndex) == .true.) cycle loopSensor0
 
+          maxNumHeaderPerInst = getMaxNumHeadersForTovsInst(tovsInstName)
+
           write(*,*) 'midas-prepcma: thinning for TO inst=',  trim(tovsInstName)
 
           if (trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs') then
-            call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO', &
+            call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
                               codtyp_opt=codtyp_get_codtyp('amsub'), &
                               codtyp2_opt=codtyp_get_codtyp('mhs'))
 
@@ -322,7 +331,7 @@ program midas_prepcma
               end do
             end if
           else
-            call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO', &
+            call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
                               codtyp_opt=codtyp_get_codtyp(tovsInstName))
 
             matchIndexList = utl_findlocs(tovsInstNameList,tovsInstName)
@@ -335,9 +344,12 @@ program midas_prepcma
 
           end if ! trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs'
         end do loopSensor0
+
+      ! thinning all instruments together
       else
         call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
       end if ! thinTovsPerInst
+
     end if  ! thinningRadiance
   end if
 
@@ -991,5 +1003,42 @@ contains
       instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
     end do loopSensor3
   end subroutine getTovsInstNameList
+
+  !----------------------------------------------------------------------
+  ! getMaxNumHeadersForTovsInst
+  !----------------------------------------------------------------------
+  function getMaxNumHeadersForTovsInst(tovsInstName) result(maxValue)
+    !
+    ! :Purpose: Return max number of headers for tovs instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: tovsInstName
+    ! Result:
+    integer                      :: maxValue
+
+    ! Locals:
+    integer :: instrumentIndex
+    logical :: instFound
+
+    instFound = .false.
+    inst_loop: do instrumentIndex = 1, tvs_nsensors
+      if (trim(tovsInstNamesWithMaxNumHeaders(instrumentIndex)) == trim(tovsInstName)) then
+        maxValue = maxNumHeadersForTovsInst(instrumentIndex)
+        instFound = .true.
+
+        exit inst_loop
+      end if
+    end do inst_loop
+
+    if (instFound) then
+      if (mmpi_myid == 0) write(*,*) 'for instrument, max number of headers:', trim(tovsInstName), maxValue
+    else
+      maxValue = nto_target
+      if (mmpi_myid == 0) write(*,*) 'for instrument, using default max number of headers:', trim(tovsInstName)
+    end if
+
+  end function getMaxNumHeadersForTovsInst
 
 end program
