@@ -297,11 +297,11 @@ program midas_prepcma
     if (thinningRadiance) then
       ! thinning per instrument
       if (thinTovsPerInst) then
-        allocate(tovsInstAlreadyProcessed(tvs_nsensors))
-        tovsInstAlreadyProcessed(:) = .false.
         call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
         write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', &
                     tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
+        allocate(tovsInstAlreadyProcessed(numTovsInstNameList))
+        tovsInstAlreadyProcessed(:) = .false.
 
         loopSensor0: do sensorIndex = 1, numTovsInstNameList
           tovsInstName = trim(tovsInstNameList(sensorIndex))
@@ -320,17 +320,24 @@ program midas_prepcma
             matchIndexList = utl_findlocs(tovsInstNameList,'amsub')
             if (matchIndexList(1) > 0) then
               numMatchFound = size(matchIndexList)
-              do matchFoundIndex = 1, numMatchFound
-                tovsInstAlreadyProcessed(matchIndexList(matchFoundIndex)) = .true.
-              end do
+              if (numMatchFound > 1) then
+                write(*,*) 'For amsub, matchIndexList(:)=', matchIndexList(:)
+                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
+              end if
+
+              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
             end if
             matchIndexList = utl_findlocs(tovsInstNameList,'mhs')
             if (matchIndexList(1) > 0) then
               numMatchFound = size(matchIndexList)
-              do matchFoundIndex = 1, numMatchFound
-                tovsInstAlreadyProcessed(matchIndexList(matchFoundIndex)) = .true.
-              end do
+              if (numMatchFound > 1) then
+                write(*,*) 'For mhs, matchIndexList(:)=', matchIndexList(:)
+                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
+              end if
+
+              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
             end if
+
           else
             call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
                               codtyp_opt=codtyp_get_codtyp(tovsInstName))
@@ -338,13 +345,18 @@ program midas_prepcma
             matchIndexList = utl_findlocs(tovsInstNameList,tovsInstName)
             if (matchIndexList(1) > 0) then
               numMatchFound = size(matchIndexList)
-              do matchFoundIndex = 1, numMatchFound
-                tovsInstAlreadyProcessed(matchIndexList(matchFoundIndex)) = .true.
-              end do
+              if (numMatchFound > 1) then
+                write(*,*) 'For ', tovsInstName, ', matchIndexList(:)=', matchIndexList(:)
+                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
+              end if
+
+              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
             end if
 
           end if ! trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs'
         end do loopSensor0
+
+        deallocate(tovsInstAlreadyProcessed)
 
       else ! if (thinTovsPerInst)
         call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
