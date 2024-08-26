@@ -300,7 +300,8 @@ program midas_prepcma
         allocate(tovsInstAlreadyProcessed(tvs_nsensors))
         tovsInstAlreadyProcessed(:) = .false.
         call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
-        write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', tovsInstNameList(:)=', tovsInstNameList(:)
+        write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', &
+                    tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
 
         loopSensor0: do sensorIndex = 1, numTovsInstNameList
           tovsInstName = trim(tovsInstNameList(sensorIndex))
@@ -345,8 +346,7 @@ program midas_prepcma
           end if ! trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs'
         end do loopSensor0
 
-      ! thinning all instruments together
-      else
+      else ! if (thinTovsPerInst)
         call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
       end if ! thinTovsPerInst
 
