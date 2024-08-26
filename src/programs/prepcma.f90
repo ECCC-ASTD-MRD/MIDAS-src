@@ -591,8 +591,8 @@ contains
         lat_r4 = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
         lon_r4 = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
         call reg_locatestn(lsc%r0_rad, lat_r4, lon_r4, &
-                            lsc%nlatband, nlonblock, &
-                            nblockoffset, iblock)
+                           lsc%nlatband, nlonblock, &
+                           nblockoffset, iblock)
         ! note that all data from the aircraft are at the same pressure
         if (npres == 1) then
           ipres = 1
@@ -993,8 +993,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer           , intent(out) :: numInstNameUniqueList
-    character(len=*), allocatable, intent(inout) :: instNameUniqueList(:)
+    integer,                       intent(out)   :: numInstNameUniqueList ! Number of tovs instrument names in the list
+    character(len=*), allocatable, intent(inout) :: instNameUniqueList(:) ! Unique list of tovs instrument names
 
     ! Locals:
     integer :: sensorIndex, sensorIndex2
@@ -1026,9 +1026,9 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: tovsInstName
+    character(len=*), intent(in) :: tovsInstName ! tovs instrument name
     ! Result:
-    integer                      :: maxValue
+    integer                      :: maxValue ! max value of the headers in each region for tovs instrument name
 
     ! Locals:
     integer :: instrumentIndex
