@@ -46,7 +46,7 @@ module obsErrors_mod
 
   ! Public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky, oer_profWithAllskyChanForAssim
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
   ! TOVS OBS ERRORS
@@ -2118,66 +2118,6 @@ contains
     if (chanIsAllskyTt .and. chanIsAllskyHu) call utl_abort('oer_chanIsAllsky: channel can not be both all-sky TT and HU')
 
   end subroutine oer_chanIsAllsky
-
-  !--------------------------------------------------------------------------
-  ! oer_profWithAllskyChanForAssim
-  !--------------------------------------------------------------------------
-  subroutine oer_profWithAllskyChanForAssim(obsSpaceData, headerIndex, profWithAllskyChanForAssim)
-    !
-    !:Purpose: Determine if the tovs profile has all-sky channel ready for assimilation. 
-    !
-    implicit none
-    
-    ! Arguments:
-    type(struct_obs), intent(in)  :: obsSpaceData
-    integer,          intent(in)  :: headerIndex
-    logical,          intent(out) :: profWithAllskyChanForAssim ! .true. if tovs profile has all-sky 
-                                                                ! channel ready for assimilation
-
-    ! Locals:
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
-    integer :: channelNumber_withOffset
-    integer :: channelNumber, channelIndex, codtyp
-    integer :: tovsIndex, sensorIndex, instrumId
-    character(len=9) :: instrumName
-    logical :: surfTypeIsWater
-
-    bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-    bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
-    codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
-    instrumId = tvs_instruments(sensorIndex)
-    surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
-
-    profWithAllskyChanForAssim = .false.
-
-    ! all-sky radiances are only over ocean
-    if (.not. tvs_mwAllskyAssim .or. .not. surfTypeIsWater .or. &
-        .not. tvs_isIdBurpTovs(codtyp)) then
-      return
-    end if
-
-    ! if instrument is in all-sky mode
-    if (.not. (tvs_isInstrumAllskyTtAssim(instrumId) .or. &
-               tvs_isInstrumAllskyHuAssim(instrumId))) then
-      return
-    end if
-
-    ! check if there is a channel where: 1-state dependent obs error is used; and 2-flagged for assimilation
-    body_loop: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-      call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                         channelNumber, channelIndex)
-      channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
-
-      if (oer_useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .and. &
-          obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-        profWithAllskyChanForAssim = .true.
-        exit body_loop
-      end if
-    end do body_loop
-   
-  end subroutine oer_profWithAllskyChanForAssim
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
