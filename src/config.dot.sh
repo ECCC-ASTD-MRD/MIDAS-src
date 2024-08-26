@@ -114,16 +114,21 @@ vercomp () {
 }
 
 check_ec_atomic_profile_version () {
-    if [ "$(vercomp 1.28.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
-	echo
-	echo
-        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
-        echo "  EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.28.0"
-        echo "  Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.28.0"
-        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
-	echo
-	echo
-        return 1
+    ## We assume here that if the version is not of the pattern
+    ## '*.*.*', the profile version is sufficiently modern to be later
+    ## than '1.28.0'.
+    if [[ "${EC_ATOMIC_PROFILE_VERSION}" = *.*.* ]]; then
+        if [ "$(vercomp 1.28.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
+	    echo
+	    echo
+            echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+            echo "  EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.28.0"
+            echo "  Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.28.0"
+            echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+	    echo
+	    echo
+            return 1
+        fi
     fi
 }
 
