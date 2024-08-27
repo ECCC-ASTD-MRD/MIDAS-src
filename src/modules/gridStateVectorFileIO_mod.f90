@@ -2615,12 +2615,12 @@ module gridStateVectorFileIO_mod
     ! Locals:
     logical :: iDoWriting, containsFullField
     integer :: ierr, ncid, stepIndex
-    integer :: ni, nj, nk
-    integer :: levIndex, nlev, varIndex, varLevIndex
+    integer :: ni, nj
+    integer :: levIndex, numLev, varIndex, varLevIndex
     integer :: yourid, nsize, youridy, youridx
     integer :: varLevIndexBeg, varLevIndexEnd
     character(len=4), pointer :: varNamesToRead(:)
-    character(len=4) :: nomvar
+    character(len=4) :: varName
     real(4), allocatable :: work2d_r4(:,:)
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:)
@@ -2805,7 +2805,7 @@ module gridStateVectorFileIO_mod
                 real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
                               stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
           else
-            call gsv_getField(stateVector, field_r4, nomvar)
+            call gsv_getField(stateVector, field_r4, varName)
             gd_send_r4(1:stateVector%lonPerPE,  &
                        1:stateVector%latPerPE) =  &
                 field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
