@@ -476,22 +476,24 @@ contains
         end do
 
       else if (trim(tim_referencetime) == 'end') then
-     
-        if (numStep > 1) then
-          dtstep = tim_windowsize / (real(numStep - 1, 8))
-        else
-          dtstep = tim_windowsize
-        end if
-	
-        call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
-     
-        do stepIndex = 2, numStep
-          call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
-        end do
-
+        
+	if (numStep > 1) then
+        
+	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
+        
+	  dtstep = tim_windowsize / (real(numStep - 1, 8))     
+        
+	  do stepIndex = 2, numStep
+            call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
+          end do
+        
+	else
+	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize/2)
+	end if
+      
       end if
-
-    end if
+      
+    end if ! datestamp is specified or not
     
     call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
     imode = -3
