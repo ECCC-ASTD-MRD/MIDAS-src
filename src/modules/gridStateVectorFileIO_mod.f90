@@ -2594,7 +2594,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, dateStampList, &
+  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, validDateStamp, &
                                    stepIndex_opt, containsFullField_opt, &
                                    varLevIndexBeg_opt, varLevIndexEnd_opt, &
                                    timeCounter_opt)
@@ -2606,7 +2606,7 @@ module gridStateVectorFileIO_mod
     ! Arguments:
     type(struct_gsv), target,   intent(in) :: stateVector_in        ! input stateVector object
     character(len=*),           intent(in) :: fileNameTemplate      ! template for increment file name
-    integer         ,           intent(in) :: dateStampList(:)      ! dateStamp list 
+    integer         ,           intent(in) :: validDateStamp        ! valid dateStamp obtained from stateVector%anltime  
     integer,          optional, intent(in) :: stepIndex_opt         ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
     integer,          optional, intent(in) :: varLevIndexBeg_opt    ! start index if writing only a limited set of 'varLev's
@@ -2632,7 +2632,7 @@ module gridStateVectorFileIO_mod
     integer(8) :: numberSeconds
     character(len=100) :: fileName
     logical :: fileExists
-    integer :: currentDateStamp, timeLevel, numStep, fileValidDateStampIndex
+    integer :: currentDateStamp, timeLevel
     
     call msg('gio_writeToFileNetCDF', 'START')
     
@@ -2736,24 +2736,11 @@ module gridStateVectorFileIO_mod
       inquire(file = trim(fileName), exist = fileExists)
       if (.not. fileExists) then
       
-	numStep = size(dateStampList)
-	if (numStep > 0) then
-	  if (tim_referenceTime == 'middle') then
-	    fileValidDateStampIndex = (numStep - 1) / 2 + 1
-	  else if (tim_referenceTime == 'end') then
-	    fileValidDateStampIndex = numStep
-	  else if (tim_referenceTime == 'start') then
-	    fileValidDateStampIndex = 1
-	  end if
-	else
-	  call utl_abort('gio_writeToFileNetCDF: wrong length of dateStamp list: '//str(numStep))
-	end if
-	    
         !- create increment file and close it
         call gio_createOceanIncrementNetCDFfile(trim(fileName), ni, nj, numLev)
 
         ! compute difference in seconds between valid dateStamp date and NEMO reference
-        call tim_getSecondsSinceReferenceDate(dateStampList(fileValidDateStampIndex), &
+        call tim_getSecondsSinceReferenceDate(validDateStamp, &
                                               referenceDateNEMO, numberSeconds)
         netCDFtime = abs(real(numberSeconds, 8))
 	! reopen the file for writing analysis increments and dates
