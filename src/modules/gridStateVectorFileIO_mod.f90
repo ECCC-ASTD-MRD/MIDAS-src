@@ -2627,7 +2627,7 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4(:,:,:,:)
     type(struct_gsv), pointer :: stateVector
     type(struct_gsv), target  :: stateVector_tiles
-    integer :: numberHours, varIndexNEMO
+    integer :: varIndexNEMO
     real(8) :: netCDFtime
     integer(8) :: numberSeconds
     character(len=100) :: fileName
@@ -2677,16 +2677,19 @@ module gridStateVectorFileIO_mod
     if (present(varLevIndexBeg_opt) .and. present(varLevIndexEnd_opt)) then
       varLevIndexBeg = varLevIndexBeg_opt
       varLevIndexEnd = varLevIndexEnd_opt
-      call utl_abort('gio_writeToFile: Parallel access to netCDF files is not implemented')
     else
       if (present(varLevIndexBeg_opt)) then
-        call utl_abort('gio_writeToFile: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
+        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexEnd_opt'' must be given when ''varLevIndexBeg_opt_opt'' is given.')
       end if
       if (present(varLevIndexEnd_opt)) then
-        call utl_abort('gio_writeToFile: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
+        call utl_abort('gio_writeToFileNetCDF: An argument ''varLevIndexBeg_opt'' must be given when ''varLevIndexEnd_opt_opt'' is given.')
       end if
       varLevIndexBeg = 1
       varLevIndexEnd = gsv_getNumVarLev(stateVector)
+    end if
+
+    if (varLevIndexBeg /= 1 .or. varLevIndexEnd /= gsv_getNumVarLev(stateVector)) then
+      call utl_abort('gio_writeToFileNetCDF: Parallel access to netCDF files is not implemented')
     end if
 
     ! if step index not specified, choose anltime (usually center of window)
@@ -2730,8 +2733,7 @@ module gridStateVectorFileIO_mod
       call msg('gio_writeToFileNetCDF', 'Current datestamp: ' // str(currentDateStamp))
 
       ! compute difference in seconds between current date and NEMO reference
-      call tim_getHoursSinceReferenceDate(currentDateStamp, referenceDateNEMO, numberHours)
-      numberSeconds = numberHours * 3600
+      call tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDateNEMO, numberSeconds)
       netCDFtime = abs(real(numberSeconds, 8))
 
       fileName = trim(fileNameTemplate)//'.nc'	
@@ -2752,7 +2754,9 @@ module gridStateVectorFileIO_mod
       ! put 'z_inc_dateb', 'z_inc_datef' and 'time' into netCDF file
       do varIndexNEMO = 5, 7
         call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
-        call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime))
+        call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime, &
+                                                start = (/timeLevel/)), &
+                                   'gio_writeToFileNetCDF', 'nf90_put_var')
       end do
     
     end if ! iDoWriting
