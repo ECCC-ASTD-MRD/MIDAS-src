@@ -2737,7 +2737,7 @@ module gridStateVectorFileIO_mod
       if (.not. fileExists) then
       
 	numStep = size(dateStampList)
-	if (numStep > 1) then
+	if (numStep > 0) then
 	  if (tim_referenceTime == 'middle') then
 	    fileValidDateStampIndex = (numStep - 1) / 2 + 1
 	  else if (tim_referenceTime == 'end') then
@@ -2745,8 +2745,6 @@ module gridStateVectorFileIO_mod
 	  else if (tim_referenceTime == 'start') then
 	    fileValidDateStampIndex = 1
 	  end if
-	else if(numStep == 1) then
-	  fileValidDateStampIndex = 1
 	else
 	  call utl_abort('gio_writeToFileNetCDF: wrong length of dateStamp list: '//str(numStep))
 	end if
@@ -2820,8 +2818,8 @@ module gridStateVectorFileIO_mod
 
       levIndex = gsv_getLevFromVarLev(stateVector, varLevIndex)
 
-      call msg('gio_writeToFileNetCDF', &
-	       'Writing: '//trim(varName)//', level: '//str(levIndex)//', timestep: '//str(timeLevel)) 
+      call msg('gio_writeToFileNetCDF', 'Writing: '//trim(varName)//', level: '//&
+	       str(levIndex)//', timestep: '//str(timeLevel)//', dateStamp: '//str(currentDateStamp)) 
 
       if (stateVector%dataKind == 8) then
         call gsv_getField(stateVector, field_r8, varName)
