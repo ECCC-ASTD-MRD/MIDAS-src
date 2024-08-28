@@ -2594,7 +2594,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate,     &
+  subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, dateStampList, &
                                    stepIndex_opt, containsFullField_opt, &
                                    varLevIndexBeg_opt, varLevIndexEnd_opt, &
                                    timeCounter_opt)
@@ -2604,14 +2604,14 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target,   intent(in) :: stateVector_in   ! input stateVector object
-    character(len=*),           intent(in) :: fileNameTemplate ! template for increment file name
-    integer,          optional, intent(in) :: stepIndex_opt    ! step index
+    type(struct_gsv), target,   intent(in) :: stateVector_in        ! input stateVector object
+    character(len=*),           intent(in) :: fileNameTemplate      ! template for increment file name
+    integer         ,           intent(in) :: dateStampList(:)      ! dateStamp list 
+    integer,          optional, intent(in) :: stepIndex_opt         ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
-    integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's
-    integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's
-    integer         , optional, intent(in) :: timeCounter_opt    ! time counter for array in netcdf file (default is stepIndex) 
-
+    integer,          optional, intent(in) :: varLevIndexBeg_opt    ! start index if writing only a limited set of 'varLev's
+    integer,          optional, intent(in) :: varLevIndexEnd_opt    ! end index if writing only a limited set of 'varLev's
+    integer         , optional, intent(in) :: timeCounter_opt       ! time counter for array in netcdf file (default is stepIndex) 
     ! Locals:
     logical :: iDoWriting, containsFullField
     integer :: ierr, ncid, stepIndex
@@ -2632,7 +2632,7 @@ module gridStateVectorFileIO_mod
     integer(8) :: numberSeconds
     character(len=100) :: fileName
     logical :: fileExists
-    integer :: currentDateStamp, timeLevel
+    integer :: currentDateStamp, timeLevel, numStep, fileValidDateStampIndex
     
     call msg('gio_writeToFileNetCDF', 'START')
     
@@ -2711,13 +2711,11 @@ module gridStateVectorFileIO_mod
     
     ! get number of levels for NEMO grid, 
     ! which is supposed to be equal for all 3D variables
-    do varIndex = 1, vnl_numvarmax
-      if (gsv_varExist(statevector, 'TM')) then
-        numLev = gsv_getNumLevFromVarName(stateVector, 'TM')
-      else
-        call utl_abort('gio_writeToFileNetCDF: variable TM should be present in the state vector.')
-      end if
-    end do
+    if (gsv_varExist(statevector, 'TM')) then
+      numLev = gsv_getNumLevFromVarName(stateVector, 'TM')
+    else
+      call utl_abort('gio_writeToFileNetCDF: variable TM should be present in the state vector.')
+    end if
     
     ! only proc 0 does writing or each proc when data is global 
     ! (assuming only called for proc with global data)
@@ -2732,33 +2730,47 @@ module gridStateVectorFileIO_mod
       currentDateStamp = stateVector%dateStampList(stepIndex)
       call msg('gio_writeToFileNetCDF', 'Current datestamp: ' // str(currentDateStamp))
 
-      ! compute difference in seconds between current date and NEMO reference
-      call tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDateNEMO, numberSeconds)
-      netCDFtime = abs(real(numberSeconds, 8))
-
       fileName = trim(fileNameTemplate)//'.nc'	
 
       ! check if the file already exists
       inquire(file = trim(fileName), exist = fileExists)
       if (.not. fileExists) then
+      
+	numStep = size(dateStampList)
+	if (numStep > 1) then
+	  if (tim_referenceTime == 'middle') then
+	    fileValidDateStampIndex = (numStep - 1) / 2 + 1
+	  else if (tim_referenceTime == 'end') then
+	    fileValidDateStampIndex = numStep
+	  else if (tim_referenceTime == 'start') then
+	    fileValidDateStampIndex = 1
+	  end if
+	else if(numStep == 1) then
+	  fileValidDateStampIndex = 1
+	else
+	  call utl_abort('gio_writeToFileNetCDF: wrong length of dateStamp list: '//str(numStep))
+	end if
+	    
         !- create increment file and close it
         call gio_createOceanIncrementNetCDFfile(trim(fileName), ni, nj, numLev)
+
+        ! compute difference in seconds between valid dateStamp date and NEMO reference
+        call tim_getSecondsSinceReferenceDate(dateStampList(fileValidDateStampIndex), &
+                                              referenceDateNEMO, numberSeconds)
+        netCDFtime = abs(real(numberSeconds, 8))
+	! reopen the file for writing analysis increments and dates
+        call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
+        ! put 'z_inc_dateb', 'z_inc_datef' and 'time' into netCDF file
+        do varIndexNEMO = 5, 7
+          call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
+          call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime))
+        end do
+	
       else
         call msg('gio_writeToFileNetCDF', &
 	         'Output file '//trim(fileName)//' has already been created for the first time step')
       end if
       
-      ! reopen the file for writing analysis increments and dates
-      call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
-      
-      ! put 'z_inc_dateb', 'z_inc_datef' and 'time' into netCDF file
-      do varIndexNEMO = 5, 7
-        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
-        call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime, &
-                                                start = (/timeLevel/)), &
-                                   'gio_writeToFileNetCDF', 'nf90_put_var')
-      end do
-    
     end if ! iDoWriting
 
     allocate(gd_send_r4(stateVector%lonPerPEmax, stateVector%latPerPEmax))
@@ -2779,101 +2791,97 @@ module gridStateVectorFileIO_mod
     do varLevIndex = varLevIndexBeg, varLevIndexEnd
 
       varName = trim(gsv_getVarNameFromVarLev(stateVector, varLevIndex))
- 
-      if (gsv_varExist(statevector, trim(varName))) then
 
-        call msg('gio_writeToFileNetCDF', 'Writing variable: '//trim(varName))
-	select case(trim(varName))
-          case('TM')
-            varIndexNEMO = 8
-          case('SALW')
-            varIndexNEMO = 9
-	  case('UUW')
-            varIndexNEMO = 12
-	  case('VVW')
-            varIndexNEMO = 13
-	  case('SSH')
-            varIndexNEMO = 10
-          case default
-            call utl_abort('gio_writeToFileNetCDF: requested variable name does not exist '//trim(varName))
-        end select
+      select case(trim(varName))
+	case('TM')
+	  varIndexNEMO = 8
+	case('SALW')
+	  varIndexNEMO = 9
+        case('UUW')
+	  varIndexNEMO = 12
+        case('VVW')
+	  varIndexNEMO = 13
+        case('SSH')
+	  varIndexNEMO = 10
+	case default
+	  call utl_abort('gio_writeToFileNetCDF: requested variable name does not exist '//trim(varName))
+      end select
+
+      levIndex = gsv_getLevFromVarLev(stateVector, varLevIndex)
+
+      call msg('gio_writeToFileNetCDF', &
+	       'Writing: '//trim(varName)//', level: '//str(levIndex)//', timestep: '//str(timeLevel)) 
+
+      if (stateVector%dataKind == 8) then
+        call gsv_getField(stateVector, field_r8, varName)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+        	   1:stateVector%latPerPE) =  &
+            real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
+        		  stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
+      else
+        call gsv_getField(stateVector, field_r4, varName)
+        gd_send_r4(1:stateVector%lonPerPE,  &
+        	   1:stateVector%latPerPE) =  &
+            field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
+        	     stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
+      end if
+
+      nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
+      if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
+        call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
+        		     gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+      else
+        ! just copy when either nprocs is 1 or data is global
+        gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+      end if
+
+      if (mmpi_myid == 0 .and. stateVector%mpi_local) then
+        !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+        do youridy = 0, (mmpi_npey - 1)
+          do youridx = 0, (mmpi_npex - 1)
+            yourid = youridx + youridy * mmpi_npex
+            work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
+        	      stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
+            gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
+        	       1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if (.not. stateVector%mpi_local) then
+        work2d_r4(:,:) = gd_recv_r4(:,:,1)
+      end if
+
+      ! now do writing
+      if (iDoWriting) then
+
+        !- Convert Kelvin to Celcius only if full field
+        if (containsFullField .and. trim(varName) == 'TT' &
+			      .or.  trim(varName) == 'TM') then
+          where (work2d_r4(:,:) > 100.0)
+            work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+          end where
+        end if
+
+        ! inquire current varid
+        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
 	
-        numLev = gsv_getNumLevFromVarName(stateVector, varName)
+	!- Writing to file
+	if (NEMOvartype(varIndexNEMO) == '3D') then	 
+          call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
+        					  start = (/ 1,  1,  timeLevel/), &
+        					  count = (/ni, nj,	     1/)), &
+        			     'gio_writeToFileNetCDF', 'nf90_put_var')
+	else if (NEMOvartype(varIndexNEMO) == '4D') then      
+          call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
+        					  start = (/ 1,  1, levIndex, timeLevel/), &
+        					  count = (/ni, nj,	   1,	      1/)), &
+        			     'gio_writeToFileNetCDF', 'nf90_put_var')
+	else
+	  call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
+			 vnl_varNameList(varIndex)//' ('//trim(NEMOvarnames(varIndexNEMO))//')')
+        end if
 
-        do levIndex = 1, numLev
-
-          if (stateVector%dataKind == 8) then
-            call gsv_getField(stateVector, field_r8, varName)
-            gd_send_r4(1:stateVector%lonPerPE,  &
-                       1:stateVector%latPerPE) =  &
-                real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
-                              stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
-          else
-            call gsv_getField(stateVector, field_r4, varName)
-            gd_send_r4(1:stateVector%lonPerPE,  &
-                       1:stateVector%latPerPE) =  &
-                field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
-                         stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
-          end if
-
-          nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
-          if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
-            call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-                                 gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
-          else
-            ! just copy when either nprocs is 1 or data is global
-            gd_recv_r4(:,:,1) = gd_send_r4(:,:)
-          end if
-
-          if (mmpi_myid == 0 .and. stateVector%mpi_local) then
-            !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mmpi_npey - 1)
-              do youridx = 0, (mmpi_npex - 1)
-                yourid = youridx + youridy * mmpi_npex
-                work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
-                          stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
-                gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
-                           1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
-              end do
-            end do
-            !$OMP END PARALLEL DO
-          else if (.not. stateVector%mpi_local) then
-            work2d_r4(:,:) = gd_recv_r4(:,:,1)
-          end if
-
-          ! now do writing
-          if (iDoWriting) then
-
-            !- Convert Kelvin to Celcius only if full field
-            if (containsFullField .and. trim(varName) == 'TT' &
-	                          .or.  trim(varName) == 'TM') then
-              where (work2d_r4(:,:) > 100.0)
-                work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
-              end where
-            end if
-
-            ! inquire current varid
-            call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
-	    
-	    !- Writing to file
-	    if (NEMOvartype(varIndexNEMO) == '3D') then      
-              call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
-                                                      start = (/ 1,  1,  timeLevel/), &
-                                                      count = (/ni, nj,          1/)), &
-                                         'gio_writeToFileNetCDF', 'nf90_put_var')
-	    else if (NEMOvartype(varIndexNEMO) == '4D') then      
-              call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
-                                                      start = (/ 1,  1, levIndex, timeLevel/), &
-                                                      count = (/ni, nj,        1,         1/)), &
-                                         'gio_writeToFileNetCDF', 'nf90_put_var')
-	    else
-	      call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
-	                     vnl_varNameList(varIndex)//' ('//trim(NEMOvarnames(varIndexNEMO))//')')
-            end if
-
-          end if ! iDoWriting
-        end do ! levIndex
-      end if ! varExist
+      end if ! iDoWriting
     end do ! varLevIndex
 
     deallocate(work2d_r4)
@@ -2921,7 +2929,7 @@ module gridStateVectorFileIO_mod
     ! Locals:
     integer :: ncid, variableIndex
     integer :: latDimID, lonDimID, levDimID, timeID
-    integer :: dimID2D(2), dimID3D(3), dimID4D(4) 
+    integer :: dimID2D(2), dimID3D(3), dimID4D(4), dimIDTI(1), dimIDDE(1)
 
     call msg('gio_createOceanIncrementNetCDFfile', 'Creating file: '//trim(fileName))
     ! create netCDF file    
@@ -2936,6 +2944,8 @@ module gridStateVectorFileIO_mod
     dimID4D = (/lonDimID, latDimID, levDimID, timeID/)	
     dimID3D = (/lonDimID, latDimID,           timeID/)
     dimID2D = (/lonDimID, latDimID                  /)
+    dimIDTI = (/                              timeID/)
+    dimIDDE = (/                    levDimID        /)
     
     do variableIndex = 1, dimNemovar
       select case(NEMOvartype(variableIndex))
@@ -2953,10 +2963,10 @@ module gridStateVectorFileIO_mod
 	                                          nf90_double,  dimID4D, NEMOvarid(variableIndex)))
         case('TI')
           call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
-	                                          nf90_double,   timeID, NEMOvarid(variableIndex)))
+	                                          nf90_double,   dimIDTI, NEMOvarid(variableIndex)))
 	case('DE')
           call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
-	                                          nf90_float , levDimID, NEMOvarid(variableIndex)))
+	                                          nf90_float , dimIDDE, NEMOvarid(variableIndex)))
       end select
     end do
     

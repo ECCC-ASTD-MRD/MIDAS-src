@@ -3169,6 +3169,7 @@ CONTAINS
 
         if (writeNetCDF) then
           call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
+	                             dateStampList,                             &
                                      containsFullField_opt = containsFullField, &
                                      varLevIndexBeg_opt = varLevIndexBeg,       &
                                      varLevIndexEnd_opt = varLevIndexEnd,       &

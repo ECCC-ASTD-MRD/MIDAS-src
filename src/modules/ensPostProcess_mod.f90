@@ -82,6 +82,7 @@ contains
     integer, external         :: newdate
     logical                   :: outputOnlyEnsMean
     logical                   :: writeHeightSfc
+    integer                   :: dateStampList(1)
 
     ! Namelist variables
     integer  :: randomSeed           ! seed used for random perturbation additive inflation
@@ -814,8 +815,12 @@ contains
             end if
           end do
           
-          if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                                         containsFullField_opt = .false.)
+          if (writeNetCDFInc) then
+	    dateStampList(1) = tim_getDateStamp()
+	    call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, dateStampList, &
+                                       containsFullField_opt = .false.)
+          end if
+	  
         end if
 
         call utl_tmg_stop(5)

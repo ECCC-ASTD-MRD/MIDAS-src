@@ -34,8 +34,8 @@ module columnData_mod
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem
   public :: col_getLat, col_setLat, col_getOltv, col_setOltv
   public :: col_getVco, col_setVco
-  public :: col_getLevIndexFromVarLevIndex, col_add, col_copy, col_copyLat
-
+  public :: col_getLevFromVarLev, col_add, col_copy, col_copyLat
+            
   type struct_columnData
     private
     integer                   :: numVarLev
@@ -450,9 +450,9 @@ contains
   end function col_getOffsetFromVarno
 
   !--------------------------------------------------------------------------
-  ! col_getLevIndexFromVarLevIndex
+  ! col_getLevFromVarLev
   !--------------------------------------------------------------------------
-  function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
+  function col_getLevFromVarLev(column, varLevIndex) result(levIndex)
     !
     !:Purpose: Return the level index for a given value of the "varsLevs" index.
     !
@@ -477,10 +477,10 @@ contains
       end if
     end do
 
-    write(*,*) 'col_getLevIndexFromVarLevIndex: varLevIndex out of range: ', varLevIndex
-    call utl_abort('col_getLevIndexFromVarLevIndex')
+    write(*,*) 'col_getLevFromVarLev: varLevIndex out of range: ', varLevIndex
+    call utl_abort('col_getLevFromVarLev')
 
-  end function col_getLevIndexFromVarLevIndex
+  end function col_getLevFromVarLev
 
   !--------------------------------------------------------------------------
   ! col_getVarNameFromVarLev

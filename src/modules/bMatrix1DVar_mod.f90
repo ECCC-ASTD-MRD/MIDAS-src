@@ -836,7 +836,7 @@ contains
         if (varLevel=='SF' .or. varLevel=='OT') then
           meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
         else
-          levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
+          levIndexColumn = col_getLevFromVarLev(meanColumn, varLevIndexCol)
           meanPressureProfile(varLevIndexBmat) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
         end if
       end do

@@ -824,7 +824,7 @@ contains
     call difdatr(currentDateStamp, refDateStamp, numberHours)
     write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
     
-    numberSeconds = int(numberHours) * 3600
+    numberSeconds = int(numberHours * 3600.0d0 , 8)
 
   end subroutine tim_getSecondsSinceReferenceDate
 
