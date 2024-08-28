@@ -2765,12 +2765,23 @@ module gridStateVectorFileIO_mod
           call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
           call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime))
         end do
+	call utl_checkNetCDFstatus(nf90_close(ncid))
 	
       else
         call msg('gio_writeToFileNetCDF', &
 	         'Output file '//trim(fileName)//' has already been created for the first time step')
       end if
       
+      ! reopen the file for writing analysis increments and dates
+      call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
+      ! compute difference in seconds between current date and NEMO reference
+      call tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDateNEMO, numberSeconds)
+      netCDFtime = abs(real(numberSeconds, 8))
+      ! put netCDFtime into 'time_counter', varIndexNEMO = 4
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(4), NEMOvarid(4)))
+      call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(4), netCDFtime, &
+                                              start = (/timeLevel/)))
+
     end if ! iDoWriting
 
     allocate(gd_send_r4(stateVector%lonPerPEmax, stateVector%latPerPEmax))
