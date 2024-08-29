@@ -391,7 +391,7 @@ program midas_prepcma
 
 contains
 
-  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam, codtyp_opt, codtyp2_opt)
+  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam, codtyp_opt)
     !
     ! :Purpose: thin the observations of the selected family
     !
@@ -403,7 +403,6 @@ contains
     integer,           intent(in)    :: n_target    ! maximum desired amount of data per 3-D box
     character(len=2),  intent(in)    :: cfam        ! family type
     integer, optional, intent(in)    :: codtyp_opt
-    integer, optional, intent(in)    :: codtyp2_opt
 
     ! Locals:
     type(struct_reg) :: lsc
@@ -423,7 +422,7 @@ contains
     integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
     logical :: doTovsPerInst, ifReturnToMainProgram
-    character(len=codtyp_name_length) :: instName1, instName2
+    character(len=codtyp_name_length) :: instName
     logical, save :: firstCall = .true.
 
     ! box size that is used for observation thinning 
@@ -502,14 +501,10 @@ contains
     end if
 
     doTovsPerInst = .false.
-    instName1 = ''
-    instName2 = ''
+    instName = ''
     if (present(codtyp_opt)) then
       doTovsPerInst = .true.
-      instName1 = codtyp_get_name(codtyp_opt)
-      if (present(codtyp2_opt)) then
-        instName2 = codtyp_get_name(codtyp2_opt)
-      end if
+      instName = codtyp_get_name(codtyp_opt)
     end if
 
     header_loop: do headerIndex = 1, numHeader
@@ -522,11 +517,7 @@ contains
 
         ! skip this header if does not match the supplied codtyp(s)
         if (present(codtyp_opt)) then
-          if (present(codtyp2_opt)) then
-            if (codtyp /= codtyp_opt .and. codtyp /= codtyp2_opt) cycle header_loop
-          else
-            if (codtyp /= codtyp_opt) cycle header_loop
-          end if
+          if (codtyp /= codtyp_opt) cycle header_loop
         end if
 
         ! skip this header if all observations already rejected
@@ -607,7 +598,7 @@ contains
                     sum(numHeaderPerTovsInstBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex))
       end do
 
-      call printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInstBeforeThin, &
+      call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstBeforeThin, &
                                   numHeaderPerTovsInstBeforeThin_mpiGlobal, doTovsPerInst, &
                                   ifReturnToMainProgram)
 
@@ -697,7 +688,7 @@ contains
                     sum(numHeaderPerTovsInstAfterThin(:,sensorIndex)), sum(numHeaderPerTovsInstAfterThin_mpiGlobal(:,sensorIndex))
       end do
 
-      call printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInstAfterThin, &
+      call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstAfterThin, &
                                   numHeaderPerTovsInstAfterThin_mpiGlobal, doTovsPerInst, &
                                   ifReturnToMainProgram, ifAfterThinning_opt=.true.)
 
@@ -817,7 +808,7 @@ contains
   !----------------------------------------------------------------------
   ! printToListingsForTovs
   !----------------------------------------------------------------------
-  subroutine printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInst, &
+  subroutine printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInst, &
                                     numHeaderPerTovsInst_mpiGlobal, doTovsPerInst, &
                                     ifReturnToMainProgram, ifAfterThinning_opt)
     !
@@ -826,8 +817,7 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=codtyp_name_length), intent(in) :: instName1
-    character(len=codtyp_name_length), intent(in) :: instName2
+    character(len=codtyp_name_length), intent(in) :: instName
     integer,                           intent(in) :: nblocksum
     integer,                           intent(in) :: numHeaderPerTovsInst(:,:)
     integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:)
@@ -839,7 +829,7 @@ contains
     integer :: sensorIndex, sensorIndex2, numInstNameUniqueList, numMatchFound, matchFoundIndex
     integer :: iblock, numHeadersFound, numHeadersFound_mpiGlobal
     integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
-    logical :: ifAbort, ifAfterThinning
+    logical :: ifAfterThinning
     character(len=codtyp_name_length) :: instNameUniqueList(tvs_nsensors)
 
     if (present(ifAfterThinning_opt)) then
@@ -894,25 +884,13 @@ contains
         end if
 
         if (doTovsPerInst) then
-          ifAbort = .false.
-
           if (numInstNameUniqueList == 1) then
-            if (.not. (trim(instNameUniqueList(1)) == trim(instName1) .or. &
-                       trim(instNameUniqueList(1)) == trim(instName2))) then
-              ifAbort = .true.
+            if (trim(instNameUniqueList(1)) /= trim(instName)) then
+              write(*,*) 'instName=', instName
+              call utl_abort('printToListingsForTovs: instNameUniqueList(1)) /= instName')
             end if
-          else if (numInstNameUniqueList == 2) then
-            call utl_abort('printToListingsForTovs: for now abort')
-
-            if (.not. (trim(instNameUniqueList(1)) == trim(instName1) .and. &
-                       trim(instNameUniqueList(2)) == trim(instName2))) then
-              ifAbort = .true.
-            end if
-          end if
-
-          if (ifAbort) then
-            write(*,*) 'instName1=', instName1, ', instName2=', instName2
-            call utl_abort('printToListingsForTovs: instNameUniqueList does not match instName1/2')
+          else
+            call utl_abort('printToListingsForTovs: numInstNameUniqueList > 1')
           end if
         end if ! doTovsPerInst
 
