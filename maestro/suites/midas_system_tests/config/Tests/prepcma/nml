@@ -15,6 +15,7 @@
    thinningRadiance        = .true.
    writeObsFiles           = .true.
    writeAsciiCmaFiles      = .false.
+   thinTovsPerInst         = .true.
 /
  &NAMDIMO
    NMXOBS  = 100000,
