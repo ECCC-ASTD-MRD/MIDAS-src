@@ -468,7 +468,7 @@ contains
     integer :: tovsIndex, sensorIndex
     integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
-    logical :: doTovsPerInst, ifReturn
+    logical :: doTovsPerInst, ifReturnToMainProgram
     character(len=codtyp_name_length) :: instName1, instName2
     logical, save :: firstCall = .true.
 
@@ -655,9 +655,9 @@ contains
 
       call printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInstBeforeThin, &
                                   numHeaderPerTovsInstBeforeThin_mpiGlobal, doTovsPerInst, &
-                                  ifReturn)
+                                  ifReturnToMainProgram)
 
-      if (ifReturn) return
+      if (ifReturnToMainProgram) return
 
     end if ! cfam=='TO'
 
@@ -745,9 +745,9 @@ contains
 
       call printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInstAfterThin, &
                                   numHeaderPerTovsInstAfterThin_mpiGlobal, doTovsPerInst, &
-                                  ifReturn, ifAfterThinning_opt=.true.)
+                                  ifReturnToMainProgram, ifAfterThinning_opt=.true.)
 
-      if (ifReturn) then
+      if (ifReturnToMainProgram) then
         call utl_abort('thinning_fam: should have returned before thinning was performed')
       end if
 
@@ -851,7 +851,7 @@ contains
   !----------------------------------------------------------------------
   subroutine printToListingsForTovs(instName1, instName2, nblocksum, numHeaderPerTovsInst, &
                                     numHeaderPerTovsInst_mpiGlobal, doTovsPerInst, &
-                                    ifReturn, ifAfterThinning_opt)
+                                    ifReturnToMainProgram, ifAfterThinning_opt)
     !
     ! :Purpose: Print to the listings for TOVS instrument.
     !
@@ -864,7 +864,7 @@ contains
     integer,                           intent(in) :: numHeaderPerTovsInst(:,:)
     integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:)
     logical,                           intent(in) :: doTovsPerInst
-    logical,                           intent(out) :: ifReturn
+    logical,                           intent(out) :: ifReturnToMainProgram
     logical, optional,                 intent(in) :: ifAfterThinning_opt
 
     ! Locals:
@@ -880,7 +880,7 @@ contains
       ifAfterThinning = .false.
     end if
 
-    ifReturn = .false.
+    ifReturnToMainProgram = .false.
  
     ! find the first inst with non-zero number of headers
     instNameUniqueList(:) = ''
@@ -952,7 +952,7 @@ contains
         ! return because there is no header for this instrument
         if (doTovsPerInst) then
           write(*,*) 'no headers found for ', trim(instNameUniqueList(sensorIndex2)), ', returning ...'
-          ifReturn = .true.
+          ifReturnToMainProgram = .true.
           return
         end if
 
