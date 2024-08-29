@@ -123,9 +123,8 @@ program midas_prepcma
   integer, parameter :: nsc_target = 10
   integer, parameter :: nsw_target = 6
   integer, parameter :: nto_target = 6 
-  integer :: numTovsInstNameList, sensorIndex, numMatchFound
+  integer :: numTovsInstNameList, sensorIndex, matchIndex
   integer :: maxNumHeaderPerInst
-  integer, allocatable :: matchIndexList(:)
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
   real(8) :: nsw_pmax(npres_sw) = (/ 60000.0, 110000.0/)
   ! For a scalar array, no layer selection will be done
@@ -317,41 +316,18 @@ program midas_prepcma
                               codtyp_opt=codtyp_get_codtyp('amsub'), &
                               codtyp2_opt=codtyp_get_codtyp('mhs'))
 
-            matchIndexList = utl_findlocs(tovsInstNameList,'amsub')
-            if (matchIndexList(1) > 0) then
-              numMatchFound = size(matchIndexList)
-              if (numMatchFound > 1) then
-                write(*,*) 'For amsub, matchIndexList(:)=', matchIndexList(:)
-                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
-              end if
+            matchIndex = utl_findloc(tovsInstNameList,'amsub')
+            tovsInstAlreadyProcessed(matchIndex) = .true.
 
-              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
-            end if
-            matchIndexList = utl_findlocs(tovsInstNameList,'mhs')
-            if (matchIndexList(1) > 0) then
-              numMatchFound = size(matchIndexList)
-              if (numMatchFound > 1) then
-                write(*,*) 'For mhs, matchIndexList(:)=', matchIndexList(:)
-                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
-              end if
-
-              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
-            end if
+            matchIndex = utl_findloc(tovsInstNameList,'mhs')
+            tovsInstAlreadyProcessed(matchIndex) = .true.
 
           else
             call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
                               codtyp_opt=codtyp_get_codtyp(tovsInstName))
 
-            matchIndexList = utl_findlocs(tovsInstNameList,tovsInstName)
-            if (matchIndexList(1) > 0) then
-              numMatchFound = size(matchIndexList)
-              if (numMatchFound > 1) then
-                write(*,*) 'For ', tovsInstName, ', matchIndexList(:)=', matchIndexList(:)
-                call utl_abort('midas-prepcma: instrument name exists more than once in tovsInstNameList')
-              end if
-
-              tovsInstAlreadyProcessed(matchIndexList(1)) = .true.
-            end if
+            matchIndex = utl_findloc(tovsInstNameList,tovsInstName)
+            tovsInstAlreadyProcessed(matchIndex) = .true.
 
           end if ! trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs'
         end do loopSensor0
