@@ -311,25 +311,12 @@ program midas_prepcma
 
           write(*,*) 'midas-prepcma: thinning for TO inst=',  trim(tovsInstName)
 
-          if (trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs') then
-            call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
-                              codtyp_opt=codtyp_get_codtyp('amsub'), &
-                              codtyp2_opt=codtyp_get_codtyp('mhs'))
+          call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
+                            codtyp_opt=codtyp_get_codtyp(tovsInstName))
 
-            matchIndex = utl_findloc(tovsInstNameList,'amsub')
-            tovsInstAlreadyProcessed(matchIndex) = .true.
+          matchIndex = utl_findloc(tovsInstNameList,tovsInstName)
+          tovsInstAlreadyProcessed(matchIndex) = .true.
 
-            matchIndex = utl_findloc(tovsInstNameList,'mhs')
-            tovsInstAlreadyProcessed(matchIndex) = .true.
-
-          else
-            call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
-                              codtyp_opt=codtyp_get_codtyp(tovsInstName))
-
-            matchIndex = utl_findloc(tovsInstNameList,tovsInstName)
-            tovsInstAlreadyProcessed(matchIndex) = .true.
-
-          end if ! trim(tovsInstName) == 'amsub' .or. trim(tovsInstName) == 'mhs'
         end do loopSensor0
 
         deallocate(tovsInstAlreadyProcessed)
@@ -766,21 +753,35 @@ contains
 
     ! Locals:
     integer :: sensorIndex, sensorIndex2
+    character(len=codtyp_name_length) :: instNameList(tvs_nsensors)
+
+    ! replace all amsub with mhs in the original list
+    do sensorIndex = 1, tvs_nsensors
+      if (trim(inst_name(tvs_instruments(sensorIndex))) == 'amsub') then
+        instNameList(sensorIndex) = 'mhs'
+      else
+        instNameList(sensorIndex) = trim(inst_name(tvs_instruments(sensorIndex)))
+      end if
+    end do
+
+    if (mmpi_myid == 0) then
+      write(*,*) 'getTovsInstNameList: all occurances of amsub are replaced by mhs in instNameUniqueList'
+    end if
 
     allocate(instNameUniqueList(tvs_nsensors))
     instNameUniqueList(:) = ''
     numInstNameUniqueList = 1
-    instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(1)))
+    instNameUniqueList(numInstNameUniqueList) = trim(instNameList(1))
 
     loopSensor3: do sensorIndex = 1, tvs_nsensors
       do sensorIndex2 = 1, numInstNameUniqueList
-        if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex)))) then
+        if (trim(instNameUniqueList(sensorIndex2)) == trim(instNameList(sensorIndex))) then
           cycle loopSensor3
         end if
       end do
 
       numInstNameUniqueList = numInstNameUniqueList + 1
-      instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+      instNameUniqueList(numInstNameUniqueList) = trim(instNameList(sensorIndex))
     end do loopSensor3
 
   end subroutine getTovsInstNameList
