@@ -2810,22 +2810,22 @@ module gridStateVectorFileIO_mod
 
       if (stateVector%dataKind == 8) then
         call gsv_getField(stateVector, field_r8, varName)
-        gd_send_r4(1:stateVector%lonPerPE,  &
-        	   1:stateVector%latPerPE) =  &
+        gd_send_r4(1:stateVector%lonPerPE, 
+                   1:stateVector%latPerPE) =  &
             real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
-        		  stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
+                          stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
       else
         call gsv_getField(stateVector, field_r4, varName)
         gd_send_r4(1:stateVector%lonPerPE,  &
-        	   1:stateVector%latPerPE) =  &
+                   1:stateVector%latPerPE) =  &
             field_r4(stateVector%myLonBeg : stateVector%myLonEnd, &
-        	     stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
+                     stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex)
       end if
 
       nsize = stateVector%lonPerPEmax * stateVector%latPerPEmax
       if ((mmpi_nprocs > 1) .and. (stateVector%mpi_local)) then
         call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
-        		     gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
+                             gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr)
       else
         ! just copy when either nprocs is 1 or data is global
         gd_recv_r4(:,:,1) = gd_send_r4(:,:)
@@ -2837,9 +2837,9 @@ module gridStateVectorFileIO_mod
           do youridx = 0, (mmpi_npex - 1)
             yourid = youridx + youridy * mmpi_npex
             work2d_r4(stateVector%allLonBeg(youridx + 1) : stateVector%allLonEnd(youridx + 1), &
-        	      stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
+                      stateVector%allLatBeg(youridy + 1) : stateVector%allLatEnd(youridy + 1)) = &
             gd_recv_r4(1 : stateVector%allLonPerPE(youridx + 1),  &
-        	       1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
+                       1 : stateVector%allLatPerPE(youridy + 1), yourid + 1)
           end do
         end do
         !$OMP END PARALLEL DO
@@ -2852,7 +2852,7 @@ module gridStateVectorFileIO_mod
 
         !- Convert Kelvin to Celcius only if full field
         if (containsFullField .and. trim(varName) == 'TT' &
-			      .or.  trim(varName) == 'TM') then
+                              .or.  trim(varName) == 'TM') then
           where (work2d_r4(:,:) > 100.0)
             work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
           end where
@@ -2864,17 +2864,17 @@ module gridStateVectorFileIO_mod
 	!- Writing to file
 	if (NEMOvartype(varIndexNEMO) == '3D') then	 
           call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
-        					  start = (/ 1,  1,  timeLevel/), &
-        					  count = (/ni, nj,	     1/)), &
-        			     'gio_writeToFileNetCDF', 'nf90_put_var')
+                                                  start = (/ 1,  1,  timeLevel/), &
+                                                  count = (/ni, nj,	     1/)), &
+                                     'gio_writeToFileNetCDF', 'nf90_put_var')
 	else if (NEMOvartype(varIndexNEMO) == '4D') then      
           call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), work2d_r4, &
-        					  start = (/ 1,  1, levIndex, timeLevel/), &
-        					  count = (/ni, nj,	   1,	      1/)), &
-        			     'gio_writeToFileNetCDF', 'nf90_put_var')
+                                                  start = (/ 1,  1, levIndex, timeLevel/), &
+                                                  count = (/ni, nj,	   1,	      1/)), &
+                                     'gio_writeToFileNetCDF', 'nf90_put_var')
 	else
 	  call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
-			 vnl_varNameList(varIndex)//' ('//trim(NEMOvarnames(varIndexNEMO))//')')
+                         vnl_varNameList(varIndex)//' ('//trim(NEMOvarnames(varIndexNEMO))//')')
         end if
 
       end if ! iDoWriting
