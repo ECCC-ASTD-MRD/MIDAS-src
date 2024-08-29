@@ -308,7 +308,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for reading file
     call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                 &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex),   &
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex),   &
                       mpi_local_opt = .true., mpi_distribution_opt = 'VarsLevs',  &
                       dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,       &
                       varNames_opt = varNamesToRead,                              &
@@ -322,7 +322,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
     call gsv_allocate(statevector_hinterp_r4, 1, statevector_out%hco, vco_file,   &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex),   &
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex),   &
                       mpi_local_opt = .true., mpi_distribution_opt='VarsLevs',    &
                       dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,       &
                       varNames_opt = varNamesToRead,                              &
@@ -343,7 +343,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file,     &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex),&
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex),&
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',  &
                       dataKind_opt = 8, allocHeightSfc_opt = readHeightSfc,    &
                       varNames_opt = varNamesToRead)
@@ -356,7 +356,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
     call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex), &
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex), &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', dataKind_opt = 8, &
                       allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead)
 
@@ -419,7 +419,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for reading file
     call gsv_allocate(statevector_file_r4, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex),  &
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex),  &
                       mpi_local_opt = .true., mpi_distribution_opt = 'VarsLevs', &
                       dataKind_opt = 4, allocHeightSfc_opt = readHeightSfc,      &
                       varNames_opt = varNamesToRead)
@@ -434,7 +434,7 @@ module gridStateVectorFileIO_mod
 
     !-- 3.0 MPI communication from vars/levels to lat/lon tiles
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp_opt = statevector_out%datestamplist(stepIndex), &
+                      dateStampList_opt = statevector_out%datestamplist(stepIndex:stepIndex), &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',   &
                       dataKind_opt = 8, allocHeightSfc_opt = readHeightSfc,     &
                       varNames_opt = varNamesToRead)
@@ -495,7 +495,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for reading file
     call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                       &
-                      dateStamp_opt = statevector_out_r4%datestamplist(stepIndex),      &
+                      dateStampList_opt = statevector_out_r4%datestamplist(stepIndex:stepIndex), &
                       mpi_local_opt = .false., dataKind_opt = 4,                        &
                       allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead,&
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,     &
@@ -507,7 +507,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
     call gsv_allocate(statevector_hinterp_r4, 1, statevector_out_r4%hco, vco_file,      &
-                      dateStamp_opt = statevector_out_r4%datestamplist(stepIndex),      &
+                      dateStampList_opt = statevector_out_r4%datestamplist(stepIndex:stepIndex), &
                       mpi_local_opt = .false., dataKind_opt=4,                          &
                       allocHeightSfc_opt = readHeightSfc, varNames_opt = varNamesToRead,&
                       hInterpolateDegree_opt = statevector_out_r4%hInterpolateDegree,   &
@@ -527,7 +527,7 @@ module gridStateVectorFileIO_mod
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
     call gsv_allocate(statevector_vinterp_r4, 1, statevector_out_r4%hco, statevector_out_r4%vco, &
-                      dateStamp_opt=statevector_out_r4%datestamplist(stepIndex),                 &
+                      dateStampList_opt=statevector_out_r4%datestamplist(stepIndex:stepIndex),   &
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead)
 
@@ -1466,7 +1466,7 @@ module gridStateVectorFileIO_mod
         ! allocate stateVector for storing just 1 time step
         if (batchIndex == 1) then
           call gsv_allocate(stateVector_1step_r4, 1, stateVectorTrial_ptr%hco,                &
-                            stateVectorTrial_ptr%vco, dateStamp_opt = dateStamp,              &
+                            stateVectorTrial_ptr%vco, dateStampList_opt = (/dateStamp/),          &
                             mpi_local_opt = .false., dataKind_opt = 4,                        &
                             allocHeightSfc_opt=allocHeightSfc, varNames_opt = varNamesToRead, &
                             hInterpolateDegree_opt = stateVectorTrial_ptr%hInterpolateDegree, &
@@ -2810,7 +2810,7 @@ module gridStateVectorFileIO_mod
 
       if (stateVector%dataKind == 8) then
         call gsv_getField(stateVector, field_r8, varName)
-        gd_send_r4(1:stateVector%lonPerPE, 
+        gd_send_r4(1:stateVector%lonPerPE, &
                    1:stateVector%latPerPE) =  &
             real(field_r8(stateVector%myLonBeg : stateVector%myLonEnd, &
                           stateVector%myLatBeg : stateVector%myLatEnd, levIndex, stepIndex), 4)
