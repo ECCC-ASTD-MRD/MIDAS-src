@@ -497,7 +497,7 @@ contains
       write(*,*) 'count the number of reports'
       count_obs = .false.
     end if
-          
+
     call reg_init_struct(lsc, r0_count_km, r1_dum, rz_dum)
     if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ', lsc%nlatband
     nsize = lsc%nlatband
@@ -524,14 +524,16 @@ contains
     nrep_count = 0
     nobs_count = 0
 
-    allocate(numHeaderPerTovsInstBeforeThin(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsInstBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsInstAfterThin(nblocksum,tvs_nsensors))
-    allocate(numHeaderPerTovsInstAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
-    numHeaderPerTovsInstBeforeThin(:,:) = 0
-    numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:) = 0
-    numHeaderPerTovsInstAfterThin(:,:) = 0
-    numHeaderPerTovsInstAfterThin_mpiGlobal(:,:) = 0
+    if (cfam == 'TO') then
+      allocate(numHeaderPerTovsInstBeforeThin(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstAfterThin(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
+      numHeaderPerTovsInstBeforeThin(:,:) = 0
+      numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:) = 0
+      numHeaderPerTovsInstAfterThin(:,:) = 0
+      numHeaderPerTovsInstAfterThin_mpiGlobal(:,:) = 0
+    end if
 
     allocate(nstation(nblocksum, npres))
     allocate(keep_ai(nblocksum, npres))
@@ -542,7 +544,7 @@ contains
 
     allocate(ai_indices(numHeader,3))
 
-    if (cfam /='TO') then
+    if (cfam /= 'TO') then
       if (present(codtyp_opt)) then
         call utl_abort('thining_fam: codtyp_opt argument only allowed for TO family')
       end if
@@ -561,11 +563,11 @@ contains
 
     header_loop: do headerIndex = 1, numHeader
       codtyp = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
-      if ( (cfam=='AI' .and. (codtyp==42  .or. codtyp==128 .or. &
-                              codtyp==157 .or. codtyp==177)) .or. &
-            (cfam=='SC' .and. codtyp==254) .or. &
-            (cfam=='SW' .and. (codtyp==88  .or. codtyp==188)) .or. &
-            (cfam=='TO' .and. tvs_isIdBurpTovs(codtyp)) ) then
+      if ((cfam == 'AI' .and. (codtyp == 42  .or. codtyp == 128 .or. &
+                               codtyp == 157 .or. codtyp == 177)) .or. &
+          (cfam == 'SC' .and. codtyp == 254) .or. &
+          (cfam == 'SW' .and. (codtyp == 88  .or. codtyp == 188)) .or. &
+          (cfam == 'TO' .and. tvs_isIdBurpTovs(codtyp))) then
 
         ! skip this header if does not match the supplied codtyp(s)
         if (present(codtyp_opt)) then
@@ -637,28 +639,23 @@ contains
     call rpn_comm_allreduce(nobs_count, nobs_count_mpiGlobal, 1,  &
                             'mpi_integer','mpi_sum', 'GRID', ierr)
 
-    if (cfam=='TO') then
-      nsize = nblocksum * tvs_nsensors
-      
-      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
-    end if
-
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
           nrep_count, nrep_count_mpiGlobal
     allocate(ranvals(nrep_count))
     write(*,*) 'total number of ', cfam, ' observations (local and mpiglobal): ',  &
           nobs_count, nobs_count_mpiGlobal
 
-    if (cfam=='TO') then
+    if (cfam == 'TO') then
+      nsize = nblocksum * tvs_nsensors
+      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
+
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
                     sum(numHeaderPerTovsInstBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex))
       end do
-    end if
 
-    if (cfam=='TO') then
       ! Create a unique list of instruments with non-zero number of headers
       instNameUniqueList(:) = ''
       numInstNameUniqueList = 1
@@ -813,9 +810,11 @@ contains
     n_count_thin = 0
     do iblock = 1, nblocksum
       do ipres = 1, npres
-        if (nstationMpiGlobal(iblock,ipres) .ge. 1) then
-          !if (mmpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
-          !           nstationMpiGlobal(iblock,ipres)
+        if (nstationMpiGlobal(iblock,ipres) >= 1) then
+          if (.not. beSilent .and. mmpi_myid == 0) then
+            write(*,*) 'block ipres and count: ',iblock, ipres, nstationMpiGlobal(iblock,ipres)
+          end if
+
           if (nstationMpiGlobal(iblock,ipres) > n_target) then
             keep_ai(iblock,ipres) = dble(n_target) / dble(nstationMpiGlobal(iblock,ipres))
             n_count_thin = n_count_thin + n_target
@@ -874,18 +873,16 @@ contains
     call rpn_comm_allreduce(nobs_count_thin, nobs_count_thin_mpiGlobal, 1,  &
                             'mpi_integer','mpi_sum', 'GRID', ierr)
     
-    if (cfam=='TO') then
-      nsize = nblocksum * tvs_nsensors
-
-      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
-                              "mpi_integer", "mpi_sum", "grid", ierr)
-    end if
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
           nrep_count_thin, nrep_count_thin_mpiGlobal
     write(*,*) 'True remaining number of ', cfam, ' observations (local, mpiGlobal): ',  &
           nobs_count_thin, nobs_count_thin_mpiGlobal
 
-    if (cfam=='TO') then
+    if (cfam == 'TO') then
+      nsize = nblocksum * tvs_nsensors
+      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
+
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
                     inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
@@ -979,10 +976,12 @@ contains
     deallocate(keep_ai)
     deallocate(ai_indices)
 
-    deallocate(numHeaderPerTovsInstBeforeThin)
-    deallocate(numHeaderPerTovsInstBeforeThin_mpiGlobal)
-    deallocate(numHeaderPerTovsInstAfterThin)
-    deallocate(numHeaderPerTovsInstAfterThin_mpiGlobal)
+    if (cfam == 'TO') then
+      deallocate(numHeaderPerTovsInstBeforeThin)
+      deallocate(numHeaderPerTovsInstBeforeThin_mpiGlobal)
+      deallocate(numHeaderPerTovsInstAfterThin)
+      deallocate(numHeaderPerTovsInstAfterThin_mpiGlobal)
+    end if
 
   end subroutine thinning_fam
 
