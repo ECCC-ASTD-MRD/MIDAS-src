@@ -132,7 +132,6 @@ program midas_prepcma
   real(8) :: nto_pmax(1) = (/ 0.0 /)
   character(len=codtyp_name_length) :: tovsInstName
   character(len=codtyp_name_length), allocatable :: tovsInstNameList(:)
-  logical, allocatable :: tovsInstAlreadyProcessed(:)
 
   ! Namelist variables:
   integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst
@@ -299,13 +298,9 @@ program midas_prepcma
         call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
         write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', &
                     tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
-        allocate(tovsInstAlreadyProcessed(numTovsInstNameList))
-        tovsInstAlreadyProcessed(:) = .false.
 
-        loopSensor0: do sensorIndex = 1, numTovsInstNameList
+        do sensorIndex = 1, numTovsInstNameList
           tovsInstName = trim(tovsInstNameList(sensorIndex))
-
-          if (tovsInstAlreadyProcessed(sensorIndex) == .true.) cycle loopSensor0
 
           maxNumHeaderPerInst = getMaxNumHeadersForTovsInst(tovsInstName)
 
@@ -315,11 +310,7 @@ program midas_prepcma
                             codtyp_opt=codtyp_get_codtyp(tovsInstName))
 
           matchIndex = utl_findloc(tovsInstNameList,tovsInstName)
-          tovsInstAlreadyProcessed(matchIndex) = .true.
-
-        end do loopSensor0
-
-        deallocate(tovsInstAlreadyProcessed)
+        end do
 
       else ! if (thinTovsPerInst)
         call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
