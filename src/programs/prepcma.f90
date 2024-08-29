@@ -1062,6 +1062,9 @@ contains
       end if ! doTovsPerInst
     end if ! mmpi_myid
 
+    deallocate(numHeadersFoundInBlock)
+    deallocate(numHeadersFoundInBlock_mpiGlobal)
+
   end subroutine printToListingsForTovs
 
 end program
