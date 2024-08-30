@@ -1,7 +1,7 @@
  &NAMLETKF
    algorithm           = 'LETKF'
    ensPostProcessing   = .true.
-   recenterInputEns    = .true.
+   recenterInputEns    = .false.
    NENS                = 20
    maxNumLocalObs      = 5000
    weightLatLonStep    = 4
@@ -14,7 +14,7 @@
    rejectHighLatIR     = .false.
    rejectRadNearSfc    = .false.
    ignoreEnsDate       = .false.
-   outputOnlyEnsMean   = .true.
+   outputOnlyEnsMean   = .false.
    obsTimeInterpType   = 'LINEAR'
    mpiDistribution     = 'ROUNDROBIN'
 /
@@ -33,10 +33,7 @@
 /
  &NAMSTATE
    anlvar(1) = 'TM'
-   anlvar(2) = 'SALW'
-   anlvar(3) = 'UUW'
-   anlvar(4) = 'VVW'
-   anlvar(5) = 'SSH'
+   anlvar(2) = 'SSH'
 /
  &NAMDIMO
    NMXOBS  = 1500000
@@ -83,4 +80,7 @@
 /
  &nams2c
   rejectObsOutsideGlobalGrid = .true.
+/
+ &namensstate
+ maxVarLevGroups = 1
 /

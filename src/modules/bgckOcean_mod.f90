@@ -188,7 +188,7 @@ module bgckOcean_mod
       
       ! amplification error field state vector  
       call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
-                        hInterpolateDegree_opt = 'LINEAR', datestamp_opt = dateStamp, &
+                        hInterpolateDegree_opt = 'LINEAR', dateStampList_opt = (/dateStamp/), &
                         mpi_local_opt = .true., varNames_opt = (/'TM'/))
       call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
       stateVectorAmplFactor_ptr(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1) = 1.0d0

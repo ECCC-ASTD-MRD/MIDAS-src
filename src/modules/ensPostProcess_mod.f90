@@ -552,7 +552,7 @@ contains
                         dateStampListInc, varNames_opt=varNames)
       call ens_copy(ensembleTrl,ensembleAnlInc)
       deallocate(varNames)
-
+      
       ! Compute the ensemble increments
       call ens_add(ensembleAnl, ensembleAnlInc, scaleFactorInOut_opt=-1.0D0)
       
@@ -796,6 +796,13 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
+	    
+	    if (writeNetCDFInc) then
+	      call gio_writeToFileNetCDF(stateVectorMeanInc4D, outFileName, &
+	                                 dateStampListInc(stateVectorMeanInc4D%anltime), &
+                                         stepIndex_opt = stepIndex, &
+					 containsFullField_opt = .false.)
+            end if
           end do
           if (writeNetCDFInc) then
             call utl_abort('epp_postProcess: output netCDF file requested but not required.')
@@ -812,10 +819,15 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
+            
+	    if (writeNetCDFInc) then
+	      call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+	                                 dateStampListInc(stateVectorMeanInc%anltime), &
+                                         stepIndex_opt = stepIndex, &
+					 containsFullField_opt = .false.)
+            end if
           end do
-          
-          if (writeNetCDFInc) call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-                                                         containsFullField_opt = .false.)
+	  
         end if
 
         call utl_tmg_stop(5)

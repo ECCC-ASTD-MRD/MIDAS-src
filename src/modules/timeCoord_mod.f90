@@ -24,7 +24,7 @@ module timeCoord_mod
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
-  public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate
+  public :: tim_yyyymmddhhToDatestamp, tim_getHoursSinceReferenceDate, tim_getSecondsSinceReferenceDate
 
   ! Private variables
   character(len=4) :: varNameForDate
@@ -112,7 +112,7 @@ contains
       tim_dstepobsinc = tim_windowsize 
     end if
      
-    if (tim_referenceTime == 'middle') then
+    if (tim_referenceTime == 'middle' .or. trim(tim_referenceTime) == 'end') then
 
       tim_nstepobs    = 2 * nint(((tim_windowsize - tim_dstepobs) / 2.d0) / tim_dstepobs) + 1
       tim_nstepobsinc = 2 * nint(((tim_windowsize - tim_dstepobsinc) / 2.d0) / tim_dstepobsinc) + 1
@@ -120,11 +120,6 @@ contains
     else if (trim(tim_referenceTime) == 'start') then
 
       tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs), 1)
-      tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
-
-    else if (trim(tim_referenceTime) == 'end') then
-
-      tim_nstepobs = max(nint(tim_windowsize / tim_dstepobs) + 1, 1)
       tim_nstepobsinc = max(nint(tim_windowsize / tim_dstepobsinc), 1)
 
     end if
@@ -481,22 +476,24 @@ contains
         end do
 
       else if (trim(tim_referencetime) == 'end') then
-     
-        if (numStep > 1) then
-          dtstep = tim_windowsize / (real(numStep - 1, 8))
-        else
-          dtstep = tim_windowsize
-        end if
-	
-        call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
-     
-        do stepIndex = 2, numStep
-          call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
-        end do
-
+        
+	if (numStep > 1) then
+        
+	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
+        
+	  dtstep = tim_windowsize / (real(numStep - 1, 8))     
+        
+	  do stepIndex = 2, numStep
+            call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
+          end do
+        
+	else
+	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize/2)
+	end if
+      
       end if
-
-    end if
+      
+    end if ! datestamp is specified or not
     
     call msg('tim_getStampList', 'datestamp list of '//str(numStep)//' (numStep) states:')
     imode = -3
@@ -777,7 +774,7 @@ contains
   end function tim_yyyymmddhhToDatestamp
 
   !----------------------------------------------------------------------------------------
-  ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
+  ! tim_getHoursSinceReferenceDate(currentDate, referenceDate)
   !----------------------------------------------------------------------------------------
   subroutine tim_getHoursSinceReferenceDate(currentDateStamp, referenceDate, numberHours)
     !
@@ -792,15 +789,45 @@ contains
     ! Locals:
     integer :: ierr, imode, refDateStamp, newdate
     
+    write(*,*) 'tim_getHoursSinceReferenceDate: reference date: ', referenceDate 
+    imode = 3
+    ierr = newdate(refDateStamp, referenceDate, 0, imode)
+    write(*,*) 'tim_getHoursSinceReferenceDate: reference datestamp: ', refDateStamp
+
+    ! Difference (in hours) between current date and reference date
+    call difdat(currentDateStamp, refDateStamp, numberHours)
+    write(*,*) 'tim_getHoursSinceReferenceDate: difference in hours: ', numberHours
+
+  end subroutine tim_getHoursSinceReferenceDate
+
+  !----------------------------------------------------------------------------------------
+  ! tim_getSecondsSinceReferenceDate(currentDate, referenceDate)
+  !----------------------------------------------------------------------------------------
+  subroutine tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDate, numberSeconds)
+    !
+    ! :Purpose: to compute number of seconds in integer(8) between current and reference date.
+    !
+    implicit none
+  
+    integer, intent(in)  :: currentDateStamp ! current datestamp
+    integer, intent(in)  :: referenceDate    ! date in print format yyyyddmm defined in namEnsPostProcModule namelist
+    integer(8), intent(out) :: numberSeconds
+
+    ! Locals:
+    integer :: ierr, imode, refDateStamp, newdate
+    real(8) :: numberHours
+    
     write(*,*) 'tim_getSecondsSinceReferenceDate: reference date: ', referenceDate 
     imode = 3
     ierr = newdate(refDateStamp, referenceDate, 0, imode)
     write(*,*) 'tim_getSecondsSinceReferenceDate: reference datestamp: ', refDateStamp
 
     ! Difference (in hours) between current date and reference date
-    call difdat(currentDateStamp, refDateStamp, numberHours)
+    call difdatr(currentDateStamp, refDateStamp, numberHours)
     write(*,*) 'tim_getSecondsSinceReferenceDate: difference in hours: ', numberHours
+    
+    numberSeconds = int(numberHours * 3600.0d0 , 8)
 
-  end subroutine tim_getHoursSinceReferenceDate
+  end subroutine tim_getSecondsSinceReferenceDate
 
 end module timeCoord_mod

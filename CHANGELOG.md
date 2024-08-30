@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Modified functionality of `dateStamp_opt` in `gsv_allocate` (#960 and !872)
  * Optimize writing of ensemble members by distributing all `varLev`s across MPI processes (#943 and !858) 
    * New namelist variable `maxVarLevGroups` in `NAMENSSTATE` to control the maximum number of `varLev`s groups.
  * Merge of `tovsNL_mod` and `tovsLin_mod` into `tovs_mod` (#956 and !871)
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * NEMO netCDF file input/output bug fixes (#960 and !872)  
  * Dynamically compute dimensions of `procIndexesSendMpiGlobal` (#950 and !866)
  * Added missing file open/close in `bCovarSetupChem_mod.f90` (#949 and !864)
    * Also fixed incorrect intent for `ni/nj/nk` in `utl_fstlir`

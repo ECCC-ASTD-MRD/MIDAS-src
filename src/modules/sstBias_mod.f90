@@ -438,13 +438,13 @@ module sstBias_mod
     if (saveAuxFields) then
       ! output nobs state vector
       call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 4, &
-                        datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                        dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for nobs stateVector
       call gsv_getField(stateVectorNobs, nobsField_r4_ptr)
       ! output weight state vector
       call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 4, &
-                        datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
+                        dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for weight stateVector
       call gsv_getField(stateVectorWeight, weightField_r4_ptr)
@@ -461,7 +461,7 @@ module sstBias_mod
        
     ! resulting bias estimation state vector
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
     
@@ -773,7 +773,7 @@ module sstBias_mod
 
     ! resulting bias estimation state vector
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
         

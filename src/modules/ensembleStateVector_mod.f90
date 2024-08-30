@@ -2564,20 +2564,20 @@ CONTAINS
 
           ! allocate the needed statevector objects
           call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,                          &
-                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false.,   &
+                            dateStampList_opt = dateStampList(stepIndex:stepIndex), mpi_local_opt = .false.,   &
                             varNames_opt = varNames, dataKind_opt = 4,                           &
                             hInterpolateDegree_opt = ens%hInterpolateDegree,                     &
                             allocHeightSfc_opt= allocHeightSfc)
           if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
             call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,                        &
-                              datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                              dateStampList_opt = dateStampList(stepIndex:stepIndex), mpi_local_opt = .false., &
                               varNames_opt = varNames, dataKind_opt = 4,                         &
                               hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
                               allocHeightSfc_opt= allocHeightSfc)
           end if
           if (verticalInterpNeeded) then
             call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,                         &
-                              datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                              dateStampList_opt = dateStampList(stepIndex:stepIndex), mpi_local_opt = .false., &
                               varNames_opt = varNames, dataKind_opt = 4,                         &
                               hInterpolateDegree_opt = ens%hInterpolateDegree,                   &
                               allocHeightSfc_opt= allocHeightSfc)
@@ -3002,7 +3002,7 @@ CONTAINS
 
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,                    &
-                        datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                        dateStampList_opt=dateStampList(stepIndex:stepIndex), mpi_local_opt=.false., &
                         varNames_opt=varNamesInEns, dataKind_opt=4,                    & 
                         allocHeightSfc_opt=writeHeightSfc)
 
@@ -3165,13 +3165,15 @@ CONTAINS
                              writeHeightSfc_opt = writeHeightSfc,                          &
                              varLevIndexBeg_opt = varLevIndexBeg,                          &
                              varLevIndexEnd_opt = varLevIndexEnd,                          &
-                             doWriteTicTacToc_opt = ( varLevIndexBeg == 1 ) ) ! We do write the 'tic-tac-toc' only the first time we write that statevector
+                             doWriteTicTacToc_opt = (varLevIndexBeg == 1)) ! We do write the 'tic-tac-toc' only the first time we write that statevector
 
         if (writeNetCDF) then
           call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
+	                             dateStampList(ens%statevector_work%anltime), &
                                      containsFullField_opt = containsFullField, &
                                      varLevIndexBeg_opt = varLevIndexBeg,       &
-                                     varLevIndexEnd_opt = varLevIndexEnd)
+                                     varLevIndexEnd_opt = varLevIndexEnd,       &
+				     timeCounter_opt = stepIndex)
         end if
 
       end do batchLoop

@@ -52,7 +52,7 @@ module oceanBackground_mod
     write(*,*) 'obgd_computeSSTrial: starting...'  
       
     ! get SST analysis
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, datestamp_opt = analysisDateStamp, &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, dateStampList_opt = (/analysisDateStamp/), &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './analysis', ' ','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
@@ -120,7 +120,7 @@ module oceanBackground_mod
     ! get climatology, current month
     write(*,*) 'obgd_getClimatology: reading climatology, month: ', month, ', datestamp: ', datestampClim(month) 
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = datestampClim(month), mpi_local_opt = .true., &
+                      dateStampList_opt = datestampClim(month:month), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
@@ -129,7 +129,7 @@ module oceanBackground_mod
     ! get climatology, next month
     write(*,*) 'obgd_getClimatology: reading climatology, month: ', nextMonth, ', datestamp: ', datestampClim(nextMonth) 
     call gsv_allocate(stateVector_nextMonth, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = datestampClim(nextMonth), mpi_local_opt = .true., &
+                      dateStampList_opt = datestampClim(nextMonth:nextMonth), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector_nextMonth, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)

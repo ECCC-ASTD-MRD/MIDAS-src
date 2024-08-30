@@ -1065,7 +1065,7 @@ module gridStateVector_mod
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
     else if (present(dateStamp_opt)) then
       allocate(statevector%dateStampList(numStep))
-      if (numStep == 1) then
+      if (numStep == 1 .and. dateStamp_opt <= 0) then
         statevector%dateStampList(1) = dateStamp_opt
       else
         call tim_getstamplist(statevector%dateStampList,numStep,dateStamp_opt)
