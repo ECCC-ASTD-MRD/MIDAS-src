@@ -243,7 +243,10 @@ program midas_prepcma
   end if
 
   !- Initialize TOVS processing
-  if (obs_famExist(obsSpaceData,'TO')) call tvs_setup
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call tvs_setup
+    call checkTovsInstNamesInNml()
+  end if
 
   !- Select the elements to assimilate and apply rejection flags
   if (suprep) call filt_suprep(obsSpaceData)
@@ -767,6 +770,41 @@ contains
     end do loopSensor3
 
   end subroutine getTovsInstNameList
+
+  !----------------------------------------------------------------------
+  ! checkTovsInstNamesInNml
+  !----------------------------------------------------------------------
+  subroutine checkTovsInstNamesInNml()
+    !
+    ! :Purpose: Perform the following checks on namelist variable tovsInstNamesWithMaxNumHeaders: 
+    !           1- no duplicate in the list; 2- amsub is not present in the list. 
+    !
+    implicit none
+
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2
+
+    ! check no duplicate in instrument names in nml
+    loopSensor4: do sensorIndex = 1, tvs_nsensors
+      do sensorIndex2 = sensorIndex + 1, tvs_nsensors
+        if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) /= 'NOT_DEFINED') then
+          if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == trim(tovsInstNamesWithMaxNumHeaders(sensorIndex2))) then
+            write(*,*) trim(tovsInstNamesWithMaxNumHeaders(sensorIndex))
+            call utl_abort('checkTovsInstNamesInNml: duplicate instrument names exist in tovsInstNamesWithMaxNumHeaders')
+          end if
+        else
+          exit loopSensor4
+        end if
+      end do
+    end do loopSensor4
+
+    do sensorIndex = 1, tvs_nsensors
+      if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == 'amsub') then
+        call utl_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')        
+      end if
+    end do
+
+  end subroutine checkTovsInstNamesInNml
 
   !----------------------------------------------------------------------
   ! getMaxNumHeadersForTovsInst
