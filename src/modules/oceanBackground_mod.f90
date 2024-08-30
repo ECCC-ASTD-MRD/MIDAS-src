@@ -29,8 +29,10 @@ module oceanBackground_mod
   subroutine obgd_computeSSTrial(hco, vco, trialDateStamp, analysisDateStamp, &
                                  nmonthsClim, datestampClim, alphaClim, etiket)
     !
-    !: Purpose: to compute SST background   
-    !           xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)             
+    !: Purpose: 1) to compute SST analysis anomaly w.r.t. climatology
+    !              x_anomaly(t-1) = (xa(t-1) - xclim(t-1))
+    !           2) to compute SST background   
+    !              xb(t) = x_anomaly(t-1) * alpha + xclim(t)             
     implicit none
 
     ! Arguments:
@@ -44,19 +46,31 @@ module oceanBackground_mod
     character(len=10)        , intent(in) :: etiket            ! etiket from namelist and for trial
     
     ! Locals:
-    type(struct_gsv) :: stateVector
-    real(4), pointer :: stateVector_ptr(:, :, :)
+    type(struct_gsv) :: stateVector, stateVectorAnomaly 
+    real(4), pointer :: stateVector_ptr(:, :, :), stateVectorAnomaly_ptr(:, :, :)
     integer          :: lonIndex, latIndex
     real(8)          :: climatology_m1(hco % ni, hco % nj), climatology(hco % ni, hco % nj)
     
     write(*,*) 'obgd_computeSSTrial: starting...'  
       
     ! get SST analysis
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, dateStampList_opt = (/analysisDateStamp/), &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+                      dateStampList_opt = (/analysisDateStamp/), &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './analysis', ' ','A', &
-                          unitConversion_opt=.false., containsFullField_opt=.true.)
+                          unitConversion_opt=.false., &
+                          containsFullField_opt=.true.)
     call gsv_getField(stateVector, stateVector_ptr)
+
+    ! allocate state vector for analysis anomaly
+    call gsv_allocate(stateVectorAnomaly, 1, hco, vco, dataKind_opt = 4, &
+                      dateStampList_opt = (/analysisDateStamp/), &
+                      mpi_local_opt = .true., varNames_opt = (/'TM'/))
+    ! read analysis to get the mask
+    call gio_readFromFile(stateVectorAnomaly, './analysis', ' ','A', &
+                          unitConversion_opt=.false., &
+                          containsFullField_opt=.true.)
+    call gsv_getField(stateVectorAnomaly, stateVectorAnomaly_ptr)
     
     call obgd_getClimatology(analysisDateStamp, hco, vco, nmonthsClim, datestampClim, climatology_m1)
     call obgd_getClimatology(trialDateStamp   , hco, vco, nmonthsClim, datestampClim, climatology)
@@ -65,19 +79,24 @@ module oceanBackground_mod
     ! xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
-        stateVector_ptr(lonIndex, latIndex, 1) = (stateVector_ptr(lonIndex, latIndex, 1) - &
-                                                 climatology_m1(lonIndex, latIndex)) * &
+        stateVectorAnomaly_ptr(lonIndex, latIndex, 1) = stateVectorAnomaly_ptr(lonIndex, latIndex, 1) - &
+                                                        climatology_m1(lonIndex, latIndex)
+        stateVector_ptr(lonIndex, latIndex, 1) = stateVectorAnomaly_ptr(lonIndex, latIndex, 1) * &
                                                  alphaClim + climatology(lonIndex, latIndex)
       end do
     end do      	 
-  
+
+    ! save analysis anomaly in RPN standard file
+    call gio_writeToFile(stateVectorAnomaly, './analysis_anomaly', etiket, typvar_opt = 'A@')
+
     ! modify dateStamp (from analysis) with trial dateStamp
     call gsv_modifyDate(stateVector, trialDateStamp, modifyDateOrigin_opt = .true.)
     
-    ! save trial field
+    ! save trial field in RPN standard file
     call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
     call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVectorAnomaly)
 
   end subroutine obgd_computeSSTrial
   
