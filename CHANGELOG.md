@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Modified functionality of `dateStamp_opt` in `gsv_allocate` (#960 and !872)
  * Optimize writing of ensemble members by distributing all `varLev`s across MPI processes (#943 and !858) 
    * New namelist variable `maxVarLevGroups` in `NAMENSSTATE` to control the maximum number of `varLev`s groups.
  * Merge of `tovsNL_mod` and `tovsLin_mod` into `tovs_mod` (#956 and !871)
