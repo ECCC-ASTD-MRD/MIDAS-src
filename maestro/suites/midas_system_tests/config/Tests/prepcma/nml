@@ -16,6 +16,8 @@
    writeObsFiles           = .true.
    writeAsciiCmaFiles      = .false.
    thinTovsPerInst         = .true.
+   tovsInstNamesWithMaxNumHeaders(1) = 'mhs'
+   maxNumHeadersForTovsInst(1) = 9
 /
  &NAMDIMO
    NMXOBS  = 100000,
