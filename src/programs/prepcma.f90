@@ -403,7 +403,7 @@ contains
     real(8),           intent(in)    :: n_pmax(:)   ! pressure levels that separate vertical layers for the thinning
     integer,           intent(in)    :: n_target    ! maximum desired amount of data per 3-D box
     character(len=2),  intent(in)    :: cfam        ! family type
-    integer, optional, intent(in)    :: codtyp_opt
+    integer, optional, intent(in)    :: codtyp_opt  ! optional supplied codtyp
 
     ! Locals:
     type(struct_reg) :: lsc
@@ -852,13 +852,13 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=codtyp_name_length), intent(in) :: instName
-    integer,                           intent(in) :: nblocksum
-    integer,                           intent(in) :: numHeaderPerTovsInst(:,:)
-    integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:)
-    logical,                           intent(in) :: thinTovsPerInst ! do thinning for tovs per instrument independently
-    logical,                           intent(out) :: headerFoundForInst
-    logical, optional,                 intent(in) :: ifAfterThinning_opt
+    character(len=codtyp_name_length), intent(in) :: instName                  ! instrument name
+    integer,                           intent(in) :: nblocksum                 ! sum of number of regions over all TOVS
+    integer,                           intent(in) :: numHeaderPerTovsInst(:,:) ! local number of headers per instrument
+    integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:) ! global number of headers per instrument
+    logical,                           intent(in) :: thinTovsPerInst           ! do thinning for tovs per instrument independently
+    logical,                           intent(out) :: headerFoundForInst       ! if headers found for instrument
+    logical, optional,                 intent(in) :: ifAfterThinning_opt       ! if subroutine called after thinning is performed
 
     ! Locals:
     integer :: sensorIndex, sensorIndex2, numInstNameUniqueListWithHeader, numMatchFound, matchFoundIndex
