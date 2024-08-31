@@ -436,6 +436,7 @@ contains
     real(8), parameter :: rz_dum = 1.0
 
     beSilent = (.not. firstCall) 
+    if (firstCall) firstCall = .false.
 
     numHeader = obs_numheader(obsSpaceData)
     npres = size(n_pmax,1) 
@@ -700,8 +701,6 @@ contains
       end if
 
     end if ! cfam=='TO'
-
-    if (firstCall) firstCall = .false.
 
     deallocate(ranvals)
     deallocate(latmin)
