@@ -311,8 +311,6 @@ program midas_prepcma
 
           call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
                             codtyp_opt=codtyp_get_codtyp(tovsInstName))
-
-          matchIndex = utl_findloc(tovsInstNameList,tovsInstName)
         end do
 
       else ! if (thinTovsPerInst)
