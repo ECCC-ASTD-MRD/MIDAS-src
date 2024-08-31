@@ -422,7 +422,7 @@ contains
     integer :: tovsIndex, sensorIndex
     integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
-    logical :: doTovsPerInst, headerFoundForInst
+    logical :: thinTovsPerInst, headerFoundForInst
     character(len=codtyp_name_length) :: instName
     logical, save :: firstCall = .true.
 
@@ -502,10 +502,10 @@ contains
       end if
     end if
 
-    doTovsPerInst = .false.
+    thinTovsPerInst = .false.
     instName = ''
     if (present(codtyp_opt)) then
-      doTovsPerInst = .true.
+      thinTovsPerInst = .true.
       instName = codtyp_get_name(codtyp_opt)
     end if
 
@@ -601,7 +601,7 @@ contains
       end do
 
       call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstBeforeThin, &
-                                  numHeaderPerTovsInstBeforeThin_mpiGlobal, doTovsPerInst, &
+                                  numHeaderPerTovsInstBeforeThin_mpiGlobal, thinTovsPerInst, &
                                   headerFoundForInst)
 
       if (.not. headerFoundForInst) return
@@ -691,7 +691,7 @@ contains
       end do
 
       call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstAfterThin, &
-                                  numHeaderPerTovsInstAfterThin_mpiGlobal, doTovsPerInst, &
+                                  numHeaderPerTovsInstAfterThin_mpiGlobal, thinTovsPerInst, &
                                   headerFoundForInst, ifAfterThinning_opt=.true.)
 
       if (.not. headerFoundForInst) then
@@ -844,7 +844,7 @@ contains
   ! printToListingsForTovs
   !----------------------------------------------------------------------
   subroutine printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInst, &
-                                    numHeaderPerTovsInst_mpiGlobal, doTovsPerInst, &
+                                    numHeaderPerTovsInst_mpiGlobal, thinTovsPerInst, &
                                     headerFoundForInst, ifAfterThinning_opt)
     !
     ! :Purpose: Print to the listings for TOVS instrument.
@@ -856,7 +856,7 @@ contains
     integer,                           intent(in) :: nblocksum
     integer,                           intent(in) :: numHeaderPerTovsInst(:,:)
     integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:)
-    logical,                           intent(in) :: doTovsPerInst
+    logical,                           intent(in) :: thinTovsPerInst ! do thinning for tovs per instrument independently
     logical,                           intent(out) :: headerFoundForInst
     logical, optional,                 intent(in) :: ifAfterThinning_opt
 
@@ -920,7 +920,7 @@ contains
                       numHeadersFound, numHeadersFound_mpiGlobal
         end if
 
-        if (doTovsPerInst) then
+        if (thinTovsPerInst) then
           if (numInstNameUniqueListWithHeader == 1) then
             if (trim(instNameUniqueListWithHeader(1)) /= trim(instName)) then
               write(*,*) 'instName=', instName
@@ -929,11 +929,11 @@ contains
           else
             call utl_abort('printToListingsForTovs: numInstNameUniqueListWithHeader > 1')
           end if
-        end if ! doTovsPerInst
+        end if ! thinTovsPerInst
 
       else
         ! return because there is no header for this instrument
-        if (doTovsPerInst) then
+        if (thinTovsPerInst) then
           write(*,*) 'no headers found for ', trim(instNameUniqueListWithHeader(sensorIndex2)), ', returning ...'
           headerFoundForInst = .false.
           return
@@ -990,7 +990,7 @@ contains
 
     ! print counts per block per sensor
     if (mmpi_myid == 0) then
-      if (doTovsPerInst) then
+      if (thinTovsPerInst) then
         if (.not. ifAfterThinning) then
           write(*,'(a,1x,a)') 'before thinning global one instr:', trim(instNameUniqueListWithHeader(1))
         else
@@ -1042,7 +1042,7 @@ contains
           write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
         end do
         write(*,*)
-      end if ! doTovsPerInst
+      end if ! thinTovsPerInst
     end if ! mmpi_myid
 
     deallocate(numHeadersFoundInBlock)
