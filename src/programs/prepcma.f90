@@ -123,7 +123,7 @@ program midas_prepcma
   integer, parameter :: nsc_target = 10
   integer, parameter :: nsw_target = 6
   integer, parameter :: nto_target = 6 
-  integer :: numTovsInstNameList, sensorIndex, matchIndex
+  integer :: numTovsInstNameList, sensorIndex
   integer :: maxNumHeaderPerInst
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
   real(8) :: nsw_pmax(npres_sw) = (/ 60000.0, 110000.0/)
