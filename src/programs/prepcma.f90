@@ -864,11 +864,11 @@ contains
     logical, optional,                 intent(in) :: ifAfterThinning_opt
 
     ! Locals:
-    integer :: sensorIndex, sensorIndex2, numInstNameUniqueList, numMatchFound, matchFoundIndex
+    integer :: sensorIndex, sensorIndex2, numInstNameUniqueListWithHeader, numMatchFound, matchFoundIndex
     integer :: iblock, numHeadersFound, numHeadersFound_mpiGlobal
     integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
     logical :: ifAfterThinning
-    character(len=codtyp_name_length) :: instNameUniqueList(tvs_nsensors)
+    character(len=codtyp_name_length) :: instNameUniqueListWithHeader(tvs_nsensors)
 
     if (present(ifAfterThinning_opt)) then
       ifAfterThinning = ifAfterThinning_opt
@@ -879,34 +879,35 @@ contains
     ifReturnToMainProgram = .false.
  
     ! find the first inst with non-zero number of headers
-    instNameUniqueList(:) = ''
-    numInstNameUniqueList = 1
+    instNameUniqueListWithHeader(:) = ''
+    numInstNameUniqueListWithHeader = 1
     loopSensor1: do sensorIndex = 1, tvs_nsensors
       if (sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) > 0) then
-        instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+        instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
         exit loopSensor1
       end if
     end do loopSensor1
 
     ! find rest of the inst with non-zero number of headers
     loopSensor2: do sensorIndex = 1, tvs_nsensors
-      do sensorIndex2 = 1, numInstNameUniqueList
-        if (trim(instNameUniqueList(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
+      do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+        if (trim(instNameUniqueListWithHeader(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
             sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) == 0) then
           cycle loopSensor2
         end if
       end do
 
-      numInstNameUniqueList = numInstNameUniqueList + 1
-      instNameUniqueList(numInstNameUniqueList) = trim(inst_name(tvs_instruments(sensorIndex)))
+      numInstNameUniqueListWithHeader = numInstNameUniqueListWithHeader + 1
+      instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
     end do loopSensor2
 
     if (mmpi_myid == 0) then
-      write(*,*) 'numInstNameUniqueList=', numInstNameUniqueList, ', instNameUniqueList(:)=', instNameUniqueList(:)
+      write(*,*) 'numInstNameUniqueListWithHeader=', numInstNameUniqueListWithHeader, &
+                 ', instNameUniqueListWithHeader(:)=', instNameUniqueListWithHeader(:)
     end if
 
-    do sensorIndex2 = 1, numInstNameUniqueList
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
         numHeadersFound = 0
@@ -917,25 +918,26 @@ contains
         end do
 
         if (mmpi_myid == 0 .and. .not. ifAfterThinning) then
-          write(*,*) 'total number of TO headers (local and mpiglobal) for all ', trim(instNameUniqueList(sensorIndex2)), ':', &
+          write(*,*) 'total number of TO headers (local and mpiglobal) for all ', &
+                      trim(instNameUniqueListWithHeader(sensorIndex2)), ':', &
                       numHeadersFound, numHeadersFound_mpiGlobal
         end if
 
         if (doTovsPerInst) then
-          if (numInstNameUniqueList == 1) then
-            if (trim(instNameUniqueList(1)) /= trim(instName)) then
+          if (numInstNameUniqueListWithHeader == 1) then
+            if (trim(instNameUniqueListWithHeader(1)) /= trim(instName)) then
               write(*,*) 'instName=', instName
-              call utl_abort('printToListingsForTovs: instNameUniqueList(1)) /= instName')
+              call utl_abort('printToListingsForTovs: instNameUniqueListWithHeader(1)) /= instName')
             end if
           else
-            call utl_abort('printToListingsForTovs: numInstNameUniqueList > 1')
+            call utl_abort('printToListingsForTovs: numInstNameUniqueListWithHeader > 1')
           end if
         end if ! doTovsPerInst
 
       else
         ! return because there is no header for this instrument
         if (doTovsPerInst) then
-          write(*,*) 'no headers found for ', trim(instNameUniqueList(sensorIndex2)), ', returning ...'
+          write(*,*) 'no headers found for ', trim(instNameUniqueListWithHeader(sensorIndex2)), ', returning ...'
           ifReturnToMainProgram = .true.
           return
         end if
@@ -944,12 +946,12 @@ contains
     end do ! sensorIndex2
 
     ! compute counts per block per sensor
-    allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueList))
-    allocate(numHeadersFoundInBlock_mpiGlobal(nblocksum,numInstNameUniqueList))
+    allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueListWithHeader))
+    allocate(numHeadersFoundInBlock_mpiGlobal(nblocksum,numInstNameUniqueListWithHeader))
     numHeadersFoundInBlock(:,:) = 0
     numHeadersFoundInBlock_mpiGlobal(:,:) = 0
-    do sensorIndex2 = 1, numInstNameUniqueList
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 
@@ -963,8 +965,8 @@ contains
     end do ! sensorIndex2
 
     ! check the sum over all blocks match the counts per sensor 
-    do sensorIndex2 = 1, numInstNameUniqueList
-      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueList(sensorIndex2))
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
       if (matchIndexList(1) > 0) then
         numMatchFound = size(matchIndexList)
 
@@ -975,7 +977,7 @@ contains
         end do
 
         if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
-          write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', trim(instNameUniqueList(sensorIndex2)), &
+          write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', trim(instNameUniqueListWithHeader(sensorIndex2)), &
                       ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
                       ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
 
@@ -993,17 +995,17 @@ contains
     if (mmpi_myid == 0) then
       if (doTovsPerInst) then
         if (.not. ifAfterThinning) then
-          write(*,'(a,1x,a)') 'before thinning global one instr:', trim(instNameUniqueList(1))
+          write(*,'(a,1x,a)') 'before thinning global one instr:', trim(instNameUniqueListWithHeader(1))
         else
-          write(*,'(a,1x,a)') 'after thinning global one instr:', trim(instNameUniqueList(1))
+          write(*,'(a,1x,a)') 'after thinning global one instr:', trim(instNameUniqueListWithHeader(1))
         end if
 
         do iblock = 1, nblocksum
           if (.not. ifAfterThinning) then
-            write(*,'(a,1x,a,i,a,i)') 'before thinning global', trim(instNameUniqueList(1)), &
+            write(*,'(a,1x,a,i,a,i)') 'before thinning global', trim(instNameUniqueListWithHeader(1)), &
                                       iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
           else
-            write(*,'(a,1x,a,i,a,i)') 'after thinning global', trim(instNameUniqueList(1)), &
+            write(*,'(a,1x,a,i,a,i)') 'after thinning global', trim(instNameUniqueListWithHeader(1)), &
                                       iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
           end if
         end do ! iblock
@@ -1013,8 +1015,8 @@ contains
         else
           write(*,'(a39)',advance='no') 'after thinning global all instr        '
         end if
-        do sensorIndex2 = 1, numInstNameUniqueList
-          write(*,'(a8,1x)',advance='no') trim(instNameUniqueList(sensorIndex2))
+        do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+          write(*,'(a8,1x)',advance='no') trim(instNameUniqueListWithHeader(sensorIndex2))
         end do
         write(*,*)
 
@@ -1025,7 +1027,7 @@ contains
             write(*,'(a32,i6,a)',advance='no') 'after thinning global all instr ', iblock, ':'
           end if
 
-          do sensorIndex2 = 1, numInstNameUniqueList
+          do sensorIndex2 = 1, numInstNameUniqueListWithHeader
             write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
           end do
           write(*,*)
@@ -1039,7 +1041,7 @@ contains
           write(*,'(a39)',advance='no') 'after thinning global all instr MAX    '
         end if
 
-        do sensorIndex2 = 1, numInstNameUniqueList
+        do sensorIndex2 = 1, numInstNameUniqueListWithHeader
           write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
         end do
         write(*,*)
