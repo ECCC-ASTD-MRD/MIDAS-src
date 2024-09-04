@@ -6,6 +6,7 @@
    weightLatLonStep      = 3
    hLocalize             = 200.0D0
    vLocalize             = 2.0D0
+   alphaRandomPertPrior  = 0.25D0
    modifyAmsubObsError   = .false.
    backgroundCheck       = .false.
    huberize              = .false.

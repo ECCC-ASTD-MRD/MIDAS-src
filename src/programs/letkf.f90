@@ -205,7 +205,7 @@ program midas_letkf
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_ocm)          :: oceanMask
 
-  integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
+  integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs, randomSeedRandomPert
   integer :: dateStampFromObs, ierr
   integer :: get_max_rss, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
@@ -236,6 +236,7 @@ program midas_letkf
   logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
+  real(8)  :: alphaRandomPertPrior ! Random perturbation additive inflation coeff applied to trials (0->1)
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
   integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
   logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
@@ -259,7 +260,7 @@ program midas_letkf
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
-                     maxNumLocalObs, weightLatLonStep,  &
+                     maxNumLocalObs, weightLatLonStep, alphaRandomPertPrior, &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
@@ -306,6 +307,7 @@ program midas_letkf
   randomShuffleSubEns      = .false.
   maxNumLocalObs           = 1000
   weightLatLonStep         = 1
+  alphaRandomPertPrior     = 0.0D0
   modifyAmsubObsError      = .false.
   backgroundCheck          = .false.
   huberize                 = .false.
@@ -554,6 +556,14 @@ program midas_letkf
     call gsv_copy(stateVectorMeanTrl4D, stateVectorMeanAnl)
   end if
   
+  !- 2.14 Add posterior random additive inflation, if requested
+  if (alphaRandomPertPrior > 0.0D0) then
+    call msg('midas-letkf', 'Apply random additive inflation to prior ensemble.')
+    randomSeedRandomPert = 1
+    call epp_addRandomPert(ensembleTrl4D, stateVectorMeanTrl4D, alphaRandomPertPrior, &
+                           randomSeedRandomPert, .true.)
+  end if
+
   !
   !- 3. Compute HX values with results in ensObs/ensObsGain
   !
