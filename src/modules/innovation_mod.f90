@@ -456,7 +456,7 @@ contains
     
     ! Locals:
     real(8) :: Jo
-    integer :: destObsColum
+    integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
     logical :: genCoeffMode
 
