@@ -2742,7 +2742,7 @@ module gridStateVectorFileIO_mod
         ! - convert valid dateStamp into printable 
         imode = -3
         ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
-        netCDFtime = (real(printableValidDate, 8))
+        netCDFtime = real(printableValidDate, 8)
 	
 	! reopen the file for writing analysis increments and dates
         call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
@@ -2764,7 +2764,7 @@ module gridStateVectorFileIO_mod
       ! - convert valid dateStamp into printable 
       imode = -3
       ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
-      netCDFtime = (real(printableValidDate, 8))
+      netCDFtime = real(printableValidDate, 8)
 
       ! put netCDFtime into 'time_counter', varIndexNEMO = 4
       call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(4), NEMOvarid(4)))
