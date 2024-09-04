@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * All-sky assimilation for MWHS2 (#942 and !855)
 
 ### Changed
-
+ 
+ * Modified computation of time for LETKF ocean increments (#964 and !875)
  * Modified functionality of `dateStamp_opt` in `gsv_allocate` (#960 and !872)
  * Optimize writing of ensemble members by distributing all `varLev`s across MPI processes (#943 and !858) 
    * New namelist variable `maxVarLevGroups` in `NAMENSSTATE` to control the maximum number of `varLev`s groups.

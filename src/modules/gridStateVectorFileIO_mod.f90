@@ -2614,7 +2614,7 @@ module gridStateVectorFileIO_mod
     integer         , optional, intent(in) :: timeCounter_opt       ! time counter for array in netcdf file (default is stepIndex) 
     ! Locals:
     logical :: iDoWriting, containsFullField
-    integer :: ierr, ncid, stepIndex
+    integer :: ierr, ncid, stepIndex, imode, newdate
     integer :: ni, nj
     integer :: levIndex, numLev, varIndex, varLevIndex
     integer :: yourid, nsize, youridy, youridx
@@ -2632,7 +2632,7 @@ module gridStateVectorFileIO_mod
     integer(8) :: numberSeconds
     character(len=100) :: fileName
     logical :: fileExists
-    integer :: currentDateStamp, timeLevel
+    integer :: currentDateStamp, timeLevel, printableValidDate, printableValidTime
     
     call msg('gio_writeToFileNetCDF', 'START')
     
@@ -2739,10 +2739,11 @@ module gridStateVectorFileIO_mod
         !- create increment file and close it
         call gio_createOceanIncrementNetCDFfile(trim(fileName), ni, nj, numLev)
 
-        ! compute difference in seconds between valid dateStamp date and NEMO reference
-        call tim_getSecondsSinceReferenceDate(validDateStamp, &
-                                              referenceDateNEMO, numberSeconds)
-        netCDFtime = abs(real(numberSeconds, 8))
+        ! - convert valid dateStamp into printable 
+        imode = -3
+        ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
+        netCDFtime = real(printableValidDate, 8)
+	
 	! reopen the file for writing analysis increments and dates
         call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
         ! put 'z_inc_dateb', 'z_inc_datef' and 'time' into netCDF file
@@ -2758,10 +2759,13 @@ module gridStateVectorFileIO_mod
       end if
       
       ! reopen the file for writing analysis increments and dates
-      call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
-      ! compute difference in seconds between current date and NEMO reference
-      call tim_getSecondsSinceReferenceDate(currentDateStamp, referenceDateNEMO, numberSeconds)
-      netCDFtime = abs(real(numberSeconds, 8))
+      call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))        
+
+      ! - convert valid dateStamp into printable 
+      imode = -3
+      ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
+      netCDFtime = real(printableValidDate, 8)
+
       ! put netCDFtime into 'time_counter', varIndexNEMO = 4
       call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(4), NEMOvarid(4)))
       call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(4), netCDFtime, &
