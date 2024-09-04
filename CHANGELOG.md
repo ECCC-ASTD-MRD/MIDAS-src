@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add namelist variables to `prepcma` for flexible radiance obs thinning for each instrument (#961 and !873)
  * Introduction of a new logical variable `computeInParallel` in NAMDFS namelist section (#941 and !870)
  * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
  * Include fasttmp (i.e. ramDisk) memory usage in `msg_memUsage` (#953 and !867)

@@ -86,7 +86,7 @@ contains
   end subroutine reg_getblock
 
 
-  subroutine reg_getlatitude(r0, nlatband, latmin, latcenter, latmax)
+  subroutine reg_getlatitude(r0, nlatband, latmin, latcenter, latmax, beSilent_opt)
     !
     ! :Purpose: the circle is covered with nlatband latitude bands. 
     !           the polar caps (with radius r0 radians) form the first and 
@@ -103,30 +103,39 @@ contains
     real(8), intent(out) :: latmin(nlatband)
     real(8), intent(out) :: latcenter(nlatband)
     real(8), intent(out) :: latmax(nlatband)
+    logical, optional, intent(in) :: beSilent_opt
 
     ! Locals:
     integer :: i
     real(8) :: dpie
+    logical :: beSilent
+
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
 
     dpie = MPC_PI_R8
 
     latmin(1) = -0.5D0*dpie
     latcenter(1) = -0.5D0*dpie
     latmax(1) = -0.5D0*dpie+r0
- 
-    if (mmpi_myid == 0) write(*,*) 'get latitude r0 and nlatband: ', r0, nlatband
-    if (mmpi_myid == 0) write(*,*) 'at ', 1, latmin(1), latcenter(1), latmax(1)
+    if (.not. beSilent .and. mmpi_myid == 0) then
+      write(*,*) 'get latitude r0 and nlatband: ', r0, nlatband
+      write(*,*) 'at ', 1, latmin(1), latcenter(1), latmax(1)
+    end if
 
     latmin(nlatband) = 0.5D0*dpie-r0
     latcenter(nlatband) = 0.5D0*dpie
     latmax(nlatband) = 0.5D0*dpie
 
-    if (mmpi_myid == 0) write(*,*) 'at ', nlatband, latmin(nlatband), latcenter(nlatband), latmax(nlatband)
+    if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'at ', nlatband, latmin(nlatband), latcenter(nlatband), latmax(nlatband)
     do i = 2, nlatband-1
       latmin(i) = latmax(i-1)
       latmax(i) = latmin(i)+r0*(2**0.5)
       latcenter(i) = latmin(i)+0.5D0*r0*(2**0.5)
-      if (mmpi_myid == 0) write(*,*) 'at ', i, latmin(i), latcenter(i), latmax(i)
+      if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'at ', i, latmin(i), latcenter(i), latmax(i)
     end do
  
   end subroutine reg_getlatitude

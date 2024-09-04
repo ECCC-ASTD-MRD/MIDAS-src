@@ -103,6 +103,8 @@ program midas_prepcma
   use regions_mod
   use burpRead_mod
   use gridStateVectorFileIO_mod
+  use codtyp_mod
+  use rttov_const, only : inst_name, platform_name
 
   implicit none
 
@@ -121,13 +123,20 @@ program midas_prepcma
   integer, parameter :: nsc_target = 10
   integer, parameter :: nsw_target = 6
   integer, parameter :: nto_target = 6 
+  integer :: numTovsInstNameList, sensorIndex
+  integer :: maxNumHeaderPerInst
   real(8) :: nai_pmax(npres_ai) = (/ 25000.0, 40000.0, 60000.0, 80000.0, 110000.0/)
   real(8) :: nsw_pmax(npres_sw) = (/ 60000.0, 110000.0/)
   ! For a scalar array, no layer selection will be done
   real(8) :: nsc_pmax(1) = (/ 0.0 /)
   real(8) :: nto_pmax(1) = (/ 0.0 /)
+  character(len=codtyp_name_length) :: tovsInstName
+  character(len=codtyp_name_length), allocatable :: tovsInstNameList(:)
 
   ! Namelist variables:
+  integer :: maxNumHeadersForTovsInst(tvs_maxNumberOfSensors) ! max number of headers for each TOVS inst
+  character(len=codtyp_name_length) :: tovsInstNamesWithMaxNumHeaders(tvs_maxNumberOfSensors) ! List of TOVS inst names 
+                                      ! to prescribe max number of headers
   character(len=256) :: cmahdr        ! should not be used anymore
   character(len=256) :: cmabdy        ! should not be used anymore
   character(len=256) :: cmadim        ! should not be used anymore
@@ -144,12 +153,15 @@ program midas_prepcma
   logical :: obsClean                 ! choose to remove rejected observations from files
   logical :: writeObsFiles            ! choose to update the (burp or sqlite) observation files
   logical :: writeAsciiCmaFiles       ! choose to write ascii output
+  logical :: thinTovsPerInst          ! choose to thin tovs per instrument
 
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
                         suprep, rejectOutsideTimeWindow, &
                         thinning, thinningConv, thinningRadiance, &
                         applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
-                        obsClean, writeObsFiles, writeAsciiCmaFiles
+                        obsClean, writeObsFiles, writeAsciiCmaFiles, &
+                        thinTovsPerInst, tovsInstNamesWithMaxNumHeaders, &
+                        maxNumHeadersForTovsInst
 
   call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 
@@ -181,7 +193,10 @@ program midas_prepcma
   rejectHighLatIR         = .true.
   obsClean                = .true.
   writeObsFiles           = .false.
-  writeAsciiCmaFiles       = .false.
+  writeAsciiCmaFiles      = .false.
+  thinTovsPerInst         = .false.
+  tovsInstNamesWithMaxNumHeaders(:) = 'NOT_DEFINED'
+  maxNumHeadersForTovsInst(:) = nto_target
 
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namprepcma, iostat=ierr)
@@ -228,7 +243,10 @@ program midas_prepcma
   end if
 
   !- Initialize TOVS processing
-  if (obs_famExist(obsSpaceData,'TO')) call tvs_setup
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call tvs_setup
+    call checkTovsInstNamesInNml()
+  end if
 
   !- Select the elements to assimilate and apply rejection flags
   if (suprep) call filt_suprep(obsSpaceData)
@@ -277,7 +295,29 @@ program midas_prepcma
     ! perform thinning for scatterometer observations
     if (thinningConv)     call thinning_fam(obsSpaceData, nsc_pmax, nsc_target, 'SC')
     ! perform thinning for radiance observations
-    if (thinningRadiance) call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+    if (thinningRadiance) then
+      ! thinning per instrument
+      if (thinTovsPerInst) then
+        call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
+        write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', &
+                    tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
+
+        do sensorIndex = 1, numTovsInstNameList
+          tovsInstName = trim(tovsInstNameList(sensorIndex))
+
+          maxNumHeaderPerInst = getMaxNumHeadersForTovsInst(tovsInstName)
+
+          write(*,*) 'midas-prepcma: thinning for TO inst=',  trim(tovsInstName)
+
+          call thinning_fam(obsSpaceData, nto_pmax, maxNumHeaderPerInst, 'TO', &
+                            codtyp_opt=codtyp_get_codtyp(tovsInstName))
+        end do
+
+      else ! if (thinTovsPerInst)
+        call thinning_fam(obsSpaceData, nto_pmax, nto_target, 'TO')
+      end if ! thinTovsPerInst
+
+    end if  ! thinningRadiance
   end if
 
   !- Write the results
@@ -352,7 +392,7 @@ program midas_prepcma
 
 contains
 
-  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam)
+  subroutine thinning_fam(obsSpaceData, n_pmax, n_target, cfam, codtyp_opt)
     !
     ! :Purpose: thin the observations of the selected family
     !
@@ -363,6 +403,7 @@ contains
     real(8),           intent(in)    :: n_pmax(:)   ! pressure levels that separate vertical layers for the thinning
     integer,           intent(in)    :: n_target    ! maximum desired amount of data per 3-D box
     character(len=2),  intent(in)    :: cfam        ! family type
+    integer, optional, intent(in)    :: codtyp_opt  ! optional supplied codtyp
 
     ! Locals:
     type(struct_reg) :: lsc
@@ -370,14 +411,20 @@ contains
     integer :: nobs_count, nobs_count_mpiGlobal, nobs_count_thin, nobs_count_thin_mpiGlobal
     integer :: nrep_count, nrep_count_mpiGlobal, nrep_count_thin, nrep_count_thin_mpiGlobal
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
-    integer :: iblock, codeType, ilat, incr, ipres, nblocksum, npres, nsize, num_stn
-    logical :: count_obs, allRejected
+    integer :: iblock, codtyp, ilat, incr, ipres, nblocksum, npres, nsize, numHeader
+    logical :: count_obs, allRejected, beSilent
     real(4) :: lat_r4, lon_r4
     real(8) :: pressure, rannum
     real(8), allocatable :: latcenter(:), latmin(:), latmax(:), ranvals(:)
     integer, allocatable :: nblockoffset(:), nlonblock(:)
     integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
+    integer :: tovsIndex, sensorIndex
+    integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
+    integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
+    logical :: thinTovsPerInst, headerFoundForInst
+    character(len=codtyp_name_length) :: instName
+    logical, save :: firstCall = .true.
 
     ! box size that is used for observation thinning 
     ! (the numerator is an approximate distance in km)
@@ -385,8 +432,11 @@ contains
     ! next two parameters are not used in this program
     real(8), parameter :: r1_dum = 1.0
     real(8), parameter :: rz_dum = 1.0
-   
-    num_stn = obs_numheader(obsSpaceData)
+
+    beSilent = (.not. firstCall) 
+    if (firstCall) firstCall = .false.
+
+    numHeader = obs_numheader(obsSpaceData)
     npres = size(n_pmax,1) 
     write(*,*) 'Start thinning for ', cfam, ' data'
     ! at this stage we still have many radiance channels 
@@ -399,7 +449,7 @@ contains
       write(*,*) 'count the number of reports'
       count_obs = .false.
     end if
-         
+
     call reg_init_struct(lsc, r0_count_km, r1_dum, rz_dum)
     if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ', lsc%nlatband
     nsize = lsc%nlatband
@@ -409,39 +459,68 @@ contains
     allocate(nlonblock(nsize))
     allocate(nblockoffset(nsize))
 
-    call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax)
+    call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax, beSilent_opt=beSilent)
     if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ',lsc%nlatband
     do ilat = 1, lsc%nlatband
-      if (mmpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
+      if (.not. beSilent .and. mmpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
     end do
     call reg_getblock(lsc%nlatband, lsc%r0_rad, latmin, latmax, nlonblock)
     nblocksum = 0
     do ilat = 1, lsc%nlatband
       nblockoffset(ilat) = nblocksum
       nblocksum = nblocksum + nlonblock(ilat)
-      if (mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
+      if (.not. beSilent .and. mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
     end do 
     if (mmpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
 
     nrep_count = 0
     nobs_count = 0
 
+    if (cfam == 'TO') then
+      allocate(numHeaderPerTovsInstBeforeThin(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstBeforeThin_mpiGlobal(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstAfterThin(nblocksum,tvs_nsensors))
+      allocate(numHeaderPerTovsInstAfterThin_mpiGlobal(nblocksum,tvs_nsensors))
+      numHeaderPerTovsInstBeforeThin(:,:) = 0
+      numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:) = 0
+      numHeaderPerTovsInstAfterThin(:,:) = 0
+      numHeaderPerTovsInstAfterThin_mpiGlobal(:,:) = 0
+    end if
+
     allocate(nstation(nblocksum, npres))
     allocate(keep_ai(nblocksum, npres))
- 
+
     nstation=0
     ! keep_ai = 1 corresponds to no thinning
     keep_ai(:,:) = 1.0
 
-    allocate(ai_indices(num_stn,3))
+    allocate(ai_indices(numHeader,3))
 
-    header_loop: do headerIndex = 1, num_stn
-      codeType= obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
-      if ( (cfam=='AI' .and. (codeType==42  .or. codeType==128 .or. &
-                              codeType==157 .or. codeType==177)) .or. &
-           (cfam=='SC' .and. codeType==254) .or. &
-           (cfam=='SW' .and. (codeType==88  .or. codeType==188)) .or. &
-           (cfam=='TO' .and. tvs_isIdBurpTovs(codeType)) ) then
+    if (cfam /= 'TO') then
+      if (present(codtyp_opt)) then
+        call utl_abort('thining_fam: codtyp_opt argument only allowed for TO family')
+      end if
+    end if
+
+    thinTovsPerInst = .false.
+    instName = ''
+    if (present(codtyp_opt)) then
+      thinTovsPerInst = .true.
+      instName = codtyp_get_name(codtyp_opt)
+    end if
+
+    header_loop: do headerIndex = 1, numHeader
+      codtyp = obs_headElem_i(obsSpaceData, obs_ity, headerIndex)
+      if ((cfam == 'AI' .and. (codtyp == 42  .or. codtyp == 128 .or. &
+                               codtyp == 157 .or. codtyp == 177)) .or. &
+          (cfam == 'SC' .and. codtyp == 254) .or. &
+          (cfam == 'SW' .and. (codtyp == 88  .or. codtyp == 188)) .or. &
+          (cfam == 'TO' .and. tvs_isIdBurpTovs(codtyp))) then
+
+        ! skip this header if does not match the supplied codtyp(s)
+        if (present(codtyp_opt)) then
+          if (codtyp /= codtyp_opt) cycle header_loop
+        end if
 
         ! skip this header if all observations already rejected
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
@@ -484,6 +563,13 @@ contains
           ai_indices(nrep_count, 2) = iblock
           ai_indices(nrep_count, 3) = ipres 
         end if
+
+        if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
+          tovsIndex = tvs_tovsIndex(headerIndex)
+          sensorIndex = tvs_lsensor(tovsIndex)
+          numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) = numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) + 1
+        end if
+
       end if
     end do header_loop
 
@@ -498,17 +584,38 @@ contains
                             'mpi_integer','mpi_sum', 'GRID', ierr)
 
     write(*,*) 'total number of ', cfam, ' reports (local and mpiglobal): ',  &
-         nrep_count, nrep_count_mpiGlobal
+                nrep_count, nrep_count_mpiGlobal
     allocate(ranvals(nrep_count))
     write(*,*) 'total number of ', cfam, ' observations (local and mpiglobal): ',  &
-         nobs_count, nobs_count_mpiGlobal
+                nobs_count, nobs_count_mpiGlobal
+
+    if (cfam == 'TO') then
+      nsize = nblocksum * tvs_nsensors
+      call rpn_comm_allreduce(numHeaderPerTovsInstBeforeThin, numHeaderPerTovsInstBeforeThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
+
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) 'total number of ', cfam, ' headers (local and mpiglobal) for ', &
+                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    sum(numHeaderPerTovsInstBeforeThin(:,sensorIndex)), sum(numHeaderPerTovsInstBeforeThin_mpiGlobal(:,sensorIndex))
+      end do
+
+      call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstBeforeThin, &
+                                  numHeaderPerTovsInstBeforeThin_mpiGlobal, thinTovsPerInst, &
+                                  headerFoundForInst)
+
+      if (.not. headerFoundForInst) return
+
+    end if ! cfam=='TO'
 
     n_count_thin = 0
     do iblock = 1, nblocksum
       do ipres = 1, npres
-        if (nstationMpiGlobal(iblock,ipres) .ge. 1) then
-          if (mmpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
-                     nstationMpiGlobal(iblock,ipres)
+        if (nstationMpiGlobal(iblock,ipres) >= 1) then
+          if (.not. beSilent .and. mmpi_myid == 0) then
+            write(*,*) 'block ipres and count: ',iblock, ipres, nstationMpiGlobal(iblock,ipres)
+          end if
+
           if (nstationMpiGlobal(iblock,ipres) > n_target) then
             keep_ai(iblock,ipres) = dble(n_target) / dble(nstationMpiGlobal(iblock,ipres))
             n_count_thin = n_count_thin + n_target
@@ -542,6 +649,12 @@ contains
       if (rannum <= keep_ai(iblock,ipres)) then
         nrep_count_thin = nrep_count_thin + 1
         nobs_count_thin = nobs_count_thin + obs_headElem_i(obsSpaceData, obs_nlv, headerIndex)
+
+        if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
+          tovsIndex = tvs_tovsIndex(headerIndex)
+          sensorIndex = tvs_lsensor(tovsIndex)
+          numHeaderPerTovsInstAfterThin(iblock,sensorIndex) = numHeaderPerTovsInstAfterThin(iblock,sensorIndex) + 1
+        end if
       else
         ! reject the profile
         bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
@@ -562,9 +675,30 @@ contains
                             'mpi_integer','mpi_sum', 'GRID', ierr)
     
     write(*,*) 'True remaining number of ', cfam, ' reports (local, mpiGlobal): ',  &
-         nrep_count_thin, nrep_count_thin_mpiGlobal
+          nrep_count_thin, nrep_count_thin_mpiGlobal
     write(*,*) 'True remaining number of ', cfam, ' observations (local, mpiGlobal): ',  &
-         nobs_count_thin, nobs_count_thin_mpiGlobal
+          nobs_count_thin, nobs_count_thin_mpiGlobal
+
+    if (cfam == 'TO') then
+      nsize = nblocksum * tvs_nsensors
+      call rpn_comm_allreduce(numHeaderPerTovsInstAfterThin, numHeaderPerTovsInstAfterThin_mpiGlobal, nsize, &
+                              "mpi_integer", "mpi_sum", "grid", ierr)
+
+      do sensorIndex = 1, tvs_nsensors
+        write(*,*) 'True remaining number of ', cfam, ' headers (local and mpiglobal) for ', &
+                    inst_name(tvs_instruments(sensorIndex)), platform_name(tvs_platforms(sensorIndex)), tvs_satellites(sensorIndex), ':', &
+                    sum(numHeaderPerTovsInstAfterThin(:,sensorIndex)), sum(numHeaderPerTovsInstAfterThin_mpiGlobal(:,sensorIndex))
+      end do
+
+      call printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInstAfterThin, &
+                                  numHeaderPerTovsInstAfterThin_mpiGlobal, thinTovsPerInst, &
+                                  headerFoundForInst, ifAfterThinning_opt=.true.)
+
+      if (.not. headerFoundForInst) then
+        call utl_abort('thinning_fam: should have returned before thinning was performed')
+      end if
+
+    end if ! cfam=='TO'
 
     deallocate(ranvals)
     deallocate(latmin)
@@ -577,6 +711,343 @@ contains
     deallocate(keep_ai)
     deallocate(ai_indices)
 
+    if (cfam == 'TO') then
+      deallocate(numHeaderPerTovsInstBeforeThin)
+      deallocate(numHeaderPerTovsInstBeforeThin_mpiGlobal)
+      deallocate(numHeaderPerTovsInstAfterThin)
+      deallocate(numHeaderPerTovsInstAfterThin_mpiGlobal)
+    end if
+
   end subroutine thinning_fam
+
+  !----------------------------------------------------------------------
+  ! getTovsInstNameList
+  !----------------------------------------------------------------------
+  subroutine getTovsInstNameList(numInstNameUniqueList, instNameUniqueList)
+    !
+    ! :Purpose: Create a unique list of tovs instrument names.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,                       intent(out)   :: numInstNameUniqueList ! Number of tovs instrument names in the list
+    character(len=*), allocatable, intent(inout) :: instNameUniqueList(:) ! Unique list of tovs instrument names
+
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2
+    character(len=codtyp_name_length) :: instNameList(tvs_nsensors)
+
+    ! replace all amsub with mhs in the original list
+    do sensorIndex = 1, tvs_nsensors
+      if (trim(inst_name(tvs_instruments(sensorIndex))) == 'amsub') then
+        instNameList(sensorIndex) = 'mhs'
+      else
+        instNameList(sensorIndex) = trim(inst_name(tvs_instruments(sensorIndex)))
+      end if
+    end do
+
+    if (mmpi_myid == 0) then
+      write(*,*) 'getTovsInstNameList: all occurances of amsub are replaced by mhs in instNameUniqueList'
+    end if
+
+    allocate(instNameUniqueList(tvs_nsensors))
+    instNameUniqueList(:) = ''
+    numInstNameUniqueList = 1
+    instNameUniqueList(numInstNameUniqueList) = trim(instNameList(1))
+
+    loopSensor3: do sensorIndex = 1, tvs_nsensors
+      do sensorIndex2 = 1, numInstNameUniqueList
+        if (trim(instNameUniqueList(sensorIndex2)) == trim(instNameList(sensorIndex))) then
+          cycle loopSensor3
+        end if
+      end do
+
+      numInstNameUniqueList = numInstNameUniqueList + 1
+      instNameUniqueList(numInstNameUniqueList) = trim(instNameList(sensorIndex))
+    end do loopSensor3
+
+  end subroutine getTovsInstNameList
+
+  !----------------------------------------------------------------------
+  ! checkTovsInstNamesInNml
+  !----------------------------------------------------------------------
+  subroutine checkTovsInstNamesInNml()
+    !
+    ! :Purpose: Perform the following checks on namelist variable tovsInstNamesWithMaxNumHeaders: 
+    !           1- no duplicate in the list; 2- amsub is not present in the list. 
+    !
+    implicit none
+
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2
+
+    ! check no duplicate in instrument names in nml
+    loopSensor4: do sensorIndex = 1, tvs_nsensors
+      do sensorIndex2 = sensorIndex + 1, tvs_nsensors
+        if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) /= 'NOT_DEFINED') then
+          if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == trim(tovsInstNamesWithMaxNumHeaders(sensorIndex2))) then
+            write(*,*) trim(tovsInstNamesWithMaxNumHeaders(sensorIndex))
+            call utl_abort('checkTovsInstNamesInNml: duplicate instrument names exist in tovsInstNamesWithMaxNumHeaders')
+          end if
+        else
+          exit loopSensor4
+        end if
+      end do
+    end do loopSensor4
+
+    do sensorIndex = 1, tvs_nsensors
+      if (trim(tovsInstNamesWithMaxNumHeaders(sensorIndex)) == 'amsub') then
+        call utl_abort('checkTovsInstNamesInNml: amsub exist in tovsInstNamesWithMaxNumHeaders, replace with mhs.')        
+      end if
+    end do
+
+  end subroutine checkTovsInstNamesInNml
+
+  !----------------------------------------------------------------------
+  ! getMaxNumHeadersForTovsInst
+  !----------------------------------------------------------------------
+  function getMaxNumHeadersForTovsInst(tovsInstName) result(maxValue)
+    !
+    ! :Purpose: Return max number of headers for tovs instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: tovsInstName ! tovs instrument name
+    ! Result:
+    integer                      :: maxValue ! max value of the headers in each region for tovs instrument name
+
+    ! Locals:
+    integer :: instrumentIndex
+    logical :: instFound
+
+    instFound = .false.
+    inst_loop: do instrumentIndex = 1, tvs_nsensors
+      if (trim(tovsInstNamesWithMaxNumHeaders(instrumentIndex)) == trim(tovsInstName)) then
+        maxValue = maxNumHeadersForTovsInst(instrumentIndex)
+        instFound = .true.
+
+        exit inst_loop
+      end if
+    end do inst_loop
+
+    if (instFound) then
+      if (mmpi_myid == 0) write(*,*) 'for instrument, max number of headers:', trim(tovsInstName), maxValue
+    else
+      maxValue = nto_target
+      if (mmpi_myid == 0) write(*,*) 'for instrument, using default max number of headers:', trim(tovsInstName)
+    end if
+
+  end function getMaxNumHeadersForTovsInst
+
+  !----------------------------------------------------------------------
+  ! printToListingsForTovs
+  !----------------------------------------------------------------------
+  subroutine printToListingsForTovs(instName, nblocksum, numHeaderPerTovsInst, &
+                                    numHeaderPerTovsInst_mpiGlobal, thinTovsPerInst, &
+                                    headerFoundForInst, ifAfterThinning_opt)
+    !
+    ! :Purpose: Print to the listings for TOVS instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=codtyp_name_length), intent(in) :: instName                  ! instrument name
+    integer,                           intent(in) :: nblocksum                 ! sum of number of regions over all TOVS
+    integer,                           intent(in) :: numHeaderPerTovsInst(:,:) ! local number of headers per instrument
+    integer,                           intent(in) :: numHeaderPerTovsInst_mpiGlobal(:,:) ! global number of headers per instrument
+    logical,                           intent(in) :: thinTovsPerInst           ! do thinning for tovs per instrument independently
+    logical,                           intent(out) :: headerFoundForInst       ! if headers found for instrument
+    logical, optional,                 intent(in) :: ifAfterThinning_opt       ! if subroutine called after thinning is performed
+
+    ! Locals:
+    integer :: sensorIndex, sensorIndex2, numInstNameUniqueListWithHeader, numMatchFound, matchFoundIndex
+    integer :: iblock, numHeadersFound, numHeadersFound_mpiGlobal
+    integer, allocatable :: matchIndexList(:), numHeadersFoundInBlock(:,:), numHeadersFoundInBlock_mpiGlobal(:,:)
+    logical :: ifAfterThinning
+    character(len=codtyp_name_length) :: instNameUniqueListWithHeader(tvs_nsensors)
+
+    if (present(ifAfterThinning_opt)) then
+      ifAfterThinning = ifAfterThinning_opt
+    else
+      ifAfterThinning = .false.
+    end if
+
+    headerFoundForInst = .true.
+ 
+    ! find the first inst with non-zero number of headers
+    instNameUniqueListWithHeader(:) = ''
+    numInstNameUniqueListWithHeader = 1
+    loopSensor1: do sensorIndex = 1, tvs_nsensors
+      if (sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) > 0) then
+        instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
+        exit loopSensor1
+      end if
+    end do loopSensor1
+
+    ! find rest of the inst with non-zero number of headers
+    loopSensor2: do sensorIndex = 1, tvs_nsensors
+      do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+        if (trim(instNameUniqueListWithHeader(sensorIndex2)) == trim(inst_name(tvs_instruments(sensorIndex))) .or. &
+            sum(numHeaderPerTovsInst_mpiGlobal(:,sensorIndex)) == 0) then
+          cycle loopSensor2
+        end if
+      end do
+
+      numInstNameUniqueListWithHeader = numInstNameUniqueListWithHeader + 1
+      instNameUniqueListWithHeader(numInstNameUniqueListWithHeader) = trim(inst_name(tvs_instruments(sensorIndex)))
+    end do loopSensor2
+
+    if (mmpi_myid == 0) then
+      write(*,*) 'numInstNameUniqueListWithHeader=', numInstNameUniqueListWithHeader, &
+                 ', instNameUniqueListWithHeader(:)=', instNameUniqueListWithHeader(:)
+    end if
+
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      if (matchIndexList(1) > 0) then
+        numMatchFound = size(matchIndexList)
+        numHeadersFound = 0
+        numHeadersFound_mpiGlobal = 0
+        do matchFoundIndex = 1, numMatchFound
+          numHeadersFound = numHeadersFound + sum(numHeaderPerTovsInst(:,matchIndexList(matchFoundIndex)))
+          numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + sum(numHeaderPerTovsInst_mpiGlobal(:,matchIndexList(matchFoundIndex)))
+        end do
+
+        if (mmpi_myid == 0 .and. .not. ifAfterThinning) then
+          write(*,*) 'total number of TO headers (local and mpiglobal) for all ', &
+                      trim(instNameUniqueListWithHeader(sensorIndex2)), ':', &
+                      numHeadersFound, numHeadersFound_mpiGlobal
+        end if
+
+        if (thinTovsPerInst) then
+          if (numInstNameUniqueListWithHeader == 1) then
+            if (trim(instNameUniqueListWithHeader(1)) /= trim(instName)) then
+              write(*,*) 'instName=', instName
+              call utl_abort('printToListingsForTovs: instNameUniqueListWithHeader(1)) /= instName')
+            end if
+          else
+            call utl_abort('printToListingsForTovs: numInstNameUniqueListWithHeader > 1')
+          end if
+        end if ! thinTovsPerInst
+
+      else
+        ! return because there is no header for this instrument
+        if (thinTovsPerInst) then
+          write(*,*) 'no headers found for ', trim(instNameUniqueListWithHeader(sensorIndex2)), ', returning ...'
+          headerFoundForInst = .false.
+          return
+        end if
+
+      end if ! matchIndexList(1) > 0
+    end do ! sensorIndex2
+
+    ! compute counts per block per sensor
+    allocate(numHeadersFoundInBlock(nblocksum,numInstNameUniqueListWithHeader))
+    allocate(numHeadersFoundInBlock_mpiGlobal(nblocksum,numInstNameUniqueListWithHeader))
+    numHeadersFoundInBlock(:,:) = 0
+    numHeadersFoundInBlock_mpiGlobal(:,:) = 0
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      if (matchIndexList(1) > 0) then
+        numMatchFound = size(matchIndexList)
+
+        do matchFoundIndex = 1, numMatchFound
+          numHeadersFoundInBlock(:,sensorIndex2) = numHeadersFoundInBlock(:,sensorIndex2) + &
+                                                   numHeaderPerTovsInst(:,matchIndexList(matchFoundIndex))
+          numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) = numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2) + &
+                                                             numHeaderPerTovsInst_mpiGlobal(:,matchIndexList(matchFoundIndex))
+        end do
+      end if
+    end do ! sensorIndex2
+
+    ! check the sum over all blocks match the counts per sensor 
+    do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+      matchIndexList = utl_findlocs(inst_name(tvs_instruments(:)),instNameUniqueListWithHeader(sensorIndex2))
+      if (matchIndexList(1) > 0) then
+        numMatchFound = size(matchIndexList)
+
+        numHeadersFound_mpiGlobal = 0
+        do matchFoundIndex = 1, numMatchFound
+          numHeadersFound_mpiGlobal = numHeadersFound_mpiGlobal + &
+                                      sum(numHeaderPerTovsInst_mpiGlobal(:,matchIndexList(matchFoundIndex)))        
+        end do
+
+        if (sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2)) /= numHeadersFound_mpiGlobal) then
+          write(*,*) 'sensorIndex2=', sensorIndex2, ', instName=', trim(instNameUniqueListWithHeader(sensorIndex2)), &
+                      ', numHeadersFound_mpiGlobal=', numHeadersFound_mpiGlobal, &
+                      ', sum=', sum(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+
+          if (.not. ifAfterThinning) then
+            call utl_abort('printToListingsForTovs: the sums do not match before thinning')
+          else
+            call utl_abort('printToListingsForTovs: the sums do not match after thinning')
+          end if
+
+        end if
+      end if
+    end do
+
+    ! print counts per block per sensor
+    if (mmpi_myid == 0) then
+      if (thinTovsPerInst) then
+        if (.not. ifAfterThinning) then
+          write(*,'(a,1x,a)') 'before thinning global one instr:', trim(instNameUniqueListWithHeader(1))
+        else
+          write(*,'(a,1x,a)') 'after thinning global one instr:', trim(instNameUniqueListWithHeader(1))
+        end if
+
+        do iblock = 1, nblocksum
+          if (.not. ifAfterThinning) then
+            write(*,'(a,1x,a,i,a,i)') 'before thinning global', trim(instNameUniqueListWithHeader(1)), &
+                                      iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
+          else
+            write(*,'(a,1x,a,i,a,i)') 'after thinning global', trim(instNameUniqueListWithHeader(1)), &
+                                      iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
+          end if
+        end do ! iblock
+      else
+        if (.not. ifAfterThinning) then
+          write(*,'(a39)',advance='no') 'before thinning global all instr       '
+        else
+          write(*,'(a39)',advance='no') 'after thinning global all instr        '
+        end if
+        do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+          write(*,'(a8,1x)',advance='no') trim(instNameUniqueListWithHeader(sensorIndex2))
+        end do
+        write(*,*)
+
+        do iblock = 1, nblocksum
+          if (.not. ifAfterThinning) then
+            write(*,'(a32,i6,a)',advance='no') 'before thinning global all instr', iblock, ':'
+          else
+            write(*,'(a32,i6,a)',advance='no') 'after thinning global all instr ', iblock, ':'
+          end if
+
+          do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+            write(*,'(i8,1x)',advance='no') numHeadersFoundInBlock_mpiGlobal(iblock,sensorIndex2)
+          end do
+          write(*,*)
+          
+        end do ! iblock
+
+        ! print max of all block for sensor
+        if (.not. ifAfterThinning) then
+          write(*,'(a39)',advance='no') 'before thinning global all instr MAX   '
+        else
+          write(*,'(a39)',advance='no') 'after thinning global all instr MAX    '
+        end if
+
+        do sensorIndex2 = 1, numInstNameUniqueListWithHeader
+          write(*,'(i8,1x)',advance='no') maxval(numHeadersFoundInBlock_mpiGlobal(:,sensorIndex2))
+        end do
+        write(*,*)
+      end if ! thinTovsPerInst
+    end if ! mmpi_myid
+
+    deallocate(numHeadersFoundInBlock)
+    deallocate(numHeadersFoundInBlock_mpiGlobal)
+
+  end subroutine printToListingsForTovs
 
 end program
