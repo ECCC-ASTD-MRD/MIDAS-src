@@ -103,7 +103,7 @@ module tovs_mod
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
-  public :: tvs_useSfcEmissObsSpace
+  public :: tvs_useSfcEmissObsSpace, tvs_emis_read_climatology, tvs_pcnt_box
   public :: tvs_rttov_tl, tvs_rttov_ad, tvs_rttov_k
   
   type surface_params
@@ -2947,7 +2947,7 @@ contains
     allocate(sensorTovsIndexes(tvs_nobtov))
 
     !   1.1   Read surface information
-    if (bgckMode) call EMIS_READ_CLIMATOLOGY
+    if (bgckMode) call TVS_EMIS_READ_CLIMATOLOGY
 
     !   2.  Computation of hx for tovs data only
 
@@ -3655,9 +3655,9 @@ contains
   end subroutine comp_ir_emiss
 
   !--------------------------------------------------------------------------
-  !  pcnt_box
+  !  tvs_pcnt_box
   !--------------------------------------------------------------------------
-  subroutine pcnt_box(f_low, f_high, nprf, ilat, ilon, klat, klon, ireduc)
+  subroutine tvs_pcnt_box(f_low, nprf, ilat, ilon, ireduc)
     !
     ! :Purpose: Computes a low resolution feature form a high
     !           resolution one by averaging.
@@ -3666,11 +3666,8 @@ contains
     implicit none
 
     ! Arguments:
+    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field 
     integer, intent(in)   :: nprf              ! Number of profiles
-    integer, intent(in)   :: klon              ! Max value of latitude indices
-    integer, intent(in)   :: klat              ! Max value of longitude indices
-    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field
-    real(8), intent(in)   :: f_high(klon, klat)! High resolution field 
     integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
     integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
     integer, intent(in)   :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
@@ -3686,23 +3683,23 @@ contains
       ! normal limits
 
       ilat1=max(ilat(profileIndex)-ireduc,1)
-      ilat2=min(ilat(profileIndex)+ireduc,klat)
+      ilat2=min(ilat(profileIndex)+ireduc,kslat)
       ilon1=max(ilon(profileIndex)-ireduc,1)
-      ilon2=min(ilon(profileIndex)+ireduc,klon)
+      ilon2=min(ilon(profileIndex)+ireduc,kslon)
 
-      if (ilon1 == 1 .or. ilon2 == klon) then
+      if (ilon1 == 1 .or. ilon2 == kslon) then
         ! border cases for longitudes
         jdlo1 = ilon(profileIndex)-ireduc
         jdlo2 = ilon(profileIndex)+ireduc
 
         if (jdlo1 <= 0) then
           nplon = 1
-          jlon1 = klon + jdlo1
-          jlon2 = klon
-        else if (jdlo2 > klon) then
+          jlon1 = kslon + jdlo1
+          jlon2 = kslon
+        else if (jdlo2 > kslon) then
           nplon = 1
           jlon1 = 1
-          jlon2 = jdlo2 - klon
+          jlon2 = jdlo2 - kslon
         end if
       end if
 
@@ -3713,14 +3710,14 @@ contains
 
         do lonIndex = ilon1, ilon2
           nx = nx + 1
-          f_low(profileIndex) = f_low(profileIndex) + f_high(lonIndex,latIndex)         
+          f_low(profileIndex) = f_low(profileIndex) + waterFraction(lonIndex,latIndex)         
         end do
         
         if (nplon == 1) then
           ! additional cases at border 1-klon
           do lonIndex = jlon1, jlon2
             nx = nx + 1
-            f_low(profileIndex) = f_low(profileIndex) + f_high(lonIndex,latIndex)         
+            f_low(profileIndex) = f_low(profileIndex) + waterFraction(lonIndex,latIndex)         
           end do
         end if
 
@@ -3730,12 +3727,12 @@ contains
 
     end do profiles
 
-  end subroutine pcnt_box
+  end subroutine tvs_pcnt_box
 
   !--------------------------------------------------------------------------
-  !  emis_read_climatology
+  !  tvs_emis_read_climatology
   !--------------------------------------------------------------------------
-  subroutine emis_read_climatology
+  subroutine tvs_emis_read_climatology
     !
     ! :Purpose: Read information about ceres surface type and water fraction.
     !
@@ -3763,10 +3760,10 @@ contains
     if (iv1 < 0 .or. iv2 < 0 .or. iv3 < 0 .or. iv4 < 0 .or. iv5 < 0 .or. iv6 < 0) then
       write(*,*) 'LES iv DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-      call utl_abort('Problem with file ceres_global.std in emis_read_climatology ')
+      call utl_abort('Problem with file ceres_global.std in tvs_emis_read_climatology ')
     end if
    
-  end subroutine emis_read_climatology
+  end subroutine tvs_emis_read_climatology
 
   !--------------------------------------------------------------------------
   !  emis_getIrEmissivity
@@ -3853,7 +3850,7 @@ contains
     end do
 
     ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
-    call pcnt_box (f_low, waterFraction,nprf,ilat,ilon,kslat,kslon,7)
+    call tvs_pcnt_box (f_low, nprf,ilat,ilon,7)
 
     do profileIndex = 1, nprf
       tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_reg = f_low(profileIndex)
