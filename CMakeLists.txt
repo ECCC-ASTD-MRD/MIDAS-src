@@ -85,7 +85,7 @@ endif()
 if(DEFINED ENV{MIDAS_COMPILE_DIR_MAIN})
   set(CMAKE_INSTALL_PREFIX "$ENV{MIDAS_COMPILE_DIR_MAIN}/$ENV{MIDAS_ABS_LEAFDIR}" CACHE FILEPATH "Install directory prefix" FORCE)
 else()
-  message(FATAL_ERROR "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config-cmake.dot.sh file")
+  message(FATAL_ERROR "(EC) \${MIDAS_COMPILE_DIR_MAIN} is not set.  Make sure you source the src/config.dot.sh file")
 endif()
 
 message(STATUS "(EC) Sources directory is: ${CMAKE_SOURCE_DIR}")
@@ -93,9 +93,8 @@ message(STATUS "(EC) Build directory is: $ENV{MIDAS_COMPILE_DIR_MAIN}")
 message(STATUS "(EC) Install directory is: ${CMAKE_INSTALL_PREFIX}")
 
 # for the special name used by MIDAS for programs and tools
-# to discuss
 if(DEFINED ENV{ORDENV_PLAT})
-  set(AddToProgName _$ENV{ORDENV_PLAT}-${PROJECT_VERSION})
+  set(AddToProgName $ENV{ORDENV_PLAT}-${PROJECT_VERSION})
 endif()
 
 add_subdirectory(src/modules)
@@ -104,8 +103,5 @@ add_subdirectory(tools)
 #Don't add dumpBmatrix for now: if needed, it can be compiled with its own Makefile
 #add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
-# add_subdirectory(test test)
-
+ec_build_config()      # Create build configuration script
 configure_file(config.in ${CMAKE_BINARY_DIR}/${NAME}-config @ONLY)
-install(PROGRAMS ${CMAKE_BINARY_DIR}/${NAME}-config DESTINATION ${CMAKE_INSTALL_PREFIX})
-#ec_dump_cmake_variables()
