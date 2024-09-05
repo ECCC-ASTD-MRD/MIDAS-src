@@ -101,7 +101,8 @@ endif()
 add_subdirectory(src/modules)
 add_subdirectory(src/programs)
 add_subdirectory(tools)
-add_subdirectory(scripts/convenient_tools/dumpBmatrix)
+#Don't add dumpBmatrix for now: if needed, it can be compiled with its own Makefile
+#add_subdirectory(scripts/convenient_tools/dumpBmatrix)
 
 # add_subdirectory(test test)
 
