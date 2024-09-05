@@ -13,11 +13,27 @@ cado_commands=(
 # and save the user from getting a large amount of targets.
 # Examples:
 favorite_makefile_targets=(
-    midas.monitor.Abs
-    midas.var.Abs
-    midas.splitobs.Abs
-    dumpBmatrix
-    # ...
+    adjointTest
+    analysisErrorOI
+    calcStats
+    diagBmatrix
+    diagHBHt
+    ensembleH
+    ensPostProcess
+    extractBmatrixFor1Dvar
+    genCoeff
+    letkf
+    obsImpact
+    obsSelection
+    oMinusF
+    prepcma
+    pseudoSSTobs
+    randomPert
+    sstBias
+    sstTrial
+    thinning
+    var
+    var1D
 )
 
 _cado(){
@@ -28,7 +44,7 @@ _cado(){
     if (( cword == 1 )) ; then
         COMPREPLY=($(compgen -W "${cado_commands[*]}" -- ${cur}))
     elif [[ "${words[1]}" == "build" ]] ; then
-        _complete_targets build-${GEM_ARCH}
+        _complete_targets
     fi
 }
 
@@ -42,7 +58,7 @@ _complete_targets(){
     # if [[ -d "${1}" ]] ; then
     #     _get_makefile_targets ${1}
     # fi
-    COMPREPLY+=( $(compgen -W "${favorite_makefile_targets[*]}" -- "${cur}") )
+    COMPREPLY+=($(compgen -W "${favorite_makefile_targets[*]}" -- "${cur}"))
 }
 
 #
