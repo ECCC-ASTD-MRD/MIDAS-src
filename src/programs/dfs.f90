@@ -319,6 +319,10 @@ program midas_dfs
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
+
+  ! 
+  call tvs_emis_read_climatology ()
+  call tvs_allocateSurfaceParameters ()
   
   ! Compute HBHt, dfs and perform channel selection
   call diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
@@ -1134,68 +1138,85 @@ contains
     
     ! Locals
     integer            :: obsIndex
-    real(8)            :: latitude, longitude, satelliteZenithAngle
+    real(8)            :: latitude(1), longitude(1), satelliteZenithAngle
     integer            :: date, hour
     real(8), parameter :: epsilon=0.01d0
+    integer, parameter :: boxSize=7
     integer            :: definedConditions, satisfiedConditions
-    
-    if (selectSpecificObservationsFromList) then
-      selected = .false.
-      latitude = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-      date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
-      hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+    integer            :: latIndex(1), lonIndex(1), observationIndex(1)
+    real(8)            :: lowResWaterFraction(1), highResWaterFraction
 
-      do obsIndex = 1, nObsMax
-        definedConditions = 0
-        satisfiedConditions = 0
-        
-        if (latList(obsindex) /= MPC_missingValue_R8) then
-           definedConditions =  definedConditions + 1
-           
-          if (abs(latList(obsIndex)-latitude) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-       
-        if (lonList(obsindex) /= MPC_missingValue_R8) then
-          definedConditions =  definedConditions + 1
+    latitude(1) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+    longitude(1) = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+    observationIndex(1)=headerIndex
+    call tvs_interp_sfc (latIndex, lonIndex, 1, latitude, longitude, observationIndex, skipAlbedo_opt= .true.)  
 
-          if (abs(lonList(obsIndex)-longitude) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
+    highResWaterFraction = tvs_surfaceParameters(headerIndex) % pcnt_wat
 
-        if (satZenList(obsindex) /= MPC_missingValue_R8) then
-          definedConditions =  definedConditions + 1
+    ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
 
-          if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
+    call tvs_pcnt_box (lowResWaterFraction, 1 ,latIndex,lonIndex, boxSize)
 
-        if (dayList(obsindex) /= MPC_missingValue_INT) then
-          definedConditions =  definedConditions + 1
-
-          if (dayList(obsIndex) == date) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-
-        if (timeList(obsindex) /= MPC_missingValue_INT) then
-          definedConditions =  definedConditions + 1
-          if (timeList(obsIndex) == hour) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-        
-        if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
-          selected = .true.
-          return
-        end if
-
-      end do
-      
+    waterFractionTest : if (highResWaterFraction < 0.99d0 .or. lowResWaterFraction(1) < 0.97d0) then
+      selected= .false.      
     else
-      selected = .true.
-    end if
-    
+      
+      if (selectSpecificObservationsFromList) then
+        selected = .false.
+        satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+        date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
+        hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+        
+        do obsIndex = 1, nObsMax
+          definedConditions = 0
+          satisfiedConditions = 0
+          
+          if (latList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(latList(obsIndex)-latitude(1)) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (lonList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(lonList(obsIndex)-longitude(1)) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+
+          if (satZenList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (dayList(obsindex) /= MPC_missingValue_INT) then
+            definedConditions =  definedConditions + 1
+            
+            if (dayList(obsIndex) == date) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (timeList(obsindex) /= MPC_missingValue_INT) then
+            definedConditions =  definedConditions + 1
+            if (timeList(obsIndex) == hour) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
+            selected = .true.
+            return
+          end if
+          
+        end do
+      
+      else
+        selected = .true.
+      end if
+    end if waterFractionTest
+
   end function isSelected
     
 end program midas_dfs

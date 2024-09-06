@@ -99,7 +99,7 @@ module tovs_mod
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_ChangedStypValue
   public :: tvs_getLocalChannelIndexFromChannelNumber
-  public :: tvs_getProfile
+  public :: tvs_getProfile, tvs_interp_sfc
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
@@ -3803,7 +3803,7 @@ contains
     end do
 
     !  Assign surface properties from grid to profiles
-    call interp_sfc(ilat,ilon, nprf,latitudes,longitudes,sensorTovsIndexes)
+    call tvs_interp_sfc(ilat,ilon, nprf,latitudes,longitudes,sensorTovsIndexes)
 
 
     !  Find the sensor bands (central) wavenumbers
@@ -3859,9 +3859,9 @@ contains
   end subroutine emis_getIrEmissivity
 
   !--------------------------------------------------------------------------
-  !  interp_sfc
+  !  tvs_interp_sfc
   !--------------------------------------------------------------------------
-  subroutine interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorTovsIndexes,skipAlbedo_opt)
+  subroutine tvs_interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorTovsIndexes,skipAlbedo_opt)
     !
     ! :Purpose: Associate surface albedo, ice fraction, snow depth 
     !           and ceres surface type and water fraction to observations profiles.
@@ -3911,7 +3911,7 @@ contains
 
     ! printout header
     write(*,*) 
-    write(*,*) 'SUBROUTINE interp_sfc'
+    write(*,*) 'SUBROUTINE tvs_interp_sfc'
     write(*,*) '---------------------'
     write(*,*) ' called multiple time by bunch of ',nprf,' profiles'
     write(*,*) ' <RETURN CODES> SHOULD NOT BE NEGATIVE'
@@ -4128,7 +4128,7 @@ contains
 
     deallocate(glace,neige,alb)
 
-  end subroutine interp_sfc
+  end subroutine tvs_interp_sfc
 
   !--------------------------------------------------------------------------
   !  ceres_ematrix
