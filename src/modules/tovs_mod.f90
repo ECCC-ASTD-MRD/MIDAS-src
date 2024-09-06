@@ -3714,7 +3714,7 @@ contains
         end do
         
         if (nplon == 1) then
-          ! additional cases at border 1-klon
+          ! additional cases at border 1-kslon
           do lonIndex = jlon1, jlon2
             nx = nx + 1
             f_low(profileIndex) = f_low(profileIndex) + waterFraction(lonIndex,latIndex)         
@@ -3861,7 +3861,7 @@ contains
   !--------------------------------------------------------------------------
   !  interp_sfc
   !--------------------------------------------------------------------------
-  subroutine interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorTovsIndexes)
+  subroutine interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorTovsIndexes,skipAlbedo_opt)
     !
     ! :Purpose: Associate surface albedo, ice fraction, snow depth 
     !           and ceres surface type and water fraction to observations profiles.
@@ -3869,12 +3869,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: nprf                    ! number of profiles
-    integer, intent(out) :: ilat(nprf)              ! y-coordinate of profile
-    integer, intent(out) :: ilon(nprf)              ! x-coordinate of profile 
-    real(8), intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
-    real(8), intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
-    integer, intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
+    integer,           intent(out) :: ilat(nprf)              ! y-coordinate of profile
+    integer,           intent(out) :: ilon(nprf)              ! x-coordinate of profile 
+    integer,           intent(in)  :: nprf                    ! number of profiles
+    real(8),           intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
+    real(8),           intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
+    integer,           intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
+    logical,optional,  intent(in)  :: skipAlbedo_opt          ! skip the section of code about Albedo  
 
     ! Locals:
     character(len=20)  :: cfile3,cfile5
@@ -3902,6 +3903,7 @@ contains
     real(8)            :: zig1,zig2,zig3,zig4
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs
     real (8)           :: alat, alon, zzlat, zzlon
+    logical            :: skipAlbedo
     ! fields on input grid
     real(8), allocatable :: glace(:,:), neige(:,:), alb(:,:)
     ! fields on output grid
@@ -3914,6 +3916,12 @@ contains
     write(*,*) ' called multiple time by bunch of ',nprf,' profiles'
     write(*,*) ' <RETURN CODES> SHOULD NOT BE NEGATIVE'
     write(*,*) '---------------------------------------------------'
+
+    if (present(skipAlbedo_opt)) then
+      skipAlbedo = skipAlbedo_opt
+    else
+      skipAlbedo = .false.
+    end if
 
     ! --- FOR CERES VARIABLES -------------
     !  Get number of pixels per degree of lat or lon
@@ -3947,6 +3955,8 @@ contains
 
     end do
 
+    if (skipAlbedo) return
+    
     !  For ice, snow and albedo variables -------------
 
     iun3 = 0
