@@ -1148,9 +1148,6 @@ contains
 
     call utl_tmg_start(4,'--AddEnsRandomPert')
 
-    ! Determine middle timestep
-    middleStepIndex = (tim_nstepobsinc + 1) / 2
-
     ! Get ensemble dimensions
     nEns = ens_getNumMembers(ensemble)
     numVarLev = ens_getNumK(ensemble)
@@ -1158,6 +1155,9 @@ contains
     call ens_getLatLonBounds(ensemble, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
     vco_ens => ens_getVco(ensemble)
     hco_ens => ens_getHco(ensemble)
+
+    ! Determine middle timestep of ensemble (in case it is 4D)
+    middleStepIndex = (numStep + 1) / 2
 
     ! Define the horiz/vertical coordinate for perturbation calculation
     nullify(vco_randomPert)
@@ -1281,7 +1281,8 @@ contains
 
       ! If desired, use member itself as reference state for LQ to HU conversion
       if (ens_varExist(ensemble,'HU') .and. useMemberAsHuRefState) then
-        call ens_copyMember(ensemble, stateVectorHuRefState, memberIndex)
+        call ens_copyMember(ensemble, stateVectorHuRefState, memberIndex,  &
+                            stepIndexEns_opt = middleStepIndex)
         call gvt_transform( stateVectorPerturbationInterp,  &          ! INOUT
                             'LQtoHU_tlm', &                            ! IN
                             stateVectorRef_opt=stateVectorHuRefState ) ! IN
