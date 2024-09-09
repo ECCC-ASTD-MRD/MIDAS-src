@@ -559,7 +559,8 @@ program midas_letkf
   !- 2.14 Add posterior random additive inflation, if requested
   if (alphaRandomPertPrior > 0.0D0) then
     call msg('midas-letkf', 'Apply random additive inflation to prior ensemble.')
-    randomSeedRandomPert = 1
+    randomSeedRandomPert = getRandomSeedFromDate(tim_getDateStamp())
+    if (mmpi_myid == 0) write(*,*) 'midas-letkf: randomSeedRandomPert = ', randomSeedRandomPert
     call epp_addRandomPert(ensembleTrl4D, stateVectorMeanTrl4D, alphaRandomPertPrior, &
                            randomSeedRandomPert, .true.)
   end if
@@ -924,5 +925,27 @@ program midas_letkf
   if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
   if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
   if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+
+contains
+
+  function getRandomSeedFromDate(dateStamp) result(randomSeed)
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: dateStamp
+    ! Result:
+    integer             :: randomSeed
+
+    ! Locals:
+    integer :: imode, datePrint, timePrint, newdate 
+
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    ! Remove the century from date: YYMMDD
+    datePrint = datePrint - 1000000*(datePrint/1000000)
+    ! Add hours to date: YYMMDDHH
+    randomSeed =  datePrint*100 + timePrint/1000000
+
+  end function getRandomSeedFromDate
 
 end program midas_letkf
