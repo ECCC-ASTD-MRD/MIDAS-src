@@ -29,7 +29,7 @@ module ensPostProcess_mod
   private
 
   ! public procedures
-  public :: epp_postProcess
+  public :: epp_postProcess, epp_addRandomPert
   
 contains
 
@@ -1109,7 +1109,7 @@ contains
   !--------------------------------------------------------------------------
   ! epp_addRandomPert
   !--------------------------------------------------------------------------
-  subroutine epp_addRandomPert(ensembleAnl, stateVectorRefState, alphaRandomPert, &
+  subroutine epp_addRandomPert(ensemble, stateVectorRefState, alphaRandomPert, &
                                randomSeed, useMemberAsHuRefState)
     ! :Purpose: Apply additive inflation using random perturbations from sampling
     !           the B matrix as defined by the regular namelist block NAMBHI, NAMBEN, etc.
@@ -1119,7 +1119,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleAnl
+    type(struct_ens), intent(inout) :: ensemble
     type(struct_gsv), intent(in)    :: stateVectorRefState
     real(8)         , intent(in)    :: alphaRandomPert
     integer         , intent(in)    :: randomSeed
@@ -1139,7 +1139,7 @@ contains
     real(8), pointer     :: PsfcRef(:,:,:,:)
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
-    integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
+    integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex, numStep
     integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd, varIndex
     integer :: middleStepIndex
     logical, save :: firstCall = .true.
@@ -1148,15 +1148,16 @@ contains
 
     call utl_tmg_start(4,'--AddEnsRandomPert')
 
-    ! Determine middle timestep
-    middleStepIndex = (tim_nstepobsinc + 1) / 2
-
     ! Get ensemble dimensions
-    nEns = ens_getNumMembers(ensembleAnl)
-    numVarLev = ens_getNumK(ensembleAnl)
-    call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-    vco_ens => ens_getVco(ensembleAnl)
-    hco_ens => ens_getHco(ensembleAnl)
+    nEns = ens_getNumMembers(ensemble)
+    numVarLev = ens_getNumK(ensemble)
+    numStep = ens_getNumStep(ensemble)
+    call ens_getLatLonBounds(ensemble, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    vco_ens => ens_getVco(ensemble)
+    hco_ens => ens_getHco(ensemble)
+
+    ! Determine middle timestep of ensemble (in case it is 4D)
+    middleStepIndex = (numStep + 1) / 2
 
     ! Define the horiz/vertical coordinate for perturbation calculation
     nullify(vco_randomPert)
@@ -1180,8 +1181,8 @@ contains
 
     ! Get list of variable names in the ensemble and modify if necessary
     nullify(varNamesWithLQ)
-    call ens_varNamesList(varNamesWithLQ,ensembleAnl)
-    if (useMemberAsHuRefState .and. ens_varExist(ensembleAnl,'HU')) then
+    call ens_varNamesList(varNamesWithLQ,ensemble)
+    if (useMemberAsHuRefState .and. ens_varExist(ensemble,'HU')) then
       ! Replace HU with LQ so we can apply the transform directly in this routine
       do varIndex = 1, size(varNamesWithLQ)
         if (varNamesWithLQ(varIndex) == 'HU') varNamesWithLQ(varIndex) = 'LQ'
@@ -1230,7 +1231,7 @@ contains
 
 
     ! prepare the reference state HU field for transforming LQ to HU perturbations
-    if (ens_varExist(ensembleAnl,'HU')) then
+    if (ens_varExist(ensemble,'HU')) then
       call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
@@ -1263,7 +1264,7 @@ contains
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
       call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
-      if (ens_varExist(ensembleAnl,'HU') .and. .not.useMemberAsHuRefState) then
+      if (ens_varExist(ensemble,'HU') .and. .not.useMemberAsHuRefState) then
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
@@ -1279,8 +1280,9 @@ contains
                           statevectorRef_opt=statevectorP0Ref)
 
       ! If desired, use member itself as reference state for LQ to HU conversion
-      if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then
-        call ens_copyMember(ensembleAnl, stateVectorHuRefState, memberIndex)
+      if (ens_varExist(ensemble,'HU') .and. useMemberAsHuRefState) then
+        call ens_copyMember(ensemble, stateVectorHuRefState, memberIndex,  &
+                            stepIndexEns_opt = middleStepIndex)
         call gvt_transform( stateVectorPerturbationInterp,  &          ! INOUT
                             'LQtoHU_tlm', &                            ! IN
                             stateVectorRef_opt=stateVectorHuRefState ) ! IN
@@ -1293,8 +1295,8 @@ contains
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
       do varLevIndex = 1, numVarLev
-        varName = ens_getVarNameFromK(ensembleAnl,varLevIndex)
-        memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+        varName = ens_getVarNameFromK(ensemble,varLevIndex)
+        memberAnl_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
 
@@ -1303,7 +1305,7 @@ contains
                  perturbation_ptr(lonIndex, latIndex, varLevIndex) / real(nEns, 8)
 
             ! Add perturbation to member
-            do stepIndex = 1, tim_nstepobsinc
+            do stepIndex = 1, numStep
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                    memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) +  &
                    perturbation_ptr(lonIndex, latIndex, varLevIndex)
@@ -1317,10 +1319,10 @@ contains
 
     ! remove the ensemble mean of the perturbations
     do varLevIndex = 1, numVarLev
-      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+      memberAnl_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
-          do stepIndex = 1, tim_nstepobsinc
+          do stepIndex = 1, numStep
             do memberIndex = 1, nEns
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                    memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
