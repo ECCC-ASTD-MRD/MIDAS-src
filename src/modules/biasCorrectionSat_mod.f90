@@ -79,7 +79,7 @@ module biasCorrectionSat_mod
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 16
-  integer, parameter    :: NumPredictorsBcif = 13
+  integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
@@ -266,7 +266,8 @@ contains
           if (exitcode /= 0) then
             call utl_abort("bcs_setup: Problem in read_bcif while reading " // trim(bcifFile))
           end if
-
+          !write(*,*) "npredBCIF= ", npredBCIF(1:ncanBcif+1)
+          !call flush(6)
           bias(iSensor)%numChannels = ncanBcif
 
           allocate(bias(iSensor)%chans(ncanBcif))
@@ -869,12 +870,15 @@ contains
         else
           fileNameExtension = ' '
         end if
+        
+        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
+            // '_' // trim(filenameExtension)
 
-        fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
-             // '_' // trim(filenameExtension)
+        !fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
+         !    // '_' // trim(filenameExtension)
 
         call fSQL_open(db(fileIndex), fileName, stat)
-        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName)
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')
 
         ! Create the tables
@@ -1000,7 +1004,7 @@ contains
       type(FSQL_STATUS), intent(in) :: stat
       character(len=*),  intent(in) :: message
 
-      write(*,*) message, fSQL_errmsg(stat)
+      write(*,'(A,1x,A)') message, trim(fSQL_errmsg(stat))
       call utl_abort(trim(message))
     end subroutine handleError
 
@@ -3563,7 +3567,7 @@ contains
     !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS) the BCIF must always contain records for ALL ncan channels.
     !          If global_opt = OUI, only the channel numbers are needed in column 1 (CHAN) to get the list
     !            of channel numbers.
-    !          If global_opt = DEF, other column data (MODE, TYPE, NPRED, PRED1,...) are entered only for
+    !          If global_opt = DEF, other column data (MODE, TYPE, NPRE PRED1,...) are entered only for
     !            those channels for which the default (channel 0) values are to be overridden.
     !
     !        For standard instruments (AMSU, SSM/I, SSMIS), with consecutive channels 1,2,3,...,ncan:
@@ -3728,6 +3732,7 @@ contains
     write(*,*) line
     do i = 1, ncan + 1
       chknp = count(pred(i,:) /= 'XX')
+      !write(*,*) "chknp", chknp
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
       write(*,'(I4,2(5X,A1),5X,I2,14(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)

@@ -436,7 +436,7 @@ contains
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
                                     beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
-                                    analysisMode_opt, genCoeffMode_opt )
+                                    analysisMode_opt, needTransmittance_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     !
@@ -452,13 +452,13 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
-    logical, optional      , intent(in)    :: genCoeffMode_opt
+    logical, optional      , intent(in)    :: needTransmittance_opt
     
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
-    logical :: genCoeffMode
+    logical :: needTransmittance
 
     logical, save :: lgpdata = .false.
 
@@ -470,10 +470,10 @@ contains
       beSilent = .false.
     end if
 
-    if (present(genCoeffMode_opt)) then
-      genCoeffMode = genCoeffMode_opt
+    if (present(needTransmittance_opt)) then
+      needTransmittance = needTransmittance_opt
     else
-      genCoeffMode = .false.
+      needTransmittance = .true.
     end if
 
     if ( .not. beSilent ) then
@@ -606,7 +606,7 @@ contains
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn, &
-                       genCoeffMode_opt=genCoeffMode)
+                       needTransmittance_opt=needTransmittance)
     end if
 
     ! Profilers

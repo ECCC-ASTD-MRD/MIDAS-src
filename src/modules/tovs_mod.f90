@@ -2891,7 +2891,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, genCoeffMode_opt)
+  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, needTransmittance_opt)
     !
     ! :Purpose: Interface for RTTOV non linear operator
     !           tvs_fillProfiles should be called before
@@ -2899,10 +2899,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
-    logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical,           intent(in)    :: beSilent        ! verbosity flag
-    logical, optional, intent(in)    :: genCoeffMode_opt! option to transfer transmittance
+    type(struct_obs),  intent(inout) :: obsSpaceData          ! obsSpaceData structure
+    logical,           intent(in)    :: bgckMode              ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
+    logical,           intent(in)    :: beSilent              ! verbosity flag
+    logical, optional, intent(in)    :: needTransmittance_opt ! option to transfer transmittance
 
     ! Locals:
     integer :: nlv_T
@@ -2934,7 +2934,7 @@ contains
     real(8) :: clearMwRadiance
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
-    logical :: genCoeffMode
+    logical :: needTransmittance
 
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
     
@@ -2946,10 +2946,10 @@ contains
     max_nthreads = mmpi_numThread
 
     allocate(sensorTovsIndexes(tvs_nobtov))
-    if (present(genCoeffMode_opt)) then
-      genCoeffMode = genCoeffMode_opt
+    if (present(needTransmittance_opt)) then
+      needTransmittance = needTransmittance_opt
     else
-      genCoeffMode = .false.
+      needTransmittance = .true.
     end if
 
     
@@ -3234,7 +3234,7 @@ contains
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
         
         !    2.4  Store hx in the structure tvs_radiance
-        if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
+        if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode .or. needTransmittance) .and. .not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
         end if
         
@@ -3359,11 +3359,14 @@ contains
           do btIndex = 1, btCountScatt
             clearMwRadiance = radiancedata_dScatt % bt(btIndex)
             bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex,sensorIndex)
+            profileIndex = tvs_chanprofScatt(btIndex,sensorIndex) % prof
+            channelIndex = tvs_chanprofScatt(btIndex,sensorIndex) % chan
+            tovsIndex = sensorTovsIndexes(profileIndex)
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
 
-            if (genCoeffMode .and. .not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+            if (needTransmittance .and. .not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
             if ( allocated( tvs_transmission) ) then
               do levelIndex = 1, nlv_T
