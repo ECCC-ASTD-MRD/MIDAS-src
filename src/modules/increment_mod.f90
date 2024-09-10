@@ -31,7 +31,7 @@ module increment_mod
   integer           :: writeNumBits          ! number of bits to use when writing analysis and high-res increment
   logical           :: writeHiresIncrement   ! choose to write the high-res increment to a file
   logical           :: imposeRttovHuLimits   ! choose to impose "rttov" humidity limits to analysis
-  logical           :: useAnalIncMask        ! for LAM only, choose to apply scale factor from a mask file to the increment  
+  logical           :: useAnalIncMask        ! for LAM only, choose to apply scale factor from a mask file to the increment
   character(len=12) :: etiket_anlm           ! 'etiket' used when writing the analysis
   character(len=12) :: etiket_rehm           ! 'etiket' used when writing the high-res increment
   character(len=12) :: etiket_rebm           ! 'etiket' used when writing the low-res increment
@@ -40,6 +40,7 @@ module increment_mod
   logical           :: SSTSpread             ! choose to apply spatial spreading of the SST increment onto land
   integer           :: SSTSpreadMaxBoxSize   ! control the amount of SST increment spreading
   character(len=10) :: SSTSubgrid            ! select subgrid on which to apply spreading: 'Yin' or 'Yan'
+  logical           :: spreadIceIncOverLakes ! spread ice increment over lakes when outside [0,1]
 
 CONTAINS
 
@@ -58,7 +59,8 @@ CONTAINS
 
     NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
          etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree, &
-         useAnalIncMask, applyLiebmann, SSTSpread, SSTSpreadMaxBoxSize, SSTSubgrid
+         useAnalIncMask, applyLiebmann, SSTSpread, SSTSpreadMaxBoxSize, SSTSubgrid, &
+         spreadIceIncOverLakes
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -76,6 +78,7 @@ CONTAINS
       SSTSpread  = .false.
       SSTSpreadMaxBoxSize = 0
       SSTsubgrid = '   '
+      spreadIceIncOverLakes = .false.
 
       if ( .not. utl_isNamelistPresent('NAMINC','./flnml') ) then
         call msg('readNameList (inc)', &
@@ -355,8 +358,6 @@ CONTAINS
     type(struct_hco), pointer :: hco_trl => null()
     character(len=4), allocatable :: varNamesPsfc(:)
 
-    real(pre_incrReal), pointer :: oceanIce_ptr(:,:,:,:)
-
     logical  :: allocHeightSfc
 
     call msg('inc_analPostProcessing', 'START', verb_opt=2)
@@ -415,9 +416,7 @@ CONTAINS
 
     if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
-      call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
-      oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
-      oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
+      call gvt_transform(stateVectorAnal, 'iceLimits', spreadIceIncOverLakes_opt = spreadIceIncOverLakes)
     end if
 
     if (applyLiebmann) then
