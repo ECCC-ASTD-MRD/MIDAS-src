@@ -81,6 +81,7 @@
  &NAMINC
    hInterpolationDegree = 'CUBIC'
    etiket_rebm ='XXXXXX'
+   spreadIceIncOverLakes = .TRUE.
 /
  &NAMCODTYP
 /

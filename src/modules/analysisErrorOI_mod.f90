@@ -131,7 +131,7 @@ contains
 
     nullify(analysisVariable)
     call gsv_varNamesList(analysisVariable)
-    
+
     if (size(analysisVariable) > 1) then
       call utl_abort('aer_analysisError: Check namelist NAMSTATE. analysisVariable is greater than 1.')
     end if

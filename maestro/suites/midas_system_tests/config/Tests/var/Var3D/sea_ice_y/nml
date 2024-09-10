@@ -4,7 +4,6 @@
 /
  &NAMSTATE
   ANLVAR(1) = 'GL'
-  ANLVAR(2) = 'LG'
 /
  &NAMDIMO
    NMXOBS  = 600000
@@ -35,6 +34,7 @@
   listPlatformIce(6) = 'RS1_IMG'
   listPlatformIce(7) = 'CIS_REGIONAL'
   listPlatformIce(8) = 'iceclake'
+  listPlatformIce(9) = 'RCM'
 /
  &NAMBDIFF
   corr_len = 200*10.0
@@ -80,9 +80,10 @@
    NWOQCV   = 5
 /
  &NAMINC
-   hInterpolationDegree = 'LINEAR'
    etiket_rebm ='XXXXXX'
-   applyLiebmann = .true.
+   writeNumBits = 32
+   hInterpolationDegree = 'CUBIC'
+   spreadIceIncOverLakes = .TRUE.
 /
  &NAMCODTYP
 /

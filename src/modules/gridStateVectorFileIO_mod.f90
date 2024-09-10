@@ -141,7 +141,7 @@ module gridStateVectorFileIO_mod
       if (gsv_varExist( statevector_out, varname) .and. &
           utl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
         foundVarNameInFile = .true.
-    end if   
+    end if
 
     ! to be safe for situations where, e.g. someone wants to only read MG from a file
     if (.not. foundVarNameInFile) then
@@ -152,7 +152,7 @@ module gridStateVectorFileIO_mod
 
     if (.not. foundVarNameInFile) call utl_abort('gio_readFromFile: NO variables found in the file!!!')
 
-    write(*,*) 'gio_readFromFile: defining hco by varname= ', varName
+    write(*,*) 'gio_readFromFile: defining hco by varname: ', varName, ' from file: ', trim(fileName)
 
     call hco_setupFromFile(hco_file, trim(fileName), etiket_in, gridName_opt='FILEGRID', varName_opt = varName)
 
