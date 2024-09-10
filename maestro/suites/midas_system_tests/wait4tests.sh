@@ -26,7 +26,7 @@ fi
 
 echo "Waiting for suite ${suite}"
 echo "To monitor the suite:"
-printf "\tSEQ_EXP_HOME=${suite} xflow\n"
+printf "\txflow -exp ${suite}\n"
 
 logs=$(/bin/ls -t ${suite}/logs/*_nodelog 2>/dev/null | head -1)
 if [ -z "${logs}" ]; then
