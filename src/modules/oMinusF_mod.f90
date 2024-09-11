@@ -38,7 +38,7 @@ module oMinusF_mod
     ! omf_oMinusF
     !--------------------------------------------------------------------------
     subroutine omf_oMinusF(columnTrlOnAnlIncLev, columnTrlOnTrlLev, obsSpaceData, &
-                           midasMode, addHBHT, addSigmaO)
+                           midasMode, addHBHT, addSigmaO, trialFileName)
       !
       ! :Purpose: compute Observation-minus-Forecast (OmF)
       !
@@ -51,6 +51,7 @@ module oMinusF_mod
       character(len=*),               intent(in)    :: midasMode
       logical,                        intent(in)    :: addHBHT
       logical,                        intent(in)    :: addSigmaO
+      character(len=*),               intent(in)    :: trialFileName
 
       ! Locals:
       type(struct_gsv) :: stateVectorTrialHighRes
@@ -62,7 +63,6 @@ module oMinusF_mod
       logical           :: allocHeightSfc
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
-      character(len=10) :: trialFileName
       integer :: dateStampFromObs
 
       write(*,*) " ---------------------------------------"
@@ -78,13 +78,12 @@ module oMinusF_mod
 
       obsMpiStrategy = 'LIKESPLITFILES'
       obsColumnMode  = 'VAR'
-      trialFileName  = './trlm_01'
 
       !- 1.3 RAM disk usage
       call ram_setup
 
       !- 1.4 Temporal grid and dateStamp from trial file
-      call tim_setup(fileNameForDate_opt=trim(trialFileName))
+      call tim_setup(fileNameForDate_opt = trim(trialFileName))
 
       !- 1.5 Observation file names and get datestamp, but do not use it
       call obsf_setup(dateStampFromObs, trim(midasMode))
@@ -144,21 +143,21 @@ module oMinusF_mod
       end if
 
       ! Reading trials
-      call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, './trlm_01')
-      allocHeightSfc = ( vco_trl%Vcode /= 0 )
+      call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl, trim(trialFileName))
+      allocHeightSfc = (vco_trl%Vcode /= 0)
 
-      call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                         mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                         allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                         beSilent_opt=.false. )
-      call gsv_zero( stateVectorTrialHighRes )
-      call gio_readTrials( stateVectorTrialHighRes )
+      call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                        mpi_distribution_opt='Tiles', dataKind_opt=4,  &
+                        allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                        beSilent_opt=.false.)
+      call gsv_zero(stateVectorTrialHighRes)
+      call gio_readTrials(stateVectorTrialHighRes)
       call msg_memUsage('omf_oMinusF')
 
       ! Horizontally interpolate trials to trial columns
-      call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                       stateVectorTrialHighRes )
+      call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                    stateVectorTrialHighRes)
 
       write(*,*)
       write(*,*) '> omf_oMinusF: setup - END'
@@ -171,15 +170,15 @@ module oMinusF_mod
       !- 2.1 Compute observation innovations
       write(*,*)
       write(*,*) '> omf_oMinusF: compute innovation'
-      call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false.)
+      call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false.)
 
       if ( addHBHT ) then
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding HBH^T'
         !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-        call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
+        call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
         !- 2.3 Compute the background errors in observation space
-        call ose_computeStddev(columnTrlOnAnlIncLev,hco_anl,obsSpaceData)
+        call ose_computeStddev(columnTrlOnAnlIncLev, hco_anl, obsSpaceData)
       end if
 
     end subroutine omf_oMinusF

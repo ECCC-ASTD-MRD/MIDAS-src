@@ -136,7 +136,7 @@ program midas_oMinusF
   character(len=20)  :: oMinusFmode
   character(len=256) :: ensPathName = 'ensemble'
   character(len=256) :: ensFileName
-  character(len=256) :: trlFileName = './trlm_01'
+  character(len=256) :: trlFileName
 
   logical :: ensFileExists, trlFileExists
   
@@ -176,10 +176,15 @@ program midas_oMinusF
   call utl_tmg_stop(181)
 
   !- 1.4 Set mode
-  inquire(file=trim(trlFileName),exist=trlFileExists)
+  trlFileName = 'trlm'
+  inquire(file = trim(trlFileName), exist = trlFileExists)
+  if (.not. trlFileExists) then
+    trlFileName = 'trlm_01'
+    inquire(file = trim(trlFileName), exist = trlFileExists)
+  end if
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
                        shouldExist_opt=.false.)
-  inquire(file=trim(ensFileName),exist=ensFileExists)
+  inquire(file = trim(ensFileName), exist = ensFileExists)
 
   if      (trlFileExists) then
     write(*,*)
@@ -205,7 +210,7 @@ program midas_oMinusF
 
     !- 2.1 Compute O-F and store in obsSpaceDate
     call omf_oMinusF(columnTrlOnAnlIncLev, columnTrlOnTrlLev, obsSpaceData, &
-                     'OminusF', addHBHT, addSigmaO)
+                     'OminusF', addHBHT, addSigmaO, trim(trlFileName))
 
     !- 2.2 Remove biases
     call bcs_calcBias(obsSpaceData,columnTrlOnTrlLev) ! Fill in OBS_BCOR obsSpaceData column with computed bias correction
