@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * SST analysis anomaly with respect to climatology (#955 and !874)
+ * Added ability to apply random additive inflation to background ensemble in `letkf` (#963 and !876)
  * Add namelist variables to `prepcma` for flexible radiance obs thinning for each instrument (#961 and !873)
  * Introduction of a new logical variable `computeInParallel` in NAMDFS namelist section (#941 and !870)
  * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
@@ -52,6 +53,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Add a test `/Tests/letkf/glb_3D` to run LETKF on a single node (#932 and !841)
  * The routine `hco_weight` can now read the grid weights from the file `grid_weight.bin` instead of recomputing them (#928 and !838)
    * If it does compute the weights, then the routine writes them in `grid_weight.bin`.
+ * Added namelist variable to control precision of surface fields written to mean/rms files by `ensPostProcess` (#925 and !837)
  * Add namelist variables in `nambgck` and `namoer` for all-sky ATMS humidity channels (#879 and !832)
  * Added support for the special value `build_directory_local_to_the_repository` for the environment variable `MIDAS_COMPILE_DIR_MAIN` (#923 and !835)
  * All-sky assimilation in letkf (#880 and !833)
@@ -93,8 +95,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Update documentation for release `v_4.0.0` (#916 and !824)
- * The MIDAS scripts have been generalized to support programs that
-   only have observation files as output (#913 and !823)
  * Added the capability to compute EnVar analysis increments on GEM-P levels using a background and ensembles on GEM-H levels (#850 and !820)
    * WARNING: minor impact on results when vertically interpolating the ensembles
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
@@ -149,6 +149,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
+
+## [3.9.3]
+
+### Added
+
+ * New treatment of lake ice activated with namelist variable `spreadIceIncOverLakes` (#914 and !834)
+
+## [3.9.2]
+
+### Added
+
+ * The MIDAS scripts have been generalized to support programs that
+   only have observation files as output (#913 and !823)
 
 ## [3.9.1]
 
@@ -1288,7 +1301,9 @@ are not documenting them here.
 
 [Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...HEAD
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
-[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_4.0.0
+[3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
+[3.9.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_3.9.2
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
 [3.9.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1

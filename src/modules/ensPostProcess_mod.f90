@@ -29,9 +29,9 @@ module ensPostProcess_mod
   save
   private
 
-  ! Public procedures
-  public :: epp_postProcess
-  
+  ! public procedures
+  public :: epp_postProcess, epp_addRandomPert
+
 contains
 
   !----------------------------------------------------------------------
@@ -115,6 +115,7 @@ contains
     character(len=12) :: etiket_trlmean     ! etiket for mean of trials
     character(len=12) :: etiket_trlrms      ! etiket for rms of trials
     integer  :: numBits ! number of bits when writing ensemble mean and spread
+    integer  :: numBits2D ! number of bits when writing ensemble mean and spread for 2D surface variables
     logical  :: useAnalIncMask        ! mask out the increment on the pilot zone
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
@@ -129,7 +130,7 @@ contains
                                    useOptionTableRecenter, etiket_anl, etiket_inc, etiket_trl,           &
                                    etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
                                    etiket_anlmean_raw, etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, &
-                                   numBits, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
+                                   numBits, numBits2D, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
                                    use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,           &
                                    qcLimitsBeforeRecenter
 
@@ -203,6 +204,7 @@ contains
     etiket_trlrms = 'E27_0_0PRMS' ! for file '${trialdate}_006_trialrms'
     !
     numBits = 16
+    numBits2D = -999
     useAnalIncMask = .false.
     writeRawAnalStats = .false.
     useMemberAsHuRefState = .false.
@@ -214,6 +216,11 @@ contains
     if ( ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
     if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
     call utl_tmg_stop(181)
+
+    !- Set numBits2D if it does not appear in the namelist
+    if ( numBits2D == -999 ) then
+      numBits2D = numBits
+    end if
 
     if (use4Drecentering3Densemble) then
       if (tim_nstepobsinc > 1) then
@@ -652,14 +659,16 @@ contains
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
                              typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                             containsFullField_opt=.true.)
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorStdDevTrl)
       call gio_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
                            typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                           containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
       call utl_tmg_stop(5)
@@ -724,14 +733,16 @@ contains
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                             containsFullField_opt=.true.)
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
       call gio_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                           containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
 
@@ -743,14 +754,16 @@ contains
         do stepIndex = 1, tim_nstepobsinc
           call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                               containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analrms_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
         call gio_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                             containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
       end if  ! writeRawAnalStats
@@ -763,14 +776,16 @@ contains
         do stepIndex = 1, tim_nstepobsinc
           call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
+                               containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnlPert)
         call gio_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
+                             numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+                             containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
@@ -1154,7 +1169,7 @@ contains
   !--------------------------------------------------------------------------
   ! epp_addRandomPert
   !--------------------------------------------------------------------------
-  subroutine epp_addRandomPert(ensembleAnl, stateVectorRefStateIn, alphaRandomPert, &
+  subroutine epp_addRandomPert(ensemble, stateVectorRefState, alphaRandomPert, &
                                randomSeed, useMemberAsHuRefState)
     ! :Purpose: Apply additive inflation using random perturbations from sampling
     !           the B matrix as defined by the regular namelist block NAMBHI, NAMBEN, etc.
@@ -1164,8 +1179,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensembleAnl
-    type(struct_gsv), intent(in)    :: stateVectorRefStateIn
+    type(struct_ens), intent(inout) :: ensemble
+    type(struct_gsv), intent(in)    :: stateVectorRefState
     real(8)         , intent(in)    :: alphaRandomPert
     integer         , intent(in)    :: randomSeed
     logical         , intent(in)    :: useMemberAsHuRefState
@@ -1173,8 +1188,8 @@ contains
     ! Locals:
     type(struct_gsv)         :: stateVectorPerturbation
     type(struct_gsv)         :: stateVectorPerturbationInterp
-    type(struct_gsv)         :: stateVectorRefState
-    type(struct_gsv)         :: stateVectorRefStateInterp
+    type(struct_gsv)         :: stateVectorHuRefState
+    type(struct_gsv)         :: stateVectorHuRefStateInterp
     type(struct_gsv)         :: stateVectorP0Ref
     type(struct_vco), pointer :: vco_randomPert, vco_ens
     type(struct_hco), pointer :: hco_randomPert, hco_ens, hco_core
@@ -1184,7 +1199,7 @@ contains
     real(8), pointer     :: PsfcRef(:,:,:,:)
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
-    integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
+    integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex, numStep
     integer :: nEns, numVarLev, myLonBeg, myLonEnd, myLatBeg, myLatEnd, varIndex
     integer :: middleStepIndex
     logical, save :: firstCall = .true.
@@ -1193,15 +1208,16 @@ contains
 
     call utl_tmg_start(4,'--AddEnsRandomPert')
 
-    ! Determine middle timestep
-    middleStepIndex = (tim_nstepobsinc + 1) / 2
-
     ! Get ensemble dimensions
-    nEns = ens_getNumMembers(ensembleAnl)
-    numVarLev = ens_getNumVarLev(ensembleAnl)
-    call ens_getLatLonBounds(ensembleAnl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-    vco_ens => ens_getVco(ensembleAnl)
-    hco_ens => ens_getHco(ensembleAnl)
+    nEns = ens_getNumMembers(ensemble)
+    numVarLev = ens_getNumVarLev(ensemble)
+    numStep = ens_getNumStep(ensemble)
+    call ens_getLatLonBounds(ensemble, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
+    vco_ens => ens_getVco(ensemble)
+    hco_ens => ens_getHco(ensemble)
+
+    ! Determine middle timestep of ensemble (in case it is 4D)
+    middleStepIndex = (numStep + 1) / 2
 
     ! Define the horiz/vertical coordinate for perturbation calculation
     nullify(vco_randomPert)
@@ -1225,8 +1241,8 @@ contains
 
     ! Get list of variable names in the ensemble and modify if necessary
     nullify(varNamesWithLQ)
-    call ens_varNamesList(varNamesWithLQ,ensembleAnl)
-    if (useMemberAsHuRefState .and. ens_varExist(ensembleAnl,'HU')) then
+    call ens_varNamesList(varNamesWithLQ,ensemble)
+    if (useMemberAsHuRefState .and. ens_varExist(ensemble,'HU')) then
       ! Replace HU with LQ so we can apply the transform directly in this routine
       do varIndex = 1, size(varNamesWithLQ)
         if (varNamesWithLQ(varIndex) == 'HU') varNamesWithLQ(varIndex) = 'LQ'
@@ -1273,23 +1289,24 @@ contains
     call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
     PsfcRef(:,:,:,:) = 100000.0D0
 
-    ! prepare the reference state for interpolation and for transforming LQ to HU perturbations
-    if (ens_varExist(ensembleAnl,'HU')) then
-      call gsv_allocate(stateVectorRefState, 1, hco_ens, vco_ens,   &
+
+    ! prepare the reference state HU field for transforming LQ to HU perturbations
+    if (ens_varExist(ensemble,'HU')) then
+      call gsv_allocate(stateVectorHuRefState, 1, hco_ens, vco_ens,   &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                         allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                         hExtrapolateDegree_opt='MINIMUM', &
                         varNames_opt=(/'HU','TT','P0'/) )
       if (.not. useMemberAsHuRefState) then
         ! use the single provided state as the reference state and interpolate to perturbation grid
-        call gsv_copy(stateVectorRefStateIn, stateVectorRefState, allowVarMismatch_opt=.true.)
-        call gsv_allocate(stateVectorRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
+        call gsv_copy(stateVectorRefState, stateVectorHuRefState, allowVarMismatch_opt=.true.)
+        call gsv_allocate(stateVectorHuRefStateInterp, 1, hco_randomPert, vco_randomPert,   &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           hExtrapolateDegree_opt='MINIMUM', &
                           varNames_opt=(/'HU','TT','P0'/) )
-        call int_interp_gsv(stateVectorRefState, stateVectorRefStateInterp)
-        call gsv_deallocate(stateVectorRefState)
+        call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterp)
+        call gsv_deallocate(stateVectorHuRefState)
       end if
     end if
 
@@ -1307,11 +1324,11 @@ contains
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
       call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
-      if (ens_varExist(ensembleAnl,'HU') .and. .not.useMemberAsHuRefState) then
+      if (ens_varExist(ensemble,'HU') .and. .not.useMemberAsHuRefState) then
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
                         stateVectorPerturbation,   &       ! OUT
-                        stateVectorRef_opt=stateVectorRefStateInterp) ! IN
+                        stateVectorRef_opt=stateVectorHuRefStateInterp) ! IN
       else
         ! No conversion from LQ to HU done in bmat_sqrtB
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
@@ -1321,18 +1338,19 @@ contains
 
       if (vco_ens%vcode == 21001) then
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
-                            statevectorRef_opt=stateVectorRefStateInterp)
+                            statevectorRef_opt=stateVectorHuRefStateInterp)
       else
         call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
                             statevectorRef_opt=stateVectorP0Ref)
       end if
 
       ! If desired, use member itself as reference state for LQ to HU conversion
-      if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then
-        call ens_copyMember(ensembleAnl, stateVectorRefState, memberIndex)
+      if (ens_varExist(ensemble,'HU') .and. useMemberAsHuRefState) then
+        call ens_copyMember(ensemble, stateVectorHuRefState, memberIndex,  &
+                            stepIndexEns_opt = middleStepIndex)
         call gvt_transform( stateVectorPerturbationInterp,  &          ! INOUT
                             'LQtoHU_tlm', &                            ! IN
-                            stateVectorRef_opt=stateVectorRefState ) ! IN
+                            stateVectorRef_opt=stateVectorHuRefState ) ! IN
       end if
 
       ! scale the perturbation by the specified factor
@@ -1342,8 +1360,8 @@ contains
                  minval(perturbation_ptr), maxval(perturbation_ptr)
 
       do varLevIndex = 1, numVarLev
-        varName = ens_getVarNameFromVarLev(ensembleAnl,varLevIndex)
-        memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+        varName = ens_getVarNameFromVarLev(ensemble,varLevIndex)
+        memberAnl_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
 
@@ -1352,7 +1370,7 @@ contains
                  perturbation_ptr(lonIndex, latIndex, varLevIndex) / real(nEns, 8)
 
             ! Add perturbation to member
-            do stepIndex = 1, tim_nstepobsinc
+            do stepIndex = 1, numStep
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                    memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) +  &
                    perturbation_ptr(lonIndex, latIndex, varLevIndex)
@@ -1366,10 +1384,10 @@ contains
 
     ! remove the ensemble mean of the perturbations
     do varLevIndex = 1, numVarLev
-      memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
+      memberAnl_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
-          do stepIndex = 1, tim_nstepobsinc
+          do stepIndex = 1, numStep
             do memberIndex = 1, nEns
               memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) =  &
                    memberAnl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
@@ -1386,8 +1404,8 @@ contains
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
     call gsv_deallocate(stateVectorP0Ref)
-    if (gsv_isAllocated(stateVectorRefStateInterp)) then
-      call gsv_deallocate(stateVectorRefStateInterp)
+    if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
+      call gsv_deallocate(stateVectorHuRefStateInterp)
     end if
 
     call utl_tmg_stop(4)
