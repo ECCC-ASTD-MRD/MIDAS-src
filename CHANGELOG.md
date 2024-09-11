@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.0.2]
+
+### Added
+
  * SST analysis anomaly with respect to climatology (#955 and !874)
  * Added ability to apply random additive inflation to background ensemble in `letkf` (#963 and !876)
  * Add namelist variables to `prepcma` for flexible radiance obs thinning for each instrument (#961 and !873)
@@ -36,10 +54,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Also fixed incorrect intent for `ni/nj/nk` in `utl_fstlir`
  * Corrected netCDF filenames for LETKF increments (#952 and !865)
  * Reading netCDF subroutine is fixed (#947 and !862)
-
-### Removed
-
- * (Nothing yet)
 
 ## [4.0.1]
 
@@ -1299,7 +1313,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...HEAD
+[4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
 [4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_4.0.0
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
