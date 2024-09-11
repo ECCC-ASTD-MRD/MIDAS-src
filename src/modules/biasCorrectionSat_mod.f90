@@ -97,7 +97,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
-  integer, external     :: fnom, fclos
+  integer, external     :: fnom, fclos 
   character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
@@ -266,8 +266,7 @@ contains
           if (exitcode /= 0) then
             call utl_abort("bcs_setup: Problem in read_bcif while reading " // trim(bcifFile))
           end if
-          !write(*,*) "npredBCIF= ", npredBCIF(1:ncanBcif+1)
-          !call flush(6)
+
           bias(iSensor)%numChannels = ncanBcif
 
           allocate(bias(iSensor)%chans(ncanBcif))
@@ -821,7 +820,7 @@ contains
       end do
     end do
     write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: fileIndexes', fileIndexes(1:tovsFileNameListSize)
-    allocate(obsOffset(tovsFileNameListSize)) !id_obs
+    allocate(obsOffset(tovsFileNameListSize))  !id_obs
     allocate(dataOffset(tovsFileNameListSize)) !id_data
     do fileIndex = 1, tovsFileNameListSize
       fileName = tovsFileNameList(fileIndex)
@@ -870,7 +869,7 @@ contains
         else
           fileNameExtension = ' '
         end if
-        
+
         fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
             // '_' // trim(filenameExtension)
 
@@ -1004,7 +1003,7 @@ contains
       type(FSQL_STATUS), intent(in) :: stat
       character(len=*),  intent(in) :: message
 
-      write(*,'(A,1x,A)') message, trim(fSQL_errmsg(stat))
+      write(*,*) message, fSQL_errmsg(stat)
       call utl_abort(trim(message))
     end subroutine handleError
 
@@ -3349,7 +3348,7 @@ contains
               if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
                    sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
             end do
-            if ( all(sigma(:) > 0.d0) ) then
+            if ( all(sigma(:) > 0.d0) ) then ! to avoid division by zero when computing correlation coefficient
               do predictorIndex = 1, numPredictors
                 do predictorIndex2 =1, numPredictors
                   correlation(predictorIndex, predictorIndex2) =  &
@@ -3536,6 +3535,7 @@ contains
 
     ! Locals:
     character(len=7)             :: instrum
+    character(len=2)             :: cnum
     integer                      :: i, j, ier, ii, iun
     character(len=64)            :: line
     integer                      :: xcan, xnpred, chknp
@@ -3567,7 +3567,7 @@ contains
     !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS) the BCIF must always contain records for ALL ncan channels.
     !          If global_opt = OUI, only the channel numbers are needed in column 1 (CHAN) to get the list
     !            of channel numbers.
-    !          If global_opt = DEF, other column data (MODE, TYPE, NPRE PRED1,...) are entered only for
+    !          If global_opt = DEF, other column data (MODE, TYPE, NPRED, PRED1,...) are entered only for
     !            those channels for which the default (channel 0) values are to be overridden.
     !
     !        For standard instruments (AMSU, SSM/I, SSMIS), with consecutive channels 1,2,3,...,ncan:
@@ -3730,12 +3730,12 @@ contains
     write(*,*) 'read_BCIF: Bias correction information for each channel (from BCIF):'
     write(*,'(1X,A7,1X,I4)') instrum, ncan
     write(*,*) line
+    write(cnum,'(i2)') numpredictorsbcif
     do i = 1, ncan + 1
       chknp = count(pred(i,:) /= 'XX')
-      !write(*,*) "chknp", chknp
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,14(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
+      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
     end do
     write(*,*) 'read_BCIF: exit '
 
@@ -3936,7 +3936,7 @@ contains
   !-----------------------------------------
   ! bcs_getChannelIndex
   !-----------------------------------------
-  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody,channelNumber_opt)
+  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, indexBody, channelNumber_opt)
     !
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
