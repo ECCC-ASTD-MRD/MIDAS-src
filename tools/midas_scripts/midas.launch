@@ -212,13 +212,27 @@ if [ -n "${trials}" ]; then
     counter=1
     if [ -d "${trials}" ]; then
         for file in ${trials}/*; do
-            counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
-            copyOrLink ${file} trlm_${counterstr}
-            let counter=counter+1
+	    echo "File: " ${file}
+	    filetype=`r.filetype ${file}`
+	    if [ "${filetype}" == "File type is RPN standard random 98" ]; then
+                counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
+                copyOrLink ${file} trlm_${counterstr}
+                let counter=counter+1
+            else
+	        ## netCDF file
+		echo "copying netCDF trial..."
+                copyOrLink ${file} trlm
+            fi
         done
     elif [ -f "${trials}" ]; then
-        counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
-        copyOrLink ${trials} trlm_${counterstr}
+        filetype=`r.filetype ${trials}`
+        if [ "${filetype}" == "File type is RPN standard random 98" ]; then
+            counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
+            copyOrLink ${trials} trlm_${counterstr}
+	else
+	    ## netCDF file
+	    copyOrLink ${trials} trlm
+	fi
     else
         echo "The trials are unavailable"
         exit 1
