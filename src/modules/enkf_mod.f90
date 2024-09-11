@@ -66,6 +66,7 @@ module enkf_mod
     logical  :: writeLocalEnsObsToFile
     integer  :: maxNumLocalObs
     integer  :: weightLatLonStep
+    real(8)  :: alphaRandomPertPrior
     integer  :: numRetainedEigen
     integer  :: myNumLatLonSendFactor
     logical  :: modifyAmsubObsError
@@ -120,6 +121,7 @@ contains
     logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
     integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
     integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
+    real(8)  :: alphaRandomPertPrior ! Random perturbation additive inflation coeff applied to trials (0->1)
     integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
     integer  :: myNumLatLonSendFactor ! factor to obtain max number of grid points computed on each mpi task
     logical  :: modifyAmsubObsError  ! reduce AMSU-B obs error stddev in tropics
@@ -146,7 +148,7 @@ contains
     NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                        ensPathName, randomShuffleSubEns,  &
                        hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
-                       maxNumLocalObs, weightLatLonStep,  &
+                       maxNumLocalObs, weightLatLonStep, alphaRandomPertPrior,  &
                        modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                        ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                        obsTimeInterpType, mpiDistribution, etiket_anl, &
@@ -164,6 +166,7 @@ contains
     randomShuffleSubEns      = .false.
     maxNumLocalObs           = 1000
     weightLatLonStep         = 1
+    alphaRandomPertPrior     = 0.0D0
     modifyAmsubObsError      = .false.
     backgroundCheck          = .false.
     huberize                 = .false.
@@ -241,6 +244,7 @@ contains
     enkfNML%randomShuffleSubEns    = randomShuffleSubEns
     enkfNML%maxNumLocalObs         = maxNumLocalObs
     enkfNML%weightLatLonStep       = weightLatLonStep
+    enkfNML%alphaRandomPertPrior   = alphaRandomPertPrior
     enkfNML%modifyAmsubObsError    = modifyAmsubObsError
     enkfNML%backgroundCheck        = backgroundCheck
     enkfNML%huberize               = huberize

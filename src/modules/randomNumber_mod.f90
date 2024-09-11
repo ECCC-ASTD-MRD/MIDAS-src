@@ -60,7 +60,7 @@ contains
 
     initialized = .true.
 
-    write(*,*) 'rng_setup: done using seed = ', seed
+    if (.not.beSilent) write(*,*) 'rng_setup: done using seed = ', seed
  
   end subroutine rng_setup
   

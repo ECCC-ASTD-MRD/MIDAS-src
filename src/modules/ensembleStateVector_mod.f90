@@ -1119,28 +1119,44 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_copyMember
   !--------------------------------------------------------------------------
-  subroutine ens_copyMember(ens, statevector, memberIndex)
+  subroutine ens_copyMember(ens, statevector, memberIndex, stepIndexEns_opt)
     !
     !:Purpose: Copy a selected ensemble member into the supplied stateVector.
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(in) :: ens
-    type(struct_gsv), intent(inout) :: statevector
-    integer,          intent(in)    :: memberIndex
+    type(struct_ens),  intent(in)    :: ens
+    type(struct_gsv),  intent(inout) :: statevector
+    integer,           intent(in)    :: memberIndex
+    integer, optional, intent(in)    :: stepIndexEns_opt
 
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, varLevIndex, stepIndex, numStep, varIndex
+    integer          :: k1, k2, varLevIndex, stepIndex, stepIndexOffset, numStepToCopy, varIndex
     integer          :: gsvLevIndex, ensVarLevIndex, nLev
     character(len=4), pointer :: varNamesInEns(:)
     character(len=4), pointer :: varNamesInGsv(:)
     character(len=4) :: varName
     logical          :: sameVariables
 
-    numStep = ens%statevector_work%numStep
+    if (present(stepIndexEns_opt)) then
+      if (statevector%numStep /= 1) then
+        call utl_abort('ens_copyMember: When specifying stepIndexEns_opt, ' // &
+                       'statevector must have only 1 time step')
+      end if
+      numStepToCopy = 1
+      stepIndexOffset = stepIndexEns_opt - 1
+    else
+      if (ens%statevector_work%numStep /= statevector%numStep) then
+        write(*,*) 'numStep(ens)         = ', ens%statevector_work%numStep
+        write(*,*) 'numStep(statevector) = ', statevector%numStep
+        call utl_abort('ens_copyMember: numStep of statevector not equal to that of ensemble')
+      end if
+      numStepToCopy = statevector%numStep
+      stepIndexOffset = 0
+    end if
 
     nullify(varNamesInEns)
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)
@@ -1166,27 +1182,27 @@ CONTAINS
 
       if (ens%dataKind == 8) then
         call gsv_getField(statevector,ptr4d_r8)
-        do stepIndex = 1, numStep
+        do stepIndex = 1, numStepToCopy
           do varLevIndex = k1, k2
             ptr4d_r8(:,:,varLevIndex,stepIndex) = &
-                 ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+                 ens%allLev_r8(varLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:)
           end do
         end do
       else if (ens%dataKind == 4) then
         if (gsv_getDataKind(statevector) == 8) then
           call gsv_getField(statevector,ptr4d_r8)
-          do stepIndex = 1, numStep
+          do stepIndex = 1, numStepToCopy
             do varLevIndex = k1, k2
               ptr4d_r8(:,:,varLevIndex,stepIndex) = &
-                   real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+                   real(ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:),8)
             end do
           end do
         else
           call gsv_getField(statevector,ptr4d_r4)
-          do stepIndex = 1, numStep
+          do stepIndex = 1, numStepToCopy
             do varLevIndex = k1, k2
               ptr4d_r4(:,:,varLevIndex,stepIndex) = &
-                   ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+                   ens%allLev_r4(varLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:)
             end do
           end do
         end if
@@ -1200,30 +1216,30 @@ CONTAINS
         nLev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varName),varName)
         if (ens%dataKind == 8) then
           call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
-          do stepIndex = 1, numStep
+          do stepIndex = 1, numStepToCopy
             do gsvLevIndex = 1, nLev
               ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
               ptr4d_r8(:,:,gsvLevIndex,stepIndex) = &
-                   ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+                   ens%allLev_r8(ensVarLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:)
             end do
           end do
         else if (ens%dataKind == 4) then
           if (gsv_getDataKind(statevector) == 8) then
             call gsv_getField(statevector,ptr4d_r8,varName_opt=varName)
-            do stepIndex = 1, numStep
+            do stepIndex = 1, numStepToCopy
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
                 ptr4d_r8(:,:,gsvLevIndex,stepIndex) = &
-                     real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:),8)
+                     real(ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:),8)
               end do
             end do
           else
             call gsv_getField(statevector,ptr4d_r4,varName_opt=varName)
-            do stepIndex = 1, numStep
+            do stepIndex = 1, numStepToCopy
               do gsvLevIndex = 1, nLev
                 ensVarLevIndex = gsvLevIndex + ens_getOffsetFromVarName(ens,varName)
                 ptr4d_r4(:,:,gsvLevIndex,stepIndex) = &
-                     ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex,:,:)
+                     ens%allLev_r4(ensVarLevIndex)%onelevel(memberIndex,stepIndex+stepIndexOffset,:,:)
               end do
             end do
           end if

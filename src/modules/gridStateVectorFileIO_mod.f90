@@ -207,7 +207,7 @@ module gridStateVectorFileIO_mod
       if (gsv_varExist(statevector_out, varName) .and. &
           vnl_varNamePresentInFile(varName, fileName = trim(fileName))) &
         foundVarNameInFile = .true.
-    end if 
+    end if
 
     ! to be safe for situations where, e.g. someone wants to only read MG from a file
     if (.not. foundVarNameInFile) then
@@ -220,8 +220,7 @@ module gridStateVectorFileIO_mod
     
     write(*,*) 'gio_readFromFile: defining hco by varname: ', varName, ' from file: ', trim(fileName)
 
-    call hco_setupFromFile(hco_file, trim(fileName), etiket_in, &
-                           gridName_opt = 'FILEGRID', varName_opt = varName)
+    call hco_setupFromFile(hco_file, trim(fileName), etiket_in, gridName_opt='FILEGRID', varName_opt = varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     doVertInterp = .not.vco_equal(vco_file, statevector_out%vco)
@@ -1524,10 +1523,10 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFile
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, &
-                             scaleFactor_opt, ip3_opt, stepIndex_opt, typvar_opt, &
-                             HUcontainsLQ_opt, unitConversion_opt, &
-                             writeHeightSfc_opt, numBits_opt, containsFullField_opt, &
+  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, scaleFactor_opt, &
+                             ip3_opt, stepIndex_opt, typvar_opt, HUcontainsLQ_opt, &
+                             unitConversion_opt, writeHeightSfc_opt, numBits_opt, &
+                             numBits2D_opt, containsFullField_opt, &
                              varLevIndexBeg_opt, varLevIndexEnd_opt, doWriteTicTacToc_opt)
     !
     ! :Purpose: Write a statevector object to an RPN standard file.
@@ -1545,6 +1544,7 @@ module gridStateVectorFileIO_mod
     logical,          optional, intent(in) :: unitConversion_opt
     logical,          optional, intent(in) :: writeHeightSfc_opt
     integer,          optional, intent(in) :: numBits_opt
+    integer,          optional, intent(in) :: numBits2D_opt
     logical,          optional, intent(in) :: containsFullField_opt
     integer,          optional, intent(in) :: varLevIndexBeg_opt ! start index if writing only a limited set of 'varLev's (default is 1)
     integer,          optional, intent(in) :: varLevIndexEnd_opt ! end index if writing only a limited set of 'varLev's (default is 'gsv_getNumVarLev(statevector)')
@@ -1552,7 +1552,7 @@ module gridStateVectorFileIO_mod
 
     ! Locals:
     logical :: iDoWriting, unitConversion, containsFullField, doWriteTicTacToc
-    integer :: stepIndex, ierr, levIndex, varLevIndex
+    integer :: stepIndex, ierr, levIndex, varLevIndex, packBits2D, packBits3D
     integer :: yourid, nsize, youridy, youridx, threadId, thread, numThreadsForWriting
     real(4) :: factor_r4
     character(len=4)          :: varLevel
@@ -1646,10 +1646,16 @@ module gridStateVectorFileIO_mod
     end if
 
     if (present(numBits_opt)) then
-      fstRecords(:)%pack_bits = numBits_opt
+      packBits3D = numBits_opt
     else
-      fstRecords(:)%pack_bits = 32
+      packBits3D = 32
     end if
+    if ( present(numBits2D_opt) ) then
+      packBits2D = numBits2D_opt
+    else
+      packBits2D = packBits3D
+    end if
+
     ! the data will be 'real(4)' arrays and so it is 32 bits data
     fstRecords(:)%data_bits = 32
 
@@ -1807,6 +1813,7 @@ module gridStateVectorFileIO_mod
         ! now do writing
         if (iDoWriting) then
           fstRecords(0)%ip1 = statevector%vco%ip1_sfc
+          fstRecords(0)%pack_bits = packBits2D
           nomvar = 'GZ'
           fstRecords(0)%nomvar = nomvar
 
@@ -1900,6 +1907,14 @@ module gridStateVectorFileIO_mod
           varLevel = vnl_varLevelFromVarname(nomvar)
           write(*,*) 'gio_writeToFile: unknown type of vertical level: ', varLevel
           call utl_abort('gio_writeToFile')
+        end if
+
+        ! Set the precision
+        if (vnl_varLevelFromVarname(nomvar) == 'SF' .and. &
+            vnl_varKindFromVarname(trim(nomvar)) == 'MT') then
+          fstRecords(threadId)%pack_bits = packBits2D
+        else
+          fstRecords(threadId)%pack_bits = packBits3D
         end if
 
         ! Set the output variable name
@@ -2629,7 +2644,6 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), target  :: stateVector_tiles
     integer :: varIndexNEMO
     real(8) :: netCDFtime
-    integer(8) :: numberSeconds
     character(len=100) :: fileName
     logical :: fileExists
     integer :: currentDateStamp, timeLevel, printableValidDate, printableValidTime

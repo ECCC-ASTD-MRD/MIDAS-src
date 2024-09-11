@@ -26,6 +26,7 @@ module gridVariableTransforms_mod
   use utilities_mod
   use humiditylimits_mod
   use getGridPosition_mod
+  use message_mod
 
   implicit none
   save
@@ -185,12 +186,13 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
                                stateVectorRef_opt, varName_opt, &
-                               allowOverWrite_opt, maxBoxSize_opt, subgrid_opt )
-    ! 
+                               allowOverWrite_opt, maxBoxSize_opt, subgrid_opt, &
+                               spreadIceIncOverLakes_opt)
+    !
     ! :Purpose: Top-level switch routine for transformations on the grid.
     !
     implicit none
-   
+
     ! Arguments:
     type(struct_gsv),           intent(inout) :: statevector ! statevector operand of the transformation
     character(len=*),           intent(in)    :: transform ! string identifying the requested transformation
@@ -200,6 +202,7 @@ CONTAINS
     character(len=*), optional, intent(in)    :: varName_opt    ! additional variable/type info mandatory for some transformation
     integer,          optional, intent(in)    :: maxBoxSize_opt ! additional info required by SSTSpread
     character(len=*), optional, intent(in)    :: subgrid_opt    ! additional info required by SSTSpread to spread SST values
+    logical,          optional, intent(in)    :: spreadIceIncOverLakes_opt ! spread ice increment over lakes when outside [0,1]
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -414,6 +417,12 @@ CONTAINS
         call utl_abort('gvt_transform: for gvt_SSTSpread, missing subgrid')
       end if	
       call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
+
+    case ('iceLimits')
+      if (.not.present(spreadIceIncOverLakes_opt)) then
+        call utl_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
+      end if	
+      call gvt_iceLimits(statevector, spreadIceIncOverLakes_opt)
 
     case default
       write(*,*)
@@ -2118,9 +2127,9 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector  ! state vector of SST analysis
-    character(len=*), intent(in)    :: variableName ! variable name    
+    character(len=*), intent(in)    :: variableName ! variable name
     integer         , intent(in)    :: maxBoxSize   ! maximum box size of SST values spreading
-    character(len=*), intent(in)    :: subgrid      ! spread SST values on neighbouring land points of "Yin" or "Yan" subgrid 
+    character(len=*), intent(in)    :: subgrid      ! spread SST values on neighbouring land points of "Yin" or "Yan" subgrid
 
     ! Locals:
     logical, allocatable :: isWaterValue(:,:)              ! .True. for water points, .False. for land points
@@ -2129,7 +2138,7 @@ CONTAINS
     real(4)              :: updatedValueSum
     integer              :: top, bottom, left, right, np
     integer              :: boxSize, k, l, m
-    integer              :: in(100), jn(100), ngp 
+    integer              :: in(100), jn(100), ngp
     integer              :: lonIndex, latIndex
     integer              :: latIndexBeg, latIndexEnd
     type(struct_gsv)     :: stateVector_1step
@@ -2137,15 +2146,15 @@ CONTAINS
 
     write(*,'(a,i2,a)') 'gvt_SSTSpread: spread SST values on ', maxBoxSize,' neighbouring land points on '//trim(subgrid)//' subgrid...'
     if (trim(subgrid) == 'Yin') then
-      latIndexBeg = 1 
+      latIndexBeg = 1
       latIndexEnd = stateVector%hco%nj / 2
     else if(trim(subgrid) == 'Yan') then
-      latIndexBeg = stateVector%hco%nj / 2 + 1 
+      latIndexBeg = stateVector%hco%nj / 2 + 1
       latIndexEnd = stateVector%hco%nj
     else
       call utl_abort('gvt_SSTSpread: unknown subgrid: '//trim(subgrid))
-    end if 
-    
+    end if
+
     ! abort if 3D mask is present, since we may not handle this situation correctly
     if (stateVector%oceanMask%nLev > 1) then
       call utl_abort('gvt_SSTSpread: 3D mask present - this case not properly handled')
@@ -2191,7 +2200,7 @@ CONTAINS
       updatedIsWaterValue(:,:) = isWaterValue(:,:)
 
       boxSizeLoop: do boxSize = 1, maxBoxSize
-          
+
         do latIndex = latIndexBeg, latIndexEnd
           do lonIndex = 1, stateVector%hco%ni
 
@@ -2270,5 +2279,274 @@ CONTAINS
     deallocate(updatedField)
 
   end subroutine gvt_SSTSpread
+
+  !--------------------------------------------------------------------------
+  ! gvt_iceLimits
+  !--------------------------------------------------------------------------
+  subroutine gvt_iceLimits(stateVector, spreadIceIncOverLakes)
+    !
+    ! :Purpose: Impose limits [0,1] on sea ice concentration analysis.
+    !           For lakes, the negative values are redistributed over
+    !           points that have positive value, such that the average
+    !           ice concentration over the lake is preserved.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: stateVector           ! state vector of sea ice concentration analysis
+    logical,          intent(in)    :: spreadIceIncOverLakes ! spread ice increment over lakes when outside [0,1]
+
+    ! Locals:
+    integer              :: gridptCount, lakeCount, iter
+    integer              :: numPointsAccept
+    integer              :: lonIndex, latIndex, xIndex, yIndex, lakeIndex
+    integer              :: lonIndexVec(stateVector%ni*stateVector%nj), latIndexVec(stateVector%ni*stateVector%nj)
+    logical              :: aWaterPoint(stateVector%ni,stateVector%nj)
+    type(struct_gsv)     :: stateVector_1step
+    real(8), pointer     :: seaIce_ptr(:,:,:,:)
+    real(8)              :: excess
+    character(len=2), parameter :: variableName = 'GL'
+    real(8), parameter   :: maxLakeArea = 32000.0d0
+    real(8)              :: lakeArea
+    real(4)              :: area(stateVector%ni,stateVector%nj)
+    integer              :: aLakePoint(stateVector%ni,stateVector%nj)
+
+    ! Variables and functions required to write to RPN Standard files.
+    integer  :: nmax
+    integer  :: std_unit, ierr, ikey
+    integer  :: nii, njj, nkk
+    integer  :: dateo
+    integer  :: ip1, ip2, ip3
+    character(len=1) :: grtyp
+    character(len=12) :: etiket
+
+    integer, external :: fnom,fstouv,fstfrm,fclos
+
+    call msg('gvt_iceLimits', 'Impose limits [0,1] on sea ice concentration...')
+
+    if (.not. spreadIceIncOverLakes) then
+      call gsv_getField(stateVector, seaIce_ptr, variableName)
+      seaIce_ptr(:,:,:,:) = min(seaIce_ptr(:,:,:,:), 1.0d0)
+      seaIce_ptr(:,:,:,:) = max(seaIce_ptr(:,:,:,:), 0.0d0)
+      return
+    end if
+
+    ! abort if 3D mask is present, since we may not handle this situation correctly
+    if (stateVector%oceanMask%nLev > 1) then
+      call utl_abort('gvt_iceLimits: 3D mask present - this case not properly handled')
+    end if
+
+    ! abort if 3D variable is present
+    if( gsv_getNumLev(stateVector, vnl_varLevelFromVarname(variableName)) > 1) then
+      call utl_abort('gvt_iceLimits: 3D variable present - this case not properly handled')
+    end if
+
+    ! allocate statevector
+    if (mmpi_myid < stateVector%numStep) then
+      if (stateVector%numStep > mmpi_nprocs) then
+        call utl_abort('gvt_iceLimits: number of time steps ('//trim(utl_str(stateVector%numStep))// &
+                       ') is larger than mpi tasks ('//trim(utl_str(mmpi_nprocs))//')')
+      end if
+      call gsv_allocate(stateVector_1step, 1, stateVector%hco, &
+                        stateVector%vco, mpi_local_opt = .false., &
+                        dataKind_opt = 8, varNames_opt = (/variableName/))
+    end if
+
+    call gsv_transposeTilesToStep(stateVector_1step, stateVector, 1)
+
+    PROCEED: if (gsv_isAllocated(stateVector_1step)) then
+
+      call gsv_getField(stateVector_1step, seaIce_ptr, variableName)
+
+      ! The file "modelgrid" contains the grid cell area field "AREA".
+      std_unit = 0
+      ierr = fnom(std_unit, './modelgrid', 'RND+R/O', 0)
+      nmax = fstouv(std_unit, 'RND')
+
+      ! FST record parameters.
+      dateo = -1
+      etiket = ''
+      ip1 = -1
+      ip2 = -1
+      ip3 = -1
+      grtyp = ' '
+      ikey = utl_fstlir_r4( area, std_unit, nii, njj, nkk, dateo, etiket, ip1, ip2, ip3, grtyp, 'AREA')
+      if (ikey <= 0) then
+        call utl_abort('gvt_iceLimits: field AREA not found in file RPN file modelgrid')
+      end if
+
+      ierr = fstfrm(std_unit)
+      ierr = fclos(std_unit)
+
+      ! Flag: undefined(-1), not a lake point(0), a lake point (1)
+      aLakePoint(:,:) = -1
+
+      ! Scan the grid for ice concentration values outside [0,1]
+      LATINDEXLOOP: do latIndex = 1, stateVector%hco%nj
+        LONINDEXLOOP: do lonIndex = 1, stateVector%hco%ni
+
+          if (seaIce_ptr(lonIndex, latIndex, 1, 1) >= 0.0d0 .and. &
+              seaIce_ptr(lonIndex, latIndex, 1, 1) <= 1.0d0 ) cycle LONINDEXLOOP
+
+          ! This is for land points
+          if (.not. stateVector%oceanMask%mask(lonIndex,latIndex,1)) then
+            if (seaIce_ptr(lonIndex, latIndex, 1, 1) < 0.0d0) then
+                seaIce_ptr(lonIndex, latIndex, 1, 1) = 0.0d0
+            else
+              seaIce_ptr(lonIndex, latIndex, 1, 1) = 1.0d0
+            end if
+            cycle LONINDEXLOOP
+          end if
+
+          if (aLakePoint(lonIndex,latIndex) == 0) then
+
+            if (seaIce_ptr(lonIndex, latIndex, 1, 1) < 0.0d0) then
+              seaIce_ptr(lonIndex, latIndex, 1, 1) = 0.0d0
+            else
+              seaIce_ptr(lonIndex, latIndex, 1, 1) = 1.0d0
+            end if
+            cycle LONINDEXLOOP
+
+          end if
+
+          ! Check if this is a lake, as a small enclosed body of water
+
+          aWaterPoint(:,:) = .false.
+          aWaterPoint(lonIndex,latIndex) = .true.
+          gridptCount = 1
+          lonIndexVec(gridptCount) = lonIndex
+          latIndexVec(gridptCount) = latIndex
+
+          lakeCount = 0
+          lakeArea = area(lonIndex, latIndex)
+
+          COUNT: do while(lakeCount /= gridptCount .and. lakeArea < maxLakeArea)
+
+            LAKEINDEXLOOP: do lakeIndex = lakeCount+1, gridptCount
+
+              if (lakeIndex == lakeCount+1) lakeCount = gridptCount
+
+              do yIndex = max(1,latIndexVec(lakeIndex)-1), min(latIndexVec(lakeIndex)+1,statevector%nj)
+                do xIndex = max(1,lonIndexVec(lakeIndex)-1), min(lonIndexVec(lakeIndex)+1,statevector%ni)
+                  if (stateVector%oceanMask%mask(xIndex,yIndex,1) .and. .not. aWaterPoint(xIndex,yIndex)) then
+                    aWaterPoint(xIndex,yIndex) = .true.
+                    gridptCount = gridptCount + 1
+                    lakeArea = lakeArea + area(xIndex, yIndex)
+                    lonIndexVec(gridptCount) = xIndex
+                    latIndexVec(gridptCount) = yIndex
+                  end if
+                end do
+              end do
+
+            end do LAKEINDEXLOOP
+
+          end do COUNT
+
+          do lakeIndex = 1, lakeCount
+
+            xIndex = lonIndexVec(lakeIndex)
+            yIndex = latIndexVec(lakeIndex)
+
+            if (lakeArea < maxLakeArea) then ! Assuming it is a lake
+              aLakePoint(xIndex,yIndex) = 1
+            else
+              aLakePoint(xIndex,yIndex) = 0
+            end if
+
+          end do
+
+          INLAKE: if (lakeArea < maxLakeArea) then ! Assuming it is a lake
+
+            excess = -1.0d0
+            iter = 0
+            ! The excess is the amount of ice outside the range [0,1]
+            ! Iterations are done until all that excess is redistributed
+            ! over the lake.
+            EXCESSLOOP: do while (excess /= 0.0d0)
+
+              excess = 0.0d0
+              do lakeIndex = 1, gridptCount
+                xIndex = lonIndexVec(lakeIndex)
+                yIndex = latIndexVec(lakeIndex)
+                if (seaIce_ptr(xIndex, yIndex, 1, 1) < 0.0d0) then
+                  excess = excess + seaIce_ptr(xIndex, yIndex, 1, 1)
+                  seaIce_ptr(xIndex, yIndex, 1, 1) = 0.0d0
+                end if
+                if (seaIce_ptr(xIndex, yIndex, 1, 1) > 1.0d0) then
+                  excess = excess + (seaIce_ptr(xIndex, yIndex, 1, 1) - 1.0d0)
+                  seaIce_ptr(xIndex, yIndex, 1, 1) = 1.0d0
+                end if
+              end do
+
+              SIGN: if (excess < 0.0d0) then
+
+                ! Count number of points where the excess can be distributed
+                numPointsAccept = 0
+                do lakeIndex = 1, gridptCount
+                  xIndex = lonIndexVec(lakeIndex)
+                  yIndex = latIndexVec(lakeIndex)
+                  if (seaIce_ptr(xIndex, yIndex, 1, 1) > 0.0d0) numPointsAccept = numPointsAccept + 1
+                end do
+
+                ! Distribute equally amongst accepting points in the footprint
+                do lakeIndex=1, gridptCount
+                  xIndex = lonIndexVec(lakeIndex)
+                  yIndex = latIndexVec(lakeIndex)
+                  if (seaIce_ptr(xIndex, yIndex, 1, 1) > 0.0d0) then
+                    seaIce_ptr(xIndex, yIndex, 1, 1) = seaIce_ptr(xIndex, yIndex, 1, 1) + excess/real(numPointsAccept,8)
+                  end if
+                end do
+
+              else
+
+                ! Count number of points where the excess can be distributed
+                numPointsAccept = 0
+                do lakeIndex = 1, gridptCount
+                  xIndex = lonIndexVec(lakeIndex)
+                  yIndex = latIndexVec(lakeIndex)
+                  if (seaIce_ptr(xIndex, yIndex, 1, 1) < 1.0d0) numPointsAccept = numPointsAccept + 1
+                end do
+
+                ! Distribute equally amongst accepting points in the footprint
+                do lakeIndex=1, gridptCount
+                  xIndex = lonIndexVec(lakeIndex)
+                  yIndex = latIndexVec(lakeIndex)
+                  if (seaIce_ptr(xIndex, yIndex, 1, 1) < 1.0d0) then
+                    seaIce_ptr(xIndex, yIndex, 1, 1) = seaIce_ptr(xIndex, yIndex, 1, 1) + excess/real(numPointsAccept,8)
+                  end if
+                end do
+
+              end if SIGN
+
+              iter = iter + 1
+              if (iter > 100) then
+                call utl_abort('gvt_iceLimits: Too many iterations.')
+              end if
+
+            end do EXCESSLOOP
+
+          else
+
+            if (seaIce_ptr(lonIndex, latIndex, 1, 1) < 0.0d0) then
+              seaIce_ptr(lonIndex, latIndex, 1, 1) = 0.0d0
+            else
+              seaIce_ptr(lonIndex, latIndex, 1, 1) = 1.0d0
+            end if
+
+          end if INLAKE
+
+        end do LONINDEXLOOP
+      end do LATINDEXLOOP
+
+    end if PROCEED
+
+    call gsv_transposeStepToTiles(stateVector_1step, stateVector, 1)
+
+    ! deallocate local arrays
+    if (mmpi_myid < stateVector%numStep) then
+      call gsv_deallocate(stateVector_1step)
+    end if
+
+  end subroutine gvt_iceLimits
 
 end module gridVariableTransforms_mod
