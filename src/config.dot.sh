@@ -153,7 +153,7 @@ echo "... loading makedepf90"
 . ssmuse-sh -d eccc/mrd/rpn/anl/makedepf90/2.8.9
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
-OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
+OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors -stand f08"
 OPTF="-qmkl ${OPTF} -warn noexternal"
 
 # add compiler option to produce reports on code optimization and deactivate cleaning
