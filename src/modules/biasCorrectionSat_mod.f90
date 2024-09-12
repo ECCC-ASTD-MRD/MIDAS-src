@@ -1624,14 +1624,13 @@ contains
     end function integrateWaterVapor
 
 
-    function integrateProfile(column, headerIndex, varName, weight_opt, conversionFactor_opt) result(integral)
+    function integrateProfile(column, headerIndex, varName, conversionFactor_opt) result(integral)
       implicit none
 
       ! Arguments:
       type(struct_columnData), intent(inout) :: column
       integer,                 intent(in)    :: headerIndex
       character(len=*),        intent(in)    :: varName
-      real(8), optional, intent(in)          :: weight_opt(:)
       real(8), optional, intent(in)          :: conversionFactor_opt
       ! Result:
       real(8) :: integral
@@ -1651,20 +1650,13 @@ contains
 
       nlev = col_getNumLev(column, 'TH')
       
-      if (present(weight_opt)) then
-        weight = weight_opt
-      else
-        allocate(weight(nlev))
-        weight = 1.d0
-      end if
-      
       integral = 0.d0
       profile => col_getColumn(column, headerIndex, varname)     
       do levelIndex = 1, nlev - 1
         topPressure = col_getPressure(column, levelIndex, headerIndex, 'TH')
         bottomPressure = col_getPressure(column, levelIndex+1, headerIndex, 'TH')
-        topProfile = profile(levelIndex) * weight(levelIndex)
-        bottomProfile = profile(levelIndex+1) * weight(levelIndex+1)
+        topProfile = profile(levelIndex)
+        bottomProfile = profile(levelIndex+1)
         integral = integral + 0.5d0 * (bottomPressure - topPressure) * (topProfile + bottomProfile)
       end do
       integral = integral * conversionFactor
