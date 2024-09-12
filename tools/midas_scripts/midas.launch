@@ -212,15 +212,15 @@ if [ -n "${trials}" ]; then
     counter=1
     if [ -d "${trials}" ]; then
         for file in ${trials}/*; do
-	    r.filetype ${file} || filetype=$?
-	    if [ "${filetype}" -eq 33 ]; then
-	        ## RPN standard file
+            r.filetype ${file} || filetype=$?
+            if [ "${filetype}" -eq 33 ]; then
+                ## RPN standard file
                 counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
                 copyOrLink ${file} trlm_${counterstr}
                 let counter=counter+1
             elif [ "${filetype}" -eq 38 ]; then
-	        ## netCDF file
-		if [ -e trlm ]; then
+                ## netCDF file
+                if [ -e trlm ]; then
                     echo "Trial fields in netCDF format should be stored in one file. STOP."
                     exit 1
                 else
@@ -228,22 +228,22 @@ if [ -n "${trials}" ]; then
                 fi
             else
                 echo "Unknown filetype. STOP"
-	        exit 1
+                exit 1
             fi
         done
     elif [ -f "${trials}" ]; then
         filetype=`r.filetype ${trials}`
         if [ "${filetype}" -eq 33 ]; then
-	    ## RPN standard file
+            ## RPN standard file
             counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
             copyOrLink ${trials} trlm_${counterstr}
-	elif [ "${filetype}" -eq 38 ]; then
-	    ## netCDF file
-	    copyOrLink ${trials} trlm
+        elif [ "${filetype}" -eq 38 ]; then
+            ## netCDF file
+            copyOrLink ${trials} trlm
         else
             echo "Unknown filetype. STOP."
-	    exit 1
-	fi
+            exit 1
+        fi
     else
         echo "The trials are unavailable"
         exit 1
