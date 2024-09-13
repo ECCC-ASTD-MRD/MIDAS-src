@@ -120,7 +120,7 @@ program midas_sstTrial
   
   call obgd_computeSSTrial(hco_anl, vco_anl, trialDateStamp, analysisDateStamp, &
                            nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
-			 
+
   ! 3. Job termination
 
   istamp = exfin('SSTTRIAL','FIN','NON')
@@ -144,7 +144,7 @@ program midas_sstTrial
     integer, intent(out) :: trialDateStamp
     integer, intent(out) :: analysisDateStamp
     
-    ! Locals:	
+    ! Locals:
     character(len=*), parameter :: gridFile = './analysis'
     integer                     :: prntdate, prnttime, imode, newdate, indexMonth
     namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim

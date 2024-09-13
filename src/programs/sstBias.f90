@@ -160,7 +160,7 @@ program midas_sstBias
   call SSTbias_setup('VAR') ! obsColumnMode
   
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl)
-			 
+
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
   call col_deallocate(column)
@@ -187,7 +187,7 @@ program midas_sstBias
     ! Arguments:
     character(len=*), intent(in)  :: obsColumnMode
     
-    ! Locals:	
+    ! Locals:
     character(len=*), parameter :: gridFile = './analysisgrid'
     
     write(*,*) ''
