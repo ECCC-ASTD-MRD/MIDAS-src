@@ -1227,7 +1227,7 @@ contains
       if (.not. hco_equal(interpInfo_tlad%hco,stateVector_in%hco)) then
         write(*,*) 's2c_tl: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
         write(*,*) 's2c_tl: InterpInfo_tlad will be deallocated.'
-	call s2c_deallocInterpInfo(inputStateVectorType='tlad')
+        call s2c_deallocInterpInfo(inputStateVectorType='tlad')
       end if
     end if
 
@@ -1742,7 +1742,7 @@ contains
         write(*,*) 's2c_nl: WARNING! Current hco grid parameters differ from allocated interpInfo!'
         write(*,*) 's2c_nl: InterpInfo will be deallocated.'
         call s2c_deallocInterpInfo(inputStateVectorType = 'nl')
-      end if	
+      end if
     end if
 
     if (stateVector%mpi_distribution /= 'Tiles') then 
@@ -1962,7 +1962,7 @@ contains
           cols_recv(:,1) = cols_send(:,1)
         end if
         call utl_tmg_stop(36)
-	
+
         ! reorganize ensemble of distributed columns
         !$OMP PARALLEL DO PRIVATE (procIndex, varLevIndex2, headerIndex, headerIndex2, varName, &
         !$OMP levIndex, allCols_ptr)
@@ -3541,7 +3541,7 @@ contains
         write(*,*) 'checkColumnStatevectorMatch: varLevIndex, varname in statevector and column: ', varLevIndex, &
                    gsv_getVarNameFromVarLev(statevector,varLevIndex), col_getVarNameFromVarLev(column,varLevIndex) 
         call utl_abort('checkColumnStatevectorMatch: varname in column and statevector do not match')
-      end if	
+      end if
     end do
 
   end subroutine checkColumnStatevectorMatch
