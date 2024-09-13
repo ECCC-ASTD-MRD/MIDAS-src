@@ -85,7 +85,7 @@ module oceanBackground_mod
         stateVector_ptr(lonIndex, latIndex, 1) = stateVectorAnomaly_ptr(lonIndex, latIndex, 1) * &
                                                  alphaClim + climatology(lonIndex, latIndex)
       end do
-    end do      	 
+    end do
 
     ! save analysis anomaly in RPN standard file
     stateVectorAnomaly%etiket = 'ANOMALY'
@@ -159,7 +159,7 @@ module oceanBackground_mod
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) + real(day - 1) / real(ndays - 1) * &
-                                     (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))	 
+                                     (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))
       end do
     end do
     
