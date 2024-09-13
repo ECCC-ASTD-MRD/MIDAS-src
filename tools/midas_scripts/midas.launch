@@ -218,23 +218,25 @@ if [ -n "${trials}" ]; then
             case "${filetype}" in 
 
                 1|2|3|33|39)
-                ## RPN standard file
-                counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
-                copyOrLink ${file} trlm_${counterstr}
-                let counter=counter+1;;
+                    
+		    ## RPN standard file
+                    counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
+                    copyOrLink ${file} trlm_${counterstr}
+                    let counter=counter+1;;
 
                 35|38)
-                ## netCDF file
-                if [ -e trlm ]; then
-                    echo "Trial fields in netCDF format should be stored in one file. STOP."
-                    exit 1
-                else
-                    copyOrLink ${file} trlm
-                fi;;
+
+                    ## netCDF file
+                    if [ -e trlm ]; then
+                        echo "Trial fields in netCDF format should be stored in one file. STOP."
+                        exit 1
+                    else
+                        copyOrLink ${file} trlm
+                    fi;;
 
                 *)
-                echo "Unknown filetype. STOP"
-                exit 1;;
+                    echo "Unknown filetype. STOP"
+                    exit 1;;
 
             esac
         done
@@ -245,18 +247,20 @@ if [ -n "${trials}" ]; then
         case "${filetype}" in 
 
             1|2|3|33|39)
-            ## RPN standard file
-            counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
-            copyOrLink ${trials} trlm_${counterstr};;
+
+                ## RPN standard file
+                counterstr=$(printf "%0.${trlm_ndigits}d" ${counter})
+                copyOrLink ${trials} trlm_${counterstr};;
 
             35|38)
-            ## netCDF file
-            copyOrLink ${trials} trlm;;
+            
+                ## netCDF file
+                copyOrLink ${trials} trlm;;
 
             *)
 
-            echo "Unknown filetype. STOP."
-            exit 1;;
+                echo "Unknown filetype. STOP."
+                exit 1;;
 
         esac
 
