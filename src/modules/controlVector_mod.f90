@@ -158,9 +158,9 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: subVectorLabel
-    real*8, target,   intent(in) :: controlVector(:)
+    real(8), target,   intent(in) :: controlVector(:)
     ! Result:
-    real*8, pointer :: subVector(:)
+    real(8), pointer :: subVector(:)
 
     ! Locals:
     integer         :: subVectorIndex, indexBeg, indexEnd
@@ -183,9 +183,9 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: subVectorLabel
-    real*4, target,   intent(in) :: controlVector(:)
+    real(4), target,   intent(in) :: controlVector(:)
     ! Result:
-    real*4, pointer :: subVector(:)
+    real(4), pointer :: subVector(:)
 
     ! Locals:
     integer         :: subVectorIndex, indexBeg, indexEnd
@@ -208,9 +208,9 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: subVectorLabel
-    real*8, target,   intent(in) :: controlVector(:)
+    real(8), target,   intent(in) :: controlVector(:)
     ! Result:
-    real*8, pointer :: subVector(:)
+    real(8), pointer :: subVector(:)
 
     ! Locals:
     integer         :: subVectorIndex, indexBeg, indexEnd
@@ -233,9 +233,9 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: subVectorLabel
-    real*4, target,   intent(in) :: controlVector(:)
+    real(4), target,   intent(in) :: controlVector(:)
     ! Result:
-    real*4, pointer :: subVector(:)
+    real(4), pointer :: subVector(:)
 
     ! Locals:
     integer         :: subVectorIndex, indexBeg, indexEnd
