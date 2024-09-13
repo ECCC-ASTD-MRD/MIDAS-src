@@ -198,8 +198,8 @@ module var1DIdealize_mod
         col_getNumCol(columnAnlLev) == col_getNumCol(columnPresRef))) then
       write(*,*) 'Column size columnAnlLev, columnTrlLev and columnPresRef', col_getNumCol(columnAnlLev), &
                   col_getNumCol(columnTrlLev), col_getNumCol(columnPresRef)
-      call utl_abort('var1Di_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef &
-                      do not have equal number of columns')
+      call utl_abort('var1Di_vInterpPertAnLev2TrlLev: The columnAnlLev, columnTrlLev and columnPresRef ' // &
+                      'do not have equal number of columns')
     end if
 
     numColumns = col_getNumCol(columnAnlLev)
@@ -708,8 +708,8 @@ module var1DIdealize_mod
     real                            :: columnValue
 
     if (.not. obs_columnActive_RB(obsSpaceData, OBS_TRUO)) then
-      call utl_abort('var1Di_estSigmaBObsSpace: The truth in observation space must computed stored &
-                      OBS_TRUO obsSpaceData column')
+      call utl_abort('var1Di_estSigmaBObsSpace: The truth in observation space must computed stored ' // &
+                      'OBS_TRUO obsSpaceData column')
     end if
 
     ! Check if the ObsSpace column OBS_HPHT is empty
