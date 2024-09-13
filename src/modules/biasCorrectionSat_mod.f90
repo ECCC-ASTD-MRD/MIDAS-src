@@ -79,7 +79,6 @@ module biasCorrectionSat_mod
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
   integer, parameter    :: NumPredictors = 16
-  integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
@@ -217,7 +216,7 @@ contains
     logical            :: bcifExists
     ! variables from background coeff file
     integer            :: nfov, exitCode
-    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictorsBCIF)
+    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numPredictors)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
@@ -1608,7 +1607,6 @@ contains
       
     end function convolutedLapseRate
 
-
     function integrateWaterVapor(columnTrlOnTrlLev, headerIndex) result(totalWaterContent)
       implicit none
       
@@ -1622,7 +1620,6 @@ contains
           conversionFactor_opt = 1.d0/ (ec_wgs_GammaM * MPC_DENSITY_WATER_R8))
 
     end function integrateWaterVapor
-
 
     function integrateProfile(column, headerIndex, varName, conversionFactor_opt) result(integral)
       implicit none
@@ -3523,7 +3520,7 @@ contains
     character(len=3), intent(in)  :: global_opt
     character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber)
     character(len=1), intent(out) :: bctype(tvs_maxchannelnumber)
-    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictorsBCIF)
+    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numPredictors)
 
     ! Locals:
     character(len=7)             :: instrum
@@ -3575,6 +3572,8 @@ contains
     if (ier /= 0) then
       call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFile)) 
     end if
+
+    pred(:,:) = 'XX'
     
     read(iun,'(A64)') line
     do while(line(1:3)== 'DEF')
@@ -3598,7 +3597,7 @@ contains
     ! For GLOBAL option, read global values from first line (channel 0) and clone to all channels
     if (global_opt == 'OUI' .or. global_opt == 'DEF') then 
       ! Read channel 0 information
-      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictorsbcif)
+      call readBcifLine(iun, can(1), bcmode(1), bctype(1), npred(1), pred(1,:), ier)
       if (ier /= 0) then
         write(*,*) 'read_BCIF: Error reading channel 0 data!'
         exitcode = ier
@@ -3618,7 +3617,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictorsbcif
+          do j = 1, npred(i)
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3635,7 +3634,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictorsbcif
+          do j = 1, npred(i)
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3643,14 +3642,14 @@ contains
         rewind (iun)
         read(iun,*) instrum, ncan
         read(iun,'(A64)') line
-        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+        call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
       end if
       ! For global_opt == 'DEF' check for channel-specific information and overwrite the default (channel 0) values
       ! for the channel with the values from the file
       if (global_opt == 'DEF') then
         if (.not. hspec) then
           do
-            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+            call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier < 0) exit  
             if (ier > 0) then
               write(*,*) 'read_BCIF: Error reading file!'
@@ -3667,19 +3666,19 @@ contains
             bcmode(ii) = xbcmode
             bctype(ii) = xbctype
             npred(ii) = xnpred
-            do j = 1, numpredictorsbcif
+            do j = 1, npred(ii)
               pred(ii,j) = xpred(j)
             end do
           end do
         else
           ! For hyperspectral instruments
           do i = 2, ncan + 1
-            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+            call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier /= 0) cycle  
             bcmode(i) = xbcmode
             bctype(i) = xbctype
             npred(i) = xnpred
-            do j = 1, numpredictorsbcif
+            do j = 1, npred(i)
               pred(i,j) = xpred(j)
             end do
           end do
@@ -3691,7 +3690,7 @@ contains
     if (global_opt == 'NON') then
       ii = 1
       do
-        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictorsbcif)
+        call readBcifLine(iun, can(ii), bcmode(ii), bctype(ii), npred(ii), pred(ii,:), ier)
         if (ier < 0) exit  
         if (ier > 0) then
           write(*,*) 'read_BCIF: Error reading file!'
@@ -3722,17 +3721,42 @@ contains
     write(*,*) 'read_BCIF: Bias correction information for each channel (from BCIF):'
     write(*,'(1X,A7,1X,I4)') instrum, ncan
     write(*,*) line
-    write(cnum,'(i2)') numpredictorsbcif
+   
     do i = 1, ncan + 1
       chknp = count(pred(i,:) /= 'XX')
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
+      write(cnum,'(i2)') npred(i)
+      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, npred(i))
     end do
     write(*,*) 'read_BCIF: exit '
 
     ier = fclos(iun)
     exitcode = 0
+
+
+  contains
+
+    subroutine readBcifLine(unitNumber, channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, predictors, errorCode)
+      implicit none
+
+      !Arguments:
+      integer, intent(in)           :: unitNumber
+      integer, intent(out)          :: channelNumber
+      character(len=1), intent(out) :: biasCorrectionMode
+      character(len=1), intent(out) :: biasCorrectionType
+      integer, intent(out)          :: nPredictors
+      character(len=2), intent(out) :: predictors(:)
+      integer ,intent(out)          :: errorCode
+      ! Locals:
+      integer :: i
+
+      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors
+      if (errorCode /= 0) return
+      backspace(unitNumber)
+      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, (predictors(i), i = 1, nPredictors)
+
+    end subroutine readBcifLine
 
   end subroutine read_bcif
   
