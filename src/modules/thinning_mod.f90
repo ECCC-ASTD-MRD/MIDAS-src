@@ -650,12 +650,13 @@ contains
     integer, parameter :: numListCodtyp = 9 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
     character(len=13), parameter :: listCodtypName(numListCodtyp) = &
-                                    (/'synopnonauto', 'asynopauto', 'shipnonauto', 'ashipauto', &
-                                      'drifter', 'saswobnonauto', 'saswobauto', 'metar', 'satob'/)
+                                    (/'synopnonauto ', 'asynopauto   ', 'shipnonauto  ', 'ashipauto    ', &
+                                      'drifter      ', 'saswobnonauto', 'saswobauto   ', 'metar        ', &
+                                      'satob        '/)
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: numListCodtypSelect = 3
     character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
-                                    (/'metar', 'saswobnonauto', 'saswobauto'/)
+                                    (/'metar        ', 'saswobnonauto', 'saswobauto   '/)
     ! Elements to select (flags for all other elements will have bit 11 set)
     integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
                                                 bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
@@ -883,7 +884,7 @@ contains
         obsDelT(obsIndex) = nint(60.0 * step * (obsStepIndex_r8 - real(obsStepIndex(obsIndex))))
       else
         ierr = newdate(obsDateStamp, obsDate(obsIndex), obsTime(obsIndex) * 10000, 3)
-	! Difference (in hours) between obs time
+        ! Difference (in hours) between obs time
         call difdatr(obsDateStamp, tim_getDateStamp(), deltaHours)
         obsDelT(obsIndex) = nint(60.0 * deltaHours)
       end if
@@ -1350,10 +1351,10 @@ contains
     integer :: ezgdef, ezsint, ezdefset, ezsetopt
     integer :: ierr, numLevStn, numLevStnMpi, countLevel, numLevStnMax
     integer :: numStation, numStationMpi, stationIndex, stationIndexMpi, lastProfileIndex
-    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex
+    integer :: profileIndex, headerIndex, bodyIndex, levIndex, stepIndex, varIndex, obsStepIndex
     integer :: levStnIndex, levStnIndexMpi, obsFlag
     integer :: ig1obs, ig2obs, ig3obs, ig4obs, obsGridID
-    real(4) :: obsValue, obsOmp, obsStepIndex
+    real(4) :: obsValue, obsOmp
     real(4) :: zig1, zig2, zig3, zig4, zpresa, zpresb
     real(8) :: obsStepIndex_r8
     integer, allocatable :: obsLevOffset(:), obsType(:), obsHeadDate(:), obsHeadTime(:)
@@ -1588,7 +1589,7 @@ contains
     call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -4447,7 +4448,7 @@ contains
     call vco_setupFromFile(vco_sfc, trlmFileName)
     if (vco_sfc%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -6420,7 +6421,7 @@ contains
     numChannelMpi(:)     = 0
     obsAngleMpi(:)       = 0.0
     obsDistanceMpi(:)    = 0.0
-    channelAssimMpi(:,:) = 0
+    channelAssimMpi(:,:) = .false.
     obsCloudMpi(:,:)     = 0.0
     stnIdInt(:,:)        = 0
     stnIdIntMpi(:,:)     = 0
@@ -7339,21 +7340,21 @@ contains
       ! reject observations that are outside the assimilation window
       if (obsStepIndex < 1 .or. obsStepIndex > numTimesteps) then
         valid(headerIndex) = .false.
-	cycle HEADER
-      end if	
+        cycle HEADER
+      end if
 
       if (numTimesteps == 1) then
         delMinutes = abs(nint(60.0 * tim_windowsize * abs(real(obsStepIndex) - obsStepIndex_r8)))
       else
         delMinutes = abs(nint(60.0 * tim_windowsize / (numTimesteps - 1) * &
-	                                              abs(real(obsStepIndex) - obsStepIndex_r8)))
+                                                      abs(real(obsStepIndex) - obsStepIndex_r8)))
       end if
 
       ! check time window
       if (delMinutes > deltmax) then
         valid(headerIndex) = .false.
-	cycle HEADER
-      end if	
+        cycle HEADER
+      end if
 
       obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
       obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
