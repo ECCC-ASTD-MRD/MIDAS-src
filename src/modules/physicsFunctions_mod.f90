@@ -852,12 +852,12 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
+    integer, intent(in) :: nlev                ! length of altitude array
+    integer, intent(in) :: nlev_mod            ! number of model levels
     real(8), intent(in) :: altitude(nlev)      ! altitudes to convert to pressures (m)
     real(8), intent(in) :: rgz_mod(nlev_mod)   ! geopotential heights on model levels (m), assumed to be in decending order
     real(8), intent(in) :: press_mod(nlev_mod) ! pressure on model levels, assumed to be in ascending order
     real(8), intent(in) :: lat                 ! latitude (rad)
-    integer, intent(in) :: nlev                ! length of altitude array
-    integer, intent(in) :: nlev_mod            ! number of model levels
     logical, intent(inout) :: success(nlev)    ! flag indicating success
     ! Result:
     real(8) :: press(nlev)                     ! converted pressures
@@ -890,17 +890,17 @@ module physicsFunctions_mod
         if (rgz(ilev) > rgz_mod(1)) then
           press(ilev) = press_mod(2) * (press_mod(1)/press_mod(2))**( &
             (rgz(ilev)-rgz_mod(2))/(rgz_mod(1)-rgz_mod(2)) )
-	  if (press(ilev) < 0.1d0*press_mod(1)) then
-	    press(ilev) = 0.1d0*press_mod(1)
-	    success(ilev) = .false.
-          end if	    
+          if (press(ilev) < 0.1d0*press_mod(1)) then
+            press(ilev) = 0.1d0*press_mod(1)
+            success(ilev) = .false.
+          end if
         else
           press(ilev) = press_mod(nlev_mod) * (press_mod(nlev_mod-1)/press_mod(nlev_mod))**( &
             (rgz(ilev)-rgz_mod(nlev_mod))/(rgz_mod(nlev_mod-1)-rgz_mod(nlev_mod)) )
-	  if (press(ilev) > max(1.2d5,1.2d0*press_mod(nlev_mod))) then
-	    press(ilev) = max(1.2d5,1.2d0*press_mod(nlev_mod))
-	    success(ilev) = .false.
-          end if	    
+          if (press(ilev) > max(1.2d5,1.2d0*press_mod(nlev_mod))) then
+            press(ilev) = max(1.2d5,1.2d0*press_mod(nlev_mod))
+            success(ilev) = .false.
+          end if
         end if
       end if
     end do
@@ -921,9 +921,9 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
+    integer, intent(in) :: nlev           ! number of levels
     real(8), intent(in) :: altitude(nlev) ! altitudes (m)
     real(8), intent(in) :: lat            ! latitude (rad)
-    integer, intent(in) :: nlev           ! number of levels
     ! Result:
     real(8) :: rgz(nlev)                  ! geopotential heights (m)
 
@@ -1005,7 +1005,7 @@ module physicsFunctions_mod
         else if (hu_opt(i) < 0.0d0) then
           hu_ppmv2 = 0.0d0
         end if
-	
+
         ! Check if transition point reached.
         ! Added requirement that levels below also satisfy this condition.
         if (hu_ppmv2 >= ppmv_threshold) then
@@ -1212,7 +1212,7 @@ module physicsFunctions_mod
           i = i-1
           !do while (thetavh(i)-thetavh(i+1) > 0.0d0 .and. i > itop) 
           do while ((thetavh(i)-thetavh(i+1))/(height(i)-height(i+1)) >= 0.005d0 &
-	            .and. i > itop) 
+               .and. i > itop)
             i = i-1
           end do
           if ((thetavh(i+1)-thetavh(inv)) > 2.0d0)  then
