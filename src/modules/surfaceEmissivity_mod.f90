@@ -100,8 +100,7 @@ contains
     fileName = 'EmissErrStd.dat'
     iunit = 0
     ierr = fnom(iunit, fileName, 'SEQ+FMT', 0)
-    if (ierr /= 0) call utl_abort('sse_readEmissError: Error reading &
-                                   surface emissivity error stdev. file') 
+    if (ierr /= 0) call utl_abort('sse_readEmissError: Error reading surface emissivity error stdev. file')
 
     ! Read temporary strings 
     read(iunit, *) tmpStr
@@ -545,8 +544,8 @@ contains
       emissPtrRef => col_getAllColumns(columnRef_opt, 'EMMW')
 
       if (numCol /= numColRef .and. numLev /= numLevRef) then
-        call utl_abort('sse_emissivityRttovLimits: number of column and &
-                        levels between column and reference column are not the same')
+        call utl_abort('sse_emissivityRttovLimits: number of column and ' // &
+                        'levels between column and reference column are not the same')
       end if
     end if
 
