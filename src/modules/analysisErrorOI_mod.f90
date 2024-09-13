@@ -825,7 +825,7 @@ contains
         if (trim(variableName) == 'GL') then
           stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
                      min(stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
-                         errorGrowth * tim_dstepobs, 1.0)
+                         errorGrowth * tim_dstepobs, 1.0d0)
         else if (trim(variableName) == 'TM') then
           stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
                          stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
@@ -1033,7 +1033,7 @@ contains
                 scaling = allIceScaling(bodyIndex,procIndex)
               else if (analysisVariable == 'TM') then
                 scaling = 1.0d0
-              end if	
+              end if
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
               VARLEVCYCLE: do varLevIndex = stateVectorTrlErrorStd%myVarLevBeg, stateVectorTrlErrorStd%myVarLevEnd
@@ -1274,7 +1274,7 @@ contains
                          anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                          ' reset to zero at grid point (',lonIndex, latIndex,')'
               anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                   max(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0)
+                   max(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0d0)
             end if
 
             if(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &
