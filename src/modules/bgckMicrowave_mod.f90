@@ -33,7 +33,7 @@ module bgckMicrowave_mod
   real(8) :: mwbg_modelInterpSeaIce            ! model interpolated sea ice
   logical :: mwbg_rejectWhenSiMissing          ! for AMSUB/MHS
   logical :: mwbg_debug
-  logical :: mwbg_useUnbiasedObsForClw 
+  logical :: mwbg_useUnbiasedObsForClw
   logical :: mwbg_resetQc                      ! reset Qc flags
   logical :: mwbg_calcLandQualifierTerrainType ! recalculate land/sea qualifier and terrain type based on LG/MG for MWHS2
   logical :: mwbg_siObsRejectTempChan          ! scattering index from obs can reject temperature channels
@@ -919,7 +919,8 @@ contains
     integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
-    integer :: testIndex, GROSSERROR, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    logical :: GROSSERROR
+    integer :: testIndex, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags 
     real(8) :: obsTb
     character(len=9) :: stnId
@@ -2404,15 +2405,9 @@ contains
         INTOTACC = INTOTOBS - INTOTRJF(JK) - INTOTRJP(JK)
           write(*,'(/////50("*"))')
           write(*,'(     50("*")/)')
-          write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", &
-           A8)') satelliteId(JK) 
+          write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", A8)') satelliteId(JK)
           write(*,'(T5,"------------------------------------- ",/)')
-          write(*,'( &
-           " - TOTAL NUMBER OF OBS.    = ",I10,/ &
-           " - TOTAL FULL REJECTS      = ",I10,/ &
-           " - TOTAL PARTIAL REJECTS   = ",I10,/ &
-           "   ------------------------------------",/ &
-           "   TOTAL FULLY ACCEPTED    = ",I10,/)') &
+          write(*,'(" - TOTAL NUMBER OF OBS.    = ",I10," - TOTAL FULL REJECTS      = ",I10," - TOTAL PARTIAL REJECTS   = ",I10,/"   ------------------------------------","   TOTAL FULLY ACCEPTED    = ",I10)') &
             INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
 
         if (instName == "AMSUA" .or. instName == "AMSUB") then         
@@ -2738,7 +2733,7 @@ contains
           cloudLiquidWaterPathFG = a + b * log(dif285t23FG) + c * log(dif285t31FG)
           cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosz           ! theoretical cloud liquid water (0-3mm)
           cloudLiquidWaterPathFG = cloudLiquidWaterPathFG - 0.03d0         ! corrected cloud liquid water 
-          cloudLiquidWaterPathFG = min(3.,max(0.,cloudLiquidWaterPathFG))
+          cloudLiquidWaterPathFG = min(3.0d0,max(0.0d0,cloudLiquidWaterPathFG))
         end if
 
         if (.not. chan15Missing) then
@@ -3469,7 +3464,7 @@ contains
     ! Apply over open water only (bit 0 ON in QC integer newInformationFlag).
     ! Only apply if obs not rejected in this test already.
     IBIT = AND(newInformationFlag, 2**0)
-    if ( CH2OMPREJCT .and. (IBIT /= 0) ) then
+    if ( CH2OMPREJCT .and. IBIT ) then
       BODY2: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
