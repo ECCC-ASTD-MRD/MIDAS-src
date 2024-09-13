@@ -101,21 +101,21 @@ module oceanObservations_mod
       do latIndex = myLatBeg, myLatEnd
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
           if (seaice_ptr(lonIndex, latIndex, 1) > iceFractionThreshold) then
-	  
-            numberIceCoveredPoints = numberIceCoveredPoints + 1
-	    iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
-	    seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
 
-	    if(seaWater_ptr(lonIndex, latIndex, 1) <= seaWaterThreshold) then
-	      inlandWaterPoints = inlandWaterPoints + 1
-	    else
-	      seaWaterPoints = seaWaterPoints + 1
-	    end if  	      
-	  
-	    iceLonsAux(numberIceCoveredPoints) = hco%lon2d_4 (lonIndex, latIndex)
-	    iceLatsAux(numberIceCoveredPoints) = hco%lat2d_4 (lonIndex, latIndex)	
-          
-	  end if
+            numberIceCoveredPoints = numberIceCoveredPoints + 1
+            iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
+            seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
+
+            if(seaWater_ptr(lonIndex, latIndex, 1) <= seaWaterThreshold) then
+              inlandWaterPoints = inlandWaterPoints + 1
+            else
+              seaWaterPoints = seaWaterPoints + 1
+            end if
+
+            iceLonsAux(numberIceCoveredPoints) = hco%lon2d_4 (lonIndex, latIndex)
+            iceLatsAux(numberIceCoveredPoints) = hco%lat2d_4 (lonIndex, latIndex)
+
+          end if
         end if
       end do
     end do
@@ -251,7 +251,7 @@ module oceanObservations_mod
       else
         if (counterThinning == iceThinning) then  
           obsValue = outputSST
-          checkSeaWatersCount = checkSeaWatersCount + 1	
+          checkSeaWatersCount = checkSeaWatersCount + 1
           counterThinning = 1
         else
           counterThinning = counterThinning + 1
