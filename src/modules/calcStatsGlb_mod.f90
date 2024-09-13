@@ -280,7 +280,7 @@ module calcStatsGlb_mod
     do loopIndex = 1, nvar
       if (any(vnl_varNameList3D == anlvar(loopIndex))) then
         varIndex  =varIndex+1
-	nomvar3d(varIndex,:) = anlvar(loopIndex)
+        nomvar3d(varIndex,:) = anlvar(loopIndex)
       end if
     end do
     nvar3d = varIndex
@@ -289,7 +289,7 @@ module calcStatsGlb_mod
       do loopIndex = 1,nvar
         if (any(vnl_varNameList2D == anlvar(loopIndex))) then
           varIndex = varIndex+1
-	  nomvar2d(varIndex,:) = anlvar(loopIndex)
+          nomvar2d(varIndex,:) = anlvar(loopIndex)
         end if
       end do      
       nvar2d = varIndex
@@ -302,7 +302,7 @@ module calcStatsGlb_mod
            trim(nomvar3d(2,modelSpace)) == 'VV' .and. &
            trim(nomvar3d(3,modelSpace)) == 'TT' .and. &
            trim(nomvar3d(4,modelSpace)) == 'LQ' .and. &
-           trim(nomvar2d(1,modelSpace)) == 'P0') then	     
+           trim(nomvar2d(1,modelSpace)) == 'P0') then
         ! Reset nomvars     
         nomvar3d(1,cvSpace) = 'PP'
         nomvar3d(2,cvSpace) = 'CC'
@@ -316,20 +316,20 @@ module calcStatsGlb_mod
         nomvar3d(4,cvUnbalSpace) = 'LQ'
         nomvar2d(1,cvUnbalSpace) = 'UP'   
       else if (trim(nomvar3d(1,modelSpace)) == 'UU' .and. &
-                trim(nomvar3d(2,modelSpace)) == 'VV') then	       
+                trim(nomvar3d(2,modelSpace)) == 'VV') then
         nomvar3d(1,cvSpace) = 'PP'
         nomvar3d(2,cvSpace) = 'CC' 
         nomvar3d(1,cvUnbalSpace) = 'PP'
-        nomvar3d(2,cvUnbalSpace) = 'CC'	 
+        nomvar3d(2,cvUnbalSpace) = 'CC'
       end if  
         
     else if (nvar3d > 1) then        
       if (trim(nomvar3d(1,modelSpace)) == 'UU' .and. &
            trim(nomvar3d(2,modelSpace)) == 'VV') then
         nomvar3d(1,cvSpace) = 'PP'
-        nomvar3d(2,cvSpace) = 'CC'	 
+        nomvar3d(2,cvSpace) = 'CC'
         nomvar3d(1,cvUnbalSpace) = 'PP'
-        nomvar3d(2,cvUnbalSpace) = 'CC'	
+        nomvar3d(2,cvUnbalSpace) = 'CC'
       end if      
     end if 
     
@@ -356,12 +356,12 @@ module calcStatsGlb_mod
     if (nvar3d > 0) then
       do varIndex = 1, nvar3d
         if (trim(nomvar3d(varIndex,modelSpace)) == 'UU' .or. &
-             trim(nomvar3d(varIndex,modelSpace)) == 'VV') then	            
+             trim(nomvar3d(varIndex,modelSpace)) == 'VV') then
           varLevOffset(varIndex+1) = varLevOffset(varIndex)+nLevEns_M
-	  numVarLevEns = numVarLevEns + nLevEns_M
-	else
+          numVarLevEns = numVarLevEns + nLevEns_M
+        else
           varLevOffset(varIndex+1) = varLevOffset(varIndex)+nLevEns_T
-	  numVarLevEns = numVarLevEns + nLevEns_T
+          numVarLevEns = numVarLevEns + nLevEns_T
         end if
       end do
     end if
@@ -426,7 +426,7 @@ module calcStatsGlb_mod
               trim(nomvar3d(2,modelSpace)) /= 'VV' .or. &
               trim(nomvar3d(3,modelSpace)) /= 'TT' .or. &
               trim(nomvar3d(4,modelSpace)) /= 'LQ' .or. &
-              trim(nomvar2d(1,modelSpace)) /= 'P0') then	 
+              trim(nomvar2d(1,modelSpace)) /= 'P0') then
       call utl_abort('csg_checkForLegacyVars: Incorrect variables for legacy formulation')
     end if  
   
@@ -574,8 +574,8 @@ module calcStatsGlb_mod
  
     NAMELIST /NAMCOMPUTEBHILATBANDS/latBandsCorrelCalc, &
              latBandIndex, separableCorrel, vFitType, hFitType, &
-	     setFittedVCorrel, setFittedHCorrel, writeCorrelBlocks, &
-	     writeGridDescriptors, scaleFactor, fitSmoothingTimes
+             setFittedVCorrel, setFittedHCorrel, writeCorrelBlocks, &
+             writeGridDescriptors, scaleFactor, fitSmoothingTimes
 
     ! Initialization of namelist parameters
     latBandsCorrelCalc =.true.  ! Lat band(s) correlation
@@ -713,12 +713,12 @@ module calcStatsGlb_mod
       end if
 
       call calcCorrelations(ensPerturbations, corns, rstddev, latMask_opt=latMask, &
-	                    separableCorrel_opt=separableCorrel)
+                            separableCorrel_opt=separableCorrel)
 
       call csg_correlFit(corns, rstddev, vFitType, hFitType, &
                          fitSmoothingTimes, setFittedVCorrel, setFittedHCorrel, &
-		         separableCorrel)
-		
+                         separableCorrel)
+
       call writeStats(corns, rstddev, latBand_opt=jlatBand, writeBlocks_opt = writeCorrelBlocks)
     end do      
 
@@ -1369,7 +1369,7 @@ module calcStatsGlb_mod
     ! Calculate the total vertical correlation matrix
     ! and apply to all wavenumbers
     if (present(separableCorrel_opt)) then
-      if (separableCorrel_opt == .true.) then
+      if ( separableCorrel_opt ) then
         allocate(corvert(numVarLevEns,numVarLevEns))
         call calcCorvert(corns, rstddev, corvert)
         !$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
@@ -1377,7 +1377,7 @@ module calcStatsGlb_mod
           do jk1 = 1, numVarLevEns
             do jk2 = 1, numVarLevEns
               corns(jk1,jk2,jn) = corvert(jk1,jk2)
-	    end do
+            end do
           end do
         end do
         !$OMP END PARALLEL DO
@@ -1705,64 +1705,64 @@ module calcStatsGlb_mod
     else
       call calcCorvert(corns, rstddev, corvert)    
     
-      variableType = cvSpace	    
+      variableType = cvSpace
       do varIndex = 1, nvar
 
         offset = varLevOffset(varIndex)
         nlev = varLevOffset(varIndex+1) - offset
-	
+
         do jn = 0, ntrunc
           ip2 = jn
           ierr = utl_fstecr(corns(offset+1:offset+nlev,offset+1:offset+nlev,jn), &
-	                    ipak,nulstats,idateo,0,0,nlev,nlev,1,  &
+                            ipak,nulstats,idateo,0,0,nlev,nlev,1,  &
                             ip1,ip2,ip3,'X',nomvar(varIndex,variableType), &
-		            'CORRNS  ','X', 0,0,0,0,idatyp,.true.)
+                            'CORRNS  ','X', 0,0,0,0,idatyp,.true.)
         end do
 
         do jn = 0, ntrunc
           ip2 = jn
           ierr = utl_fstecr(rstddev(offset+1:offset+nlev,jn),ipak,nulstats, &
-	                    idateo,0,0,nlev,1,1,ip1,ip2,ip3,'X', &
-			    nomvar(varIndex,variableType),'RSTDDEV ','X', &
-			    0,0,0,0,idatyp,.true.)
+                            idateo,0,0,nlev,1,1,ip1,ip2,ip3,'X', &
+                            nomvar(varIndex,variableType),'RSTDDEV ','X', &
+                            0,0,0,0,idatyp,.true.)
         end do
     
         ip2 =0
         ierr = utl_fstecr(corvert(offset+1:offset+nlev,offset+1:offset+nlev), &
                           ipak,nulstats,idateo,0,0,nlev,nlev,1,   &
                           ip1,ip2,ip3,'X',nomvar(varIndex,variableType), &
-	                  'CORVERT ','X',0,0,0,0,idatyp,.true.)
+                          'CORVERT ','X',0,0,0,0,idatyp,.true.)
       end do
-      
+
       do varIndex = 1, nvar
         offset = varLevOffset(varIndex)
         nlev = varLevOffset(varIndex+1) - offset
-        
+
         do varIndex2 = 1, nvar
-	
+
           if (varIndex == varIndex2) cycle
-	  
+
           offset2 = varLevOffset(varIndex2)
           nlev2 = varLevOffset(varIndex2+1) - offset2
           cletiket='CORRNS '//nomvar(varIndex2,variableType)
           do jn = 0, ntrunc
             ip2 = jn
             ierr = utl_fstecr(corns(offset+1:offset+nlev,offset2+1:offset2+nlev2,jn), &
-	                      ipak,nulstats,idateo,0,0,nlev,nlev2,1,  &
+                              ipak,nulstats,idateo,0,0,nlev,nlev2,1,  &
                               ip1,ip2,ip3,'X',nomvar(varIndex,variableType),cletiket,'X', &
                               0,0,0,0,idatyp,.true.)
           end do
-	
+
           ip2 =0
           cletiket='CORVERT '//nomvar(varIndex2,variableType)
           ierr = utl_fstecr(corvert(offset+1:offset+nlev,offset2+1:offset2+nlev2), &
                             ipak,nulstats,idateo,0,0,nlev,nlev2,1,   &
                             ip1,ip2,ip3,'X',nomvar(varIndex,variableType), &
-	                    cletiket,'X',0,0,0,0,idatyp,.true.)
+                            cletiket,'X',0,0,0,0,idatyp,.true.)
         end do
       end do
 
-    end if 
+    end if
     
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
@@ -2021,10 +2021,10 @@ module calcStatsGlb_mod
 
     ! Write latitudes and longitudes
     ierr = utl_fstecr(hco_ens%lat*MPC_DEGREES_PER_RADIAN_R8,-numBits, &
-  	              nulstats,0,0,0,1,nj,1,0,0,0,   &
+                      nulstats,0,0,0,1,nj,1,0,0,0,   &
                       'E','^^','STATS LAT','X',0,0,0,0,1,.true.)
     ierr = utl_fstecr(hco_ens%lon*MPC_DEGREES_PER_RADIAN_R8,-numBits, &
-	              nulstats,0,0,0,ni,1,1,0,0,0,   &
+                      nulstats,0,0,0,ni,1,1,0,0,0,   &
                       'E','>>','STATS LONG','X',0,0,0,0,1,.true.)
 
     ! Write vertical coordinate descriptors
@@ -2040,12 +2040,12 @@ module calcStatsGlb_mod
       dummy(:,:) = 0.0d0
       do levIndex = 1, nLevEns_T
         ierr = utl_fstecr(dummy,-numBits,nulstats,0,0,0,2,2,1, &
-	                  vco_ens%ip1_T(levIndex),0,0,   &
+                          vco_ens%ip1_T(levIndex),0,0,   &
                           'G','TH','VERTICALGRID','A',0,0,0,0,1,.true.)
       end do
       do levIndex = 1, nLevEns_M
         ierr = utl_fstecr(dummy,-numBits,nulstats,0,0,0,2,2,1, &
-	                  vco_ens%ip1_M(levIndex),0,0,   &
+                          vco_ens%ip1_M(levIndex),0,0,   &
                           'G','MM','VERTICALGRID','A',0,0,0,0,1,.true.)
       end do
     
@@ -2053,7 +2053,7 @@ module calcStatsGlb_mod
      
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
-	         
+
   end subroutine csg_writeGridDescriptors
   
   !--------------------------------------------------------------------------
@@ -2659,7 +2659,7 @@ module calcStatsGlb_mod
       if (scaleFactor(1) < 0.0d0) scaleFactor(1) = 1.0d0
       do loopIndex = 2,vco_maxNumLevels
         if (scaleFactor(loopIndex) < 0.0d0) scaleFactor(loopIndex) = &
-	  scaleFactor(loopIndex-1)
+          scaleFactor(loopIndex-1)
       end do
     end if
     
@@ -2669,14 +2669,14 @@ module calcStatsGlb_mod
       do varIndex = 1,nvar3d
         levIndex = 0
         do posIndex = varLevOffset(varIndex)+1,varLevOffset(varIndex+1) 
-	  levIndex = levIndex + 1
+          levIndex = levIndex + 1
           !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
           do latIndex = myLatBeg, myLatEnd
-            do lonIndex = myLonBeg, myLonEnd 	  
+            do lonIndex = myLonBeg, myLonEnd
               stddev3d(lonIndex,latIndex,posIndex) = &
                 scaleFactor(levIndex)*stddev3d(lonIndex,latIndex,posIndex)
-	    end do
-	  end do
+            end do
+          end do
           !$OMP END PARALLEL DO
           stddevZonAvg(posIndex,:) = scaleFactor(levIndex)*stddevZonAvg(posIndex,:) 
         end do
@@ -2688,11 +2688,11 @@ module calcStatsGlb_mod
         posIndex=varLevOffset(nvar3d+varIndex)+1
         !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
         do latIndex = myLatBeg, myLatEnd
-          do lonIndex = myLonBeg, myLonEnd 	  
+          do lonIndex = myLonBeg, myLonEnd
             stddev3d(lonIndex,latIndex,posIndex) = &
               scaleFactor(levIndex)*stddev3d(lonIndex,latIndex,posIndex)
-	  end do
-	end do
+          end do
+        end do
         !$OMP END PARALLEL DO
         stddevZonAvg(posIndex,:) = scaleFactor(levIndex)*stddevZonAvg(posIndex,:) 
       end do
@@ -2895,16 +2895,16 @@ module calcStatsGlb_mod
     allocate(dateStampList(numStep))
     dateStampList(:)  = -1
     call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList, &
-    	           varNames_opt=nomvar(:,1))
+                      varNames_opt=nomvar(:,1))
 
     makeBiPeriodic = .false.
     call ens_readEnsemble(ensPerts, './ensemble', makeBiPeriodic, &
                           containsFullField_opt=.false., &
-			  varNames_opt=nomvar(:,1))
+                          varNames_opt=nomvar(:,1))
 
     call gsv_allocate(stateVector, 1, hco_ens, vco_ens, dateStampList_opt=dateStampList,  &
                       mpi_local_opt=.true., dataKind_opt=4, &
-		      varNames_opt=nomvar(:,1))
+                      varNames_opt=nomvar(:,1))
 
     do ensIndex = 1, nEns
       write(*,*) 'readEnsemble: copying over member ', ensIndex
@@ -2912,35 +2912,35 @@ module calcStatsGlb_mod
 
       if (nvar3d > 0) then
         do varIndex = 1,nvar3d
-	  if (trim(nomvar3d(varIndex,modelSpace)) == 'UU' .or. &
-	       trim(nomvar3d(varIndex,modelSpace)) == 'VV') then
-	    nLevs = nLevEns_M
-	  else
-	    nLevs = nLevEns_T
-	  end if
-	  
+          if (trim(nomvar3d(varIndex,modelSpace)) == 'UU' .or. &
+               trim(nomvar3d(varIndex,modelSpace)) == 'VV') then
+            nLevs = nLevEns_M
+          else
+            nLevs = nLevEns_T
+          end if
+
           call gsv_getField(stateVector,field_r4,nomvar3d(varIndex,modelSpace))
           do levIndex = 1, nLevs
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
                 ensPerturbations(lonIndex,latIndex,levIndex+varLevOffset(varIndex),ensIndex) = &
-		  field_r4(lonIndex,latIndex,levIndex)
+                  field_r4(lonIndex,latIndex,levIndex)
               end do
             end do
           end do
-	end do
+        end do
       end if
-	
+
       if (nvar2d > 0) then
         do varIndex = 1,nvar2d
           call gsv_getField(stateVector,field_r4,nomvar2d(varIndex,modelSpace))
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
               ensPerturbations(lonIndex,latIndex,1+varLevOffset(nvar3d+varIndex),ensIndex) = &
-	        field_r4(lonIndex,latIndex,1)
+                field_r4(lonIndex,latIndex,1)
             end do
           end do
-	end do
+        end do
       end if
 
     end do
@@ -3811,7 +3811,7 @@ module calcStatsGlb_mod
   !--------------------------------------------------------------------------
   subroutine csg_correlFit(corns, rstddev, vFitType, hFitType, &
                          fitSmoothingTimes, setFittedVCorrel, setFittedHCorrel, &
-		         separableCorrel)
+                         separableCorrel)
     !
     !:Purpose: Apply vertical and horizontal correlation fits with the option 
     !          of replacing correlations by those of the fits.
@@ -3847,48 +3847,48 @@ module calcStatsGlb_mod
       call calcCorvert(corns, rstddev, corvert)      
       call vCorrelFit(corvert, fitParam, -1, vFitType, fitSmoothingTImes, &
                       setFittedVCorrel)
-		               
+
       if (separableCorrel) then
         !$OMP PARALLEL DO PRIVATE (waveIndex)
         do waveIndex = 0, ntrunc
-	  corns(:,:,waveIndex) = corvert(:,:) 
+          corns(:,:,waveIndex) = corvert(:,:)
         end do
         !$OMP END PARALLEL DO
       else
-	! Only reduce/remove correlations at far distance for individual variables 
+        ! Only reduce/remove correlations at far distance for individual variables
         ! Cross-correlations untouched
 
-        ! Note: Noise and structure in vertical correlation matrices	
+        ! Note: Noise and structure in vertical correlation matrices
         ! for non-separable case resulting in large correlations at far distances 
-	! likely to cause aborts in the fitting or result in unrealistic fits.
+        ! likely to cause aborts in the fitting or result in unrealistic fits.
         ! Therefore, CORNS matrices not fitted for the non-separable case.
-		
+
         do varIndex = 1, nvar3d
 
           if (trim(vfitType(varIndex)) == 'none') cycle
-	  
+
           offset = varLevOffset(varIndex)
           ndim = varLevOffset(varIndex+1) - offset           
           if (ndim == nLevEns_M) then
-	    press(1:ndim) = pressureProfile_M(1:ndim)
+            press(1:ndim) = pressureProfile_M(1:ndim)
           else
-	    press(1:ndim) = pressureProfile_T(1:ndim)
+            press(1:ndim) = pressureProfile_T(1:ndim)
           end if
 
-	  call lfn_setup(trim(vfitType(varIndex)))
-	  
-          !$OMP PARALLEL DO PRIVATE (waveIndex, levelIndex)          
-	  do waveIndex = ntrunc, 0, -1 
-	    do levelIndex = 1, ndim
+          call lfn_setup(trim(vfitType(varIndex)))
+
+          !$OMP PARALLEL DO PRIVATE (waveIndex, levelIndex)
+          do waveIndex = ntrunc, 0, -1
+            do levelIndex = 1, ndim
               call vCorrelFilter(ndim, corns(offset+1:offset+ndim,offset+1:offset+ndim,waveIndex), &
-	                         press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))	
-	    end do
+                                 press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
+            end do
             ! Ensure positive definiteness
             call posDefCorrel(ndim, corns(offset+1:offset+ndim,offset+1:offset+ndim,waveIndex), &
-	                    relativeTol)
-	  end do	  
+                            relativeTol)
+          end do
           !$OMP END PARALLEL DO
-	end do
+        end do
       end if
     end if
          
@@ -3945,7 +3945,7 @@ module calcStatsGlb_mod
     !$OMP PARALLEL DO PRIVATE (latIndex, k)
     do latIndex = 1, nj
       do k = 0, ntrunc
-	 zleg(k+1,latIndex) = gst_getzleg(k,latIndex,gstID_numVarLevEns) 
+         zleg(k+1,latIndex) = gst_getzleg(k,latIndex,gstID_numVarLevEns)
       end do
     end do
     !$OMP END PARALLEL DO
@@ -3963,36 +3963,36 @@ module calcStatsGlb_mod
       do levelIndex = 1, ndim
         call spectralToPhys(correlValue, nj, zleg, rstddev(offset+levelIndex,:))
         if (correlValue(nj) > 1.0d0) then
-	  maxCorrel(levelIndex) = correlValue(nj) - (correlValue(nj)-correlValue(nj-1))* &
-	    distance(nj)/(distance(nj)-distance(nj-1))
+          maxCorrel(levelIndex) = correlValue(nj) - (correlValue(nj)-correlValue(nj-1))* &
+            distance(nj)/(distance(nj)-distance(nj-1))
          else
-	  maxCorrel(levelIndex) = 1.0d0
-	end if
+          maxCorrel(levelIndex) = 1.0d0
+        end if
         correlValue(1:nj) = correlValue(1:nj) / maxCorrel(levelIndex) 
-	physCorrel(varIndex,levelIndex,nj:1:-1) = correlValue(1:nj) 
-      	! Apply fitting
+        physCorrel(varIndex,levelIndex,nj:1:-1) = correlValue(1:nj)
+        ! Apply fitting
         call lfn_lengthscale(fitParam(varIndex,levelIndex), &
                              rmse(varIndex,levelIndex), correlValue(1:nj) , &
-			     distance(1:nj), weight(1:nj), nj, verbose_opt = .false.)
+                             distance(1:nj), weight(1:nj), nj, verbose_opt = .false.)
       end do
 
       call fitSmoother(fitParam(varIndex,1:ndim), ndim, fitSmoothingTimes)
 
       ! Estimate corresponding half-width at half-max
       do levelIndex = 1, ndim
-	hwhm(varIndex,levelIndex) = getFitHWHM(distance, nj, &
-	                            fitParam(varIndex,levelIndex))				    
+        hwhm(varIndex,levelIndex) = getFitHWHM(distance, nj, &
+                                    fitParam(varIndex,levelIndex))
       end do
-	   
+
       if (setFittedCorrel(varIndex)) then    
         ! Reset correlations of spectral components according to fit
         do levelIndex = 1, ndim
-	  do latIndex = 1, nj
-	    correlValue(latIndex) = maxCorrel(levelIndex) * &
+          do latIndex = 1, nj
+            correlValue(latIndex) = maxCorrel(levelIndex) * &
               lfn_response(distance(latIndex), fitParam(varIndex,levelIndex))
-	    if (abs(correlValue(latIndex)) < 0.01) correlValue(latIndex) = 0.0d0
+            if (abs(correlValue(latIndex)) < 0.01) correlValue(latIndex) = 0.0d0
           end do
-	  physCorrel(varIndex,levelIndex,nj:1:-1) = correlValue(1:nj)/maxCorrel(levelIndex) 
+          physCorrel(varIndex,levelIndex,nj:1:-1) = correlValue(1:nj)/maxCorrel(levelIndex)
           call physToSpectral(correlValue, nj, zleg, rstddev(offset+levelIndex,:))
         end do
       else
@@ -4000,15 +4000,15 @@ module calcStatsGlb_mod
         do levelIndex = 1, ndim
           call spectralToPhys(correlValue, nj, zleg, rstddev(offset+levelIndex,:))
           call farDistHCorrelFilter(correlValue, fitParam(varIndex,levelIndex), &
-	                           distance, nj, scaleFactor, fitType(varIndex))
-          call physToSpectral(correlValue, nj, zleg, rstddev(offset+levelIndex,:))	  
-	end do
+                                   distance, nj, scaleFactor, fitType(varIndex))
+          call physToSpectral(correlValue, nj, zleg, rstddev(offset+levelIndex,:))
+        end do
       end if
     end do
 
    call writeCorrelFit(fitParam, hwhm, rmse, -1, fitType, setFittedCorrel, &
                        fitSmoothingTImes, './hCorrelFit.txt', &
-		       distance_opt=distance(nj:1:-1), physCorrel_opt=physCorrel)
+                       distance_opt=distance(nj:1:-1), physCorrel_opt=physCorrel)
                 
   end subroutine hCorrelFit
     
@@ -4055,32 +4055,32 @@ module calcStatsGlb_mod
       offset = varLevOffset(varIndex)
       ndim = varLevOffset(varIndex+1) - offset
       if (ndim == nLevEns_M) then
-	press(1:ndim) = pressureProfile_M(1:ndim)
+        press(1:ndim) = pressureProfile_M(1:ndim)
       else
-	press(1:ndim) = pressureProfile_T(1:ndim)
+        press(1:ndim) = pressureProfile_T(1:ndim)
       end if
 
       ! Set correlation fit type        
       call lfn_setup(trim(fitType(varIndex))) 
     
       do levelIndex = 1, ndim
-	ndim2 = 0
-	! Set fit input
-	! Mix bottom top and half depending on levelIndex
-	if (levelIndex > ndim/2) then
-	  do levelIndex2 = levelIndex,1, -1
-	    ndim2 = ndim2 + 1
-	    distance(ndim2) = -log(press(levelIndex2)/press(levelIndex))*dZdP
-	    correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-	  end do
-	else
-	  do levelIndex2 = levelIndex, ndim
-	    ndim2 = ndim2 + 1
-	    distance(ndim2) = log(press(levelIndex2)/press(levelIndex))*dZdP
-	    correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-	  end do
-	end if	
-	! Apply fitting
+        ndim2 = 0
+        ! Set fit input
+        ! Mix bottom top and half depending on levelIndex
+        if (levelIndex > ndim/2) then
+          do levelIndex2 = levelIndex,1, -1
+            ndim2 = ndim2 + 1
+            distance(ndim2) = -log(press(levelIndex2)/press(levelIndex))*dZdP
+            correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
+          end do
+        else
+          do levelIndex2 = levelIndex, ndim
+            ndim2 = ndim2 + 1
+            distance(ndim2) = log(press(levelIndex2)/press(levelIndex))*dZdP
+            correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
+          end do
+        end if
+        ! Apply fitting
         call lfn_lengthscale(fitParam(varIndex,levelIndex), &
                              rmse(varIndex,levelIndex), correlValue(1:ndim2) , &
                              distance(1:ndim2), weight(1:ndim2), ndim2, verbose_opt = .false.)
@@ -4090,30 +4090,30 @@ module calcStatsGlb_mod
 
       ! Estimate corresponding half-width at half-max
       do levelIndex = 1, ndim
-	hwhm(varIndex,levelIndex) = getFitHWHM(distance, ndim, &
-	                            fitParam(varIndex,levelIndex))
+        hwhm(varIndex,levelIndex) = getFitHWHM(distance, ndim, &
+                                    fitParam(varIndex,levelIndex))
       end do
-	   
+
       if (setFittedCorrel(varIndex)) then                            
         ! Reset diagonal block correlations of spectral components according to fit
-	! Off-diagonal blocks untouched
+        ! Off-diagonal blocks untouched
         correl(offset+1:offset+ndim,offset+1:offset+ndim) = 1.0d0
         do levelIndex = 1, ndim
           call vCorrelFilter(ndim, correl(offset+1:offset+ndim,offset+1:offset+ndim), &
-	                     press, levelIndex, fitParam(varIndex,levelIndex))
+                             press, levelIndex, fitParam(varIndex,levelIndex))
         end do
       else
-        ! Reduce/remove correlations at far distance	
-	! Off-diagonal blocks untouched
+        ! Reduce/remove correlations at far distance
+        ! Off-diagonal blocks untouched
         do levelIndex = 1, ndim
           call vCorrelFilter(ndim, correl(offset+1:offset+ndim,offset+1:offset+ndim), &
-	                     press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
+                             press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
         end do
       end if
       
       ! Ensure positive definiteness
       call posDefCorrel(ndim, correl(offset+1:offset+ndim,offset+1:offset+ndim), &
-	                relativeTol)
+                        relativeTol)
       
     end do
     
@@ -4132,8 +4132,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in) :: distance(ndim) ! Ordered distance array
     integer, intent(in) :: ndim           ! Size of distance array
+    real(8), intent(in) :: distance(ndim) ! Ordered distance array
     real(8), intent(in) :: fitParam       ! Fit parameter
     ! Result:
     real(8) :: hwhm                ! Half-width at half-max
@@ -4151,15 +4151,15 @@ module calcStatsGlb_mod
       end do
       if (loopIndex == 0) then
         write(*,*) 'Warning from  getFitHWHM: suspicious fit', &
-	           ' at a distance of ',distance(loopIndex+1)
+                   ' at a distance of ',distance(loopIndex+1)
         hwhm = -999.0d0
       else if (abs(work(loopIndex+1)-work(loopIndex)) < 0.001) then
         write(*,*) 'Warning from getFitHWHM: suspicious fit', &
-	           ' at a distance of ',distance(loopIndex+1)
+                   ' at a distance of ',distance(loopIndex+1)
         hwhm = distance(loopIndex+1)
       else
         hwhm = ((work(loopIndex+1) - 0.5d0)*distance(loopIndex) + &
-	      (0.5d0-work(loopIndex))*distance(loopIndex+1))/(work(loopIndex+1)-work(loopIndex))
+              (0.5d0-work(loopIndex))*distance(loopIndex+1))/(work(loopIndex+1)-work(loopIndex))
       end if
     else
       ! Ordered in increasing distance    
@@ -4194,8 +4194,8 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: array(ndim)   ! Array to smooth
     integer,    intent(in) :: ndim          ! Size of array
+    real(8), intent(inout) :: array(ndim)   ! Array to smooth
     integer,    intent(in) :: fitSmoothingTimes ! Number of 1-2-1 smoother applications
     
     ! Locals:
@@ -4207,7 +4207,7 @@ module calcStatsGlb_mod
     do loopIndex = 1, fitSmoothingTimes
       work(1:ndim) = array(1:ndim)
       array(2:ndim-1) = 0.5d0*work(2:ndim-1) + &
-	               0.25d0*(work(1:ndim-2) + work(3:ndim))
+                       0.25d0*(work(1:ndim-2) + work(3:ndim))
       array(1) = (2*work(1) + work(2))/3.0d0
       array(ndim) = (work(ndim-1) + 2*work(ndim))/3.0d0
     end do
@@ -4242,8 +4242,8 @@ module calcStatsGlb_mod
       do levelIndex2 = levelIndex+1, ndim
         distance = log(press(levelIndex2)/press(levelIndex))*dZdP
         correl(levelIndex,levelIndex2) = correl(levelIndex,levelIndex2) * &
-        	                               lfn_response(distance, fitParam)
-	if (abs(correl(levelIndex,levelIndex2)) < 0.01)  correl(levelIndex,levelIndex2) = 0.0d0			       
+                                               lfn_response(distance, fitParam)
+        if (abs(correl(levelIndex,levelIndex2)) < 0.01)  correl(levelIndex,levelIndex2) = 0.0d0
         correl(levelIndex2,levelIndex) = correl(levelIndex,levelIndex2)
       end do
     end if
@@ -4267,14 +4267,14 @@ module calcStatsGlb_mod
         
     ! Locals:
     integer :: latIndex, k
-	
+
     physArray(:) = 0.0d0
     do latIndex = 1, ndim
       do k = 0, ntrunc
         physArray(latIndex) = physArray(latIndex) &
-	                        + rstddev(k)**2  &
+                                + rstddev(k)**2  &
                                 *sqrt(2.0d0)*sqrt(2.0d0*k+1.0) &
-				*zleg(k+1,latIndex)
+                                *zleg(k+1,latIndex)
       end do       
     end do
 
@@ -4303,16 +4303,16 @@ module calcStatsGlb_mod
       workSpectralSpace(k) = 0.0d0
       do latIndex = 1, ndim
         workSpectralSpace(k) = workSpectralSpace(k) + zleg(k,latIndex) &
-	  *physArray(latIndex)*gst_getRWT(latIndex,gstID_numVarLevEns)
+          *physArray(latIndex)*gst_getRWT(latIndex,gstID_numVarLevEns)
       end do
       if (workSpectralSpace(k) <= 0.0d0) then
-	workSpectralSpace(k) = 0.0d0
+        workSpectralSpace(k) = 0.0d0
       else
-	workSpectralSpace(k) = sqrt(workSpectralSpace(k) &
-	  /sqrt(2.0d0)*sqrt(2.0d0*(k-1) + 1.0d0))
+        workSpectralSpace(k) = sqrt(workSpectralSpace(k) &
+          /sqrt(2.0d0)*sqrt(2.0d0*(k-1) + 1.0d0))
        end if
      end do
-	 
+
     ! Apply power normalization.
     ! Normalize rtstddev to ensure sum of squares over all
     ! spectral autocorrelation coefficients equals unity.
@@ -4325,11 +4325,11 @@ module calcStatsGlb_mod
     else   
       do k = 0,ntrunc
          rstddev(k) = workSpectralSpace(k+1)/power &
-	   /sqrt(2.0d0*k + 1.0d0)
+           /sqrt(2.0d0*k + 1.0d0)
       end do
     end if
-	  
-  end subroutine physToSpectral 
+
+  end subroutine physToSpectral
     
   !--------------------------------------------------------------------------
   ! farDistHCorrelFilter
@@ -4342,11 +4342,11 @@ module calcStatsGlb_mod
     implicit none
 
     ! Arguments:
+    integer,    intent(in) :: ndim            ! Size of arrays
     real(8), intent(inout) :: physArray(ndim) ! Autocorrelations
     real(8),    intent(in) :: fitParam        ! Fit paramter
     real(8),    intent(in) :: distance(ndim)  ! Distance
     real(8),    intent(in) :: scaleFactor     ! Length scale scaling factor
-    integer,   intent(in) :: ndim             ! Size of arrays
     character(len=*), intent(in) :: fitType   ! correlation fit
           
     ! Locals:
@@ -4373,7 +4373,7 @@ module calcStatsGlb_mod
   !--------------------------------------------------------------------------
   subroutine writeCorrelFit(fitParam, hwhm, rmse, waveIndex, fitType, &
                             setFittedCorrel, fitSmoothingTImes, outFilename, &
-			    distance_opt, physCorrel_opt)
+                            distance_opt, physCorrel_opt)
     !
     !:Purpose: Write correlation fit length scales and rmse
     !
@@ -4408,9 +4408,9 @@ module calcStatsGlb_mod
       
       ndim = varLevOffset(varIndex+1) - varLevOffset(varIndex)
       if (ndim == nLevEns_M) then
-	press(1:ndim) = pressureProfile_M(1:ndim)
+        press(1:ndim) = pressureProfile_M(1:ndim)
       else if (ndim == nLevEns_T) then
-	press(1:ndim) = pressureProfile_T(1:ndim)
+        press(1:ndim) = pressureProfile_T(1:ndim)
       else
         press(1) = pressureProfile_T(nLevEns_T)
       end if
@@ -4420,21 +4420,21 @@ module calcStatsGlb_mod
       write(iun,'(A)') ' Pressure Fit-Parameter  HWHM    fit RMSE'
       do levelIndex = 1, ndim
         write(iun,'(f9.4,2x,f8.2,3x,f8.2,3x,g9.2)') press(levelIndex)/100.0d0, &
-	  fitParam(varIndex,levelIndex), hwhm(varIndex,levelIndex), &
-	  rmse(varIndex,levelIndex)
+          fitParam(varIndex,levelIndex), hwhm(varIndex,levelIndex), &
+          rmse(varIndex,levelIndex)
       end do
       write(iun,*) 
       if (present(physCorrel_opt)) then
         if (.not.setFittedCorrel(varIndex)) then
           write(iun,*) 'Original correlations as a function of distance (km)'
-	else
+        else
           write(iun,*) 'Fitted correlations as a function of distance (km)'
-	end if
+        end if
         if (present(distance_opt)) write(iun,'(f9.3,31(f8.2))') 0.0d0, 0.0d0, distance_opt(1:min(30,nj))
         do levelIndex = 1, ndim
-	  write(iun,'(f9.3,31(f8.2))') press(levelIndex)/100.0d0, &
-	    1.0d0, physCorrel_opt(varIndex,levelIndex,1:min(30,nj))
-	end do
+          write(iun,'(f9.3,31(f8.2))') press(levelIndex)/100.0d0, &
+            1.0d0, physCorrel_opt(varIndex,levelIndex,1:min(30,nj))
+        end do
       end if
       write(iun,*) 
     end do
@@ -4480,11 +4480,11 @@ module calcStatsGlb_mod
       if (rowIndex > 1) then
         do colIndex = 1, rowIndex-1
           matrix(rowIndex,colIndex) = sum(eigenVectors(colIndex,:)*eigenVectors(rowIndex,:) &
-	                                  *eigenValues(:)) &
-			              /sqrt(diag(colIndex)*diag(rowIndex))
-	  matrix(colIndex,rowIndex) = matrix(rowIndex,colIndex)	
-	end do
-      end if 		    
+                                          *eigenValues(:)) &
+                                      /sqrt(diag(colIndex)*diag(rowIndex))
+          matrix(colIndex,rowIndex) = matrix(rowIndex,colIndex)
+        end do
+      end if
     end do
     
   end subroutine posDefCorrel         
