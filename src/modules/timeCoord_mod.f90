@@ -302,7 +302,7 @@ contains
       varNameForDate = 'P0'
       if (present(varNameForDate_opt)) then
       
-	varNameForDate = trim(varNameForDate_opt)
+        varNameForDate = trim(varNameForDate_opt)
         write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable = ', varNameForDate
       
       ! If P0 not present, look for another suitable variable in the file
@@ -320,7 +320,7 @@ contains
         if (.not. foundVarNameInFile) then
           call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
         end if
-	
+
       end if
 
       ! Extract the datestamp from the file
@@ -477,19 +477,19 @@ contains
 
       else if (trim(tim_referencetime) == 'end') then
         
-	if (numStep > 1) then
-        
-	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
-        
-	  dtstep = tim_windowsize / (real(numStep - 1, 8))     
-        
-	  do stepIndex = 2, numStep
+        if (numStep > 1) then
+
+          call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize)
+
+          dtstep = tim_windowsize / (real(numStep - 1, 8))
+
+          do stepIndex = 2, numStep
             call incdatr(dateStampList(stepIndex), dateStampList(stepIndex - 1), dtstep)
           end do
-        
-	else
-	  call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize/2)
-	end if
+
+        else
+          call incdatr(dateStampList(1), referenceDateStamp, -tim_windowsize/2)
+        end if
       
       end if
       
@@ -618,9 +618,9 @@ contains
     imode = -3 ! stamp to printable
     ierr = newdate(dateStamp, prntdate, prnttime, imode)
     write(yyyymmdd,'(i8)') prntdate
-    read (yyyymmdd(7:8), '(i)') dd
-    read (yyyymmdd(5:6), '(i)') mm
-    read (yyyymmdd(1:4), '(i)') yyyy
+    read (yyyymmdd(7:8), '(i2)') dd
+    read (yyyymmdd(5:6), '(i2)') mm
+    read (yyyymmdd(1:4), '(i4)') yyyy
 
     ! leap year    
     if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
