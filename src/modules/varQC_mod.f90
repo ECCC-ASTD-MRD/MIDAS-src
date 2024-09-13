@@ -315,7 +315,7 @@ module varQC_mod
 
     ! Locals:
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
-    real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
+    real(8) :: zgami,zjon,zqcarg,zppost,zlev,zslev
     logical :: lluv
     logical :: includeFlag
 
