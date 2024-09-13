@@ -455,7 +455,7 @@ contains
                       mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0','P0LS'/) )
+                      varNames_opt=(/'P0  ','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -764,7 +764,7 @@ contains
                       mpi_distribution_opt=statevectorRef%mpi_distribution, &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0','P0LS'/) )
+                      varNames_opt=(/'P0  ','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -1208,8 +1208,7 @@ contains
 
     if_vInterp: if (vInterp) then
       if ( useSfcPressureRef ) then
-        call msg('int_vInterp_col', 'Use Reference Surface Pressure to compute the &
-                                       pressure level')
+        call msg('int_vInterp_col', 'Use Reference Surface Pressure to compute the pressure level')
 
         allocate(columnInRef_ptr)
         call col_setVco(columnInRef_ptr, col_getVco(column_in))
@@ -1225,8 +1224,7 @@ contains
         pSfcIn_ptr = sfcPressureRef_opt
         pSfcOut_ptr = sfcPressureRef_opt
       else 
-        call msg('int_vInterp_col', 'Use Surface Pressure in the columns to compute the &
-                                       pressure level')
+        call msg('int_vInterp_col', 'Use Surface Pressure in the columns to compute the pressure level')
         columnInRef_ptr => column_in
         columnOutRef_ptr => column_out
       end if
