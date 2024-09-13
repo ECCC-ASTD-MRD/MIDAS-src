@@ -157,7 +157,7 @@ contains
     ! also, determine lonIndex begin and end for when array is transposed (for implicit diffusion only)
     call mmpi_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
          diff(diffID)%lonPerPEmax_transpose, diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose)
-	 
+
     myLonBeg = diff(diffID)%myLonBeg
     myLonEnd = diff(diffID)%myLonEnd
     myLatBeg = diff(diffID)%myLatBeg
@@ -451,7 +451,7 @@ contains
       ! compute normalization:  Lambda = inverse stddev of (Diffuse * W^-1/2)
       write(*,*) 'diff_setup: Estimate normalization factors for diffusion using randomization method...'
       write(*,*) 'diff_setup: will use ', numberSamples,' samples.',' ni and nj: ', ni, nj
-      call flush(6)
+      flush(6)
       diff(diffID)%Lambda = 0.0d0
       lambdaLocal(:,:)    = 0.0d0
       lambdaLocal_r4(:,:) = 0.0d0
@@ -489,8 +489,8 @@ contains
             diff(diffID)%Lambda(lonIndex, latIndex) = diff(diffID)%Lambda(lonIndex, latIndex) + &
                                                       xin(lonIndex, latIndex) * xin(lonIndex, latIndex)
 
-	  end do
-	end do
+          end do
+        end do
 
       end do SAMPLE
 
@@ -517,11 +517,11 @@ contains
         do latIndex = 1, nj
           do lonIndex = 1, ni
             lambdaLocal_r4(lonIndex, latIndex) = min(huge(real(diff(diffID)%Lambda(lonIndex, latIndex))),&
-                                                     diff(diffID)%Lambda(lonIndex, latIndex))
+                                                          real(diff(diffID)%Lambda(lonIndex, latIndex)))
           end do
-        end do 	  
+        end do
 
-	write(*,*) 'diff_setup: Save normalization coefficient on proc ', mmpi_myid, ' into the file: ', trim(diff_norm_fact)
+        write(*,*) 'diff_setup: Save normalization coefficient on proc ', mmpi_myid, ' into the file: ', trim(diff_norm_fact)
         npak = 0
         dateo = 0
         deet = 0
