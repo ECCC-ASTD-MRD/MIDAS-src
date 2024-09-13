@@ -850,9 +850,9 @@ module varNameList_mod
         key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
   
         if (key > 0)  then
-	  found = .true.
+          found = .true.
         else
-	  found = .false.
+          found = .false.
         end if
 
         ierr =  fstfrm(unit)
@@ -860,14 +860,14 @@ module varNameList_mod
 
       else if (trim(utl_fileType(trim(fileName))) == 'NetCDF') then
 
-	varNameNetCDF = vnl_varNameNetCDF(varName, trim(fileName))
+        varNameNetCDF = vnl_varNameNetCDF(varName, trim(fileName))
 
-	if (varNameNetCDF == 'notFound') then
-	
+        if (varNameNetCDF == 'notFound') then
+
           found = .false.
-	  
+
         else
-	
+
           call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
           ierr = nf90_inq_varid(ncid, trim(varNameNetCDF), varID)      
           if (ierr == nf90_noerr) then
@@ -878,7 +878,7 @@ module varNameList_mod
           call utl_checkNetCDFstatus(nf90_close(ncid))
 
         end if
-	  
+
       else
 
         call utl_abort('vnl_varNamePresentInFile: unknown input file type: '//&
@@ -914,7 +914,7 @@ module varNameList_mod
         varNameNetCDF = 'zos'
       case('TM')    
         ! special case for TM which is currently a variable used for SST as well as 
-	! for 3D ocean temperature field
+        ! for 3D ocean temperature field
         call utl_inquireNEMOTemperature(fileName, varFound(:))
         if (varFound(2)) then
           varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field
