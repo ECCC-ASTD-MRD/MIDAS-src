@@ -3185,11 +3185,11 @@ CONTAINS
 
         if (writeNetCDF) then
           call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
-	                             dateStampList(ens%statevector_work%anltime), &
+                                     dateStampList(ens%statevector_work%anltime), &
                                      containsFullField_opt = containsFullField, &
                                      varLevIndexBeg_opt = varLevIndexBeg,       &
                                      varLevIndexEnd_opt = varLevIndexEnd,       &
-				     timeCounter_opt = stepIndex)
+                                     timeCounter_opt = stepIndex)
         end if
 
       end do batchLoop
