@@ -2435,9 +2435,9 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: nchaniasi              ! Number of IASI channels
     real(8), intent(in)  :: iasi_surfem1(nchaniasi)! IASI emissivities
     real(8), intent(in)  :: freqiasi(nchaniasi)    ! IASI wavenumbers (cm-1)
-    integer, intent(in)  :: nchaniasi              ! Number of IASI channels
     real(8), intent(out) :: avhrr_surfem1(NIR)     ! AVHRR emissivities
 
     ! Locals:
