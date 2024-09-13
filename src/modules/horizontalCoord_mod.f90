@@ -126,7 +126,7 @@ contains
     if (.not. fileExist) then
       write(*,*)
       if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
-	call msg('hco_SetupFromFile', 'RPN standard file containing the same horizontal '//&
+        call msg('hco_SetupFromFile', 'RPN standard file containing the same horizontal '//&
                                       'grid definition as the netCDF file must exist!')
       end if
       call utl_abort('hco_SetupFromFile: template grid file does not exist: '//trim(fileName))
@@ -202,9 +202,9 @@ contains
     ip3    = -1
     typvar = ' '
   
-    key = fstinf(iu_template,				      & ! IN
-		 ni, nj, nk,				      & ! OUT
-		 dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
+    key = fstinf(iu_template,                                 & ! IN
+                 ni, nj, nk,                                  & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
 
     if (key < 0) then
       write(*,*)
@@ -213,11 +213,11 @@ contains
       call utl_abort('hco_setupFromFile: unable to setup the structure')
     end if
 
-    ier = fstprm(key,						 & ! IN
-		 dateo, deet, npas, ni, nj, nk, nbits,  	 & ! OUT
-		 datyp, ip1, ip2, ip3, typvar, varName, etiket,  & ! OUT
-		 grtyp, ig1, ig2, ig3,  			 & ! OUT
-		 ig4, swa, lng, dltf, ubc, extra1, extra2, extra3) ! OUT
+    ier = fstprm(key,                                            & ! IN
+                 dateo, deet, npas, ni, nj, nk, nbits,           & ! OUT
+                 datyp, ip1, ip2, ip3, typvar, varName, etiket,  & ! OUT
+                 grtyp, ig1, ig2, ig3,                           & ! OUT
+                 ig4, swa, lng, dltf, ubc, extra1, extra2, extra3) ! OUT
 
     if (mmpi_myid == 0) then
       write(*,*) 'hco_setupFromFile: ier, ni, nj, grtyp, ig1, ig2, ig3, ig4 =', &
@@ -265,22 +265,22 @@ contains
       typvar  = ''
       varName = '>>'
     
-      ier = utl_fstlir(lon_8,					    & ! OUT 
-		       iu_template,				    & ! IN
-		       ni_t, nj_t, nlev_t,			    & ! OUT
-		       dateo, etiket, ip1, ip2, ip3, typvar, varName)  ! IN
+      ier = utl_fstlir(lon_8,                                       & ! OUT
+                       iu_template,                                 & ! IN
+                       ni_t, nj_t, nlev_t,                          & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar, varName)  ! IN
 
       if (ier < 0) then
-	call msg('hco_SetupFromFile', 'Unable to find >> grid descriptors')
-	call utl_abort('hco_setupFromFile')
+        call msg('hco_SetupFromFile', 'Unable to find >> grid descriptors')
+        call utl_abort('hco_setupFromFile')
       end if
     
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= ni .or. nj_t /= 1) then
-	call msg('hco_SetupFromFile', 'Incompatible >> grid descriptors!')
-	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
-	call msg('hco_SetupFromFile', 'Should be: '//str(ni)//','//str(1))
-	call utl_abort('hco_setupFromFile')
+        call msg('hco_SetupFromFile', 'Incompatible >> grid descriptors!')
+        call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+        call msg('hco_SetupFromFile', 'Should be: '//str(ni)//','//str(1))
+        call utl_abort('hco_setupFromFile')
       end if
 
       !-  2.2.2 Read the latitudes
@@ -292,22 +292,22 @@ contains
       typvar  = ''
       varName = '^^'
 
-      ier = utl_fstlir(lat_8,					    & ! OUT 
-		       iu_template,				    & ! IN
-		       ni_t, nj_t, nlev_t,			    & ! OUT
-		       dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
+      ier = utl_fstlir(lat_8,                                       & ! OUT
+                       iu_template,                                 & ! IN
+                       ni_t, nj_t, nlev_t,                          & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
 
       if (ier < 0) then
-	call msg('hco_SetupFromFile', 'Unable to find ^^ grid descriptors')
-	call utl_abort('hco_setupFromFile')
+        call msg('hco_SetupFromFile', 'Unable to find ^^ grid descriptors')
+        call utl_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= 1 .or. nj_t /= nj) then
-	call msg('hco_SetupFromFile', 'Incompatible ^^ grid descriptors!')
-	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
-	call msg('hco_SetupFromFile', 'Should be: '//str(1)//','//str(nj))
-	call utl_abort('hco_setupFromFile')
+        call msg('hco_SetupFromFile', 'Incompatible ^^ grid descriptors!')
+        call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+        call msg('hco_SetupFromFile', 'Should be: '//str(1)//','//str(nj))
+        call utl_abort('hco_setupFromFile')
       end if
 
       !- 2.2.3 Do we have a rotated grid ?
@@ -319,34 +319,34 @@ contains
       typvar  = ''
       varName = '^^'
     
-      key = fstinf(iu_template, 			        & ! IN
-		   ni_t, nj_t, nk,			        & ! OUT
-		   dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
+      key = fstinf(iu_template,                                 & ! IN
+                   ni_t, nj_t, nk,                              & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
 
-      ier = fstprm(key, 					  & ! IN
-		   dateo, deet, npas, ni_t, nj_t, nk, nbits,	  & ! OUT
-		   datyp, ip1, ip2, ip3, typvar, varName, etiket, & ! OUT
-		   grtypTicTac, ig1_tictac, ig2_tictac, 	  & ! OUT
-		   ig3_tictac, ig4_tictac, swa, lng, dltf,	  & ! OUT
-		   ubc, extra1, extra2, extra3) 		    ! OUT
+      ier = fstprm(key,                                           & ! IN
+                   dateo, deet, npas, ni_t, nj_t, nk, nbits,      & ! OUT
+                   datyp, ip1, ip2, ip3, typvar, varName, etiket, & ! OUT
+                   grtypTicTac, ig1_tictac, ig2_tictac,           & ! OUT
+                   ig3_tictac, ig4_tictac, swa, lng, dltf,        & ! OUT
+                   ubc, extra1, extra2, extra3)                     ! OUT
 
-      call cigaxg (grtypTicTac, 				 & ! IN
-		   xlat1_4, xlon1_4, xlat2_4, xlon2_4,  	 & ! OUT
-		   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac) ! IN
+      call cigaxg (grtypTicTac,                                  & ! IN
+                   xlat1_4, xlon1_4, xlat2_4, xlon2_4,           & ! OUT
+                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac) ! IN
 
       if (xlat1_4 == 0.0 .and. xlat2_4 == 0.0) then
-	rotated = .false.
+        rotated = .false.
       else
-	rotated = .true.
+        rotated = .true.
       end if
       if (mmpi_myid == 0) then
-	write(*,*) 'hco_setupFromFile: xlat1/2, xlon1/2, rotated = ',  &
-	     xlat1_4, xlat2_4, xlon1_4, xlon2_4, rotated
+        write(*,*) 'hco_setupFromFile: xlat1/2, xlon1/2, rotated = ',  &
+                   xlat1_4, xlat2_4, xlon1_4, xlon2_4, rotated
       end if
 
       !- 2.2.4 Is this a global or a LAM domain ?
       call global_or_lam(global,  & ! OUT
-			 lon_8, ni) ! IN
+                         lon_8, ni) ! IN
 
     else if (trim(grtyp) == 'B') then
       !- 2.3 B Grid
@@ -396,23 +396,23 @@ contains
 
       ni_tictacU = 5 + 2 * (10 + ni + nj/2)
       allocate(hco%tictacU(ni_tictacU))
-      ier = fstlir(hco%tictacU, 			        & ! OUT 
-		   iu_template, 			        & ! IN
-		   ni_t, nj_t, nlev_t,  		        & ! OUT
-		   dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
+      ier = fstlir(hco%tictacU,                                 & ! OUT
+                   iu_template,                                 & ! IN
+                   ni_t, nj_t, nlev_t,                          & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar, varName) ! IN
   
       if (ier < 0) then
-	write(*,*)
-	call msg('hco_SetupFromFile', 'Unable to find ^> grid descriptors')
-	call utl_abort('hco_setupFromFile')
+        write(*,*)
+        call msg('hco_SetupFromFile', 'Unable to find ^> grid descriptors')
+        call utl_abort('hco_setupFromFile')
       end if
 
       !  Test if the dimensions are compatible with the grid
       if (ni_t /= ni_tictacU .or. nj_t /= 1) then
-	call msg('hco_SetupFromFile', 'Incompatible ^> grid descriptors!')
-	call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
-	call msg('hco_SetupFromFile', 'Should be: '//str(ni_tictacU)//','//str(1))
-	call utl_abort('hco_setupFromFile')
+        call msg('hco_SetupFromFile', 'Incompatible ^> grid descriptors!')
+        call msg('hco_SetupFromFile', 'Found: '//str(ni_t)//','//str(nj_t))
+        call msg('hco_SetupFromFile', 'Should be: '//str(ni_tictacU)//','//str(1))
+        call utl_abort('hco_setupFromFile')
       end if
 
       !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
@@ -422,7 +422,7 @@ contains
       !-  2.5.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
       if (numSubGrid /= 2) then
-	call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
+        call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
 
@@ -431,15 +431,15 @@ contains
 
       ier = ezgprm(EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg (grtypTicTac, 		       & ! IN
-		   xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
-		   ig1_yy, ig2_yy, ig3_yy, ig4_yy)	 ! IN
+      call cigaxg (grtypTicTac,                        & ! IN
+                   xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
+                   ig1_yy, ig2_yy, ig3_yy, ig4_yy)       ! IN
 
       ier = ezgprm(EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg (grtypTicTac, 				       & ! IN
-		   xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
-		   ig1_yy, ig2_yy, ig3_yy, ig4_yy)			 ! IN
+      call cigaxg (grtypTicTac,                                        & ! IN
+                   xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
+                   ig1_yy, ig2_yy, ig3_yy, ig4_yy)                       ! IN
 
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
 
@@ -461,7 +461,7 @@ contains
       !- 2.6.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
       call global_or_lam(global,  & ! OUT
-			 lon_8, ni) ! IN
+                         lon_8, ni) ! IN
 
       !-  2.6.3 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = MPC_missingValue_R8
@@ -1195,8 +1195,8 @@ contains
       gridWeightFileUnit = 0
       ierr = fnom(gridWeightFileUnit,trim(fileName),'FTN+SEQ+UNF',0)
 
-      write(gridWeightFileUnit), hco%grtyp, ni, nj
-      write(gridWeightFileUnit), weight
+      write(gridWeightFileUnit) hco%grtyp, ni, nj
+      write(gridWeightFileUnit) weight
 
       ! Close the file
       ierr = fclos(gridWeightFileUnit)
