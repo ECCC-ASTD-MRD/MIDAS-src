@@ -3411,11 +3411,11 @@ contains
     implicit none
 
     ! Arguments:
+    integer :: ktruncdim
+    integer :: klath
     real(8) :: ddalp(0:ktruncdim,klath)
     real(8) :: dddalp(0:ktruncdim,klath)
-    integer :: klath
     integer :: ktrunc
-    integer :: ktruncdim
     integer :: km
 
     ! Locals: 
@@ -3612,9 +3612,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
+    integer :: klev                            ! number of fields to transform
     real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(NJ,KLEV): field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:ntrunc, KLEV): spectral coefficients
-    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
@@ -3646,9 +3646,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
+    integer :: klev                            ! number of fields to transform
     real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(KNJDIM,KLEVDIM)  : field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:KNDIM, KLEVDIM): spectral coefficients
-    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
