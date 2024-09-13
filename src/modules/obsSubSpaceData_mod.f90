@@ -375,7 +375,7 @@ contains
           if (len_trim(code) >= oss_code_sublen) then
        
              ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=oss_code_sublen.
-	  
+
              ! Upper loop search did not find a match. For valid data near the poles over
              ! the global analysis grid, the lat could have been moved to the nearest analysis grid
              ! latitude. The following is to account for this, assuming this is the only exception
@@ -459,7 +459,7 @@ contains
       read(test_code(1:oss_code_latlen),*) lat
       if ((lat < lat_lim1 .and. ref_lat < lat_lim1 .and. lat < ref_lat ).or. &
           (lat > lat_lim2 .and. ref_lat > lat_lim2 .and. lat > ref_lat ) ) then
-        found=.true.	     
+        found=.true.
         write(*,*) 'obsdata_extra_code_test: Accounted for lat. mismatch in codes near poles: ', &
               lat,ref_lat
       else
