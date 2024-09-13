@@ -216,7 +216,7 @@ module bMatrixChem_mod
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
                               stateVectorRef_opt=stateVectorRef_opt, & ! IN
-			      varName_opt=bgStats%varNameList(varIndex) ) ! IN
+                              varName_opt=bgStats%varNameList(varIndex) ) ! IN
         else
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
@@ -276,7 +276,7 @@ module bMatrixChem_mod
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
                               stateVectorRef_opt=stateVectorRef_opt, &  ! IN
-			      varName_opt=bgStats%varNameList(varIndex) ) ! IN
+                              varName_opt=bgStats%varNameList(varIndex) ) ! IN
         else
           call gvt_transform( statevector,  &                          ! INOUT
                               trim(transform), &                       ! IN
@@ -414,17 +414,17 @@ module bMatrixChem_mod
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
           do levelIndex = 1, bgStats%numVarLev
             zsp(levelIndex,1,icount) = hiControlVector_in(ila_mpilocal,1, &
-	      levelIndex)
+              levelIndex)
             zsp(levelIndex,2,icount) = hiControlVector_in(ila_mpilocal,2, &
-	      levelIndex)
+              levelIndex)
           end do
         end if
       end do
       if (icount > 0) then
 
         CALL DGEMM('N','N',bgStats%numVarLev,2*icount,bgStats%numVarLev,1.0d0, &
-	  bgStats%corns(1,1,jn),bgStats%numVarLev,zsp(1,1,1), &
-	  bgStats%numVarLev,0.0d0,zsp2(1,1,1),bgStats%numVarLev)
+          bgStats%corns(1,1,jn),bgStats%numVarLev,zsp(1,1,1), &
+          bgStats%numVarLev,0.0d0,zsp2(1,1,1),bgStats%numVarLev)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -479,7 +479,7 @@ module bMatrixChem_mod
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = gd(lonIndex,latIndex,levelIndex) &
-	    *bgStats%stddev(lonIndex,latIndex,levelIndex)
+            *bgStats%stddev(lonIndex,latIndex,levelIndex)
         end do
       end do
     end do
@@ -530,7 +530,7 @@ module bMatrixChem_mod
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           gd(lonIndex,latIndex,levelIndex) = gd(lonIndex,latIndex,levelIndex)* &
- 	     bgStats%stddev(lonIndex,latIndex,levelIndex)
+              bgStats%stddev(lonIndex,latIndex,levelIndex)
         end do
       end do
     end do
@@ -564,8 +564,8 @@ module bMatrixChem_mod
       if (icount > 0) then
 
         CALL DGEMM('T','N',bgStats%numVarLev,2*icount,bgStats%numVarLev,1.0d0, &
-	  bgStats%corns(1,1,jn),bgStats%numVarLev,zsp2(1,1,1), &
-	  bgStats%numVarLev,0.0d0,zsp(1,1,1),bgStats%numVarLev)
+          bgStats%corns(1,1,jn),bgStats%numVarLev,zsp2(1,1,1), &
+          bgStats%numVarLev,0.0d0,zsp(1,1,1),bgStats%numVarLev)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
@@ -588,9 +588,9 @@ module bMatrixChem_mod
 
         do levelIndex = 1, bgStats%numVarLev
           hiControlVector_out(ila_mpilocal,1,levelIndex) = &
-	    hiControlVector_out(ila_mpilocal,1,levelIndex)*sq2
+            hiControlVector_out(ila_mpilocal,1,levelIndex)*sq2
           hiControlVector_out(ila_mpilocal,2,levelIndex) = &
-	    hiControlVector_out(ila_mpilocal,2,levelIndex)*sq2
+            hiControlVector_out(ila_mpilocal,2,levelIndex)*sq2
         end do
 
       end if
@@ -759,7 +759,7 @@ module bMatrixChem_mod
                 end if
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
-		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
+                                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
                       
                 ! index into local control vector computer as in cain
                 if (jm == 0) then
@@ -913,7 +913,7 @@ module bMatrixChem_mod
                 end if
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
-		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
+                                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
                       
                 ! index into local control vector computer as in cain
                 if (jm == 0) then
@@ -1075,7 +1075,7 @@ module bMatrixChem_mod
                 end if
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
-		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
+                                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
 
                 ! index into local control vector
                 if (jm == 0) then
@@ -1092,8 +1092,8 @@ module bMatrixChem_mod
 
                 if (jdim_mpiglobal > cvDim_mpiglobal) then
                   write(*,*) 'ERROR: jdim,cvDim,mpiglobal=', &
-		             jdim_mpiglobal,cvDim_mpiglobal,levelIndex,jn,jm
-		end if
+                             jdim_mpiglobal,cvDim_mpiglobal,levelIndex,jn,jm
+                end if
 
               end if
             end do
@@ -1212,7 +1212,7 @@ module bMatrixChem_mod
                 end if
                 ! add offset for level
                 jdim_mpiglobal = jdim_mpiglobal + (levelIndex-1) * &
-		                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
+                                 (bgStats%ntrunc+1)*(bgStats%ntrunc+1)
 
                 ! index into local control vector
                 if (jm == 0) then
@@ -1229,7 +1229,7 @@ module bMatrixChem_mod
 
                 if (jdim_mpiglobal > cvDim_mpiglobal) then
                   write(*,*) 'ERROR: jdim,cvDim,mpiglobal=', &
-		             jdim_mpiglobal,cvDim_mpiglobal,levelIndex,jn,jm
+                             jdim_mpiglobal,cvDim_mpiglobal,levelIndex,jn,jm
                 end if 
               end if
             end do
