@@ -113,7 +113,8 @@ program midas_prepcma
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
   integer :: ncmahdr, ncmahx, ncmabdy, ncmadim, nobsout, nbrpform
-  logical :: qcvar, numHeader, numBody
+  integer :: numHeader, numBody
+  logical :: qcvar
   character(len=7) :: resumeType
 
   ! number of pressure ranges used for the thinning of aircraft (and other) data:
@@ -299,8 +300,8 @@ program midas_prepcma
       ! thinning per instrument
       if (thinTovsPerInst) then
         call getTovsInstNameList(numTovsInstNameList,tovsInstNameList)
-        write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList,', &
-                    tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
+        write(*,*) 'midas-prepcma: numTovsInstNameList=', numTovsInstNameList, &
+                    'tovsInstNameList(1:numTovsInstNameList)=', tovsInstNameList(1:numTovsInstNameList)
 
         do sensorIndex = 1, numTovsInstNameList
           tovsInstName = trim(tovsInstNameList(sensorIndex))
