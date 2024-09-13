@@ -111,7 +111,6 @@ module oceanMask_mod
           call msg('ocm_readMaskFromFile', 'Searched for mask with ip1: ' // str(ip1))
           call utl_abort('ocm_readMaskFromFile: cannot find mask for this ip1 in file ' // trim(fileName))
         end if
-	
 
         do while (ni_file /= hco%ni .or. nj_file /= hco%nj)
           ikey = fstsui(nulfile, ni_file, nj_file, nk_file)
@@ -136,7 +135,7 @@ module oceanMask_mod
                                            ', nj = ' // str(nj_file)//','// str(hco%nj))
           call utl_abort('ocm_readMaskFromFile: This is not allowed at the moment')
         end if
-	
+
       end do lev_loop
 
     else
@@ -475,43 +474,43 @@ module oceanMask_mod
       
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
 
-	  deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
-	  deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
-	  deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
+          deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
+          deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
+          deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
 
-	  deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
-	  if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
-        
-	end if
+          deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
+          if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
 
-      end do	  
+        end if
+
+      end do
     end do
 
     minDeltaLon = 1.0d6
     do lonIndex = 1, hco%ni - 1
       do latIndex = 1, hco%nj - 1
 
-	if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
+        if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
 
           if (oceanMask%mask(lonIndex, latIndex, 1)) then
-        
-	    deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
-	    deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
-	    deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
 
-	    if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
-	    deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
-	    if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
-	    deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
-	    if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
-	    deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+            deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
+            deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
+            deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
 
-	    deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
-	    if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
+            if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8
+            deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
+            if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8
+            deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
+            if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8
+            deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+
+            deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+            if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
        
-	  end if
-        
-	end if
+          end if
+
+        end if
 
       end do
     end do
