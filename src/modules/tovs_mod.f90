@@ -2700,20 +2700,20 @@ contains
           end if ! runObsOperatorWithHydrometeors .and. surfTypeIsWater
         end do ! levelIndex
         
-	! Constituents assumed to be in micrograms/kg
+        ! Constituents assumed to be in micrograms/kg
         if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
-	  ! Get ozone from trial field
+          ! Get ozone from trial field
           column_ptr => col_getColumn(columnTrl, headerIndex, trim(ozoneVarName) )
           ozone(:,profileCount) = column_ptr(:)
-	else if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
+        else if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
           ! Get ozone profiles (ug/kg) from climatology
-	  column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
-	  column_ptrHU => col_getColumn(columnTrl, headerIndex,'HU' )
+          column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
+          column_ptrHU => col_getColumn(columnTrl, headerIndex,'HU' )
           call clm_setColumn(nlv_T,pressure(:,profileCount)*MPC_PA_PER_MBAR_R8, &
                              height(:,profileCount),latitudes(profileCount), &
                              obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
-			     profileCount,maxsize,BUFR_NECH_O3,tt_opt=column_ptr,hu_opt=column_ptrHU, &
-			     climatProfile_opt=ozone(:,profileCount))
+                             profileCount,maxsize,BUFR_NECH_O3,tt_opt=column_ptr,hu_opt=column_ptrHU, &
+                             climatProfile_opt=ozone(:,profileCount))
         end if
 
       end do bobs2
@@ -3543,11 +3543,11 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: nChannels                  ! number of channels to process
+    integer, intent(in)  :: nProfiles                  ! number of locations
     real(8), intent(out) :: emiss(nChannels,nProfiles) ! emissivities (0.-1.)
     real(8), intent(in)  :: wind(nProfiles)            ! surface wind speed (m/s)
     real(8), intent(in)  :: angle(nProfiles)           ! viewing angle (deg)
-    integer, intent(in)  :: nChannels                  ! number of channels to process
-    integer, intent(in)  :: nProfiles                  ! number of locations
     integer, intent(in)  :: mchannel(nChannels)        ! vector of channel indices to process
 
     ! Locals:
@@ -3656,13 +3656,13 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field
-    real(8), intent(in)   :: f_high(klon, klat)! High resolution field 
     integer, intent(in)   :: nprf              ! Number of profiles
-    integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
-    integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
     integer, intent(in)   :: klon              ! Max value of latitude indices
     integer, intent(in)   :: klat              ! Max value of longitude indices
+    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field
+    real(8), intent(in)   :: f_high(klon, klat)! High resolution field 
+    integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
+    integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
     integer, intent(in)   :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
 
     ! Locals
@@ -3771,11 +3771,11 @@ contains
     implicit none
    
     ! Arguments:
+    integer, intent(in)  :: nchannels_max          ! Total number of observations treated
     real(8), intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
     integer, intent(in)  :: nchn                   ! Number of channels
     integer, intent(in)  :: sensorindex            ! Sensor number
     integer, intent(in)  :: nprf                   ! Number of profiles
-    integer, intent(in)  :: nchannels_max          ! Total number of observations treated
     integer, intent(in)  :: sensorTovsIndexes(nprf)! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
@@ -3862,9 +3862,9 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: nprf                    ! number of profiles
     integer, intent(out) :: ilat(nprf)              ! y-coordinate of profile
     integer, intent(out) :: ilon(nprf)              ! x-coordinate of profile 
-    integer, intent(in)  :: nprf                    ! number of profiles
     real(8), intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
     real(8), intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
     integer, intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
@@ -4263,12 +4263,12 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)    :: nProfiles                  ! Number of profiles
+    integer, intent(in)    :: nChannels                  ! Number of channels
     real(8), intent(out)   :: em_oc(nChannels,nProfiles) ! Ocean emissivities (0.-1.)
     real(8), intent(in)    :: wnum(nChannels)            ! Channel wavenumbers (cm-1)
     real(8), intent(in)    :: angle(nProfiles)           ! Viewing angle (deg)
     real(8), intent(in)    :: wind(nProfiles)            ! Surface wind speed (m/s)
-    integer, intent(in)    :: nProfiles                  ! Number of profiles
-    integer, intent(in)    :: nChannels                  ! Number of channels
 
     ! Locals:
     integer     :: channelIndex, bandIndex, profileIndex
@@ -4808,16 +4808,16 @@ contains
         if (size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % t(:)) .or. &
             size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % q(:)) .or. &
             size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % p(:))) then
-          call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match &
-                          the number of model levels in Jacobian')
+          call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match ' // &
+                          'the number of model levels in Jacobian')
         end if
 
         numLev = size(profiles(tovsIndex) % p(:))
         write (strNumLev,'(I4)') numLev
 
         write(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
-                      // trim(strNumLev) // 'E16.5E2, &
-                      E16.5E2, E16.5E2, E16.5E2, E16.5E2, ' &
+                      // trim(strNumLev) // 'E16.5E2, ' // &
+                      'E16.5E2, E16.5E2, E16.5E2, E16.5E2, ' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2)') &
@@ -5174,9 +5174,10 @@ contains
     logical, optional,    intent(in)     :: irBgckMode_opt                 ! background check mode option
 
     ! Locals:
-    integer :: tovsIndex, hydroSensorIndex, channelIndex, irBgckMode
+    integer :: tovsIndex, hydroSensorIndex, channelIndex
     integer :: btIndex, profileIndex, headerIndex, bodyIndex, istart, iend
     integer :: channelNumber
+    logical :: irBgckMode
 
     if (present(irBgckMode_opt)) then
       irBgckMode = irBgckMode_opt
