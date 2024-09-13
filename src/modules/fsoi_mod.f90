@@ -410,9 +410,7 @@ module fsoi_mod
     dlxnorm = dsqrt(dlxnorm)
     write(*,*)' |X| = ', dlxnorm
     write(*,'(/4X,"J(X) = ",G23.16,4X,"|Grad J(X)| = ",G23.16)') zjsp, dlgnorm
-    write(*,'(//,10X," Minimization QNA_N1QN3 starts ...",/  &
-             10x,"DXMIN =",G23.16,2X,"DF1 =",G23.16,2X,"EPSG =",G23.16  &
-             /,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax
+    write(*,'(//,10X," Minimization QNA_N1QN3 starts ...",10x,"DXMIN =",G23.16,2X,"DF1 =",G23.16,2X,"EPSG =",G23.16,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax
 
     ! Do the minimization
     call utl_tmg_start(91,'----QuasiNewton')
@@ -423,10 +421,7 @@ module fsoi_mod
     call utl_tmg_stop(91)
     call fool_optimizer(obsSpaceData)
 
-    write(*,'(//,20X,20("*"),2X    &
-        ,/,20X,"              Minimization ended with MODE:",I4  &
-        ,/,20X,"                Total number of iterations:",I4  &
-        ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
+    write(*,'(//,20X,20("*"),2X,20X,"Minimization ended with MODE:",I4,20X,"                Total number of iterations:",I4,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
     if (mmpi_myid == 0) write(*,*) 'minimize: Finished'
 
@@ -591,7 +586,7 @@ module fsoi_mod
       if (mmpi_myid == 0) then
         write(*,*) 'simvar: entering for simulation ',fso_nsim
         call msg_memUsage('simvar')
-        call flush(6)
+        flush(6)
       end if
 
       ! note: vhat = B_t^T/2 hat(del x_t)
