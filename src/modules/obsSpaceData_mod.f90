@@ -5601,8 +5601,8 @@ contains
 
       ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
-      integer(8),       intent(in)    :: primaryKey
       integer,          intent(in)    :: bodyIndex
+      integer(8),       intent(in)    :: primaryKey
 
       obsdat%bodyPrimaryKey(bodyIndex) = primaryKey
 
