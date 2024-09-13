@@ -51,7 +51,7 @@ module burpRead_mod
 
 contains
 
-  character(len=7) function brpr_getTypeResume
+  character(len=7) function brpr_getTypeResume()
     brpr_getTypeResume=TYPE_RESUME
   end function brpr_getTypeResume
 
@@ -1869,7 +1869,7 @@ contains
     integer,           intent(in)    :: FILENUMB
 
     ! Locals:
-    CHARACTER *2           :: UNI_FAMILYTYPE
+    CHARACTER(2)           :: UNI_FAMILYTYPE
 
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN
@@ -2296,7 +2296,7 @@ contains
           call handle_error(error, "brpr_readBurp: BURP_Get_Property")
 
           ! Read slant latlon if type is RO
-          if (trim(familytype) == 'RO' .and. bfam == 0 .and. LROK == .FALSE.) then
+          if (trim(familytype) == 'RO' .and. bfam == 0 .and. .not. LROK ) then
             ROLAT0 = 0.01*lati- 90.
             ROLON0 = 0.01*long
             if (ROLON0 > 180.) ROLON0 = ROLON0-360.
@@ -3744,26 +3744,26 @@ contains
 
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
+    integer,           intent(in)    :: NELE_INFO
     real,              intent(in)    :: RINFO(NELE_INFO)
-    CHARACTER*2,       intent(in)    :: FAMTYP
-    integer    ,       intent(in)    :: NELE_INFO
-    integer    ,       intent(in)    :: LISTE_INFO(NELE_INFO)
+    CHARACTER(2),      intent(in)    :: FAMTYP
+    integer,           intent(in)    :: LISTE_INFO(NELE_INFO)
 
     ! Locals:
-    REAL*4      ::   INFOV
-    integer     ::   CODTYP
-    integer     ::   IL,NOBS
-    integer     ::   SENSOR,ORBIT,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
-    integer     ::   TERRAIN_TYPE,QCFLAG1,QCFLAG2,QCFLAG3,RAINFLAG
-    integer     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
-    integer     ::   IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
-    real        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT,RQCFLAG1,RQCFLAG2,RQCFLAG3,RRAINFLAG
-    real        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
-    real        ::   RORBIT, RIWV
-    REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
-    real        ::   RFOV
-    REAL(pre_obsReal) ::   cloudLiquidWaterObs, cloudLiquidWaterFG
-    REAL(pre_obsReal) ::   scatteringIndexObs, scatteringIndexFG
+    real    :: INFOV
+    integer :: CODTYP
+    integer :: IL,NOBS
+    integer :: SENSOR,ORBIT,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
+    integer :: TERRAIN_TYPE,QCFLAG1,QCFLAG2,QCFLAG3,RAINFLAG
+    integer :: IGQISFLAGQUAL,IGQISQUALINDEXLOC,IRO_QCFLAG
+    integer :: IFOV,ORIGIN_CENTRE,RAOBSTYPE, LAUNCHTIME
+    real    :: RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT,RQCFLAG1,RQCFLAG2,RQCFLAG3,RRAINFLAG
+    real    :: RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG,RORIGIN_CENTRE
+    real    :: RORBIT, RIWV
+    real    :: RFOV
+    REAL(pre_obsReal) :: RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
+    REAL(pre_obsReal) :: cloudLiquidWaterObs, cloudLiquidWaterFG
+    REAL(pre_obsReal) :: scatteringIndexObs, scatteringIndexFG
 
     NOBS=obs_numHeader(obsdat)
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
@@ -4111,7 +4111,8 @@ contains
     integer                :: btyp10, btyp, bfam, error
     integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
     integer                :: nb_rpts, ref_rpt, ref_blk, count
-    integer, allocatable   :: address(:), goodprof(:), reportsToUpdate(:)
+    integer, allocatable   :: address(:), goodprof(:)
+    logical, allocatable   :: reportsToUpdate(:)
     real(8), allocatable   :: btobs(:,:)
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
