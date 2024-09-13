@@ -538,7 +538,7 @@ module obsOperatorsChem_mod
                        assim_nlev, assim_exclude_nflag,assim_exclude_flag,       &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
                        modelName,operatorSubType,storeOperators, &
-		       genOperConstraintType,genOperHCorrlenExpnt,genOperOmAStatsFactor
+                       genOperConstraintType,genOperHCorrlenExpnt,genOperOmAStatsFactor
   
     ! Default NAMCHEM values
 
@@ -699,8 +699,8 @@ module obsOperatorsChem_mod
 
       if (icount+oopc_levels%n_lvl(jelm) > isize) then
         call utl_abort('oopc_readLevels: READING PROBLEM. ' // &
-	                'Max array size exceeded: ' // &
-                        trim(utl_str(isize)))
+                       'Max array size exceeded: ' // &
+                       trim(utl_str(isize)))
       end if    
 
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -780,16 +780,15 @@ module obsOperatorsChem_mod
        ! Check if number of levels, code, and vertical coordinate type are equal.
        ! If number of levels is one and no vertical coordinate provided for total column measurement (i.e. obsoper%vco == 4),
        ! then check of vertical coordinate type is disregarded afterwards.       
-       if (iset) then	      
+       if (iset) then
           if ( obsoper%varno == oopc_levels%element(stnidIndex) .and. &
              (nlev == oopc_levels%n_lvl(stnidIndex) .or. &
-	     (nlev == 1 .and. oopc_levels%n_lvl(stnidIndex) > 1) ) .and. &
+             (nlev == 1 .and. oopc_levels%n_lvl(stnidIndex) > 1) ) .and. &
              (obsoper%vco == oopc_levels%vco(stnidIndex) .or. &
-	      obsoper%vco == 4) ) then
-	    
+             obsoper%vco == 4) ) then
+
             istnid=stnidIndex
             exit
-	      
           end if
        end if
        
@@ -820,10 +819,9 @@ module obsOperatorsChem_mod
          ! Must be pressure or sigma
          
          if (oopc_levels%vco(stnidIndex) /= 2 &
-	   .and. oopc_levels%vco(stnidIndex) /= 6) then
-	   
+              .and. oopc_levels%vco(stnidIndex) /= 6) then
            call utl_abort('oopc_getLevels: Cannot handle this vertical coordinate type')
-	 end if 
+         end if
           
          obsoper%nobslev=oopc_levels%n_lvl(stnidIndex)
          
@@ -848,7 +846,7 @@ module obsOperatorsChem_mod
              levelsBot(levelIndex) = obsoper%pp(obsoper%nmodlev)
              if (levelsTop(levelIndex) >= obsoper%pp(obsoper%nmodlev)) then
                levelsTop(levelIndex) = obsoper%pp(obsoper%nmodlev)
-	     end if
+             end if
              exit
            end if
          end do
@@ -879,12 +877,12 @@ module obsOperatorsChem_mod
        startIndex=2
        do level=1,obsoper%nobslev
          if ( obsoper%vlayertop(level) < obsoper%pp(2)) then
-	   obsoper%modlevindexTop(level)=1
-	 else 
+           obsoper%modlevindexTop(level)=1
+         else
            do levelIndex=startIndex,obsoper%nmodlev
              if (obsoper%vlayertop(level) == obsoper%pp(levelIndex)) then
                 obsoper%modlevindexTop(level)=levelIndex
-		exit
+                exit
              else if (obsoper%vlayertop(level) < obsoper%pp(levelIndex)) then
                 obsoper%modlevindexTop(level)=levelIndex-1
                 exit
@@ -903,12 +901,12 @@ module obsOperatorsChem_mod
        startIndex=obsoper%nmodlev-1
        do level=obsoper%nobslev,1,-1
          if ( obsoper%vlayertop(level) > obsoper%pp(obsoper%nmodlev-1)) then
-	   obsoper%modlevindexTop(level)=obsoper%nmodlev
-	 else 
+           obsoper%modlevindexTop(level)=obsoper%nmodlev
+         else
            do levelIndex=startIndex,1,-1
              if (obsoper%vlayerbottom(level) == obsoper%pp(levelIndex)) then
                 obsoper%modlevindexBot(level)=levelIndex
-	        exit
+                exit
              else if (obsoper%vlayerbottom(level) > obsoper%pp(levelIndex)) then
                 obsoper%modlevindexBot(level)=levelIndex+1
                 exit
@@ -918,8 +916,8 @@ module obsOperatorsChem_mod
              if (obsoper%modlevindexBot(level) >  obsoper%modlevindexBot(level+1)) &
                obsoper%modlevindexBot(level)=obsoper%modlevindexBot(level+1)
            end if
-	   startIndex=levelIndex
-	 end if
+           startIndex=levelIndex
+         end if
        end do
        
     end if
@@ -969,9 +967,9 @@ module obsOperatorsChem_mod
         
         ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
         oopc_avgkern%obsSubSpace(istnid) = obsf_obsSub_read('CH', &
-	  oopc_avgkern%stnids(istnid),bufr_avgkern,oopc_avgkern%n_lvl(istnid), &
-          ndim, numColumns_opt=oopc_avgkern%n_col(istnid), &
-	  bkstp_opt=14, block_opt='DATA', match_nlev_opt=.true.)
+             oopc_avgkern%stnids(istnid),bufr_avgkern,oopc_avgkern%n_lvl(istnid), &
+             ndim, numColumns_opt=oopc_avgkern%n_col(istnid), &
+             bkstp_opt=14, block_opt='DATA', match_nlev_opt=.true.)
      
       end if
     end do
@@ -1091,7 +1089,7 @@ module obsOperatorsChem_mod
       
       if (icount+oopc_avgkern%n_lvl(jelm) > isize) then
         call utl_abort('oopc_readAvgkernAuxfile: READING PROBLEM. ' // &
-	               'Max array size exceeded:' // trim(utl_str(isize)))    
+                       'Max array size exceeded:' // trim(utl_str(isize)))
       end if
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
@@ -1140,7 +1138,7 @@ module obsOperatorsChem_mod
     if (allocated(oopc_avgkern%obsSubSpace)) then
       do istnid=1,oopc_avgkern%n_stnid
         if (oopc_avgkern%source(istnid) == 1) then
-	  call oss_obsdata_dealloc(oopc_avgkern%obsSubSpace(istnid))
+          call oss_obsdata_dealloc(oopc_avgkern%obsSubSpace(istnid))
         end if
       end do
       deallocate(oopc_avgkern%obsSubSpace)
@@ -1187,10 +1185,9 @@ module obsOperatorsChem_mod
       if (iset) then
         if ( varno == oopc_avgkern%element(stnidIndex) ) then
           if (nlev < 1 .or. ( nlev == oopc_avgkern%n_lvl(stnidIndex) .or. &
-	      nlev == oopc_avgkern%n_col(stnidIndex) .or. &
-              nlev == oopc_avgkern%n_col(stnidIndex)-1 .or. &
-              nlev == oopc_avgkern%n_col(stnidIndex)-2) ) then
-	      
+               nlev == oopc_avgkern%n_col(stnidIndex) .or. &
+               nlev == oopc_avgkern%n_col(stnidIndex)-1 .or. &
+               nlev == oopc_avgkern%n_col(stnidIndex)-2) ) then
             istnid=stnidIndex
             exit
           end if
@@ -1225,21 +1222,20 @@ module obsOperatorsChem_mod
       if (oopc_avgkern%source(istnid) == 0) then
         ! Check number of columns
         if (ncol < oopc_avgkern%n_col(istnid) .or. &
-	    ncol+2 > oopc_avgkern%n_col(istnid) ) then
-	    
+             ncol+2 > oopc_avgkern%n_col(istnid) ) then
           call utl_abort('oopc_getAvgkern: Inconsistency ' // &
-	                 'in avg kern size for ' // oopc_avgkern%stnids(istnid) )
+                         'in avg kern size for ' // oopc_avgkern%stnids(istnid) )
         end if
-	      
+
         ! get averaging kernel from auxiliary file
         startIndex = oopc_avgkern%ibegin(istnid)
         endIndex = nlev*(startIndex+oopc_avgkern%n_col(istnid)-1)
         avg_kern = RESHAPE(oopc_avgkern%rak(startIndex:endIndex), &
-	                 (/nlev,oopc_avgkern%n_col(istnid)/),ORDER =(/2,1/))
+                           (/nlev,oopc_avgkern%n_col(istnid)/),ORDER =(/2,1/))
       else
         ! get averaging kernel from observation file
         avg_kern(1:nlev,1:oopc_avgkern%n_col(istnid)) = &
-	  oss_obsdata_get_array2d(oopc_avgkern%obsSubSpace(istnid),code)
+             oss_obsdata_get_array2d(oopc_avgkern%obsSubSpace(istnid),code)
       end if
 
     else
@@ -1328,9 +1324,8 @@ module obsOperatorsChem_mod
         if (utl_stnid_equal(trim(assim_stnid(ifam,i)),trim(cstnid))) then
           if (assim_varno(ifam,i) == 0 .or. assim_varno(ifam,i) == varno) then
             if (assim_nlev(ifam,i) == 0 .or. (nobslev == 1 .and. &
-	        assim_nlev(ifam,i) == 1) .or.  &
+                 assim_nlev(ifam,i) == 1) .or.  &
                 (nobslev > 1 .and. assim_nlev(ifam,i) > 1)) then
-		    
               elemId=i
               exit
             end if
@@ -1675,15 +1670,14 @@ module obsOperatorsChem_mod
       do bodyIndex=bodyIndex_start,bodyIndex_end
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == &
           BUFR_SCALE_EXPONENT) then
-	  nobslev = nobslev-1
-	end if
+          nobslev = nobslev-1
+        end if
       end do
 
       ! varno is expected to be the same for all profile points where OBS_VNM value /= BUFR_SCALE_EXPONENT
       do bodyIndex=bodyIndex_start,bodyIndex_end
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) &
-	    /= BUFR_SCALE_EXPONENT) then
-	     
+             /= BUFR_SCALE_EXPONENT) then
           varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           exit
         end if
@@ -1698,8 +1692,8 @@ module obsOperatorsChem_mod
       ! Check to see if background error variances available
       if (kmode == 1) then
         process_obs(:) = bcsc_StatsExistForVarName(vnl_varnameFromVarnum(varno, &
-			 obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
-			 modelName))
+                                                   obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
+                                                   modelName))
       end if
  
       ! Prepare for checking if any processing is needed according to initial flag values     
@@ -1707,23 +1701,23 @@ module obsOperatorsChem_mod
  
       do bodyIndex=bodyIndex_start,bodyIndex_end
         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) &
-	     /= BUFR_SCALE_EXPONENT) then
+             /= BUFR_SCALE_EXPONENT) then
 
           obslevIndex=obslevIndex+1
 
           obsoper%ixtr(obslevIndex) = &
-	    obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! indicates if obs extends outside model profile vertical range
+               obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! indicates if obs extends outside model profile vertical range
           iass(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! indicates if obs is to be assimilated
           flag(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
                
           ! Indicates if this obs should be processed by oopc_obsoperators
           if (kmode == 1) then
             process_obs(obslevIndex) = obsoper%ixtr(obslevIndex) == 0 &
-	             .and. iass(obslevIndex) == obs_assimilated .and. &
-	              process_obs(obslevIndex)
+                 .and. iass(obslevIndex) == obs_assimilated .and. &
+                 process_obs(obslevIndex)
           else
             process_obs(obslevIndex) = obsoper%ixtr(obslevIndex) == 0 &
-	                    .and. iass(obslevIndex) == obs_assimilated
+                 .and. iass(obslevIndex) == obs_assimilated
           end if
 
         end if
@@ -1740,7 +1734,7 @@ module obsOperatorsChem_mod
         if (kmode == 3) then
           model_col(:) = 0.0D0
           obsoper%varName = vnl_varnameFromVarnum(varno, &
-	    obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex),modelName)
+               obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex),modelName)
         end if
 
       else  
@@ -1750,27 +1744,27 @@ module obsOperatorsChem_mod
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           obslevIndex=0
           BODYINDEX1: do bodyIndex=bodyIndex_start,bodyIndex_end
-	  
+
             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == &
-	        BUFR_SCALE_EXPONENT) cycle
-		
+                 BUFR_SCALE_EXPONENT) cycle
+
             obslevIndex = obslevIndex + 1 
             if ( process_obs(obslevIndex) ) then
               if (obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) > 0.0d0 ) then
                 ! "OmP error std dev" is already available for this measurement.
-		! Go to the next measurement.
+                ! Go to the next measurement.
                   
                 ! TEMPORARY: First, estimate OBS_HPHT for storage in output files (in the event it is needed externally for
                 ! other purposes (e.g. total column ozone bias correction and corresponding re-doing for marker settings)               
                 if ( obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex) > &
-		     1.1d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex) ) then
+                     1.1d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex) ) then
 
                   zhbht = sqrt(obs_bodyElem_r(obsSpaceData,OBS_OMPE,bodyIndex)**2 &
-		          -obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2)
+                       -obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)**2)
                   call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zhbht)
                 else
                   call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex, &
-		       0.5d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
+                       0.5d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
                 end if
      
                 deallocate(process_obs,obsoper%success,obsoper%ixtr,iass,obs_col,flag)
@@ -1785,7 +1779,7 @@ module obsOperatorsChem_mod
         end if
 
         ! Initialize obsoper variables and allocate arrays        
-	call oopc_obsoperInit(obsSpaceData,headerIndex,columnTrl,nlev_bkgrnd,nobslev,kmode,varno,stnid)
+        call oopc_obsoperInit(obsSpaceData,headerIndex,columnTrl,nlev_bkgrnd,nobslev,kmode,varno,stnid)
  
         ! Initialize model_col, dependent on kmode. Used for input for kmode=0,2, output for kmode=3.
         ! model_col represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
@@ -1816,8 +1810,7 @@ module obsOperatorsChem_mod
           ! Get position in profile and skip over BUFR_SCALE_EXPONENT elements
 
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= &
-	      BUFR_SCALE_EXPONENT) then
-	      
+               BUFR_SCALE_EXPONENT) then
             obslevIndex=obslevIndex+1
           else
             cycle BODY1
@@ -1827,7 +1820,7 @@ module obsOperatorsChem_mod
           ! For layer data values, vertical coordinate data will instead be assigned within oopc_obsoperators.
 
           obsoper%obslev(obslevIndex) = &
-	    obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+               obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
           ! Get normalized increment
           if (kmode == 3) then
@@ -1844,10 +1837,10 @@ module obsOperatorsChem_mod
             obsoper%obsSpaceTrial(obslevIndex) = 0.0
           else
             ! Store for use by TL and AD of non-linear operators
-	    obsoper%obs(obslevIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+            obsoper%obs(obslevIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
             obsoper%obsSpaceTrial(obslevIndex) = &
-	      obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) &
-              - obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                 obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) &
+                 - obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
           end if
             
         end do BODY1
@@ -1885,8 +1878,7 @@ module obsOperatorsChem_mod
 
           ! Get position in profile and skip over BUFR_SCALE_EXPONENT elements
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) /= &
-	      BUFR_SCALE_EXPONENT) then
-	      
+               BUFR_SCALE_EXPONENT) then
             obslevIndex=obslevIndex+1
           else
             cycle BODY2
@@ -1901,7 +1893,7 @@ module obsOperatorsChem_mod
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
-	         ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9) )
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9) )
             cycle BODY2
           else if (iass(obslevIndex) == 0) then
             ! Observation was flagged previous to this call of oopc_CHobsoperators
@@ -2111,8 +2103,8 @@ module obsOperatorsChem_mod
               vv(jl) = col_getElem(columnTrl,jl,headerIndex,'VV')
             end do
             obsoper%columnBound = oopc_getColBoundary(obsoper%constituentId,&
-	      nmodlev,obsoper%pp,obsoper%tt,obsoper%height, &
-	      hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
+                 nmodlev,obsoper%pp,obsoper%tt,obsoper%height, &
+                 hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
             deallocate(uu,vv)
           else 
             obsoper%columnBound = oopc_getColBoundary(obsoper%constituentId,nmodlev,obsoper%pp,obsoper%tt,obsoper%height,hu_opt=obsoper%hu)   
@@ -2250,7 +2242,7 @@ module obsOperatorsChem_mod
     if (code_len < oss_obsdata_code_len()) then
       call utl_abort('oopc_obsoperators: Length of code string' // &
                      ' needs to be increased to ' // &
-	             trim(utl_str(oss_obsdata_code_len())))
+                     trim(utl_str(oss_obsdata_code_len())))
     end if
  
     ! Determine if layer boundaries are assigned to this data source OR, for obsoper%nobslev = 1, 
@@ -2281,37 +2273,36 @@ module obsOperatorsChem_mod
      
       if (obsoper%iavgkern > 0) then
         if (oopc_checkType(oopc_avgkern%stnids, &
-	                   oopc_avgkern%type,obsoper%stnid,'log')) then
+                           oopc_avgkern%type,obsoper%stnid,'log')) then
           
           zwork(1:obsoper%nobslev) = 0.0d0
           do obslevIndex=1,obsoper%nobslev
             if (successLocal(obslevIndex)) &
               zwork(obslevIndex)=log(dot_product(obsoper%zh(obslevIndex, &
-	        obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+                obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
                 model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) ))
           end do
 
           do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern)
             if (obsoper%success(obslevIndex)) then
               obs_col(obslevIndex)= dot_product(avg_kern(obslevIndex, &
-	                            1:obsoper%nobslev),zwork(1:obsoper%nobslev))
+                                    1:obsoper%nobslev),zwork(1:obsoper%nobslev))
             end if
-	    
+
             ! Add a priori contribution when provided
             if (oopc_avgkern%n_col(obsoper%iavgkern) >= obsoper%nobslev+1) then
-	      obs_col(obslevIndex) = obs_col(obslevIndex) + &
-	                             avg_kern(obslevIndex,obsoper%nobslev+1)
+              obs_col(obslevIndex) = obs_col(obslevIndex) + &
+                                     avg_kern(obslevIndex,obsoper%nobslev+1)
             end if
-	    
+
             obs_col(obslevIndex) = exp(obs_col(obslevIndex))
           end do
          
           if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
-	       .and. nobslevOriginal == 1 ) then
-	    
+               .and. nobslevOriginal == 1 ) then
             obs_col(1) = sum( avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern), &
-	      obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
-	  end if
+                 obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
+          end if
         else 
 
           ! Standard treatment for linear model
@@ -2319,23 +2310,22 @@ module obsOperatorsChem_mod
           do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern) 
             if (obsoper%success(obslevIndex)) then
               obs_col(obslevIndex)=dot_product(obsoper%zh(obslevIndex,&
-	        obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
-                model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
+                   obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+                   model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
             end if
             ! Add a priori contribution when provided
             if ( oopc_avgkern%n_col(obsoper%iavgkern) >= obsoper%nobslev+1) then
               obs_col(obslevIndex) = obs_col(obslevIndex) +  &
-	      avg_kern(obslevIndex,obsoper%nobslev+1)
+                   avg_kern(obslevIndex,obsoper%nobslev+1)
             end if
           end do
          
           ! Account for integration via weighted summation
           if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
-	       .and. nobslevOriginal == 1 .and. &
-	       oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
-	    
+               .and. nobslevOriginal == 1 .and. &
+               oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
             obs_col(1) = sum( avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern), &
-	      obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
+                 obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
           end if
         end if
 
@@ -2346,9 +2336,9 @@ module obsOperatorsChem_mod
         do obslevIndex=1,nobslevOriginal
           if (obsoper%success(obslevIndex)) then
             obs_col(obslevIndex)=dot_product(obsoper%zh(obslevIndex, &
-	      obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
-              model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
-	  end if
+                 obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+                 model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
+          end if
         end do
        
       end if
@@ -2357,20 +2347,20 @@ module obsOperatorsChem_mod
 
       if ((obsoper%constituentId >= 0 .and. obsoper%constituentId < 7000) .and.  &
         trim(obsoper%operatorCategory) == 'Integ' .and. obsoper%nobslev == 1 .and. &
-	obsoper%vco == 4 .and. obsoper%success(1)) then
-	
+        obsoper%vco == 4 .and. obsoper%success(1)) then
+
         if (all(obsoper%tt > 0.0) .and. obs_col(1) > 0.0) then
           temp_eff(1)=dot_product(obsoper%zh(1, &
-	    obsoper%modlevindexTop(1):obsoper%modlevindexBot(1)), &
-            obsoper%tt(obsoper%modlevindexTop(1):obsoper%modlevindexBot(1))* &
-	    model_col(obsoper%modlevindexTop(1):obsoper%modlevindexBot(1))) &
-            /obs_col(1)
+               obsoper%modlevindexTop(1):obsoper%modlevindexBot(1)), &
+               obsoper%tt(obsoper%modlevindexTop(1):obsoper%modlevindexBot(1))* &
+               model_col(obsoper%modlevindexTop(1):obsoper%modlevindexBot(1))) &
+               /obs_col(1)
           code=oss_obsdata_get_header_code(obsoper%lon,obsoper%lat,&
-	    obsoper%date,obsoper%hhmm,obsoper%stnid)
+               obsoper%date,obsoper%hhmm,obsoper%stnid)
           call oopc_addEfftempObsdata(code,temp_eff)
         end if
       end if
-                       
+
     case(1)
 
       ! Compute sqrt(diag(H*B*H^T))
@@ -2396,24 +2386,24 @@ module obsOperatorsChem_mod
       end do
       if (trim(bgStats%varNameList(varIndex)) == '') then
         call utl_abort('oopc_obsoperators: Correlation matrix not found for ' &
-	               // trim(obsoper%varName) )
+                       // trim(obsoper%varName) )
       end if
 
       do obslevIndex=1,nobslevOriginal
         if (obsoper%success(obslevIndex)) then
           do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
-	                  obsoper%modlevindexBot(obslevIndex)
-		  
+                                                obsoper%modlevindexBot(obslevIndex)
+
             zwork(modlevIndex)=sum(obsoper%zh(obslevIndex, &
-	      obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
+                 obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
               *bgStats%corvert(modlevIndex,obsoper%modlevindexTop(obslevIndex): &
-	        obsoper%modlevindexBot(obslevIndex),varIndex) &
+                               obsoper%modlevindexBot(obslevIndex),varIndex) &
               *fdeStddev(obsoper%modlevindexTop(obslevIndex): &
-	        obsoper%modlevindexBot(obslevIndex),1)) &
+                         obsoper%modlevindexBot(obslevIndex),1)) &
               *fdeStddev(modlevIndex,1)
           end do
           obs_col(obslevIndex)=sum(obsoper%zh(obslevIndex, &
-	    obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
+               obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
             *zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
     
           obs_col(obslevIndex) = sqrt(obs_col(obslevIndex))  ! save as sqrt(h*B*h^T)
@@ -2433,18 +2423,17 @@ module obsOperatorsChem_mod
         do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern) 
           if (obsoper%success(obslevIndex)) then
             obs_col(obslevIndex)=dot_product(obsoper%zh(obslevIndex, &
-	      obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
-              model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
-	  end if 
+                 obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+                 model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
+          end if
         end do
          
         ! Account for integration via weighted summation
         if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
-	     .and. nobslevOriginal == 1 .and. &
-	     oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
-	  
+             .and. nobslevOriginal == 1 .and. &
+             oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
           obs_col(1) = sum( avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern), &
-	    obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
+               obsoper%nobslev+2)*obs_col(1:oopc_avgkern%n_lvl(obsoper%iavgkern)) )
 
         end if
       else
@@ -2452,7 +2441,7 @@ module obsOperatorsChem_mod
         do obslevIndex=1,nobslevOriginal
           if (obsoper%success(obslevIndex)) then
             obs_col(obslevIndex)=dot_product(obsoper%zh(obslevIndex, &
-	      obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+                 obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
               model_col(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
           else
             obs_col(obslevIndex)=0.0d0
@@ -2472,15 +2461,15 @@ module obsOperatorsChem_mod
       if (obsoper%iavgkern > 0) then
 
         if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
-	     .and. nobslevOriginal == 1 .and. &
-	     oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
+             .and. nobslevOriginal == 1 .and. &
+             oopc_avgkern%n_lvl(obsoper%iavgkern) > 1 ) then
        
           ! Account for integration via weighted summation
           zwork(:)=0.0d0         
           do obslevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
             zwork(obslevIndex)=  &
-	      sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex)* &
-              avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
+                 sum(obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex)* &
+                 avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obsoper%nobslev+2) )
           end do
           obsoper%zh(1,:) = 0.0d0
           obsoper%zh(1,obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) = &
@@ -2493,7 +2482,7 @@ module obsOperatorsChem_mod
           zwork(:)=0.0D0
           zwork(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) = &
              obs_col(obslevIndex)*obsoper%zh(obslevIndex, &
-	     obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
+             obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex))
                 
           call oopc_convertUnits(zwork,incr_opt=.true.)
           
@@ -2544,7 +2533,6 @@ module obsOperatorsChem_mod
     if ( obsoper%iavgkern > 0 ) then
       if ( oopc_avgkern%n_col(obsoper%iavgkern) == obsoper%nobslev+2 &
            .and. nobslevOriginal == 1 ) then
-	   
         obsoper%varno=oopc_avgkern%ProfElement(obsoper%iavgkern)
       end if
     end if
@@ -2556,7 +2544,7 @@ module obsOperatorsChem_mod
       if (.not.obsoper%layerIdentified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ', &
-	             obsoper%varno,obsoper%nobslev
+                      obsoper%varno,obsoper%nobslev
         call utl_abort('oopc_obsoperators: Required layer boundaries not available!')
       else      
         ! Vertical integration operator
@@ -2585,10 +2573,10 @@ module obsOperatorsChem_mod
 
         if (allocated(avg_kern)) deallocate(avg_kern)
         allocate(avg_kern(oopc_avgkern%n_lvl(obsoper%iavgkern), &
-	                  oopc_avgkern%n_col(obsoper%iavgkern)))
+                 oopc_avgkern%n_col(obsoper%iavgkern)))
     
         code=oss_obsdata_get_header_code(obsoper%lon,obsoper%lat,obsoper%date, &
-	  obsoper%hhmm,obsoper%stnid)
+             obsoper%hhmm,obsoper%stnid)
         call oopc_getAvgkern(obsoper%iavgkern,oopc_avgkern%n_lvl(obsoper%iavgkern), &
                              oopc_avgkern%n_col(obsoper%iavgkern),code,avg_kern)
       end if
@@ -2605,7 +2593,7 @@ module obsOperatorsChem_mod
     if (kmode >=2 .and. obsoper%constituentId >= 0) then 
       if ( (oopc_checkType(operatorSubType(1,:),operatorSubType(2,:), &
               obsoper%stnid,'genOper') .and. &
-	      (trim(obsoper%operatorCategory) == 'Integ' &
+              (trim(obsoper%operatorCategory) == 'Integ' &
               .or.  trim(obsoper%operatorCategory) == 'LayerAvg')) .or. &
            (oopc_checkType(operatorSubType(1,:),operatorSubType(2,:), &
               obsoper%stnid,'genOperInterp') .and. &
@@ -2613,28 +2601,27 @@ module obsOperatorsChem_mod
        
         if ( kmode == 2) then
           ! Set reference profiles for use with generalized innovation operator
-	  ! when kmode>=2
-	  
+          ! when kmode>=2
           if ( trim(oopc_genOperConstraintType(obsoper%constituentId)) == 'Diff' .or. &
                trim(oopc_genOperConstraintType(obsoper%constituentId)) == 'Climat' ) then
 
-	    call clm_setColumn(obsoper%nmodlev,obsoper%pp, &
-               obsoper%height,obsoper%lat*MPC_DEGREES_PER_RADIAN_R8, &
-	       obsoper%lon*MPC_DEGREES_PER_RADIAN_R8, obsoper%obs_index, &
-               oopc_obsdata_maxsize,obsoper%constituentId, &
-	       tt_opt=obsoper%tt,hu_opt=obsoper%hu, &
-	       climatProfileSet_opt=oopc_bgRef)
-	  end if
-	  	 
+            call clm_setColumn(obsoper%nmodlev,obsoper%pp, &
+                 obsoper%height,obsoper%lat*MPC_DEGREES_PER_RADIAN_R8, &
+                 obsoper%lon*MPC_DEGREES_PER_RADIAN_R8, obsoper%obs_index, &
+                 oopc_obsdata_maxsize,obsoper%constituentId, &
+                 tt_opt=obsoper%tt,hu_opt=obsoper%hu, &
+                 climatProfileSet_opt=oopc_bgRef)
+          end if
+
           ! Get background error std dev profile at obs locations
           fdeStddev(:,:)=0.D0
-	  
+
           call bcsc_getBgStddev(obsoper%varName,obsoper%nmodlev,obsoper%lat, &
-	       obsoper%lon,fdeStddev(:,1),vlev_opt=obsoper%pp) 
+                                obsoper%lon,fdeStddev(:,1),vlev_opt=obsoper%pp)
 
           call bcsc_addBgStddev(obsoper%obs_index,fdeStddev, &
-	       oopc_obsdata_maxsize)
-  
+                                oopc_obsdata_maxsize)
+
         end if
         obsoper%applyGenOper = .true.
       end if
@@ -2691,23 +2678,23 @@ module obsOperatorsChem_mod
       ! Convert altitude to pressure
       if (trim(obsoper%operatorCategory) == 'Interp') then
         press_obs = phf_convertZtoPressure(obsoper%obslev,obsoper%height, &
-	            obsoper%pp, &
+                    obsoper%pp, &
                     obsoper%nobslev,obsoper%nmodlev,obsoper%lat,successLocal)
         ! Allows for obs levels below the lowest TH level and above the surface
         where (obsoper%obslev(1:obsoper%nobslev) < &
-	  obsoper%height(obsoper%nmodlev)) &
-	  press_obs(1:obsoper%nobslev)= obsoper%pp(obsoper%nmodlev)
-	  
+          obsoper%height(obsoper%nmodlev)) &
+          press_obs(1:obsoper%nobslev)= obsoper%pp(obsoper%nmodlev)
+
       else if (trim(obsoper%operatorCategory) == 'Integ' .or. &
                trim(obsoper%operatorCategory) == 'LayerAvg') then
         obsoper%vlayertop = phf_convertZtoPressure(obsoper%vlayertop, &
-	                    obsoper%height, &
+                            obsoper%height, &
                             obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
-			    obsoper%lat,successLocal)
+                            obsoper%lat,successLocal)
         obsoper%vlayerbottom = phf_convertZtoPressure(obsoper%vlayerbottom, &
-	                       obsoper%height, &
+                               obsoper%height, &
                                obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
-			       obsoper%lat,successLocal)
+                               obsoper%lat,successLocal)
       end if
     case(2)
       ! Pressure, no conversion needed
@@ -2717,7 +2704,7 @@ module obsOperatorsChem_mod
     case default
       call utl_abort("oopc_obsoperators: vertical coordinate type vco = " &
                       // trim(utl_str(obsoper%vco)) //  &
-		      " not available for this operator.")
+                      " not available for this operator.")
     end select
 
     ! Determine if averaging kernel is to be applied
@@ -2744,14 +2731,14 @@ module obsOperatorsChem_mod
       if (obsoper%applyGenOper .and. kmode <=1 ) then
         call ppo_vertInterpWgts(obsoper%pp,press_obs,obsoper%nmodlev, &
              obsoper%nobslev,obsoper%zh,obsoper%modlevindexTop, &
-	     obsoper%modlevindexBot,method_opt='default',skipType_opt=message, &
-	     outbound_opt=ixtrLocal,success_opt=successLocal)
+             obsoper%modlevindexBot,method_opt='default',skipType_opt=message, &
+             outbound_opt=ixtrLocal,success_opt=successLocal)
       else
         call ppo_vertInterpWgts(obsoper%pp,press_obs,obsoper%nmodlev, &
              obsoper%nobslev,obsoper%zh,obsoper%modlevindexTop, &
-	     obsoper%modlevindexBot,method_opt=oopc_getType(operatorSubType(1,:), &
-	     operatorSubType(2,:),obsoper%stnid),skipType_opt=message, &
-	     outbound_opt=ixtrLocal,success_opt=successLocal)
+             obsoper%modlevindexBot,method_opt=oopc_getType(operatorSubType(1,:), &
+             operatorSubType(2,:),obsoper%stnid),skipType_opt=message, &
+             outbound_opt=ixtrLocal,success_opt=successLocal)
       end if
  
     case('Surface')
@@ -2830,12 +2817,12 @@ module obsOperatorsChem_mod
             ! Apply averaging kernels to observation operator(s)
             
             obsoper%zh(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-	                                1:obsoper%nobslev),obsoper%zh(:,:))
+                                        1:obsoper%nobslev),obsoper%zh(:,:))
             if (obsoper%applyGenOper .and.  &
-	        trim(obsoper%operatorCategory) /= 'Interp') then
-	      obsoper%zhp(obslevIndex,:) = &
-	        matmul(avg_kern(obslevIndex,1:obsoper%nobslev),obsoper%zhp(:,:))
-	    end if
+                trim(obsoper%operatorCategory) /= 'Interp') then
+              obsoper%zhp(obslevIndex,:) = &
+                matmul(avg_kern(obslevIndex,1:obsoper%nobslev),obsoper%zhp(:,:))
+            end if
            
             ! Extend vertical range of obs operator according to the influence of
             ! the averaging kernel. Either extend to the entire model vertical range
@@ -2849,15 +2836,15 @@ module obsOperatorsChem_mod
               if (abs(obsoper%zh(obslevIndex,modlevIndex)) > zhmin) exit
             end do
             if (modlevIndex > obsoper%modlevindexTop(obslevIndex)) then
-	      modlevIndex=obsoper%modlevindexTop(obslevIndex)
-	    end if
+              modlevIndex=obsoper%modlevindexTop(obslevIndex)
+            end if
             obsoper%modlevindexTop(obslevIndex) = modlevIndex
             do modlevIndex=obsoper%nmodlev,obsoper%modlevindexBot(obslevIndex),-1
               if (abs(obsoper%zh(obslevIndex,modlevIndex)) > zhmin) exit
             end do
             if (modlevIndex.lt.obsoper%modlevindexBot(obslevIndex)) then
-	      modlevIndex=obsoper%modlevindexBot(obslevIndex)
-	    end if
+              modlevIndex=obsoper%modlevindexBot(obslevIndex)
+            end if
             obsoper%modlevindexBot(obslevIndex) = modlevIndex
            
           end if
@@ -2877,23 +2864,23 @@ module obsOperatorsChem_mod
                       
           do obslevIndex=1,obsoper%nobslev
             avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex) = &
-	      avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex) /   &
+              avg_kern(1:oopc_avgkern%n_lvl(obsoper%iavgkern),obslevIndex) /   &
               dot_product( obsoper%zh(obslevIndex, &
-	      obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+              obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
               obsoper%trial(obsoper%modlevindexTop(obslevIndex): &
-	                    obsoper%modlevindexBot(obslevIndex)) )
+                            obsoper%modlevindexBot(obslevIndex)) )
           end do                                 
 
           do obslevIndex=1,oopc_avgkern%n_lvl(obsoper%iavgkern) 
             if (obsoper%success(obslevIndex)) then
               avg_kern(obslevIndex,1:obsoper%nobslev) =  &
-	        obsoper%obsSpaceTrial(obslevIndex)*avg_kern(obslevIndex, &
-		1:obsoper%nobslev)
+                obsoper%obsSpaceTrial(obslevIndex)*avg_kern(obslevIndex, &
+                1:obsoper%nobslev)
 
               ! Merge the averaging kernel matrix (avgkern) and the 
-	      ! vertical interpolator (initial zh) 
+              ! vertical interpolator (initial zh)
               obsoper%zh(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-	        1:obsoper%nobslev),obsoper%zh(:,:))
+                1:obsoper%nobslev),obsoper%zh(:,:))
              
             end if
           end do
@@ -2902,18 +2889,18 @@ module obsOperatorsChem_mod
        
         ! Note that obsoper%applyGenOper=.true. is not set up for this case
         if (obsoper%applyGenOper) then
-	  call utl_abort('prepareOperator: Log ' // &
-	                 'space averaging kernels not currently usable with ' // &
-	                 'obsoper%applyGenOper=.true.')
-	end if
+          call utl_abort('prepareOperator: Log ' // &
+                         'space averaging kernels not currently usable with ' // &
+                         'obsoper%applyGenOper=.true.')
+        end if
       else
         call utl_abort('oopc_prepareOperator: This averaging kernel ' // &
-	               'application not yet available')
+                       'application not yet available')
       end if
     else
       if ( nobslevOriginal /= obsoper%nobslev ) then
         call utl_abort('oops_prepareOperator: Case of differing obs ' // &
-	               'and calculation levels not recognized.')
+                       'and calculation levels not recognized.')
       end if
     end if
 
@@ -2959,7 +2946,7 @@ module obsOperatorsChem_mod
         
     if ( .not.oopc_storeOperators .or. kmode < 2 .or. headerCount <= 0 .or. &
          ( any(oopc_tropo_mode(:) >= 1) .and. &
-	   trim(obsoper%operatorCategory) == 'Integ') ) return
+           trim(obsoper%operatorCategory) == 'Integ') ) return
     
     if ( trim(action) == 'get' .and. initializedOperators .and. kmode >=2 ) then
     
@@ -2982,13 +2969,13 @@ module obsOperatorsChem_mod
         obsoper%applyGenOper = operators(headerCount)%applyGenOper
 
         if ( obsoper%applyGenOper ) then
-	  obsoper%zhp(:,:) = operators(headerCount)%zhp(:,:) 
-	end if
+          obsoper%zhp(:,:) = operators(headerCount)%zhp(:,:)
+        end if
 
         success = .true. 
       else
         ! Calculations will be performed in th calling routine to prepare 
-	! the operator fields    
+        ! the operator fields
       end if  
          
     else if ( trim(action) == 'save' .and. kmode == 2 ) then 
@@ -3004,7 +2991,7 @@ module obsOperatorsChem_mod
         operators(:)%nobslev = 0
 
         write(*,*) 'oopc_operatorDepot: Max number of operators to save: ', &
-	  maxnumOperators
+          maxnumOperators
          
       end if
 
@@ -3173,7 +3160,6 @@ module obsOperatorsChem_mod
               BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, &
               BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
               BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2 /) )) then
-		    
         call utl_abort("oopc_convertUnits: BUFR # " // trim(utl_str(obsoper%varno)) // " is not valid for PM" )
       end if
         
@@ -3324,7 +3310,7 @@ module obsOperatorsChem_mod
       case default 
         
         call utl_abort('oopc_convertUnits: Unknown obs units ' // &
-	               'for varno = ' //  trim(utl_str(obsoper%varno)) )
+                       'for varno = ' //  trim(utl_str(obsoper%varno)) )
          
       end select
     end if
@@ -3336,7 +3322,7 @@ module obsOperatorsChem_mod
       if (any(obsoper%tt <= 0.)) then
         call utl_abort("oopc_convertUnits: " // &
                        "Missing valid temperature for conversion.")
-      end if	  
+      end if
       model_col = model_col * obsoper%tt**exp_T
     end if
     
@@ -3428,9 +3414,9 @@ module obsOperatorsChem_mod
       if (obsoper%vlayerbottom(obslevIndex) < obsoper%vlayertop(obslevIndex)) then
         success(1:obsoper%nobslev)=.false.
         write(*,*) 'oopc_vertObsLayersWgts: WARNING. ' // &
-	          'Layer top/bot value problem.', &
+                  'Layer top/bot value problem.', &
                    obsoper%vlayertop(obslevIndex), &
-		   obsoper%vlayerbottom(obslevIndex), &
+                   obsoper%vlayerbottom(obslevIndex), &
                    '. Entire profile skipped over.'
         return
       else if (obsoper%vlayerbottom(obslevIndex) < obsoper%pp(1)*1.01 .or. &  
@@ -3448,9 +3434,7 @@ module obsOperatorsChem_mod
       end if
       if (obsoper%vlayerbottom(obslevIndex) > &
           obsoper%pp(obsoper%nmodlev)*0.999) then
-	   
-	 obsoper%vlayerbottom(obslevIndex)=obsoper%pp(obsoper%nmodlev)*0.999
-
+         obsoper%vlayerbottom(obslevIndex)=obsoper%pp(obsoper%nmodlev)*0.999
       end if
       if (obsoper%vlayertop(obslevIndex) < obsoper%pp(1)*1.001) then
         obsoper%vlayertop(obslevIndex)=obsoper%pp(1)*1.001
@@ -3479,9 +3463,9 @@ module obsOperatorsChem_mod
       if ( tropo_mode >= 1 .and. obsoper%columnBound > obsoper%vlayertop(1) ) then
           
         if (obsoper%iavgkern /= 0) then
-          call utl_abort("oopc_vertObsLayersWgts: Use of averaging ' // & 
-	       'kernels not possible with reduced range of increment profile.")
-	end if
+          call utl_abort('oopc_vertObsLayersWgts: Use of averaging ' // &
+                         'kernels not possible with reduced range of increment profile.')
+        end if
           
         if (kmode == 2 .and. tropo_mode == 1) then
              
@@ -3498,10 +3482,10 @@ module obsOperatorsChem_mod
           obsoper%vlayertop(1) = obsoper%columnBound
              
           call ppo_vertIntegWgts(obsoper%vlayertop,obsoper%vlayerbottom, &
-	       obsoper%nmodlev,obsoper%nobslev,obsoper%modlevindexTop, &
+               obsoper%nmodlev,obsoper%nobslev,obsoper%modlevindexTop, &
                obsoper%modlevindexBot,obsoper%zh,wgts_opt=obsoper%zhp, &
                skipType_opt=skipType,outbound_opt=ixtr,success_opt=success)
-	       	 
+
           ! Apply generalized innovation operator if requested             
           if (obsoper%applyGenOper) call oopc_genoper(kmode)
             
@@ -3531,31 +3515,31 @@ module obsOperatorsChem_mod
            
       call ppo_vertIntegWgts(obsoper%vlayertop,obsoper%vlayerbottom, &
            obsoper%nmodlev,obsoper%nobslev,obsoper%modlevindexTop, &
-	   obsoper%modlevindexBot,obsoper%zh,wgts_opt=obsoper%zhp, &
+           obsoper%modlevindexBot,obsoper%zh,wgts_opt=obsoper%zhp, &
            skipType_opt=skipType,outbound_opt=ixtr,success_opt=success, &
-	   dealloc_opt=.true.)
-			      
+           dealloc_opt=.true.)
+
       ! If tropo_mode=1, reset original vertical range 
-      ! for the tangent linear operator 
+      ! for the tangent linear operator
       if (obsoper%nobslev == 1 .and. kmode == 2 .and. &
         obsoper%constituentId >= 0 .and. obsoper%vco == 4) then
-	
+
         if (tropo_mode == 1 .and.   &
           obsoper%columnBound > obsoper%vlayertop(1) .and.  &
           vlayerbottom_ref > obsoper%pp(obsoper%nmodlev)*0.99) then    
-          
+
           obsoper%vlayerbottom(1)=vlayerbottom_ref
           obsoper%modlevindexBot(1)=modlevindexBot_ref
         end if
       end if
     else
-    
+
       call ppo_vertAvgWgts(obsoper%vlayertop,obsoper%vlayerbottom, &
            obsoper%nmodlev,obsoper%nobslev,obsoper%modlevindexTop, &
-	   obsoper%modlevindexBot,obsoper%zh,wgts_opt=obsoper%zhp, &
+           obsoper%modlevindexBot,obsoper%zh,wgts_opt=obsoper%zhp, &
            skipType_opt=skipType,outbound_opt=ixtr,success_opt=success, &
-	   dealloc_opt=.true.)
-			   
+           dealloc_opt=.true.)
+
     end if
         
   end subroutine oopc_vertObsLayersWgts
@@ -3673,16 +3657,16 @@ module obsOperatorsChem_mod
       zmin=pwin*maxval(abs(obsoper%zh(obslevIndex,levelIndexTop:obsoper%nmodlev)))
       levelIndexBot=0
       do modlevIndex=levelIndexTop,obsoper%nmodlev-1
-	if (abs(obsoper%zh(obslevIndex,modlevIndex)) >= zmin) then
-	  levelIndexTop=modlevIndex
+        if (abs(obsoper%zh(obslevIndex,modlevIndex)) >= zmin) then
+          levelIndexTop=modlevIndex
           do modlevIndexBot=levelIndexTop+1,obsoper%nmodlev
-	    if (abs(obsoper%zh(obslevIndex,modlevIndexBot)) < zmin) then
-	      levelIndexBot=modlevIndexBot-1
+            if (abs(obsoper%zh(obslevIndex,modlevIndexBot)) < zmin) then
+              levelIndexBot=modlevIndexBot-1
               exit
             end if
-	  end do
-	  exit
-	end if	   
+          end do
+          exit
+        end if
       end do
       if (levelIndexBot == 0) then
         call utl_abort('oopc_genOperInterp: Model levels could not be found for ' // &
@@ -3691,9 +3675,9 @@ module obsOperatorsChem_mod
         if (levelIndexBot < obsoper%nmodlev) &
           obsoper%zh(obslevIndex,levelIndexBot+1:obsoper%nmodlev) = 0.0D0
         if (levelIndexTop > 1) &
-          obsoper%zh(obslevIndex,1:levelIndexTop-1) = 0.0D0	 		     
+             obsoper%zh(obslevIndex,1:levelIndexTop-1) = 0.0D0
       end if
-             
+
       ! Application of 1D space vertical covariance inverse B^{-1} to partially
       ! mitigate the weight impact of the later application of the B section 
       ! in finalizing grad(Jo). Note: fdeStddev(:,2)=1.0/fdeStddev(:,1)
@@ -3701,37 +3685,36 @@ module obsOperatorsChem_mod
 
       work(1:obsoper%nmodlev)=obsoper%zh(obslevIndex,1:obsoper%nmodlev) &
         *rvalw(1:obsoper%nmodlev)*fdeStddev(1:obsoper%nmodlev,2) 
-	
+
       obsoper%zhp(obslevIndex,:)=0.0D0
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=levelIndexTop,levelIndexBot
         obsoper%zhp(obslevIndex,modlevIndex) = fdeStddev(modlevIndex,2)    &
-	  *dot_product(work(1:obsoper%nmodlev),                                  &
-	               bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
+          *dot_product(work(1:obsoper%nmodlev),                                  &
+                       bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
       end do
       !$OMP END PARALLEL DO
 
       ! Determine proportionality factor 'a' = (h*B*h^T)(w*B*w^T)^{-1}
        
       ! First determine/estimate w*B*w^T (zwbw)
-       
+
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=levelIndexTop,levelIndexBot
-	 
         work(modlevIndex)=sum(obsoper%zhp(obslevIndex,levelIndexTop:levelIndexBot) &
           *bgStats%corvert(modlevIndex,levelIndexTop:levelIndexBot,varIndex) &
           *fdeStddev(levelIndexTop:levelIndexBot,1))*fdeStddev(modlevIndex,1)
       end do
       !$OMP END PARALLEL DO
-       
+
       zwbw=dot_product(obsoper%zhp(obslevIndex,levelIndexTop:levelIndexBot), &
                        work(levelIndexTop:levelIndexBot))
-       
+
       ! Determine/estimate h*B*h^T (zhbh)
 
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=levelIndexTop,levelIndexBot
-	 
+
         work(modlevIndex)=sum(obsoper%zh(obslevIndex,levelIndexTop:levelIndexBot) &
           *bgStats%corvert(modlevIndex,levelIndexTop:levelIndexBot,varIndex) &
           *fdeStddev(levelIndexTop:levelIndexBot,1))*fdeStddev(modlevIndex,1)
@@ -3747,7 +3730,7 @@ module obsOperatorsChem_mod
 
       obsoper%zh(obslevIndex,levelIndexTop:levelIndexBot)= normFactor &
         *obsoper%zhp(obslevIndex,levelIndexTop:levelIndexBot)
-	
+
     end do
 
   end subroutine oopc_genOperInterp
@@ -3906,18 +3889,18 @@ module obsOperatorsChem_mod
        
         ! Set reference shape constraint/weighting profile according to the trial field
         rvalw(1:obsoper%nmodlev) = rvalr(1:obsoper%nmodlev)
-	
+
       else if (trim(oopc_genOperConstraintType(obsoper%constituentId)) == 'Climat') then
 
         ! Set reference shape constraint/weighting profile according to an external reference 
-	! such as a climatology.
+        ! such as a climatology.
 
         rvalw(1:obsoper%nmodlev) = clm_getColumn(oopc_bgRef,code)
 
       else if (trim(oopc_genOperConstraintType(obsoper%constituentId)) == 'Diff') then
 
         ! Set reference shape constraint profile according to either the external
-	! reference (such as a climatology) or the difference between 
+        ! reference (such as a climatology) or the difference between
         ! this external reference and trial field profile.
         !
         ! This is a mechanism to direct the solution profile shape somewhat towards that 
@@ -3930,63 +3913,62 @@ module obsOperatorsChem_mod
         
         rvalc(1:obsoper%nmodlev) = clm_getColumn(oopc_bgRef,code)
 
-	! Normalize/scale rvalc so that its integral would be equal to the obs
-	! (following proper constant unit conversion of the rval* profiles)
-	work(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
-	call oopc_convertUnits(work)
-	rvalc(1:obsoper%nmodlev) = rvalc(1:obsoper%nmodlev)* &
-	   obsoper%obs(obslevIndex)/ &
+        ! Normalize/scale rvalc so that its integral would be equal to the obs
+        ! (following proper constant unit conversion of the rval* profiles)
+        work(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
+        call oopc_convertUnits(work)
+        rvalc(1:obsoper%nmodlev) = rvalc(1:obsoper%nmodlev)* &
+           obsoper%obs(obslevIndex)/ &
            dot_product(obsoper%zh(obslevIndex, &
-	     obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
-	     work(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
-	
-	! Integral of differences (following proper unit conversion 
-	! via a constant) set to give abs(OmP)              
+             obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)), &
+             work(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
+
+        ! Integral of differences (following proper unit conversion
+        ! via a constant) set to give abs(OmP)
         rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)-rvalr(1:obsoper%nmodlev) 
         rvalw(1:obsoper%nmodlev) = rvalw(1:obsoper%nmodlev)* &
           sign(1.0D0,obsoper%obs(obslevIndex)-obsoper%obsSpaceTrial(obslevIndex)) 
-				
+
         where (abs(rvalw(1:obsoper%nmodlev)) < 0.001d0* &
-	       rvalc(1:obsoper%nmodlev)) 
+               rvalc(1:obsoper%nmodlev))
           rvalw(1:obsoper%nmodlev)=sign(0.001d0*rvalc(1:obsoper%nmodlev), &
                                  rvalw(1:obsoper%nmodlev))
-	end where	
+        end where
         if (all(abs(rvalw(:)) <= threshold)) then
           rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
         else if (any(abs(rvalw(:)) <= threshold)) then 
           zmin=minval(abs(rvalw(:)),mask=abs(rvalw(:)) > threshold)
           where (abs(rvalw(:)) <= threshold) rvalw(:)= zmin
-	end if  
+        end if
       else
         call utl_abort('oopc_genOper: oopc_genOperConstraintType value ' // &
-	               'unrecognized for ' // trim(obsoper%varName) )
+                       'unrecognized for ' // trim(obsoper%varName) )
       end if
-      
 
       ! Begin preparation of the new innovation operator w (=new zhp)
-       
+
       if (obsoper%nobslev == 1 .and. obsoper%modlevindexTop(obslevIndex) == 1 .and.  &
           obsoper%modlevindexBot(obslevIndex) == obsoper%nmodlev) then
-          
+
         ! Treat as total column obs. Here, zhp would otherwise be approx. equal
         ! to 1 except for the near-end points of the model vertical domain,
         ! the latter due to the discretized domain. Not using zhp avoids this
         ! discretization issue from weakly affecting results at the boundaries.
 
-	work(1:obsoper%nmodlev)=1.0
+        work(1:obsoper%nmodlev)=1.0
 
       else 
 
         ! Account for localized obs function (e.g. partial columns, Jacobians. For Jacobians,
         ! zhp must also be independent of the model layer thicknesses.)
-	
-	! Apply cutoff       
-        zmin=pwin*maxval(abs(obsoper%zhp(obslevIndex,1:obsoper%nmodlev)))					     
+
+        ! Apply cutoff
+        zmin=pwin*maxval(abs(obsoper%zhp(obslevIndex,1:obsoper%nmodlev)))
         where (abs(obsoper%zhp(obslevIndex,1:obsoper%nmodlev)) < zmin) 
           work(1:obsoper%nmodlev)=0.0d0 
         elsewhere
           work(1:obsoper%nmodlev)=obsoper%zhp(obslevIndex,1:obsoper%nmodlev)
-	endwhere 
+        endwhere
       end if
 
       ! Application of 1D space vertical covariance inverse B^{-1} to partially
@@ -3999,15 +3981,15 @@ module obsOperatorsChem_mod
 
       work(1:obsoper%nmodlev)=work(1:obsoper%nmodlev)*rvalw(1:obsoper%nmodlev) &
         *fdeStddev(1:obsoper%nmodlev,2) 
-	
+
       obsoper%zhp(obslevIndex,:)=0.0D0
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
                      obsoper%modlevindexBot(obslevIndex)
         obsoper%zhp(obslevIndex,modlevIndex) = fdeStddev(modlevIndex,2) &
-	  /bgStats%hcorrlen(modlevIndex,varIndex)**oopc_genOperHCorrlenExpnt(varIndex) &
-	  *sum(work(1:obsoper%nmodlev)                              &
-	  *bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
+          /bgStats%hcorrlen(modlevIndex,varIndex)**oopc_genOperHCorrlenExpnt(varIndex) &
+          *sum(work(1:obsoper%nmodlev)                              &
+          *bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
       end do
       !$OMP END PARALLEL DO
 
@@ -4016,38 +3998,38 @@ module obsOperatorsChem_mod
       ! First determine/estimate w*B*w^T (zwbw)
        
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
-      do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)	 
+      do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
         work(modlevIndex)=sum(obsoper%zhp(obslevIndex, &
-	  obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
+          obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
           *bgStats%corvert(modlevIndex,obsoper%modlevindexTop(obslevIndex): &
-	                   obsoper%modlevindexBot(obslevIndex),varIndex) &
+                           obsoper%modlevindexBot(obslevIndex),varIndex) &
           *fdeStddev(obsoper%modlevindexTop(obslevIndex): &
-	             obsoper%modlevindexBot(obslevIndex),1))*fdeStddev(modlevIndex,1)
+                     obsoper%modlevindexBot(obslevIndex),1))*fdeStddev(modlevIndex,1)
       end do
       !$OMP END PARALLEL DO
        
       zwbw=dot_product(obsoper%zhp(obslevIndex,obsoper%modlevindexTop(obslevIndex): &
                                    obsoper%modlevindexBot(obslevIndex)), &
                        work(obsoper%modlevindexTop(obslevIndex):         &
-	                    obsoper%modlevindexBot(obslevIndex)))
+                            obsoper%modlevindexBot(obslevIndex)))
        
       ! Determine/estimate h*B*h^T (zhbh)
 
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
-      do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)	 
+      do modlevIndex=obsoper%modlevindexTop(obslevIndex),obsoper%modlevindexBot(obslevIndex)
         work(modlevIndex)=sum(obsoper%zh(obslevIndex, &
-	  obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
+          obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
           *bgStats%corvert(modlevIndex,obsoper%modlevindexTop(obslevIndex): &
-	                   obsoper%modlevindexBot(obslevIndex),varIndex) &
+                           obsoper%modlevindexBot(obslevIndex),varIndex) &
           *fdeStddev(obsoper%modlevindexTop(obslevIndex): &
-	             obsoper%modlevindexBot(obslevIndex),1))*fdeStddev(modlevIndex,1)
+                     obsoper%modlevindexBot(obslevIndex),1))*fdeStddev(modlevIndex,1)
       end do
       !$OMP END PARALLEL DO
        
       zhbh=dot_product(obsoper%zh(obslevIndex,obsoper%modlevindexTop(obslevIndex): &
                                   obsoper%modlevindexBot(obslevIndex)), &
                        work(obsoper%modlevindexTop(obslevIndex):        &
-	                    obsoper%modlevindexBot(obslevIndex)))
+                            obsoper%modlevindexBot(obslevIndex)))
 
       ! Set proportionality factor 'a'
       ! oopc_genOperOmAStatsFactor is introduced to reflect overall unaccounted 
@@ -4110,7 +4092,7 @@ module obsOperatorsChem_mod
           ! Get PBL pressure level
       
           boundPress = phf_calcPBL(nmodlev,pressmod,tt,height,hu_opt=hu_opt, &
-	               uu_opt=uu_opt,vv_opt=vv_opt) 
+                       uu_opt=uu_opt,vv_opt=vv_opt)
       
         case default
            call utl_abort("oopc_getColBoundary: Unrecognized value for tropo_bound of " &
@@ -4149,7 +4131,7 @@ module obsOperatorsChem_mod
 
     if (oopc_columnBoundary%nrep > oopc_obsdata_maxsize) then
       call utl_abort('oopc_addColBoundary: Reach max size of array ' // &
-	             trim(utl_str(oopc_obsdata_maxsize)) )
+                     trim(utl_str(oopc_obsdata_maxsize)) )
     end if
   
     ! Use the header number as the unique code for this obs data
