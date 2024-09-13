@@ -79,7 +79,7 @@ module obsSpaceErrorStdDev_mod
 
   type(struct_OmPStdDevCH)  :: OmPstdCH
   type(struct_hco), pointer :: hco_anl => null()
-  real*8 , allocatable :: ose_vRO_Jacobian(:,:,:)
+  real(8) , allocatable :: ose_vRO_Jacobian(:,:,:)
   logical, allocatable :: ose_vRO_lJac(:)
 
   contains
@@ -288,15 +288,15 @@ module obsSpaceErrorStdDev_mod
     type(struct_columnData) :: column
     type(struct_gsv)        :: statevector
     INTEGER JLAT, JLON, JLEV, JOBS
-    CHARACTER*12 CLETIKET
-    CHARACTER*2 CLTYPVAR
-    CHARACTER*1 CLGRTYP
-    CHARACTER*4 CLNOMVAR
+    CHARACTER(12) CLETIKET
+    CHARACTER(2) CLTYPVAR
+    CHARACTER(1) CLGRTYP
+    CHARACTER(4) CLNOMVAR
     INTEGER IULSSF,IDATEO
     INTEGER FSTPRM,FNOM,FSTOUV
     INTEGER IKEY,IERR,IDATE
-    REAL*8, allocatable :: ZBUFFER(:,:)
-    real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
+    REAL(8), allocatable :: ZBUFFER(:,:)
+    real(8), pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
     INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
     INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
     INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
@@ -912,8 +912,8 @@ module obsSpaceErrorStdDev_mod
     INTEGER IPB,IPT
     INTEGER INDEX_HEADER,ITYP,IK
     INTEGER INDEX_BODY
-    REAL*8 ZWB,ZWT, columnElem
-    REAL*8 ZLEV,ZPB,ZPT
+    REAL(8) ZWB,ZWT, columnElem
+    REAL(8) ZLEV,ZPB,ZPT
     character(len=4) :: varLevel
 
     ! loop over all header indices of the CDFAM family
@@ -1008,8 +1008,8 @@ module obsSpaceErrorStdDev_mod
     integer :: headerIndex, ITYP, IK
     integer :: bodyIndex
     integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
-    real*8  :: ZWB, ZWT, sigmap_uuT, sigmap_vvT , sigmap_uuB, sigmap_vvB 
-    real*8  :: ZLEV, ZPB, ZPT
+    real(8)  :: ZWB, ZWT, sigmap_uuT, sigmap_vvT , sigmap_uuB, sigmap_vvB
+    real(8)  :: ZLEV, ZPB, ZPT
     real(8) :: azimuth, fge_uu, fge_vv, fge_fam
     character(len=4) :: varLevel
 
@@ -1138,8 +1138,8 @@ module obsSpaceErrorStdDev_mod
     INTEGER IPB,IPT
     INTEGER INDEX_HEADER,ITYP,IK
     INTEGER INDEX_BODY
-    REAL*8 ZWB,ZWT
-    REAL*8 ZLEV,ZPB,ZPT
+    REAL(8) ZWB,ZWT
+    REAL(8) ZLEV,ZPB,ZPT
     character(len=4) :: varLevel
 
     ! loop over all body rows
@@ -1324,30 +1324,29 @@ module obsSpaceErrorStdDev_mod
 
     ! Locals:
     INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
-    REAL*8 zLat, Lat, sLat
-    REAL*8 zLon, Lon
-    REAL*8 zAzm !, Azm
-    INTEGER ISAT
-    REAL*8 Rad, Geo
-    REAL*8, allocatable :: zPP(:)
-    REAL*8, allocatable :: zDP(:)
-    REAL*8, allocatable :: zTT(:)
-    REAL*8, allocatable :: zHU(:)
-    REAL*8, allocatable :: zHT(:)
-    REAL*8, allocatable :: zUU(:)
-    REAL*8, allocatable :: zVV(:)
-    INTEGER JL
-    REAL*8 ZP0, ZMT
-    REAL*8 ZFGE, ZERR
+    INTEGER ISAT, JL
+    REAL(8) zLat, Lat, sLat
+    REAL(8) zLon, Lon
+    REAL(8) zAzm !, Azm
+    REAL(8) Rad, Geo
+    REAL(8), allocatable :: zPP(:)
+    REAL(8), allocatable :: zDP(:)
+    REAL(8), allocatable :: zTT(:)
+    REAL(8), allocatable :: zHU(:)
+    REAL(8), allocatable :: zHT(:)
+    REAL(8), allocatable :: zUU(:)
+    REAL(8), allocatable :: zVV(:)
+    REAL(8) ZP0, ZMT
+    REAL(8) ZFGE, ZERR
     INTEGER JV, NGPSLEV, NWNDLEV
     LOGICAL  ASSIM, LFIRST, FIRSTHEADER
     INTEGER NH, NH1
-    REAL*8 DV (gps_ncvmx)
+    REAL(8) DV (gps_ncvmx)
     TYPE(GPS_PROFILE)           :: PRF
-    REAL*8       , allocatable :: H   (:),AZMV(:)
+    REAL(8)       , allocatable :: H   (:),AZMV(:)
     TYPE(GPS_DIFF), allocatable :: RSTV(:)
     type(struct_vco), pointer  :: vco_anl
-    real*8, dimension(:), pointer :: dPdPs
+    real(8), dimension(:), pointer :: dPdPs
 
     WRITE(*,*)'ENTER SETFGEDIFF'
 
@@ -1586,44 +1585,44 @@ module obsSpaceErrorStdDev_mod
     ! column  contains background errors for control variables on model levels
     ! columnTrlOnAnlIncLev contains lo-res first guess profiles at obs locations
     type(struct_vco), pointer :: vco_anl
-    REAL*8 ZLAT, Lat
-    REAL*8 ZLON, Lon
-    REAL*8, allocatable :: ZPP(:)
-    REAL*8, allocatable :: ZDP(:)
-    REAL*8, allocatable :: ZTT(:)
-    REAL*8, allocatable :: ZHU(:)
-    REAL*8, allocatable :: zHeight(:)
-    REAL*8, allocatable :: zHeight2(:)
-    REAL*8, allocatable :: ZTTB(:)
-    REAL*8, allocatable :: ZHUB(:)
-    REAL*8, allocatable :: ZQQB(:)
-    REAL*8, allocatable :: ZQQ(:)
-    REAL*8, allocatable :: ZTTB_P(:)
-    REAL*8, allocatable :: ZQQB_P(:)
-    REAL*8, allocatable :: zHeight_P(:)
-    REAL*8, allocatable :: ZPP_P(:)
-    REAL*8 ZP0
-    REAL*8 ZP0B, ZP0B_P
-    REAL*8 ZMT, ZTOP, ZBOT
-    REAL*8 JAC(gps_ncvmx)
-    REAL*8 DX (gps_ncvmx)
-    REAL*8 ZLEV, ZTDOBS, ZPSMOD
-    REAL*8 ZLSUM
-    REAL*8 DELTAH_NL, DELTAH_TL
-    REAL*8 PERTFAC, ZTDM
-    REAL*8 ZDZMIN, ZSUMTEST
+    REAL(8) ZLAT, Lat
+    REAL(8) ZLON, Lon
+    REAL(8), allocatable :: ZPP(:)
+    REAL(8), allocatable :: ZDP(:)
+    REAL(8), allocatable :: ZTT(:)
+    REAL(8), allocatable :: ZHU(:)
+    REAL(8), allocatable :: zHeight(:)
+    REAL(8), allocatable :: zHeight2(:)
+    REAL(8), allocatable :: ZTTB(:)
+    REAL(8), allocatable :: ZHUB(:)
+    REAL(8), allocatable :: ZQQB(:)
+    REAL(8), allocatable :: ZQQ(:)
+    REAL(8), allocatable :: ZTTB_P(:)
+    REAL(8), allocatable :: ZQQB_P(:)
+    REAL(8), allocatable :: zHeight_P(:)
+    REAL(8), allocatable :: ZPP_P(:)
+    REAL(8) ZP0
+    REAL(8) ZP0B, ZP0B_P
+    REAL(8) ZMT, ZTOP, ZBOT
+    REAL(8) JAC(gps_ncvmx)
+    REAL(8) DX (gps_ncvmx)
+    REAL(8) ZLEV, ZTDOBS, ZPSMOD
+    REAL(8) ZLSUM
+    REAL(8) DELTAH_NL, DELTAH_TL
+    REAL(8) PERTFAC, ZTDM
+    REAL(8) ZDZMIN, ZSUMTEST
     INTEGER INDEX_HEADER, FIRST_HEADER
     INTEGER IDATYP, ITYP
     INTEGER IDATA, IDATEND, INDEX_BODY
     INTEGER JL, NFLEV_T, ILYR, IOBS
     INTEGER INOBS_OPT, INOBS_JAC, icount, iversion
     LOGICAL  ASSIM, OK, LSTAG
-    CHARACTER*9  STN_JAC
+    CHARACTER(9)  STN_JAC
     character(len=12) :: stnid
     CHARACTER(len=4) :: varLevel
     TYPE(GPS_PROFILEZD)    :: PRF, PRFP
     TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
-    real*8, dimension(:), pointer :: dPdPs
+    real(8), dimension(:), pointer :: dPdPs
 
     IF (gps_gb_numZTD .EQ. 0) RETURN
 
