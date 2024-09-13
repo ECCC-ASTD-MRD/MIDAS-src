@@ -1075,7 +1075,7 @@ contains
     
     write(6,9000) message
 9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
-    call flush(6)
+    flush(6)
 
     comm = rpn_comm_comm("WORLD")
     call mpi_abort( comm, 1, ierr )
@@ -1105,7 +1105,7 @@ contains
 
     write(6,9000) message
 9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
-    call flush(6)
+    flush(6)
 
     call rpn_comm_barrier('WORLD', ierr)
     comm = rpn_comm_comm("WORLD")
@@ -1586,10 +1586,10 @@ contains
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
     integer :: ig1, ig2, ig3, ig4
-    character*1 clgrtyp
-    character*2 cltypvar
-    character*4 nomvar
-    character*12 cletiket
+    character(1) clgrtyp
+    character(2) cltypvar
+    character(4) nomvar
+    character(12) cletiket
     real(4), allocatable :: buffer(:,:)
     real(4), allocatable :: buffer3D(:,:,:)
     real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4, dincr
@@ -1609,136 +1609,136 @@ contains
 
     if(ier.lt.0.or.nkeys.eq.0) then
       call utl_abort('utl_readFstField: Search field missing ' // trim(varName) // &
-                     ' from file ' // trim(fname) // '. IPs and etiket: ' // &
-                     utl_str(iip1) // ', ' // utl_str(iip2) // ', ' // utl_str(iip3) // &
-                     ',  ' // trim(etiketi) // '.')
+           ' from file ' // trim(fname) // '. IPs and etiket: ' // &
+           utl_str(iip1) // ', ' // utl_str(iip2) // ', ' // utl_str(iip3) // &
+           ',  ' // trim(etiketi) // '.')
     else if (nk.gt.1) then
       if (nkeys > 1 .or. present(kind_opt) .or. present(lvls_opt) ) then
         call utl_abort('utl_readFstField: Unexpected size nk ' // trim(utl_str(nk)) // &
-                       ' for ' // trim(varName) // ' of file ' // trim(fname))
+             ' for ' // trim(varName) // ' of file ' // trim(fname))
       end if
     end if
 
     if (present(xlat_opt).and.present(xlong_opt)) then
 
-       !  Get lat and long if available.
+      !  Get lat and long if available.
 
-       if (allocated(xlat_opt)) deallocate(xlat_opt,xlong_opt)
-       allocate(xlat_opt(nj),xlong_opt(ni),buffer(ni*nj,1))
-       xlat_opt(:)=-999.
-       xlong_opt(:)=-999.
+      if (allocated(xlat_opt)) deallocate(xlat_opt,xlong_opt)
+      allocate(xlat_opt(nj),xlong_opt(ni),buffer(ni*nj,1))
+      xlat_opt(:)=-999.
+      xlong_opt(:)=-999.
 
-       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &
-                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
-                    clgrtyp, ig1, ig2, ig3,                           &
-                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
+      ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &
+           datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+           clgrtyp, ig1, ig2, ig3,                           &
+           ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
 
-       if (trim(clgrtyp) /= 'B') then
-         if (ni.gt.1) then
-           ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
-           if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1)
-         end if
-         if (nj.gt.1) then
-            ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
-            if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)
-         end if
-         deallocate(buffer)
-       end if
+      if (trim(clgrtyp) /= 'B') then
+        if (ni.gt.1) then
+          ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
+          if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1)
+        end if
+        if (nj.gt.1) then
+          ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
+          if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)
+        end if
+        deallocate(buffer)
+      end if
 
-       if ( trim(clgrtyp) == 'Z' ) then
+      if ( trim(clgrtyp) == 'Z' ) then
 
-         ! Check for rotated grid
+        ! Check for rotated grid
 
-         ier = fstprm(ier,                                         & ! IN
-                 dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
-                 datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
-                 clgrtyp, ig1, ig2, ig3,                           & ! OUT
-                 ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )  ! OUT
+        ier = fstprm(ier,                                         & ! IN
+             dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
+             datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
+             clgrtyp, ig1, ig2, ig3,                           & ! OUT
+             ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )  ! OUT
 
-         call cigaxg (clgrtyp,                                     & ! IN
-                      xlat1_4, xlon1_4, xlat2_4, xlon2_4,          & ! OUT
-                      ig1, ig2, ig3, ig4 ) ! IN
+        call cigaxg (clgrtyp,                                     & ! IN
+             xlat1_4, xlon1_4, xlat2_4, xlon2_4,          & ! OUT
+             ig1, ig2, ig3, ig4 ) ! IN
 
-         if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
-           call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
+        if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
+             call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
 
-       else if (trim(clgrtyp) == 'B') then
+      else if (trim(clgrtyp) == 'B') then
 
-         ! Set B type lat-long grid
+        ! Set B type lat-long grid
 
-         dincr=360.0d0/(ni-1)
-         do i=1,ni
-	   xlong_opt(i) = (i-1)*dincr
-         end do
+        dincr=360.0d0/(ni-1)
+        do i=1,ni
+          xlong_opt(i) = (i-1)*dincr
+        end do
 
-	 if (ig1 == 0) then
-	   ! Global
-	   dincr=180.0d0/(nj-1)
-	   if (ig2 == 0) then
-	     do i=1,nj
-	       xlat_opt(i) = -90.0 + (i-1)*dincr
-	     end do
-	   else
-	     do i=1,nj
-	       xlat_opt(i) = 90.0 - (i-1)*dincr
-	     end do
-	   end if
-	 else if (ig1 == 1) then
-	   ! Northern hemispheric
-	   dincr=90.0d0/(nj-1)
-	   if (ig2 == 0) then
-	     do i=1,nj
-	       xlat_opt(i) = 0.0 + (i-1)*dincr
-	     end do
-	   else
-	     do i=1,nj
-	       xlat_opt(i) = 90.0 - (i-1)*dincr
-	     end do
-	   end if
-	 else
-	   ! Southern hemispheric
-	   dincr=90.0d0/(nj-1)
-	   if (ig2 == 0) then
-	     do i=1,nj
-	       xlat_opt(i) = -90.0 + (i-1)*dincr
-	     end do
-	   else
-	     do i=1,nj
-	       xlat_opt(i) = 0 - (i-1)*dincr
-	     end do
-	   end if
-	 end if
+        if (ig1 == 0) then
+          ! Global
+          dincr=180.0d0/(nj-1)
+          if (ig2 == 0) then
+            do i=1,nj
+              xlat_opt(i) = -90.0 + (i-1)*dincr
+            end do
+          else
+            do i=1,nj
+              xlat_opt(i) = 90.0 - (i-1)*dincr
+            end do
+          end if
+        else if (ig1 == 1) then
+          ! Northern hemispheric
+          dincr=90.0d0/(nj-1)
+          if (ig2 == 0) then
+            do i=1,nj
+              xlat_opt(i) = 0.0 + (i-1)*dincr
+            end do
+          else
+            do i=1,nj
+              xlat_opt(i) = 90.0 - (i-1)*dincr
+            end do
+          end if
+        else
+          ! Southern hemispheric
+          dincr=90.0d0/(nj-1)
+          if (ig2 == 0) then
+            do i=1,nj
+              xlat_opt(i) = -90.0 + (i-1)*dincr
+            end do
+          else
+            do i=1,nj
+              xlat_opt(i) = 0 - (i-1)*dincr
+            end do
+          end if
+        end if
 
-       else if (trim(clgrtyp) /= 'G') then
+      else if (trim(clgrtyp) /= 'G') then
 
-         call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
+        call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
 
-       end if
+      end if
 
     end if
 
     ! Get vertical coordinate
 
     if (present(lvls_opt)) then
-       if (allocated(lvls_opt)) deallocate(lvls_opt)
-       allocate(lvls_opt(nkeys))
+      if (allocated(lvls_opt)) deallocate(lvls_opt)
+      allocate(lvls_opt(nkeys))
 
-       do i=1,nkeys
-          ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &
-                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
-                    clgrtyp, ig1, ig2, ig3,                           &
-                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
-          call convip(ip1,lvl_r4,kindi,-1,string,.false.)
-          lvls_opt(i)=lvl_r4
-       end do
+      do i=1,nkeys
+        ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &
+             datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+             clgrtyp, ig1, ig2, ig3,                           &
+             ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)
+        call convip(ip1,lvl_r4,kindi,-1,string,.false.)
+        lvls_opt(i)=lvl_r4
+      end do
     end if
 
     if (present(kind_opt)) then
-        if (present(lvls_opt)) then
-            kind_opt=kindi
-        else
-            kind_opt=-1
-        end if
+      if (present(lvls_opt)) then
+        kind_opt=kindi
+      else
+        kind_opt=-1
+      end if
     end if
 
     ! Get field
@@ -3048,7 +3048,7 @@ contains
                                                       !   3. found SST.
     ! Locals:
     integer :: ncid, varID, ierr, varIndex
-    character(len=10), parameter :: varNameList(size(variableFound)) = (/'deptht', 'toce', 'tos'/)
+    character(len=10), parameter :: varNameList(size(variableFound)) = (/'deptht', 'toce  ', 'tos   '/)
 
     ! initialize output logical switches      
     variableFound(:) = .false.
