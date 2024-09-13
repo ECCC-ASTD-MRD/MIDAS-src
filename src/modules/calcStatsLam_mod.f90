@@ -2236,7 +2236,7 @@ contains
     close(unit=99)
 
     write(6,*) 'finished writing pressure profiles...'
-    call flush(6)
+    flush(6)
 
   end subroutine writePressureProfiles
 
