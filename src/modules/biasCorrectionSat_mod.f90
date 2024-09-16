@@ -877,7 +877,7 @@ contains
           fileNameExtension = ' '
         end if
 
-        if (fromGenCoeff_opt) then
+        if (fromGenCoeff) then
           fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
               // '_' // trim(filenameExtension)
         else

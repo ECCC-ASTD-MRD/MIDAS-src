@@ -786,6 +786,7 @@ contains
 
     do obsIndex = 1, tvs_nobtov
       sensorIndex = tvs_lsensor(obsIndex)
+      if (sensorIndex <= 0) cycle
       nchannels = tvs_nchan(sensorIndex)
       ! allocate transmittance from surface and from pressure levels
       allocate(tvs_transmission(obsIndex) % tau_total(nchannels))
