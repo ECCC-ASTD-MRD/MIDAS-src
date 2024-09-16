@@ -751,14 +751,15 @@ contains
   !-----------------------------------------------------------------------
   ! bcs_dumpBiasToSqliteAfterThinning
   !-----------------------------------------------------------------------
-  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, fromGenCoeff_opt)
     !
     ! :Purpose:  to dump bias correction coefficients and predictors in dedicated sqlite files 
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)     :: obsSpaceData
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    logical, optional, intent(in)    :: fromGenCoeff_opt
 
     ! Locals:
     integer  :: headerIndex, bodyIndex, iobs, idata, indxtovs, idatyp
@@ -781,11 +782,18 @@ contains
     character(len=20)  :: tovsFileNameList(30)
     character(len=256) :: fileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
-
+    logical :: fromGenCoeff
+    
     if (.not. biasActive) return
     if (.not. dumpToSqliteAfterThinning) return
 
     write(*,*) "bcs_dumpBiasToSqliteAfterThinning: start"
+
+    if (present(fromGenCoeff_opt)) then
+      fromGenCoeff = fromGenCoeff_opt
+    else
+      fromGenCoeff = .false.
+    end if
 
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
@@ -869,12 +877,14 @@ contains
           fileNameExtension = ' '
         end if
 
-        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
-            // '_' // trim(filenameExtension)
-
-        !fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
-         !    // '_' // trim(filenameExtension)
-
+        if (fromGenCoeff_opt) then
+          fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
+              // '_' // trim(filenameExtension)
+        else
+          fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
+              // '_' // trim(filenameExtension)
+        end if
+        
         call fSQL_open(db(fileIndex), fileName, stat)
         write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')

@@ -214,7 +214,7 @@ program midas_genCoeff
   call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
 
   ! if requested, dump the thinned predictors and coefficients to sqlite
-  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, fromGenCoeff_opt=.true.)
 
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
