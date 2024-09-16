@@ -48,7 +48,7 @@ module burpRead_mod
   integer          :: clwFgElementId   ! bufr element id of cloud liquid water from background in all-sky mode
   integer          :: siFgElementId    ! bufr element id of scattering index in all-sky mode
   integer          :: btClearElementId ! bufr element id of clear-sky radiance in all-sky mode
-
+  integer          :: scanPosEleCris   ! bufr element id for CrIS scan position (default to 5045) 
 contains
 
   character(len=7) function brpr_getTypeResume()
@@ -1733,7 +1733,7 @@ contains
          ENFORCE_CLASSIC_SONDES, UA_HIGH_PRECISION_TT_ES, UA_FLAG_HIGH_PRECISION_TT_ES, READ_QI_GA_MT_SW
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC, BLISTELEMENTS_SFC, &
          NELEMS_GPS, LISTE_ELE_GPS
-    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS
+    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS, scanPosEleCris
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC, BLISTELEMENTS_SFC
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS, BLISTELEMENTS
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST, TYPE_RESUME
@@ -1778,6 +1778,7 @@ contains
       CASE( 'namburp_filter_tovs')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
+        scanPosEleCris = 5045
         READ(utl_flnml,NML=NAMBURP_FILTER_TOVS)
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
@@ -1950,21 +1951,6 @@ contains
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     integer                :: scanPosEle
 
-    !Exception CrIS
-    !The field of regard (5045) contains 9 field of views (5043) and rotates by 45 degrees along the scan
-    ! we always take number 5 which is the central one
-    if (index(brp_file,'cris') > 0) then
-      scanPosEle = 5045
-    else
-      scanPosEle = 5043
-    end if
-    
-    LISTE_INFO(1:31) = (/ &
-        1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
-        2022,33060,33062,33039,10035,10036,08046, scanPosEle, 013209,clwFgElementId, &
-        1033,2011,4197,siFgElementId,13208,5040,33078,33079,33080,020029, &
-        25174 /)
-
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
     vcord_type(:)=-1
@@ -2077,6 +2063,21 @@ contains
         call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
+    !Exception CrIS
+    !The field of regard (5045) contains 9 field of views (5043) and rotates by 45 degrees along the scan
+    ! we always take number 5 which is the central one
+    if (index(brp_file,'cris') > 0) then
+      scanPosEle = scanPosEleCris
+    else
+      scanPosEle = 5043
+    end if
+    
+    LISTE_INFO(1:31) = [ &
+        1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
+        2022,33060,33062,33039,10035,10036,08046,scanPosEle,013209,clwFgElementId, &
+        1033,2011,4197,siFgElementId,13208,5040,33078,33079,33080,020029, &
+        25174 ]
+    
     NELE=NELEMS
     LISTE_ELE(1:NELE)=BLISTELEMENTS(1:NELE)
     if (trim(FAMILYTYPE) == 'GP') then
