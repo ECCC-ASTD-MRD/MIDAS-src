@@ -3511,16 +3511,16 @@ contains
   !-----------------------------------------
   ! read_bcif
   !-----------------------------------------
-  subroutine read_bcif(bcifFile, hspec, ncan, can, bcmode, bctype, npred, pred, global_opt, exitcode)
+  subroutine read_bcif(bcifFileName, isHyperSpectral, ncan, can, bcmode, bctype, npred, pred, global_opt, exitCode)
     !
     ! :Purpose: to read channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     !
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: bcifFile
-    logical,          intent(in)  :: hspec
-    integer,          intent(out) :: exitcode
+    character(len=*), intent(in)  :: bcifFileName
+    logical,          intent(in)  :: isHyperSpectral
+    integer,          intent(out) :: exitCode
     integer,          intent(out) :: ncan
     integer,          intent(out) :: can(tvs_maxchannelnumber)
     integer,          intent(out) :: npred(tvs_maxchannelnumber)
@@ -3532,7 +3532,7 @@ contains
     ! Locals:
     character(len=7)             :: instrum
     character(len=2)             :: cnum
-    integer                      :: i, j, ier, ii, iun
+    integer                      :: channelIndex, predictorIndex, ier, iun
     character(len=64)            :: line
     integer                      :: xcan, xnpred, chknp
     character(len=1)             :: xbcmode, xbctype
@@ -3552,7 +3552,7 @@ contains
     ! ....
     ! ....
     ! ===================  24 APRIL 2014    LIST-DIRECTED I/O VERSION ==============================================
-    !   CALL read_bcif(iunbc, bc_instrum, bc_ncan, bc_can, bc_mode, bc_type, bc_npred, bc_pred, global_opt, exitcode)
+    !   CALL read_bcif(bcifFileName, isHyperSpectral, ncan, can, bcmode, bctype, npred, pred, global_opt, exitCode)
     !
     !  global_opt = NON    Read channel-specific data for ALL ncan channels from BCIF (channel 0 ignored)
     !               OUI    Read channel 0 data and apply to all ncan channels (global values)
@@ -3560,7 +3560,7 @@ contains
     !                      then scan the rest of the BCIF for any channel-specific data that will
     !                      override the default values.
     !
-    !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS) the BCIF must always contain records for ALL ncan channels.
+    !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS, isHyperSpectral ==.true.) the BCIF must always contain records for ALL ncan channels.
     !          If global_opt = OUI, only the channel numbers are needed in column 1 (CHAN) to get the list
     !            of channel numbers.
     !          If global_opt = DEF, other column data (MODE, TYPE, NPRED, PRED1,...) are entered only for
@@ -3572,12 +3572,12 @@ contains
     !           If global_opt = DEF, the channel 0 record (default values) and only records for those channels
     !             for which values are different from defaults are needed in the BCIF.
     
-    exitcode = -1
+    exitCode = -1
 
     iun = 0
-    ier = fnom(iun, bcifFile, 'FMT', 0)
+    ier = fnom(iun, bcifFileName, 'FMT', 0)
     if (ier /= 0) then
-      call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFile)) 
+      call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFileName)) 
     end if
 
     pred(:,:) = 'XX'
@@ -3585,7 +3585,7 @@ contains
     read(iun,'(A64)') line
     do while(line(1:3)== 'DEF')
       read(line(8:), *, iostat=ier) par1, par2
-      if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFile))
+      if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFileName))
       xpred(1) = line(5:6)
       select case(xpred(1))
       case('T1')
@@ -3607,42 +3607,42 @@ contains
       call readBcifLine(iun, can(1), bcmode(1), bctype(1), npred(1), pred(1,:), ier)
       if (ier /= 0) then
         write(*,*) 'read_BCIF: Error reading channel 0 data!'
-        exitcode = ier
+        exitCode = ier
         return
       end if
       if (can(1) /= 0) then
         write(*,*) 'read_BCIF: Channel 0 global values not found!'
-        exitcode = -1
+        exitCode = -1
         return
       end if
       ! Clone channel 0 information to all ncan channels
-      if (.not. hspec) then
+      if (.not. isHyperSpectral) then
         ! For instruments with consecutive channels 1,2,3,...ncan (e.g. AMSU, SSM/I)
         !  -- no need to read the channel numbers from the BCIF
-        do i = 2, ncan+1
-          can(i) = i - 1
-          bcmode(i) = bcmode(1)
-          bctype(i) = bctype(1)
-          npred(i) = npred(1)
-          do j = 1, npred(i)
-            pred(i,j) = pred(1,j)
+        do channelIndex = 2, ncan+1
+          can(channelIndex) = channelIndex - 1
+          bcmode(channelIndex) = bcmode(1)
+          bctype(channelIndex) = bctype(1)
+          npred(channelIndex) = npred(1)
+          do predictorIndex = 1, npred(channelIndex)
+            pred(channelIndex,predictorIndex) = pred(1,predictorIndex)
           end do
         end do
       else
         ! For hyperspectral instruments (channel subsets), read the channel numbers from the BCIF
-        do i = 2, ncan + 1
+        do channelIndex = 2, ncan + 1
           read(iun, *, iostat=ier) xcan
           if (ier /= 0) then
             write(*,*) 'read_BCIF: Error reading channel numbers!'
-            exitcode = ier
+            exitCode = ier
             return
           end if
-          can(i) = xcan
-          bcmode(i) = bcmode(1)
-          bctype(i) = bctype(1)
-          npred(i) = npred(1)
-          do j = 1, npred(i)
-            pred(i,j) = pred(1,j)
+          can(channelIndex) = xcan
+          bcmode(channelIndex) = bcmode(1)
+          bctype(channelIndex) = bctype(1)
+          npred(channelIndex) = npred(1)
+          do predictorIndex = 1, npred(channelIndex)
+            pred(channelIndex,predictorIndex) = pred(1,predictorIndex)
           end do
         end do
         ! Reposition the file to just after channel 0 record
@@ -3654,39 +3654,39 @@ contains
       ! For global_opt == 'DEF' check for channel-specific information and overwrite the default (channel 0) values
       ! for the channel with the values from the file
       if (global_opt == 'DEF') then
-        if (.not. hspec) then
+        if (.not. isHyperSpectral) then
           do
             call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier < 0) exit  
             if (ier > 0) then
               write(*,*) 'read_BCIF: Error reading file!'
-              exitcode = ier
+              exitCode = ier
               return
             end if
-            ii = xcan + 1
-            if (ii > ncan + 1) then
+            channelIndex = xcan + 1
+            if (channelIndex > ncan + 1) then
               write(*,*) 'read_BCIF: Channel number in BCIF exceeds number of channels!'
               write(*,'(A,1X,I4,1X,I4)') '           Channel, ncan = ', xcan, ncan
-              exitcode = -1
+              exitCode = -1
               return
             end if
-            bcmode(ii) = xbcmode
-            bctype(ii) = xbctype
-            npred(ii) = xnpred
-            do j = 1, npred(ii)
-              pred(ii,j) = xpred(j)
+            bcmode(channelIndex) = xbcmode
+            bctype(channelIndex) = xbctype
+            npred(channelIndex) = xnpred
+            do predictorIndex = 1, npred(channelIndex)
+              pred(channelIndex,predictorIndex) = xpred(predictorIndex)
             end do
           end do
         else
           ! For hyperspectral instruments
-          do i = 2, ncan + 1
+          do channelIndex = 2, ncan + 1
             call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier /= 0) cycle  
-            bcmode(i) = xbcmode
-            bctype(i) = xbctype
-            npred(i) = xnpred
-            do j = 1, npred(i)
-              pred(i,j) = xpred(j)
+            bcmode(channelIndex) = xbcmode
+            bctype(channelIndex) = xbctype
+            npred(channelIndex) = xnpred
+            do predictorIndex = 1, npred(channelIndex)
+              pred(channelIndex,predictorIndex) = xpred(predictorIndex)
             end do
           end do
         end if
@@ -3695,31 +3695,31 @@ contains
     ! Non-GLOBAL: Read the entire file for channel specific values (all channels)
     ! ---------------------------------------------------------------------------------------------------------------------
     if (global_opt == 'NON') then
-      ii = 1
+      channelIndex = 1
       do
-        call readBcifLine(iun, can(ii), bcmode(ii), bctype(ii), npred(ii), pred(ii,:), ier)
+        call readBcifLine(iun, can(channelIndex), bcmode(channelIndex), bctype(channelIndex), npred(channelIndex), pred(channelIndex,:), ier)
         if (ier < 0) exit  
         if (ier > 0) then
           write(*,*) 'read_BCIF: Error reading file!'
-          exitcode = ier
+          exitCode = ier
           return
         end if
-        if (ii == 1) then
-          if (can(ii) /= 0) then
+        if (channelIndex == 1) then
+          if (can(channelIndex) /= 0) then
             write(*,*) 'read_BCIF: Channel 0 global/default values not found!'
-            exitcode = -1
+            exitCode = -1
             return
           end if
         end if
-        ii = ii + 1
+        channelIndex = channelIndex + 1
       end do
-      if (ii - 2 < ncan) then
+      if (channelIndex - 2 < ncan) then
         write(*,*) 'read_BCIF: Number of channels in file is less than specified value (NCAN). Changing value of NCAN.'
-        ncan = ii - 2
+        ncan = channelIndex - 2
       end if
-      if (ii > ncan + 2) then
+      if (channelIndex > ncan + 2) then
         write(*,*) 'read_BCIF: ERROR -- Number of channels in file is greater than specified value (NCAN)!'
-        exitcode = -1
+        exitCode = -1
         return
       end if
     end if
@@ -3729,18 +3729,18 @@ contains
     write(*,'(1X,A7,1X,I4)') instrum, ncan
     write(*,*) line
    
-    do i = 1, ncan + 1
-      chknp = count(pred(i,:) /= 'XX')
-      if (chknp /= npred(i)) npred(i) = chknp
-      if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(cnum,'(i2)') npred(i)
-      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, npred(i))
+    do channelIndex = 1, ncan + 1
+      chknp = count(pred(channelIndex,:) /= 'XX')
+      if (chknp /= npred(channelIndex)) npred(channelIndex) = chknp
+      if (npred(channelIndex) == 0 .and. bctype(channelIndex) == 'C') bctype(channelIndex) = 'F'
+      write(cnum,'(i2)') npred(channelIndex)
+      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(channelIndex), bcmode(channelIndex), &
+          bctype(channelIndex), npred(channelIndex), (pred(channelIndex,predictorIndex), predictorIndex = 1, npred(channelIndex))
     end do
     write(*,*) 'read_BCIF: exit '
 
     ier = fclos(iun)
-    exitcode = 0
-
+    exitCode = 0
 
   contains
 
