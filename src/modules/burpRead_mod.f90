@@ -43,12 +43,12 @@ module burpRead_mod
   LOGICAL          :: ENFORCE_CLASSIC_SONDES       ! choose to ignore high-res raobs lat/lon/time information
   LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs 
   LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES ! choose to read flag of higher precision elements for raobs
-  LOGICAL          :: READ_QI_GA_MT_SW ! read additional QC-related elements for AMV obs
-  logical          :: addBtClearToBurp ! choose to write clear-sky radiance to file in all-sky mode
-  integer          :: clwFgElementId   ! bufr element id of cloud liquid water from background in all-sky mode
-  integer          :: siFgElementId    ! bufr element id of scattering index in all-sky mode
-  integer          :: btClearElementId ! bufr element id of clear-sky radiance in all-sky mode
-  integer          :: scanPosEleCris   ! bufr element id for CrIS scan position (default to 5045) 
+  LOGICAL          :: READ_QI_GA_MT_SW     ! read additional QC-related elements for AMV obs
+  logical          :: addBtClearToBurp     ! choose to write clear-sky radiance to file in all-sky mode
+  integer          :: clwFgElementId       ! bufr element id of cloud liquid water from background in all-sky mode
+  integer          :: siFgElementId        ! bufr element id of scattering index in all-sky mode
+  integer          :: btClearElementId     ! bufr element id of clear-sky radiance in all-sky mode
+  integer          :: scanPosElementIdCris ! bufr element id for CrIS scan position (default to 5045) 
 contains
 
   character(len=7) function brpr_getTypeResume()
@@ -1733,7 +1733,7 @@ contains
          ENFORCE_CLASSIC_SONDES, UA_HIGH_PRECISION_TT_ES, UA_FLAG_HIGH_PRECISION_TT_ES, READ_QI_GA_MT_SW
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC, BLISTELEMENTS_SFC, &
          NELEMS_GPS, LISTE_ELE_GPS
-    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS, scanPosEleCris
+    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS, scanPosElementIdCris
     NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC, BLISTELEMENTS_SFC
     NAMELIST /NAMBURP_FILTER_CHM/NELEMS, BLISTELEMENTS
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST, TYPE_RESUME
@@ -1778,7 +1778,7 @@ contains
       CASE( 'namburp_filter_tovs')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        scanPosEleCris = 5045
+        scanPosElementIdCris = 5045
         READ(utl_flnml,NML=NAMBURP_FILTER_TOVS)
         call getListAndSize(nelems, blistelements, "nelems")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
@@ -1949,7 +1949,7 @@ contains
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
-    integer                :: scanPosEle
+    integer                :: scanPosElementId
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -2067,9 +2067,9 @@ contains
     !The field of regard (5045) contains 9 field of views (5043) and rotates by 45 degrees along the scan
     ! we always take number 5 which is the central one
     if (index(brp_file,'cris') > 0) then
-      scanPosEle = scanPosEleCris
+      scanPosElementId = scanPosElementIdCris
     else
-      scanPosEle = 5043
+      scanPosElementId = 5043
     end if
     
     LISTE_INFO(1:31) = [ &
@@ -3881,7 +3881,7 @@ contains
           ELSE
             INSTRUMENT = NINT(RINSTRUMENT)
           END IF
-        CASE( 5043, 5045) !5045 for CriS, 5043 for the other instruments. Both elements should never be in liste_info
+        CASE( 5043, 5045) !5045 for CriS, 5043 for the other instruments.
           RFOV = INFOV
           if (RFOV == MPC_missingValue_R4 ) THEN
             IFOV = 0
