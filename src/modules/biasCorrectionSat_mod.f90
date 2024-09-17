@@ -82,7 +82,6 @@ module biasCorrectionSat_mod
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
-
   real(8)               :: bottomPressureT1 = 1000.d0
   real(8)               :: topPressureT1 = 300.d0
   real(8), allocatable  :: trialHeight300m850(:)
@@ -762,7 +761,7 @@ contains
     logical, optional, intent(in)    :: fromGenCoeff_opt
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, iobs, idata, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
     real(8)  :: predictor(NumPredictors)
@@ -850,7 +849,6 @@ contains
     end do
     
     iobs = 0
-    idata = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -927,7 +925,6 @@ contains
         if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
         if (obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex) == MPC_missingValue_R8) cycle BODY
         if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY
-        idata = idata + 1
         
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, chanIndx, bodyIndex)
         if (chanindx > 0) then
@@ -3750,7 +3747,7 @@ contains
     subroutine readBcifLine(unitNumber, channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, predictors, errorCode)
       implicit none
 
-      !Arguments:
+      ! Arguments:
       integer, intent(in)           :: unitNumber
       integer, intent(out)          :: channelNumber
       character(len=1), intent(out) :: biasCorrectionMode
@@ -3759,12 +3756,20 @@ contains
       character(len=2), intent(out) :: predictors(:)
       integer ,intent(out)          :: errorCode
       ! Locals:
-      integer :: i
+      integer :: predictorIndex
 
       read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors
       if (errorCode /= 0) return
+      
+      if (nPredictors > NumPredictors) then
+        write(*,*) "readBcifLine: too many predictors in BCIF file ", nPredictors, NumPredictors
+        errorCode = -1
+        return
+      end if
       backspace(unitNumber)
-      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, (predictors(i), i = 1, nPredictors)
+      
+      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, &
+          (predictors(predictorIndex), predictorIndex = 1, nPredictors)
 
     end subroutine readBcifLine
 
