@@ -300,6 +300,7 @@ module oceanObservations_mod
       end if
 
       if (present(salinity_opt)) then
+        ! compute freezing point in degrees Celsius:
         freezingPointTemperature = (-0.0575 + 1.710523e-3 * sqrt(abs(salinity_opt(coordinatesIndex))) - &
                                     2.154996e-4 * salinity_opt(coordinatesIndex)) * &
                                    salinity_opt(coordinatesIndex)
