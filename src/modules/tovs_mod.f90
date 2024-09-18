@@ -4770,16 +4770,15 @@ contains
     character(len=1024)            :: fileName
     integer                        :: btIndex, bodyIndex
     integer(8)                     :: obsIdd, obsIdo
-    logical                        :: dirExists
     integer                        :: profileIndex, tovsIndex, headerIndex
     integer                        :: err, iunit, numLev
     integer, external              :: fnom,fclos
     character(len = 12), parameter :: dirName = 'tvs_jacobian'
 
-    inquire(directory=trim(dirName), exist=dirExists)
+    err = clib_isdir(trim(dirName))
 
     ! Create directory if it doesn't exists
-    if (.not. dirExists) then
+    if (err /= CLIB_OK ) then
       err = clib_mkdir_r(trim(dirName))
     end if
 
