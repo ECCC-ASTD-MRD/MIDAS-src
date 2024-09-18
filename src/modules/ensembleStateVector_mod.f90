@@ -1170,7 +1170,11 @@ CONTAINS
 
     sameVariables = .false.
     if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
-      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+      ! we want all 'ens%statevector_work%varExistlist' and 'statevector%varExistlist' be both
+      !       all '.true' or
+      if (      (all(ens%statevector_work%varExistlist) .and. all(statevector%varExistlist)) .or. &
+           !  all '.false.'
+           .not.(any(ens%statevector_work%varExistlist) .or.  any(statevector%varExistlist)) ) then
         sameVariables = .true.
       end if
     end if
@@ -1290,7 +1294,11 @@ CONTAINS
 
     sameVariables = .false.
     if (size(ens%statevector_work%varExistlist) == size(statevector%varExistlist)) then
-      if (all(ens%statevector_work%varExistlist == statevector%varExistlist)) then
+      ! we want all 'ens%statevector_work%varExistlist' and 'statevector%varExistlist' be both
+      !       all '.true' or
+      if (      (all(ens%statevector_work%varExistlist) .and. all(statevector%varExistlist)) .or. &
+           !  all '.false.'
+           .not.(any(ens%statevector_work%varExistlist) .or.  any(statevector%varExistlist)) ) then
         sameVariables = .true.
       end if
     end if
