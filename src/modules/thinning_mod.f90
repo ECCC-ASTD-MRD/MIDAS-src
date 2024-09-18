@@ -920,7 +920,7 @@ contains
       dataBlacklist(:,:) = 0 ! blacklist matrix for stnids and elements
 
       do rowIndex = 1, numRowBlacklist
-        read(nulfile, iostat = istat, fmt = '(x,a8,x,5(x,i1))') &
+        read(nulfile, iostat = istat, fmt = '(1x,a8,1x,5(1x,i1))') &
              stnidBlacklist(rowIndex), &
              (rowBlackList(colIndex), colIndex = 1, numColBlacklist)
         do elemIndex = 1, numEleBlacklist
