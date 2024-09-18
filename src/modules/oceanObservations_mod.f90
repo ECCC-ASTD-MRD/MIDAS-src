@@ -17,7 +17,8 @@ module oceanObservations_mod
   use codePrecision_mod  
   use sqliteRead_mod
   use bufr_mod
-  
+  use mathPhysConstants_mod
+
   implicit none
   save
   private
@@ -39,7 +40,7 @@ module oceanObservations_mod
   ! oobs_pseudoSST
   !----------------------------------------------------------------------------------------
   subroutine oobs_pseudoSST(hco, vco, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                            iceThinning, outputFileName, seaWaterThreshold)
+                            iceThinning, outputFileName, seaWaterThreshold, useSalinity)
     !
     !:Purpose: to generate pseudo SST data  
     !
@@ -54,18 +55,19 @@ module oceanObservations_mod
     integer                   , intent(in)    :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
     character(len=*)          , intent(in)    :: outputFileName    
     real(4)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    logical                   , intent(in)    :: useSalinity          ! to use or not NEMO salinity field to compute freezing point temperature
     
     ! Locals:
-    type(struct_gsv)            :: stateVector_ice, stateVector_seaWater
-    real(4), pointer            :: seaIce_ptr(:, :, :), seaWater_ptr(:, :, :)
-    type(struct_ocm)            :: oceanMask
-    integer                     :: numberIceCoveredPoints, lonIndex, latIndex, dateStamp, inlandWaterPoints
-    integer                     :: datePrint, timePrint, imode, seaWaterPoints
-    integer                     :: randomSeed, newDate, ierr 
-    integer, allocatable        :: iceDomainIndexesAux(:), iceDomainIndexes(:)
-    real(4), allocatable        :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:)  
-    real(4), allocatable        :: seaWaterFraction(:), iceLons(:), iceLats(:)
-    type(struct_obs)            :: obsData   
+    type(struct_gsv)     :: stateVector_ice, stateVector_seaWater, stateVector_salinity
+    real(4), pointer     :: seaIce_ptr(:, :, :), seaWater_ptr(:, :, :), salinity_ptr(:, :, :)
+    type(struct_ocm)     :: oceanMask
+    integer              :: numberIceCoveredPoints, lonIndex, latIndex, dateStamp, inlandWaterPoints
+    integer              :: datePrint, timePrint, imode, seaWaterPoints
+    integer              :: randomSeed, newDate, ierr 
+    integer, allocatable :: iceDomainIndexesAux(:), iceDomainIndexes(:)
+    real(4), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:) 
+    real(4), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
+    type(struct_obs)     :: obsData   
     
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -73,20 +75,32 @@ module oceanObservations_mod
 
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'LG'/))
+                      datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'LG'/), &
+                      hInterpolateDegree_opt = 'LINEAR')
     call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_ice, seaIce_ptr)
 
     ! read sea water fraction
     call gsv_allocate(stateVector_seaWater, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'VF'/))
+                      datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'VF'/), &
+                      hInterpolateDegree_opt = 'LINEAR')
     call gio_readFromFile(stateVector_seaWater, './seaice_analysis', ' ','A', &
-                          unitConversion_opt=.false., containsFullField_opt=.true.)
+                          unitConversion_opt = .false., containsFullField_opt = .true.)
     call gsv_getField(stateVector_seaWater, seaWater_ptr)
 
     ! Get land mask from analysisgrid file (1=water, 0=land)
     call ocm_readMaskFromFile(oceanMask, hco, vco, './analysisgrid')
+
+    if (useSalinity) then
+      ! get latest sea-ice analysis
+      call gsv_allocate(stateVector_salinity, 1, hco, vco, dataKind_opt = 4, &
+                        datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'SSS'/))
+      call gio_readFromFile(stateVector_salinity, './restart', ' ', 'A', &
+                            unitConversion_opt = .false., containsFullField_opt = .true.)
+      call gsv_getField(stateVector_salinity, salinity_ptr)
+      allocate(salinityAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
+    end if
 
     allocate(iceDomainIndexesAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
     allocate(iceLonsAux((myLonEnd - myLonBeg + 1) * (myLatEnd - myLatBeg + 1)))
@@ -103,6 +117,7 @@ module oceanObservations_mod
           if (seaice_ptr(lonIndex, latIndex, 1) > iceFractionThreshold) then
 
             numberIceCoveredPoints = numberIceCoveredPoints + 1
+
             iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
             seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
 
@@ -114,6 +129,9 @@ module oceanObservations_mod
 
             iceLonsAux(numberIceCoveredPoints) = hco%lon2d_4 (lonIndex, latIndex)
             iceLatsAux(numberIceCoveredPoints) = hco%lat2d_4 (lonIndex, latIndex)
+	    iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
+	    seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
+            if (useSalinity) salinityAux(numberIceCoveredPoints) = salinity_ptr(lonIndex, latIndex, 1)
 
           end if
         end if
@@ -121,12 +139,15 @@ module oceanObservations_mod
     end do
     call ocm_deallocate(oceanMask)
     call gsv_deallocate(stateVector_ice)
-    call gsv_deallocate(stateVector_seaWater)
+    call gsv_deallocate(stateVector_seaWater)            
+    if (useSalinity) call gsv_deallocate(stateVector_salinity)
+
     write(*,*) 'oobs_pseudoSST: ', numberIceCoveredPoints, ' ice-covered points found'
     write(*,*) 'oobs_pseudoSST: where ', inlandWaterPoints, ' are inland water points'
     write(*,*) 'oobs_pseudoSST: ', seaWaterPoints, ' sea water points found'
 
     if (numberIceCoveredPoints > 0) then
+
       allocate(iceDomainIndexes(1:numberIceCoveredPoints))
       iceDomainIndexes(:) = iceDomainIndexesAux(1:numberIceCoveredPoints)
       allocate(seaWaterFraction(1:numberIceCoveredPoints))      
@@ -135,12 +156,20 @@ module oceanObservations_mod
       allocate(iceLats(1:numberIceCoveredPoints))
       iceLons(:) = iceLonsAux(1:numberIceCoveredPoints)
       iceLats(:) = iceLatsAux(1:numberIceCoveredPoints)
-    end if  
+
+      if (useSalinity) then
+        allocate(salinity(1:numberIceCoveredPoints))
+        salinity(:) = salinityAux(1:numberIceCoveredPoints)
+      end if
+
+    end if
+  
     deallocate(iceLonsAux)
     deallocate(iceLatsAux)
     deallocate(iceDomainIndexesAux)
     deallocate(seaWaterFractionAux)
-        
+    if (useSalinity) deallocate(salinityAux)
+    
     dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
     write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp 
     ! compute random seed from the date for randomly forming sea-ice subdomain
@@ -158,10 +187,20 @@ module oceanObservations_mod
       call utl_randomOrderInt(iceDomainIndexes, randomSeed)
       write(*,*) 'oobs_pseudoSST: seed for random shuffle of sea-ice points: ', randomSeed
     
-      call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
-                               iceThinning, outputSST, outputFreshWaterST, &
-                               outputFileName, datePrint, timePrint, &
-                               seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
+      if (useSalinity) then
+        call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
+                                 iceThinning, outputSST, outputFreshWaterST, &
+                                 outputFileName, datePrint, timePrint, &
+                                 seaWaterFraction, seaWaterThreshold, &
+                                 inlandWaterPoints, salinity_opt = salinity)
+      else
+        call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
+                                 iceThinning, outputSST, outputFreshWaterST, &
+                                 outputFileName, datePrint, timePrint, &
+                                 seaWaterFraction, seaWaterThreshold, &
+                                 inlandWaterPoints)
+      end if
+
     else 
     
       call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
@@ -174,6 +213,7 @@ module oceanObservations_mod
       deallocate(iceLats)
       deallocate(iceDomainIndexes)
       deallocate(seaWaterFraction)
+      if (useSalinity) deallocate(salinity)
     end if  
     
     write(*,*) 'oobs_pseudoSST: done'
@@ -186,8 +226,8 @@ module oceanObservations_mod
 
   subroutine oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, iceThinning, &
                                  outputSST, outputFreshWaterST, outputFileName, &
-                                 datePrint, timePrint, &
-                                 seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
+                                 datePrint, timePrint, seaWaterFraction, &
+                                 seaWaterThreshold, inlandWaterPoints, salinity_opt)
     !
     !:Purpose: pseudo SST data are put into obsSpaceData  
     !          and written into an SQLite file
@@ -208,24 +248,24 @@ module oceanObservations_mod
     real(4)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water
     real(4)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water 
     integer          , intent(in)    :: inlandWaterPoints  ! number of inland water points 
+    real(4), optional, intent(in)    :: salinity_opt(:)    ! to use or not NEMO salinity field to compute freezing point temperature
      
     ! Locals:
-    real(pre_obsReal)           :: obsLon, obsLat
-    real(4)                     :: obsValue
-    integer                     :: iceIndex, iceDomainDimension, pseudoObsDimension
-    integer                     :: codeType, headerIndex
-    integer                     :: coordinatesIndex, counterThinning, checkInlandWatersCount, checkSeaWatersCount
-    character(len=*), parameter :: myName = 'oobs_computeObsData'
+    real(pre_obsReal) :: obsLon, obsLat
+    real(4)           :: obsValue, freezingPointTemperature
+    integer           :: iceIndex, iceDomainDimension, pseudoObsDimension
+    integer           :: codeType, headerIndex
+    integer           :: coordinatesIndex, counterThinning, checkInlandWatersCount, checkSeaWatersCount
     
     iceDomainDimension = size(iceDomainIndexes)
     pseudoObsDimension = floor(real((iceDomainDimension - inlandWaterPoints) / iceThinning)) + inlandWaterPoints
       
-    write(*,*) myName//': sea-ice domain dimension: ', iceDomainDimension
-    write(*,*) myName//': pseudo obs vector dimension: ', pseudoObsDimension
-    write(*,*) myName//': pseudo SST obs will be generated in every ', iceThinning, &
+    write(*,*) 'oobs_computeObsData: sea-ice domain dimension: ', iceDomainDimension
+    write(*,*) 'oobs_computeObsData: pseudo obs vector dimension: ', pseudoObsDimension
+    write(*,*) 'oobs_computeObsData: pseudo SST obs will be generated in every ', iceThinning, &
     ' points of the sea-ice field for sea water, '
-    write(*,*) myName//': and in every point for inland waters, where sea water fraction <= ', seaWaterThreshold
-    write(*,*) myName//': number of inland waters points: ', inlandWaterPoints  
+    write(*,*) 'oobs_computeObsData: and in every point for inland waters, where sea water fraction <= ', seaWaterThreshold
+    write(*,*) 'oobs_computeObsData: number of inland waters points: ', inlandWaterPoints  
     
     call obs_initialize(obsData, numHeader_max_opt = pseudoObsDimension, &
                         numBody_max_opt = pseudoObsDimension, mpi_local_opt = .true.)
@@ -235,7 +275,7 @@ module oceanObservations_mod
     counterThinning = iceThinning
     checkInlandWatersCount = 0
     checkSeaWatersCount = 0
-    
+
     do iceIndex = 1, iceDomainDimension 
 
       if (headerIndex > pseudoObsDimension ) cycle
@@ -257,6 +297,13 @@ module oceanObservations_mod
           counterThinning = counterThinning + 1
           cycle
         end if
+      end if
+
+      if (present(salinity_opt)) then
+        freezingPointTemperature = (-0.0575 + 1.710523e-3 * sqrt(abs(salinity_opt(coordinatesIndex))) - &
+                                    2.154996e-4 * salinity_opt(coordinatesIndex)) * &
+                                   salinity_opt(coordinatesIndex)
+        obsvalue = freezingPointTemperature + MPC_K_C_DEGREE_OFFSET_R8
       end if
 
       call obs_setFamily(obsData, 'SF'   , headerIndex)

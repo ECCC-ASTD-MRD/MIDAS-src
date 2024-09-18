@@ -31,7 +31,7 @@ module utilities_mod
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
-  public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOTemperature
+  public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOFile
 
   ! module interfaces
   ! -----------------
@@ -3034,12 +3034,13 @@ contains
   end subroutine utl_checkNetCDFstatus
 
   !--------------------------------------------------------------------------
-  ! utl_inquireNEMOTemperature
+  ! utl_inquireNEMOFile
   !--------------------------------------------------------------------------
-  subroutine utl_inquireNEMOTemperature(fileName, variableFound)
+  subroutine utl_inquireNEMOFile(fileName, variableFound)
     !
     ! :Purpose: to assess the content of NEMO netCDF file.
-    !           In NEMO, the 3D ocean temperature filed variable is 'toce',
+    !           In NEMO, the 3D ocean temperature filed variable is 'toce' in trial files,
+    !           the 3D ocean temperature filed variable is 'tn' in restart files,
     !           whereas the 2D Sea Surface Temperature (SST), 'tos'.
     !           In MIDAS, both 3D and 2D ocean temperature are called 'TM'
     !           resulting in confusion when vco object is to be defined.
@@ -3047,14 +3048,18 @@ contains
     implicit none
  
     ! Arguments:
-    character(len=*), intent(in)  :: fileName         ! NEMO trial file
-    logical         , intent(out) :: variableFound(3) ! logical switches:
-                                                      !   1. found depth,
-                                                      !   2. found 3D ocean temperature, 
+    character(len=*), intent(in)  :: fileName         ! NEMO (trial or restart) file
+    logical         , intent(out) :: variableFound(6) ! logical switches:
+                                                      !   1. found trial depth (deptht)
+                                                      !   2. found 3D ocean temperature (trial) 
                                                       !   3. found SST.
+                                                      !   4. found 3D ocean temperature (restart)
+                                                      !   5. found restart depth (nav_lev)
+                                                      !   6. found SSS (sea surface salinity)
     ! Locals:
     integer :: ncid, varID, ierr, varIndex
-    character(len=10), parameter :: varNameList(size(variableFound)) = (/'deptht', 'toce  ', 'tos   '/)
+    character(len=10), parameter :: varNameList(size(variableFound)) = &
+                                    (/'deptht', 'toce', 'tos', 'tn', 'nav_lev', 'sss'/)
 
     ! initialize output logical switches      
     variableFound(:) = .false.
@@ -3066,12 +3071,12 @@ contains
     
       ierr = nf90_inq_varid(ncid, trim(varNameList(varIndex)), varID)
       if (ierr == nf90_noerr) then
-        write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+        write(*,*) 'utl_inquireNEMOFile: NEMO variable: ', &
                    trim(varNameList(varIndex)), ' is found in file: ', &
                    trim(fileName)
         variableFound(varIndex) = .true.
       else
-        write(*,*) 'utl_inquireNEMOTemperature: NEMO variable: ', &
+        write(*,*) 'utl_inquireNEMOFile: NEMO variable: ', &
                    trim(varNameList(varIndex)), ' is missing from file: ', &
                    trim(fileName)        
       end if
@@ -3081,7 +3086,7 @@ contains
     ! Close the file
     call utl_checkNetCDFstatus(nf90_close(ncid))
     
-  end subroutine utl_inquireNEMOTemperature
+  end subroutine utl_inquireNEMOFile
 
   !--------------------------------------------------------------------------
   ! utl_cosDegrees_real4

@@ -137,9 +137,10 @@ program midas_pseudoSSTobs
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
   character(len=100)          :: outputFileName          ! name of the file containing the generated observations
   real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
+  logical                     :: useSalinity             ! to use or not NEMO salinity field to compute freezing point temperature
 
   namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
-                          outputFileName, seaWaterThreshold
+                          outputFileName, seaWaterThreshold, useSalinity
   
   istamp = exdb('pseudoSSTobs','DEBUT','NON')
 
@@ -168,7 +169,7 @@ program midas_pseudoSSTobs
   call pseudoSSTobs_setup()
 
   call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                      seaiceThinning, outputFileName, seaWaterThreshold)
+                      seaiceThinning, outputFileName, seaWaterThreshold, useSalinity)
 
   ! 3. Job termination
 
@@ -190,12 +191,11 @@ program midas_pseudoSSTobs
     implicit none
     
     ! Locals:	
-    character(len=*), parameter :: myName = 'pseudoSSTobs_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
-    write(*,*) '-- Starting subroutine '//myName//' --'
+    write(*,*) '-- Starting subroutine pseudoSSTobs_setup --'
     write(*,*) '-------------------------------------------------'
 
     ! Setting default namelist variable values
@@ -205,26 +205,34 @@ program midas_pseudoSSTobs
     outputFileName         = ''
     seaiceThinning         = 5
     seaWaterThreshold      = 0.0
-    
+    useSalinity            = .false.
+
     ! Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = pseudoSSTobs, iostat = ierr)
-    if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+    if (ierr /= 0) call utl_abort('pseudoSSTobs_setup: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
     call utl_tmg_stop(181)
 
     write(*,*)''
-    write(*,*) myName//': output SST globally: ', outputSST
-    write(*,*) myName//': output fresh water surface temperature  globally: ', outputFreshWaterST
-    write(*,*) myName//': sea-ice fraction threshold: ', iceFractionThreshold
-    write(*,*) myName//': sea water fraction threshold: ', seaWaterThreshold
-    write(*,*) myName//': pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'    
-    write(*,*) myName//': output file name: ', outputFileName
+    write(*,*) 'pseudoSSTobs_setup: output SST globally: ', outputSST
+    write(*,*) 'pseudoSSTobs_setup: output fresh water surface temperature  globally: ', outputFreshWaterST
+    write(*,*) 'pseudoSSTobs_setup: sea-ice fraction threshold: ', iceFractionThreshold
+    write(*,*) 'pseudoSSTobs_setup: sea water fraction threshold: ', seaWaterThreshold
+    if (useSalinity) then
+      write(*,*) 'pseudoSSTobs_setup: Surface salinity field will be used to compute ocean temperature freezing point.'
+      write(*,*) 'pseudoSSTobs_setup: WARNING: pseudo SST obs will be generatated in every grid point!'
+      write(*,*) 'pseudoSSTobs_setup:          seaiceThinning value is put to 1.'
+      seaiceThinning = 1
+    else
+      write(*,*) 'pseudoSSTobs_setup: pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'    
+    end if
+    write(*,*) 'pseudoSSTobs_setup: output file name: ', outputFileName
     !
     !- Initialize the Analysis grid
     !
     if(mmpi_myid == 0) write(*,*)''
-    if(mmpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
 
     !     
@@ -239,7 +247,7 @@ program midas_pseudoSSTobs
 
     call obs_class_initialize('VAR')
 
-    if(mmpi_myid == 0) write(*,*) myName//': done.'
+    if(mmpi_myid == 0) write(*,*) 'pseudoSSTobs_setup: done.'
     
   end subroutine pseudoSSTobs_setup
 

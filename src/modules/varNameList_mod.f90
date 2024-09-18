@@ -34,7 +34,7 @@ module varNameList_mod
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
   integer, parameter          :: VNLnumvarmax3D    = 52
-  integer, parameter          :: VNLnumvarmax2D    = 37
+  integer, parameter          :: VNLnumvarmax2D    = 38
   integer, parameter          :: VNLnumvarmaxOther =  7
   integer, parameter          :: VNLnumvarmaxCloud =  5
 
@@ -78,21 +78,21 @@ module varNameList_mod
                                  'GL  ','WGE ','BIN ','MG  ','SSH ','QI1 ','QO1 ','STOR','ALFS', &
                                  'PN  ','PR  ','LPR ','I2  ','I3  ','I4  ','I5  ','I6  ','I8  ', &
                                  'DN  ','FB  ','FI  ','MSKC','LZS ','WT  ','LG  ','VF  ','DSLO', &
-                                 'P0LS'/)
+                                 'P0LS','SSS '/)
 
   character(len=4), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SS',  'SF',  'SF',  'SF',  'SS',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SS',  'SS',  'SS',  &
-                                 'SF'/)
+                                 'SF',  'SS'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
                                  'OC',  'MT',  'MT',  'MT',  'OC',  'HY',  'HY',  'HY',  'HY', &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT', &
                                  'MT',  'MT',  'MT',  'MT',  'HY',  'MT',  'OC',  'OC',  'OC', &
-                                 'MT'/)
+                                 'MT',  'OC'/)
 
   character(len=4), parameter :: vnl_varNameListOther(vnl_numvarmaxOther) = (/ &
                                  'I0  ','I1  ','I7  ','I9  ','SD  ','AL  ','EMMW'/)
@@ -904,22 +904,27 @@ module varNameList_mod
       character(len=20) :: varNameNetCDF ! variable name used in NEMO netCDF
 
       ! Locals:
-      logical :: varFound(3) ! logical switches:
-                             !   1. found depth,
+      logical :: varFound(6) ! logical switches:
+                             !   1. found trial depth ('deptht')
                              !   2. found 3D ocean temperature, 
                              !   3. found SST.
+                             !   4. found 3D ocean temperature from restart
+                             !   5. found restart depth ('nav_lev')
+                             !   6. found SSS (sea surface salinity)
 
       select case(trim(varName))
       case('SSH')
         varNameNetCDF = 'zos'
       case('TM')    
         ! special case for TM which is currently a variable used for SST as well as 
-        ! for 3D ocean temperature field
-        call utl_inquireNEMOTemperature(fileName, varFound(:))
+	! for 3D ocean temperature field
+        call utl_inquireNEMOFile(fileName, varFound(:))
         if (varFound(2)) then
-          varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field
+          varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field, trial
         else if (varFound(3)) then
           varNameNetCDF = 'tos'     ! NEMO 2D SST field
+        else if (varFound(4)) then
+          varNameNetCDF = 'tn'      ! NEMO 3D ocean temperature field, restart
         else
           write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
                      trim(fileName), ' for varName = ', trim(varName)
@@ -930,10 +935,14 @@ module varNameList_mod
         varNameNetCDF = 'uo'
       case('VVW')
         varNameNetCDF = 'vo'
+      case('SSS')
+        varNameNetCDF = 'sss'
       case default
         varNameNetCDF = 'notFound'
         write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
       end select
+      
+      write(*,*) 'vnl_varNameNetCDF: ', trim(varName),' is ', trim(varNameNetCDF), ' in netCDF file.'
 
     end function vnl_varNameNetCDF
 
