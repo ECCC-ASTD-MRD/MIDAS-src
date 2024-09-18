@@ -195,17 +195,11 @@ program midas_genCoeff
   ! output O-F statistics befor bias correction
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
-  if ( .not. obsf_filesSplit() ) then 
-    call msg('genCoeff','reading/writing global observation files')
-    call obs_expandToMpiGlobal(obsSpaceData)
-    if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
-  else
-    ! redistribute obs data to how it was just after reading the files
-    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-    !call obsf_writeFiles(obsSpaceData)
-    call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
-        addFSOdiag=.false.)
-  end if
+  
+  call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+  call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
+      addFSOdiag=.false.)
+ 
 
   ! fill OBS_BCOR with computed bias correction
   call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)

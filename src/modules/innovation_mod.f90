@@ -458,7 +458,6 @@ contains
     real(8) :: Jo
     integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
-    logical :: needTransmittance
 
     logical, save :: lgpdata = .false.
 
@@ -468,12 +467,6 @@ contains
       beSilent = beSilent_opt
     else
       beSilent = .false.
-    end if
-
-    if (present(needTransmittance_opt)) then
-      needTransmittance = needTransmittance_opt
-    else
-      needTransmittance = .true.
     end if
 
     if ( .not. beSilent ) then
@@ -606,7 +599,7 @@ contains
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn, &
-                       needTransmittance_opt=needTransmittance)
+                       needTransmittance_opt=needTransmittance_opt)
     end if
 
     ! Profilers
