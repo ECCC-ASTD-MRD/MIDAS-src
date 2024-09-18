@@ -1,5 +1,4 @@
 
-
 module quasiNewton_mod
   ! MODULE quasiNewton_mod (prefix='qna' category='1. High-level functionality')
   !
@@ -531,8 +530,8 @@ module quasiNewton_mod
 !
 !         variables locales
 !
-      logical sscale,cold,warm,ntotal
-      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
+      logical sscale,cold,warm
+      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax,ntotal
       real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
@@ -1206,8 +1205,9 @@ module quasiNewton_mod
 !
       if (tg.eq.0.d0) go to 940
       fn=fg
-      do 930 i=1,n
-  930 xn(i)=xn(i)+tg*d(i)
+      do i=1,n
+        xn(i)=xn(i)+tg*d(i)
+      end do
   940 if (imp.le.0) go to 999
       write (io,1001)
       write (io,1005) tg,fg,fpg
@@ -1217,8 +1217,9 @@ module quasiNewton_mod
 !
 !               recopiage de x et boucle
 !
-  950 do 960 i=1,n
-  960 x(i)=xn(i)+t*d(i)
+  950 do i=1,n
+        x(i)=xn(i)+t*d(i)
+      end do
       go to 100
   999 continue
       end subroutine nlis0
