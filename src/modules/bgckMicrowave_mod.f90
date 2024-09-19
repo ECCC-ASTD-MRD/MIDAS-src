@@ -415,9 +415,10 @@ contains
     integer,          intent(in)    :: headerIndex    ! current header Index 
 
     ! Locals:
-    integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical :: ibit
 
     if (mwbg_resetQc) return
     testIndex = 10
@@ -432,10 +433,10 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
       if (obsChanNumWithOffset /= 20) then
-        IBIT = AND(obsFlags, 2**9)
-        if (IBIT /= 0) then
+        ibit = btest(obsFlags, 9)
+        if (ibit) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
 
@@ -499,8 +500,8 @@ contains
         if (obsChanNumWithOffset == mwbg_chanRejectForTopoFilter(indexFilteringTest)) then
           if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(indexFilteringTest)) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**18)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 18)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if ( mwbg_DEBUG ) then
@@ -554,8 +555,8 @@ contains
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**7)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 7)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -608,8 +609,8 @@ contains
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -659,8 +660,8 @@ contains
 
       if (satScanPosition < 1 .or. satScanPosition > maxScanAngleAMSU) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**7)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 7)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -712,8 +713,8 @@ contains
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -774,8 +775,8 @@ contains
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -833,8 +834,8 @@ contains
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**7)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 7)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -866,9 +867,10 @@ contains
     integer,          intent(in)    :: headerIndex     ! current header Index 
 
     ! Locals:
-    integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical :: ibit
 
     if (mwbg_resetQc) return
     testIndex = 9
@@ -884,10 +886,10 @@ contains
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
       if (obsChanNumWithOffset /= 20) then
-        IBIT = AND(obsFlags, 2**6)
-        if (IBIT == 0) then
+        ibit = btest(obsFlags, 6)
+        if (.not. ibit) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**11)
+          obsFlags = ibset(obsFlags, 11)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
 
@@ -948,8 +950,8 @@ contains
              obsTb > mwbg_grossValMaxThresh(obsChanNumWithOffset))) then
           GROSSERROR = .TRUE.
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
                   
@@ -1020,8 +1022,8 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**7)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 7)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -1046,7 +1048,7 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
 
           if ( INDXCAN /= 0 ) then
-            obsFlags = OR(obsFlags,2**23)
+            obsFlags = ibset(obsFlags, 23)
             call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
           end if
         end do BODY2
@@ -1069,8 +1071,8 @@ contains
         INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) ) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1138,8 +1140,8 @@ contains
                   (mwbg_modelInterpSeaIce < 0.01d0)) ) then
         if (obsChanNumWithOffset == 45 .and. drynessIndex > 0.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1153,8 +1155,8 @@ contains
 
         else if (obsChanNumWithOffset == 46 .and. drynessIndex > -10.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1168,8 +1170,8 @@ contains
         
         else if (obsChanNumWithOffset == 47 .and. drynessIndex > -20.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1234,8 +1236,8 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForScat(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**7)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 7)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1347,8 +1349,8 @@ contains
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**7)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 7)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1376,7 +1378,7 @@ contains
 
           chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
           if (chanIndex == 0) cycle BODY2
-          obsFlags = OR(obsFlags,2**23)
+          obsFlags = ibset(obsFlags, 23)
 
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
         end do BODY2
@@ -1409,8 +1411,8 @@ contains
 
           if (oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex)) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**7)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 7)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
@@ -1495,8 +1497,8 @@ contains
             ABS(ompTb) >= XCHECKVAL .and. &
             sigmaObsErrUsed /= MPC_missingValue_R8) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**16)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 16)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1 
 
@@ -1524,8 +1526,8 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**16)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1627,8 +1629,8 @@ contains
             abs(ompTb) >= XCHECKVAL .and. &
             sigmaObsErrUsed /= MPC_missingValue_R8) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**16)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 16)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1664,8 +1666,8 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**16)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1732,8 +1734,8 @@ contains
       INDXCAN = utl_findloc(mwbg_chanRejectForTovUtil(:),obsChanNumWithOffset)
       if ( INDXCAN /= 0 )  then
         if (landQualifierIndice  == 0 .or. ITRN == 0)  then
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**7)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 7)
 
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, obsFlags)
         end if
@@ -1742,12 +1744,12 @@ contains
         SFCREJCT = .FALSE.
         if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) == 0 ) then
           SFCREJCT = .TRUE.
-          obsFlags = OR(obsFlags,2**11)
+          obsFlags = ibset(obsFlags, 11)
         else 
           if (landQualifierIndice == 0 .or. ITRN == 0)  then
             SFCREJCT = .TRUE.
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**7)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 7)
           end if
         end if
         if ( SFCREJCT ) then
@@ -1841,8 +1843,8 @@ contains
         INDXCAN = utl_findloc(lowPeakingChannelsList(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**16)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 16)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1 
 
@@ -2510,7 +2512,7 @@ contains
     obsGlobalMarker = obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex)
 
     if (mwbg_resetQc) obsGlobalMarker = 1024  
-    if (KCHKPRF /= 0) obsGlobalMarker = OR (obsGlobalMarker,2**6)
+    if (KCHKPRF /= 0) obsGlobalMarker = ibset(obsGlobalMarker, 6)
     if (mwbg_debug) write(*,*) ' KCHKPRF   = ', KCHKPRF, ', NEW FLAGS = ', obsGlobalMarker
 
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker)
@@ -2943,9 +2945,10 @@ contains
     logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
-    integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd
+    integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical :: ibit
     logical, save :: firstCall = .true.
 
     testIndex = 1
@@ -2969,11 +2972,11 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-      IBIT = AND(obsFlags, 2**7)
-      if (IBIT /= 0) then
+      ibit = btest(obsFlags, 7)
+      if (ibit) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
         mwbg_bit7(obsChanNum) = 1
-        obsFlags = OR(obsFlags,2**9)
+        obsFlags = ibset(obsFlags, 9)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -3036,8 +3039,8 @@ contains
       if ( INDXTOPO > 0 ) then
         if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(INDXTOPO)) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          obsFlags = OR(obsFlags,2**9)
-          obsFlags = OR(obsFlags,2**18)
+          obsFlags = ibset(obsFlags, 9)
+          obsFlags = ibset(obsFlags, 18)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
           if (mwbg_bit7(obsChanNum) == 0) then
@@ -3077,9 +3080,10 @@ contains
     logical, optional, intent(in)    :: skipTestArr_opt(:) ! array to set to skip the test
 
     ! Locals:
-    integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
+    integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
+    logical :: ibit
     logical, save :: firstCall = .true.
      
     if (mwbg_resetQc) return
@@ -3104,10 +3108,10 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-      IBIT = AND(obsFlags, 2**6)
-      if (IBIT == 0) then
+      ibit = btest(obsFlags, 6)
+      if (.not. ibit) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**11)
+        obsFlags = ibset(obsFlags, 11)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
         if (mwbg_bit7(obsChanNum) == 0) then
@@ -3159,8 +3163,9 @@ contains
     real(8) :: sigmaObsErrUsed, clwObsFGaveraged, scatwObsFGaveraged
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, ompTb
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
-    logical :: SFCREJCT, CH2OMPREJCT, IBIT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
+    logical :: SFCREJCT, CH2OMPREJCT, chanIsAllskyTt, chanIsAllskyHu, ch2OmpRejectInAllSky
     character(len=9) :: stnId
+    logical :: ibit
     logical, save :: firstCall = .true.
 
     testIndex = 4
@@ -3236,8 +3241,8 @@ contains
       if (ompTb /= mwbg_realMissing .and. ABS(ompTb) >= XCHECKVAL .and. &
           sigmaObsErrUsed /= MPC_missingValue_R8) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**16)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 16)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
         if (mwbg_bit7(obsChanNum) == 0) then
@@ -3286,8 +3291,8 @@ contains
         if ( INDXCAN /= 0 ) then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**16)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if (mwbg_bit7(obsChanNum) == 0) then
@@ -3304,8 +3309,8 @@ contains
     !  amsub channels 17-22 obs are rejected if, for ch17 ABS(O-P) > 5K
     !    Apply over open water only (bit 0 ON in QC integer newInformationFlag).
     !    Only apply if obs not rejected in this test already.
-    IBIT = AND(newInformationFlag, 2**0)
-    if (CH2OMPREJCT .and. (IBIT /= 0)) then
+    ibit = btest(newInformationFlag, 0)
+    if (CH2OMPREJCT .and. ibit) then
       BODY3: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -3315,8 +3320,8 @@ contains
         if (INDXCAN /= 0)  then
           if (mwbg_qcIndicator(obsChanNum) /= testIndex) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**16)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 16)
 
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
@@ -3424,8 +3429,8 @@ contains
       if (ompTb /= mwbg_realMissing .and. ABS(ompTb) >= XCHECKVAL .and. &
           sigmaObsErrUsed /= MPC_missingValue_R8) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        obsFlags = OR(obsFlags,2**9)
-        obsFlags = OR(obsFlags,2**16)
+        obsFlags = ibset(obsFlags, 9)
+        obsFlags = ibset(obsFlags, 16)
 
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
@@ -3463,8 +3468,8 @@ contains
     ! Channels 10-15 are rejected if, for ch10 ABS(O-P) > 5K
     ! Apply over open water only (bit 0 ON in QC integer newInformationFlag).
     ! Only apply if obs not rejected in this test already.
-    IBIT = AND(newInformationFlag, 2**0)
-    if ( CH2OMPREJCT .and. IBIT ) then
+    ibit = btest(newInformationFlag, 0)
+    if ( CH2OMPREJCT .and. ibit ) then
       BODY2: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -3474,8 +3479,8 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            obsFlags = OR(obsFlags,2**9)
-            obsFlags = OR(obsFlags,2**16)
+            obsFlags = ibset(obsFlags, 9)
+            obsFlags = ibset(obsFlags, 16)
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if (mwbg_bit7(obsChanNum) == 0) then
@@ -3537,7 +3542,7 @@ contains
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
       if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) == 0 ) then
-        obsFlags = OR(obsFlags,2**8)
+        obsFlags = ibset(obsFlags, 8)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
