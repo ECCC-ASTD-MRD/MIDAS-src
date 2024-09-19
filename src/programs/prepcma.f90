@@ -1000,10 +1000,10 @@ contains
 
         do iblock = 1, nblocksum
           if (.not. ifAfterThinning) then
-            write(*,'(a,1x,a,i,a,i)') 'before thinning global', trim(instNameUniqueListWithHeader(1)), &
+            write(*,'(a,1x,a,i6,a,i8)') 'before thinning global', trim(instNameUniqueListWithHeader(1)), &
                                       iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
           else
-            write(*,'(a,1x,a,i,a,i)') 'after thinning global', trim(instNameUniqueListWithHeader(1)), &
+            write(*,'(a,1x,a,i6,a,i8)') 'after thinning global', trim(instNameUniqueListWithHeader(1)), &
                                       iblock, ':', numHeadersFoundInBlock_mpiGlobal(iblock,1)
           end if
         end do ! iblock
