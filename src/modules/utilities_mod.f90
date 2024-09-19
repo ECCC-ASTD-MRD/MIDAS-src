@@ -3104,9 +3104,6 @@ contains
     radians = MPC_RADIANS_PER_DEGREE_R4 * degrees
 
     cosinus = cos(radians)
-    !!!!! TO BE REMOVED !!!!!
-    cosinus = cosd(degrees) !! This line should be removed after validating the use of the routine 'utl_cosDegrees'
-    !!!!! TO BE REMOVED !!!!!
   end function utl_cosDegrees_real4
 
   !--------------------------------------------------------------------------
@@ -3130,9 +3127,6 @@ contains
     radians = MPC_RADIANS_PER_DEGREE_R8 * degrees
 
     cosinus = cos(radians)
-    !!!!! TO BE REMOVED !!!!!
-    cosinus = cosd(degrees) !! This line should be removed after validating the use of the routine 'utl_cosDegrees'
-    !!!!! TO BE REMOVED !!!!!
   end function utl_cosDegrees_real8
 
 end module utilities_mod
