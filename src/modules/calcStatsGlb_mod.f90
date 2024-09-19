@@ -3162,11 +3162,11 @@ module calcStatsGlb_mod
         do ji=iStart,iEnd
           do jk = nLevStart,nLevEnd
             if (jk == nLevStart) then
-              write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,jk)
+              write(99,'(I7,2X,F7.1,2X,F6.4)', advance='no')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,jk)
             else if (jk == nLevEnd) then 
               write(99,'(2X,F6.4)')  GridState(ji,jref,jk) ! Saut de ligne
             else
-              write(99,'(2X,F6.4,$)')  GridState(ji,jref,jk)
+              write(99,'(2X,F6.4)', advance='no')  GridState(ji,jref,jk)
             end if
           end do
         end do
@@ -3424,11 +3424,11 @@ module calcStatsGlb_mod
           end if
           do jk = nLevStart,nLevEnd
              if (jk == nLevStart) then
-                write(99,'(I4,2X,F7.1,2X,e10.3,$)')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
+                write(99,'(I4,2X,F7.1,2X,e10.3)', advance='no')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
              else if (jk == nLevEnd) then 
                 write(99,'(2X,e10.3)')  sngl(powerSpec(jk,jn)) ! Saut de ligne
              else
-                write(99,'(2X,e10.3,$)')  sngl(powerSpec(jk,jn))
+                write(99,'(2X,e10.3)', advance='no')  sngl(powerSpec(jk,jn))
              end if
           end do
        end do
