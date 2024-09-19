@@ -2651,11 +2651,11 @@ contains
 
     !3) Compute parameters:
     if ( ier == 0 ) then
-      cosz   = cosd(satZenithAngle)
-      t23 = tb23
-      t31 = tb31
-      t50 = tb50
-      t53 = tb53
+      cosz = utl_cosDegrees(satZenithAngle)
+      t23  = tb23
+      t31  = tb31
+      t50  = tb50
+      t53  = tb53
       dif285t23  =max(285.0d0-t23,epsilon)
       dif285t23FG=max(285.0d0-tb23FG,epsilon)
       dif285t31  =max(285.0d0-t31,epsilon)
@@ -5414,13 +5414,13 @@ contains
       ! Compute cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, and Scattering Indices (over open water only)
       if (waterobs) then
         if (tb23 < 284.0d0 .and. tb31 < 284.0d0) then
-          aa = 8.24d0 - (2.622d0 - 1.846d0 * cosd(satZenithAngle)) * cosd(satZenithAngle)
+          aa = 8.24d0 - (2.622d0 - 1.846d0 * utl_cosDegrees(satZenithAngle)) * utl_cosDegrees(satZenithAngle)
           cloudLiquidWaterPathObs = aa + 0.754d0 * dlog(285.0d0 - tb23) - 2.265d0 * dlog(285.0d0 - tb31)
-          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosd(satZenithAngle)
+          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * utl_cosDegrees(satZenithAngle)
           if (cloudLiquidWaterPathObs < 0.0d0) cloudLiquidWaterPathObs = 0.0d0
 
           cloudLiquidWaterPathFG = aa + 0.754d0 * dlog(285.0d0 - tb23FG) - 2.265d0 * dlog(285.0d0 - tb31FG)
-          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosd(satZenithAngle)
+          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * utl_cosDegrees(satZenithAngle)
           if (cloudLiquidWaterPathFG < 0.0d0) cloudLiquidWaterPathFG = 0.0d0
         end if
 

@@ -7,6 +7,7 @@ module utilities_mod
   use clibInterfaces_mod
   use randomNumber_mod
   use netcdf
+  use mathPhysConstants_mod
 
   implicit none
   save
@@ -28,7 +29,7 @@ module utilities_mod
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
-  public :: utl_randomOrderInt
+  public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOTemperature
 
@@ -81,6 +82,11 @@ module utilities_mod
     module procedure utl_findlocs_char
     module procedure utl_findlocs_int
   end interface utl_findlocs
+
+  interface utl_cosDegrees
+    module procedure utl_cosDegrees_real4
+    module procedure utl_cosDegrees_real8
+  end interface utl_cosDegrees
 
   ! For namelist reading
   character(len=:), target, allocatable :: utl_flnml, utl_flnml_static
@@ -3076,5 +3082,57 @@ contains
     call utl_checkNetCDFstatus(nf90_close(ncid))
     
   end subroutine utl_inquireNEMOTemperature
+
+  !--------------------------------------------------------------------------
+  ! utl_cosDegrees_real4
+  !--------------------------------------------------------------------------
+  function utl_cosDegrees_real4(degrees) result(cosinus)
+    !
+    ! :Purpose: Computes the cosinus of the angle where the angle is
+    !           specified in degrees.
+    !           All arguments are in single precision floating point numbers, real(4).
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in)  :: degrees ! angle in degrees
+    real(4) :: cosinus
+
+    ! Locals:
+    real(4) :: radians
+
+    radians = MPC_RADIANS_PER_DEGREE_R4 * degrees
+
+    cosinus = cos(radians)
+    !!!!! TO BE REMOVED !!!!!
+    cosinus = cosd(degrees) !! This line should be removed after validating the use of the routine 'utl_cosDegrees'
+    !!!!! TO BE REMOVED !!!!!
+  end function utl_cosDegrees_real4
+
+  !--------------------------------------------------------------------------
+  ! utl_cosDegrees_real8
+  !--------------------------------------------------------------------------
+  function utl_cosDegrees_real8(degrees) result(cosinus)
+    !
+    ! :Purpose: Computes the cosinus of the angle where the angle is
+    !           specified in degrees.
+    !           All arguments are in double precision floating point numbers, real(8).
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in)  :: degrees ! angle in degrees
+    real(8) :: cosinus
+
+    ! Locals:
+    real(8) :: radians
+
+    radians = MPC_RADIANS_PER_DEGREE_R8 * degrees
+
+    cosinus = cos(radians)
+    !!!!! TO BE REMOVED !!!!!
+    cosinus = cosd(degrees) !! This line should be removed after validating the use of the routine 'utl_cosDegrees'
+    !!!!! TO BE REMOVED !!!!!
+  end function utl_cosDegrees_real8
 
 end module utilities_mod
