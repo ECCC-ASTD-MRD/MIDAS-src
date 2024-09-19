@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * The code now complies to Fortran 2008 standard (#969 and !883)
  * `midas.launch` provides a single `trlm` file when `filetype = 38` (netCDF) (#971 and !880)
  * Trial filename is computed for oMinusF program (#970 and !879)
 
