@@ -994,17 +994,17 @@ module quasiNewton_mod
       real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !
- 1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2, &
-       7h  tmin=,d9.2,6h tmax=,d9.2)
- 1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,  &
+ 1000 format (/4x," nlis0   ",4x,"fpn=",d10.3," d2=",d9.2, &
+       "  tmin=",d9.2," tmax=",d9.2)
+ 1001 format (/4x," mlis0",3x,"stop on tmin",8x,  &
          "step",11x,"functions",5x,"derivatives")
- 1002 format (4x,6h nlis0,37x,d10.3,2d11.3)
- 1003 format (4x,6h nlis0,d14.3,2d11.3)
- 1004 format (4x,6h nlis0,37x,d10.3,7h indic=,i3)
- 1005 format (4x,6h nlis0,14x,2d18.8,d11.3)
- 1006 format (4x,6h nlis0,14x,d18.8,12h      indic=,i3)
- 1007 format (/4x,6h mlis0,10x,"tmin forced to tmax")
- 1008 format (/4x,6h mlis0,10x,"inconsistent call")
+ 1002 format (4x," nlis0",37x,d10.3,2d11.3)
+ 1003 format (4x," nlis0",d14.3,2d11.3)
+ 1004 format (4x," nlis0",37x,d10.3," indic=",i3)
+ 1005 format (4x," nlis0",14x,2d18.8,d11.3)
+ 1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
+ 1007 format (/4x," mlis0",10x,"tmin forced to tmax")
+ 1008 format (/4x," mlis0",10x,"inconsistent call")
       call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
                               "mpi_max","GRID",ierr)
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
