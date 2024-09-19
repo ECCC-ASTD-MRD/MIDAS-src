@@ -2953,7 +2953,6 @@ contains
       needTransmittance = .true.
     end if
 
-    
     !   1.1   Read surface information
     if (bgckMode) call EMIS_READ_CLIMATOLOGY
 
@@ -3259,7 +3258,7 @@ contains
             end do
           end if
 
-          if (allocated(tvs_transmission)) then
+          if (allocated(tvs_transmission) .and. needTransmittance) then
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
@@ -3369,7 +3368,7 @@ contains
 
             if (needTransmittance .and. .not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
-            if ( allocated( tvs_transmission) ) then
+            if (allocated(tvs_transmission) .and. needTransmittance) then
               do levelIndex = 1, nlv_T
                 tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                     transmission % tau_levels(levelIndex,btIndex)
@@ -3432,7 +3431,7 @@ contains
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex) % emis_out
           end if
 
-          if (allocated(tvs_transmission)) then
+          if (allocated(tvs_transmission) .and. needTransmittance) then
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
