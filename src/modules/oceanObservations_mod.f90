@@ -129,8 +129,8 @@ module oceanObservations_mod
 
             iceLonsAux(numberIceCoveredPoints) = hco%lon2d_4 (lonIndex, latIndex)
             iceLatsAux(numberIceCoveredPoints) = hco%lat2d_4 (lonIndex, latIndex)
-	    iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
-	    seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
+            iceDomainIndexesAux(numberIceCoveredPoints) = numberIceCoveredPoints
+            seaWaterFractionAux(numberIceCoveredPoints) = seaWater_ptr(lonIndex, latIndex, 1)
             if (useSalinity) salinityAux(numberIceCoveredPoints) = salinity_ptr(lonIndex, latIndex, 1)
 
           end if

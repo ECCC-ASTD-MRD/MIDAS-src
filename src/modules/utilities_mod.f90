@@ -3058,8 +3058,9 @@ contains
                                                       !   6. found SSS (sea surface salinity)
     ! Locals:
     integer :: ncid, varID, ierr, varIndex
-    character(len=10), parameter :: varNameList(size(variableFound)) = &
-                                    (/'deptht', 'toce', 'tos', 'tn', 'nav_lev', 'sss'/)
+    character(len=7), parameter :: varNameList(size(variableFound)) = &
+                                    (/'deptht ', 'toce   ', 'tos    ', &
+                                      'tn     ', 'nav_lev', 'sss    '/)
 
     ! initialize output logical switches      
     variableFound(:) = .false.

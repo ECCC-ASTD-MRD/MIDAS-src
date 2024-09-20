@@ -917,7 +917,7 @@ module varNameList_mod
         varNameNetCDF = 'zos'
       case('TM')    
         ! special case for TM which is currently a variable used for SST as well as 
-	! for 3D ocean temperature field
+        ! for 3D ocean temperature field
         call utl_inquireNEMOFile(fileName, varFound(:))
         if (varFound(2)) then
           varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field, trial
