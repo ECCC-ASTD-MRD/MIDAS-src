@@ -555,7 +555,7 @@ contains
             if (levIndex1 == vModes%allVar3d(var3dIndex)%nLev) then
               write(99,'(2X,E11.4)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
             else
-              write(99,'(2X,E11.4,$)') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
+              write(99,'(2X,E11.4)', advance='no') vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2)
             end if
           end do
         end do
@@ -567,7 +567,7 @@ contains
             if (levIndex1 == vModes%allVar3d(var3dIndex)%nLev) then
               write(99,'(2X,E11.4)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
             else
-              write(99,'(2X,E11.4,$)') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
+              write(99,'(2X,E11.4)', advance='no') vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
             end if
           end do
         end do

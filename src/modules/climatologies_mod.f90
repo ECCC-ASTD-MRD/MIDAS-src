@@ -163,17 +163,15 @@ contains
     maxNumFields = 1
     maxNumTypes = 1
     do while (trim(requiredConstituents(maxNumFields)) /= '')
-      if (vnl_varListIndex3d(trim(requiredConstituents(maxNumFields)))) then
-        if (numFields(maxNumFields) < 1) then
-          numFields(maxNumFields) = 1
-        else if (numFields(maxNumFields) > maxNumTypes) then
-          maxNumTypes = numFields(maxNumFields)
-        end if
-        maxNumFields = maxNumFields + 1
-      else
-        call utl_abort('clm_readFields: NOMVAR not recognized. ' // &
-            trim(requiredConstituents(maxNumFields)))
+      ! The call to 'vnl_varListIndex3d' will abort if it does not find the variable
+      ! so we just need to call it from here.
+      loopIndex = vnl_varListIndex3d(trim(requiredConstituents(maxNumFields)))
+      if (numFields(maxNumFields) < 1) then
+        numFields(maxNumFields) = 1
+      else if (numFields(maxNumFields) > maxNumTypes) then
+        maxNumTypes = numFields(maxNumFields)
       end if
+      maxNumFields = maxNumFields + 1
     end do
     maxNumFields = maxNumFields - 1
 
@@ -244,15 +242,15 @@ contains
           climVarName = 'O3'
           if (fieldDimension(varIndex) /= 2) then
             call utl_abort('clm_readFields: Invalid field dimension for ' // trim(varName) // &
-	                 ' in ' // trim(fname))
+                           ' in ' // trim(fname))
           end if
-	else
+        else
           call utl_abort('clm_readFields: Invalid climatology file ' // trim(fname) // &
-	                 ' for ' // trim(varName))
-	end if
+                         ' for ' // trim(varName))
+        end if
       else
         climVarName = trim(inputClimVarNames(varIndex))
-	if (trim(fname) == climFields) then
+        if (trim(fname) == climFields) then
           if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=00,modelName_opt=modelName_opt)) then
             if (trim(climVarName) == '') climVarName = 'O3CE'
@@ -262,13 +260,13 @@ contains
           else if (trim(varName) == &
               vnl_varnameFromVarnum(0,varNumberChm_opt=06,modelName_opt=modelName_opt)) then
             if (trim(climVarName) == '') climVarName = 'N2OC'
-	  else
-	    if (trim(climVarName) == '') climVarName = varName
-	  end if
-	  if (trim(climVarName) == 'O3CE' .or. trim(climVarName) == 'CH4C' .or. &
-	      trim(climVarName) == 'N2OC') fieldDimension(varIndex) = 3
+          else
+            if (trim(climVarName) == '') climVarName = varName
+          end if
+          if (trim(climVarName) == 'O3CE' .or. trim(climVarName) == 'CH4C' .or. &
+              trim(climVarName) == 'N2OC') fieldDimension(varIndex) = 3
         else
-	  if (trim(climVarName) == '') climVarName = varName
+          if (trim(climVarName) == '') climVarName = varName
         end if
       end if
 
@@ -570,7 +568,7 @@ contains
       !end if
       !if ( any(hu_opt <= 0.0d0) ) then
       !  call utl_abort('clm_setColumn: Invalid HU for determining ' // &
-      !	               'mixing ratio in dry air density')
+      !                 'mixing ratio in dry air density')
       !end if
 
       !do level=1,numModelLevs
@@ -711,7 +709,7 @@ contains
             climatFields(constituentId,2)%lat,pressrefin, &
             obsLong*MPC_RADIANS_PER_DEGREE_R8,obsLat,numModelLevs,modelPressLevs, &
             nearestNeighbourInterp(constituentId),refprof2)
-		
+
         ! Combine with upper level profile
         
         do level = numModelLevs, 3, -1
@@ -913,7 +911,7 @@ contains
       call utl_abort('clm_getUnitsScaling: GHG scaling factor not found for ' &
           // trim(varName) ) 
     end select
-	 
+
     if (countSpecies > 0 .and. countSpecies <= numSpecies) then
       ! conversion factor to go to micrograms/kg
       if (trim(speciesUnits(countSpecies)) == 'ppm') then

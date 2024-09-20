@@ -908,7 +908,7 @@ contains
     ! Arguments:
     type(struct_columnData), intent(in) :: column             ! The `columnData` object
     ! Result:
-    integer                             :: addHeightSfcOffset ! The returned value of addHeightSfcOffset
+    logical                             :: addHeightSfcOffset ! The returned value of addHeightSfcOffset
 
     addHeightSfcOffset = column%addHeightSfcOffset
 

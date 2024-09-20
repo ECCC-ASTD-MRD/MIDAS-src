@@ -1,5 +1,4 @@
 
-
 module quasiNewton_mod
   ! MODULE quasiNewton_mod (prefix='qna' category='1. High-level functionality')
   !
@@ -531,8 +530,8 @@ module quasiNewton_mod
 !
 !         variables locales
 !
-      logical sscale,cold,warm,ntotal
-      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
+      logical sscale,cold,warm
+      integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax,ntotal
       real(8) d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff, &
            preco,precos,ys,den, &
            dk,dk1,ps,ps2,hp0
@@ -995,17 +994,17 @@ module quasiNewton_mod
       real(8) tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd, &
        fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 !
- 1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2, &
-       7h  tmin=,d9.2,6h tmax=,d9.2)
- 1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,  &
+ 1000 format (/4x," nlis0   ",4x,"fpn=",d10.3," d2=",d9.2, &
+       "  tmin=",d9.2," tmax=",d9.2)
+ 1001 format (/4x," mlis0",3x,"stop on tmin",8x,  &
          "step",11x,"functions",5x,"derivatives")
- 1002 format (4x,6h nlis0,37x,d10.3,2d11.3)
- 1003 format (4x,6h nlis0,d14.3,2d11.3)
- 1004 format (4x,6h nlis0,37x,d10.3,7h indic=,i3)
- 1005 format (4x,6h nlis0,14x,2d18.8,d11.3)
- 1006 format (4x,6h nlis0,14x,d18.8,12h      indic=,i3)
- 1007 format (/4x,6h mlis0,10x,"tmin forced to tmax")
- 1008 format (/4x,6h mlis0,10x,"inconsistent call")
+ 1002 format (4x," nlis0",37x,d10.3,2d11.3)
+ 1003 format (4x," nlis0",d14.3,2d11.3)
+ 1004 format (4x," nlis0",37x,d10.3," indic=",i3)
+ 1005 format (4x," nlis0",14x,2d18.8,d11.3)
+ 1006 format (4x," nlis0",14x,d18.8,"      indic=",i3)
+ 1007 format (/4x," mlis0",10x,"tmin forced to tmax")
+ 1008 format (/4x," mlis0",10x,"inconsistent call")
       call rpn_comm_allreduce(n,ntotal,1,"mpi_integer", &
                               "mpi_max","GRID",ierr)
       if (ntotal.gt.0 .and. fpn.lt.0.d0 .and. t.gt.0.d0 &
@@ -1206,8 +1205,9 @@ module quasiNewton_mod
 !
       if (tg.eq.0.d0) go to 940
       fn=fg
-      do 930 i=1,n
-  930 xn(i)=xn(i)+tg*d(i)
+      do i=1,n
+        xn(i)=xn(i)+tg*d(i)
+      end do
   940 if (imp.le.0) go to 999
       write (io,1001)
       write (io,1005) tg,fg,fpg
@@ -1217,8 +1217,9 @@ module quasiNewton_mod
 !
 !               recopiage de x et boucle
 !
-  950 do 960 i=1,n
-  960 x(i)=xn(i)+t*d(i)
+  950 do i=1,n
+        x(i)=xn(i)+t*d(i)
+      end do
       go to 100
   999 continue
       end subroutine nlis0

@@ -49,7 +49,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine ppo_getColumn(field,nlong,nlat,nlev,xlong,xlat, &
                            vlev,plong,plat,nlevout,vlevout,  &
-			   nearestNeighbourInterp,vprof)
+                           nearestNeighbourInterp,vprof)
     !
     !:Purpose: Horizontal nearest-neighbour or bilinear and vertical linear 
     !          ln(p) interpolation from 1D to 3D fields to a profile at (plong,plat).
@@ -89,76 +89,76 @@ contains
     ! Find near lat/long grid points
 
     if (nearestNeighbourInterp) then
-      
+
       if (nlong == 1) then
         lonIndex=1
       else
         plong2 = plong
         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
         if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
-	    plong2 < 2.0d0*xlong(1)-xlong(2)) then
-           call utl_abort('ppo_getColumn: Outside longitude range')
-        end if	  
-	if ( plong2 < 0.5d0*(xlong(1)+xlong(2)) ) then
-	  lonIndex=1
-	else if ( plong2 >= 0.5d0*(xlong(nlong)+xlong(nlong-1)) ) then
-	  lonIndex=nlong
-	else  
-	  dldx=abs(xlong(1)-plong2)
-	  do lonIndex=2,nlong
-	    dlw1=abs(xlong(lonIndex)-plong2)
-	    if (dlw1>dldx) exit
-	    dldx=dlw1
+             plong2 < 2.0d0*xlong(1)-xlong(2)) then
+          call utl_abort('ppo_getColumn: Outside longitude range')
+        end if
+        if ( plong2 < 0.5d0*(xlong(1)+xlong(2)) ) then
+          lonIndex=1
+        else if ( plong2 >= 0.5d0*(xlong(nlong)+xlong(nlong-1)) ) then
+          lonIndex=nlong
+        else
+          dldx=abs(xlong(1)-plong2)
+          do lonIndex=2,nlong
+            dlw1=abs(xlong(lonIndex)-plong2)
+            if (dlw1>dldx) exit
+            dldx=dlw1
           end do
-	  lonIndex=lonIndex-1
-	end if
+          lonIndex=lonIndex-1
+        end if
       end if
-      
+
       if (nlat == 1) then
         latIndex=1
       else 
 
         if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
-	    plat < 2.0d0*xlat(1)-xlat(2)) then
-           call utl_abort('ppo_getColumn: Outside latitude range')
-        end if	  
-	if ( plat < 0.5d0*(xlat(1)+xlat(2)) ) then
-	  latIndex=1
-	else if ( plat >= 0.5d0*(xlat(nlat)+xlat(nlat-1)) ) then
-	  latIndex=nlat
-	else 
-	  if ( xlat(1) < -89.999d0  .and. &
-	       abs(0.5d0*(xlat(1)+xlat(3))/xlat(2)-1.0d0)  < 5.0d0*epsilon(1.0d0) ) then
-	    ! Following done to ensure backward compatibility with Fortuin-Kelder
-	    ! ozone setup. Otherwise, some lat indices could differ from earlier results due
-	    ! to numerical precison (when plat is in the middle of two successive latitudes)
-	    ! Assume equidistant with ends at poles and latitudes in degrees
+             plat < 2.0d0*xlat(1)-xlat(2)) then
+          call utl_abort('ppo_getColumn: Outside latitude range')
+        end if
+        if ( plat < 0.5d0*(xlat(1)+xlat(2)) ) then
+          latIndex=1
+        else if ( plat >= 0.5d0*(xlat(nlat)+xlat(nlat-1)) ) then
+          latIndex=nlat
+        else
+          if ( xlat(1) < -89.999d0  .and. &
+               abs(0.5d0*(xlat(1)+xlat(3))/xlat(2)-1.0d0)  < 5.0d0*epsilon(1.0d0) ) then
+     ! Following done to ensure backward compatibility with Fortuin-Kelder
+     ! ozone setup. Otherwise, some lat indices could differ from earlier results due
+     ! to numerical precison (when plat is in the middle of two successive latitudes)
+     ! Assume equidistant with ends at poles and latitudes in degrees
 
-            !latIndex = nint( (plat+90.0d0) / (180.0d0/real(nlat-1,8)) ) + 1
-	    !if ( abs(plat+35.0d0) < 2*35.0d0*epsilon(1.0d0) .and. nlat == 19 .and. &
-	    !     latIndex == 6 ) latIndex = 7   ! Select -30 degrees instead of -40 degrees.
+     !latIndex = nint( (plat+90.0d0) / (180.0d0/real(nlat-1,8)) ) + 1
+     !if ( abs(plat+35.0d0) < 2*35.0d0*epsilon(1.0d0) .and. nlat == 19 .and. &
+     !     latIndex == 6 ) latIndex = 7   ! Select -30 degrees instead of -40 degrees.
             latIndex = nint( (1.0d0+epsilon(1.0d0))*(plat+90.0d0) / (180.0d0/real(nlat-1,8)) ) + 1
-	  else  
-	    dldy=abs(xlat(1)-plat)
-	    do latIndex=1,nlat
-	      dlw1=abs(xlat(latIndex)-plat)
-	      if (dlw1>dldy) exit
-	      dldy=dlw1
+          else
+            dldy=abs(xlat(1)-plat)
+            do latIndex=1,nlat
+              dlw1=abs(xlat(latIndex)-plat)
+              if (dlw1>dldy) exit
+              dldy=dlw1
             end do
-	    latIndex=latIndex-1
-	  endif	  	 		 
-	end if 
+            latIndex=latIndex-1
+          endif
+        end if
       end if
-      
+
     else   
-      
+
       if ( nlong > 1 ) then
         plong2 = plong
         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
         if (plong2 > 2.0d0*xlong(nlong)-xlong(nlong-1) .or. &
-	    plong2 < 2.0d0*xlong(1)-xlong(2)) then
-           call utl_abort('ppo_getColumn: Outside longitude range')
-        end if	  
+             plong2 < 2.0d0*xlong(1)-xlong(2)) then
+          call utl_abort('ppo_getColumn: Outside longitude range')
+        end if
         do lonIndex = 2, nlong
           if  (xlong(lonIndex-1) < xlong(lonIndex)) then
             if (plong2 >= xlong(lonIndex-1) .and. plong2 <= xlong(lonIndex)) exit
@@ -167,21 +167,21 @@ contains
           end if
         end do
         lonIndex = lonIndex-1
-	if (lonIndex >= nlong) lonIndex=nlong-1
+        if (lonIndex >= nlong) lonIndex=nlong-1
       else
         lonIndex=0
       end if
 
       if ( nlat > 1) then
         if (plat > 2.0d0*xlat(nlat)-xlat(nlat-1) .or. &
-	    plat < 2.0d0*xlat(1)-xlat(2)) then
-           call utl_abort('ppo_getColumn: Outside latitude range')
-        end if	  
+             plat < 2.0d0*xlat(1)-xlat(2)) then
+          call utl_abort('ppo_getColumn: Outside latitude range')
+        end if
         do latIndex = 2, nlat
           if (plat <= xlat(latIndex)) exit
         end do
         latIndex = latIndex-1
-	if (latIndex >= nlat) latIndex=nlat-1
+        if (latIndex >= nlat) latIndex=nlat-1
       else 
         latIndex=0
       end if
@@ -189,7 +189,7 @@ contains
     end if
 
     if ( latIndex == 0 .or. nearestNeighbourInterp ) then
-    
+
       ! Assumes longitudinally independent as well. 
 
       ! Set vertical interpolation weights (assumes pressure vertical coordinate)
@@ -205,27 +205,27 @@ contains
         ilev = j-1
         if (ilev <= 1) then
           ilev = 1
-	  dldp=1.0d0
+          dldp=1.0d0
         else if (ilev >= nlev) then
           ilev = nlev-1
-	  dldp=0.0d0
-	else
-          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+          dldp=0.0d0
+        else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
         end if
 
-         
-	if (.not.nearestNeighbourInterp) then
+
+        if (.not.nearestNeighbourInterp) then
           vprof(i) = dldp * field(1,1,ilev) & 
-            + (1.d0-dldp) * field(1,1,ilev+1)
-	else
+               + (1.d0-dldp) * field(1,1,ilev+1)
+        else
           vprof(i) = dldp * field(lonIndex,latIndex,ilev) & 
-            + (1.d0-dldp) * field(lonIndex,latIndex,ilev+1)
-	end if
-	
+               + (1.d0-dldp) * field(lonIndex,latIndex,ilev+1)
+        end if
+
       end do
 
     else if ( lonIndex == 0 .and. latIndex > 0 ) then
-    
+
       ! Set lat interpolation weights
 
       dldy = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
@@ -246,22 +246,22 @@ contains
         ilev = j-1
         if (ilev <= 1) then
           ilev = 1
-	  dldp=1.0d0
+          dldp=1.0d0
         else if (ilev >= nlev) then
           ilev = nlev-1
-	  dldp=0.0d0
-	else
-          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+          dldp=0.0d0
+        else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
         end if
 
         vprof(i) = dldp* (dlw1 * field(1,latIndex,ilev)      &
-                        + dlw2 * field(1,latIndex+1,ilev))   & 
+                        + dlw2 * field(1,latIndex+1,ilev))   &
           + (1.d0-dldp)* (dlw1 * field(1,latIndex,ilev+1)    &
-                        + dlw2 * field(1,latIndex+1,ilev+1))  
+                        + dlw2 * field(1,latIndex+1,ilev+1))
       end do
 
     else
-    
+
       ! Set lat/long interpolation weights
 
       dldx = (plong - xlong(lonIndex))/(xlong(lonIndex+1)-xlong(lonIndex))
@@ -285,14 +285,14 @@ contains
         ilev = j-1
         if (ilev < 1) then
           ilev = 1
-	  dldp=1.0d0
+          dldp=1.0d0
         else if (ilev >= nlev) then
           ilev = nlev-1
-	  dldp=0.0
-	else
-          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))	
+          dldp=0.0
+        else
+          dldp = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
         end if
-          
+
         vprof(i) = dldp* (dlw1 * field(lonIndex,latIndex,ilev)      &
                         + dlw2 * field(lonIndex+1,latIndex,ilev)    &
                         + dlw3 * field(lonIndex,latIndex+1,ilev)    &
@@ -300,7 +300,7 @@ contains
           +(1.0d0-dldp)* (dlw1 * field(lonIndex,latIndex,ilev+1)    &
                         + dlw2 * field(lonIndex+1,latIndex,ilev+1)  &
                         + dlw3 * field(lonIndex,latIndex+1,ilev+1)  &
-                        + dlw4 * field(lonIndex+1,latIndex+1,ilev+1))                               
+                        + dlw4 * field(lonIndex+1,latIndex+1,ilev+1))
       end do
     end if
 
@@ -458,8 +458,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),           intent(in)  :: pvi(kni)     ! Vertical levels, pressure (source)
     integer,           intent(in)  :: kni          ! Number of input levels (source)
+    real(8),           intent(in)  :: pvi(kni)     ! Vertical levels, pressure (source)
     integer,           intent(in)  :: kno          ! Number of output levels (destination)
     real(8),           intent(in)  :: pvo(kno)     ! Vertical levels, pressure (destination)
     real(8),           intent(out) :: wgts(kno,2)  ! Interpolation weights (destination)
@@ -784,10 +784,10 @@ contains
           kstart(ki)=j
           kend(ki)=j
           CYCLE
-	else
+        else
           istart=ic
           kstart(ki)=istart
-          kend(ki)=j	
+          kend(ki)=j
         end if
 
       else
@@ -804,7 +804,7 @@ contains
           zpz(j+1)=0.0d0
 
           if (px2(j).ge.z1(ki+1)) exit
-	  
+
           if (px2(j).lt.z1(ki).and.px2(j+1).gt.z1(ki-1)) then
 
             ! Integration over the segment of the range (z1(ki-1),z1(ki))
@@ -866,10 +866,10 @@ contains
           kstart(ki)=j
           kend(ki)=j
           CYCLE
-	else
+        else
           istart=ic
           kstart(ki)=istart
-          kend(ki)=j	
+          kend(ki)=j
         end if
 
       end if
@@ -1661,12 +1661,12 @@ contains
         !$OMP PARALLEL DO PRIVATE(jk,levelIndex)                  
         do jk = 1,numInputLevs
           do levelIndex=max(1,jk-ivweights),min(numInputLevs,jk+ivweights)
-            wgts(TargetIndex,jk)=wgts(TargetIndex,jk) &
-	          +(boundaries(levelIndex+1) &
-                  -boundaries(levelIndex))*weights(jk,levelIndex)
+            wgts(TargetIndex,jk) = wgts(TargetIndex,jk) &
+                                   + (boundaries(levelIndex+1) &
+                                   - boundaries(levelIndex))*weights(jk,levelIndex)
             if (present(wgts_opt)) &
-              wgts_opt(TargetIndex,jk)=wgts_opt(TargetIndex,jk)+ &
-	                               weights(jk,levelIndex)
+                 wgts_opt(TargetIndex,jk) = wgts_opt(TargetIndex,jk) + &
+                                            weights(jk,levelIndex)
           end do
         end do
         !$OMP END PARALLEL DO                 
@@ -1785,7 +1785,7 @@ contains
               wgts_opt(TargetIndex,levelIndex)=wgts_opt(TargetIndex,levelIndex)+zr1
               wgts_opt(TargetIndex,levelIndex+1)=wgts_opt(TargetIndex,levelIndex+1)+zr2
               wgts_opt(TargetIndex,levelIndex+2)=wgts_opt(TargetIndex,levelIndex+2)+zr3
- 	    end if
+            end if
             ilmin=levelIndex
             if (ilmax < levelIndex+2) ilmax=levelIndex+2
                    
@@ -1796,11 +1796,10 @@ contains
 
       if (kstart(TargetIndex) > 0 .and. kend(TargetIndex) > 0) then
         if (abs(kstart(TargetIndex)-ilmin) > 1 .or. &
-	    abs(kend(TargetIndex)-ilmax) > 1) then
-	    
+            abs(kend(TargetIndex)-ilmax) > 1) then
           write(*,*) 'ppo_vertIntegWgts: Suspected error in layer', &
-	        ' identification: ',TargetIndex,kstart(TargetIndex),ilmin, &
-	        kend(TargetIndex),ilmax
+                     ' identification: ',TargetIndex,kstart(TargetIndex),ilmin, &
+                     kend(TargetIndex),ilmax
         end if
       end if
 
@@ -2015,7 +2014,6 @@ contains
 
           wgts(TargetIndex,levelIndex)=1.0D0
           if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=1.0D0
-	  
           ilmin=levelIndex
           ilmax=levelIndex+1
                   
@@ -2034,15 +2032,15 @@ contains
             ilmin2=ilmin
           else
             ilmin2=ilmin
-          end if	
-	    
+          end if
+
           SumWeights=1.0D0/sum(weights(ilmin:ilmax,1))
-	  
+
           if (ilmin2 <= ilmax2) then
             !$OMP PARALLEL DO PRIVATE(levelIndex)                  
             do levelIndex = ilmin2,ilmax2
-              wgts(TargetIndex,levelIndex)= &
-	        (boundaries(levelIndex+1)-boundaries(levelIndex))*TargetLayerThickWgt
+              wgts(TargetIndex,levelIndex) = &
+                   (boundaries(levelIndex+1)-boundaries(levelIndex))*TargetLayerThickWgt
               if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
             end do
             !$OMP END PARALLEL DO               
@@ -2058,7 +2056,7 @@ contains
             if (levelIndex < 1) levelIndex=1
                    
             wgts(TargetIndex,levelIndex)= &
-	      (pbtm - boundaries(ilmax))*TargetLayerThickWgt
+                 (pbtm - boundaries(ilmax))*TargetLayerThickWgt
             
             if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
 
@@ -2073,10 +2071,10 @@ contains
             if (levelIndex > numInputLevs) levelIndex=numInputLevs
                    
             wgts(TargetIndex,levelIndex)= &
-	      (boundaries(ilmin)-ptop)*TargetLayerThickWgt
+                 (boundaries(ilmin)-ptop)*TargetLayerThickWgt
 
             if (present(wgts_opt)) wgts_opt(TargetIndex,levelIndex)=SumWeights
-	      
+
             ilmin=levelIndex
             if (ilmax < levelIndex+1) ilmax=levelIndex+1
                    

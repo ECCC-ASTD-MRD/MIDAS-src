@@ -278,7 +278,7 @@ contains
 
     ! Print out vertical structure 
     if (mmpi_myid == 0 .and. .not. beSilent) then
-      call flush(6) ! possibly needed so vgd_print output appears correctly in listing
+      flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
       if (stat /= VGD_OK)then
         call utl_abort('vco_setupAtmFromFile: ERROR with vgd_print')
@@ -613,14 +613,14 @@ contains
 
       if (.not. beSilent) &
       write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: NEMO deptht is missing from file: ', &
-	         trim(templateFile)
+                  trim(templateFile)
 
       if (varFound(3)) then     
         if (.not. beSilent) &
-	  write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
+             write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
       else
         call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST found in file: '//trim(templateFile)) 
-      end if	
+      end if
 
       if (.not. beSilent) &
       write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: vertical coordinate object is not required for SST.'
@@ -628,10 +628,10 @@ contains
       vco%nLev_depth = 1
       allocate(vco%depths(vco%nLev_depth))
       allocate(vco%ip1_depth(vco%nLev_depth))
-	
+
       ! setting ocean surface depth to 0m
       vco%depths(1) = 0
-	
+
       ! Set ip1 value for 0m depth
       call convip(ip1Value, real(vco%depths(1), 4), 0, 2, blk_s, .false.) 
       vco%ip1_depth(1) = ip1Value

@@ -781,10 +781,10 @@ contains
     integer :: numPerturbations
     integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily
     integer, parameter :: numFamily=10
-    real*8  :: zmean,originalOmp
-    real*8  :: scaleFactor(numFamily)
+    real(8)  :: zmean,originalOmp
+    real(8)  :: scaleFactor(numFamily)
     character(len=2) :: familyList(numFamily)
-    real*8, save, pointer :: obsPerturbations(:,:) => NULL()
+    real(8), save, pointer :: obsPerturbations(:,:) => NULL()
     logical, save :: firstTime = .true.
 
     familyList(1)='UA' ; scaleFactor(1)=1.00d0

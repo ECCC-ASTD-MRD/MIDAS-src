@@ -490,10 +490,10 @@ module midasMpi_mod
     implicit none
 
     ! Arguments:
-    character(len=nchar), intent(in) :: str_list(nlist)
-    character(len=*)    , intent(in) :: comm
     integer             , intent(in) :: nlist
     integer             , intent(in) :: nchar
+    character(len=nchar), intent(in) :: str_list(nlist)
+    character(len=*)    , intent(in) :: comm
     integer             , intent(in) :: nproc
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
     integer             , intent(out) :: ierr

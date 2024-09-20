@@ -2066,11 +2066,11 @@ contains
     type(struct_ens),     intent(inout) :: ensembleTrl        ! Trial ensemble
     type(struct_ens),     intent(inout) :: ensembleAnl        ! Analysis ensemble
     integer,              intent(in)    :: levIndex           ! The `levIndex` being processed
+    integer,              intent(in)    :: myLonBegHalo       ! First lon index of weights (for array indexing)
+    integer,              intent(in)    :: myLatBegHalo       ! First lat index of weights (for array indexing)
     real(8),              intent(in)    :: weightsMean(1:,1:,myLonBegHalo:,myLatBegHalo:)    ! Weights for ens mean
     real(8),              intent(in)    :: weightsMembers(1:,1:,myLonBegHalo:,myLatBegHalo:) ! Weights for members
     logical,              intent(in)    :: useModulatedEns    ! Indicates if modulated ens is used
-    integer,              intent(in)    :: myLonBegHalo       ! First lon index of weights (for array indexing)
-    integer,              intent(in)    :: myLatBegHalo       ! First lat index of weights (for array indexing)
 
     ! Locals:
     character(len=4) :: varName
@@ -2428,7 +2428,7 @@ contains
       call gsv_allocate( stateVectorMeanTrlPressure, tim_nstepobsinc,  &
                          stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                          mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/) )
+                         dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0 ','P_M','P_T','Z_M','Z_T','TT ','HU '/) )
       call gsv_zero(stateVectorMeanTrlPressure)
       call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
       call gvt_transform(stateVectorMeanTrlPressure,'ZandP_nl')
@@ -2436,7 +2436,7 @@ contains
         call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
                            stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.false., &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/) )
+                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0 ','P_M','P_T','Z_M','Z_T','TT ','HU '/) )
       end if
       call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
       call gsv_deallocate(stateVectorMeanTrlPressure)

@@ -969,8 +969,8 @@ contains
     if (numRows /= numRowsHeadTable) then
       write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, &
                  ', numRowsHeadTable = ', numRowsHeadTable      
-      call utl_abort('odbf_setSurfaceType: Number of rows found in mask query is &
-                       not equal to total number of rows in head table')
+      call utl_abort('odbf_setSurfaceType: Number of rows found in mask query is ' // &
+                     'not equal to total number of rows in head table')
     end if      
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix(stmt, columnValues)

@@ -59,8 +59,8 @@ module bMatrix1DVar_mod
   real(4), allocatable :: latLand(:), lonLand(:), latSea(:), lonSea(:)
   integer              :: nLonLatPosLand, nLonLatPosSea
   integer,          parameter :: numMasterBmat = 2
-  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI', 'ENS' /)
-  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_ENS' /)
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI ', 'ENS' /)
+  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI ', 'B_ENS' /)
   logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true. /) 
   integer            :: numBmat
   integer, parameter :: numBmatMax = 10

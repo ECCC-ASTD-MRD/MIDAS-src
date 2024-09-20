@@ -358,7 +358,7 @@ contains
                       hco_ptr, vco_ptr,  &
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                       dataKind_opt=4, allocHeightSfc_opt=.true.,  &
-                      varNames_opt=(/'P0','P_M','P_T','Z_M','Z_T','TT','HU'/))
+                      varNames_opt=(/'P0 ','P_M','P_T','Z_M','Z_T','TT ','HU '/))
     call gsv_zero(stateVector)
 
     do memberIndex = 1, numMember
@@ -1030,10 +1030,10 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: numLev_src ! Number of input levels (source)
     real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
     real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
     real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
-    integer, intent(in)  :: numLev_src ! Number of input levels (source)
     integer, intent(in)  :: ni_dest ! Number of profiles
     integer, intent(in)  :: nj_dest ! Number of profiles
     integer, intent(in)  :: numLev_dest ! Number of output levels (destination)
@@ -1400,10 +1400,10 @@ contains
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: numLev_src            ! Number of input levels (source)
     real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
     real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
     real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
-    integer, intent(in)  :: numLev_src            ! Number of input levels (source)
     integer, intent(in)  :: numColumn_dest        ! Number of profiles
     integer, intent(in)  :: numLev_dest           ! Number of output levels (destination)
     real(8), intent(in)  :: press_dest(:,:)       ! Vertical levels, pressure (destination)

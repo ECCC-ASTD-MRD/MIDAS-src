@@ -184,9 +184,9 @@ CONTAINS
       ! trial horizontal structure.
       if (vco_trl%Vcode == 5100) then
         allocate(varNamesRef(4))
-        varNamesRef = (/'P0', 'P0LS', 'TT', 'HU'/)
+        varNamesRef = (/'P0  ', 'P0LS', 'TT  ', 'HU  '/)
         allocate(varNamesPsfc(2))
-        varNamesPsfc = (/'P0','P0LS'/)
+        varNamesPsfc = (/'P0  ','P0LS'/)
       else
         allocate(varNamesRef(3))
         varNamesRef = (/'P0', 'TT', 'HU'/)
@@ -391,7 +391,7 @@ CONTAINS
 
     if (vco_trl%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)
@@ -530,7 +530,7 @@ CONTAINS
 
     if (vco_trl%Vcode == 5100) then
       allocate(varNamesPsfc(2))
-      varNamesPsfc = (/'P0','P0LS'/)
+      varNamesPsfc = (/'P0  ','P0LS'/)
     else
       allocate(varNamesPsfc(1))
       varNamesPsfc = (/'P0'/)

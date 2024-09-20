@@ -77,7 +77,7 @@ module sstBias_mod
     type(struct_gsv)            :: stateVector_ice
     real(4), pointer            :: seaice_ptr(:,:,:)
     integer         , parameter :: numberProducts = 2  ! day and night
-    character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/)
+    character(len=*), parameter :: listProducts(numberProducts)= (/'day  ', 'night'/)
 
     write(*,*) 'sstb_computeBias: Starting...'
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
@@ -243,7 +243,7 @@ module sstBias_mod
       do headerIndex = 1, obs_numheader(obsData)
         if (trim(instrument) == 'insitu') then
           codtyp = obs_headElem_i(obsData, obs_ity, headerIndex)
-	  if (codtyp == codtyp_get_codtyp('shipnonauto') .or. &
+          if (codtyp == codtyp_get_codtyp('shipnonauto') .or. &
               codtyp == codtyp_get_codtyp('drifter')     .or. &
               codtyp == codtyp_get_codtyp('ashipauto')) then
             lon_obs = obs_headElem_r(obsData, obs_lon, headerIndex)
@@ -305,9 +305,9 @@ module sstBias_mod
                 currentObs = obs_bodyElem_r(obsData, obs_var, bodyIndex)
                 obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) + currentObs 
               end do
-	    end if
-	    
-	  end if OPENWATERPTS
+            end if
+
+          end if OPENWATERPTS
         end do
       end do
 
@@ -325,12 +325,12 @@ module sstBias_mod
           call rpn_comm_allreduce(ndataFoundGridLoc(lonIndex, latIndex), &
                                   ndataFoundGridGlob(lonIndex, latIndex), 1, &
                                   'mpi_integer', 'mpi_sum', 'grid', ierr)
-	  if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
-	    obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
+          if (ndataFoundGridGlob(lonIndex, latIndex) > 0) then
+            obsGrid(lonIndex, latIndex) = obsGrid(lonIndex, latIndex) / &
                                           real(ndataFoundGridGlob(lonIndex, latIndex))
-	  else
-	    obsGrid(lonIndex, latIndex) = MPC_missingValue_R8
-	  end if
+          else
+            obsGrid(lonIndex, latIndex) = MPC_missingValue_R8
+          end if
           if (.not.openWater(lonIndex, latIndex)) obsGrid(lonIndex, latIndex) = MPC_missingValue_R8
         end do
       end do
@@ -396,7 +396,7 @@ module sstBias_mod
     if (dayOrNight == 'day') then
       extension = 'D'
     else if (dayOrNight == 'night') then
-      extension = 'N'	  
+      extension = 'N'
     else  
       call utl_abort('sstb_getGriddedBias: wrong extension: '//trim(extension)) 
     end if  
@@ -480,7 +480,7 @@ module sstBias_mod
 
         POSITIVEOBSNUMBER2: if (nobsLoc > 0) then
     
-	  numberPoints = 0.0d0
+          numberPoints = 0.0d0
           LANDSEAMASK: if (mask(lonIndex, latIndex)) then
             lon_grd = real(hco%lon2d_4(lonIndex, latIndex), 8)
             lat_grd = real(hco%lat2d_4(lonIndex, latIndex), 8)
@@ -519,18 +519,18 @@ module sstBias_mod
           if (weight < weightMin) weight = weightMin
           if (weight > weightMax) weight = weightMax
        
-	  if (saveAuxFields) then
+          if (saveAuxFields) then
             weightField_r4_ptr(lonIndex, latIndex, 1) = weight
-	    nobsField_r4_ptr(lonIndex, latIndex, 1) = numberPoints
-	  end if
-	  
-	  ! computation of the bias:
+            nobsField_r4_ptr(lonIndex, latIndex, 1) = numberPoints
+          end if
+
+          ! computation of the bias:
           griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * bgTermZeroBias * &
                                                       griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
                                                       weight * griddedBias_r4_ptr(lonIndex, latIndex, 1)
         else ! no data on the current processor   
-       
-	  ! the bias estimation on the current processor is the estimation from previous state:
+
+          ! the bias estimation on the current processor is the estimation from previous state:
           griddedBias_r4_ptr(lonIndex, latIndex, 1) = griddedBias_r4_previous_ptr(lonIndex, latIndex, 1)
 
         end if POSITIVEOBSNUMBER2
@@ -593,19 +593,19 @@ module sstBias_mod
       if (obs_elem_c(obsData, 'STID' , headerIndex) == trim(sensor)) then
         
         bodyIndex  = obs_headElem_i(obsData, obs_rln, headerIndex)
-	currentObs = obs_bodyElem_r(obsData, obs_var, bodyIndex)
-	
-	if (trim(dayOrNight) == 'day') then
+        currentObs = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+
+        if (trim(dayOrNight) == 'day') then
           if (obs_headElem_r(obsData, obs_sun, headerIndex) <  solarZenithThreshold) then
             call obs_bodySet_r(obsData, obs_bcor, bodyIndex, col_getElem(column, 1, headerIndex, 'TM'))
             call obs_bodySet_r(obsData, obs_var , bodyIndex, currentObs - col_getElem(column, 1, headerIndex, 'TM'))
-	  end if  
-	else if (trim(dayOrNight) == 'night') then
+          end if
+        else if (trim(dayOrNight) == 'night') then
           if (obs_headElem_r(obsData, obs_sun, headerIndex) >= solarZenithThreshold) then
             call obs_bodySet_r(obsData, obs_bcor, bodyIndex, col_getElem(column, 1, headerIndex, 'TM'))
             call obs_bodySet_r(obsData, obs_var , bodyIndex, currentObs - col_getElem(column, 1, headerIndex, 'TM'))
           end if
-	end if
+        end if
       end if
       
     end do 
@@ -694,7 +694,7 @@ module sstBias_mod
     ! Locals:
     type(struct_gsv)            :: stateVector
     integer         , parameter :: numberProducts = 2            ! day and night
-    character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/) ! day and night biases
+    character(len=*), parameter :: listProducts(numberProducts)= (/'day  ', 'night'/) ! day and night biases
     integer                     :: sensorIndex, productIndex
     character(len=1)            :: extension
     character(len=*), parameter :: biasFileName = './satellite_bias.fst'
@@ -716,16 +716,16 @@ module sstBias_mod
         else
           call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
         end if
-	
+
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &
                               ' ', unitConversion_opt = .false., containsFullField_opt = .true.)
         call sstb_getBiasCorrection(stateVector, column, obsData, hco, trim(sensorList(sensorIndex)), &
                                     trim(listProducts(productIndex)))
       end do
     end do
-    				    
+
     call gsv_deallocate(stateVector)
-			    
+
   end subroutine sstb_applySatelliteSSTBiasCorrection
 
   !--------------------------------------------------------------------------
@@ -759,7 +759,7 @@ module sstBias_mod
     if (trim(dayOrNight) == 'day') then
       extension = 'D'
     else if (trim(dayOrNight) == 'night') then
-      extension = 'N'	  
+      extension = 'N'
     else  
       call utl_abort('sstb_getBiasFromPreviousState: wrong extension: '//trim(extension))
     end if

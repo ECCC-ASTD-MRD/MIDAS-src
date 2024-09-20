@@ -489,7 +489,7 @@ program midas_diagBmatrix
             end if
 
             write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
-            call flush(6)
+            flush(6)
 
             ip3 = ip3 + 1
             call ens_copyMember(ensAmplitude, statevectorEnsAmplitude, 1)
@@ -543,7 +543,7 @@ program midas_diagBmatrix
     !
     do ensIndex = 1, numperturbations
       write(*,*) 'midas-diagBmatrix: computing member number= ',ensIndex
-      call flush(6)
+      flush(6)
 
       !- Global vector (same for each processors)
       do index = 1, cvm_nvadim_mpiglobal
@@ -667,7 +667,7 @@ program midas_diagBmatrix
     !- Compute the zonal mean std dev
     !
     write(*,*) 'midas-diagBmatrix: Compute the zonal mean stddev'
-    call flush(6)
+    flush(6)
 
     allocate(stddev_zm(hco_anl%nj,numVarLev))
     allocate(stddev_zm2(hco_anl%nj,numVarLev))
@@ -744,7 +744,7 @@ program midas_diagBmatrix
     !- Compute the domain mean std dev
     !
     write(*,*) 'midas-diagBmatrix: Compute the domain mean stddev'
-    call flush(6)
+    flush(6)
 
     allocate(stddev_dm(hco_anl%ni,numVarLev))
     allocate(stddev_dm2(hco_anl%ni,numVarLev))

@@ -160,7 +160,7 @@ module bgckOcean_mod
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     if (fourSeasonsBgstdSST) then
       call bdiff_getSSTBGstdFromFourSeasons(hco, col_getVco(columnTrlOnTrlLev), stateVectorFGE)
-    else		      
+    else
       call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                             unitConversion_opt=.false., containsFullField_opt=.true.)
     end if
@@ -226,17 +226,17 @@ module bgckOcean_mod
       if (llok) then
         if (obsVarno == bufr_sst) then
 
-	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
-	  OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
+          FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
+          OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
           OER = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
-	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+          codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
 
-	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
+          if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
 
-	    numberObs = numberObs + 1
-	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
-	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
-	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
+            numberObs = numberObs + 1
+            if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
+            call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
+            bgCheck = (OmP)**2 / (FGE**2 + OER**2)
 
             if (separateSelectCriteria) then
               seaWaterFraction = col_getElem(columnSeaWaterFraction, 1, headerIndex, 'VF')
@@ -256,11 +256,11 @@ module bgckOcean_mod
             else
               obsFlag = ocebg_setFlag(obsVarno, bgCheck, globalSelectCriteria)
             end if
-	
+
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
-	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
-	      write(*,'(i10,a,i5,4f10.4,i5)') numberObsRejected, &
+              if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
+              write(*,'(i10,a,i5,4f10.4,i5)') numberObsRejected, &
                                               ', sensor, codtype, lon, lat, obs.value, OmP, flag: '&
                                               //obs_elem_c(obsData, 'STID' , headerIndex)//' data: ', codeType, &
                                               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
@@ -268,9 +268,9 @@ module bgckOcean_mod
                                               obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag 
             end if
 
-	    ! update background check flags based on bgCheck
+            ! update background check flags based on bgCheck
             ! (element flags + global header flags)
-	    if (obsFlag == 1) then
+            if (obsFlag == 1) then
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 13))
             else if (obsFlag == 2) then
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 14))
@@ -285,7 +285,7 @@ module bgckOcean_mod
             end if
 
           end if
-	end if
+        end if
       end if
 
     end do

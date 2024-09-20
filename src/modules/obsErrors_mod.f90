@@ -2496,24 +2496,24 @@ contains
 
     ! Locals:
     integer headerIndex, IDATYP, bodyIndex, iProfile, varNum
-    REAL*8 zLat, Lat, sLat
-    REAL*8 zLon, Lon
-    REAL*8 zAzm
-    REAL*8, allocatable :: ZPP(:)
-    REAL*8, allocatable :: ZTT(:)
-    REAL*8, allocatable :: ZHU(:)
-    REAL*8, allocatable :: zHeight(:)
-    REAL*8, allocatable :: ZUU(:)
-    REAL*8, allocatable :: ZVV(:)
-    REAL*8 DH,DDH
+    REAL(8) zLat, Lat, sLat
+    REAL(8) zLon, Lon
+    REAL(8) zAzm
+    REAL(8), allocatable :: ZPP(:)
+    REAL(8), allocatable :: ZTT(:)
+    REAL(8), allocatable :: ZHU(:)
+    REAL(8), allocatable :: zHeight(:)
+    REAL(8), allocatable :: ZUU(:)
+    REAL(8), allocatable :: ZVV(:)
+    REAL(8) DH,DDH
+    REAL(8) zMT, Rad, Geo, zP0
+    REAL(8) HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
     integer JL, isat, JH, NGPSLEV, NWNDLEV
-    REAL*8 zMT, Rad, Geo, zP0
-    REAL*8 HNH1, HJH, SUM0, SUM1, ZMIN, WFGPS, H1, F2, F3, F4
     LOGICAL  ASSIM, L1, L2, L3
     integer NH, NH1
     TYPE(GPS_PROFILE)           :: PRF
-    REAL*8       , allocatable :: H   (:),AZMV(:)
-    REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
+    REAL(8)       , allocatable :: H   (:),AZMV(:)
+    REAL(8)       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
     TYPE(GPS_DIFF), allocatable :: RSTV(:)
 
     if (.not. beSilent) write(*,*)'ENTER SETERRGPSRO'
@@ -2851,8 +2851,8 @@ contains
     LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
     LOGICAL LLZWD
     character(len=12) :: cstnid
-    REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, zlev, zval, ZZWD
-    REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
+    REAL(8)  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, zlev, zval, ZZWD
+    REAL(8)  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
     !
     !     ZZDERMIN = MIN ZTD OER VALUE (M)
     !     ZZDERMAX = MAX ZTD OER VALUE (M)
@@ -2860,7 +2860,7 @@ contains
     !     ZOPEFAC  = FRACTION OF REGRESSION EQUATION SD(O-P) TO USE AS ZTD OBSERVATION ERROR
     !     ----------------------------------------------------------------------------------
     !
-    REAL*8 ZZDERMIN, ZZDERMAX, ZTDERFAC, ZOPEFAC
+    REAL(8) ZZDERMIN, ZZDERMAX, ZTDERFAC, ZOPEFAC
     DATA ZZDERMIN /0.004D0/
     DATA ZZDERMAX /0.030D0/
     DATA ZTDERFAC /3.0D0/
@@ -2869,7 +2869,7 @@ contains
     !     FOR ESTIMATION OF PSFC (IF MISSING)
     !       ZGAMMA = (NEG. OF) TEMPERATURE LAPSE RATE (K/M)
     !
-    REAL*8 ZGAMMA
+    REAL(8) ZGAMMA
     DATA ZGAMMA /0.0065D0/
 
     !     ----------------------------------------------------------------------------------
@@ -2884,7 +2884,7 @@ contains
     !       - Gives Std(O-P) (mm) as function of ZWD (m):
     !            Std(O-P)(mm) = ZRCONST2 + ZRCOEFF2*ZWD(m)
     !     ----------------------------------------------------------------------------------
-    REAL*8 ZRCONST, ZRCOEFF, ZRCONST2, ZRCOEFF2
+    REAL(8) ZRCONST, ZRCOEFF, ZRCONST2, ZRCOEFF2
     DATA  ZRCONST  /5.12D0/
     DATA  ZRCOEFF  /26.4D0/
     DATA  ZRCONST2 /6.67D0/

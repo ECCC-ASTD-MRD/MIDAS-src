@@ -35,9 +35,9 @@ module obsOperators_mod
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
   ! Jacobian caches
-  real*8 , allocatable :: oop_vRO_Jacobian(:,:,:)
+  real(8) , allocatable :: oop_vRO_Jacobian(:,:,:)
   logical, allocatable :: oop_vRO_lJac(:)
-  real*8 , allocatable :: oop_vZTD_Jacobian(:,:)
+  real(8) , allocatable :: oop_vZTD_Jacobian(:,:)
 
 contains
 

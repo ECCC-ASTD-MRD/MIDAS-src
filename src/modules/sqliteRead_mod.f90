@@ -173,12 +173,18 @@ module sqliteRead_mod
     integer                  :: columnIndex
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
-    character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN','LAT','LON','CODTYP', &
-         'DATE','TIME','STATUS','ELEV','ANTENNA_ALTITUDE','LAND_SEA','ID_SAT','INSTRUMENT','SENSOR', &
-         'ZENITH','SOLAR_ZENITH','AZIMUTH','SOLAR_AZIMUTH','TERRAIN_TYPE','CLOUD_COVER', &
-         'FANION_QUAL_IASI_SYS_IND','INDIC_NDX_QUAL_GEOM','RO_QC_FLAG','GEOID_UNDULATION', &
-         'EARTH_LOCAL_RAD_CURV','CENTER_AZIMUTH','CENTER_ELEVATION','RANGE_START','RANGE_END', &
-         'ID_PROF','CHARTINDEX','TRACK_CELL_NO','MOD_WIND_SPD'/)
+    character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN                  ', &
+         'LAT                     ', 'LON                     ', 'CODTYP                  ',       &
+         'DATE                    ', 'TIME                    ', 'STATUS                  ',       &
+         'ELEV                    ', 'ANTENNA_ALTITUDE        ', 'LAND_SEA                ',       &
+         'ID_SAT                  ', 'INSTRUMENT              ', 'SENSOR                  ',       &
+         'ZENITH                  ', 'SOLAR_ZENITH            ', 'AZIMUTH                 ',       &
+         'SOLAR_AZIMUTH           ', 'TERRAIN_TYPE            ', 'CLOUD_COVER             ',       &
+         'FANION_QUAL_IASI_SYS_IND', 'INDIC_NDX_QUAL_GEOM     ', 'RO_QC_FLAG              ',       &
+         'GEOID_UNDULATION        ', 'EARTH_LOCAL_RAD_CURV    ', 'CENTER_AZIMUTH          ',       &
+         'CENTER_ELEVATION        ', 'RANGE_START             ', 'RANGE_END               ',       &
+         'ID_PROF                 ', 'CHARTINDEX              ', 'TRACK_CELL_NO           ',       &
+         'MOD_WIND_SPD            '/)
     real(8),                   allocatable :: bodyValues(:,:), codtypInFileList(:,:)
     logical :: beamRangeFound
     real(pre_obsReal)           :: missingValue
@@ -720,7 +726,7 @@ module sqliteRead_mod
           
         ! Add an extra row to the obsSpaceData body table
         ! to contain quantity later calculated by ovt_transformObsValue
-        call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
+        call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
         call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                   ovt_getDestinationBufrCode(obsVarno), &
                                   vertCoordType, bodyIndex+1)
@@ -728,7 +734,7 @@ module sqliteRead_mod
         obsNlv = obsNlv + 1
         if (ovt_isWindObs(obsVarno)) then
           ! Add an extra row for the other wind component
-          call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
+          call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, int(-1,8))
           call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
                                     ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
                                     vertCoordType, bodyIndex+1)
@@ -1108,7 +1114,7 @@ module sqliteRead_mod
           itemCharHeader = trim(itemCharHeader) // trim(columnName) // trim(' = ? , ')
         end if
 
-      end if	
+      end if
     end do
 
     back=.true.
@@ -1139,10 +1145,10 @@ module sqliteRead_mod
         bodyPrimaryKey = obs_bodyPrimaryKey(obsdat, bodyIndex)
 
         call fSQL_bind_param(stmt, param_index = 1, int_var = obsFlag)
-        
-				do itemIndex = 1, numberUpdateBodyItems
-          
-	  		  obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+
+        do itemIndex = 1, numberUpdateBodyItems
+
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if (obsValue /= obs_missingValue_R) then  
             romp = obs_bodyElem_r(obsdat, updateBodyList(itemIndex), bodyIndex)
             if (romp == obs_missingValue_R) then
@@ -1256,16 +1262,16 @@ module sqliteRead_mod
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
 
     ! First create the table if it does not already exist
-    query = 'create table if not exists cld_params(id_obs integer,ETOP real,VTOP real, &
-             ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
+    query = 'create table if not exists cld_params(id_obs integer,ETOP real,VTOP real, ' // &
+            'ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
     write(*,*) 'sqlr_addCloudParametersandEmissivity: Create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_do : ')
 
     ! Insert values in the table
-    query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
-             values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) ' // &
+            'values(?,?,?,?,?,?,?,?,?,?,?,?);'
     write(*,*) 'sqlr_addCloudParametersandEmissivity: Insert query = ', trim(query)
 
     call fSQL_prepare(db, query, stmt, stat)

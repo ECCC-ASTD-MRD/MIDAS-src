@@ -577,8 +577,8 @@ CONTAINS
     real(8), intent(out) :: da_gradJ(na_dim) ! Gradient of the Variational Cost funtion
 
     ! Locals:
-    real*8, dimension(na_dim) :: dl_v
-    real*8 :: dl_Jb, dl_Jo
+    real(8), dimension(na_dim) :: dl_v
+    real(8) :: dl_Jb, dl_Jo
     type(struct_gsv), save :: statevector
     type(struct_vco), pointer :: vco_anl
 

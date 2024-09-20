@@ -5412,17 +5412,17 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
     integer, intent(in)  :: nlong ! number of latitudes
     integer, intent(in)  :: nlat  ! number of longitudes
     integer, intent(in)  :: nlev  ! number of vertical levels
+    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
     real(8), intent(in)  :: xlong(nlong) ! longitudes (radians)
     real(8), intent(in)  :: xlat(nlat)   ! latitudes (radians)
     real(8), intent(in)  :: vlev(nlev)   ! vertical levels of input field (in pressure)
-    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
     integer, intent(in)  :: nlongout ! number or latitudes
     integer, intent(in)  :: nlatout  ! number of target longitudes
     integer, intent(in)  :: nlevout  ! Number of target vertical levels
+    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
     real(8), intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
     real(8), intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
     real(8), intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
@@ -5646,11 +5646,11 @@ module gridStateVector_mod
         if (present(varName_opt)) then
           if (gsv_getVarNameFromVarLev(stateVector,varLevIndex) /= trim(varName_opt)) cycle
         end if
-	
+
         smoothedField(:,:) = 0.0d0
         do latIndex = 1, stateVector%nj
           do lonIndex = 1, stateVector%ni
-	  
+
             lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
             lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
             count = 0
@@ -5662,10 +5662,10 @@ module gridStateVector_mod
               myBinInteger = int(binInteger(lonIndex,latIndex,1)) 
             end if
             
-	    if (binRealTest) then
+            if (binRealTest) then
               myBinReal = binReal(lonIndex,latIndex)
             end if
-	    
+
             do latIndex2 = latBeg, latEnd
               do lonIndex2 = lonBeg, lonEnd
 
@@ -5687,7 +5687,7 @@ module gridStateVector_mod
                   if (int(binInteger(lonIndex2,latIndex2,1)) /=  myBinInteger .or. & 
                       int(binInteger(lonIndex2,latIndex2,1)) == -1) cycle
                 end if
-		
+
                 if (binRealTest) then
                   if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle
                 end if
@@ -5701,18 +5701,18 @@ module gridStateVector_mod
                                                      real(stateVector%gd_r4(lonIndex2,latIndex2,varLevIndex,stepIndex),8)
                 end if
             
-	      end do
+              end do
             end do
             
-	    if (count > 0) then
+            if (count > 0) then
               smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / real(count,8)
             else
               if (maskNegatives) smoothedField(lonIndex,latIndex) = mpc_missingValue_r8
             end if
-	    
+
           end do
         end do
-	
+
         if (stateVector%dataKind == 8) then
           stateVector%gd_r8(:,:,varLevIndex,stepIndex) = smoothedField(:,:)
         else

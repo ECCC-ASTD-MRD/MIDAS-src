@@ -592,7 +592,7 @@ module ObsColumnNames_mod
    ! INTEGER-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IB(NBDY_INT_BEG:NBDY_INT_END) = &
-      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL ', &
+      (/ 'VNM ','FLG ','KFA ','ASS ','HIND','VCO ','LYR ','XTR ', 'QCFL', &
           'CLA '/)  
 
    !
@@ -778,7 +778,7 @@ contains
       character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsDataColumn_mod:-------",/,8X,A)')cdmessage
-      call flush(6)
+      flush(6)
 
 !#if defined(UNIT_TESTING)
 !      call throw(Exception('exiting in odc_abort:' // cdmessage))
@@ -1479,7 +1479,7 @@ module ObsSpaceData_mod
    ! CLASS-CONSTANT:
    ! CLASS-CONSTANT:
 
-   logical, save :: obs_class_initialized = .false.
+   logical :: obs_class_initialized = .false.
 
    ! end of CLASS-CONSTANT variables.
    ! end of CLASS-CONSTANT variables
@@ -1721,7 +1721,7 @@ contains
       character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
-      call flush(6)
+      flush(6)
 
 !#if defined(UNIT_TESTING)
 !      call throw(Exception('exiting in obs_abort'))
@@ -5601,8 +5601,8 @@ contains
 
       ! Arguments:
       type(struct_obs), intent(inout) :: obsdat
-      integer(8),       intent(in)    :: primaryKey
       integer,          intent(in)    :: bodyIndex
+      integer(8),       intent(in)    :: primaryKey
 
       obsdat%bodyPrimaryKey(bodyIndex) = primaryKey
 

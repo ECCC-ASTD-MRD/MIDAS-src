@@ -236,12 +236,12 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(out) :: pmat3(kdimi1,kdimj2)  ! output
-    real(8), intent(in)  :: pmat1(kdimi1,kdimj1)  ! input matrix one
-    real(8), intent(in)  :: pmat2(kdimj1,kdimj2)  ! input matrix two
     integer, intent(in)  :: kdimi1                ! first  dimension of the first  matrix
     integer, intent(in)  :: kdimj1                ! second dimension of the first  matrix 
     integer, intent(in)  :: kdimj2                ! second dimension of the second matrix
+    real(8), intent(out) :: pmat3(kdimi1,kdimj2)  ! output
+    real(8), intent(in)  :: pmat1(kdimi1,kdimj1)  ! input matrix one
+    real(8), intent(in)  :: pmat2(kdimj1,kdimj2)  ! input matrix two
 
     ! Locals:
     integer :: ji1,jj2,jj
@@ -590,11 +590,11 @@ module windRotation_mod
     implicit none
 
     ! Arguments:
+    integer, intent(in)  :: kdimi             ! first dimension
+    integer, intent(in)  :: kdimj             ! second dimension
     real(8), intent(out) :: pvec2(kdimi)      ! output vector
     real(8), intent(in)  :: pmat(kdimi,kdimj) ! input matrix
     real(8), intent(in)  :: pvec1(kdimj)      ! input vector
-    integer, intent(in)  :: kdimi             ! first dimension
-    integer, intent(in)  :: kdimj             ! second dimension
 
     ! Locals:
     integer :: ji,jj

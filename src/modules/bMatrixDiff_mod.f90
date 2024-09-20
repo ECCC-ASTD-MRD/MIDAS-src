@@ -395,9 +395,9 @@ CONTAINS
                                      str(bdiff_varNameList(1:numvar2d)))
   
     call gsv_allocate(stateVector, 1, hco, vco, dateStamp_opt = -1, &
-		      dataKind_opt = 4, mpi_local_opt = .true., &
-		      hInterpolateDegree_opt = 'LINEAR', &
-		      varNames_opt = bdiff_varNameList(1:numvar2d))
+                      dataKind_opt = 4, mpi_local_opt = .true., &
+                      hInterpolateDegree_opt = 'LINEAR', &
+                      varNames_opt = bdiff_varNameList(1:numvar2d))
     call gsv_zero(stateVector)
 
     call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false.)
@@ -407,11 +407,11 @@ CONTAINS
       call gsv_getField(statevector, field3D_r4_ptr, bdiff_varNameList(variableIndex))
       stddev(:,:,variableIndex) = dble(field3D_r4_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-	call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
-	call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
+        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
       else
-	minStddev = minval(stddev(:,:,variableIndex))
-	maxStddev = maxval(stddev(:,:,variableIndex))
+        minStddev = minval(stddev(:,:,variableIndex))
+        maxStddev = maxval(stddev(:,:,variableIndex))
       end if
 
       call msg('bdiff_readBGstdField', 'Variable '//bdiff_varNameList(variableIndex)//&

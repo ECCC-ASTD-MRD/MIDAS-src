@@ -178,7 +178,7 @@ module bCovarSetupChem_mod
        
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt, &
                       stddevMode,IncludeAnlVarKindCH,getPhysSpaceHCorrel, &
-		      CrossCornsVarKindCH,WritePhysSpaceStats, &
+                      CrossCornsVarKindCH,WritePhysSpaceStats, &
                       TransformVarKindCH,getPhysSpaceStats
 
     write(*,*) 'Started bcsc_setupCH'  
@@ -259,7 +259,7 @@ module bCovarSetupChem_mod
         do varIndex2 = 1, vnl_numvarmax
           if (trim(IncludeAnlVarKindCH(varIndex2)) == '') exit
           if (trim(vnl_varNameList(varIndex)) == &
-	    trim(IncludeAnlVarKindCH(varIndex2))) then
+              trim(IncludeAnlVarKindCH(varIndex2))) then
             nChmVars = nChmVars+1
             BchmVars(nChmVars)= trim(vnl_varNameList(varIndex))
             exit
@@ -271,7 +271,7 @@ module bCovarSetupChem_mod
     if (nChmVars == 0) then 
       if(mmpi_myid == 0) then
         write(*,*) 'Size of BchmVars is zero. B matrix for CH family ', &
-	           'not produced.'
+                   'not produced.'
         write(*,*) 'No chemical assimilation to be performed.'
         write(*,*) 'Completed bcsc_setupCH'
       end if
@@ -292,12 +292,12 @@ module bCovarSetupChem_mod
           any(trim(vnl_varNameList3D(varIndex))==BchmVars(1:nChmVars)) ) then
 
         if (vnl_varKindFromVarname(vnl_varNameList3D(varIndex)) /= 'CH') cycle
-	  
+
         bgStats%numvar3d = bgStats%numvar3d + 1
         bgStats%nsposit(bgStats%numvar3d+1)= &
-	  bgStats%nsposit(bgStats%numvar3d)+nLev_T
+             bgStats%nsposit(bgStats%numvar3d)+nLev_T
         bgStats%varNameList(bgStats%numvar3d)= &
-	  vnl_varNameList3D(varIndex)
+             vnl_varNameList3D(varIndex)
       end if
     end do
  
@@ -310,7 +310,7 @@ module bCovarSetupChem_mod
         if (vnl_varKindFromVarname(vnl_varNameList2D(varIndex)) /= 'CH') cycle
         bgStats%numvar2d = bgStats%numvar2d + 1
         bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d+1) = &
-	  bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d)+1
+             bgStats%nsposit(bgStats%numvar3d+bgStats%numvar2d)+1
         bgStats%varNameList(bgStats%numvar2d) = vnl_varNameList2D(varIndex)
       end if       
     end do
@@ -326,12 +326,12 @@ module bCovarSetupChem_mod
     else if (mmpi_myid == 0) then
       if (bgStats%numvar3d > 0) then
         write(*,*) 'bcsc_setupCH: Number of 3D variables', &
-	  bgStats%numvar3d,bgStats%varNameList(1:bgStats%numvar3d)
+             bgStats%numvar3d,bgStats%varNameList(1:bgStats%numvar3d)
       end if
       if (bgStats%numvar2d > 0) then
         write(*,*) 'bcsc_setupCH: Number of 2D variables', &
-	  bgStats%numvar2d,bgStats%varNameList(bgStats%numvar3d+1: &
-	    bgStats%numvar3d+bgStats%numvar2d)
+             bgStats%numvar2d,bgStats%varNameList(bgStats%numvar3d+1: &
+             bgStats%numvar3d+bgStats%numvar2d)
       end if
     end if
     
@@ -363,8 +363,7 @@ module bCovarSetupChem_mod
       
       scaleFactor_stddev(1:bgStats%numvar3d+bgStats%numvar2d, &
         1:max(nLev_M,nLev_T)) = sqrt(scaleFactor(1:bgStats%numvar3d &
-	                             + bgStats%numvar2d,1:max(nLev_M,nLev_T)))
-	  
+                                + bgStats%numvar2d,1:max(nLev_M,nLev_T)))
     end where
     
     bgStats%ni = hco_in%ni
@@ -519,26 +518,26 @@ module bCovarSetupChem_mod
       ierr = utl_fstecr(bgStats%lon,-32,nulsig,0,0,0,bgStats%ni+1,1,1, &
                         0,0,0,'X','>>','longitude','X',0,0,0,0,5,.true.)
     end if
-    
+
     do varIndex = 1,bgStats%numvar3d+bgStats%numvar2d
       nlev=bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
       do lonIndex = 1, bgStats%ni+1
-      do latIndex = 1, bgStats%nj
-        stddev(lonIndex,latIndex,bgStats%nsposit(varIndex): &
-	       bgStats%nsposit(varIndex+1)-1) = &
+        do latIndex = 1, bgStats%nj
+          stddev(lonIndex,latIndex,bgStats%nsposit(varIndex): &
+               bgStats%nsposit(varIndex+1)-1) = &
                scaleFactor_stddev(varIndex,1:nlev)* &
                stddev(lonIndex,latIndex,bgStats%nsposit(varIndex): &
-	       bgStats%nsposit(varIndex+1)-1)
-      end do
+               bgStats%nsposit(varIndex+1)-1)
+        end do
       end do
 
       if (WritePhysSpaceStats .and. mmpi_myid == 0) then
         do levelIndex=1,nlev
           ierr = utl_fstecr(stddev(1:bgStats%ni+1,1:bgStats%nj, &
-	         bgStats%nsposit(varIndex)-1+levelIndex),-32,nulsig, &
-		 0,0,0,bgStats%ni+1,bgStats%nj,1,levelIndex,0,nlev, &
-                 'X',bgStats%varNameList(varIndex),'STDDEV','X',0,0,0,0, &
-		 5,.true.)
+                            bgStats%nsposit(varIndex)-1+levelIndex),-32,nulsig, &
+                            0,0,0,bgStats%ni+1,bgStats%nj,1,levelIndex,0,nlev, &
+                            'X',bgStats%varNameList(varIndex),'STDDEV','X',0,0,0,0, &
+                            5,.true.)
         end do
       end if
 
@@ -591,7 +590,7 @@ module bCovarSetupChem_mod
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
         call utl_abort('bcsc_readcorns2: Problem in opening the background ' // &
-	               'chemical constituent stat file')
+                       'chemical constituent stat file')
       end if
     else
       call utl_abort('bcsc_readcorns2: Background chemical constituent stat ' // &
@@ -627,21 +626,21 @@ module bCovarSetupChem_mod
         cltypvar = 'X'
           
         ierr = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1, &
-	                  ip2,ip3,cltypvar,clnomvar)
+                          ip2,ip3,cltypvar,clnomvar)
           
         if (ierr < 0 .and. ip2 < 10 .and. all(CrossCornsVarKindCH(:) == '')) then
           write(*,*) 'bcsc_readcorns2: RSTDDEV ',ip2,jnum,clnomvar
           call utl_abort('bcsc_readcorns2: Problem with constituents ' // &
-	                 'background stat file')
+                         'background stat file')
         else if (ierr < 0 .and. ip2 == 0 .and. any(CrossCornsVarKindCH(:) /= '')) then
           write(*,*) 'bcsc_readcorns2: Assumes content from cross-corrns ' // &
-	             'input for ',clnomvar
+                     'input for ',clnomvar
           clnomvarCrosscorns(varIndex)=clnomvar
           exit
         end if
         if (ini /= jnum)  then
-	  call utl_abort('bcsc_readcorns2: Constituents ' // &
-	                 'background stat levels inconsistencies')
+          call utl_abort('bcsc_readcorns2: Constituents ' // &
+                         'background stat levels inconsistencies')
         end if
 
         ! Looking for FST record parameters..
@@ -654,20 +653,20 @@ module bCovarSetupChem_mod
           ip3 = -1
           cltypvar = 'X'
           ierr = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket, &
-	                    ip1,ip2,ip3,cltypvar,clnomvar)
+                            ip1,ip2,ip3,cltypvar,clnomvar)
 
           if (ierr < 0) then
             write(*,*) 'bcsc_readcorns2: CORRNS ',ip2,jnum,clnomvar
             call utl_abort('bcsc_readcorns2: Problem with constituents ' // &
-	                   'background stat file')
+                           'background stat file')
           end if
           if (ini /= jnum .and. inj /= jnum) then
-	    call utl_abort('bcsc_readcorns2: Constituents BG stat levels ' // &
-	                   'inconsistencies')
-	  end if
+            call utl_abort('bcsc_readcorns2: Constituents BG stat levels ' // &
+                           'inconsistencies')
+          end if
         else
           write(*,*) 'WARNING from bcsc_readcorns2: Setting RSDTDDEV to ' // &
-	             '1.D-15 for NOMVAR and JN: ',clnomvar,' ',jn
+                     '1.D-15 for NOMVAR and JN: ',clnomvar,' ',jn
           zstdsrc(1:jnum) = 1.D-15
           zcornssrc(1:jnum,1:jnum) = 0.0D0
           do jrow = 1, jnum
@@ -675,9 +674,7 @@ module bCovarSetupChem_mod
           end do
         end if
         rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
-        bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)= &
-	  zcornssrc(1:jnum,1:jnum)
-          
+        bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn) = zcornssrc(1:jnum,1:jnum)
       end do
        
       deallocate(zcornssrc)
@@ -698,9 +695,9 @@ module bCovarSetupChem_mod
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
 
         if (clnomvarCrosscorns(varIndex) == clnomvar) then 
-	  clnomvarCrosscorns(varIndex)=''
-	end if
-        
+          clnomvarCrosscorns(varIndex)=''
+        end if
+
         do varIndex2 = 1, bgStats%numvar3d+bgStats%numvar2d
         
           if (varIndex == varIndex2) cycle
@@ -712,15 +709,15 @@ module bCovarSetupChem_mod
           jstart2 = bgStats%nsposit(varIndex2)
           jnum2 =  bgStats%nsposit(varIndex2+1)-bgStats%nsposit(varIndex2)
           allocate(zcornssrc(jnum,jnum2))
-          
+
           if (clnomvarCrosscorns(varIndex2) == bgStats%varNameList(varIndex2)) then
-	    clnomvarCrosscorns(varIndex2)=''
-	  end if
-          
+              clnomvarCrosscorns(varIndex2)=''
+            end if
+
           do jn = 0, bgStats%ntrunc
  
             ierr = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,-1,cletiket,-1, &
-	                      jn,-1,'X',clnomvar)
+                              jn,-1,'X',clnomvar)
 
             if (ierr < 0) then
               if (jn < 10) then
@@ -733,15 +730,14 @@ module bCovarSetupChem_mod
               end if
             end if
             if (ini /= jnum .and. inj /= jnum2) then
-	      call utl_abort('bcsc_readcorns2: Constituents BG2 stat ' // &
-	                     'levels inconsistencies')
+              call utl_abort('bcsc_readcorns2: Constituents BG2 stat ' // &
+                             'levels inconsistencies')
             end if
-	     
+
             bgStats%corns(jstart:jstart+jnum-1,jstart2:jstart2+jnum2-1,jn)= &
-	      zcornssrc(1:jnum,1:jnum2)
+                 zcornssrc(1:jnum,1:jnum2)
             bgStats%corns(jstart2:jstart2+jnum2-1,jstart:jstart+jnum-1,jn)= &
-	      transpose(zcornssrc(1:jnum,1:jnum2))
-          
+                 transpose(zcornssrc(1:jnum,1:jnum2))
           end do
           deallocate(zcornssrc)
         end do
@@ -751,7 +747,7 @@ module bCovarSetupChem_mod
     if (any(CrossCornsVarKindCH(:) /= '')) then
       if (any(clnomvarCrosscorns(:) /= '')) then
         write(*,*) 'bcsc_readcorns2: Missing matrix for ', &
-	           clnomvarCrosscorns(1:bgStats%numvar3d+bgStats%numvar2d)
+                   clnomvarCrosscorns(1:bgStats%numvar3d+bgStats%numvar2d)
         call utl_abort('bcsc_readcorns2: Missing correlations matrix')      
       end if
       deallocate(clnomvarCrosscorns)
@@ -769,8 +765,8 @@ module bCovarSetupChem_mod
       ! Re-build correlation matrix: factorization of corns with convoluted RSTDDEV
       do jcol = 1, bgStats%numVarLev
         bgStats%corns(1:bgStats%numVarLev,jcol,jn) = &
-	  rstddev(1:bgStats%numVarLev,jn) * &
-	  bgStats%corns(1:bgStats%numVarLev,jcol,jn) * rstddev(jcol,jn)
+             rstddev(1:bgStats%numVarLev,jn) * &
+             bgStats%corns(1:bgStats%numVarLev,jcol,jn) * rstddev(jcol,jn)
       end do
 
     end do
@@ -884,7 +880,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_convol: Problem in opening the background ' // &
-	             'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     ! Compute resultant physical space horizontal correlations and
@@ -906,8 +902,8 @@ module bCovarSetupChem_mod
       nlev_MT = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
       do levelIndex = 1, nlev_MT
         ierr = utl_fstlir(hcorrel(:,levelIndex,varIndex),nulbgst,INI,INJ, &
-	                  INK,-1,'HCORREL',levelIndex,-1,-1,'X', &
-	                  bgStats%varNameList(varIndex))
+                          INK,-1,'HCORREL',levelIndex,-1,-1,'X', &
+                          bgStats%varNameList(varIndex))
         if (ierr < 0 ) then
           lfound=.false.
           exit
@@ -962,7 +958,7 @@ module bCovarSetupChem_mod
       do latIndex = mmpi_myid+1, bgStats%nj, mmpi_nprocs
         do jn = 0, bgStats%ntrunc
           wtemp(latIndex,levelIndex,varIndex) = wtemp(latIndex,levelIndex, &
-	        varIndex)+rstddev(jk,jn)*rstddev(jk,jn)*  &
+                varIndex)+rstddev(jk,jn)*rstddev(jk,jn)*  &
                 sqrt(2.0)*sqrt(2.0*jn+1.0)*zleg(jn,latIndex)
         end do       
       end do
@@ -984,11 +980,9 @@ module bCovarSetupChem_mod
       do latIndex=bgStats%nj-1,2,-1
         if (hcorrel(latIndex,levelIndex,varIndex) <= 0.368) then  ! 1/e ~ 0.368
           bgStats%hcorrlen(levelIndex,varIndex) = (hdist(latIndex)* &
-	    (hcorrel(latIndex+1,levelIndex,varIndex)-0.368) &
-            + hdist(latIndex+1)*(0.368-hcorrel(latIndex,    &
-	    levelIndex,varIndex))) &
-            /(hcorrel(latIndex+1,levelIndex,varIndex)- &
-	    hcorrel(latIndex,levelIndex,varIndex))
+               (hcorrel(latIndex+1,levelIndex,varIndex)-0.368) &
+            + hdist(latIndex+1)*(0.368-hcorrel(latIndex,levelIndex,varIndex))) &
+              /(hcorrel(latIndex+1,levelIndex,varIndex)- hcorrel(latIndex,levelIndex,varIndex))
           exit
         end if
       end do
@@ -1006,21 +1000,20 @@ module bCovarSetupChem_mod
           nlev_MT = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
           do levelIndex = 1, nlev_MT
             ierr = utl_fstecr(hcorrel(:,levelIndex,varIndex),-32,nulcorns,0,0,0, &
-	                      1,bgStats%nj,1,levelIndex,0,nlev_MT,'X', &
-		              bgStats%varNameList(varIndex), &
+                              1,bgStats%nj,1,levelIndex,0,nlev_MT,'X', &
+                              bgStats%varNameList(varIndex), &
                               'HCORREL','X',0,0,0,0,5,.true.)
           end do
           ierr = utl_fstecr(bgStats%hcorrlen(1:nlev_MT,varIndex),-32,nulcorns, &
-	         0,0,0,1,1,nlev_MT,0,0,0,'X',bgStats%varNameList(varIndex), &
+                 0,0,0,1,1,nlev_MT,0,0,0,'X',bgStats%varNameList(varIndex), &
                  'HCORRLEN','X',0,0,0,0,5,.true.)
           ierr = utl_fstecr(hdist(1:bgStats%nj),-32,nulcorns,0,0,0,1, &
-	         bgStats%nj,1,0,0,0,'X',bgStats%varNameList(varIndex), &
+                 bgStats%nj,1,0,0,0,'X',bgStats%varNameList(varIndex), &
                  'HDIST','X',0,0,0,0,5,.true.)
         end do
       
         ierr = fstfrm(nulcorns)  
         ierr = fclos(nulcorns)
-	
       end if
       
       write(*,*)
@@ -1035,14 +1028,14 @@ module bCovarSetupChem_mod
           write(*,*) bgStats%varNameList(varIndex), bgStats%nlev
           do levelIndex = 1, bgStats%nlev
             write(*,'(i3,f10.2,3000f6.2)') levelIndex, &
-	                  bgStats%hcorrlen(levelIndex,varIndex)/1000.00, &
-	                  hcorrel(bgStats%nj*4/5:bgStats%nj,levelIndex,varIndex)
+                          bgStats%hcorrlen(levelIndex,varIndex)/1000.00, &
+                          hcorrel(bgStats%nj*4/5:bgStats%nj,levelIndex,varIndex)
           end do
         else
           write(*,*) bgStats%varNameList(varIndex), 1
           write(*,'(i3,f10.2,3000f6.2)') 1, &
-	                           bgStats%hcorrlen(1,varIndex)/1000.00, &
-	                           hcorrel(bgStats%nj*4/5:bgStats%nj,1,varIndex)
+                            bgStats%hcorrlen(1,varIndex)/1000.00, &
+                            hcorrel(bgStats%nj*4/5:bgStats%nj,1,varIndex)
         end if
         write(*,*)
       end do
@@ -1078,7 +1071,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_rdstddev: Problem in opening the background ' // &
-	             'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     ! Reading the data
@@ -1168,7 +1161,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_rdspstd: Problem in opening the background ' // &
-	             'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     stddev(:,:,:) = 0.0d0
@@ -1192,11 +1185,11 @@ module bCovarSetupChem_mod
       do jn = 0, bgStats%ntrunc
         ip2 = jn
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3, &
-	       cltypvar,clnomvar)
+                      cltypvar,clnomvar)
 
         if(ikey >= 0 ) then
           ikey = utl_fstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1), &
-	                    cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+                            cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           if(firstn == -1) firstn = jn
           lastn = jn
@@ -1207,11 +1200,11 @@ module bCovarSetupChem_mod
           if (ini == nlev_MT-1) then
             zspbuf(nlev_MT) = zspbuf(ini)
             write(*,*) 'WARNING in bcsc_rdspstd: ini and nlev_MT not ', &
-	               'same size - ',ini,nlev_MT
+                       'same size - ',ini,nlev_MT
           else
             write(*,*) 'JN, INI, nlev_MT, NOMVAR: ',jn,ini,nlev_MT,' ',clnomvar
             call utl_abort('bcsc_rdspstd: Constituents background stats ' // &
-	                   'levels inconsistency')
+                           'levels inconsistency')
           end if    
         end if
      
@@ -1229,8 +1222,8 @@ module bCovarSetupChem_mod
 
       do jn = 1, bgStats%ni+1
         stddev(jn,1:bgStats%nj, &
-	  bgStats%nsposit(varIndex):bgStats%nsposit(varIndex+1)-1) = &
-	  zgr(1:bgStats%nj,1:nlev_MT)
+             bgStats%nsposit(varIndex):bgStats%nsposit(varIndex+1)-1) = &
+             zgr(1:bgStats%nj,1:nlev_MT)
       end do
 
     end do 
@@ -1270,7 +1263,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_rdstd: Problem in opening the background ' // &
-	             'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     stddev(:,:,:) = 0.0d0
@@ -1316,14 +1309,14 @@ module bCovarSetupChem_mod
       if (inj == bgStats%nj) then
         do in = 1, bgStats%ni+1
           stddev(in,:,bgStats%nsposit(varIndex): &
-	    bgStats%nsposit(varIndex+1)-1) = stddev3d(1,:,:) 
+               bgStats%nsposit(varIndex+1)-1) = stddev3d(1,:,:)
         end do
       else
         ! Interpolate in lat
         call gsv_field3d_hbilin(stddev3d, 1, inj, ink, rlongr, rlatr, vlev, &
              stddev(:,:,bgStats%nsposit(varIndex): &
-	     bgStats%nsposit(varIndex+1)-1), bgStats%ni+1, bgStats%ni, &
-	     nlev_MT, bgStats%lon, bgStats%lat, vlevout)
+             bgStats%nsposit(varIndex+1)-1), bgStats%ni+1, bgStats%ni, &
+             nlev_MT, bgStats%lon, bgStats%lat, vlevout)
       end if
       deallocate(stddev3d, vlev, vlevout)
        
@@ -1364,7 +1357,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_rdstd3d: Problem in opening the background ' // &
-	             'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     stddev(:,:,:) = 0.0d0
@@ -1398,7 +1391,7 @@ module bCovarSetupChem_mod
         end if
         
         ikey = fstinf(nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3, &
-	       cltypvar,clnomvar)
+                      cltypvar,clnomvar)
         if (ikey < 0) then
             write(*,*) 'bcsc_rdstd3d: ',varIndex,clnomvar,ikey,levelIndexo
             call utl_abort(': bcsc_RDSTD record not foun0d')          
@@ -1411,22 +1404,22 @@ module bCovarSetupChem_mod
                           idate(1), cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
         if (ikey < 0) then
           write(*,*) 'bcsc_rdstd3d: ',varIndex,clnomvar,nlev_MT,levelIndexo, &
-	              ikey,ip1
+                     ikey,ip1
           call utl_abort(': bcsc_RDSTD3D record not found')
         end if
         
         ! Move to stddev
         if (inj == bgStats%nj .and. ini == bgStats%ni) then
           stddev(1:bgStats%ni,:,bgStats%nsposit(varIndex)+(levelIndexo-1)) = &
-	    stddev3d(1:bgStats%ni,:,1) 
+               stddev3d(1:bgStats%ni,:,1)
           stddev(bgStats%ni+1,:,bgStats%nsposit(varIndex)+(levelIndexo-1)) = &
-	    stddev3d(1,:,1)
+               stddev3d(1,:,1)
         else
           ! Interpolate in lat and long
           stddev3d(ini+1,:,1) = stddev3d(1,:,1)
           call gsv_field3d_hbilin(stddev3d, ini+1, inj, 1, rlongr, rlatr, vlev, &
                stddev(:,:,bgStats%nsposit(varIndex)+(levelIndexo-1)), &
-	       bgStats%ni+1, bgStats%nj, 1, &
+               bgStats%ni+1, bgStats%nj, 1, &
                bgStats%lon, bgStats%lat, vlevout)
        end if
        deallocate(stddev3d)
@@ -1476,7 +1469,7 @@ module bCovarSetupChem_mod
               zcorr = gasparicohn(ztlen,zr)
               bgStats%corns(jstart-1+jk1,jstart-1+jk2,0:bgStats%ntrunc) = &
                 bgStats%corns(jstart-1+jk1,jstart-1+jk2, &
-	        0:bgStats%ntrunc)*zcorr  
+                0:bgStats%ntrunc)*zcorr
             end do
           end do
         end if
@@ -1520,14 +1513,14 @@ module bCovarSetupChem_mod
         do jn = mmpi_myid, bgStats%ntrunc, mmpi_nprocs
 
           eigenvec(1:jnum,1:jnum) = bgStats%corns(jstart:jstart-1+jnum, &
-	                            jstart:jstart-1+jnum,jn)
+                                    jstart:jstart-1+jnum,jn)
 
           ! CALCULATE EIGENVALUES AND EIGENVECTORS.
           ilwork = 4*jnum*2
           call dsyev('V','U',jnum,eigenvec,jnum,eigenval,zwork,ilwork,info)
           if(info /= 0) then
             write(*,*) 'bcsc_sucorns2: non-zero value of info =',info, &
-	               ' returned by dsyev for wavenumber ',jn,varIndex
+                       ' returned by dsyev for wavenumber ',jn,varIndex
             call utl_abort('bcsc_sucorns2')
           end if
      
@@ -1557,7 +1550,7 @@ module bCovarSetupChem_mod
            do jk1 = 1, jnum
            do jk2 = 1, jnum
              corns_temp(1:jnum,jk1,jn) = corns_temp(1:jnum,jk1,jn) &
-	                               + result(1:jnum,jk2)*eigenvec(jk1,jk2)
+                                         + result(1:jnum,jk2)*eigenvec(jk1,jk2)
            end do
            end do
 
@@ -1565,8 +1558,8 @@ module bCovarSetupChem_mod
   
          nsize = jnum*jnum*(bgStats%ntrunc+1)
          call rpn_comm_allreduce(corns_temp, &
-	   bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
-	   nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+              bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:), &
+              nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
          deallocate(corns_temp,eigenvec,result)
 
       end if
@@ -1629,10 +1622,10 @@ module bCovarSetupChem_mod
       bgStats%corvert(1:jnum,1:jnum,varIndex) = 0.0d0
       do jn = 0, bgStats%ntrunc
         bgStats%corvert(1:jnum,1:jnum,varIndex) = &
-	  bgStats%corvert(1:jnum,1:jnum,varIndex)+ ((2*jn+1)* &
-          bgStats%corns(bgStats%nsposit(varIndex): &
-	  bgStats%nsposit(varIndex+1)-1,&
-	  bgStats%nsposit(varIndex):bgStats%nsposit(varIndex+1)-1,jn))
+             bgStats%corvert(1:jnum,1:jnum,varIndex)+ ((2*jn+1)* &
+             bgStats%corns(bgStats%nsposit(varIndex): &
+             bgStats%nsposit(varIndex+1)-1,&
+             bgStats%nsposit(varIndex):bgStats%nsposit(varIndex+1)-1,jn))
       end do
        
       ! Inverse (and possible vertical interpolation to model levels) 
@@ -1648,7 +1641,7 @@ module bCovarSetupChem_mod
       if (.not.lfound(varIndex)) then
       
         write(*,*) 'bcsc_corvertSetup: Calculating CORVERTI ', &
-	           'for varIndex =',varIndex
+                   'for varIndex =',varIndex
 
         allocate(eigenvec(jnum,jnum),result(jnum,jnum))
         eigenvec(1:jnum,1:jnum)=bgStats%corvert(1:jnum,1:jnum,varIndex)       
@@ -1658,7 +1651,7 @@ module bCovarSetupChem_mod
         call dsyev('V','U',jnum,eigenvec,jnum,eigenval,zwork,ilwork,info)
         if (info /= 0) then
           write(*,*) 'bcsc_corvertSetup: non-zero value of info =',info, &
-	             ' returned by dsyev for wavenumber ',jn
+                     ' returned by dsyev for wavenumber ',jn
           call utl_abort('bcsc_corvertSetup')
         end if
 
@@ -1675,10 +1668,10 @@ module bCovarSetupChem_mod
         do jk1 = 1, jnum
           !! if (eigenval(jk1) > 1.0d-8*eigenvalmax) then
           ! Threshold increased below to reduce numerical error effects
-	  ! relevant when using corverti in applications
-	  ! (Threshold factor should not be smaller than 1.0D-4.)
-	  ! As consequence C*C^-1 will differ from the identity matrix
-	  ! while being nearly diagonal.
+          ! relevant when using corverti in applications
+          ! (Threshold factor should not be smaller than 1.0D-4.)
+          ! As consequence C*C^-1 will differ from the identity matrix
+          ! while being nearly diagonal.
           if (eigenval(jk1) > 1.0D-4*eigenvalmax) then
             result(1:jnum,jk1) = eigenvec(1:jnum,jk1)/eigenval(jk1)
           else
@@ -1691,8 +1684,8 @@ module bCovarSetupChem_mod
         do jk1 = 1, jnum
           do jk2 = 1, jnum
             bgStats%corverti(1:jnum,jk1,varIndex) = &
-	      bgStats%corverti(1:jnum,jk1,varIndex) + result(1:jnum,jk2)* &
-	      eigenvec(jk1,jk2)
+                 bgStats%corverti(1:jnum,jk1,varIndex) + result(1:jnum,jk2)* &
+                 eigenvec(jk1,jk2)
           end do
         end do
 
@@ -1706,7 +1699,7 @@ module bCovarSetupChem_mod
           do jk2 = 1, jnum
             result(1:jnum,jk1) = result(1:jnum,jk1) + &
               bgStats%corvert(1:jnum,jk2,varIndex)* &
-	      bgStats%corverti(jk2,jk1,varIndex)
+              bgStats%corverti(jk2,jk1,varIndex)
           end do
         end do
 
@@ -1717,7 +1710,6 @@ module bCovarSetupChem_mod
           ierr = utl_fstecr(result(1:jnum,1:jnum),-32,iulcorvert,0,0,0,jnum,jnum, &
                  1,0,0,bgStats%ntrunc,'X',clnomvar,cletiket,'X',0,0,0,0,5,.true.)
         end if
-	 
         deallocate(eigenvec,result)
       end if
       
@@ -1796,18 +1788,18 @@ module bCovarSetupChem_mod
           do jn = 0, nmat
             ip2 = jn
             ierr = utl_fstecr(bgStats%corns(jstart:jstart+jnum-1, &
-	           jstart:jstart+jnum-1,jn),ipak,nulcorns,idateo,0,0,jnum,  &
+                   jstart:jstart+jnum-1,jn),ipak,nulcorns,idateo,0,0,jnum,  &
                    jnum,1,ip1,ip2,ip3,'X',clnomvar,cletiket,'X',0,0,0,0, &
-		   idatyp,.true.)
+                   idatyp,.true.)
           end do
         else
           if (trim(cletiket) == 'CORVERT') then
             ierr = utl_fstecr(bgStats%corvert(1:jnum,1:jnum,varIndex), &
-	           ipak,nulcorns,idateo,0,0,jnum,jnum,1,  &
+                   ipak,nulcorns,idateo,0,0,jnum,jnum,1,  &
                    ip1,ip2,ip3,'X',clnomvar,cletiket,'X',0,0,0,0,idatyp,.true.)
           else
             ierr = utl_fstecr(bgStats%corverti(1:jnum,1:jnum,varIndex), &
-	           ipak,nulcorns,idateo,0,0,jnum,jnum,1,  &
+                   ipak,nulcorns,idateo,0,0,jnum,jnum,1,  &
                    ip1,ip2,ip3,'X',clnomvar,cletiket,'X',0,0,0,0,idatyp,.true.)
           end if
         end if
@@ -1853,7 +1845,7 @@ module bCovarSetupChem_mod
       ierr =  fstouv(nulbgst,'RND+OLD')
     else
       call utl_abort('bcsc_readcorns: Problem in opening the background ' // &
-	               'chemical constituent stat file')
+                     'chemical constituent stat file')
     end if
 
     if (nmat == 0) then
@@ -1895,25 +1887,25 @@ module bCovarSetupChem_mod
         ! Looking for FST record parameters..
  
         icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket, &
-	                       ip1,ip2,ip3,cltypvar,clnomvar)
+                               ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(icornskey  < 0 ) then
           write(*,*) 'bcsc_readcorns: matrix not found in stats file for variable ', &
-	              clnomvar
+                      clnomvar
           deallocate(zcornssrc)
           cycle VARCYCLE
         end if
 
         if (ini /= jnum .or. inj /= jnum) then
-	  call utl_abort('bcsc_readcorns: BG stat levels inconsitencies')
-	end if
+          call utl_abort('bcsc_readcorns: BG stat levels inconsitencies')
+        end if
 
         if (nmat > 0) then
           if (jn == 0) then
-	    bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:)=0.0d0
-	  end if
+            bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,:)=0.0d0
+          end if
           bgStats%corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)= &
-	    zcornssrc(1:jnum,1:jnum)
+               zcornssrc(1:jnum,1:jnum)
         else if (trim(cletiket) == 'CORVERT') then
           bgStats%corvert(1:jnum,1:jnum,varIndex)=zcornssrc(1:jnum,1:jnum)
         else
@@ -1994,7 +1986,7 @@ module bCovarSetupChem_mod
     ! Arguments:
     type(struct_bcsc_bgStats),  intent(out) :: bgStatsOut           ! Structure with covariance elements
     character(len=*), optional, intent(out) :: TransformVarKind_opt ! Name of variable transform to apply to chemistry variables
-			 
+
     if (present(TransformVarKind_opt)) TransformVarKind_opt=TransformVarKindCH
 
     if(.not.bgStats%initialized) then
@@ -2042,16 +2034,14 @@ module bCovarSetupChem_mod
     do ilev1 = 1, nlev_T
       if (bgStats%vlev(1) >= vlev_T(ilev1)) then
         wtemp(ilev1,1:bgStats%nlev+d2,1:bgStats%numvar3d)= &
-	      bgStats%corvert(1,1:bgStats%nlev+d2,1:bgStats%numvar3d)
+             bgStats%corvert(1,1:bgStats%nlev+d2,1:bgStats%numvar3d)
         wtemp(1:bgStats%nlev+d2,ilev1,1:bgStats%numvar3d)= &
-	      bgStats%corvert(1:bgStats%nlev+d2,1,1:bgStats%numvar3d)          
+             bgStats%corvert(1:bgStats%nlev+d2,1,1:bgStats%numvar3d)
       else if (bgStats%vlev(bgStats%nlev) <= vlev_T(ilev1)) then
         wtemp(ilev1,1+ilev1-bgStats%nlev-d2:ilev1,1:bgStats%numvar3d)= &
-	      bgStats%corvert(bgStats%nlev,1-d2:bgStats%nlev, &
-	                      1:bgStats%numvar3d)
+             bgStats%corvert(bgStats%nlev,1-d2:bgStats%nlev,1:bgStats%numvar3d)
         wtemp(1+ilev1-bgStats%nlev-d2:ilev1,ilev1,1:bgStats%numvar3d)= &
-	      bgStats%corvert(1-d2:bgStats%nlev,bgStats%nlev, &
-	                      1:bgStats%numvar3d)          
+             bgStats%corvert(1-d2:bgStats%nlev,bgStats%nlev, 1:bgStats%numvar3d)
       else 
         do ilev2=1,bgStats%nlev-1
           if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
@@ -2063,11 +2053,11 @@ module bCovarSetupChem_mod
                   
         do j=1-max(ilev1-d1,1),nlev_T-min(d1+ilev1,nlev_T)
           wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)= &
-	        (bgStats%corvert(ilev2,ilev2+j,1:bgStats%numvar3d) &
+               (bgStats%corvert(ilev2,ilev2+j,1:bgStats%numvar3d) &
                 *(1.0-dz) + bgStats%corvert(ilev2+1,ilev2+1+j, &
-		                            1:bgStats%numvar3d)*dz)
+                                            1:bgStats%numvar3d)*dz)
           wtemp(ilev1+j,ilev1,1:bgStats%numvar3d)= &
-	    wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)
+               wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)
         end do               
       end if
     end do
@@ -2114,8 +2104,8 @@ module bCovarSetupChem_mod
         dz=log(vlev_T(ilev1)/ bgStats%vlev(ilev2)) &
           /log( bgStats%vlev(ilev2+1)/ bgStats%vlev(ilev2))
         hcorrlen(ilev1,:)=bgStats%hcorrlen(ilev2,1:bgStats%numvar3d)* &
-	                  (1.0-dz)+bgStats%hcorrlen(ilev2+1, &
-			  1:bgStats%numvar3d)*dz
+                          (1.0-dz)+bgStats%hcorrlen(ilev2+1, &
+                          1:bgStats%numvar3d)*dz
       end if
     end do
     
@@ -2184,7 +2174,7 @@ module bCovarSetupChem_mod
         else
           nlev = 1
         end if
-        startPosition = bgStats%nsposit(varIndex)	
+        startPosition = bgStats%nsposit(varIndex)
         exit
       end if
     end do
@@ -2243,7 +2233,7 @@ module bCovarSetupChem_mod
       work(1:nlev,1) = zc1*bgStats%stddev(lonIndex-1,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
                        zc2*bgStats%stddev(lonIndex-1,latIndex, &
-		                     startPosition:startPosition-1+nlev)**2
+                                     startPosition:startPosition-1+nlev)**2
     
       work(1:nlev,2) = zc1*bgStats%stddev(lonIndex,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
@@ -2312,17 +2302,17 @@ module bCovarSetupChem_mod
     
     stddev_max = maxval(bgStats%stddev(lonIndex-1:lonIndex, &
                         latIndex-1:latIndex,  &                 
-			startPosition:startPosition-1+nlev)) 
+                        startPosition:startPosition-1+nlev))
     do levIndex = 1, nlev
       if (stddevOut(levIndex) < 0.0 .or. stddevOut(levIndex) > 1.1*stddev_max) then
         write(*,*) 'bcsc_getbgStddev: Interpolated std dev incorrect:'
         write(*,*) 'bcsc_getbgStddev:   zc1,zc2,zd1,zd2 = ',zc1,zc2,zd1,zd2
         write(*,*) 'bcsc_getbgStddev:   stddevOut,stddev_max = ', &
-	           stddevOut(levIndex),stddev_max
+                    stddevOut(levIndex),stddev_max
         write(*,*) 'bcsc_getbgStddev:   lonIndex,latIndex,j,xlong,xlat = ', &
-	           lonIndex,latIndex,levIndex,xlong,xlat
+                    lonIndex,latIndex,levIndex,xlong,xlat
         write(*,*) 'bcsc_getbgStddev:   rlong2,rlong1,rlat1,rlat2 = ', &
-	           rlong2,rlong1,rlat1,rlat2
+                    rlong2,rlong1,rlat1,rlat2
         call utl_abort('bcsc_getbgStddev')
       end if
     end do
@@ -2355,7 +2345,7 @@ module bCovarSetupChem_mod
 
     if (bgStddev%nrep > obsdataMaxsize) then
       call utl_abort('bcsc_addbgStddev: Reached max size of array ' // &
-	             trim(utl_str(obsdataMaxsize)) )
+                     trim(utl_str(obsdataMaxsize)) )
     end if
     
     ! Use the header number as the unique code for this obs data
@@ -2396,7 +2386,7 @@ module bCovarSetupChem_mod
     end if
 
     write(code,'(I22)') headerIndex
-	  
+
     stddevOut = oss_obsdata_get_array2d(bgStddev,code)
     
   end function bcsc_retrieveBgStddev

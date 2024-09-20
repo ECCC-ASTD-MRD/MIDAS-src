@@ -323,6 +323,22 @@ if [ -n "${__remark_unused_variables}" ]; then
     __remarks=1
 fi
 
+typeset __warnings=0
+## Check for unused variables
+typeset __warnings_all=$(grep -v '^icc: warning #10237: -lcilkrts linked in dynamically, static library not available$' ${__listing_frontend} | grep -A 2 'warning #')
+if [ -n "${__warnings_all}" ]; then
+    echo
+    echo "<!> Some compiling warnings have been triggered."
+    echo
+    echo "${__warnings_all}"
+    __warnings=1
+fi
+
+if [ -z "${__remark_unused_variables}" -a -z "${__warnings_all}" ]; then
+    echo
+    echo "No compilation warnings has been detected!"
+fi
+
 ## regex elements to find errors
 typeset __err_regex='error #|(?<!-)undefined|make.*Circular|[Ff]ailed| Error '
 
@@ -384,6 +400,10 @@ then
         fi
         if [ "${__remarks}" -eq 1 ]; then
             echo "| <!> with some remarks <!>    |"
+        fi
+        echo "+------------------------------+"
+        if [ "${__warnings}" -eq 1 ]; then
+            echo "| <!> with some warnings <!>    |"
         fi
         echo "+------------------------------+"
         echo

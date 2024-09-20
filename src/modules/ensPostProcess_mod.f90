@@ -799,8 +799,8 @@ contains
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
 
-	if (gsv_isAllocated(stateVectorMeanAnl4D)) then
-	  call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
+        if (gsv_isAllocated(stateVectorMeanAnl4D)) then
+          call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc4D)
           do stepIndex = 1, tim_nstepobs
             call gio_writeToFile(stateVectorMeanInc4D, outFileName, etiket, &
                                  typvar_opt = 'R', writeHeightSfc_opt = .false., &
@@ -811,12 +811,12 @@ contains
                                    typvar_opt = 'A', writeHeightSfc_opt = .true., &
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
-	    
-	    if (writeNetCDFInc) then
-	      call gio_writeToFileNetCDF(stateVectorMeanInc4D, outFileName, &
-	                                 dateStampListInc(stateVectorMeanInc4D%anltime), &
+
+            if (writeNetCDFInc) then
+              call gio_writeToFileNetCDF(stateVectorMeanInc4D, outFileName, &
+                                         dateStampListInc(stateVectorMeanInc4D%anltime), &
                                          stepIndex_opt = stepIndex, &
-					 containsFullField_opt = .false.)
+                                         containsFullField_opt = .false.)
             end if
           end do
           if (writeNetCDFInc) then
@@ -835,14 +835,13 @@ contains
                                    stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
             
-	    if (writeNetCDFInc) then
-	      call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
-	                                 dateStampListInc(stateVectorMeanInc%anltime), &
+            if (writeNetCDFInc) then
+              call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
+                                         dateStampListInc(stateVectorMeanInc%anltime), &
                                          stepIndex_opt = stepIndex, &
-					 containsFullField_opt = .false.)
+                                         containsFullField_opt = .false.)
             end if
           end do
-	  
         end if
 
         call utl_tmg_stop(5)

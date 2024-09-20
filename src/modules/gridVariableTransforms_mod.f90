@@ -126,7 +126,7 @@ CONTAINS
                           mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                           hInterpolateDegree_opt='LINEAR', &
                           varNames_opt=&
-                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+                              (/'Z_T','Z_M','P_T','P_M','TT ','HU ','P0 '/) )
         call gsv_zero(stateVectorRefHeight)
       end if
 
@@ -403,25 +403,25 @@ CONTAINS
       end if
       if (.not.present(varName_opt)) then
         call utl_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
-      end if	
+      end if
       call gvt_oceanIceContinuous(statevector, stateVectorRef_opt, varName_opt)
 
     case ('SSTSpread')
       if (.not.present(varName_opt)) then
         call utl_abort('gvt_transform: for gvt_SSTSpread, missing variable name')
-      end if	
+      end if
       if (.not.present(maxBoxSize_opt)) then
         call utl_abort('gvt_transform: for gvt_SSTSpread, missing max box size')
-      end if	
+      end if
       if (.not.present(subgrid_opt)) then
         call utl_abort('gvt_transform: for gvt_SSTSpread, missing subgrid')
-      end if	
+      end if
       call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
 
     case ('iceLimits')
       if (.not.present(spreadIceIncOverLakes_opt)) then
         call utl_abort('gvt_transform: for gvt_iceLimits, missing spreadIceIncOverLakes')
-      end if	
+      end if
       call gvt_iceLimits(statevector, spreadIceIncOverLakes_opt)
 
     case default
@@ -610,7 +610,7 @@ CONTAINS
                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt='LINEAR', &
                            varNames_opt=&
-                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0','P0LS'/) )
+                              (/'Z_T ','Z_M ','P_T ','P_M ','TT  ','HU  ','P0  ','P0LS'/) )
       else
         call gsv_zero( stateVectorRefHeight )
       end if
@@ -844,7 +844,7 @@ CONTAINS
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
                    lq_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)*  &
                    max( hu_trial(lonIndex,latIndex,levIndex,stepIndex),&
-                        MPC_MINIMUM_HU_R4)
+                        MPC_MINIMUM_HU_R8)
             end do
           end do
         end do
@@ -1529,7 +1529,7 @@ CONTAINS
     integer, save, pointer :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
 
     write(*,*) 'UVtoPsiChi_gsv: starting'
-    call flush(6)
+    flush(6)
 
     if ( .not. statevector%hco%global ) then
 
@@ -1591,14 +1591,15 @@ CONTAINS
 
       end do
 
-      write(*,*) 'deallocate'; call flush(6)
+      write(*,*) 'deallocate'
+      flush(6)
       deallocate(gridState)
       deallocate(spectralState)
 
     end if
 
     write(*,*) 'UVtoPsiChi_gsv: finished'
-    call flush(6)
+    flush(6)
 
   end subroutine UVtoPsiChi_gsv
   
@@ -1923,7 +1924,7 @@ CONTAINS
                           stateVectorRef%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/outputVarName/))
       else
-      	call utl_abort('gvt_oceanIceContinuous: unrecognized variable name: '//trim(outputVarName))
+        call utl_abort('gvt_oceanIceContinuous: unrecognized variable name: '//trim(outputVarName))
       end if
     end if
 
@@ -1980,8 +1981,8 @@ CONTAINS
             rms = 0.0d0
             numCorrect = 0
             maxAbsCorr = 0.0d0
-	    
-	    if(stateVector%hco%grtyp == 'U') then
+
+            if(stateVector%hco%grtyp == 'U') then
 
               do latIndex = 2, stateVector%nj/2-1
                 do lonIndex = 2, stateVector%ni-1
@@ -2014,9 +2015,9 @@ CONTAINS
                   end if
                 end do
               end do
-	    
-	    else
-	    
+
+            else
+
               do latIndex = 2, stateVector%nj-1
                 do lonIndex = 2, stateVector%ni-1
                   if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
@@ -2032,8 +2033,8 @@ CONTAINS
                   end if
                 end do
               end do
-	    
-	    end if  
+
+            end if
 
             if( orca12 ) then
               ! Periodicity in the X direction
@@ -2103,7 +2104,7 @@ CONTAINS
         !- Impose limits [0,1] on sea ice concentration analysis
         analysis_ptr(:,:,:,:) = min(analysis_ptr(:,:,:,:), 1.0d0)
         analysis_ptr(:,:,:,:) = max(analysis_ptr(:,:,:,:), 0.0d0)
-      end if	
+      end if
 
     end if
 
@@ -2172,7 +2173,7 @@ CONTAINS
                           stateVector%vco, mpi_local_opt = .false., &
                           dataKind_opt = 8, varNames_opt = (/variableName/))
       else
-      	call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))
+        call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))
       end if
     end if
 
