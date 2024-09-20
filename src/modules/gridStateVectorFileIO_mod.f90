@@ -2528,7 +2528,7 @@ module gridStateVectorFileIO_mod
                  max(field_r4_ptr(:,:, varLevIndex, stepIndex), 0.0)
           else
             field_r8_ptr(:,:, varLevIndex, stepIndex) = &
-                 max(field_r8_ptr(:,:, varLevIndex, stepIndex), 0.0D+00)
+                 max(field_r8_ptr(:,:, varLevIndex, stepIndex), 0.0d0)
           end if
         end if
       end do VARLEVCYCLE
