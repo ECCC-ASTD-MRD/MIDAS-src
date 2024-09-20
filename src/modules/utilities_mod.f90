@@ -1798,7 +1798,7 @@ contains
       fileType = 'FST'
     case (6)
       fileType = 'BURP'
-    case (38)
+    case (35,38)
       fileType = 'NetCDF'
     case (41)
       fileType = 'sqliteOrObsdb'
