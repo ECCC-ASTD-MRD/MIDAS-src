@@ -255,9 +255,9 @@ contains
         end if
 
         vprof(i) = dldp* (dlw1 * field(1,latIndex,ilev)      &
-             + dlw2 * field(1,latIndex+1,ilev))   &
-             + (1.d0-dldp)* (dlw1 * field(1,latIndex,ilev+1)    &
-             + dlw2 * field(1,latIndex+1,ilev+1))
+                        + dlw2 * field(1,latIndex+1,ilev))   &
+          + (1.d0-dldp)* (dlw1 * field(1,latIndex,ilev+1)    &
+                        + dlw2 * field(1,latIndex+1,ilev+1))
       end do
 
     else
@@ -294,13 +294,13 @@ contains
         end if
 
         vprof(i) = dldp* (dlw1 * field(lonIndex,latIndex,ilev)      &
-             + dlw2 * field(lonIndex+1,latIndex,ilev)    &
-             + dlw3 * field(lonIndex,latIndex+1,ilev)    &
-             + dlw4 * field(lonIndex+1,latIndex+1,ilev)) &
-             +(1.0d0-dldp)* (dlw1 * field(lonIndex,latIndex,ilev+1)    &
-             + dlw2 * field(lonIndex+1,latIndex,ilev+1)  &
-             + dlw3 * field(lonIndex,latIndex+1,ilev+1)  &
-             + dlw4 * field(lonIndex+1,latIndex+1,ilev+1))
+                        + dlw2 * field(lonIndex+1,latIndex,ilev)    &
+                        + dlw3 * field(lonIndex,latIndex+1,ilev)    &
+                        + dlw4 * field(lonIndex+1,latIndex+1,ilev)) &
+          +(1.0d0-dldp)* (dlw1 * field(lonIndex,latIndex,ilev+1)    &
+                        + dlw2 * field(lonIndex+1,latIndex,ilev+1)  &
+                        + dlw3 * field(lonIndex,latIndex+1,ilev+1)  &
+                        + dlw4 * field(lonIndex+1,latIndex+1,ilev+1))
       end do
     end if
 
