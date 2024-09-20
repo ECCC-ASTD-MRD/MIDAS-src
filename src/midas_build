@@ -334,6 +334,11 @@ if [ -n "${__warnings_all}" ]; then
     __warnings=1
 fi
 
+if [ -z "${__remark_unused_variables}" -a -z "${__warnings_all}" ]; then
+    echo
+    echo "No compilation warnings has been detected!"
+fi
+
 ## regex elements to find errors
 typeset __err_regex='error #|(?<!-)undefined|make.*Circular|[Ff]ailed| Error '
 
