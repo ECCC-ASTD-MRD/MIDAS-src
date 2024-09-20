@@ -482,7 +482,8 @@ program midas_obsSelection
     call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false.)
+    call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false., &
+        needTransmittance_opt=.true.)
 
     ! 2.2 Perform the background check
     !     The routine also calls compute_HBHT and writes to listings & obsSpaceData

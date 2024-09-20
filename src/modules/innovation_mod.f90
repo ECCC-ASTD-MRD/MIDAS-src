@@ -595,7 +595,8 @@ contains
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn)
+                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn, &
+                       needTransmittance_opt=needTransmittance_opt)
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
                        beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn, &

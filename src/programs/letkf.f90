@@ -597,7 +597,7 @@ program midas_letkf
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType = enkfNML%obsTimeInterpType, dealloc_opt = .false.)
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! radiative transmission profiles stored for use in eob_setVertLocation
-  call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
+  call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false., needTransmittance_opt=.true.)
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
