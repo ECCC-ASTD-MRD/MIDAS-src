@@ -2405,12 +2405,15 @@ contains
 
         INTOTOBS = INTOT(JK)
         INTOTACC = INTOTOBS - INTOTRJF(JK) - INTOTRJP(JK)
-          write(*,'(/////50("*"))')
-          write(*,'(     50("*")/)')
-          write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", A8)') satelliteId(JK)
-          write(*,'(T5,"------------------------------------- ",/)')
-          write(*,'(" - TOTAL NUMBER OF OBS.    = ",I10," - TOTAL FULL REJECTS      = ",I10," - TOTAL PARTIAL REJECTS   = ",I10,/"   ------------------------------------","   TOTAL FULLY ACCEPTED    = ",I10)') &
-            INTOTOBS, INTOTRJF(JK), INTOTRJP(JK), INTOTACC
+        write(*,'(/////50("*"))')
+        write(*,'(     50("*")/)')
+        write(*,'(T5,"SUMMARY OF QUALITY CONTROL FOR ", A8)') satelliteId(JK)
+        write(*,'(T5,"------------------------------------- ",/)')
+        write(*,'(" - TOTAL NUMBER OF OBS.    = ",I10)') INTOTOBS
+        write(*,'(" - TOTAL FULL REJECTS      = ",I10)') INTOTRJF(JK)
+        write(*,'(" - TOTAL PARTIAL REJECTS   = ",I10)') INTOTRJP(JK)
+        write(*,'("   ------------------------------------")')
+        write(*,'("   TOTAL FULLY ACCEPTED    = ",I10)') INTOTACC
 
         if (instName == "AMSUA" .or. instName == "AMSUB") then         
           write(*,'(//,1x,114("-"))')
