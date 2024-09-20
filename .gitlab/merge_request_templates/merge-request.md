@@ -15,12 +15,13 @@
 * change to results (contents of output files)?
   * [ ] yes
   * [ ] no
-* all the programs run correctly when compiled with debug options enabled
-    * see the [documentation for that variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/tree/main/src#configuring-the-compilation-and-linking-process)
+* changes respect the [coding standards]( (follow link below to "Coding standards Top 10")?
   * [ ] yes
   * [ ] no
-* changes respect the coding standards (follow link below to "Coding standards Top 10")?
-    * https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10
+* all the programs compile without any warning?
+  * [ ] yes
+  * [ ] no
+* all the programs run correctly when compiled with debug options enabled (see the [documentation for that variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/tree/main/src#configuring-the-compilation-and-linking-process))?
   * [ ] yes
   * [ ] no
 
