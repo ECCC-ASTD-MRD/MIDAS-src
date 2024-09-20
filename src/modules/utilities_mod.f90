@@ -3096,6 +3096,7 @@ contains
 
     ! Arguments:
     real(4), intent(in)  :: degrees ! angle in degrees
+    ! Result:
     real(4) :: cosinus
 
     ! Locals:
@@ -3119,6 +3120,7 @@ contains
 
     ! Arguments:
     real(8), intent(in)  :: degrees ! angle in degrees
+    ! Result:
     real(8) :: cosinus
 
     ! Locals:
