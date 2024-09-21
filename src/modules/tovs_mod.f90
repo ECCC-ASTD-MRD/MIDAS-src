@@ -5208,7 +5208,7 @@ contains
         call utl_abort('tvs_setupPointers: you have to initialize channelsUsingHydrometeors(:,:) in NAMTOV namelist section')
       end if
     end if
-    write(*,*) "tvs_setupPointers: hydroChannelsCount= ", hydroChannelsCount
+
     profileCount = 0
     do tovsIndex = 1, tvs_nobtov
       ! Currently processed sensor?
@@ -5234,8 +5234,6 @@ contains
       btCount = btCount - btCountScatt
     end if
     
-    write(*,*) "tvs_setupPointers: btCount, btCountScatt= ", btCount, btCountScatt
-
     if (tvs_bodyIndexFromBtIndex(1,sensorIndex) == -1) then
       if (irBgckMode) then
         btIndex = 0
