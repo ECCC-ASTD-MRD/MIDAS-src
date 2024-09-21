@@ -5217,7 +5217,6 @@ contains
         sensorTovsIndexes(profileCount) = tovsIndex
       end if
     end do
-    write(*,*) "tvs_setupPointers: profileCount= ", profileCount
     if (profileCount == 0) return
 
     if (irBgckMode) then

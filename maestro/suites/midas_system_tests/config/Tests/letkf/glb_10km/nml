@@ -1,0 +1,231 @@
+ &NAMLETKF
+   algorithm                = 'CVLETKF'
+   ensPostProcessing        = .true.
+   NENS                     = 256
+   numSubEns                = 8
+   MAXNUMLOCALOBS           = 10000
+   WEIGHTLATLONSTEP         = 20
+   HLOCALIZE                = 2500.0D0, 2000.0D0, 1800.0D0, 1500.0D0
+   VLOCALIZE                = 2.0D0
+   modifyAmsubObsError      = .true.
+   backgroundCheck          = .true.
+   huberize                 = .true.
+   rejectHighLatIR          = .true.
+   rejectRadNearSfc         = .true.
+   obsTimeInterpType        = 'LINEAR'
+   mpiDistribution          = 'MASTERWORKER'
+/
+ &namEnsPostProcModule
+   alphaRTPP                = 0.00D0
+   alphaRTPS                = 0.00D0
+   alphaRandomPert          = 0.00D0
+   alphaRandomPertSubSample = 0.00D0
+   imposeSaturationLimit    = .false.
+   imposeRttovHuLimits      = .false.
+/
+ &NAMWRITEDIAG
+   lWriteDiagSql   = .false.
+/
+ &NAMBHI
+   NTRUNC  =          42,
+   SCALEFACTOR     = 200*1.0D0
+   SCALEFACTORLQ   = 200*0.25D0
+/
+ &NAMBEN
+/
+ &NAMDIMO
+   NMXOBS=10000
+   NDATAMX=100000
+/
+ &NAMTIME
+   DSTEPOBS    = 1.0d0
+   DSTEPOBSINC = 6.0d0
+/
+ &NAMSTIO
+   outputFormat = 'RSF'
+/
+ &NAMFILT
+  NLIST(1)=10004,
+  NLIST(2)=10051,
+  NLIST(3)=12004,
+  NLIST(4)=11215,
+  NLIST(5)=11216,
+  NLIST(6)=12203,
+  NLIST(7)=12001,
+  NLIST(8)=12192,
+  NLIST(9)=11003,
+  NLIST(10)=11004,
+  NLIST(11)=10194,
+  NLIST(12)=12062,
+  NLIST(13)=12063,
+  NLIST(14)=12163,
+  NLIST(15)=15036,
+  NLIST(16)=15031,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=-5,
+  RLIMLVHU=70.D0,
+  list_altDiffMax(1)  = 12004
+  list_altDiffMax(2)  = 10004
+  list_altDiffMax(3)  = 10051
+  list_altDiffMax(4)  = 12203
+  value_altDiffMax(1) = 200.0d0
+  value_altDiffMax(2) = 200.0d0
+  value_altDiffMax(3) = 200.0d0
+  value_altDiffMax(4) = 10000.0d0
+  useEnkfTopoFilt = .true.
+/
+ &NAMRMAT
+/
+ &NAMSTATE
+   RHUMIN  = 1.0D-07
+   abortOnMpiImbalance = .false.
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/
+ &NAMTOV   
+   CSATID(1)         = 'METOP-2',
+   CINSTRUMENTID(1)  = 'IASI',
+   CSATID(2)         = 'NOAA15',
+   CINSTRUMENTID(2)  = 'AMSUA',
+   CSATID(3)         = 'NOAA16',
+   CINSTRUMENTID(3)  = 'AMSUA',
+   CSATID(4)         = 'AQUA',
+   CINSTRUMENTID(4)  = 'AMSUA',
+   CSATID(5)         = 'NOAA18',
+   CINSTRUMENTID(5)  = 'AMSUA',
+   CSATID(6)         = 'NOAA15',
+   CINSTRUMENTID(6)  = 'AMSUB',
+   CSATID(7)         = 'NOAA16',
+   CINSTRUMENTID(7)  = 'AMSUB',
+   CSATID(8)         = 'NOAA17',
+   CINSTRUMENTID(8)  = 'AMSUB',
+   CSATID(9)        = 'NOAA18',
+   CINSTRUMENTID(9) = 'MHS',
+   CSATID(10)        = 'DMSP16',
+   CINSTRUMENTID(10) = 'SSMIS',
+   CSATID(11)        = 'GOES13',
+   CINSTRUMENTID(11) = 'GOESIMAGER',
+   CSATID(12)        = 'MSG2',
+   CINSTRUMENTID(12) = 'SEVIRI',
+   CSATID(13)        = 'METEOSAT7',
+   CINSTRUMENTID(13) = 'MVIRI',
+   CSATID(14)        = 'METOP-2',
+   CINSTRUMENTID(14) = 'AMSUA',
+   CSATID(15)        = 'METOP-2',
+   CINSTRUMENTID(15) = 'MHS',
+   CSATID(16)        = 'NOAA19',
+   CINSTRUMENTID(16) = 'AMSUA',
+   CSATID(17)        = 'NOAA19',
+   CINSTRUMENTID(17) = 'MHS',
+   CSATID(18)        = 'METOP-1',
+   CINSTRUMENTID(18) = 'IASI',
+   CSATID(19)        = 'DMSP17',
+   CINSTRUMENTID(19) = 'SSMIS',
+   CSATID(20)        = 'DMSP18',
+   CINSTRUMENTID(20) = 'SSMIS',
+   CSATID(21)        = 'GOES15',
+   CINSTRUMENTID(21) = 'GOESIMAGER',
+   CSATID(22)        = 'MSG3',
+   CINSTRUMENTID(22) = 'SEVIRI',
+   CSATID(23)        = 'MTSAT1',
+   CINSTRUMENTID(23) = 'GMSMTSAT',
+   CSATID(24)        = 'MTSAT2',
+   CINSTRUMENTID(24) = 'GMSMTSAT',
+   CSATID(25)        = 'METOP-1',
+   CINSTRUMENTID(25) = 'AMSUA',
+   CSATID(26)        = 'METOP-1',
+   CINSTRUMENTID(26) = 'MHS',
+   CSATID(27)        = 'NPP',
+   CINSTRUMENTID(27) = 'ATMS',
+   CSATID(28)        = 'NPP',
+   CINSTRUMENTID(28) = 'CRIS',
+   CSATID(29)        = 'HMWARI-8',
+   CINSTRUMENTID(29) = 'AHI',
+   CSATID(30)        = 'MSG1',
+   CINSTRUMENTID(30) = 'SEVIRI',
+   CSATID(31)        = 'MSG4',
+   CINSTRUMENTID(31) = 'SEVIRI',
+   CSATID(32)        = 'HMWARI-9',
+   CINSTRUMENTID(32) = 'AHI',
+   CSATID(33)        = 'GOES16',
+   CINSTRUMENTID(33) = 'ABI',
+   CSATID(34)        = 'NOAA20',
+   CINSTRUMENTID(34) = 'ATMS',
+   CSATID(35)        = 'NPP',
+   CINSTRUMENTID(35) = 'CRISFSR',
+   CSATID(36)        = 'NOAA20',
+   CINSTRUMENTID(36) = 'CRISFSR',
+   CSATID(37)        = 'METOP-3',
+   CINSTRUMENTID(37) = 'AMSUA',
+   CSATID(38)        = 'METOP-3',
+   CINSTRUMENTID(38) = 'MHS',
+   CSATID(39)        = 'GOES17',
+   CINSTRUMENTID(39) = 'ABI',
+   CSATID(40)        = 'FY3-3',
+   CINSTRUMENTID(40) = 'MWHS2',
+   CSATID(41)        = 'METOP-3',
+   CINSTRUMENTID(41) = 'IASI',
+   CSATID(42)        = 'GOES18',
+   CINSTRUMENTID(42) = 'ABI',
+   LDBGTOV    = .FALSE.,
+   CRTMODL    = 'RTTOV',
+   regLimitExtrap = .true.
+/
+ &NAMCODTYP
+   cnames(1)='crisfsr',
+   icod(1)=202,
+/
+ &NAMGPSRO
+  LEVELGPSRO=2,
+  gpsroError = 'STATIC_2014'
+  SURFMIN  = 1000.D0,
+  HSFMIN   = 1000.D0,
+  HTPMAX   = 40000.D0,
+  BGCKBAND = 0.05D0,
+/
+ &NAMGPSGB
+   DZMIN       = 2.0D0,
+   DZMAX       = 1000.0D0,
+   YZTDERR     = 0.0D0,
+   LASSMET     = .TRUE.,
+   LLBLMET     = .TRUE.,
+   YSFERRWGT   = 1.00D0,
+   YZDERRWGT   = 1.00D0,
+   LBEVIS      = .TRUE.,
+   IREFOPT     = 1,
+   L1OBS       = .FALSE.,
+   LTESTOP     = .FALSE.,
+   IZTDOP      = 1,
+/
+ &NAMBURP_FILTER_SFC
+  BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
+/
+ &NAMBURP_FILTER_CONV
+  UA_HIGH_PRECISION_TT_ES=.true.,
+  READ_QI_GA_MT_SW=.true.,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMBURP_FILTER_TOVS
+  BLISTELEMENTS=12163
+/
+ &NAMPHY
+  saturationCurve='Tetens_2018'
+/
+ &NAMOER
+  OBSFILE_OER_SW=.true.
+/
+ &NAMBGCKCONV
+  NEW_BGCK_SW=.true.
+/
+ &NAMBURP_UPDATE
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  TYPE_RESUME='POSTALT'
+/
