@@ -195,11 +195,8 @@ program midas_genCoeff
   ! output O-F statistics befor bias correction
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
-  
-  call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
   call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
       addFSOdiag=.false.)
- 
 
   ! fill OBS_BCOR with computed bias correction
   call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
