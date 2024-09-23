@@ -301,9 +301,8 @@ module oceanObservations_mod
 
       if (present(salinity_opt)) then
         ! compute freezing point in degrees Celsius:
-        freezingPointTemperature = (-0.0575 + 1.710523e-3 * sqrt(abs(salinity_opt(coordinatesIndex))) - &
-                                    2.154996e-4 * salinity_opt(coordinatesIndex)) * &
-                                   salinity_opt(coordinatesIndex)
+        ! pressure is set to zero as in the current operational system
+        freezingPointTemperature = utl_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0)
         obsvalue = freezingPointTemperature + MPC_K_C_DEGREE_OFFSET_R8
       end if
 
