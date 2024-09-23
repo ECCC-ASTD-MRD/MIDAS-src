@@ -1,0 +1,111 @@
+#!/bin/bash
+
+set -euo pipefail
+
+arguments=$*
+eval $(${CCLARGS:-cclargs} -D "" $0                                                     \
+  -pgm        "" "" "[path to MIDAS program]"                                           \
+  -workdir    "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
+  -supercomputer robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+  -jobname       letkf  letkf  "[name of the job (default: 'letkf')]"                   \
+  -memory     "" "" "[memory request per MPI rank (default: 440G/\${omp_num_threads})]" \
+  -omp_num_threads  1   1   "[Number of Open MP threads per MPI rank]"                  \
+  -wallclocktime   180 180  "[wall clock time for job in minutes]"                      \
+  ++ $arguments)
+
+scriptName=${0##*/}
+
+function say {
+    printf "${scriptName}: ${*}\n"
+} ## End of 'function say'
+
+function die {
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'
+for launch_arg in pgm workdir supercomputer jobname omp_num_threads wallclocktime; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [ -z "${launch_tmp_var}" ]; then
+        die "the argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ ! -d "${workdir}" ]]; then
+    die "The working directory ${workdir} should have been prepared by 'midas.prepare_workdir'"
+fi
+
+cd ${workdir}
+
+[[ ! -f ptopo_nml ]] && die "The file 'ptopo_nml' should exist"
+
+# get 'npex' and 'npey' values from 'ptopo_nml' namelist
+npex=$(awk -F= '/^ +npex=/ {print $2}' ptopo_nml)
+[[ -z "${npex}" ]] && die "Could not find 'npex' in the file 'ptopo_nml'"
+
+npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
+[[ -z "${npey}" ]] && die "Could not find 'npey' in the file 'ptopo_nml'"
+
+say "Copy the observations"
+[[ -d obs ]] && rm -r obs
+cp -r obsfiles_splitted obs
+
+## Erase any previous directory for 'r.run_in_parallel'
+[[ -d mpitmpdir ]] && rm -r mpitmpdir
+
+cat > launcher.sh <<EOF
+#!/bin/bash
+
+set -e
+set +x
+
+ulimit -c unlimited
+
+export CMCCONST=/home/smco502/datafiles/constants
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
+export OMP_NUM_THREADS=${omp_num_threads}
+
+#export MIDAS_DATE=YYYYMMDDHH
+
+## When FOR_DUMP_CORE_FILE=1 and the code abort on runtime error, cores
+## will be dumped in the work directory; one per process.
+## Each core can weight O(10) Gb (times the number of processes)
+export FOR_DUMP_CORE_FILE=
+
+echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+
+echo loading eccc/mrd/rpn/libs/20240612-alpha
+. r.load.dot eccc/mrd/rpn/libs/20240612-alpha
+
+echo loading eccc/mrd/rpn/utils/20240612-alpha
+. r.load.dot eccc/mrd/rpn/utils/20240612-alpha
+
+cd ${PWD}
+
+echo "Start of ${pgm} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+
+SECONDS=0
+
+r.run_in_parallel -pgm ${pgm} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir
+
+echo "End of ${pgm} in \${SECONDS} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+EOF
+
+if [[ -z "${memory}" ]]; then
+    computed_memory=$(python -c "from math import floor; print(floor(5.5*${omp_num_threads}))")
+    memory=${computed_memory}G
+fi
+
+cpus=${npex}x${npey}x${omp_num_threads}
+
+say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}"
+say "\tcpus=${cpus}"
+say "\tmemory=${memory}"
+
+ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
+                       -listing ${PWD} -w ${wallclocktime} -m ${memory}
