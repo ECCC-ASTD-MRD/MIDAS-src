@@ -345,7 +345,7 @@ program midas_ensembleH
                 beSilent_opt = .true.)
 
     ! Compute Y-H(X) in OBS_OMP
-    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
+    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true., needTransmittance_opt=.true.)
 
     ! Copy to ensObs: Y-HX for this member
     call eob_setYb(ensObs, memberIndex)
@@ -370,7 +370,7 @@ program midas_ensembleH
 
       ! Compute Y-H(X) in OBS_OMP
       call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt=.false., &
-                                 beSilent_opt=.true.)
+                                 beSilent_opt=.true., needTransmittance_opt=.true.)
 
       ! Copy to ensObsGain: Y-HX for this member
       memberIndexInEnsObs = (eigenVectorIndex - 1) * enkfNML%nEns + memberIndex
