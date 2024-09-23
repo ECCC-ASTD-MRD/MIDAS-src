@@ -2,28 +2,38 @@
 
 set -euo pipefail
 
+description="This script launches the program 'midas-letkf.Abs' in the working directory prepared by 'midas.prepare_workdir'."
+
 arguments=$*
-eval $(${CCLARGS:-cclargs} -D "" $0                                                     \
-  -pgm        "" "" "[path to MIDAS program]"                                           \
-  -workdir    "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
-  -supercomputer robert robert "[supercomputer to launch the job (default: 'robert')]"  \
-  -jobname       letkf  letkf  "[name of the job (default: 'letkf')]"                   \
-  -memory     "" "" "[memory request per MPI rank (default: 440G/\${omp_num_threads})]" \
-  -omp_num_threads  1   1   "[Number of Open MP threads per MPI rank]"                  \
-  -wallclocktime   180 180  "[wall clock time for job in minutes]"                      \
+eval $(cclargs -D "" $0 "[${description}]"                                               \
+  -pgm         "" "" "[path to MIDAS program]"                                           \
+  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
+  -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+  -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
+  -memory      "" "" "[memory request per MPI rank (default: 440G/\${omp_num_threads})]" \
+  -omp_num_threads  1   1   "[Number of Open MP threads per MPI rank]"                   \
+  -wallclocktime   180 180  "[wall clock time for job in minutes]"                       \
   ++ $arguments)
 
 scriptName=${0##*/}
 
 function say {
-    printf "${scriptName}: ${*}\n"
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
 } ## End of 'function say'
 
 function die {
+    IFS=$'\n\t'
     say $@ >&2
     exit 1
 } ## End of 'function die'
 
+## Check if all mandatory arguments have been given
 ## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'
 for launch_arg in pgm workdir supercomputer jobname omp_num_threads wallclocktime; do
     eval launch_tmp_var="\${${launch_arg}}"
@@ -103,9 +113,7 @@ fi
 
 cpus=${npex}x${npey}x${omp_num_threads}
 
-say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}"
-say "\tcpus=${cpus}"
-say "\tmemory=${memory}"
+say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" "cpus=${cpus}" "memory=${memory}"
 
 ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
                        -listing ${PWD} -w ${wallclocktime} -m ${memory}

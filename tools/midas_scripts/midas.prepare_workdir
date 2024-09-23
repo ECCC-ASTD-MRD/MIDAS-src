@@ -2,32 +2,40 @@
 
 set -euo pipefail
 
-arguments=$*
-eval $(${CCLARGS:-cclargs} -D "" $0               \
-  -ensemble  "" "" "[path to ensemble directory]" \
-  -nml       "" "" "[path to namelist file]"      \
-  -observations "" "" "[path to observations]"    \
-  -constants "" "" "[path to constants]"          \
-  -npex   "" "" "[number of MPI ranks along the X axis]" \
-  -npey   "" "" "[number of MPI ranks along the Y axis]" \
-  -workdir   "" "" "[output working directory]"   \
-  -splitobs  "" "" "[path to the 'midas.splitobs.Abs' program]" \
-  -splitobs_ndigits  "4" "4" "[number of digits for the extension when splitting observations files]" \
-  ++ $arguments)
+description="This script prepares a working directory to launch 'midas-letkf.Abs'."
 
-## On verifie si certains arguments sont presents
+arguments=$*
+eval $(cclargs  -D "" $0 "[${description}]"                        \
+  -ensemble     "" "" "[path to ensemble directory]"               \
+  -nml          "" "" "[path to namelist file]"                    \
+  -observations "" "" "[path to observations]"                     \
+  -constants    "" "" "[path to constants]"                        \
+  -npex         "" "" "[number of MPI ranks along the X axis]"     \
+  -npey         "" "" "[number of MPI ranks along the Y axis]"     \
+  -workdir      "" "" "[output working directory]"                 \
+  -splitobs     "" "" "[path to the 'midas.splitobs.Abs' program]" \
+  -splitobs_ndigits "4" "4" "[number of digits for the extension when splitting observations files]" \
+  ++ $arguments)
 
 scriptName=${0##*/}
 
 function say {
-    printf "${scriptName}: ${*}\n"
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
 } ## End of 'function say'
 
 function die {
+    IFS=$'\n\t'
     say $@ >&2
     exit 1
 } ## End of 'function die'
 
+## Check if all mandatory arguments have been given
 for launch_arg in ensemble nml observations constants npex npey workdir splitobs; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [ -z "${launch_tmp_var}" ]; then
@@ -74,7 +82,7 @@ if [[ -d "${workdir}" ]]; then
     die "The working directory ${workdir} already exist!"
 fi
 
-mkdir ${workdir}
+mkdir -p ${workdir}
 cd ${workdir}
 
 copyOrUnzip ${observations} obsfiles
@@ -109,5 +117,4 @@ done ## End of 'for obsfile in ${observations_files}'
 
 midas_program=${splitobs%/*}/midas-letkf.Abs
 
-say "You can now launch the MIDAS program with"
-say "\tmidas.launch_program -workdir ${workdir} -pgm ${midas_program}"
+say "You can now launch the MIDAS program with" "midas.launch_program -workdir ${workdir} -pgm ${midas_program}"
