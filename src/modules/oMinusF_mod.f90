@@ -170,7 +170,7 @@ module oMinusF_mod
       !- 2.1 Compute observation innovations
       write(*,*)
       write(*,*) '> omf_oMinusF: compute innovation'
-      call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false.)
+      call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt = .false., needTransmittance_opt=.true.)
 
       if ( addHBHT ) then
         write(*,*)
@@ -360,7 +360,8 @@ module oMinusF_mod
                    beSilent_opt=.true.)
         
         !- 2.3 Compute innovation
-        call inn_computeInnovation(columTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false., beSilent_opt=.true.)
+        call inn_computeInnovation(columTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false., beSilent_opt=.true., &
+                                   needTransmittance_opt=.true.)
 
         !- 2.4 Copy to ensObs
         call eob_setYb(ensObs, memberIndex)
