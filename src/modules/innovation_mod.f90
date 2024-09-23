@@ -436,7 +436,7 @@ contains
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
                                     beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
-                                    analysisMode_opt, needTransmittance_opt )
+                                    analysisMode_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     !
@@ -452,7 +452,6 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
-    logical, optional      , intent(in)    :: needTransmittance_opt
     
     ! Locals:
     real(8) :: Jo
@@ -595,12 +594,10 @@ contains
     ! TOVS / Radiances
     if (trim(innovationMode) == 'bgck'  ) then
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn, &
-                       needTransmittance_opt=needTransmittance_opt)
+                       beSilent, bgckMode_opt=.true., destObs_opt=destObsColumn)
     else
       call oop_tovs_nl(columnTrlOnTrlLev, obsSpaceData, tim_getDatestamp(),  &
-                       beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn, &
-                       needTransmittance_opt=needTransmittance_opt)
+                       beSilent, bgckMode_opt=.false., destObs_opt=destObsColumn)
     end if
 
     ! Profilers

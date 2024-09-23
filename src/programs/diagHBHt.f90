@@ -232,7 +232,7 @@ program midas_diagHBHt
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData,needTransmittance_opt=.true.)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
 
   ! Compute perturbed
   call diagHBHt(columnTrlOnAnlIncLev,obsSpaceData)

@@ -2892,7 +2892,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent, needTransmittance_opt)
+  subroutine tvs_rttov(obsSpaceData, bgckMode, beSilent)
     !
     ! :Purpose: Interface for RTTOV non linear operator
     !           tvs_fillProfiles should be called before
@@ -2903,7 +2903,6 @@ contains
     type(struct_obs),  intent(inout) :: obsSpaceData          ! obsSpaceData structure
     logical,           intent(in)    :: bgckMode              ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
     logical,           intent(in)    :: beSilent              ! verbosity flag
-    logical, optional, intent(in)    :: needTransmittance_opt ! option to transfer transmittance
 
     ! Locals:
     integer :: nlv_T
@@ -2935,7 +2934,6 @@ contains
     real(8) :: clearMwRadiance
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
-    logical :: needTransmittance
 
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
     
@@ -2947,11 +2945,6 @@ contains
     max_nthreads = mmpi_numThread
 
     allocate(sensorTovsIndexes(tvs_nobtov))
-    if (present(needTransmittance_opt)) then
-      needTransmittance = needTransmittance_opt
-    else
-      needTransmittance = .true.
-    end if
 
     !   1.1   Read surface information
     if (bgckMode) call EMIS_READ_CLIMATOLOGY
@@ -3234,7 +3227,7 @@ contains
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
         
         !    2.4  Store hx in the structure tvs_radiance
-        if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode .or. needTransmittance) .and. .not. allocated(tvs_transmission)) then
+        if (.not. allocated(tvs_transmission)) then
           call tvs_allocTransmission(nlv_T)
         end if
         
@@ -3258,7 +3251,7 @@ contains
             end do
           end if
 
-          if (allocated(tvs_transmission) .and. needTransmittance) then
+          if (allocated(tvs_transmission)) then
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
@@ -3366,9 +3359,9 @@ contains
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
 
-            if (needTransmittance .and. .not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+            if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
-            if (allocated(tvs_transmission) .and. needTransmittance) then
+            if (allocated(tvs_transmission)) then
               do levelIndex = 1, nlv_T
                 tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                     transmission % tau_levels(levelIndex,btIndex)
@@ -3431,7 +3424,7 @@ contains
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex) % emis_out
           end if
 
-          if (allocated(tvs_transmission) .and. needTransmittance) then
+          if (allocated(tvs_transmission)) then
             do levelIndex = 1, nlv_T
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)

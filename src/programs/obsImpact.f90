@@ -330,7 +330,7 @@ program midas_obsImpact
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData, needTransmittance_opt=.true.)
+  call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
 
   ! Perform forecast sensitivity to observation calculation using ensemble approach 
   call fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)

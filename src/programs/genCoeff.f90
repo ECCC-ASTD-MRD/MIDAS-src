@@ -178,7 +178,7 @@ program midas_genCoeff
   call msg_memUsage('midas-genCoeff')
 
   ! Compute observation innovations
-  call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData,needTransmittance_opt=.true.)
+  call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
   
   call utl_tmg_start(110,'--BiasCorrection')
 
