@@ -591,11 +591,14 @@ contains
     integer :: dimids(nf90_max_var_dims), dimLength(nf90_max_var_dims)
     character(len=nf90_max_name) :: dimName
     character(len=20) :: varName
-    character(len=10) :: blk_S
-    logical :: varFound(3)   ! logical switches:
-                             !   1. found depth,
-                             !   2. found 3D ocean temperature, 
+    character(len=10) :: blk_S, depthVariable
+    logical :: varFound(6)   ! logical switches:
+                             !   1. found trial depth (deptht)
+                             !   2. found 3D ocean temperature, trial
                              !   3. found SST.
+                             !   4. found 3D ocean temperature, restart
+                             !   5. found restart depth (nav_lev)
+                             !   6. found SSS (sea surface salinity)
     
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file', trim(templateFile)
@@ -607,9 +610,17 @@ contains
     vco%Vcode  = 0
     vco%initialized = .true.
 
-    call utl_inquireNEMOTemperature(templateFile, varFound(:))
+    call utl_inquireNEMOFile(templateFile, varFound(:))
+    
+    if (varFound(1)) then
+      depthVariable = 'deptht'
+    else if (varFound(5)) then
+      depthVariable = 'nav_lev'
+    else
+      depthVariable = 'none'
+    end if
 
-    NODEPTHT: if (.not.varFound(1)) then
+    NODEPTHT: if (trim(depthVariable) == 'none') then
 
       if (.not. beSilent) &
       write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: NEMO deptht is missing from file: ', &
@@ -617,13 +628,17 @@ contains
 
       if (varFound(3)) then     
         if (.not. beSilent) &
-             write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
+          write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
+      else if (varFound(6)) then     
+        if (.not. beSilent) &
+          write(*,*) 'vco_setupOceanFromNetCdfFile: SSS found in file: ', trim(templateFile)
       else
         call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST found in file: '//trim(templateFile)) 
       end if
 
       if (.not. beSilent) &
-      write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: vertical coordinate object is not required for SST.'
+      write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: vertical coordinate object '//&
+                 'is not required for SST/SSS.'
       
       vco%nLev_depth = 1
       allocate(vco%depths(vco%nLev_depth))
@@ -646,11 +661,12 @@ contains
     else
 
       ! Open the template file
-      write(*,*) 'vco_setupOceanFromNetCdfFile: reading deptht from file: ', trim(templateFile) 
+      write(*,*) 'vco_setupOceanFromNetCdfFile: reading depth variable ', &
+                 trim(depthVariable),' from file: ', trim(templateFile) 
       call utl_checkNetCDFstatus(nf90_open(templateFile, nf90_nowrite, ncid))
     
-      ! Get the number of levels, i.e. length of 'deptht' dimension
-      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'deptht', varID))
+      ! Get the number of levels, i.e. length of depthVariable dimension
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(depthVariable), varID))
       call utl_checkNetCDFstatus(nf90_inquire_variable(ncid, varID, varName, &
                                                        xtype, nDims, dimids, nAtts))
       vco%nLev_depth = -1
@@ -659,19 +675,21 @@ contains
         call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimids(dimIndex), &
                                                           dimName, dimLength(dimIndex)))
 
-        if (trim(dimName) == 'deptht') vco%nLev_depth = dimLength(dimIndex)
+        if (trim(dimName) == 'deptht' .or. trim(dimName) == 'z') then
+          vco%nLev_depth = dimLength(dimIndex)
+        end if
 
       enddo
       
       if (vco%nLev_depth < 0) then
-        call utl_abort('vco_setupOceanFromNetCdfFile: not able to find deptht dimension in NetCDF file')
+        call utl_abort('vco_setupOceanFromNetCdfFile: not able to find depth variable dimension in NetCDF file')
       end if
 
       allocate(vco%depths(vco%nLev_depth))
       allocate(vco%ip1_depth(vco%nLev_depth))
 
       ! Read 1D vector of depth values (in meters) and put it into vco%depths
-      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'deptht', varID))
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, trim(depthVariable), varID))
       call utl_checkNetCDFstatus(nf90_get_var(ncid, varID, vco%depths))
 
       ! Close the file

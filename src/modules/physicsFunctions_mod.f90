@@ -22,7 +22,7 @@ module physicsFunctions_mod
   public :: phf_FOEFQPSA, phf_fottva, phf_folnqva
   public :: phf_convertZtoPressure,phf_convertZtoGZ
   public :: phf_calcTropopause, phf_calcPBL, phf_calcDistance, phf_calcDistanceFast
-  public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf
+  public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf, phf_getFreezingPoint
 
   logical           :: phf_initialized = .false.
 
@@ -1439,6 +1439,33 @@ module physicsFunctions_mod
     endif
 
   end subroutine phf_height2geopotential
+
+  !--------------------------------------------------------------------------
+  ! phf_getFreezingPoint
+  !--------------------------------------------------------------------------
+  function phf_getFreezingPoint(salinity, pressure) result(freezingPointTemperature)
+    !
+    !:Purpose: Computes the freezing point of sea water (in K) as a function of
+    !          salinity (psu) and pressure (bar).  From Millero (1978) as cited 
+    !          in Gill, 1982, Atmosphere-Ocean Dynamics.
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: salinity ! sea water salinity (in psu)
+    real(4), intent(in) :: pressure ! pressure (in bar)
+    ! Result:
+    real(4) :: freezingPointTemperature ! freezing point temperature (in K)
+
+    ! Locals:
+    real(4), parameter :: a1 = -0.0575
+    real(4), parameter :: a2 =  1.710523e-3
+    real(4), parameter :: a3 = -2.154996e-4
+    real(4), parameter :: b1 = -7.53e-3
+
+    freezingPointTemperature = (a1 + a2 * sqrt(abs(salinity)) + a3 * salinity) * &
+                               salinity + b1 * pressure + MPC_K_C_DEGREE_OFFSET_R4
+
+  end function phf_getFreezingPoint
   
 end module physicsFunctions_mod
 

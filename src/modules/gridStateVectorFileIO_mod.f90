@@ -690,52 +690,64 @@ module gridStateVectorFileIO_mod
     call utl_checkNetCDFstatus(nf90_inquire(ncid, nDims, nVars, nGlobalAtts, unlimDimId))
     write(*,*)'gio_readFileNetCDF: nDims, nVars, nGlobalAtts, unlimDimId: ', nDims, nVars, nGlobalAtts, unlimDimId
     
-    ! Inquire time dimension 'time_counter'
-    call utl_checkNetCDFstatus(nf90_inq_dimid(ncid, 'time_counter', dimTimeCounterID))
-    write(*,*)'gio_readFileNetCDF: time dimension ID: ', dimTimeCounterID
+    if (dateStamp /= -1) then
+      ! verify if the values of 'time_counter' in netCDF file correspond to desired dateStamps
+      ! Inquire time dimension 'time_counter'
+      call utl_checkNetCDFstatus(nf90_inq_dimid(ncid, 'time_counter', dimTimeCounterID))
+      write(*,*)'gio_readFileNetCDF: time dimension ID: ', dimTimeCounterID
     
-    ! Inquire dimension using time dimension ID 'dimTimeCounterID'. how many records are there?
-    call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimTimeCounterID, &
+      ! Inquire dimension using time dimension ID 'dimTimeCounterID'. how many records are there?
+      call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimTimeCounterID, &
                                                       name = recordDimName, &
                                                       len = numberRecords))
 
-   write(*,*)'gio_readFileNetCDF: time variable: ', trim(recordDimName), &
-              ' (', numberRecords, ' currently in the file)'
+      write(*,*)'gio_readFileNetCDF: time variable: ', trim(recordDimName), &
+                ' (', numberRecords, ' currently in the file)'
 
-    allocate(netCDFTimes(numberRecords))
-    ! Inquire time_counter variable to verify if the required stepIndex is in the file
-    call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'time_counter', timeCounterID))
-    call utl_checkNetCDFstatus(nf90_get_var(ncid, timeCounterID, netCDFTimes, &
-                                          start = (/            1/), &
-                                          count = (/numberRecords/)))
-    imode = 3
-    ierr = newdate(refDateStamp, referenceDateNEMO, 0, imode)
-    write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateNEMO, refDateStamp
+      allocate(netCDFTimes(numberRecords))
+      ! Inquire time_counter variable to verify if the required stepIndex is in the file
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, 'time_counter', timeCounterID))
+      call utl_checkNetCDFstatus(nf90_get_var(ncid, timeCounterID, netCDFTimes, &
+                                              start = (/            1/), &
+                                              count = (/numberRecords/)))
+      imode = 3
+      ierr = newdate(refDateStamp, referenceDateNEMO, 0, imode)
+      write(*,*) 'gio_readFileNetCDF: reference date/datestamp: ', referenceDateNEMO, refDateStamp
 
-    foundRequiredState = .false.
-    do timeIndex = 1, numberRecords    
-      call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
-      if (currentDateStamp == dateStamp) then
-        foundRequiredState = .true.
-        timeIndexToRead = timeIndex
-        write(*,*) ''
-        call msg('gio_readFileNetCDF', 'Required state found in the netCDF file:')
-        write(*,*)'gio_readFileNetCDF: time_counter index/datestamp: ', timeIndexToRead, currentDateStamp
-        write(*,*) ''
-        exit
-      end if
-    end do
+      foundRequiredState = .false.
 
-    if(.not. foundRequiredState) then
-      call msg('gio_readFileNetCDF', 'netCDF available dateStamps:')
-      do timeIndex = 1, numberRecords 
+      do timeIndex = 1, numberRecords    
         call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
-        write(*,*) timeIndex, currentDateStamp
+        if (currentDateStamp == dateStamp) then
+          foundRequiredState = .true.
+          timeIndexToRead = timeIndex
+          write(*,*) ''
+          call msg('gio_readFileNetCDF', 'Required state found in the netCDF file:')
+          write(*,*)'gio_readFileNetCDF: time_counter index/datestamp: ', timeIndexToRead, currentDateStamp
+          write(*,*) ''
+          exit
+        end if
       end do
-      call utl_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
-    end if
 
-    deallocate(netCDFTimes)
+      if(.not. foundRequiredState) then
+        call msg('gio_readFileNetCDF', 'netCDF available dateStamps:')
+        do timeIndex = 1, numberRecords 
+          call incdat(currentDateStamp, refDateStamp, int(netCDFTimes(timeIndex) / 3600.))
+          write(*,*) timeIndex, currentDateStamp
+        end do
+        call utl_abort('gio_readFileNetCDF: no records found in file '//trim(fileName))
+      end if
+
+      deallocate(netCDFTimes)
+ 
+    else
+      ! NEMO restart file contains only one time level, that is computed as the number of NEMO timesteps.
+      ! For example, `time_counter = 144` for the restart stored after 24h-integration with NEMO timestep of 600s
+      ! NEMO trial's `time_counter` is the number of seconds since 1950-01-01. 
+      ! That is why `time_counter` is not stored in the `restart` file read by `midas-paseudoSSTobs`     
+      timeIndexToRead = 1 
+    
+    end if
     
     ! Read all fields needed for this MPI task
     call gsv_getField(stateVector, field_r4_ptr)

@@ -21,12 +21,13 @@
   NLISTFLG(6)=12
 /
  &pseudoSSTobs
-   iceFractionThreshold = 0.01
-   outputSST = 271.4
-   outputFreshWaterST = 273.2
-   seaiceThinning = 5
+   iceFractionThreshold = 0.2
+   outputSST = 271.35
+   outputFreshWaterST = 273.15
+   seaiceThinning = 1
    outputFileName = 'obssst_pseudo'
    seaWaterThreshold = 0.1
+   useSalinity = .true.
 /      
  &NAMSQLsfc
    listElem="22042"
