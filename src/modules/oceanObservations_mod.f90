@@ -252,7 +252,7 @@ module oceanObservations_mod
      
     ! Locals:
     real(pre_obsReal) :: obsLon, obsLat
-    real(4)           :: obsValue, freezingPointTemperature
+    real(4)           :: obsValue
     integer           :: iceIndex, iceDomainDimension, pseudoObsDimension
     integer           :: codeType, headerIndex
     integer           :: coordinatesIndex, counterThinning, checkInlandWatersCount, checkSeaWatersCount
