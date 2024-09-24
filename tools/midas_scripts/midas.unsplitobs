@@ -1,0 +1,136 @@
+#!/bin/bash
+
+set -eo pipefail
+
+description="This script regroups observations files that have been splitted by 'midas.splitobs.Abs' in the original order."
+
+arguments=$*
+eval $(cclargs -D "" $0 "[${description}]"                                     \
+  -input       "" "" "[path to input observations (directory or cmcarc file)]" \
+  -output      "" "" "[path to output directory (must not exist)]"             \
+  -workdir     "" "" "[temporary working directory]"                           \
+  -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_']" \
+  -prefix_obs  brp brp "[prefix of the observations files (default: 'brp']"    \
+  ++ $arguments)
+
+scriptName=${0##*/}
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## Check if all mandatory arguments have been given
+for launch_arg in input output workdir; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [ -z "${launch_tmp_var}" ]; then
+        die "the argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ -d "${workdir}" ]]; then
+    die "The working directory ${workdir} already exist!"
+fi
+if [[ -d "${output}" ]]; then
+    die "The output directory ${output} already exist!"
+fi
+
+if ! which editfst >/dev/null 2>&1; then
+    echo loading eccc/mrd/rpn/utils/20231219
+   . r.load.dot eccc/mrd/rpn/utils/20231219
+fi
+
+if ! which liburp >/dev/null 2>&1; then
+    echo loading eccc/cmd/cmda/utils/20231219-3
+   . ssmuse-sh -d eccc/cmd/cmda/utils/20231219-3
+fi
+
+set -u
+
+mkdir -p ${workdir}
+cd ${workdir}
+
+## Copy the observations input
+if [[ -d "${input}" ]]; then
+    say "Copying files from ${input}"
+    cp -rL ${input}/* .
+elif [[ -f "${input}" ]]; then
+    if [[ "${input}" = *.ca ]]; then
+        say "Extracting files from ${input}"
+        cmcarc -f ${input} -x
+    else
+        die "If the first argument is a file, it must be a '.ca' file (cmcarc format)\n\tGot ${input}"
+    fi
+else
+    die "Cannot find the path for input observations: ${input}"
+fi
+
+families=$(ls -d1 ${prefix_dir}* | cut -d_ -f2-)
+
+if [ -z "${families}" ]; then
+    die "Did not find any directory prefixed with '${prefix_dir}' in ${workdir}"
+fi
+
+cat > exclure_resume <<EOF
+ exclure('>>*******')
+EOF
+
+[[ -d tmp ]] && rm -r tmp
+mkdir tmp
+
+for fam in ${families}; do
+    echo processing observation family ${fam}
+    [ -f obs${fam} ] && rm obs${fam}
+
+    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i <<EOF
+ desire('>>*******')
+EOF
+
+    mkdir tmp/${fam}
+    nb_records_max=0
+    for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
+        obsfile_noresume=tmp/${fam}/${obsfile##*/}_noresume
+
+        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume
+
+        nb_records=$(liburp ${obsfile_noresume} -enrgs | grep -c stnids)
+        if (( ${nb_records} > 999 )); then
+            die "The file ${obsfile_noresume} contains more than 999 records." "We cannot proceed." "This is a limitation of 'reflex'."
+        elif (( ${nb_records} > 1 )); then
+            reflex -ixent ${obsfile_noresume} -oxsrt ${obsfile_noresume} -nsplit ${nb_records}
+        else
+            cp ${obsfile_noresume} ${obsfile_noresume}_001
+        fi
+
+        [[ ${nb_records} > ${nb_records_max} ]] && nb_records_max=${nb_records}
+    done
+
+    for id_record in $(seq --format="%03g" 1 ${nb_records_max}); do
+        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_noresume_${id_record} | tr ' ' '\n' |
+            xargs -L120 editbrp -n -d obs${fam} -i 0 -s
+    done
+done
+
+rm exclure_resume
+rm -r tmp
+
+mkdir -p ${output}
+for fam in ${families}; do
+    cp obs${fam} ${output}
+done
+
+cd -
+rm -rf ${workdir}
