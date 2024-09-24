@@ -5,9 +5,9 @@ set -e
 resourcesDir=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/resources
 
 # immediately return if resources.def already defined
-if [ -f "${resourcesDir}/resources.def" ]; then
-    exit
-fi
+#if [ -f "${resourcesDir}/resources.def" ]; then
+#    exit
+#fi
     
 # select which file to use for resources.def
 if [ "${TRUE_HOST}" = eccc-ppp1 -o "${TRUE_HOST}" = eccc-ppp2 -o "${TRUE_HOST}" = hare -o "${TRUE_HOST}" = brooks ]; then
@@ -21,15 +21,15 @@ else
     exit
 fi
 
-if [ -f ${resourcesDir}/resources.def ]; then
-    echo
-    echo "The file 'resources.def' already exists"
-    echo
-else
+#if [ -f ${resourcesDir}/resources.def ]; then
+#    echo
+#    echo "The file 'resources.def' already exists"
+#    echo
+#else
     echo
     echo "Creating 'resources.def' from '${resources_file}'"
     echo
     cd ${resourcesDir}
     cp ${resources_file} resources.def
     cd -
-fi
+#fi
