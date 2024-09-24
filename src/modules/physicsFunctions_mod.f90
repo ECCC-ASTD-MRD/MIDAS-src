@@ -1460,7 +1460,7 @@ module physicsFunctions_mod
     real(4), parameter :: a1 = -0.0575
     real(4), parameter :: a2 =  1.710523e-3
     real(4), parameter :: a3 = -2.154996e-4
-    real(4), parameter :: b1 = -7.53e-4
+    real(4), parameter :: b1 = -7.53e-3
 
     freezingPointTemperature = (a1 + a2 * sqrt(abs(salinity)) + a3 * salinity) * &
                                salinity + b1 * pressure + MPC_K_C_DEGREE_OFFSET_R4
