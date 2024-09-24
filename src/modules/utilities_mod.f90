@@ -32,7 +32,6 @@ module utilities_mod
   public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
   public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOFile
-  public :: utl_getFreezingPoint
 
   ! module interfaces
   ! -----------------
@@ -3137,32 +3136,5 @@ contains
 
     cosinus = cos(radians)
   end function utl_cosDegrees_real8
-
-  !--------------------------------------------------------------------------
-  ! utl_getFreezingPoint
-  !--------------------------------------------------------------------------
-  function utl_getFreezingPoint(salinity, pressure) result(freezingPointTemperature)
-    !
-    ! :Purpose: Computes the freezing point of sea water (deg C) as a function of
-    !           salinity (psu) and pressure (bar).  From Millero (1978) as cited 
-    !           in Gill, 1982, Atmosphere-Ocean Dynamics.
-    implicit none
-
-    ! Arguments:
-    real(4), intent(in) :: salinity
-    real(4), intent(in) :: pressure
-    ! Result:
-    real(4) :: freezingPointTemperature
-
-    ! Locals:
-    real(4), parameter :: a1 = -0.0575
-    real(4), parameter :: a2 =  1.710523e-3
-    real(4), parameter :: a3 = -2.154996e-4
-    real(4), parameter :: b1 = -7.53e-3
-
-    freezingPointTemperature = (a1 + a2 * sqrt(abs(salinity)) + a3 * salinity) * &
-                               salinity + b1 * pressure
-
-  end function utl_getFreezingPoint
 
 end module utilities_mod

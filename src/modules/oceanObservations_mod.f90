@@ -17,8 +17,8 @@ module oceanObservations_mod
   use codePrecision_mod  
   use sqliteRead_mod
   use bufr_mod
-  use mathPhysConstants_mod
-
+  use physicsFunctions_mod
+  
   implicit none
   save
   private
@@ -300,10 +300,9 @@ module oceanObservations_mod
       end if
 
       if (present(salinity_opt)) then
-        ! compute freezing point in degrees Celsius:
+        ! observation value is set to freezing point temperature (in Kelvin),
         ! pressure is set to zero as in the current operational system
-        freezingPointTemperature = utl_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0)
-        obsvalue = freezingPointTemperature + MPC_K_C_DEGREE_OFFSET_R8
+        obsValue = phf_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0)
       end if
 
       call obs_setFamily(obsData, 'SF'   , headerIndex)
