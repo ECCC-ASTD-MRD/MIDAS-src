@@ -1,7 +1,8 @@
  &NAMLETKF
    algorithm                = 'CVLETKF'
    ensPostProcessing        = .true.
-   NENS                     = 256
+   NENS                     = 64
+   !NENS                     = 256
    numSubEns                = 8
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 20
