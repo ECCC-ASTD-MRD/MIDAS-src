@@ -35,18 +35,19 @@ typeset -r resources_file=${toplevel}/maestro/suites/midas_system_tests/resource
 ## Rebuild the 'resources.def' file by calling 'set_resources_def.sh'
 ${toplevel}/set_resources_def.sh
 
-## First, check if there is one and only one definition of the
-## variable 'CHECK_RESULTS_CATCHUP' in the resources file
-if [ "$(grep -c '^CHECK_RESULTS_CATCHUP=' ${resources_file})" -ne 1 ]; then
-    echo "Found none or several definitions of the variable 'CHECK_RESULTS_CATCHUP' in '${resources_file}'"
-    echo "We will not modify the resources file"
-    exit
-fi
-# Same thing with variable 'CLEAN_UNITTEST_CATCHUP'
-if [ "$(grep -c '^CLEAN_UNITTEST_CATCHUP=' ${resources_file})" -ne 1 ]; then
-    echo "Found none or several definitions of the variable 'CLEAN_UNITTEST_CATCHUP' in '${resources_file}'"
-    echo "We will not modify the resources file"
-    exit
+## First, check if there is one and only one definition of at least one of the
+## variables in the resources file
+found_several_definitions_of_the_same_variable=false
+for variable in CHECK_RESULTS_CATCHUP CLEAN_UNITTEST_CATCHUP LETKF_GLB15KM_NUM_THREADS LETKF_GLB15KM_MEMORY; do
+    if [ "$(grep -c "^${variable}=" ${resources_file})" -ne 1 ]; then
+        echo "Found none or several definitions of the variable '${variable}' in '${resources_file}'" >&2
+        found_several_definitions_of_the_same_variable=true
+    fi
+done
+
+if [[ "${found_several_definitions_of_the_same_variable}" = true ]]; then
+    echo "This is not expected so We will not modify the resources file" >&2
+    exit 1
 fi
 
 echo "Set 'CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}' in ${resources_file}"
