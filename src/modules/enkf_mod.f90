@@ -2682,14 +2682,21 @@ contains
 
     ! Locals:
     integer :: ierr, ni, nj, lonIndex, latIndex
+    integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+    integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: countTags, myNumLatLonRecv, numLatLonRecvMax
     integer, allocatable :: allNumLatLonRecv(:)
     integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
+    logical, allocatable :: tagNeededMpiLocal(:,:), tagNeededMpiGlobal(:,:)
 
     write(*,*) 'enkf_LETKFgetMpiGlobalTags: Starting'
 
     ni = size(latLonTagMpiGlobal,1)
     nj = size(latLonTagMpiGlobal,2)
+
+    ! Set up local MPI tiles to speed up calculation
+    call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     myNumLatLonRecv = size(myLatIndexesRecv)
     allocate(allNumLatLonRecv(mmpi_nprocs))
@@ -2707,21 +2714,31 @@ contains
                             allLonIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
                             "GRID", ierr)
 
-    latLonTagMpiGlobal(:,:) = 0
+    ! Determine grid points where weights are calculated - split work over MPI tasks
+
+    allocate(tagNeededMpiLocal(ni,nj))
+    allocate(tagNeededMpiGlobal(ni,nj))
+    tagNeededMpiLocal(:,:) = .false.
+    tagNeededMpiGlobal(:,:) = .false.
+
     !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex)
-    do lonIndex = 1, ni
-      do latIndex = 1, nj
+    do lonIndex = myLonBeg, myLonEnd
+      do latIndex = myLatBeg, myLatEnd
         if (any(lonIndex == allLonIndexesRecv(:,:) .and. latIndex == allLatIndexesRecv(:,:))) then
-          latLonTagMpiGlobal(lonIndex,latIndex) = 1
+          tagNeededMpiLocal(lonIndex,latIndex) = .true.
         end if
       end do
     end do
     !$OMP END PARALLEL DO
+    call rpn_comm_allreduce(tagNeededMpiLocal, tagNeededMpiGlobal, ni*nj, &
+                            'mpi_logical','mpi_lor','GRID',ierr)
 
+    ! Loop over global grid points with calculated weights to determine unique tag values
     countTags = 0
+    latLonTagMpiGlobal(:,:) = 0
     do lonIndex = 1, ni
       do latIndex = 1, nj
-        if (latLonTagMpiGlobal(lonIndex,latIndex) == 1) then
+        if (tagNeededMpiGlobal(lonIndex,latIndex)) then
           countTags = countTags + 1
           latLonTagMpiGlobal(lonIndex,latIndex) = countTags
         end if
@@ -2733,7 +2750,10 @@ contains
       write(*,*) 'maximum allowable tag value = ', mmpi_maxTagValue - 2
       call utl_abort('enkf_LETKFgetMpiGlobalTags: mpi tag values exceeded max allowable value')
     end if
-    
+
+    deallocate(tagNeededMpiLocal)
+    deallocate(tagNeededMpiGlobal)
+
     write(*,*) 'enkf_LETKFgetMpiGlobalTags: Finished'
 
   end subroutine enkf_LETKFgetMpiGlobalTags
