@@ -98,3 +98,23 @@ fam=al
 rm -f obsfiles_${fam}.updated/{obs${fam},TABLES_REUNIR} obs${fam}
 midas.reunir_obs_mpi -obsin $PWD -obsout $PWD -families2process ${fam}
 ```
+
+## Running MIDAS as a stand alone program
+
+Sometimes, we want to run a MIDAS program as a standalone execution.
+This may be useful to debug more quickly than run inside a `maestro`
+suite.  There are two scripts to prepare and then run the program:
+
+ * `midas.prepare_workdir`: This script prepares a working directory
+    using inputs from `cmcarc` archives or a directory for a fixed MPI
+    topology.  The last point is essential because the options will be
+    prepared for that MPI topology.
+
+  * `midas.launch_program`: This script launches a job on the
+     supercomputer using the working directory prepared by
+     `midas.prepare_workdir`.  The job must use the MPI topology that
+     as been used to prepare the observations.
+
+
+Both programs supports the option `-h` to have a description of the
+available options.
