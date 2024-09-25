@@ -9,8 +9,9 @@ eval $(cclargs -D "" $0 "[${description}]"                                     \
   -input       "" "" "[path to input observations (directory or cmcarc file)]" \
   -output      "" "" "[path to output directory (must not exist)]"             \
   -workdir     "" "" "[temporary working directory]"                           \
-  -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_']" \
+  -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_')]" \
   -prefix_obs  brp brp "[prefix of the observations files (default: 'brp']"    \
+  -splitobs    "" "" "[path to the 'midas.splitobs.Abs' program]"             \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -32,7 +33,7 @@ function die {
 } ## End of 'function die'
 
 ## Check if all mandatory arguments have been given
-for launch_arg in input output workdir; do
+for launch_arg in input output workdir splitobs; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [ -z "${launch_tmp_var}" ]; then
         die "the argument '-${launch_arg}' must be defined"
@@ -100,26 +101,49 @@ for fam in ${families}; do
 EOF
 
     mkdir tmp/${fam}
+
+    ## Find the maximum number of records across all files
     nb_records_max=0
     for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
-        obsfile_noresume=tmp/${fam}/${obsfile##*/}_noresume
+        ## We avoid counting the resume records ('>>*******')
+        ## We use 'liburp' option '-stats nbstation' to count the number of stations (records) in the file.
+        nb_records=$(liburp ${obsfile} -enrgs -nostn '>>' -stats nbstation 2>&1 | awk '/ nombre de stations differentes : / {print $(NF)}')
+        (( ${nb_records} > ${nb_records_max} )) && nb_records_max=${nb_records}
+    done
+
+    if (( ${nb_records_max} == 0 )); then
+        die "No files ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9] have been found in the directory ${PWD}"
+    fi
+    ## Find the number of digits needed to store all the records in separate files
+    ndigits=$(python3 -c "from math import log, ceil; nb_digits=ceil(log(${nb_records_max}, 10)); print(nb_digits)")
+    indexOne=$(printf "%0${ndigits}g" 1)
+
+    for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
+        obsFileName=${obsfile##*/}
+        obsfile_noresume=tmp/${fam}/${obsFileName}
 
         editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume
 
         nb_records=$(liburp ${obsfile_noresume} -enrgs | grep -c stnids)
-        if (( ${nb_records} > 999 )); then
-            die "The file ${obsfile_noresume} contains more than 999 records." "We cannot proceed." "This is a limitation of 'reflex'."
+        if (( ${nb_records} > 1000 )); then
+            ## Due to a limitation of the number of XDF files that can be opened simultaneously
+            ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
+            ## number of records in the file.
+            for id_record in  $(seq 1 ${nb_records}); do
+                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
+                            -y ${id_record} -npey ${nb_records} -ndigits ${ndigits}
+            done
         elif (( ${nb_records} > 1 )); then
-            reflex -ixent ${obsfile_noresume} -oxsrt ${obsfile_noresume} -nsplit ${nb_records}
+            ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
+                        -npey ${nb_records} -ndigits ${ndigits}
         else
-            cp ${obsfile_noresume} ${obsfile_noresume}_001
+            cp ${obsfile_noresume} ${obsfile_noresume}_${indexOne}_${indexOne}
         fi
+    done ## End of 'for obsfile in ...'
 
-        [[ ${nb_records} > ${nb_records_max} ]] && nb_records_max=${nb_records}
-    done
-
-    for id_record in $(seq --format="%03g" 1 ${nb_records_max}); do
-        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_noresume_${id_record} | tr ' ' '\n' |
+    id_record=$(printf "%0${ndigits}g" 1)
+    for id_record in $(seq --format="%0${ndigits}g" 1 ${nb_records_max}); do
+        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} | tr ' ' '\n' |
             xargs -L120 editbrp -n -d obs${fam} -i 0 -s
     done
 done

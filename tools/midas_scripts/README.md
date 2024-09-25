@@ -135,8 +135,9 @@ namelist=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/conf
 workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir_3
 observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
 
-./midas.unsplitobs -input ${inputs}/inputs_obsfiles.ca -output ${observations} \
-                   -workdir ${HOME}/data_maestro/ppp6/tmp/midas_letkf_unsplit_observations
+./midas.unsplitobs -input ${inputs}/inputs_obsfiles.ca -output ${observations}             \
+                   -workdir ${HOME}/data_maestro/ppp6/tmp/midas_letkf_unsplit_observations \
+                   -splitobs ${program_directory}/midas.splitobs.Abs
 
 ./midas.prepare_workdir -workdir ${workdir}                    \
                         -nml ${namelist}                       \
