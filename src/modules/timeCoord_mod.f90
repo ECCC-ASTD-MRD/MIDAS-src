@@ -245,6 +245,10 @@ contains
     if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc       = ', tim_dstepobsinc
     if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc       = ', tim_nstepobsinc
     if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referenceTime = ', tim_referenceTime
+    
+    if (tim_nstepobs == 0 .or. tim_nstepobsinc == 0) then
+      call utl_abort('tim_setup: Wrong configuration, nstepobs/nstepobsinc can not be 0.')
+    end if
 
     initialized = .true.
 

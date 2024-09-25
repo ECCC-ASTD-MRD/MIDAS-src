@@ -31,8 +31,8 @@ module utilities_mod
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt, utl_cosDegrees
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
-  public :: utl_fileType, utl_checkNetCDFstatus, utl_inquireNEMOFile
-
+  public :: utl_fileType, utl_checkNetCDFstatus
+  public :: utl_varPresentInNetcdfFile
   ! module interfaces
   ! -----------------
 
@@ -3034,60 +3034,43 @@ contains
   end subroutine utl_checkNetCDFstatus
 
   !--------------------------------------------------------------------------
-  ! utl_inquireNEMOFile
+  ! utl_varPresentInNetcdfFile
   !--------------------------------------------------------------------------
-  subroutine utl_inquireNEMOFile(fileName, variableFound)
+  function utl_varPresentInNetcdfFile(varName, fileName) result(variableFound)
     !
-    ! :Purpose: to assess the content of NEMO netCDF file.
-    !           In NEMO, the 3D ocean temperature filed variable is 'toce' in trial files,
-    !           the 3D ocean temperature filed variable is 'tn' in restart files,
-    !           whereas the 2D Sea Surface Temperature (SST), 'tos'.
-    !           In MIDAS, both 3D and 2D ocean temperature are called 'TM'
-    !           resulting in confusion when vco object is to be defined.
+    ! :Purpose: to verify if the given varName is present in netCDF file.
     !
     implicit none
  
     ! Arguments:
-    character(len=*), intent(in)  :: fileName         ! NEMO (trial or restart) file
-    logical         , intent(out) :: variableFound(6) ! logical switches:
-                                                      !   1. found trial depth (deptht)
-                                                      !   2. found 3D ocean temperature (trial) 
-                                                      !   3. found SST.
-                                                      !   4. found 3D ocean temperature (restart)
-                                                      !   5. found restart depth (nav_lev)
-                                                      !   6. found SSS (sea surface salinity)
-    ! Locals:
-    integer :: ncid, varID, ierr, varIndex
-    character(len=7), parameter :: varNameList(size(variableFound)) = &
-                                    (/'deptht ', 'toce   ', 'tos    ', &
-                                      'tn     ', 'nav_lev', 'sss    '/)
+    character(len=*), intent(in)  :: varName  ! variable name
+    character(len=*), intent(in)  :: fileName ! netCDF filename
 
-    ! initialize output logical switches      
-    variableFound(:) = .false.
+    ! Result:
+    logical :: variableFound 
+
+    ! Locals:
+    integer :: ncid, varID, ierr
     
     ! Open the template file
     call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_nowrite, ncid))
 
-    do varIndex = 1, size(variableFound)
-    
-      ierr = nf90_inq_varid(ncid, trim(varNameList(varIndex)), varID)
-      if (ierr == nf90_noerr) then
-        write(*,*) 'utl_inquireNEMOFile: NEMO variable: ', &
-                   trim(varNameList(varIndex)), ' is found in file: ', &
-                   trim(fileName)
-        variableFound(varIndex) = .true.
-      else
-        write(*,*) 'utl_inquireNEMOFile: NEMO variable: ', &
-                   trim(varNameList(varIndex)), ' is missing from file: ', &
-                   trim(fileName)        
-      end if
+    ! Inquire variable name
+    ierr = nf90_inq_varid(ncid, trim(varName), varID)
+    if (ierr == nf90_noerr) then
+      write(*,*) 'utl_varPresentInNetcdfFile: variable: ', &
+                 trim(varName), ' is found in file: ', trim(fileName)
+      variableFound = .true.
+    else
+      write(*,*) 'utl_varPresentInNetcdfFile: variable: ', &
+                   trim(varName), ' is missing from file: ', trim(fileName)
+      variableFound = .false.
+    end if
 
-    end do
-      
     ! Close the file
     call utl_checkNetCDFstatus(nf90_close(ncid))
     
-  end subroutine utl_inquireNEMOFile
+  end function utl_varPresentInNetcdfFile
 
   !--------------------------------------------------------------------------
   ! utl_cosDegrees_real4

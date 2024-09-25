@@ -592,13 +592,6 @@ contains
     character(len=nf90_max_name) :: dimName
     character(len=20) :: varName
     character(len=10) :: blk_S, depthVariable
-    logical :: varFound(6)   ! logical switches:
-                             !   1. found trial depth (deptht)
-                             !   2. found 3D ocean temperature, trial
-                             !   3. found SST.
-                             !   4. found 3D ocean temperature, restart
-                             !   5. found restart depth (nav_lev)
-                             !   6. found SSS (sea surface salinity)
     
     if (.not. beSilent) &
     write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file', trim(templateFile)
@@ -610,11 +603,9 @@ contains
     vco%Vcode  = 0
     vco%initialized = .true.
 
-    call utl_inquireNEMOFile(templateFile, varFound(:))
-    
-    if (varFound(1)) then
+    if (utl_varPresentInNetcdfFile('deptht', trim(templateFile))) then
       depthVariable = 'deptht'
-    else if (varFound(5)) then
+    else if (utl_varPresentInNetcdfFile('nav_lev', trim(templateFile))) then
       depthVariable = 'nav_lev'
     else
       depthVariable = 'none'
@@ -626,14 +617,14 @@ contains
       write(*,*) 'vco_setupOceanFromNetCdfFile: WARNING: NEMO deptht is missing from file: ', &
                   trim(templateFile)
 
-      if (varFound(3)) then     
+      if (utl_varPresentInNetcdfFile('tos', trim(templateFile))) then
         if (.not. beSilent) &
           write(*,*) 'vco_setupOceanFromNetCdfFile: SST found in file: ', trim(templateFile)
-      else if (varFound(6)) then     
+      else if (utl_varPresentInNetcdfFile('sss', trim(templateFile))) then     
         if (.not. beSilent) &
           write(*,*) 'vco_setupOceanFromNetCdfFile: SSS found in file: ', trim(templateFile)
       else
-        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST found in file: '//trim(templateFile)) 
+        call utl_abort('vco_setupOceanFromNetCdfFile: no deptht nor SST/SSS found in file: '//trim(templateFile)) 
       end if
 
       if (.not. beSilent) &

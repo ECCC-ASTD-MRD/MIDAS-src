@@ -213,8 +213,8 @@ program midas_ensPostProcess
   !- Read the namelist
   call utl_tmg_start(181,'low-level--readNML')
   read(utl_flnml, nml=namEnsPostProc, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
-  if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProc)
+  if (ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
+  if (mmpi_myid == 0) write(*,nml=namEnsPostProc)
   call utl_tmg_stop(181)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
@@ -233,15 +233,15 @@ program midas_ensPostProcess
 
   ! Setup timeCoord module, set dateStamp with value from trial or analysis ensemble member 1
   if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
-                         copyToRamDisk_opt=.false.)
+    call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt = 1, &
+                         copyToRamDisk_opt = .false.)
   else
-    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
-                         copyToRamDisk_opt=.false.)
+    call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt = 1, &
+                         copyToRamDisk_opt = .false.)
   end if
-  call tim_setup(fileNameForDate_opt=ensFileName)
+  call tim_setup(fileNameForDate_opt = ensFileName)
   allocate(dateStampList(tim_nstepobsinc))
-  call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
+  call tim_getstamplist(dateStampList, tim_nstepobsinc, tim_getDatestamp())
 
   write(*,*) 'midas-ensPostProcess: analysis dateStamp = ', tim_getDatestamp()
 
@@ -253,15 +253,15 @@ program midas_ensPostProcess
   !- Initialize the grid from targetgrid file or from trial or analysis ensemble member 1
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
-  inquire(file='targetgrid', exist=targetGridFileExists)
+  inquire(file = 'targetgrid', exist = targetGridFileExists)
   if (targetGridFileExists) then
     gridFileName = 'targetgrid'
   else if (readTrlEnsemble) then
-    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt=1, &
+    call fln_ensFileName(gridFileName, ensPathNameTrl, memberIndex_opt = 1, &
                          copyToRamDisk_opt=.false.)
   else
-    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1, &
-                         copyToRamDisk_opt=.false.)
+    call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt = 1, &
+                         copyToRamDisk_opt = .false.)
   end if
   if (mmpi_myid == 0) then
     write(*,*) 'midas-ensPostProcess: file use to define grid = ', trim(gridFileName)
@@ -270,20 +270,20 @@ program midas_ensPostProcess
   call vco_setupFromFile(vco_ens, gridFileName)
 
   !- Read the sfc height from trial ensemble member 1 - only if we are doing NWP!
-  if (vco_getNumLev(vco_ens,'TH') > 0 .or. vco_getNumLev(vco_ens,'MM') > 0) then
+  if (vco_getNumLev(vco_ens, 'TH') > 0 .or. vco_getNumLev(vco_ens, 'MM') > 0) then
     if (readTrlEnsemble) then
-      call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt=1, &
-                           copyToRamDisk_opt=.false.)
+      call fln_ensFileName(ensFileName, ensPathNameTrl, memberIndex_opt = 1, &
+                           copyToRamDisk_opt = .false.)
     else
-      call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt=1, &
-                           copyToRamDisk_opt=.false.)
+      call fln_ensFileName(ensFileName, ensPathNameAnl, memberIndex_opt = 1, &
+                           copyToRamDisk_opt = .false.)
     end if
-    call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                      hInterpolateDegree_opt=hInterpolationDegree, &
-                      dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
+    call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt = tim_getDateStamp(), &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      hInterpolateDegree_opt = hInterpolationDegree, &
+                      dataKind_opt = 4, allocHeightSfc_opt = .true., varNames_opt=(/'P0', 'TT'/))
     call gio_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
+                          containsFullField_opt = .true., readHeightSfc_opt = .true.)
   end if
 
   !- 3. Allocate and read ensembles
@@ -292,20 +292,19 @@ program midas_ensPostProcess
 
   !- Allocate ensembles, read the Anl ensemble
   if (readAnlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
+    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt = .true.)
     call ens_allocate(ensembleAnl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
-                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree)
-    call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic=.false.)
+                      dateStampList, hInterpolateDegree_opt = hInterpolationDegree)
+    call ens_readEnsemble(ensembleAnl, ensPathNameAnl, biPeriodic = .false.)
   end if
 
   !- Allocate ensembles, read the Trl ensemble
   if (readTrlEnsemble) then
-    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
+    call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt = .true.)
     call ens_allocate(ensembleTrl, nEns, tim_nstepobsinc, hco_ens, vco_ens, &
-                      dateStampList, hInterpolateDegree_opt=hInterpolationDegree, &
-                      allocHeightSfc_opt=writeHeightSfc)
-    call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
-
+                      dateStampList, hInterpolateDegree_opt = hInterpolationDegree, &
+                      allocHeightSfc_opt = writeHeightSfc)
+    call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic = .false.)
   end if
 
   call utl_tmg_stop(2)
@@ -313,25 +312,25 @@ program midas_ensPostProcess
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
     !- Allocate and read control member Trl
-    call gsv_allocate( stateVectorCtrlTrl4D, tim_nstepobs, hco_ens, vco_ens, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       hInterpolateDegree_opt=hInterpolationDegree, &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt=0, &
-                         copyToRamDisk_opt=.false.)
+    call gsv_allocate(stateVectorCtrlTrl4D, tim_nstepobs, hco_ens, vco_ens, &
+                      dateStamp_opt = tim_getDateStamp(),  &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                      hInterpolateDegree_opt = hInterpolationDegree, &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
+    call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt = 0, &
+                         copyToRamDisk_opt = .false.)
     do stepIndex = 1, tim_nstepobs
-      call gio_readFromFile( stateVectorCtrlTrl4D, ctrlFileName, ' ', ' ',  &
-                             stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                             readHeightSfc_opt=.false.)
+      call gio_readFromFile(stateVectorCtrlTrl4D, ctrlFileName, ' ', ' ',  &
+                            stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                            readHeightSfc_opt = .false.)
     end do
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
   call epp_postProcess(ensembleTrl, ensembleAnl, &
                        stateVectorHeightSfc, stateVectorCtrlTrl4D, &
-                       writeTrlEnsemble, writeHeightSfc_opt=writeHeightSfc)
+                       writeTrlEnsemble, writeHeightSfc_opt = writeHeightSfc)
 
   !
   !- 5. MPI, tmg finalize

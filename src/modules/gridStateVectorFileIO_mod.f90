@@ -41,13 +41,19 @@ module gridStateVectorFileIO_mod
   logical :: interpToPhysicsGrid  ! for LAM grid, choose to keep physics variables on their original grid
   character(len=3) :: outputFormat ! output format written by 'gio_writeToFile' can only be 'XDF' or 'RSF'
 
-  ! NEMO variables for netCDF files  
+  ! NEMO increment variables:  
   integer  , parameter :: dimNemovar = 13
-  character(len=20) :: NEMOvarnames(dimNemovar) = (/'nav_lon     ','nav_lat     ','nav_lev     ', &
-                                                    'time_counter','z_inc_dateb ','z_inc_datef ', &
-                                                    'time        ','bckint      ','bckins      ', &
-                                                    'bckineta    ','bckinseaice ','bckinu      ', &
-                                                    'bckinv      '/)
+  character(len=20) :: NEMOvarNameInc(dimNemovar) = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', &
+                                                      'time_counter', 'z_inc_dateb ', 'z_inc_datef ', &
+                                                      'time        ', 'bckint      ', 'bckins      ', &
+                                                      'bckineta    ', 'bckinseaice ', 'bckinu      ', &
+                                                      'bckinv      '/)
+  character(len=20) :: NEMOvarNameAnl(dimNemovar) = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', &
+                                                      'time_counter', 'z_inc_dateb ', 'z_inc_datef ', &
+                                                      'time        ', 'tn          ', 'sn          ', &
+                                                      'sshn        ', 'seaice      ', 'un          ', &
+                                                      'vn          '/)
+
   ! '2D' stands for two-dimensional array: (y,x), '3D': (time,y,x), '4D': (time,depth,y,x)
   ! 'SC': scalar, 'TI': time, 'DE': depth.
   character(len=2) :: NEMOvartype(dimNemovar)  = (/    '2D'      ,      '2D'    ,      'DE'    , &
@@ -2621,7 +2627,7 @@ module gridStateVectorFileIO_mod
   ! gio_writeToFileNetCDF
   !--------------------------------------------------------------------------
   subroutine gio_writeToFileNetCDF(stateVector_in, fileNameTemplate, validDateStamp, &
-                                   stepIndex_opt, containsFullField_opt, &
+                                   typvar, stepIndex_opt, containsFullField_opt, &
                                    varLevIndexBeg_opt, varLevIndexEnd_opt, &
                                    timeCounter_opt)
     !
@@ -2633,6 +2639,7 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), target,   intent(in) :: stateVector_in        ! input stateVector object
     character(len=*),           intent(in) :: fileNameTemplate      ! template for increment file name
     integer         ,           intent(in) :: validDateStamp        ! valid dateStamp obtained from stateVector%anltime  
+    character(len=*),           intent(in) :: typvar                ! typvar can be 'A' or 'R' 
     integer,          optional, intent(in) :: stepIndex_opt         ! step index
     logical,          optional, intent(in) :: containsFullField_opt ! contains or not full field
     integer,          optional, intent(in) :: varLevIndexBeg_opt    ! start index if writing only a limited set of 'varLev's
@@ -2658,6 +2665,7 @@ module gridStateVectorFileIO_mod
     character(len=100) :: fileName
     logical :: fileExists
     integer :: currentDateStamp, timeLevel, printableValidDate, printableValidTime
+    character(len=20) :: localVariableName(dimNemovar)
     
     call msg('gio_writeToFileNetCDF', 'START')
     
@@ -2731,8 +2739,8 @@ module gridStateVectorFileIO_mod
       timeLevel = stepIndex
     end if
 
-    ni     = stateVector%ni
-    nj     = stateVector%nj
+    ni = stateVector%ni
+    nj = stateVector%nj
     
     ! get number of levels for NEMO grid, 
     ! which is supposed to be equal for all 3D variables
@@ -2762,18 +2770,27 @@ module gridStateVectorFileIO_mod
       if (.not. fileExists) then
       
         !- create increment file and close it
-        call gio_createOceanIncrementNetCDFfile(trim(fileName), ni, nj, numLev)
+        call gio_createOceanNetCDFfile(trim(fileName), ni, nj, numLev, typvar)
 
         ! - convert valid dateStamp into printable 
         imode = -3
         ierr = newdate(validDateStamp, printableValidDate, printableValidTime, imode)
         netCDFtime = real(printableValidDate, 8)
 
+        if (typvar == 'A') then
+          localVariableName(:) = NEMOvarNameAnl(:)
+        else if (typvar == 'R') then
+          localVariableName(:) = NEMOvarNameInc(:)
+        else
+          call utl_abort('gio_writeToFileNetCDF: unknown typvar: '//typvar)
+        end if
+       
+
         ! reopen the file for writing analysis increments and dates
         call utl_checkNetCDFstatus(nf90_open(trim(fileName), nf90_write, ncid))
         ! put 'z_inc_dateb', 'z_inc_datef' and 'time' into netCDF file
         do varIndexNEMO = 5, 7
-          call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
+          call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(varIndexNEMO), NEMOvarid(varIndexNEMO)))
           call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(varIndexNEMO), netCDFtime))
         end do
         call utl_checkNetCDFstatus(nf90_close(ncid))
@@ -2791,7 +2808,7 @@ module gridStateVectorFileIO_mod
       netCDFtime = real(printableValidDate, 8)
 
       ! put netCDFtime into 'time_counter', varIndexNEMO = 4
-      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(4), NEMOvarid(4)))
+      call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(4), NEMOvarid(4)))
       call utl_checkNetCDFstatus(nf90_put_var(ncid, NEMOvarid(4), netCDFtime, &
                                               start = (/timeLevel/)))
 
@@ -2887,7 +2904,7 @@ module gridStateVectorFileIO_mod
         end if
 
         ! inquire current varid
-        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, NEMOvarnames(varIndexNEMO), NEMOvarid(varIndexNEMO)))
+        call utl_checkNetCDFstatus(nf90_inq_varid(ncid, localVariableName(varIndexNEMO), NEMOvarid(varIndexNEMO)))
 
         !- Writing to file
         if (NEMOvartype(varIndexNEMO) == '3D') then
@@ -2902,7 +2919,7 @@ module gridStateVectorFileIO_mod
                                      'gio_writeToFileNetCDF', 'nf90_put_var')
         else
           call utl_abort('gio_writeToFileNetCDF: wrong NEMO vartype for variable: '//&
-                         vnl_varNameList(varIndex)//' ('//trim(NEMOvarnames(varIndexNEMO))//')')
+                         vnl_varNameList(varIndex)//' ('//trim(localVariableName(varIndexNEMO))//')')
         end if
 
       end if ! iDoWriting
@@ -2931,11 +2948,12 @@ module gridStateVectorFileIO_mod
   end subroutine gio_writeToFileNetCDF
 
   !--------------------------------------------------------------------------
-  ! gio_createOceanIncrementNetCDFfile
+  ! gio_createOceanNetCDFfile
   !--------------------------------------------------------------------------
-  subroutine gio_createOceanIncrementNetCDFfile(fileName, ni, nj, nk)
+  subroutine gio_createOceanNetCDFfile(fileName, ni, nj, nk, typvar)
     !
-    ! :Purpose: create an empty netCDF file for ocean-seaice increments
+    ! :Purpose: To create an empty netCDF file for ocean-seaice increments or analyses.
+    !
     !           NEMO-CICE requires the following increments:
     !           1. 'bckint': ocean temperature ('TM' in MIDAS);
     !           2. 'bckins': ocean salinity ('SALW');
@@ -2944,20 +2962,39 @@ module gridStateVectorFileIO_mod
     !           5. 'bckineta': ocean Sea Surface Height ('SSH');
     !           6. 'bckinseaice': seaice concentration increment ('LG')
     !
+    !           NEMO-CICE requires the following restarts:
+    !           1. 'tn': ocean temperature ('TM' in MIDAS);
+    !           2. 'sn': ocean salinity ('SALW');
+    !           3. 'un': ocean U-velocity field ('UUW');
+    !           4. 'vn': ocean V-velocity field ('VVW');
+    !           5. 'sshn': ocean Sea Surface Height ('SSH');
+    !           6. seaice concentration increment ('LG') is not defined
+    !
     implicit none
 
     ! Arguments:
-    character(len=*) , intent(in)  :: fileName   ! file name being created
-    integer          , intent(in)  :: ni, nj, nk ! NEMO grid dimensions
+    character(len=*), intent(in) :: fileName   ! file name being created
+    integer         , intent(in) :: ni, nj, nk ! NEMO grid dimensions
+    character(len=*), intent(in) :: typvar     ! typvar can be 'A' or 'R' 
 
     ! Locals:
     integer :: ncid, variableIndex
     integer :: latDimID, lonDimID, levDimID, timeID
     integer :: dimID2D(2), dimID3D(3), dimID4D(4), dimIDTI(1), dimIDDE(1)
+    character(len=20) :: localVariableName(dimNemovar)
 
     call msg('gio_createOceanIncrementNetCDFfile', 'Creating file: '//trim(fileName))
     ! create netCDF file    
     call utl_checkNetCDFstatus(nf90_create(trim(fileName), nf90_netcdf4, ncid))
+    call msg('gio_createOceanIncrementNetCDFfile', 'Required typvar: '//typvar)
+
+    if (typvar == 'A') then
+      localVariableName(:) = NEMOvarNameAnl(:)
+    else if (typvar == 'R') then
+      localVariableName(:) = NEMOvarNameInc(:)
+    else
+      call utl_abort('gio_createOceanIncrementNetCDFfile: unknown typvar: '//typvar)
+    end if
 
     ! define the dimensions. 
     call utl_checkNetCDFstatus(nf90_def_dim(ncid, 'x', ni            , lonDimID)) 
@@ -2974,22 +3011,22 @@ module gridStateVectorFileIO_mod
     do variableIndex = 1, dimNemovar
       select case(NEMOvartype(variableIndex))
         case('SC')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_double,           NEMOvarid(variableIndex)))
         case('2D')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_float ,  dimID2D, NEMOvarid(variableIndex)))
         case('3D')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_double,  dimID3D, NEMOvarid(variableIndex)))
         case('4D')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_double,  dimID4D, NEMOvarid(variableIndex)))
         case('TI')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_double,   dimIDTI, NEMOvarid(variableIndex)))
         case('DE')
-          call utl_checkNetCDFstatus(nf90_def_var(ncid, NEMOvarnames(variableIndex), &
+          call utl_checkNetCDFstatus(nf90_def_var(ncid, localVariableName(variableIndex), &
                                      nf90_float , dimIDDE, NEMOvarid(variableIndex)))
       end select
     end do
@@ -3002,6 +3039,6 @@ module gridStateVectorFileIO_mod
     
     call msg('gio_createOceanIncrementNetCDFfile', 'Completed')
     
-  end subroutine gio_createOceanIncrementNetCDFfile
+  end subroutine gio_createOceanNetCDFfile
   
 end module gridStateVectorFileIO_mod

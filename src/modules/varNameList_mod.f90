@@ -903,43 +903,79 @@ module varNameList_mod
       ! Result:
       character(len=20) :: varNameNetCDF ! variable name used in NEMO netCDF
 
-      ! Locals:
-      logical :: varFound(6) ! logical switches:
-                             !   1. found trial depth ('deptht')
-                             !   2. found 3D ocean temperature, 
-                             !   3. found SST.
-                             !   4. found 3D ocean temperature from restart
-                             !   5. found restart depth ('nav_lev')
-                             !   6. found SSS (sea surface salinity)
-
       select case(trim(varName))
+      
       case('SSH')
-        varNameNetCDF = 'zos'
-      case('TM')    
-        ! special case for TM which is currently a variable used for SST as well as 
-        ! for 3D ocean temperature field
-        call utl_inquireNEMOFile(fileName, varFound(:))
-        if (varFound(2)) then
+        
+        if (utl_varPresentInNetcdfFile('zos', trim(fileName))) then
+          varNameNetCDF = 'zos'
+        else if (utl_varPresentInNetcdfFile('sshn', trim(fileName))) then
+          varNameNetCDF = 'sshn'
+        else        
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
+        end if   
+
+      case('TM') 
+   
+        if (utl_varPresentInNetcdfFile('toce', trim(fileName))) then
           varNameNetCDF = 'toce'    ! NEMO 3D ocean temperature field, trial
-        else if (varFound(3)) then
+        else if (utl_varPresentInNetcdfFile('tos', trim(fileName))) then
           varNameNetCDF = 'tos'     ! NEMO 2D SST field
-        else if (varFound(4)) then
+        else if (utl_varPresentInNetcdfFile('tn', trim(fileName))) then
           varNameNetCDF = 'tn'      ! NEMO 3D ocean temperature field, restart
         else
-          write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent NEMO variable found in ', &
-                     trim(fileName), ' for varName = ', trim(varName)
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
         end if
+
       case('SALW')
-        varNameNetCDF = 'soce'
+
+        if (utl_varPresentInNetcdfFile('soce', trim(fileName))) then
+          varNameNetCDF = 'soce'
+        else if (utl_varPresentInNetcdfFile('sn', trim(fileName))) then
+          varNameNetCDF = 'sn'
+        else
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
+        end if
+   
       case('UUW')
-        varNameNetCDF = 'uo'
+
+        if (utl_varPresentInNetcdfFile('uo', trim(fileName))) then
+          varNameNetCDF = 'uo'
+        else if (utl_varPresentInNetcdfFile('un', trim(fileName))) then
+          varNameNetCDF = 'un'
+        else 
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
+        end if
+
       case('VVW')
-        varNameNetCDF = 'vo'
+
+        if (utl_varPresentInNetcdfFile('vo', trim(fileName))) then
+          varNameNetCDF = 'vo'
+        else if (utl_varPresentInNetcdfFile('vn', trim(fileName))) then
+          varNameNetCDF = 'vn'
+        else 
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
+        end if
+
       case('SSS')
-        varNameNetCDF = 'sss'
+
+        if (utl_varPresentInNetcdfFile('sss', trim(fileName))) then
+          varNameNetCDF = 'sss'
+        else
+          call utl_abort('vnl_varNameNetCDF: no equivalent name varName: '//trim(varName)//&
+                         'found in '//trim(fileName))
+        end if
+         
       case default
+
         varNameNetCDF = 'notFound'
-        write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
+        write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName: '//trim(varName)
+
       end select
       
       write(*,*) 'vnl_varNameNetCDF: ', trim(varName),' is ', trim(varNameNetCDF), ' in netCDF file.'
