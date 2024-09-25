@@ -50,6 +50,24 @@ if [[ "${found_several_definitions_of_the_same_variable}" = true ]]; then
     exit 1
 fi
 
+## If the variables 'CHECK_RESULTS_CATCHUP', 'CLEAN_UNITTEST_CATCHUP',
+## 'LETKF_GLB15KM_NUM_THREADS' and 'LETKF_GLB15KM_MEMORY' all have
+## already the expected value, then we don't need to change the file.
+typeset -r check_result_catchup=$(awk -F= '/^CHECK_RESULTS_CATCHUP=/ {print $2}' ${resources_file})
+typeset -r clean_unittest_catchup=$(awk -F= '/^CLEAN_UNITTEST_CATCHUP=/ {print $2}' ${resources_file})
+typeset -r letkf_glb15km_num_threads=$(awk -F= '/^LETKF_GLB15KM_NUM_THREADS=/ {print $2}' ${resources_file})
+typeset -r letkf_glb15km_memory=$(awk -F= '/^LETKF_GLB15KM_MEMORY=/ {print $2}' ${resources_file})
+if [ "${check_result_catchup}"      -eq "${check_result_catchup_expected_value}"      -a \
+     "${clean_unittest_catchup}"    -eq "${clean_unittest_catchup_expected_value}"    -a \
+     "${letkf_glb15km_num_threads}" -eq "${letkf_glb15km_num_threads_expected_value}" -a \
+     "${letkf_glb15km_memory}"       =  "${letkf_glb15km_memory_expected_value}" ]; then
+    ## All variables 'CHECK_RESULTS_CATCHUP', 'CLEAN_UNITTEST_CATCHUP', 'LETKF_GLB15KM_NUM_THREADS' and 'LETKF_GLB15KM_MEMORY' are all already set
+    ## to ${check_result_catchup}, ${clean_unittest_catchup}, ${letkf_glb15km_num_threads} and ${letkf_glb15km_memory}
+    ## respectively in '${resources_file}'.
+    ## We will not modify the resources file
+    exit
+fi
+
 echo "Set 'CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}' in ${resources_file}"
 sed -i "s/^CHECK_RESULTS_CATCHUP=[1-9]$/CHECK_RESULTS_CATCHUP=${check_result_catchup_expected_value}/" ${resources_file}
 
