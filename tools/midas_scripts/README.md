@@ -115,6 +115,9 @@ suite.  There are two scripts to prepare and then run the program:
      `midas.prepare_workdir`.  The job must use the MPI topology that
      as been used to prepare the observations.
 
+There is another script `midas.unsplitobs` that can be used to
+recombine the observations in their original order before they have
+been splitted with `midas.splitobs.Abs`.
 
-Both programs supports the option `-h` to have a description of the
+All scripts supports the option `-h` to have a description of the
 available options.
