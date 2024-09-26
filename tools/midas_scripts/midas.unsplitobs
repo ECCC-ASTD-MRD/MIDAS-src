@@ -38,9 +38,8 @@ function countRecords {
     fi
 
     local countRecords_obsfile=${1}
-    ## We avoid counting the resume records ('>>*******')
-    ## We use 'liburp' option '-stats nbstation' to count the number of stations (records) in the file.
-    liburp ${countRecords_obsfile} -enrgs -nostn '>>' -stats nbstation 2>&1 | awk '/ nombre de stations differentes : / {print $(NF)}'
+    ## We avoid counting the resume records ('>>*******') using option "-nostn '>>'"
+    liburp ${countRecords_obsfile} -enrgs -nostn '>>' | grep -c stnids
 } ## End of 'function countRecords'
 
 ## Check if all mandatory arguments have been given
@@ -157,15 +156,14 @@ EOF
         recordIndex=$((recordIndex+1))
     done ## End of 'for obsfile in ...'
 
-    id_record=$(printf "%0${ndigits}g" 1)
     for id_record in $(seq --format="%0${ndigits}g" 1 ${nb_records_max}); do
-        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} | tr ' ' '\n' |
+        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
+            tr ' ' '\n' |
             xargs -L120 editbrp -n -d obs${fam} -i 0 -s
     done
 done
 
 rm exclure_resume
-rm -r tmp
 
 mkdir -p ${output}
 for fam in ${families}; do
