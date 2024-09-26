@@ -3227,9 +3227,6 @@ contains
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
         
         !    2.4  Store hx in the structure tvs_radiance
-        if (.not. allocated(tvs_transmission)) then
-          call tvs_allocTransmission(nlv_T)
-        end if
         
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(btIndex,sensorIndex) % prof
@@ -3250,16 +3247,16 @@ contains
                   radiancedata_d % overcast(levelIndex,btIndex)
             end do
           end if
-
-          if (allocated(tvs_transmission)) then
-            do levelIndex = 1, nlv_T
-              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
-                  transmission % tau_levels(levelIndex,btIndex)
-            end do
           
-            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
-                transmission % tau_total(btIndex)
-          end if
+          if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+   
+          do levelIndex = 1, nlv_T
+            tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                transmission % tau_levels(levelIndex,btIndex)
+          end do
+          
+          tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+              transmission % tau_total(btIndex)
 
           if (allocated(tvs_emissivity)) then
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex) % emis_out
@@ -3361,12 +3358,11 @@ contains
 
             if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
-            if (allocated(tvs_transmission)) then
-              do levelIndex = 1, nlv_T
-                tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
-                    transmission % tau_levels(levelIndex,btIndex)
-              end do
-            end if
+            do levelIndex = 1, nlv_T
+              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                  transmission % tau_levels(levelIndex,btIndex)
+            end do
+           
           end do
           
           ! restore the cloud profiles in ...
