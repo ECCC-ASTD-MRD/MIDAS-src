@@ -1603,8 +1603,8 @@ contains
   !--------------------------------------------------------------------------
   ! oop_tovs_nl
   !--------------------------------------------------------------------------
-  subroutine oop_tovs_nl( columnTrl, obsSpaceData, datestamp, beSilent,  &
-                          bgckMode_opt, option_opt, sourceObs_opt, destObs_opt )
+  subroutine oop_tovs_nl(columnTrl, obsSpaceData, datestamp, beSilent,  &
+                         bgckMode_opt, option_opt, sourceObs_opt, destObs_opt)
     ! :Purpose: Computation of the residuals to the tovs observations
     !           option_opt: defines input state:
     !              - 'HR': High Resolution background state,

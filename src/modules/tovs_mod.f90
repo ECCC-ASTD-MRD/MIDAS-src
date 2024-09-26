@@ -786,6 +786,7 @@ contains
 
     do obsIndex = 1, tvs_nobtov
       sensorIndex = tvs_lsensor(obsIndex)
+      if (sensorIndex <= 0) cycle
       nchannels = tvs_nchan(sensorIndex)
       ! allocate transmittance from surface and from pressure levels
       allocate(tvs_transmission(obsIndex) % tau_total(nchannels))
@@ -2899,9 +2900,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsSpaceData    ! obsSpaceData structure
-    logical,           intent(in)    :: bgckMode        ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
-    logical,           intent(in)    :: beSilent        ! verbosity flag
+    type(struct_obs),  intent(inout) :: obsSpaceData          ! obsSpaceData structure
+    logical,           intent(in)    :: bgckMode              ! flag to transfer transmittances and cloudy overcast radiances in bgck mode 
+    logical,           intent(in)    :: beSilent              ! verbosity flag
 
     ! Locals:
     integer :: nlv_T
@@ -2944,7 +2945,7 @@ contains
     max_nthreads = mmpi_numThread
 
     allocate(sensorTovsIndexes(tvs_nobtov))
-    
+
     !   1.1   Read surface information
     if (bgckMode) call EMIS_READ_CLIMATOLOGY
 
@@ -3226,9 +3227,6 @@ contains
         end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
         
         !    2.4  Store hx in the structure tvs_radiance
-        if ((obs_columnActive_RB(obsSpaceData, OBS_TRAN) .or. bgckMode) .and. .not. allocated(tvs_transmission)) then
-          call tvs_allocTransmission(nlv_T)
-        end if
         
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(btIndex,sensorIndex) % prof
@@ -3249,16 +3247,16 @@ contains
                   radiancedata_d % overcast(levelIndex,btIndex)
             end do
           end if
-
-          if (allocated(tvs_transmission)) then
-            do levelIndex = 1, nlv_T
-              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
-                  transmission % tau_levels(levelIndex,btIndex)
-            end do
           
-            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
-                transmission % tau_total(btIndex)
-          end if
+          if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+   
+          do levelIndex = 1, nlv_T
+            tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                transmission % tau_levels(levelIndex,btIndex)
+          end do
+          
+          tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+              transmission % tau_total(btIndex)
 
           if (allocated(tvs_emissivity)) then
             tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex) % emis_out
@@ -3351,11 +3349,23 @@ contains
           do btIndex = 1, btCountScatt
             clearMwRadiance = radiancedata_dScatt % bt(btIndex)
             bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex,sensorIndex)
+            profileIndex = tvs_chanprofScatt(btIndex,sensorIndex) % prof
+            channelIndex = tvs_chanprofScatt(btIndex,sensorIndex) % chan
+            tovsIndex = sensorTovsIndexes(profileIndex)
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
-          end do
 
+            if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
+   
+            do levelIndex = 1, nlv_T
+              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+                  transmission % tau_levels(levelIndex,btIndex)
+            end do
+            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+                transmission % tau_total(btIndex)           
+          end do
+          
           ! restore the cloud profiles in ...
           call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
                                              nlv_T,                             &

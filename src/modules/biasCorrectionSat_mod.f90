@@ -11,6 +11,7 @@ module biasCorrectionSat_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
+  use earthConstants_mod
   use obsSpaceData_mod
   use controlVector_mod
   use midasMpi_mod
@@ -77,21 +78,25 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 7
-  integer, parameter    :: NumPredictorsBcif = 6
+  integer, parameter    :: NumPredictors = 16
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
   integer, parameter    :: maxPassiveChannels = 15
-  
+  real(8)               :: bottomPressureT1 = 1000.d0
+  real(8)               :: topPressureT1 = 300.d0
+  real(8), allocatable  :: trialHeight300m850(:)
+  real(8), allocatable  :: trialHeight300m900(:)
   real(8), allocatable  :: trialHeight300m1000(:)
   real(8), allocatable  :: trialHeight50m200(:)
   real(8), allocatable  :: trialHeight1m10(:)
   real(8), allocatable  :: trialHeight5m50(:)
+  real(8), allocatable  :: trialTotalWaterVaporContent(:)
+  real(8), allocatable  :: trialConvolutedLapseRate(:,:)
   real(8), allocatable  :: RadiosondeWeight(:)
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
+  character(len=2), parameter  :: predTab(0:NumPredictors) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG", "T5", "T6", "WC", "L1", "L2", "L3", "SA", "R1", "R2"]
   integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
@@ -101,7 +106,7 @@ module biasCorrectionSat_mod
   logical  :: weightedestimate  ! flag to activate radiosonde weighting for bias correction computation in "reg" mode
   logical  :: filterObs         ! flag to activate additional observation filtering in "reg" mode. If it is .false. only observations selected for assimilation will be used in the linear regression
   logical  :: removeBiasCorrection  ! flag to activate removal of an already present bias correction
-  logical  :: refreshBiasCorrection !flag to replace an existing bias correction with a new one
+  logical  :: refreshBiasCorrection ! flag to replace an existing bias correction with a new one
   logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
   logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
   logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
@@ -109,7 +114,7 @@ module biasCorrectionSat_mod
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
-  integer          :: nbscan(maxNumInst)  ! the number of scan positions are necessary
+  integer          :: nbscan(maxNumInst)  ! the number of scan positions
   integer          :: passiveChannelList(maxNumInst, maxPassiveChannels)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
@@ -210,7 +215,7 @@ contains
     logical            :: bcifExists
     ! variables from background coeff file
     integer            :: nfov, exitCode
-    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictorsBCIF)
+    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numPredictors)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
@@ -300,6 +305,24 @@ contains
                 kpred = 6
               case('TG')
                 kpred = 7
+              case('T5')
+                kpred = 8
+              case('T6')
+                kpred = 9
+              case('WC')
+                kpred = 10
+              case('L1')
+                kpred = 11
+              case('L2')
+                kpred = 12
+              case('L3')
+                kpred = 13
+              case('SA')
+                kpred = 14
+              case('R1')
+                kpred = 15
+              case('R2')
+                kpred = 16
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -727,17 +750,18 @@ contains
   !-----------------------------------------------------------------------
   ! bcs_dumpBiasToSqliteAfterThinning
   !-----------------------------------------------------------------------
-  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData)
+  subroutine bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, fromGenCoeff_opt)
     !
     ! :Purpose:  to dump bias correction coefficients and predictors in dedicated sqlite files 
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout)     :: obsSpaceData
+    type(struct_obs),  intent(inout) :: obsSpaceData
+    logical, optional, intent(in)    :: fromGenCoeff_opt
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex,iobs, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
     real(8)  :: predictor(NumPredictors)
@@ -757,11 +781,18 @@ contains
     character(len=20)  :: tovsFileNameList(30)
     character(len=256) :: fileName
     integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
-
+    logical :: fromGenCoeff
+    
     if (.not. biasActive) return
     if (.not. dumpToSqliteAfterThinning) return
 
     write(*,*) "bcs_dumpBiasToSqliteAfterThinning: start"
+
+    if (present(fromGenCoeff_opt)) then
+      fromGenCoeff = fromGenCoeff_opt
+    else
+      fromGenCoeff = .false.
+    end if
 
     ! get list of all possible tovs codetype values and unique list of corresponding filenames
     call tvs_getAllIdBurpTovs(tovsAllCodeTypeListSize, tovsAllCodeTypeList)
@@ -795,8 +826,8 @@ contains
       end do
     end do
     write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: fileIndexes', fileIndexes(1:tovsFileNameListSize)
-    allocate(obsOffset(tovsFileNameListSize))
-    allocate(dataOffset(tovsFileNameListSize))
+    allocate(obsOffset(tovsFileNameListSize))  !id_obs
+    allocate(dataOffset(tovsFileNameListSize)) !id_data
     do fileIndex = 1, tovsFileNameListSize
       fileName = tovsFileNameList(fileIndex)
       write(*,*) 'tovs filename = ', fileName
@@ -830,6 +861,8 @@ contains
       end if
       iobs = iobs + 1
       fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_IDF, headerIndex))
+      if (fileIndex==-1) cycle HEADER
+      obsOffset(fileIndex) = obsOffset(fileIndex) + 1
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
       sensorIndex = tvs_lsensor(indxTovs)
@@ -842,11 +875,16 @@ contains
           fileNameExtension = ' '
         end if
 
-        fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
-             // '_' // trim(filenameExtension)
-
+        if (fromGenCoeff) then
+          fileName = 'bcrfiles_' // trim(tovsFileNameList(fileIndex)) // '.updated/bcr' // trim(tovsFileNameList(fileIndex)) &
+              // '_' // trim(filenameExtension)
+        else
+          fileName = 'obs/bcr' // trim(tovsFileNameList(fileIndex)) &
+              // '_' // trim(filenameExtension)
+        end if
+        
         call fSQL_open(db(fileIndex), fileName, stat)
-        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName)
+        write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: Open ', trim(fileName), fSQL_error(stat), len_trim(fileName)
         if (fSQL_error(stat) /= FSQL_OK) call handleError(stat, 'fSQL_open: ')
 
         ! Create the tables
@@ -882,9 +920,12 @@ contains
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
+        dataOffset(fileIndex) = dataOffset(fileIndex) + 1
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY   
         if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
-        if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY 
+        if (obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex) == MPC_missingValue_R8) cycle BODY
+        if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY
+        
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, chanIndx, bodyIndex)
         if (chanindx > 0) then
           biasCor = 0.0d0
@@ -922,8 +963,8 @@ contains
             call fSQL_bind_param(stmtCoeffs(fileIndex), param_index=5, int_var=burpChanIndex)
             call fSQL_bind_param(stmtCoeffs(fileIndex), param_index=6, int_var=iScan)
             call fSQL_exec_stmt (stmtCoeffs(fileIndex))
-            call fSQL_bind_param(stmtPreds(fileIndex), param_index=1, int_var=bodyIndex + dataOffset(fileIndex))
-            call fSQL_bind_param(stmtPreds(fileIndex), param_index=2, int_var=headerIndex + obsOffset(fileIndex))
+            call fSQL_bind_param(stmtPreds(fileIndex), param_index=1, int_var= dataOffset(fileIndex))
+            call fSQL_bind_param(stmtPreds(fileIndex), param_index=2, int_var= obsOffset(fileIndex))
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=3, int_var=jPred)
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=4, real8_var=predictor(jPred))
             call fSQL_bind_param(stmtPreds(fileIndex), param_index=5, char_var=predtab(jPred))
@@ -1404,15 +1445,25 @@ contains
     type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer  :: headerIndex, idatyp, iobs
+    integer :: headerIndex, idatyp, iobs, channelIndex, bodyIndex
+    integer :: channelNumber
+    integer :: sensorIndex, tovsIndex, bcifChannelIndex, maxChans
     real(8)  :: height1, height2
 
     if (tvs_nobtov > 0) then
+      allocate(trialHeight300m850(tvs_nobtov))
+      allocate(trialHeight300m900(tvs_nobtov))
       allocate(trialHeight300m1000(tvs_nobtov))
       allocate(trialHeight50m200(tvs_nobtov))
       allocate(trialHeight5m50(tvs_nobtov))
       allocate(trialHeight1m10(tvs_nobtov))
       allocate(trialTG(tvs_nobtov))
+      allocate(trialTotalWaterVaporContent(tvs_nobtov))
+      maxChans = 0
+      do sensorIndex = 1, tvs_nsensors
+        if (size(bias(sensorIndex)%chans) > maxChans) maxChans = size(bias(sensorIndex)%chans)
+      end do
+      allocate(trialConvolutedLapseRate(tvs_nobtov, maxChans))
       allocate(RadiosondeWeight(tvs_nobtov))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
@@ -1423,21 +1474,33 @@ contains
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
 
-    HEADER2: do
+    HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER2
+      if (headerIndex < 0) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (.not.  tvs_isIdBurpTovs(idatyp)) then
         write(*,*) 'bcs_getTrialPredictors: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-        cycle HEADER2
+        cycle HEADER
       end if
       iobs = iobs + 1
 
-      height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 1000.d0)
-      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 300.d0)
+      tovsIndex = tvs_tovsIndex(headerIndex)
+      if (tovsIndex < 0) cycle HEADER
+      sensorIndex =  tvs_lsensor(tovsIndex)
+
+      height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
       
       trialHeight300m1000(iobs) = height2 - height1
 
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 900.d0)
+      
+      trialHeight300m900(iobs) = height2 - height1
+
+      height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 850.d0)
+      
+      trialHeight300m850(iobs) = height2 - height1
+      
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 200.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 50.d0)
 
@@ -1455,7 +1518,26 @@ contains
 
       trialTG(iobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
 
-    end do HEADER2
+      trialTotalWaterVaporContent(iobs) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
+
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        ! Only consider if flagged for assimilation ?
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle BODY
+        call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+            channelNumber, channelIndex )
+        call bcs_getChannelIndex(obsSpaceData, sensorIndex, bcifChannelIndex, bodyIndex)
+        if (channelIndex > 0 .and. bcifChannelIndex > 0) then
+          trialConvolutedLapseRate(iobs,bcifChannelIndex) = &
+              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(tovsIndex) % tau_levels(:,channelIndex))
+          
+        end if
+      end do BODY
+     
+    end do HEADER
 
     if (trialTG(1) > 150.0d0) then
       write(*,*) 'bcs_getTrialPredictors: converting TG from Kelvin to deg_C'
@@ -1463,10 +1545,13 @@ contains
     end if
 
     trialHeight300m1000(:) = 0.1d0 * trialHeight300m1000(:) ! conversion factor
+    trialHeight300m900(:) = 0.1d0 * trialHeight300m900(:) ! conversion factor
+    trialHeight300m850(:) = 0.1d0 * trialHeight300m850(:) ! conversion factor
     trialHeight50m200(:) = 0.1d0 * trialHeight50m200(:)
     trialHeight5m50(:) = 0.1d0 * trialHeight5m50(:)
-    trialHeight1m10(:) =  0.1d0 *  trialHeight1m10(:)
-
+    trialHeight1m10(:) = 0.1d0 *  trialHeight1m10(:)
+    trialTotalWaterVaporContent(:) = 10.d0 * trialTotalWaterVaporContent(:) !scaling factor chosen to get the predictor approximately in the range [0;1.0]
+    
     write(*,*) 'bcs_getTrialPredictors: end'
 
   contains
@@ -1502,6 +1587,85 @@ contains
       height = zwb * col_ptr(ik+1) + zwt * col_ptr(ik)
    
     end function logInterpHeight
+
+    function convolutedLapseRate(column, headerIndex, transmittance) result(lapseRate)
+      implicit none
+      
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: column
+      integer,                 intent(in)    :: headerIndex
+      real(8),                 intent(in)    :: transmittance(:)
+      ! Result:
+      real(8) :: lapseRate
+      ! Locals:
+      integer :: nlev, levelIndex
+      real(8), pointer :: temperature(:)
+      
+      nlev = col_getNumLev(column, 'TH')
+      temperature => col_getColumn(column, headerIndex, 'TT')
+
+      lapseRate = 0.d0
+      do levelIndex = 2, nlev - 1
+        lapseRate = lapseRate + (transmittance(levelIndex+1) - transmittance(levelIndex)) * &
+            (temperature(levelIndex-1) - temperature(levelIndex+1))
+        ! computed exactly as in "An alternative bias correction scheme for CrIS Data Assimilation in a regional model"
+        ! MWR vol 147 Issue 3 pp 809-839 formula 2
+      end do
+      
+    end function convolutedLapseRate
+
+    function integrateWaterVapor(columnTrlOnTrlLev, headerIndex) result(totalWaterContent)
+      implicit none
+      
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
+      integer,                 intent(in)    :: headerIndex
+      ! Result:
+      real(8) :: totalWaterContent
+      
+      totalWaterContent = integrateProfile(columnTrlOnTrlLev, headerIndex, 'HU', &
+          conversionFactor_opt = 1.d0/ (ec_wgs_GammaM * MPC_DENSITY_WATER_R8))
+
+    end function integrateWaterVapor
+
+    function integrateProfile(column, headerIndex, varName, conversionFactor_opt) result(integral)
+      implicit none
+
+      ! Arguments:
+      type(struct_columnData), intent(inout) :: column
+      integer,                 intent(in)    :: headerIndex
+      character(len=*),        intent(in)    :: varName
+      real(8), optional, intent(in)          :: conversionFactor_opt
+      ! Result:
+      real(8) :: integral
+
+      ! Locals:
+      integer :: levelIndex, nlev
+      real(8) :: topPressure, bottomPressure, conversionFactor
+      real(8) :: topProfile, bottomProfile
+      real(8), pointer :: profile(:)
+      real(8),allocatable :: weight(:)
+      
+      if (present(conversionFactor_opt)) then
+        conversionFactor = conversionFactor_opt
+      else
+        conversionFactor = 1.d0
+      end if
+
+      nlev = col_getNumLev(column, 'TH')
+      
+      integral = 0.d0
+      profile => col_getColumn(column, headerIndex, varname)     
+      do levelIndex = 1, nlev - 1
+        topPressure = col_getPressure(column, levelIndex, headerIndex, 'TH')
+        bottomPressure = col_getPressure(column, levelIndex+1, headerIndex, 'TH')
+        topProfile = profile(levelIndex)
+        bottomProfile = profile(levelIndex+1)
+        integral = integral + 0.5d0 * (bottomPressure - topPressure) * (topProfile + bottomProfile)
+      end do
+      integral = integral * conversionFactor
+    end function integrateProfile
+    
 
   end subroutine bcs_getTrialPredictors
 
@@ -1596,14 +1760,19 @@ contains
     real(8),          intent(out)   :: predictor(NumPredictors)
     integer,          intent(in)    :: headerIndex
     integer,          intent(in)    :: obsIndex
-    integer,          intent(in)    :: chanindx
+    integer,          intent(in)    :: chanindx ! channel index wrt bcif
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer  :: iSensor, iPredictor, jPredictor
-    real(8)  :: zenithAngle
+    integer  :: sensorIndex, iPredictor, jPredictor
+    real(8)  :: zenithAngle, normalizedScanPosition
 
     predictor(:) = 0.0d0
+
+    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    
+    !computation of scan bias position normalized to [-1;1]
+    normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
     
     do iPredictor = 1, NumPredictors
 
@@ -1629,14 +1798,39 @@ contains
       else if (iPredictor == 7) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(obsIndex)
+      else if (iPredictor == 8) then
+        ! Height300-Height900 (dam) /1000    T5
+        predictor(iPredictor) = trialHeight300m900(obsIndex) / 1000.0d0   
+      else if (iPredictor == 9) then
+        ! Height300-Height850 (dam) /1000    T6
+        predictor(iPredictor) = trialHeight300m850(obsIndex) / 1000.0d0
+      else if (iPredictor == 10) then
+        ! Total Water Vapor Content (aka precipitable water)
+        predictor(iPredictor) = trialTotalWaterVaporContent(obsIndex)
+      else if (iPredictor == 11) then
+        ! first order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = normalizedScanPosition
+      else if (iPredictor == 12) then
+        ! second order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.5d0 * (3.d0*normalizedScanPosition*normalizedScanPosition - 1.d0)
+      else if (iPredictor == 13) then
+        ! third order Legendre polynomial of normalized scan bias position
+        predictor(iPredictor) = 0.5d0 * normalizedScanPosition * (5.d0*normalizedScanPosition*normalizedScanPosition - 3.d0)
+      else if (iPredictor == 14) then
+        ! sun zenith angle (should we use this angle or a well chosen function of this angle? TBD later)
+        predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
+      else if (iPredictor == 15) then
+        ! channel convoluted lapse rate (R1)
+        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)
+      else if (iPredictor == 16) then
+        ! channel convoluted lapse rate squared (R2)
+        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)**2
       end if
-
     end do
 
-    iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
-    do  iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
-      jPredictor = bias(iSensor)%chans(chanIndx)%predictorIndex(iPredictor)
-      predictor(jPredictor) = predictor(jPredictor) - bias(iSensor)%chans(chanindx)%coeff_offset(iPredictor)
+    do  iPredictor = 1, bias(sensorIndex)%chans(chanIndx)%numActivePredictors
+      jPredictor = bias(sensorIndex)%chans(chanIndx)%predictorIndex(iPredictor)
+      predictor(jPredictor) = predictor(jPredictor) - bias(sensorIndex)%chans(chanindx)%coeff_offset(iPredictor)
     end do
    
   end subroutine bcs_getPredictors
@@ -2175,6 +2369,7 @@ contains
     integer            :: iuncoef, numPred, ierr
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
+    character(len=3)   :: cnum
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
 
     if (mmpi_myId == 0) then
@@ -2199,10 +2394,13 @@ contains
             numPred = bias(sensorIndex)%chans(jChan)%numActivePredictors 
           
             write(iuncoef,'(A52,A8,1X,A7,1X,I6,1X,I8,1X,I2,1X,I3)') 'SATELLITE, INSTRUMENT, CHANNEL, NOBS, NPRED, NSCAN: ',  &
-                 satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, bias(sensorIndex)%chans(jChan)%coeff_nobs, numPred - 1, nfov
-            write(iuncoef,'(A7,6(1X,A2))') 'PTYPES:',  (predtab(bias(sensorIndex)%chans(jChan)%predictorIndex(kPred)), kPred = 2, numPred)
-            write(iuncoef,'(120(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff_fov(kFov), kFov = 1, nfov)
-            write(iuncoef,'(12(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff(kPred), kPred = 1, numPred)
+                satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, bias(sensorIndex)%chans(jChan)%coeff_nobs, numPred - 1, nfov
+            write(cnum,'(i2)')  numPred - 2 + 1
+            write(iuncoef,'(A7,'//trim(cnum)//'(1X,A2))') 'PTYPES:',  (predtab(bias(sensorIndex)%chans(jChan)%predictorIndex(kPred)), kPred = 2, numPred)
+            write(cnum,'(i3)')  nfov
+            write(iuncoef,'('//trim(cnum)//'(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff_fov(kFov), kFov = 1, nfov)
+            write(cnum,'(i2)')  numpred
+            write(iuncoef,'('//trim(cnum)//'(1x,ES17.10))') (bias(sensorIndex)%chans(jChan)%coeff(kPred), kPred = 1, numPred)
           end if
         end do
 
@@ -2214,11 +2412,11 @@ contains
           do jChan = 1, nchans
             if (bias(sensorIndex)%chans(jChan)%coeff_nobs > 0) then
               numPred = bias(sensorIndex)%chans(jChan)%numActivePredictors 
-          
+              write(cnum,'(i2)')  numPred  
               write(iuncoef,'(A38,A8,1X,A7,1X,I6,1X,I2)') 'SATELLITE, INSTRUMENT, CHANNEL, NPRED: ',  &
                    satNameCoeff, instrName, bias(sensorIndex)%chans(jChan)%channelNum, numPred
               do kpred =1, numPred
-                write(iuncoef,'(10e14.6)') bias(sensorIndex)%chans(jChan)%coeffCov(kpred, :)
+                write(iuncoef,'(' // trim(cnum) // 'e14.6)') bias(sensorIndex)%chans(jChan)%coeffCov(kpred, :)
               end do
             end if
           end do
@@ -3146,28 +3344,30 @@ contains
               if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
                    sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
             end do
-            do predictorIndex = 1, numPredictors
-              do predictorIndex2 =1, numPredictors
-                correlation(predictorIndex, predictorIndex2) =  &
-                     matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
-                     (sigma(predictorIndex) * sigma(predictorIndex2) )
+            if ( all(sigma(:) > 0.d0) ) then ! to avoid division by zero when computing correlation coefficient
+              do predictorIndex = 1, numPredictors
+                do predictorIndex2 =1, numPredictors
+                  correlation(predictorIndex, predictorIndex2) =  &
+                      matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
+                      (sigma(predictorIndex) * sigma(predictorIndex2) )
+                end do
               end do
-            end do
-            write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
-                 bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
-                 trim(tvs_instrumentName(sensorIndex))," ", &
-                 trim(tvs_satelliteName(sensorIndex))
-            write(iuncorr,'(10x,A6)',advance="no") "OmF"
-            do predictorIndex = 2, numPredictors
-              write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
-            end do
-            write(iuncorr,*)
-            write(iuncorr,'(A6)',advance="no") "Omf"
-            write(iuncorr,'(100f12.6)') correlation(1,:)
-            do predictorIndex = 2, numPredictors
-              write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
-              write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
-            end do
+              write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
+                  bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
+                  trim(tvs_instrumentName(sensorIndex))," ", &
+                  trim(tvs_satelliteName(sensorIndex))
+              write(iuncorr,'(10x,A6)',advance="no") "OmF"
+              do predictorIndex = 2, numPredictors
+                write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+              end do
+              write(iuncorr,*)
+              write(iuncorr,'(A6)',advance="no") "Omf"
+              write(iuncorr,'(100f12.6)') correlation(1,:)
+              do predictorIndex = 2, numPredictors
+                write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
+                write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
+              end do
+            end if
           end if
         end do
         ierr = fclos(iuncov)
@@ -3196,10 +3396,13 @@ contains
     if (.not. biasActive) return
 
     if (allocated(trialHeight300m1000)) deallocate(trialHeight300m1000)
+    if (allocated(trialHeight300m900)) deallocate(trialHeight300m900)
+    if (allocated(trialHeight300m850)) deallocate(trialHeight300m850)
     if (allocated(trialHeight50m200)) deallocate(trialHeight50m200)
     if (allocated(trialHeight1m10)) deallocate(trialHeight1m10)
     if (allocated(trialHeight5m50)) deallocate(trialHeight5m50)
     if (allocated(trialTG)) deallocate(trialTG)
+    if (allocated(trialTotalWaterVaporContent)) deallocate(trialTotalWaterVaporContent)
     if (allocated(RadiosondeWeight)) deallocate(RadiosondeWeight)
 
     do iSensor = 1, tvs_nSensors
@@ -3308,32 +3511,33 @@ contains
   !-----------------------------------------
   ! read_bcif
   !-----------------------------------------
-  subroutine read_bcif(bcifFile, hspec, ncan, can, bcmode, bctype, npred, pred, global_opt, exitcode)
+  subroutine read_bcif(bcifFileName, isHyperSpectral, ncan, can, bcmode, bctype, npred, pred, global_opt, exitCode)
     !
     ! :Purpose: to read channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     !
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: bcifFile
-    logical,          intent(in)  :: hspec
-    integer,          intent(out) :: exitcode
+    character(len=*), intent(in)  :: bcifFileName
+    logical,          intent(in)  :: isHyperSpectral
+    integer,          intent(out) :: exitCode
     integer,          intent(out) :: ncan
     integer,          intent(out) :: can(tvs_maxchannelnumber)
     integer,          intent(out) :: npred(tvs_maxchannelnumber)
     character(len=3), intent(in)  :: global_opt
     character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber)
     character(len=1), intent(out) :: bctype(tvs_maxchannelnumber)
-    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictorsBCIF)
+    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numPredictors)
 
     ! Locals:
     character(len=7)             :: instrum
-    integer                      :: i, j, ier, ii, iun
+    character(len=2)             :: cnum
+    integer                      :: channelIndex, predictorIndex, ier, iun
     character(len=64)            :: line
     integer                      :: xcan, xnpred, chknp
     character(len=1)             :: xbcmode, xbctype
     character(len=2)             :: xpred(numpredictors)
-
+    real(8)                      :: par1, par2
     ! Reads channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     ! Channel 0 values are global or default values (optionally applied to all channels).
     ! Returns BC information for all channels to calling routine.
@@ -3348,7 +3552,7 @@ contains
     ! ....
     ! ....
     ! ===================  24 APRIL 2014    LIST-DIRECTED I/O VERSION ==============================================
-    !   CALL read_bcif(iunbc, bc_instrum, bc_ncan, bc_can, bc_mode, bc_type, bc_npred, bc_pred, global_opt, exitcode)
+    !   CALL read_bcif(bcifFileName, isHyperSpectral, ncan, can, bcmode, bctype, npred, pred, global_opt, exitCode)
     !
     !  global_opt = NON    Read channel-specific data for ALL ncan channels from BCIF (channel 0 ignored)
     !               OUI    Read channel 0 data and apply to all ncan channels (global values)
@@ -3356,7 +3560,7 @@ contains
     !                      then scan the rest of the BCIF for any channel-specific data that will
     !                      override the default values.
     !
-    !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS) the BCIF must always contain records for ALL ncan channels.
+    !  NOTE: For hyperspectral instruments (e.g. AIRS, IASI, CrIS, isHyperSpectral ==.true.) the BCIF must always contain records for ALL ncan channels.
     !          If global_opt = OUI, only the channel numbers are needed in column 1 (CHAN) to get the list
     !            of channel numbers.
     !          If global_opt = DEF, other column data (MODE, TYPE, NPRED, PRED1,...) are entered only for
@@ -3368,103 +3572,121 @@ contains
     !           If global_opt = DEF, the channel 0 record (default values) and only records for those channels
     !             for which values are different from defaults are needed in the BCIF.
     
-    exitcode = -1
+    exitCode = -1
 
     iun = 0
-    ier = fnom(iun, bcifFile, 'FMT', 0)
+    ier = fnom(iun, bcifFileName, 'FMT', 0)
     if (ier /= 0) then
-      call utl_abort('read_bcif: ERROR - Problem opening the bcif file!' // trim(bcifFile)) 
+      call utl_abort('read_bcif: ERROR - Problem opening the bcif file! ' // trim(bcifFileName)) 
     end if
+
+    pred(:,:) = 'XX'
     
-    read(iun,*) instrum, ncan
+    read(iun,'(A64)') line
+    do while(line(1:3)== 'DEF')
+      read(line(8:), *, iostat=ier) par1, par2
+      if (ier /= 0) call utl_abort('read_bcif: ERROR ; check DEF section in ' // trim(bcifFileName))
+      xpred(1) = line(5:6)
+      select case(xpred(1))
+      case('T1')
+        bottomPressureT1 = par1
+        topPressureT1 = par2
+      case default
+        call utl_abort('read_bcif: predictor redefinition not supported for ' // xpred(1))
+      end select
+      write(*,*) 'read_bcif: Warning redefining predictor ' // xpred(1)
+      write(*,*) 'read_bcif: new bottom and top pressure :', par1, par2
+      read(iun,'(A64)') line
+    end do
+    read(line,*) instrum, ncan
     read(iun,'(A64)') line
 
     ! For GLOBAL option, read global values from first line (channel 0) and clone to all channels
     if (global_opt == 'OUI' .or. global_opt == 'DEF') then 
       ! Read channel 0 information
-      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictorsbcif)
+      call readBcifLine(iun, can(1), bcmode(1), bctype(1), npred(1), pred(1,:), ier)
       if (ier /= 0) then
         write(*,*) 'read_BCIF: Error reading channel 0 data!'
-        exitcode = ier
+        exitCode = ier
         return
       end if
       if (can(1) /= 0) then
         write(*,*) 'read_BCIF: Channel 0 global values not found!'
-        exitcode = -1
+        exitCode = -1
         return
       end if
       ! Clone channel 0 information to all ncan channels
-      if (.not. hspec) then
+      if (.not. isHyperSpectral) then
         ! For instruments with consecutive channels 1,2,3,...ncan (e.g. AMSU, SSM/I)
         !  -- no need to read the channel numbers from the BCIF
-        do i = 2, ncan+1
-          can(i) = i - 1
-          bcmode(i) = bcmode(1)
-          bctype(i) = bctype(1)
-          npred(i) = npred(1)
-          do j = 1, numpredictorsbcif
-            pred(i,j) = pred(1,j)
+        do channelIndex = 2, ncan+1
+          can(channelIndex) = channelIndex - 1
+          bcmode(channelIndex) = bcmode(1)
+          bctype(channelIndex) = bctype(1)
+          npred(channelIndex) = npred(1)
+          do predictorIndex = 1, npred(channelIndex)
+            pred(channelIndex,predictorIndex) = pred(1,predictorIndex)
           end do
         end do
       else
         ! For hyperspectral instruments (channel subsets), read the channel numbers from the BCIF
-        do i = 2, ncan + 1
+        do channelIndex = 2, ncan + 1
           read(iun, *, iostat=ier) xcan
           if (ier /= 0) then
             write(*,*) 'read_BCIF: Error reading channel numbers!'
-            exitcode = ier
+            exitCode = ier
             return
           end if
-          can(i) = xcan
-          bcmode(i) = bcmode(1)
-          bctype(i) = bctype(1)
-          npred(i) = npred(1)
-          do j = 1, numpredictorsbcif
-            pred(i,j) = pred(1,j)
+          can(channelIndex) = xcan
+          bcmode(channelIndex) = bcmode(1)
+          bctype(channelIndex) = bctype(1)
+          npred(channelIndex) = npred(1)
+          do predictorIndex = 1, npred(channelIndex)
+            pred(channelIndex,predictorIndex) = pred(1,predictorIndex)
           end do
         end do
         ! Reposition the file to just after channel 0 record
         rewind (iun)
         read(iun,*) instrum, ncan
         read(iun,'(A64)') line
-        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+        call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
       end if
       ! For global_opt == 'DEF' check for channel-specific information and overwrite the default (channel 0) values
       ! for the channel with the values from the file
       if (global_opt == 'DEF') then
-        if (.not. hspec) then
+        if (.not. isHyperSpectral) then
           do
-            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+            call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier < 0) exit  
             if (ier > 0) then
               write(*,*) 'read_BCIF: Error reading file!'
-              exitcode = ier
+              exitCode = ier
               return
             end if
-            ii = xcan + 1
-            if (ii > ncan + 1) then
+            channelIndex = xcan + 1
+            if (channelIndex > ncan + 1) then
               write(*,*) 'read_BCIF: Channel number in BCIF exceeds number of channels!'
               write(*,'(A,1X,I4,1X,I4)') '           Channel, ncan = ', xcan, ncan
-              exitcode = -1
+              exitCode = -1
               return
             end if
-            bcmode(ii) = xbcmode
-            bctype(ii) = xbctype
-            npred(ii) = xnpred
-            do j = 1, numpredictorsbcif
-              pred(ii,j) = xpred(j)
+            bcmode(channelIndex) = xbcmode
+            bctype(channelIndex) = xbctype
+            npred(channelIndex) = xnpred
+            do predictorIndex = 1, npred(channelIndex)
+              pred(channelIndex,predictorIndex) = xpred(predictorIndex)
             end do
           end do
         else
           ! For hyperspectral instruments
-          do i = 2, ncan + 1
-            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
+          do channelIndex = 2, ncan + 1
+            call readBcifLine(iun, xcan, xbcmode, xbctype, xnpred, xpred, ier)
             if (ier /= 0) cycle  
-            bcmode(i) = xbcmode
-            bctype(i) = xbctype
-            npred(i) = xnpred
-            do j = 1, numpredictorsbcif
-              pred(i,j) = xpred(j)
+            bcmode(channelIndex) = xbcmode
+            bctype(channelIndex) = xbctype
+            npred(channelIndex) = xnpred
+            do predictorIndex = 1, npred(channelIndex)
+              pred(channelIndex,predictorIndex) = xpred(predictorIndex)
             end do
           end do
         end if
@@ -3473,31 +3695,31 @@ contains
     ! Non-GLOBAL: Read the entire file for channel specific values (all channels)
     ! ---------------------------------------------------------------------------------------------------------------------
     if (global_opt == 'NON') then
-      ii = 1
+      channelIndex = 1
       do
-        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictorsbcif)
+        call readBcifLine(iun, can(channelIndex), bcmode(channelIndex), bctype(channelIndex), npred(channelIndex), pred(channelIndex,:), ier)
         if (ier < 0) exit  
         if (ier > 0) then
           write(*,*) 'read_BCIF: Error reading file!'
-          exitcode = ier
+          exitCode = ier
           return
         end if
-        if (ii == 1) then
-          if (can(ii) /= 0) then
+        if (channelIndex == 1) then
+          if (can(channelIndex) /= 0) then
             write(*,*) 'read_BCIF: Channel 0 global/default values not found!'
-            exitcode = -1
+            exitCode = -1
             return
           end if
         end if
-        ii = ii + 1
+        channelIndex = channelIndex + 1
       end do
-      if (ii - 2 < ncan) then
+      if (channelIndex - 2 < ncan) then
         write(*,*) 'read_BCIF: Number of channels in file is less than specified value (NCAN). Changing value of NCAN.'
-        ncan = ii - 2
+        ncan = channelIndex - 2
       end if
-      if (ii > ncan + 2) then
+      if (channelIndex > ncan + 2) then
         write(*,*) 'read_BCIF: ERROR -- Number of channels in file is greater than specified value (NCAN)!'
-        exitcode = -1
+        exitCode = -1
         return
       end if
     end if
@@ -3506,16 +3728,50 @@ contains
     write(*,*) 'read_BCIF: Bias correction information for each channel (from BCIF):'
     write(*,'(1X,A7,1X,I4)') instrum, ncan
     write(*,*) line
-    do i = 1, ncan + 1
-      chknp = count(pred(i,:) /= 'XX')
-      if (chknp /= npred(i)) npred(i) = chknp
-      if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
+   
+    do channelIndex = 1, ncan + 1
+      chknp = count(pred(channelIndex,:) /= 'XX')
+      if (chknp /= npred(channelIndex)) npred(channelIndex) = chknp
+      if (npred(channelIndex) == 0 .and. bctype(channelIndex) == 'C') bctype(channelIndex) = 'F'
+      write(cnum,'(i2)') npred(channelIndex)
+      write(*,'(I4,2(5X,A1),5X,I2,'//trim(cnum)//'(4X,A2))') can(channelIndex), bcmode(channelIndex), &
+          bctype(channelIndex), npred(channelIndex), (pred(channelIndex,predictorIndex), predictorIndex = 1, npred(channelIndex))
     end do
     write(*,*) 'read_BCIF: exit '
 
     ier = fclos(iun)
-    exitcode = 0
+    exitCode = 0
+
+  contains
+
+    subroutine readBcifLine(unitNumber, channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, predictors, errorCode)
+      implicit none
+
+      ! Arguments:
+      integer, intent(in)           :: unitNumber
+      integer, intent(out)          :: channelNumber
+      character(len=1), intent(out) :: biasCorrectionMode
+      character(len=1), intent(out) :: biasCorrectionType
+      integer, intent(out)          :: nPredictors
+      character(len=2), intent(out) :: predictors(:)
+      integer ,intent(out)          :: errorCode
+      ! Locals:
+      integer :: predictorIndex
+
+      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors
+      if (errorCode /= 0) return
+      
+      if (nPredictors > NumPredictors) then
+        write(*,*) "readBcifLine: too many predictors in BCIF file ", nPredictors, NumPredictors
+        errorCode = -1
+        return
+      end if
+      backspace(unitNumber)
+      
+      read(unitNumber, *, iostat=errorCode) channelNumber, biasCorrectionMode, biasCorrectionType, nPredictors, &
+          (predictors(predictorIndex), predictorIndex = 1, nPredictors)
+
+    end subroutine readBcifLine
 
   end subroutine read_bcif
   
@@ -3545,6 +3801,7 @@ contains
     ! Locals:
     character(len=8)               :: sat
     character(len=120)             :: line
+    character(len=2)               :: cnum
     integer                        :: chan
     integer                        :: nbfov, nbpred, i, j, k, ier, istat, ii, nobs
     logical                        :: newsat, fileExists
@@ -3646,7 +3903,8 @@ contains
           call utl_abort('read_coeff: ERROR - list of predictors is missing in coeff file!')
         end if
         if (nbpred > 0) then
-          read(line,'(T8,6(1X,A2))', iostat = istat) (ptypes(ii,j,k), k = 1, nbpred)
+          write(cnum,'(i2)') nbpred
+          read(line,'(T8,'// trim(cnum) //'(1X,A2))', iostat = istat) (ptypes(ii,j,k), k = 1, nbpred)
           if (istat /= 0) then
             call utl_abort('read_coeff: ERROR - reading predictor types from PTYPES line in coeff file!')
           end if
@@ -3691,7 +3949,8 @@ contains
       do j = 1, nchan(i)
         write(*,*) i, chans(i, j)
         if (npred(i, j) > 0) then
-          write(*,'(6(1X,A2))') (ptypes(i,j,k), k = 1, npred(i,j))
+          write(cnum,'(i2)') npred(i,j)
+          write(*,'('// trim(cnum) //'(1X,A2))') (ptypes(i,j,k), k = 1, npred(i,j))
         else
           write(*,'(A)') 'read_coeff: No predictors'
         end if
@@ -3708,7 +3967,7 @@ contains
   !-----------------------------------------
   ! bcs_getChannelIndex
   !-----------------------------------------
-  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx,indexBody)
+  subroutine bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, indexBody, channelNumber_opt)
     !
     ! :Purpose: to get the channel index (wrt bcif channels)
     !
@@ -3719,6 +3978,7 @@ contains
     integer,          intent(in)    :: indexBody
     integer,          intent(out)   :: chanIndx
     type(struct_obs), intent(inout) :: obsSpaceData
+    integer, optional, intent(out)  :: channelNumber_opt
 
     ! Locals:
     logical, save :: first =.true.
@@ -3744,7 +4004,7 @@ contains
     ichan = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, indexBody))
     ichan = max(0, min(ichan, tvs_maxChannelNumber + 1))
     ichan = ichan - tvs_channelOffset(idsat)
-    
+    if (present(channelNumber_opt)) channelNumber_opt = ichan
     chanIndx = Index(idsat,ichan)
 
   end subroutine bcs_getChannelIndex

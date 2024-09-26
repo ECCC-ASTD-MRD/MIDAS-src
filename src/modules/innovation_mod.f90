@@ -436,7 +436,7 @@ contains
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
                                     beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
-                                    analysisMode_opt )
+                                    analysisMode_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     !
@@ -456,7 +456,8 @@ contains
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn
-    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode 
+    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
+
     logical, save :: lgpdata = .false.
 
     call utl_tmg_start(10,'--Observations')

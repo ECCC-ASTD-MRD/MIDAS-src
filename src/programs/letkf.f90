@@ -548,7 +548,7 @@ program midas_letkf
 
         ! Compute Y-H(X) in OBS_OMP
         call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt = .false., &
-                                   beSilent_opt=.true. )
+                                   beSilent_opt=.true.)
 
         ! Copy to ensObsGain: Y-HX for this member
         memberIndexInEnsObs = (eigenVectorIndex - 1) * enkfNML%nEns + memberIndex
@@ -761,7 +761,8 @@ program midas_letkf
   end if
   call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
               timeInterpType = enkfNML%obsTimeInterpType )
-  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, beSilent_opt = .false.)
+  call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt = OBS_OMA, &
+                             beSilent_opt = .false.)
 
   ! Write (update) observation files. 
   if (enkfNML%outputEnsObs) then

@@ -168,10 +168,10 @@ module obsDiagFiles_mod
     if (numHeaders == 0) return
 
     fileNameDir = trim(ram_getRamDiskDir())
-    if (fileNameDir == ' ') &
-    write(*,*) 'diaf_writeSqlDiagFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) 'diaf_writeSqlDiagFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
-
+    if (fileNameDir == ' ') then
+      write(*,*) 'diaf_writeSqlDiagFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
+      write(*,*) 'diaf_writeSqlDiagFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
+    end if
     if (obs_mpiLocal(obsdat)) then
       write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
       write(cmyidx,'(I4.4)') (mmpi_myidx + 1)

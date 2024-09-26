@@ -103,6 +103,7 @@ program midas_genCoeff
   use innovation_mod
   use obsErrors_mod
   use biasCorrectionSat_mod
+  use obsDiagFiles_mod
 
   implicit none
 
@@ -194,11 +195,17 @@ program midas_genCoeff
   ! output O-F statistics befor bias correction
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
+  call diaf_writeAllSqlDiagFiles(obsSpaceData, "SFC", onlyAssimObs=.false., &
+      addFSOdiag=.false.)
+
   ! fill OBS_BCOR with computed bias correction
   call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
 
   ! output  O-F statistics after bias coorection
   call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
+
+  ! if requested, dump the thinned predictors and coefficients to sqlite
+  call bcs_dumpBiasToSqliteAfterThinning(obsSpaceData, fromGenCoeff_opt=.true.)
 
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
@@ -223,7 +230,7 @@ contains
 
   subroutine gencoeff_setup(obsColumnMode)
     !
-    ! :Purpose:  Control of the preprocessing of bais correction coefficient computation
+    ! :Purpose:  Control of the preprocessing of bias correction coefficient computation
     !
     implicit none
 
