@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduction of new radiance bias correction predictors and of the possibility to redefine the way the T1 predictor is computed and to control which BUFR element define scan position for the CrIS instrument (#835 and !881)
  * Correction of pseudo SST observations using freezing point (#977 and !882)
 
 ### Changed
