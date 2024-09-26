@@ -3362,7 +3362,8 @@ contains
               tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
             end do
-           
+            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+                transmission % tau_total(btIndex)           
           end do
           
           ! restore the cloud profiles in ...
