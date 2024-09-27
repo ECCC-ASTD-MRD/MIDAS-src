@@ -98,3 +98,61 @@ fam=al
 rm -f obsfiles_${fam}.updated/{obs${fam},TABLES_REUNIR} obs${fam}
 midas.reunir_obs_mpi -obsin $PWD -obsout $PWD -families2process ${fam}
 ```
+
+## Running MIDAS as a stand alone program
+
+The scripts `midas.prepare_workdir` and `midas.launch_program` can be
+used to prepare a working directory and then run a MIDAS program as a
+standalone execution.
+  * `midas.prepare_workdir`: This script prepares a working directory
+     using inputs from `cmcarc` archives or a directory for a fixed MPI
+     topology.  The last point is essential because the options will be
+     prepared for that MPI topology.
+  * `midas.launch_program`: This script launches a job on the
+     supercomputer using the working directory prepared by
+     `midas.prepare_workdir`.  The job is using the MPI topology that
+     has been used to prepare the observations.
+
+There is another script, `midas.unsplitobs`, that can be used to
+recombine the observations to be in their original order before they
+were split with `midas.splitobs.Abs`.
+
+All three scripts supports the option `-h` to have a description of
+the available options.
+
+### Example
+
+Here is an example of utilization of those three scripts where we use
+the test `/Tests/letkf/glb_xc40` as a reference:
+
+```bash
+cd $(git rev-parse --show-toplevel)/tools/midas_scripts
+
+program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/4.0.2/rhel-8-icelake-64/bin
+inputs=/home/sanl000/data_maestro/ppp5/UnitTests/midas/letkf/glb_xc40/0013
+namelist=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/config/Tests/letkf/glb_xc40/nml
+
+workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir_3
+observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
+
+./midas.unsplitobs -input ${inputs}/inputs_obsfiles.ca -output ${observations}             \
+                   -prefix_dir burpfiles_ -prefix_obs brp                                  \
+                   -workdir ${HOME}/data_maestro/ppp6/tmp/midas_letkf_unsplit_observations \
+                   -splitobs ${program_directory}/midas.splitobs.Abs
+
+./midas.prepare_workdir -workdir ${workdir}                    \
+                        -nml ${namelist}                       \
+                        -ensemble ${inputs}/inputs_ensemble.ca \
+                        -observations ${observations}          \
+                        -constants ${inputs}/inputs.ca         \
+                        -npex 36 -npey 18                      \
+                        -splitobs ${program_directory}/midas.splitobs.Abs
+
+./midas.launch_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs
+```
+
+The results have been verified with the reference for the test
+`/Tests/letkf/glb_xc40`.
+
+If we would have the original unsplit files, running
+`midas.unsplitobs` can be avoided.

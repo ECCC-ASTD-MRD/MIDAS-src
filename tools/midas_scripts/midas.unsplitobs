@@ -1,0 +1,174 @@
+#!/bin/bash
+
+set -eo pipefail
+
+description="This script regroups observations files that have been split by 'midas.splitobs.Abs' in the original order."
+
+arguments=$*
+eval $(cclargs -D "" $0 "[${description}]"                                     \
+  -input       "" "" "[path to input observations (directory or cmcarc file)]" \
+  -output      "" "" "[path to output directory (must not exist)]"             \
+  -workdir     "" "" "[temporary working directory]"                           \
+  -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_')]" \
+  -prefix_obs  brp brp "[prefix of the observations files (default: 'brp']"    \
+  -splitobs    "" "" "[path to the 'midas.splitobs.Abs' program]"             \
+  ++ $arguments)
+
+scriptName=${0##*/}
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say ${@} >&2
+    exit 1
+} ## End of 'function die'
+
+function countRecords {
+    if (( $# != 1 )); then
+        die "countRecords: This function takes one and only one argument, a BURP file."
+    fi
+
+    local countRecords_obsfile=${1}
+    ## We avoid counting the resume records ('>>*******') using option "-nostn '>>'"
+    liburp ${countRecords_obsfile} -enrgs -nostn '>>' | grep -c stnids
+} ## End of 'function countRecords'
+
+## Check if all mandatory arguments have been given
+for launch_arg in input output workdir splitobs; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [ -z "${launch_tmp_var}" ]; then
+        die "the argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ -d "${workdir}" ]]; then
+    die "The working directory ${workdir} already exist!"
+fi
+if [[ -d "${output}" ]]; then
+    die "The output directory ${output} already exist!"
+fi
+
+if ! which editfst >/dev/null 2>&1; then
+    echo loading eccc/mrd/rpn/utils/20231219
+   . r.load.dot eccc/mrd/rpn/utils/20231219
+fi
+
+if ! which liburp >/dev/null 2>&1; then
+    echo loading eccc/cmd/cmda/utils/20231219-3
+   . ssmuse-sh -d eccc/cmd/cmda/utils/20231219-3
+fi
+
+set -u
+
+mkdir -p ${workdir}
+cd ${workdir}
+
+## Copy the observations input
+if [[ -d "${input}" ]]; then
+    say "Copying files from ${input}"
+    cp -rL ${input}/* .
+elif [[ -f "${input}" ]]; then
+    if [[ "${input}" = *.ca ]]; then
+        say "Extracting files from ${input}"
+        cmcarc -f ${input} -x
+    else
+        die "If the first argument is a file, it must be a '.ca' file (cmcarc format)\n\tGot ${input}"
+    fi
+else
+    die "Cannot find the path for input observations: ${input}"
+fi
+
+families=$(ls -d1 ${prefix_dir}* | cut -d_ -f2-)
+
+if [ -z "${families}" ]; then
+    die "Did not find any directory prefixed with '${prefix_dir}' in ${workdir}"
+fi
+
+cat > exclure_resume <<EOF
+ exclure('>>*******')
+EOF
+
+[[ -d tmp ]] && rm -r tmp
+mkdir tmp
+
+for fam in ${families}; do
+    echo processing observation family ${fam}
+    [ -f obs${fam} ] && rm obs${fam}
+
+    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i <<EOF
+ desire('>>*******')
+EOF
+
+    mkdir tmp/${fam}
+
+    ## Find the maximum number of records across all files
+    nb_records_max=-1
+    typeset -a nb_records=()
+    for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
+        nb_records_in_file=$(countRecords ${obsfile})
+        nb_records+=(${nb_records_in_file})
+        (( ${nb_records_in_file} > ${nb_records_max} )) && nb_records_max=${nb_records_in_file}
+    done
+
+    if (( ${nb_records_max} == -1 )); then
+        die "No files ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9] have been found in the directory ${PWD}"
+    fi
+    if (( ${nb_records_max} == 0 )); then
+        die "No records have been found in any of the file ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9] in the directory ${PWD}"
+    fi
+    ## Find the number of digits needed to store all the records in separate files
+    ndigits=$(python3 -c "from math import log, ceil; nb_digits=ceil(log(${nb_records_max}, 10)); print(nb_digits)")
+    indexOne=$(printf "%0${ndigits}g" 1)
+
+    recordIndex=0
+    for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
+        obsFileName=${obsfile##*/}
+        obsfile_noresume=tmp/${fam}/${obsFileName}
+
+        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume
+
+        if (( ${nb_records[${recordIndex}]} > 1000 )); then
+            ## Due to a limitation of the number of XDF files that can be opened simultaneously
+            ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
+            ## number of records in the file.
+            for id_record in  $(seq 1 ${nb_records}); do
+                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
+                            -y ${id_record} -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+            done
+        elif (( ${nb_records[${recordIndex}]} > 1 )); then
+            ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
+                        -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+        else
+            cp ${obsfile_noresume} ${obsfile_noresume}_${indexOne}_${indexOne}
+        fi
+
+        recordIndex=$((recordIndex+1))
+    done ## End of 'for obsfile in ...'
+
+    for id_record in $(seq --format="%0${ndigits}g" 1 ${nb_records_max}); do
+        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
+            tr ' ' '\n' |
+            xargs -L120 editbrp -n -d obs${fam} -i 0 -s
+    done
+done
+
+rm exclure_resume
+
+mkdir -p ${output}
+for fam in ${families}; do
+    cp obs${fam} ${output}
+done
+
+cd
+rm -rf ${workdir}
