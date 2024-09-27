@@ -103,7 +103,7 @@ SECONDS=0
 
 r.run_in_parallel -pgm ${pgm} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir
 
-echo "End of ${pgm} in \${SECONDS} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+echo "End of ${pgm} in \${SECONDS} seconds at \$(date +%Y%m%d:%H:%M:%S.%N)"
 EOF
 
 if [[ -z "${memory}" ]]; then

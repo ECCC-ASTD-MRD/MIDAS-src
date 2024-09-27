@@ -28,7 +28,7 @@ function say {
 
 function die {
     IFS=$'\n\t'
-    say $@ >&2
+    say ${@} >&2
     exit 1
 } ## End of 'function die'
 
@@ -170,5 +170,5 @@ for fam in ${families}; do
     cp obs${fam} ${output}
 done
 
-cd -
+cd
 rm -rf ${workdir}
