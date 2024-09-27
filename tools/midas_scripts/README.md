@@ -111,7 +111,7 @@ standalone execution.
   * `midas.launch_program`: This script launches a job on the
      supercomputer using the working directory prepared by
      `midas.prepare_workdir`.  The job is using the MPI topology that
-     as been used to prepare the observations.
+     has been used to prepare the observations.
 
 There is another script `midas.unsplitobs` that can be used to
 recombine the observations in their original order before they have
