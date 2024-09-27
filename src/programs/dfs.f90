@@ -179,6 +179,7 @@ program midas_dfs
   use obsOperators_mod
   use tovs_mod
   use rMatrix_mod
+  use thinning_mod
   
   implicit none
 
@@ -320,7 +321,7 @@ program midas_dfs
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
 
-  ! 
+  ! Set up parameters for water fraction
   call tvs_emis_read_climatology ()
   call tvs_allocateSurfaceParameters ()
   
@@ -532,10 +533,31 @@ contains
     levelList(:,:) = MPC_missingValue_INT
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
-    
+
+    ! Thinning and modifying the flag associated
+    call thn_thinHyper(obsSpaceData)
+
+    call obs_set_current_header_list(obsSpaceData,trim(familyType))
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER0
+   
+      bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+      BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
+
+        if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then
+          
+          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
+        end if
+          
+      end do BODY0
+    end do HEADER0
+
     ! First step count the number of selected observation for each MPI task
     countObs = 0
     countChannel = 0 ! necessary in the case where no obs in the file
+    
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
