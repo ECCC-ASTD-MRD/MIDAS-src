@@ -113,9 +113,9 @@ standalone execution.
      `midas.prepare_workdir`.  The job is using the MPI topology that
      has been used to prepare the observations.
 
-There is another script `midas.unsplitobs` that can be used to
-recombine the observations in their original order before they have
-been splitted with `midas.splitobs.Abs`.
+There is another script, `midas.unsplitobs`, that can be used to
+recombine the observations to be in their original order before they
+were split with `midas.splitobs.Abs`.
 
 All three scripts supports the option `-h` to have a description of
 the available options.
