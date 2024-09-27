@@ -201,4 +201,10 @@
  &NAMCHEM 
   MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
 
-/    
+/
+&THIN_HYPER
+   removeUnCorrected = .true.
+   deltmax = 22
+   deltax  = 150
+   deltrad = 45
+/     
