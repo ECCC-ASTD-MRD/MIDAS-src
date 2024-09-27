@@ -3666,8 +3666,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field 
     integer, intent(in)   :: nprf              ! Number of profiles
+    real(8), intent(out)  :: f_low(nprf)       ! Low resolution field 
     integer, intent(in)   :: ilat(nprf)        ! Y-coordinate of profile
     integer, intent(in)   :: ilon(nprf)        ! X-coordinate of profile
     integer, intent(in)   :: ireduc            ! Means a 2xireduc+1 by 2xireduc+1 averaging
@@ -3778,11 +3778,11 @@ contains
     implicit none
    
     ! Arguments:
+    integer, intent(in)  :: nprf                   ! Number of profiles
     integer, intent(in)  :: nchannels_max          ! Total number of observations treated
     real(8), intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
     integer, intent(in)  :: nchn                   ! Number of channels
     integer, intent(in)  :: sensorindex            ! Sensor number
-    integer, intent(in)  :: nprf                   ! Number of profiles
     integer, intent(in)  :: sensorTovsIndexes(nprf)! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
