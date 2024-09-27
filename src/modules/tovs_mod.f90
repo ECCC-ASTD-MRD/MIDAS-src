@@ -3869,9 +3869,9 @@ contains
     implicit none
 
     ! Arguments:
+    integer,           intent(in)  :: nprf                    ! number of profiles
     integer,           intent(out) :: ilat(nprf)              ! y-coordinate of profile
     integer,           intent(out) :: ilon(nprf)              ! x-coordinate of profile 
-    integer,           intent(in)  :: nprf                    ! number of profiles
     real(8),           intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
     real(8),           intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
     integer,           intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
