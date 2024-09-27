@@ -208,6 +208,7 @@ program midas_dfs
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
   integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
   logical :: outputHBHt                          ! flag to output HBHt
+  logical :: doThinning                          ! flag to perform thinning on the observations, if .true. thinning is done 
   integer :: nDfsMax                             ! maximum number of DFS computations
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
@@ -218,7 +219,7 @@ program midas_dfs
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
   logical :: computeInParallel                   ! if .true. computation performed in parallel
                                                  ! if .false. (default) observation processed one at a time (slow) 
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -258,6 +259,7 @@ program midas_dfs
   timeList(:) = MPC_missingValue_INT
   satZenList(:) = MPC_missingValue_R8
   computeInParallel = .false.
+  doThinning = .false.
   
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
@@ -535,24 +537,28 @@ contains
     stdDevList(:,:) = MPC_missingValue_R8
 
     ! Thinning and modifying the flag associated
-    call thn_thinHyper(obsSpaceData)
 
-    call obs_set_current_header_list(obsSpaceData,trim(familyType))
-    HEADER0: do
-      headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER0
+    if (doThinning) then
+
+      call thn_thinHyper(obsSpaceData)
+      
+      call obs_set_current_header_list(obsSpaceData,trim(familyType))
+      HEADER0: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER0
    
-      bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-      bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
-      BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+        BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
 
-        if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then
+          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then
           
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
-        end if
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
+          end if
           
-      end do BODY0
-    end do HEADER0
+        end do BODY0
+      end do HEADER0
+    end if ! if (doThinning)
 
     ! First step count the number of selected observation for each MPI task
     countObs = 0
