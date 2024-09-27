@@ -61,7 +61,7 @@ npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
 
 say "Copy the observations"
 [[ -d obs ]] && rm -r obs
-cp -r obsfiles_splitted obs
+cp -r obsfiles_split obs
 
 ## Erase any previous directory for 'r.run_in_parallel'
 [[ -d mpitmpdir ]] && rm -r mpitmpdir

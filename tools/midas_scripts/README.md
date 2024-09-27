@@ -154,5 +154,5 @@ observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
 The results have been verified with the reference for the test
 `/Tests/letkf/glb_xc40`.
 
-If we would have the original unsplitted files, running
+If we would have the original unsplit files, running
 `midas.unsplitobs` can be avoided.

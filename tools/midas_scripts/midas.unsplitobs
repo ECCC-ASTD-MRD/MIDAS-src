@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-description="This script regroups observations files that have been splitted by 'midas.splitobs.Abs' in the original order."
+description="This script regroups observations files that have been split by 'midas.splitobs.Abs' in the original order."
 
 arguments=$*
 eval $(cclargs -D "" $0 "[${description}]"                                     \
