@@ -2404,6 +2404,7 @@ CONTAINS
     allocate(readFilePE(numMembers*numStep))
     allocate(stepIndexFromMemberStep(numMembers*numStep))
     allocate(memberIndexFromMemberStep(numMembers*numStep))
+    
     do stepIndex = 1, numStep
       do memberIndex = 1, numMembers
         memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
@@ -3186,7 +3187,7 @@ CONTAINS
         if (writeNetCDF) then
           call gio_writeToFileNetCDF(statevector_member_r4, trim(ensFileName),  &
                                      dateStampList(ens%statevector_work%anltime), &
-                                     containsFullField_opt = containsFullField, &
+                                     typvar, containsFullField_opt = containsFullField, &
                                      varLevIndexBeg_opt = varLevIndexBeg,       &
                                      varLevIndexEnd_opt = varLevIndexEnd,       &
                                      timeCounter_opt = stepIndex)

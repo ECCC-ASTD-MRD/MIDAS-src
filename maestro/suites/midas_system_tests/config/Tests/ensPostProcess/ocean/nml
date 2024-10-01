@@ -1,18 +1,20 @@
  &namEnsPostProc
-   nEns                  = 80
-   readTrlEnsemble       = .true.
-   readAnlEnsemble       = .false.
+   nEns                  = 20
+   readTrlEnsemble       = .false.
+   readAnlEnsemble       = .true.
 /
  &namEnsPostProcModule
-   !weightRecenter           = 100*1.0D0
+   weightRecenter         = 100*1.0D0
+   writeNetCDFensAnalysis = .true.
 /
  &NAMBHI
 /
  &NAMBEN
 /
- &NAMTIME
-   DSTEPOBSINC = 6.0d0
-   DSTEPOBS    = 6.0d0
+ &namTime
+  dstepobs      = 6.0d0
+  dstepobsinc   = 6.0d0
+  dwindowsize   = 6.0d0
 /
  &NAMSTATE
    ANLVAR(1)    ='SSH'
@@ -20,4 +22,7 @@
    ANLVAR(3)    ='SALW'
    ANLVAR(4)    ='UUW'
    ANLVAR(5)    ='VVW'
+/
+ &namensstate
+ maxVarLevGroups = 1
 /

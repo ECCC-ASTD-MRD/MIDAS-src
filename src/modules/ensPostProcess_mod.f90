@@ -120,19 +120,20 @@ contains
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
-    logical  :: writeNetCDFInc        ! to write LETKF increments into a netCDF file
+    logical  :: writeNetCDFInc             ! to write LETKF increments into a netCDF file
+    logical  :: writeNetCDFensAnalysis     ! to write LETKF ensemble analysis into a netCDF file
 
-    NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
-                                   recenterSubSample, recenterSubSampleUnPert, alphaRTPS, alphaRTPP,     &
-                                   alphaRandomPert, alphaRandomPertSubSample, huLimitsBeforeRecenter,    &
-                                   imposeSaturationLimit, imposeRttovHuLimits, weightRecenter,           &
-                                   weightRecenter, weightRecenterLand, numMembersToRecenter,             &
-                                   useOptionTableRecenter, etiket_anl, etiket_inc, etiket_trl,           &
-                                   etiket_anlmean, etiket_anlrms, etiket_anlmeanpert, etiket_anlrmspert, &
-                                   etiket_anlmean_raw, etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, &
-                                   numBits, numBits2D, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState,    &
-                                   use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,           &
-                                   qcLimitsBeforeRecenter
+    NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert, &
+                                   recenterSubSample, recenterSubSampleUnPert, alphaRTPS, alphaRTPP,    &
+                                   alphaRandomPert, alphaRandomPertSubSample, huLimitsBeforeRecenter,   &
+                                   imposeSaturationLimit, imposeRttovHuLimits, weightRecenter,          &
+                                   weightRecenterLand, numMembersToRecenter, useOptionTableRecenter,    &
+                                   etiket_anl, etiket_inc, etiket_trl, etiket_anlmean, etiket_anlrms,   &
+                                   etiket_anlmeanpert, etiket_anlrmspert,etiket_anlmean_raw,            &
+                                   etiket_anlrms_raw, etiket_trlmean, etiket_trlrms, numBits,           &
+                                   numBits2D, useAnalIncMask, writeRawAnalStats, useMemberAsHuRefState, &
+                                   use4Drecentering3Densemble, writeNetCDFInc, imposeQcLimits,          &
+                                   qcLimitsBeforeRecenter, writeNetCDFensAnalysis
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -183,6 +184,7 @@ contains
     numMembersToRecenter     = -1     ! means all members recentered by default
     useOptionTableRecenter   = .false.
     writeNetCDFInc           = .false.
+    writeNetCDFensAnalysis   = .false.
 
     ! For the next 3 variables, the member number will be appended to this string
     ! for files '${trialdate}_006_${member}'
@@ -212,13 +214,13 @@ contains
 
     !- Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=namEnsPostProcModule, iostat=ierr)
-    if ( ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
-    if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
+    read(utl_flnml, nml = namEnsPostProcModule, iostat = ierr)
+    if (ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
+    if (mmpi_myid == 0) write(*,nml = namEnsPostProcModule)
     call utl_tmg_stop(181)
 
     !- Set numBits2D if it does not appear in the namelist
-    if ( numBits2D == -999 ) then
+    if (numBits2D == -999) then
       numBits2D = numBits
     end if
 
@@ -257,20 +259,22 @@ contains
 
     if (ens_isAllocated(ensembleTrl)) then
       !- Allocate and compute ensemble mean Trl
-      call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStamp_opt = tim_getDateStamp(),  &
+                        mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                        dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        allocHeight_opt = .false., allocPressure_opt = .false.)
       call gsv_zero(stateVectorMeanTrl)
       call ens_computeMean(ensembleTrl)
       call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
       
       !- Allocate and compute ensemble spread stddev Trl
-      call gsv_allocate( stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStamp_opt = tim_getDateStamp(),  &
+                        mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        dataKind_opt = 4, allocHeight_opt = .false., allocPressure_opt = .false.)
       call gsv_zero(stateVectorStdDevTrl)
       call ens_computeStdDev(ensembleTrl)
       call ens_copyEnsStdDev(ensembleTrl, stateVectorStdDevTrl)
@@ -278,35 +282,39 @@ contains
 
     if (ens_isAllocated(ensembleAnl)) then
       !- Allocate and compute ensemble mean Anl
-      call gsv_allocate( stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.true., &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorMeanAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStamp_opt = tim_getDateStamp(),  &
+                        mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                        dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        allocHeight_opt = .false., allocPressure_opt = .false.)
       call gsv_zero(stateVectorMeanAnl)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
 
       !- Allocate and compute ensemble spread stddev Anl
-      call gsv_allocate( stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorStdDevAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStamp_opt = tim_getDateStamp(),  &
+                        mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        dataKind_opt = 4, allocHeight_opt = .false., allocPressure_opt = .false.)
       call gsv_zero(stateVectorStdDevAnl)
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnl)
 
       !- Keep the mean and standard deviation of the raw analysis for outputs, if requested
       if (writeRawAnalStats) then
-        call gsv_allocate( stateVectorMeanAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           allocHeight_opt=.false., allocPressure_opt=.false. )
-        call gsv_allocate( stateVectorStdDevAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeight_opt=.false., allocPressure_opt=.false. )
+        call gsv_allocate(stateVectorMeanAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                          dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          allocHeight_opt = .false., allocPressure_opt=.false.)
+        call gsv_allocate(stateVectorStdDevAnlRaw, tim_nstepobsinc, hco_ens, vco_ens, &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          dataKind_opt = 4, allocHeight_opt = .false., allocPressure_opt = .false.)
         call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlRaw)
         call gsv_copy(stateVectorStdDevAnl, stateVectorStdDevAnlRaw)
       end if
@@ -357,11 +365,12 @@ contains
       if (any(weightRecenter(:) >= 0.0d0) .or. useOptionTableRecenter) then
         write(*,*) 'epp_postProcess: Recenter analyses on supplied analysis'
         if (use4Drecentering3Densemble) then
-          call gsv_allocate( stateVectorMeanAnl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                             mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                             dataKind_opt=4, allocHeightSfc_opt=.true., &
-                             hInterpolateDegree_opt = hInterpolationDegree, &
-                             allocHeight_opt=.false., allocPressure_opt=.false. )
+          call gsv_allocate(stateVectorMeanAnl4D, tim_nstepobs, hco_ens, vco_ens, &
+                            dateStamp_opt = tim_getDateStamp(),  &
+                            mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                            dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                            hInterpolateDegree_opt = hInterpolationDegree, &
+                            allocHeight_opt = .false., allocPressure_opt = .false.)
           call gsv_zero(stateVectorMeanAnl4D)
         end if
         call epp_hybridRecentering(ensembleAnl, stateVectorMeanAnl4D, &
@@ -454,12 +463,12 @@ contains
       end if
 
       !- Recompute the analysis spread stddev after inflation and humidity limits
-      call gsv_allocate( stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, &
-                         dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         hInterpolateDegree_opt = hInterpolationDegree, &
-                         dataKind_opt=4, allocHeight_opt=.false., &
-                         allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorStdDevAnlPert, tim_nstepobsinc, hco_ens, vco_ens, &
+                        dateStamp_opt = tim_getDateStamp(),  &
+                        mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                        hInterpolateDegree_opt = hInterpolationDegree, &
+                        dataKind_opt = 4, allocHeight_opt = .false., &
+                        allocPressure_opt = .false. )
       call ens_computeStdDev(ensembleAnl)
       call ens_copyEnsStdDev(ensembleAnl, stateVectorStdDevAnlPert)
 
@@ -497,7 +506,7 @@ contains
           ! shift members to have same mean as full ensemble
           call ens_computeMean(ensembleAnlSubSample)
           call ens_recenter(ensembleAnlSubSample, stateVectorMeanAnl,  &
-                            recenteringCoeffScalar_opt=1.0D0)
+                            recenteringCoeffScalar_opt = 1.0D0)
         end if
 
       end if ! writeSubsample
@@ -574,11 +583,11 @@ contains
       nullify(varNames)
       if (gsv_isAllocated(stateVectorMeanAnl4D)) then
         call gsv_varNamesList(varNames, stateVectorMeanAnl4D)
-        call gsv_allocate( stateVectorMeanInc4D, tim_nstepobs, hco_ens, vco_ens, &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+        call gsv_allocate(stateVectorMeanInc4D, tim_nstepobs, hco_ens, vco_ens, &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt='Tiles',  &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          dataKind_opt = 4, allocHeightSfc_opt = .true., varNames_opt = varNames)
         call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanInc4D)
         deallocate(varNames)
 
@@ -587,35 +596,35 @@ contains
         !- Mask the mean increment for LAM grid and recompute the mean analysis
         if (.not. hco_ens%global .and. useAnalIncMask) then
           call gsv_applyMaskLAM(stateVectorMeanInc4D, stateVectorAnalIncMask)
-          call gsv_copy(stateVectorMeanInc4D,stateVectorMeanAnl4D)
-          call gsv_add(stateVectorCtrlTrl4D,stateVectorMeanAnl4D)
+          call gsv_copy(stateVectorMeanInc4D, stateVectorMeanAnl4D)
+          call gsv_add(stateVectorCtrlTrl4D, stateVectorMeanAnl4D)
         end if
       else
         call gsv_varNamesList(varNames, stateVectorMeanAnl)
-        call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
+        call gsv_allocate(stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles',  &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          dataKind_opt = 4, allocHeightSfc_opt=.true., varNames_opt = varNames)
         call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
         deallocate(varNames)
 
         call gsv_varNamesList(varNames, stateVectorCtrlTrl4D)
-        call gsv_allocate( stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., &
-                           hInterpolateDegree_opt=hInterpolationDegree, &
-                           varNames_opt=varNames )
+        call gsv_allocate(stateVectorCtrlTrl, tim_nstepobsinc, hco_ens, vco_ens, &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                          dataKind_opt = 4, allocHeightSfc_opt = .true., &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          varNames_opt = varNames)
         deallocate(varNames)
-        call gsv_copy(stateVectorCtrlTrl4D, stateVectorCtrlTrl, allowTimeMismatch_opt=.true.)
-        call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
+        call gsv_copy(stateVectorCtrlTrl4D, stateVectorCtrlTrl, allowTimeMismatch_opt = .true.)
+        call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt = -1.0D0)
 
         !- Mask the mean increment for LAM grid and recompute the mean analysis
         if (.not. hco_ens%global .and. useAnalIncMask) then
           call gsv_applyMaskLAM(stateVectorMeanInc, stateVectorAnalIncMask)
-          call gsv_copy(stateVectorMeanInc,stateVectorMeanAnl)
-          call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnl)
+          call gsv_copy(stateVectorMeanInc, stateVectorMeanAnl)
+          call gsv_add(stateVectorCtrlTrl, stateVectorMeanAnl)
         end if
       end if
 
@@ -625,17 +634,17 @@ contains
         nullify(varNames)
         call ens_varNamesList(varNames,ensembleAnlSubSample)
         call ens_allocate(ensembleAnlIncSubSample, ens_getNumMembers(ensembleAnlSubSample), &
-                          tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc, varNames_opt=varNames)
-        call ens_copy(ensembleTrlSubSample,ensembleAnlIncSubSample)
+                          tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc, varNames_opt = varNames)
+        call ens_copy(ensembleTrlSubSample, ensembleAnlIncSubSample)
         deallocate(varNames)
         
-        call ens_add(ensembleAnlSubSample,ensembleAnlIncSubSample,scaleFactorInOut_opt=-1.0D0)
+        call ens_add(ensembleAnlSubSample, ensembleAnlIncSubSample, scaleFactorInOut_opt = -1.0D0)
 
         !- Mask the ensemble increment for LAM grid and recompute the mean analysis
         if (.not. hco_ens%global .and. useAnalIncMask) then
           call ens_applyMaskLAM(ensembleAnlIncSubSample, stateVectorAnalIncMask)
-          call ens_copy(ensembleAnlIncSubSample,ensembleAnlSubSample)
-          call ens_add(ensembleTrlSubSample,ensembleAnlSubSample)
+          call ens_copy(ensembleAnlIncSubSample, ensembleAnlSubSample)
+          call ens_add(ensembleTrlSubSample, ensembleAnlSubSample)
         end if
       end if
 
@@ -657,20 +666,20 @@ contains
       outFileName = trim(outFileName) // '_trialmean'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorMeanTrl)
       do stepIndex = 1, tim_nstepobsinc
-        call gio_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
-                             typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
-                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
-                             containsFullField_opt=.true.)
+        call gio_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean, &
+                             typvar_opt = 'P', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                             numBits2D_opt = numBits2D, stepIndex_opt = stepIndex, &
+                             containsFullField_opt = .true.)
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorStdDevTrl)
-      call gio_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
-                           typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
-                           containsFullField_opt=.false.)
+      call gio_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms, &
+                           typvar_opt = 'P', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                           numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
+                           containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
+      call epp_printRmsStats(stateVectorStdDevTrl, outFileName, elapsed = 0.0D0,ftype = 'F',nEns = nEns)
       call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
@@ -685,8 +694,8 @@ contains
           call ens_copyHeightSfc(ensembleTrl,stateVectorHeightSfc)
         end if
         call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.true., writeHeightSfc_opt = writeHeightSfc)
+                               numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                               containsFullField_opt = .true., writeHeightSfc_opt = writeHeightSfc)
         call utl_tmg_stop(3)
       end if
     end if
@@ -696,31 +705,31 @@ contains
 
       !- Prepare stateVector with only MeanAnl surface pressure and surface height
       if (gsv_isAllocated(stateVectorHeightSfc)) then
-        call gsv_allocate( stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+        call gsv_allocate(stateVectorMeanAnlSfcPres, tim_nstepobsinc, hco_ens, vco_ens,   &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          dataKind_opt = 4, allocHeightSfc_opt = .true., varNames_opt = (/'P0'/))
         call gsv_zero(stateVectorMeanAnlSfcPres)
-        call gsv_allocate( stateVectorMeanAnlSfcPres4D, tim_nstepobs, hco_ens, vco_ens,   &
-                           dateStamp_opt=tim_getDateStamp(),  &
-                           mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                           hInterpolateDegree_opt = hInterpolationDegree, &
-                           dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+        call gsv_allocate(stateVectorMeanAnlSfcPres4D, tim_nstepobs, hco_ens, vco_ens,   &
+                          dateStamp_opt = tim_getDateStamp(),  &
+                          mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                          hInterpolateDegree_opt = hInterpolationDegree, &
+                          dataKind_opt = 4, allocHeightSfc_opt = .true., varNames_opt = (/'P0'/))
         call gsv_zero(stateVectorMeanAnlSfcPres4D)
         if (mmpi_myid <= (nEns-1)) then
-          call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
-                             dateStamp_opt=tim_getDateStamp(),  &
-                             mpi_local_opt=.false., &
-                             hInterpolateDegree_opt = hInterpolationDegree, &
-                             dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
+          call gsv_allocate(stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
+                            dateStamp_opt = tim_getDateStamp(),  &
+                            mpi_local_opt = .false., &
+                            hInterpolateDegree_opt = hInterpolationDegree, &
+                            dataKind_opt = 4, allocHeightSfc_opt = .true., varNames_opt=(/'P0'/))
           call gsv_zero(stateVectorMeanAnlSfcPresMpiGlb)
         end if
         if (gsv_isAllocated(stateVectorMeanAnl4D)) then
-          call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanAnlSfcPres4D, allowVarMismatch_opt=.true.)
+          call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanAnlSfcPres4D, allowVarMismatch_opt = .true.)
           call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres4D)
         end if
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt=.true.)
+        call gsv_copy(stateVectorMeanAnl, stateVectorMeanAnlSfcPres, allowVarMismatch_opt = .true.)
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
         call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       end if
@@ -732,19 +741,19 @@ contains
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       do stepIndex = 1, tim_nstepobsinc
         call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
-                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
-                             containsFullField_opt=.true.)
+                             typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                             numBits2D_opt = numBits2D, stepIndex_opt = stepIndex,  &
+                             containsFullField_opt = .true.)
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
       call gio_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
-                           typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                           numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
-                           containsFullField_opt=.false.)
+                           typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                           numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex,  &
+                           containsFullField_opt = .false.)
       outFileName = trim(outFileName) // '_ascii'
-      call epp_printRmsStats(stateVectorStdDevAnl,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
+      call epp_printRmsStats(stateVectorStdDevAnl, outFileName, elapsed = 0.0D0, ftype='A', nEns = nEns)
 
       ! output analmean_raw and analrms_raw, if requested
       if (writeRawAnalStats) then
@@ -752,17 +761,17 @@ contains
         outFileName = trim(outFileName) // '_analmean_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnlRaw)
         do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
-                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
-                               containsFullField_opt=.true.)
+          call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw, &
+                               typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                               numBits2D_opt = numBits2D, stepIndex_opt = stepIndex, &
+                               containsFullField_opt = .true.)
         end do
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analrms_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
-        call gio_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
-                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                             numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
+        call gio_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw, &
+                             typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                             numBits2D_opt = numBits2D, stepIndex_opt = middleStepIndex, &
                              containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlRaw,outFileName,elapsed=0.0D0,ftype='A',nEns=nEns)
@@ -770,22 +779,22 @@ contains
 
       if (alphaRandomPert > 0.0D0) then
         ! output analpertmean, analpertrms
-        call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+        call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analpertmean'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
         do stepIndex = 1, tim_nstepobsinc
-          call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
-                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               numBits2D_opt=numBits2D, stepIndex_opt=stepIndex,  &
-                               containsFullField_opt=.true.)
+          call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert, &
+                               typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                               numBits2D_opt = numBits2D, stepIndex_opt = stepIndex,  &
+                               containsFullField_opt = .true.)
         end do
-        call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
+        call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analpertrms'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnlPert)
-        call gio_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
-                             typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
+        call gio_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert, &
+                             typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
                              numBits2D_opt=numBits2D, stepIndex_opt=middleStepIndex,  &
-                             containsFullField_opt=.false.)
+                             containsFullField_opt = .false.)
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
@@ -815,7 +824,7 @@ contains
             if (writeNetCDFInc) then
               call gio_writeToFileNetCDF(stateVectorMeanInc4D, outFileName, &
                                          dateStampListInc(stateVectorMeanInc4D%anltime), &
-                                         stepIndex_opt = stepIndex, &
+                                         'R', stepIndex_opt = stepIndex, &
                                          containsFullField_opt = .false.)
             end if
           end do
@@ -838,7 +847,7 @@ contains
             if (writeNetCDFInc) then
               call gio_writeToFileNetCDF(stateVectorMeanInc, outFileName, &
                                          dateStampListInc(stateVectorMeanInc%anltime), &
-                                         stepIndex_opt = stepIndex, &
+                                         'R', stepIndex_opt = stepIndex, &
                                          containsFullField_opt = .false.)
             end if
           end do
@@ -867,23 +876,35 @@ contains
 
       ! output ensemble mean analysis state
       call utl_tmg_start(5,'--WriteEnsMeanRms')
-      call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
+      call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp(), 0)
       ! here we assume 4 digits for the ensemble member!!!!
       etiket = trim(etiket_anl) // '0000'
       if (gsv_isAllocated(stateVectorMeanAnl4D)) then
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl4D)
         do stepIndex = 1, tim_nstepobs
           call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket,  &
-                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
-        end do
+                               typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                               stepIndex_opt = stepIndex, containsFullField_opt = .true.)
+        end do          
+
+        if (writeNetCDFensAnalysis) then
+          call utl_abort('epp_postProcess: output netCDF file requested but not required.')
+        end if
+
       else
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
         do stepIndex = 1, tim_nstepobsinc
           call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
-                               typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                               typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                               stepIndex_opt = stepIndex, containsFullField_opt = .true.)
         end do
+
+        if (writeNetCDFensAnalysis) then
+          call gio_writeToFileNetCDF(stateVectorMeanAnl, outFileName, &
+                                     stateVectorMeanAnl%dateStampList(1), &
+                                     'A', timeCounter_opt = 1, &
+                                     containsFullField_opt = .false.)
+        end if
       end if
       call utl_tmg_stop(5)
 
@@ -892,8 +913,9 @@ contains
       call utl_tmg_start(3,'--WriteEnsemble')
       if (.not. outputOnlyEnsMean) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
-                               numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                               containsFullField_opt=.true.)
+                               numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                               containsFullField_opt = .true., &
+                               writeNetCDF_opt = writeNetCDFensAnalysis)
       end if
       call utl_tmg_stop(3)
 
@@ -918,12 +940,12 @@ contains
         else
           do stepIndex = 1, tim_nstepobsinc
             call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
-                                 typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                                 stepIndex_opt=stepIndex, containsFullField_opt=.false.)
+                                 typvar_opt = 'R', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                                 stepIndex_opt = stepIndex, containsFullField_opt=.false.)
             if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
               call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
-                                   typvar_opt='A', writeHeightSfc_opt=.true., &
-                                   stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                                   typvar_opt = 'A', writeHeightSfc_opt = .true., &
+                                   stepIndex_opt = stepIndex, containsFullField_opt = .true.)
             end if
           end do
         end if
@@ -935,14 +957,14 @@ contains
         if (gsv_isAllocated(stateVectorMeanAnl4D)) then
           do stepIndex = 1, tim_nstepobs
             call gio_writeToFile(stateVectorMeanAnl4D, outFileName, etiket,  &
-                                 typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                                 stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                                 typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                                 stepIndex_opt = stepIndex, containsFullField_opt = .true.)
           end do
         else
           do stepIndex = 1, tim_nstepobsinc
             call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
-                                 typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
-                                 stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+                                 typvar_opt = 'A', writeHeightSfc_opt = .false., numBits_opt = numBits, &
+                                 stepIndex_opt = stepIndex, containsFullField_opt = .true.)
           end do
         end if
         call utl_tmg_stop(5)
@@ -951,8 +973,8 @@ contains
         call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.true.)
+                                 numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                                 containsFullField_opt = .true.)
         end if
         call utl_tmg_stop(3)
 
@@ -960,14 +982,14 @@ contains
         call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.false., resetTimeParams_opt=.true.)
+                                 numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                                 containsFullField_opt = .false., resetTimeParams_opt = .true.)
           ! Also write the reference (analysis) surface pressure to increment files
           if (gsv_isAllocated(stateVectorMeanAnlSfcPresMpiGlb)) then
             call epp_writeToAllMembers(stateVectorMeanAnlSfcPresMpiGlb,  &
                                        ens_getNumMembers(ensembleAnlSubSample),  &
-                                       etiket=etiket_inc, typvar='A', fileNameSuffix='inc',  &
-                                       ensPath='subspace')
+                                       etiket = etiket_inc, typvar = 'A', fileNameSuffix = 'inc',  &
+                                       ensPath = 'subspace')
           end if
         end if
         call utl_tmg_stop(3)
@@ -981,8 +1003,8 @@ contains
         call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
-                                 numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
-                                 containsFullField_opt=.true.)
+                                 numBits_opt = 16, etiketAppendMemberNumber_opt = .true.,  &
+                                 containsFullField_opt = .true.)
         end if
         call utl_tmg_stop(3)
 
@@ -1528,11 +1550,13 @@ contains
     real(8), allocatable :: weightArrayLand(:)
     real(8)              :: weightFound
     integer, external    :: fnom, fclos
+    integer              :: localDateStamp
+
+    write(*,*) 'epp_hybridRecentering: RecenterAnlFileName = ', recenterAnlFileName
 
     ! check if recentering analysis file exists
-    inquire(file=recenterAnlFileName, exist=recenterAnlFileExists)
+    inquire(file = recenterAnlFileName, exist = recenterAnlFileExists)
     if (.not. recenterAnlFileExists) then
-      write(*,*) 'epp_hybridRecentering: RecenterAnlFileName = ', recenterAnlFileName
       call utl_abort('epp_hybridRecentering: The recentering analysis file does not exist')
     end if
 
@@ -1540,118 +1564,130 @@ contains
     vco_ens => ens_getVco(ensembleAnl)
     numMembers = ens_getNumMembers(ensembleAnl)
 
-    allocate( weightArray(vco_maxNumLevels,0:numMembers) )
-    allocate( weightArrayLand(0:numMembers) )
-    allocate( weightArrayEnsMean1(vco_maxNumLevels) )
-    allocate( weightArrayEnsMean2(vco_maxNumLevels) )
+    allocate(weightArray(vco_maxNumLevels,0:numMembers))
+    allocate(weightArrayLand(0:numMembers))
+    allocate(weightArrayEnsMean1(vco_maxNumLevels))
+    allocate(weightArrayEnsMean2(vco_maxNumLevels))
 
     ! read the optiontable file, if requested    
     if (useOptionTableRecenter) then
       write(*,*) 'epp_hybridRecentering: using optiontable file to specify recentering weights.'
       nulFile = 0
       status = fnom(nulFile, './optiontable', 'FMT+SEQ+R/O', 0)
-      read(nulFile,'(a)', IOSTAT=status) textLine
+      read(nulFile,'(a)', IOSTAT = status) textLine
       if (status /= 0) then
         call utl_abort('epp_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
-      if (mmpi_myid==0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
+      if (mmpi_myid == 0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
       rewind(nulFile)
       do memberIndex = 0, numMembers
         read(nulFile,'(a)') textLine
-        call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
-        if (mmpi_myid==0) write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        call utl_parseColumns(textLine, numColumns, stringArray_opt = stringArray)
+        if (mmpi_myid == 0) write(*,*) memberIndex, (stringArray(columnIndex), columnIndex = 1, numColumns)
         read(stringArray(numColumns),'(f6.3)') weightFound
-        weightArray(:,memberIndex) = weightFound
-        if (mmpi_myid==0) write(*,*) 'weightArray = ', weightArray(1,memberIndex)
+        weightArray(:, memberIndex) = weightFound
+        if (mmpi_myid == 0) write(*,*) 'weightArray = ', weightArray(1, memberIndex)
       end do
       status = fclos(nulFile)
     else
-      if (any(weightRecenter(1:vco_getNumLev(vco_ens,'MM')) == -1.d0)) then
+      if (any(weightRecenter(1:vco_getNumLev(vco_ens, 'MM')) == -1.d0)) then
         write(*,*) ''
-        write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens,'MM')
+        write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens, 'MM')
         write(*,*) 'Provided values : '
-        write(*,*) weightRecenter(1:vco_getNumLev(vco_ens,'MM'))
+        write(*,*) weightRecenter(1:vco_getNumLev(vco_ens, 'MM'))
         call utl_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
       end if
       do memberIndex = 0, numMembers
-        weightArray(:,memberIndex) = weightRecenter(:)
+        weightArray(:, memberIndex) = weightRecenter(:)
       end do
     end if
 
-    weightArrayEnsMean1(:) = sum(weightArray(:,:),2)/numMembers
+    weightArrayEnsMean1(:) = sum(weightArray(:,:),2) / numMembers
     weightArrayEnsMean2(:) = 1.0d0 - weightArrayEnsMean1(:)
 
     do memberIndex = 0, numMembers
       weightArrayLand(memberIndex) = weightRecenterLand
     end do
 
-    call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.false., &
-                       hInterpolateDegree_opt = 'LINEAR', &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    if (trim(utl_fileType(recenterAnlFileName)) == 'NetCDF') then
+      localDateStamp = -1
+    else if (trim(utl_fileType(recenterAnlFileName)) == 'FST') then
+      localDateStamp = tim_getDateStamp()
+    else
+      call utl_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
+    end if
+
+    call gsv_allocate(stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                      dateStamp_opt = localDateStamp, mpi_local_opt = .true., &
+                      mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
+                      allocHeightSfc_opt = .false., hInterpolateDegree_opt = 'LINEAR', &
+                      allocHeight_opt = .false., allocPressure_opt = .false.)
+
     call gsv_zero(stateVectorRecenterAnl)
 
     ! read in recentering analysis state (possibly 4D)
     if (gsv_isAllocated(stateVectorMeanAnl4D)) then
 
       ! This is for 4D ensemble mean case (where ensemble is only 3D)
-      call gsv_allocate( stateVectorRecenterAnl4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.false., &
-                         hInterpolateDegree_opt = 'LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorRecenterAnl4D, tim_nstepobs, hco_ens, vco_ens, &
+                        dateStamp_opt = localDateStamp, mpi_local_opt = .true., &
+                        mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
+                        allocHeightSfc_opt = .false., hInterpolateDegree_opt = 'LINEAR', &
+                        allocHeight_opt = .false., allocPressure_opt = .false.)
+
       call gsv_zero(stateVectorRecenterAnl4D)
 
       do stepIndex = 1, tim_nstepobs
-        call gio_readFromFile( stateVectorRecenterAnl4D, recenterAnlFileName, ' ', ' ',  &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                               readHeightSfc_opt=.false. )
+        call gio_readFromFile(stateVectorRecenterAnl4D, recenterAnlFileName, ' ', ' ',  &
+                              stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                              readHeightSfc_opt = .false.)
       end do
-      call gsv_copy(stateVectorRecenterAnl4D, stateVectorRecenterAnl, allowTimemismatch_opt=.true.)
+      call gsv_copy(stateVectorRecenterAnl4D, stateVectorRecenterAnl, allowTimemismatch_opt = .true.)
 
       ! Compute ensemble mean (before recentering) and make it 4D
-      call gsv_allocate( stateVectorEnsMean, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.false., &
-                         hInterpolateDegree_opt = 'LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
+      call gsv_allocate(stateVectorEnsMean, tim_nstepobsinc, hco_ens, vco_ens,  &
+                        dateStamp_opt = localDateStamp, mpi_local_opt = .true., &
+                        mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
+                        allocHeightSfc_opt = .false., hInterpolateDegree_opt = 'LINEAR', &
+                        allocHeight_opt = .false., allocPressure_opt = .false.)
+
       call gsv_zero(stateVectorEnsMean)
       call ens_computeMean(ensembleAnl)
       call ens_copyEnsMean(ensembleAnl, stateVectorEnsMean)
+      
+      call gsv_allocate(stateVectorEnsMean4D, tim_nstepobs, hco_ens, vco_ens,   &
+                        dateStamp_opt = localDateStamp, mpi_local_opt = .true., &
+                        mpi_distribution_opt = 'Tiles', dataKind_opt = 4, &
+                        allocHeightSfc_opt = .false., hInterpolateDegree_opt = 'LINEAR', &
+                        allocHeight_opt = .false., allocPressure_opt = .false.)
 
-      call gsv_allocate( stateVectorEnsMean4D, tim_nstepobs, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                         mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                         dataKind_opt=4, allocHeightSfc_opt=.false., &
-                         hInterpolateDegree_opt = 'LINEAR', &
-                         allocHeight_opt=.false., allocPressure_opt=.false. )
       call gsv_zero(stateVectorEnsMean4D)
       call gsv_3Dto4D(stateVectorEnsMean4D, stateVectorEnsMean)
       call gsv_deallocate(stateVectorEnsMean)
 
     else
-
+      
       do stepIndex = 1, tim_nstepobsinc
-        call gio_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
-                               stepIndex_opt=stepIndex, containsFullField_opt=.true., &
-                               readHeightSfc_opt=.false. )
+        call gio_readFromFile(stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
+                              stepIndex_opt = stepIndex, containsFullField_opt = .true., &
+                              readHeightSfc_opt = .false.)
       end do
 
     end if
 
     ! apply recentering
     call ens_recenter(ensembleAnl, stateVectorRecenterAnl, &
-                      recenteringCoeff_opt=weightArray(:,1:numMembers),  &
-                      numMembersToRecenter_opt=numMembersToRecenter, &
-                      recenteringCoeffLand_opt=weightArrayLand)
+                      recenteringCoeff_opt = weightArray(:,1:numMembers),  &
+                      numMembersToRecenter_opt = numMembersToRecenter, &
+                      recenteringCoeffLand_opt = weightArrayLand)
 
     ! now apply recentering separately to 4D ensemble mean
     if (gsv_isAllocated(stateVectorMeanAnl4D)) then
 
       ! stateVectorMeanAnl4D = weight1*stateVectorRecenterAnl4D + weight2*stateVectorEnsMean4D
-      call gsv_scaleVertical(statevectorRecenterAnl4D,weightArrayEnsMean1)
-      call gsv_scaleVertical(statevectorEnsMean4D    ,weightArrayEnsMean2)
+      call gsv_scaleVertical(statevectorRecenterAnl4D, weightArrayEnsMean1)
+      call gsv_scaleVertical(statevectorEnsMean4D    , weightArrayEnsMean2)
       call gsv_copy(statevectorRecenterAnl4D, stateVectorMeanAnl4D)
       call gsv_add(statevectorEnsMean4D, stateVectorMeanAnl4D)
 
@@ -1660,9 +1696,9 @@ contains
     end if
 
     call gsv_deallocate(stateVectorRecenterAnl)
-    if ( allocated(weightArray) ) deallocate(weightArray)
-    if ( allocated(weightArrayEnsMean1) ) deallocate(weightArrayEnsMean1)
-    if ( allocated(weightArrayEnsMean2) ) deallocate(weightArrayEnsMean2)
+    if (allocated(weightArray)) deallocate(weightArray)
+    if (allocated(weightArrayEnsMean1)) deallocate(weightArrayEnsMean1)
+    if (allocated(weightArrayEnsMean2)) deallocate(weightArrayEnsMean2)
 
   end subroutine epp_hybridRecentering
 
