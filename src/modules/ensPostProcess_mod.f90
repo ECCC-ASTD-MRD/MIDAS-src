@@ -1615,7 +1615,7 @@ contains
     else if (trim(utl_fileType(recenterAnlFileName)) == 'FST') then
       localDateStamp = tim_getDateStamp()
     else
-        call utl_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
+      call utl_abort('epp_hybridRecentering: unknown filetype of file: '//recenterAnlFileName)
     end if
 
     call gsv_allocate(stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, &
