@@ -21,9 +21,11 @@
 * all the programs compile without any warning?
   * [ ] yes
   * [ ] no
+  * [ ] does not apply since no Fortran code was changed
 * all the programs run correctly when compiled with debug options enabled (see the [documentation for that variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/tree/main/src#configuring-the-compilation-and-linking-process))?
   * [ ] yes
   * [ ] no
+  * [ ] does not apply since no Fortran code was changed
 
 ### Description of changes:
 
