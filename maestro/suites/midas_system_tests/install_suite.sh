@@ -6,8 +6,11 @@ __toplevel=$(git rev-parse --show-toplevel)
 
 MIDAS_SUITE_LAUNCH_DIRECTORY=${__toplevel}/maestro/suites/midas_system_tests
 
-# set the resources.def file, which depends on the TRUE_HOST name
-${__toplevel}/set_resources_def.sh
+# If it does not yet exist, set the resources.def file, which depends
+# on '${TRUE_HOST}'
+if [ ! -f ${resourcesDir}/resources.def ]; then
+    ${__toplevel}/set_resources_def.sh
+fi
 . ${MIDAS_SUITE_LAUNCH_DIRECTORY}/set_machine_list.dot
 
 which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"}
