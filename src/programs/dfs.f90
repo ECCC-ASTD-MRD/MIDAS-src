@@ -537,7 +537,6 @@ contains
     stdDevList(:,:) = MPC_missingValue_R8
 
     ! Thinning and modifying the flag associated
-
     if (doThinning) then
 
       call thn_thinHyper(obsSpaceData)
