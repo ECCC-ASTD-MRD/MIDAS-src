@@ -54,10 +54,50 @@ if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
   echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
   exit 1
 fi
+
+##=========================================================
+##  finding all possible targets
+__abs_all=$(cd ${__toplevel}/src; ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
+__abs_external='splitobs'
+__abs_all="${__abs_all} ${__abs_external}"
+
+##=========================================================
+##  parsing input and building job for submissions
+##
+
+if [ $# -eq 0 ]
+## default: make all
+then
+    __target='all'
+    __abs_exist_list=${__abs_all}
+else
+    __target=
+    for arg in ${@}; do
+        if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
+            export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+        elif [[ "${arg}" = -* ]]; then
+            echo "midas_build: this option '${arg}' is not allowed" >&2
+            exit 1
+        elif [[  -n "${__target}" ]]; then
+            __target="${__target} ${arg}"
+        else
+            __target=${arg}
+        fi
+    done ## End of 'for arg in ${@}'
+
+    if [[ -n "${__target}" ]]; then
+        __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
+        ## ^ there must be a simpler solution
+    else
+        __target='all'
+        __abs_exist_list=${__abs_all}
+    fi
+fi
+
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
-source ${__midas_dot_cfg}  &> .tmp.config.out || __midas_source_config_status__=1
+source ${__midas_dot_cfg} &> .tmp.config.out || __midas_source_config_status__=1
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
@@ -66,12 +106,6 @@ if [ "${__midas_source_config_status__}" -ne 0 ]; then
   exit 1
 fi
 mv .tmp.config.out ${__listing_config}
-
-__abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
-__abs_external='splitobs'
-__abs_all="${__abs_all} ${__abs_external}"
-
-
 
 ##=========================================================
 ##  functions
@@ -163,33 +197,6 @@ function printFooter {
     echo
 
 }
-
-##=========================================================
-##  parsing input and building job for submissions
-##
-
-if [ $# -eq 0 ]
-## default: make all
-then
-    __target='all'
-    __abs_exist_list=${__abs_all}
-else
-    for arg in ${@}; do
-        if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
-            export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
-        elif [[ "${arg}" = -* ]]; then
-            echo "midas_build: this option '${arg}' is not allowed" >&2
-            exit 1
-        elif [[  -n "${__target}" ]]; then
-            __target="${__target} ${arg}"
-        else
-            __target=${arg}
-        fi
-    done ## End of 'for arg in ${@}'
-
-    __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
-    ## ^ there must be a simpler solution
-fi
 
 ##=========================================================
 ## Header and dependency check
