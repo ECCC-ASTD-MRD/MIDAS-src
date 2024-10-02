@@ -14,6 +14,7 @@
 ##        ```
 ##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
 ##        ```
+##      * use '-d', '-debug' or '--debug' to activate debug options 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
 ##
 ##      * install auto-completion feature
 ##        ```
@@ -173,7 +174,19 @@ then
     __target='all'
     __abs_exist_list=${__abs_all}
 else
-    __target=$@
+    for arg in ${@}; do
+        if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
+            export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+        elif [[ "${arg}" = -* ]]; then
+            echo "midas_build: this option '${arg}' is not allowed" >&2
+            exit 1
+        elif [[  -n "${__target}" ]]; then
+            __target="${__target} ${arg}"
+        else
+            __target=${arg}
+        fi
+    done ## End of 'for arg in ${@}'
+
     __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
     ## ^ there must be a simpler solution
 fi

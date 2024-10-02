@@ -115,7 +115,7 @@ It will
 Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
-### Using midas_build for specific targets
+### Using `midas_build` for specific targets
 
 `midas_build` is a wrapper around `make`; it defaults to compiling, 
 linking and installing all the absolutes on both architectures, but it can also
@@ -143,6 +143,15 @@ sucessful installation of a subsets of programs will be confirmed with the displ
 ```
 
 If there is no absolute in the target list, **there won't be this display**.
+
+### Activate the debug options for compilation
+
+If the environment variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` is set
+to `yes`, the debug options will be enabled at compilation.
+
+The `midas_build` options `--debug`, `-debug` or `-d` will also enable
+the debug options avoiding to set the environment variable prior to
+compilation.
 
 ### Auto-completion
 
