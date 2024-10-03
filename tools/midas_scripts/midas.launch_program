@@ -13,6 +13,7 @@ typeset -r memory_description="memory request per MPI rank (default: ${memory_in
 arguments=$*
 eval $(cclargs -D "" $0 "[${description}]"                                               \
   -pgm         "" "" "[path to MIDAS program]"                                           \
+  -nml         "" "" "[path to namelist file]"                                           \
   -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
   -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
   -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
@@ -55,6 +56,15 @@ if [[ ! -d "${workdir}" ]]; then
 fi
 
 cd ${workdir}
+
+if [[ -n "${nml}" ]]; then
+    if [[ -f "${nml}" ]]; then
+        say "We will replace 'flnml' in the working directory with ${nml}"
+        cp ${nml} flnml
+    else
+        die "The namelist given with option '-nml', ${nml}, does not exist."
+    fi
+fi
 
 [[ ! -f ptopo_nml ]] && die "The file 'ptopo_nml' should exist"
 
