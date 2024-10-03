@@ -550,8 +550,7 @@ contains
         bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
 
-          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then
-          
+          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then            
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
           end if
           
