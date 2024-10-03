@@ -2,7 +2,13 @@
 
 set -euo pipefail
 
-description="This script launches the program 'midas-letkf.Abs' in the working directory prepared by 'midas.prepare_workdir'."
+typeset -r description="This script launches the program 'midas-letkf.Abs' in the working directory prepared by 'midas.prepare_workdir'."
+
+## This is the memory, in GB, that each core, on the supercomputer can
+## request.  There is 440 GB available on each node for 80 cores.
+typeset -r memory_in_gigs_per_openmp_num_thread=5.5
+
+typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
 
 arguments=$*
 eval $(cclargs -D "" $0 "[${description}]"                                               \
@@ -10,7 +16,7 @@ eval $(cclargs -D "" $0 "[${description}]"                                      
   -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
   -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
   -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
-  -memory      "" "" "[memory request per MPI rank (default: 440G/\${omp_num_threads})]" \
+  -memory      "" "" "[${memory_description}]" \
   -omp_num_threads  1   1   "[Number of Open MP threads per MPI rank]"                   \
   -wallclocktime   180 180  "[wall clock time for job in minutes]"                       \
   ++ $arguments)
@@ -32,10 +38,6 @@ function die {
     say $@ >&2
     exit 1
 } ## End of 'function die'
-
-## This is the memory, in GB, that each core, on the supercomputer can
-## request.  There is 440 GB available on each node for 80 cores.
-typeset -r memory_per_openmp_num_thread=5.5
 
 ## Check if all mandatory arguments have been given
 ## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'
@@ -123,7 +125,7 @@ EOF
 
 ## Compute the memory to request at 'ord_soumet' call
 if [[ -z "${memory}" ]]; then
-    computed_memory=$(python -c "from math import floor; print(floor(${memory_per_openmp_num_thread}*${omp_num_threads}))")
+    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
     memory=${computed_memory}G
 fi
 
