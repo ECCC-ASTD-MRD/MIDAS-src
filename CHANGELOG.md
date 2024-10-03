@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add `--debug` option to `src/midas_build` (#981 and !981)
+ * Add `--debug` option to `src/midas_build` (#981 and !889)
  * Ability to recenter ensemble around weekly GIOPS analysis state, netCDF ensemble output (#979 and !886)
  * Introduce scripts to prepare and launch `midas-letkf.Abs` (#974 and !885)
  * Introduction of new radiance bias correction predictors and of the possibility to redefine the way the T1 predictor is computed and to control which BUFR element define scan position for the CrIS instrument (#835 and !881)
