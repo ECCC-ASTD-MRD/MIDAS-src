@@ -15,15 +15,17 @@
 * change to results (contents of output files)?
   * [ ] yes
   * [ ] no
-* changes respect the [coding standards]( (follow link below to "Coding standards Top 10")?
+* changes respect the [coding standards](docs/codingStd_top10.md)?
   * [ ] yes
   * [ ] no
 * all the programs compile without any warning?
   * [ ] yes
   * [ ] no
-* all the programs run correctly when compiled with debug options enabled (see the [documentation for that variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/-/tree/main/src#configuring-the-compilation-and-linking-process))?
+  * [ ] does not apply since no Fortran code was changed
+* all the programs run correctly when compiled with debug options enabled (compile with [`midas_build --debug` or set environment variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/src/README.md#activate-the-debug-options-for-compilation))?
   * [ ] yes
   * [ ] no
+  * [ ] does not apply since no Fortran code was changed
 
 ### Description of changes:
 

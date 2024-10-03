@@ -115,7 +115,8 @@ It will
 Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
-### Using midas_build for specific targets
+### Using `midas_build` for specific targets
+
 `midas_build` is a wrapper around `make`; it defaults to compiling, 
 linking and installing all the absolutes on both architectures, but it can also
 be used to build specific targets by passing it as arguments:
@@ -143,15 +144,14 @@ sucessful installation of a subsets of programs will be confirmed with the displ
 
 If there is no absolute in the target list, **there won't be this display**.
 
-#### `splitobs` an *external* program
+### Activate the debug options for compilation
 
-The program `splitobs` is built by default with the other programs as described
-in the [section Building all](#building-all).  It can also be built as a specific 
-program in the same manner as described in the 
-[previous section](#using-midas_build-for-specific-targets).
+If the environment variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` is set
+to `yes`, the debug options will be enabled at compilation.
 
-However, under the hood, the sources and compilation are dealt with in a totally
-independant manner and can be found in [`../tools/splitobs`](./tools/splitobs).
+The `midas_build` options `--debug`, `-debug` or `-d` will also enable
+the debug options avoiding to set the environment variable prior to
+compilation.
 
 ### Auto-completion
 
@@ -192,6 +192,16 @@ These former variables have been renamed:
 
 If any of those are defined in your profile, they won't be taken into account
 and you should remove them.
+
+## `splitobs` an *external* program
+
+The program `splitobs` is built by default with the other programs as described
+in the [section Building all](#building-all).  It can also be built as a specific
+program in the same manner as described in the
+[previous section](#using-midas_build-for-specific-targets).
+
+However, under the hood, the sources and compilation are dealt with in a totally
+independant manner and can be found in [`../tools/splitobs`](./tools/splitobs).
 
 ## Adding a new program or changing external dependencies
 
