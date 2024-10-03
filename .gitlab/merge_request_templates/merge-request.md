@@ -15,7 +15,7 @@
 * change to results (contents of output files)?
   * [ ] yes
   * [ ] no
-* changes respect the [coding standards]( (follow link below to "Coding standards Top 10")?
+* changes respect the [coding standards](docs/codingStd_top10.md)?
   * [ ] yes
   * [ ] no
 * all the programs compile without any warning?
