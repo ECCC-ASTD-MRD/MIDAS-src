@@ -72,7 +72,9 @@ then
     __abs_exist_list=${__abs_all}
 else
     __target=
-    for arg in ${@}; do
+    while [[ $# > 0 ]]; do
+        arg=${1}
+
         if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
             export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
         elif [[ "${arg}" = -* ]]; then
@@ -83,7 +85,9 @@ else
         else
             __target=${arg}
         fi
-    done ## End of 'for arg in ${@}'
+
+        shift
+    done ## End of 'while [[ $# > 0 ]]'
 
     if [[ -n "${__target}" ]]; then
         __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
