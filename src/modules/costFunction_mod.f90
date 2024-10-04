@@ -72,7 +72,7 @@ contains
     logical, optional,   intent(in) :: beSilent_opt
 
     ! Locals:
-    integer :: bodyIndex, tovsIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
+    integer :: bodyIndex, sensorIndex, headerIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber, channelNumberIndexInListFound, channelIndex
     integer :: sensorIndexInList, sensorIndexInListFound
     logical :: beSilent
@@ -177,49 +177,46 @@ contains
       case('RA')
         dljoradar   = dljoradar   + pjo_1
       end select
-    enddo
+    end do
 
-    do tovsIndex = 1, tvs_nobtov
-      headerIndex = tvs_headerIndex( tovsIndex )
-      if ( headerIndex > 0 ) then
-        bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
-        bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
-        sensorIndex = tvs_lsensor (tovsIndex)
+    do headerIndex = tvs_headerStart, tvs_headerEnd
+      bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+      sensorIndex = tvs_lsensor (headerIndex)
+      if (sensorIndex == -1) cycle
+      sensorIndexInListFound = 0
+      if ( printJoTovsPerChannelSensor ) then
+        loopSensor1: do sensorIndexInList = 1, tvs_nsensors
+          call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
+          
+          if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
+            sensorIndexInListFound = sensorIndexInList
+            exit loopSensor1
+          end if
+          
+        end do loopSensor1
+      end if
 
-        sensorIndexInListFound = 0
-        if ( printJoTovsPerChannelSensor ) then
-          loopSensor1: do sensorIndexInList = 1, tvs_nsensors
-            call up2low(sensorNameList(sensorIndexInList),lowerCaseName)
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
+        dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
+        
+        if ( printJoTovsPerChannelSensor .and. &
+            sensorIndexInListFound > 0 ) then
+          call tvs_getChannelNumIndexFromPPP(lobsSpaceData, headerIndex, bodyIndex, &
+                                             channelNumber, channelIndex )
+          channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
+                                                      channelNumber)
 
-            if ( trim(lowerCaseName) == trim(inst_name(tvs_instruments(sensorIndex))) ) then
-              sensorIndexInListFound = sensorIndexInList
-              exit loopSensor1
-            end if
-
-          end do loopSensor1
-        end if
-
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
-          dljotov_sensors(sensorIndex) =  dljotov_sensors(sensorIndex) + pjo_1
-
-          if ( printJoTovsPerChannelSensor .and. &
-               sensorIndexInListFound > 0 ) then
-            call tvs_getChannelNumIndexFromPPP( lobsSpaceData, headerIndex, bodyIndex, &
-                                                channelNumber, channelIndex )
-            channelNumberIndexInListFound = utl_findloc(channelNumberList(:,sensorIndexInListFound), &
-                                                        channelNumber)
-
-            if ( channelNumberIndexInListFound > 0 ) then
-              joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) = &
-                        joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
-                        pjo_1
-            end if
-
+          if ( channelNumberIndexInListFound > 0 ) then
+            joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) = &
+                joTovsPerChannelSensor(channelNumberIndexInListFound,sensorIndexInListFound) + &
+                pjo_1
           end if
 
-        end do
-      end if
+        end if
+
+      end do
     end do
 
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then

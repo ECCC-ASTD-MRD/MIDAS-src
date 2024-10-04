@@ -1721,21 +1721,21 @@ contains
         if ( channelIndex == 0 ) call utl_abort('oop_tovs_nl: error with channel number')
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
-             tvs_radiance (tovsIndex) % bt(channelIndex)
+             tvs_radiance (headerIndex) % bt(channelIndex)
         if ( tvs_debug ) then
           obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' channelNumber,sim,obs,diff= ', &
-               channelNumber,  tvs_radiance (tovsIndex) % bt(channelIndex), &
+               channelNumber,  tvs_radiance (headerIndex) % bt(channelIndex), &
                obsPRM, -zdtb
         end if
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
         if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM) .and. .not. tvs_useSfcEmissObsSpace) then
-          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
+          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, headerIndex))
         end if
 
         if (allocated(tvs_transmission) .and. obs_columnActive_RB(obsSpaceData, OBS_TRAN)) then
-          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, tvs_transmission(tovsIndex) % tau_total(channelIndex))
+          call obs_bodySet_r(obsSpaceData, OBS_TRAN, bodyIndex, tvs_transmission(headerIndex) % tau_total(channelIndex))
         end if
         
         ! inflate OBS_OER for all-sky assimilation

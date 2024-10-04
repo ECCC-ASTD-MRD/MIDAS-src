@@ -3716,7 +3716,7 @@ contains
     end if
 
     ! get nominal satellite height
-    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    sensorIndex = tvs_lsensor(headerIndex)
     satHeight = tvs_coefs(sensorIndex)%coef%fc_sat_height
 
     ! FOV angular diameter  

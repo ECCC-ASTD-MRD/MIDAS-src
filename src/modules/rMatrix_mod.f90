@@ -325,7 +325,7 @@ contains
 
         if ( count > 0 .and. tvs_tovsIndex( headerIndex ) > 0 ) then
 
-          call rmat_RsqrtInverseOneObs( tvs_lsensor( tvs_tovsIndex( headerIndex )), count, obsIn(1:count), obsOut(1:count), list_chan(1:count), list_OER(1:count), tvs_tovsIndex(headerIndex) )
+          call rmat_RsqrtInverseOneObs(tvs_lsensor(headerIndex), count, obsIn(1:count), obsOut(1:count), list_chan(1:count), list_OER(1:count), tvs_tovsIndex(headerIndex) )
 
           count = 0
           do bodyIndex = idata, idatend
@@ -568,7 +568,7 @@ contains
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER1
 
-      sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      sensorIndex = tvs_lsensor(headerIndex)
 
       ! Exclude observations with land sea mask
       if (rmat_estLandSeaExcl /= mpc_missingvalue_int .and. & 
@@ -757,7 +757,7 @@ contains
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex == -1) cycle HEADER2
 
-      sensorIndex = tvs_lsensor(tovsIndex)
+      sensorIndex = tvs_lsensor(headerIndex)
 
       idata   = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       idatend = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + idata - 1

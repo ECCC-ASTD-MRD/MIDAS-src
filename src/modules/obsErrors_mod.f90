@@ -1783,7 +1783,7 @@ contains
       
       ! Locals:
       integer :: platformId, satelliteId, instrumId
-      integer :: sensorIndex, headerIndex, tovsIndex
+      integer :: sensorIndex, headerIndex
       integer :: channelNumber_withOffset, channelNumber, channelIndex
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
@@ -1791,8 +1791,7 @@ contains
       logical :: chanIsAllskyTt, chanIsAllskyHu
 
       headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIndex = tvs_lsensor(tovsIndex)
+      sensorIndex = tvs_lsensor(headerIndex)
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
       instrumId = tvs_instruments(sensorIndex)
@@ -1874,7 +1873,7 @@ contains
     integer :: headerIndex
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex, instrumId
+    integer :: sensorIndex, instrumId
     logical :: surfTypeIsWater 
     real(8) :: clwObs
     real(8) :: clwFG
@@ -1895,8 +1894,7 @@ contains
     end if
 
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
+    sensorIndex = tvs_lsensor(headerIndex)
     instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
@@ -2079,13 +2077,12 @@ contains
     integer :: headerIndex
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex, codtyp
-    integer :: tovsIndex, sensorIndex, instrumId
+    integer :: sensorIndex, instrumId
     character(len=9) :: instrumName
 
     headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
+    sensorIndex = tvs_lsensor(headerIndex)
     instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &

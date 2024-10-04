@@ -594,7 +594,7 @@ contains
         indxTovs = tvs_tovsIndex(headerIndex)
         if (indxTovs < 0) cycle HEADER
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -705,7 +705,7 @@ contains
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
 
-      iSensor = tvs_lsensor(indxTovs)
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -865,7 +865,7 @@ contains
       obsOffset(fileIndex) = obsOffset(fileIndex) + 1
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
-      sensorIndex = tvs_lsensor(indxTovs)
+      sensorIndex = tvs_lsensor(headerIndex)
       if (first(fileIndex)) then
         if (obs_mpiLocal(obsSpaceData)) then
           write(cmyidy,'(i4.4)') (mmpi_myidy + 1)
@@ -1069,7 +1069,7 @@ contains
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
         if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER
-        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER
           
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -1200,7 +1200,7 @@ contains
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER1
         if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER1
-        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
 
         call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -1269,7 +1269,7 @@ contains
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER2
           if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER2
-          iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+          iSensor = tvs_lsensor(headerIndex)
           if (iSensor /= sensorIndex) cycle HEADER2
 
           call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -1391,7 +1391,7 @@ contains
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
 
-      iSensor = tvs_lsensor(indxTovs)
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -1486,7 +1486,7 @@ contains
 
       tovsIndex = tvs_tovsIndex(headerIndex)
       if (tovsIndex < 0) cycle HEADER
-      sensorIndex =  tvs_lsensor(tovsIndex)
+      sensorIndex =  tvs_lsensor(headerIndex)
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
@@ -1532,7 +1532,7 @@ contains
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, bcifChannelIndex, bodyIndex)
         if (channelIndex > 0 .and. bcifChannelIndex > 0) then
           trialConvolutedLapseRate(iobs,bcifChannelIndex) = &
-              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(tovsIndex) % tau_levels(:,channelIndex))
+              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(headerIndex) % tau_levels(:,channelIndex))
           
         end if
       end do BODY
@@ -1769,7 +1769,7 @@ contains
 
     predictor(:) = 0.0d0
 
-    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    sensorIndex = tvs_lsensor(headerIndex)
     
     !computation of scan bias position normalized to [-1;1]
     normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
@@ -1899,7 +1899,7 @@ contains
       iobs = iobs + 1
       if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER
 
-      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -2944,7 +2944,7 @@ contains
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER1
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
         if (nscan > 1) then
@@ -3016,7 +3016,7 @@ contains
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER2
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER2
           
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3204,7 +3204,7 @@ contains
         iobs = iobs + 1
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER1
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
         
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3283,7 +3283,7 @@ contains
         indxtovs = tvs_tovsIndex(headerIndex)
         if (indxtovs < 0) cycle HEADER2
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER2
           
         call obs_set_current_body_list(obsSpaceData, headerIndex)
