@@ -34,16 +34,19 @@ Their default values (in parentheses), **should be good for most users**.
   `${HOME}/data_maestro/ords/midas-bld/${leaf}` where `${leaf}` is
   `basename` of the Git repository where the code is put.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for
-  the compilation if set to `yes`.  Note that enabling debug options
-  **may subtly alter the results and therefore cause some unit tests
-  to fail**.  So, to avoid that, we set `CHECK_RESULTS_CATCHUP` and
-  `CLEAN_UNITTEST_CATCHUP` to `9` in the resources file which prevent
-  the `check` and `clean` tasks to fail.  We also increase the memory
-  request for the task `/Tests/letkf/glb_15km/UnitTest/run` in debug
-  mode.  Also, make sure to **`make clean` before recompiling when you
-  change that variable value** if `MIDAS_COMPILE_CLEAN=false`.
-  Otherwise, some already compiled object will keep the impact of the
-  debug options and may result in inconsistencies.
+  the compilation if set to `yes`.  You can activate this option by
+  using [`--debug` when calling
+  `midas_build`](#activate-the-debug-options-for-compilation).  Note
+  that enabling debug options **may subtly alter the results and
+  therefore cause some unit tests to fail**.  So, to avoid that, we
+  set `CHECK_RESULTS_CATCHUP` and `CLEAN_UNITTEST_CATCHUP` to `9` in
+  the resources file which prevent the `check` and `clean` tasks to
+  fail.  We also increase the memory request for the task
+  `/Tests/letkf/glb_15km/UnitTest/run` in debug mode.  Also, make sure
+  to **`make clean` before recompiling when you change that variable
+  value** if `MIDAS_COMPILE_CLEAN=false`.  Otherwise, some already
+  compiled object will keep the impact of the debug options and may
+  result in inconsistencies.
 * `MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR (true)`: append the version
   identifier to the build directory.  It can be `true` (default) or
   `false`.

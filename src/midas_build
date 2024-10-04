@@ -14,7 +14,7 @@
 ##        ```
 ##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
 ##        ```
-##      * use '-d', '-debug' or '--debug' to activate debug options 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
+##      * use '-d', '-debug' or '--debug' to activate debug options like would 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes' do
 ##      * use '-opt-report' to activate compiler optimization report like would 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes' do
 ##      * use '--codepath ${datapath}' to activate code coverage like would 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}' do
 ##
