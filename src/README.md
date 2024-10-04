@@ -53,7 +53,8 @@ Their default values (in parentheses), **should be good for most users**.
 * `MIDAS_COMPILE_OPTIMIZE_REPORT` : if `yes`, the compiler will
   produce optimization reports.  This will produce files with the
   `.optrpt` extension in the compilation directory with lots of
-  information about compiler code optimization.
+  information about compiler code optimization.  You can activate this
+  option by using `--opt-report` when calling `midas_build`.
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)
