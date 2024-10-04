@@ -16,6 +16,7 @@
 ##        ```
 ##      * use '-d', '-debug' or '--debug' to activate debug options 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
 ##      * use '-opt-report' to activate compiler optimization report like would 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes' do
+##      * use '--codepath ${datapath}' to activate code coverage like would 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}' do
 ##
 ##      * install auto-completion feature
 ##        ```
@@ -80,6 +81,16 @@ else
             export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
         elif [[ "${arg}" = --opt-report ]]; then
             export MIDAS_COMPILE_OPTIMIZE_REPORT=yes
+        elif [[ "${arg}" = --codecov ]]; then
+            if [[ $# -lt 2 ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            elif [[ ${2} = -* || -z "${2}" ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            fi
+            export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
+            shift
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             exit 1

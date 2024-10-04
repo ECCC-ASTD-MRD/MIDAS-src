@@ -47,9 +47,11 @@ Their default values (in parentheses), **should be good for most users**.
 * `MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR (true)`: append the version
   identifier to the build directory.  It can be `true` (default) or
   `false`.
-* `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code coverage diagnostics files.
-   Same as for the debug options, this may subtly alter the results.  So,
-   we avoid running the tasks `check` and `clean` for each test.
+* `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code
+   coverage diagnostics files.  Same as for the debug options, this
+   may subtly alter the results.  So, we avoid running the tasks
+   `check` and `clean` for each test.  You can activate this option by
+   using `--codecov ${datapath}` when calling `midas_build`.
 * `MIDAS_COMPILE_OPTIMIZE_REPORT` : if `yes`, the compiler will
   produce optimization reports.  This will produce files with the
   `.optrpt` extension in the compilation directory with lots of
