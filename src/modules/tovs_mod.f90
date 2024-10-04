@@ -2398,7 +2398,6 @@ contains
 
     ! Locals:
     integer :: instrum, iplatform
-    integer :: nobmax
     integer :: sensorIndex, headmax
     integer :: profileCount, headerIndex
     integer :: profileIndex, levelIndex
