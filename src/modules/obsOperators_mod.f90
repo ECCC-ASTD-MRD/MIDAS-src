@@ -1626,7 +1626,7 @@ contains
     integer :: jdata, sourceObs, destObs
     logical :: llprint,bgckMode
     character(len=2) :: option
-    integer :: channelIndex, tovsIndex
+    integer :: channelIndex
     real(pre_obsReal) :: zdtb, obsPRM
     integer :: idatyp, channelNumber
     integer :: headerIndex, bodyIndex
@@ -1702,8 +1702,6 @@ contains
         write(*,*) 'oop_tovs_nl: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if ( tovsIndex == -1 ) cycle HEADER
 
       ! Set the body list
       ! (& start at the beginning of the list)

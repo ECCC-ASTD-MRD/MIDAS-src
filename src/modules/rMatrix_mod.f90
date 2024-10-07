@@ -42,13 +42,14 @@ module rMatrix_mod
 
 contains
 
-  subroutine rmat_init(nsensors,nobtovs)
+  subroutine rmat_init(nsensors, headerStart, headerEnd)
    
     implicit none
 
     ! Arguments:
     integer, intent(in) :: nsensors
-    integer, intent(in) :: nobtovs
+    integer, intent(in) :: headerStart
+    integer, intent(in) :: headerEnd
 
     ! Locals:
     integer :: ierr
@@ -70,7 +71,7 @@ contains
     call utl_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
-      allocate(R_tovs(nobtovs))
+      allocate(R_tovs(headerStart:headerEnd))
     end if
 
   end subroutine rmat_init
@@ -201,7 +202,7 @@ contains
   end subroutine rmat_readCMatrixByFileName
 
 
-  subroutine rmat_RsqrtInverseOneObs(sensor_id,nsubset,obsIn,obsOut,list_sub,list_oer,indexTovs)
+  subroutine rmat_RsqrtInverseOneObs(sensor_id,nsubset,obsIn,obsOut,list_sub,list_oer,headerIndex)
     !
     ! :Purpose: Apply the operator R**-1/2 to obsIn
     !           result in obsOut for the subset of channels specified
@@ -216,14 +217,14 @@ contains
     real(8), intent(in)  :: list_oer(nsubset)
     real(8), intent(in)  :: obsIn(nsubset)
     real(8), intent(out) :: obsOut(nsubset)
-    integer, intent(in)  :: indexTovs
+    integer, intent(in)  :: headerIndex
 
     ! Locals:
     real (8) :: Rsub(nsubset,nsubset), alpha, beta, variance 
     integer :: foundChanIndex(nsubset)
     integer :: i,j
 
-    if (R_tovs(indexTovs)%nchans == 0) then
+    if (R_tovs(headerIndex)%nchans == 0) then
 
       if (sensor_id <= 0 .or. sensor_id > size(Rcorr_inst)) then
         write(*,*) "invalid sensor_id",sensor_id,size(Rcorr_inst)
@@ -245,9 +246,9 @@ contains
         write(*,*) foundChanIndex(:)
         call utl_abort('rmat_RsqrtInverseOneObs')
       end if
-      R_tovs(indexTovs)%nchans = nsubset
-      allocate(R_tovs(indexTovs)%listChans(nsubset))
-      R_tovs(indexTovs)%listChans(1:nsubset) = list_sub(1:nsubset)
+      R_tovs(headerIndex)%nchans = nsubset
+      allocate(R_tovs(headerIndex)%listChans(nsubset))
+      R_tovs(headerIndex)%listChans(1:nsubset) = list_sub(1:nsubset)
       do j=1,nsubset
         do i=1,nsubset
           variance = list_oer(i) * list_oer(j)
@@ -258,10 +259,10 @@ contains
       call utl_tmg_start(20,'----RmatMatSqrt')
       call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call utl_tmg_stop(20)
-      allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
+      allocate(R_tovs(headerIndex)%Rmat(nsubset,nsubset))
       do j=1,nsubset
         do i=1,nsubset
-          R_tovs(indexTovs)%Rmat(i,j) = Rsub(i,j)
+          R_tovs(headerIndex)%Rmat(i,j) = Rsub(i,j)
         end do
       end do
     end if
@@ -270,8 +271,8 @@ contains
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0
-    ! Optimized symetric matrix vector product from Lapack
-    call dsymv("L", nsubset, alpha, R_tovs(indexTovs)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
+    ! Optimized symetric matrix vector product from Blas
+    call dsymv("L", nsubset, alpha, R_tovs(headerIndex)%Rmat, nsubset, obsIn, 1, beta, obsOut, 1)
     call utl_tmg_stop(21)
 
   end subroutine rmat_RsqrtInverseOneObs
@@ -323,9 +324,9 @@ contains
         
         end do
 
-        if ( count > 0 .and. tvs_tovsIndex( headerIndex ) > 0 ) then
+        if (count > 0) then
 
-          call rmat_RsqrtInverseOneObs(tvs_lsensor(headerIndex), count, obsIn(1:count), obsOut(1:count), list_chan(1:count), list_OER(1:count), tvs_tovsIndex(headerIndex) )
+          call rmat_RsqrtInverseOneObs(tvs_lsensor(headerIndex), count, obsIn(1:count), obsOut(1:count), list_chan(1:count), list_OER(1:count), headerIndex)
 
           count = 0
           do bodyIndex = idata, idatend
@@ -501,7 +502,7 @@ contains
      
 
     ! Locals: 
-    integer              :: headerIndex, bodyIndex, sensorIndex, tovsIndex, taskIndex, chanIndex
+    integer              :: headerIndex, bodyIndex, sensorIndex, taskIndex, chanIndex
     integer              :: channelNumber, channelIndex
     integer              :: idata, idatend, idatyp
     integer              :: ierr, assimChan
@@ -564,9 +565,6 @@ contains
         write(*,*) 'rmat_updateRmat: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER1
       end if
-
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex == -1) cycle HEADER1
 
       sensorIndex = tvs_lsensor(headerIndex)
 
@@ -753,9 +751,6 @@ contains
         write(*,*) 'rmat_updateRmat: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
       end if
-
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex == -1) cycle HEADER2
 
       sensorIndex = tvs_lsensor(headerIndex)
 

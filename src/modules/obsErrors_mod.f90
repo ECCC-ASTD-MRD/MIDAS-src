@@ -196,7 +196,7 @@ contains
     end if
 
 ! Initialization of the correlation matrices
-    call rmat_init(tvs_nsensors,tvs_nobtov)
+    call rmat_init(tvs_nsensors, tvs_headerStart, tvs_headerEnd)
     if (rmat_lnondiagr) then
       do isens = 1, tvs_nsensors
         if (tvs_isReallyPresent(isens)) call rmat_readCMatrix(tvs_listSensors(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens))
@@ -401,7 +401,7 @@ contains
     ICHNIN(:,:) = 0
     ICHNIN2(:) = 0
 
-    if (tvs_nobtov == 0) return
+    if (tvs_headerStart < 0) return
 
     !
     !     2. Open the file

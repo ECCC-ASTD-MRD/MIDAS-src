@@ -413,7 +413,6 @@ contains
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-      if ( tvs_tovsIndex( headerIndex ) < 0) cycle HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(headerIndex) == id ) then
         count = count + 1
@@ -501,7 +500,6 @@ contains
 
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER_2
       if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(headerIndex) == id) then
         btObs(:)    = -1.d0
         btCalc(:)   = -1.d0

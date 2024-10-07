@@ -335,7 +335,7 @@ module var1DIdealize_mod
     ! Locals:
     logical              :: bgckMode, beSilent
     integer              :: randomSeed
-    integer              :: headerIndex, bodyIndex, obsIndex, tovsIndex
+    integer              :: headerIndex, bodyIndex, obsIndex
     integer              :: bodyIndexBeg, bodyIndexEnd, idatyp, count, channelNumber, channelIndex
     real(8), allocatable :: pert(:), obsPert(:), list_OER(:)
     integer, allocatable :: list_chanNumber(:), list_bodyIndex(:), list_chanIndex(:)
@@ -373,9 +373,6 @@ module var1DIdealize_mod
         cycle HEADER
       end if
 
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex == -1) cycle HEADER
-
       bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
@@ -383,10 +380,10 @@ module var1DIdealize_mod
         if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
           call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex)
-          call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+          call obs_bodySet_r(obsSpaceData, OBS_TRUO, bodyIndex, tvs_radiance(headerIndex)%bt(channelIndex))
 
           if (allocated(tvs_emissivity) .and. obs_columnActive_RB(obsSpaceData, OBS_SEM)) then
-            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, tovsIndex))
+            call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, tvs_emissivity(channelIndex, headerIndex))
           end if
         end if 
       end do
@@ -413,9 +410,6 @@ module var1DIdealize_mod
         write(*,*) 'var1Di_simulateObservation: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER2
       end if
-
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex == -1) cycle HEADER2
 
       bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
@@ -446,12 +440,12 @@ module var1DIdealize_mod
 
         if (count > 0) then 
           ! Compute Observation Perturbation
-          call rmat_Rsqrt(tvs_lsensor(tvs_tovsIndex(headerIndex)), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
+          call rmat_Rsqrt(tvs_lsensor(headerIndex), count, pert(1:count), obsPert(1:count), list_chanNumber(1:count),&
                           list_OER(1:count))
 
           ! Update the obs value in ObsSpacedata
           do obsIndex = 1, count
-            call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(tovsIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
+            call obs_bodySet_r(obsSpaceData, OBS_VAR, list_bodyIndex(obsIndex), tvs_radiance(headerIndex)%bt(list_chanIndex(obsIndex)) + obsPert(obsIndex))
           end do
         end if
         
@@ -503,9 +497,6 @@ module var1DIdealize_mod
             cycle HEADER3
           end if
 
-          tovsIndex = tvs_tovsIndex(headerIndex)
-          if (tovsIndex == -1) cycle HEADER3
-
           bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
           bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
@@ -513,7 +504,7 @@ module var1DIdealize_mod
             if (obs_bodyElem_i(obsspacedata, OBS_ASS, bodyIndex) == obs_assimilated) then
               call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                                     channelNumber, channelIndex)
-              call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(tovsIndex)%bt(channelIndex))
+              call obs_bodySet_r(obsSpaceData, OBS_ETRU, bodyIndex, tvs_radiance(headerIndex)%bt(channelIndex))
             end if 
           end do
         end do HEADER3
@@ -553,7 +544,7 @@ module var1DIdealize_mod
     character(len=23), parameter :: filenameCorrEmiss = 'Cmat_SfcEmiss_amsua.dat'
     real(8), allocatable         :: emissErrCMat(:,:)
     integer                      :: randomSeed, count, channelNumber, nchanCMat, emissNumChan
-    integer                      :: headerIndex, bodyIndex, tovsIndex, matchChanIndex, sensorIndex, obsIndex
+    integer                      :: headerIndex, bodyIndex, matchChanIndex, sensorIndex, obsIndex
     integer                      :: bodyIndexBeg, bodyIndexEnd, idatyp
     real(8), allocatable         :: pert(:), emissPert(:), list_EMER(:)
     integer, allocatable         :: list_chanNumber(:), list_bodyIndex(:)
@@ -590,9 +581,7 @@ module var1DIdealize_mod
         cycle HEADER
       end if
 
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      sensorIndex = tvs_lsensor(tovsIndex)
-      if (tovsIndex == -1) cycle HEADER
+      sensorIndex = tvs_lsensor(headerIndex)
 
       bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
@@ -623,7 +612,7 @@ module var1DIdealize_mod
         end if 
       end do
 
-      if (count > 0 .and. tovsIndex > 0) then 
+      if (count > 0) then 
         ! Generate the emissivity errors
         call sse_emissErrMatSqrt(count, pert(1:count), emissPert(1:count), list_chanNumber(1:count), list_EMER(1:count), &
                        emissErrCMat, chanListCMat, nchanCMat)
@@ -699,7 +688,7 @@ module var1DIdealize_mod
     real(8), allocatable            :: controlVector(:)
     real(8), allocatable            :: errHx(:,:)
     integer, allocatable            :: errHxBodyList(:)
-    integer                         :: tovsIndex, headerIndex, bodyIndex
+    integer                         :: headerIndex, bodyIndex
     integer                         :: channelNumber, channelIndex
     integer                         :: bodyIndexBeg, bodyIndexEnd, idatyp, obsIndex
     real(8)                         :: meanErrHx, stddevErrHx
@@ -810,9 +799,6 @@ module var1DIdealize_mod
           cycle HEADER
         end if
 
-        tovsIndex = tvs_tovsIndex(headerIndex)
-        if (tovsIndex == -1) cycle HEADER
-
         bodyIndexBeg = obs_headElem_i(obsspacedata, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(obsspacedata, OBS_NLV, headerIndex) + bodyIndexBeg - 1
 
@@ -822,7 +808,7 @@ module var1DIdealize_mod
                                                 channelNumber, channelIndex)
             obsCount = obsCount + 1
 
-            errHx(sampleIndex, obsCount) = tvs_radiance(tovsIndex)%bt(channelIndex) - &
+            errHx(sampleIndex, obsCount) = tvs_radiance(headerIndex)%bt(channelIndex) - &
                                     obs_bodyElem_r(obsspacedata, OBS_TRUO, bodyIndex)
             
             errHxBodyList(obsCount) = bodyIndex

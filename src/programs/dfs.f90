@@ -701,7 +701,7 @@ contains
           allocate(Rsub(nLevelsDfs,nLevelsDfs))
           Rsub(:,:) = MPC_missingValue_R8
           if (familyType == 'TO') then
-            sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
+            sensorIndex = tvs_lsensor(headerIndex)
             call rmat_getRmatrix(sensorIndex, &
                 levelList(obsIndex,:),        &
                 stdDevList(obsIndex,:),       &
@@ -834,7 +834,7 @@ contains
             ! Extraction of the R matrix
             allocate(Rsub(nLevelsDfs,nLevelsDfs))
             if (familyType == 'TO') then
-              sensorIndex = tvs_lsensor( tvs_tovsIndex(headerIndex) )
+              sensorIndex = tvs_lsensor(headerIndex)
               call rmat_getRmatrix(sensorIndex,        &
                   levelListMpi(obsIndex,:,procIndex),  &
                   stdDevListMpi(obsIndex,:,procIndex), &
