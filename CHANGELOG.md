@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Replacement of tovs indexing by header indexing whenever possible. Minor impact on results (#972 and !891)
  * Improved efficiency of `enkf_LETKFgetMpiGlobalTags` and new test `letkf/glb_10km` (#978 and !884)
  * The code now complies to Fortran 2008 standard (#969 and !883)
  * `midas.launch` provides a single `trlm` file when `filetype = 38` (netCDF) (#971 and !880)
