@@ -7,8 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
- * Introduction of filtering criteria (mask for obs only on oceans and thinning) (#959 and !888)
+ * Introduction of filtering criteria to dfs program (mask for obs only on oceans and thinning) (#959 and !888)	
  * Add `--debug` option to `src/midas_build` (#981 and !889)
  * Ability to recenter ensemble around weekly GIOPS analysis state, netCDF ensemble output (#979 and !886)
  * Introduce scripts to prepare and launch `midas-letkf.Abs` (#974 and !885)
