@@ -179,6 +179,7 @@ program midas_dfs
   use obsOperators_mod
   use tovs_mod
   use rMatrix_mod
+  use thinning_mod
   
   implicit none
 
@@ -207,6 +208,7 @@ program midas_dfs
   logical :: doChannelSelection                  ! flag to perform DFS-based channel selection (TO only)
   integer :: maxSelect                           ! max number of channels to select (negative or zero to do all channels)
   logical :: outputHBHt                          ! flag to output HBHt
+  logical :: doThinning                          ! flag to perform thinning on the observations, if .true. thinning is done 
   integer :: nDfsMax                             ! maximum number of DFS computations
   integer :: vCoordList(tvs_maxNumberOfChannels) ! list of channels or levels (depending on FamilyType)
                                                  ! Dfs will be computed only for observation locations for which these levels are available
@@ -217,7 +219,7 @@ program midas_dfs
   real(8) :: satZenList(nObsMax)                 ! list of satellite zenith angles to select specific observations
   logical :: computeInParallel                   ! if .true. computation performed in parallel
                                                  ! if .false. (default) observation processed one at a time (slow) 
-  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel
+  NAMELIST /NAMDFS/ familyType, doChannelSelection, maxSelect, outputHBHt, nDfsMax, vCoordList, latList, lonList, dayList, timeList, satZenList, computeInParallel, doThinning
   
   istamp = exdb('dfs', 'DEBUT', 'NON')
 
@@ -257,6 +259,7 @@ program midas_dfs
   timeList(:) = MPC_missingValue_INT
   satZenList(:) = MPC_missingValue_R8
   computeInParallel = .false.
+  doThinning = .false.
   
   ! Check if NAMDFS exist
   if (.not. utl_isNamelistPresent('NAMDFS','./flnml')) then
@@ -319,6 +322,10 @@ program midas_dfs
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
+
+  ! Set up parameters for water fraction
+  call tvs_emis_read_climatology ()
+  call tvs_allocateSurfaceParameters ()
   
   ! Compute HBHt, dfs and perform channel selection
   call diagDFS(columnTrlOnAnlIncLev, obsSpaceData)
@@ -528,10 +535,33 @@ contains
     levelList(:,:) = MPC_missingValue_INT
     bodyIndexList(:,:) = MPC_missingValue_INT
     stdDevList(:,:) = MPC_missingValue_R8
-    
+
+    ! Thinning and modifying the flag associated
+    if (doThinning) then
+
+      call thn_thinHyper(obsSpaceData)
+      
+      call obs_set_current_header_list(obsSpaceData,trim(familyType))
+      HEADER0: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER0
+   
+        bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+        BODY0:do bodyIndex1 = bodyIndexBeg, bodyIndexEnd
+
+          if ( btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex1),11) ) then            
+            call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex1, obs_notAssimilated)
+          end if
+          
+        end do BODY0
+      end do HEADER0
+    end if ! if (doThinning)
+
     ! First step count the number of selected observation for each MPI task
     countObs = 0
     countChannel = 0 ! necessary in the case where no obs in the file
+    
     call obs_set_current_header_list(obsSpaceData,trim(familyType))
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -1134,68 +1164,85 @@ contains
     
     ! Locals
     integer            :: obsIndex
-    real(8)            :: latitude, longitude, satelliteZenithAngle
+    real(8)            :: latitude(1), longitude(1), satelliteZenithAngle
     integer            :: date, hour
     real(8), parameter :: epsilon=0.01d0
+    integer, parameter :: boxSize=7
     integer            :: definedConditions, satisfiedConditions
-    
-    if (selectSpecificObservationsFromList) then
-      selected = .false.
-      latitude = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
-      date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
-      hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+    integer            :: latIndex(1), lonIndex(1), observationIndex(1)
+    real(8)            :: lowResWaterFraction(1), highResWaterFraction
 
-      do obsIndex = 1, nObsMax
-        definedConditions = 0
-        satisfiedConditions = 0
-        
-        if (latList(obsindex) /= MPC_missingValue_R8) then
-           definedConditions =  definedConditions + 1
-           
-          if (abs(latList(obsIndex)-latitude) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-       
-        if (lonList(obsindex) /= MPC_missingValue_R8) then
-          definedConditions =  definedConditions + 1
+    latitude(1) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+    longitude(1) = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+    observationIndex(1)=headerIndex
+    call tvs_interp_sfc (latIndex, lonIndex, 1, latitude, longitude, observationIndex, skipAlbedo_opt= .true.)  
 
-          if (abs(lonList(obsIndex)-longitude) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
+    highResWaterFraction = tvs_surfaceParameters(headerIndex) % pcnt_wat
 
-        if (satZenList(obsindex) /= MPC_missingValue_R8) then
-          definedConditions =  definedConditions + 1
+    ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
 
-          if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
+    call tvs_pcnt_box (lowResWaterFraction, 1 ,latIndex,lonIndex, boxSize)
 
-        if (dayList(obsindex) /= MPC_missingValue_INT) then
-          definedConditions =  definedConditions + 1
-
-          if (dayList(obsIndex) == date) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-
-        if (timeList(obsindex) /= MPC_missingValue_INT) then
-          definedConditions =  definedConditions + 1
-          if (timeList(obsIndex) == hour) &
-              satisfiedConditions = satisfiedConditions + 1
-        end if
-        
-        if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
-          selected = .true.
-          return
-        end if
-
-      end do
-      
+    waterFractionTest : if (highResWaterFraction < 0.99d0 .or. lowResWaterFraction(1) < 0.97d0) then
+      selected= .false.      
     else
-      selected = .true.
-    end if
-    
+      
+      if (selectSpecificObservationsFromList) then
+        selected = .false.
+        satelliteZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex)
+        date = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
+        hour = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex)
+        
+        do obsIndex = 1, nObsMax
+          definedConditions = 0
+          satisfiedConditions = 0
+          
+          if (latList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(latList(obsIndex)-latitude(1)) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (lonList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(lonList(obsIndex)-longitude(1)) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+
+          if (satZenList(obsindex) /= MPC_missingValue_R8) then
+            definedConditions =  definedConditions + 1
+            
+            if (abs(satZenList(obsIndex)-satelliteZenithAngle) < epsilon) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (dayList(obsindex) /= MPC_missingValue_INT) then
+            definedConditions =  definedConditions + 1
+            
+            if (dayList(obsIndex) == date) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (timeList(obsindex) /= MPC_missingValue_INT) then
+            definedConditions =  definedConditions + 1
+            if (timeList(obsIndex) == hour) &
+                satisfiedConditions = satisfiedConditions + 1
+          end if
+          
+          if (satisfiedConditions > 0 .and. definedConditions == satisfiedConditions) then
+            selected = .true.
+            return
+          end if
+          
+        end do
+      
+      else
+        selected = .true.
+      end if
+    end if waterFractionTest
+
   end function isSelected
     
 end program midas_dfs
