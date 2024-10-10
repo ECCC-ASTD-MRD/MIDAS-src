@@ -826,8 +826,6 @@ contains
 
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
-    ! tvs_nobtov was zero for a bad reason ...
-    !tvs_nobtov = 0
     tvs_headerStart = -1
     tvs_headerEnd = -2
 
