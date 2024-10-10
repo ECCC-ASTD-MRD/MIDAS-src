@@ -229,7 +229,12 @@ since it is ignored by Git.
 
 ## Activating the code coverage report
 
-You can activate the code coverage reporting by setting
+You can activate the code coverage reporting by using
+```bash
+cd src
+./midas_build --codecov 'an absolute path where the code coverage data can be saved'
+```
+or by setting
 ```bash
 export MIDAS_COMPILE_CODECOVERAGE_DATAPATH='an absolute path where the code coverage data can be saved'
 ```

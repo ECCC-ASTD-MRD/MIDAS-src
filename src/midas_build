@@ -14,7 +14,9 @@
 ##        ```
 ##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
 ##        ```
-##      * use '-d', '-debug' or '--debug' to activate debug options 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
+##      * use '-d', '-debug' or '--debug' to activate debug options, which is equivalent to setting 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
+##      * use '-opt-report' to activate compiler optimization report, which is equivalent to setting 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes'
+##      * use '--codepath ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
 ##
 ##      * install auto-completion feature
 ##        ```
@@ -72,9 +74,26 @@ then
     __abs_exist_list=${__abs_all}
 else
     __target=
-    for arg in ${@}; do
+    while [[ $# > 0 ]]; do
+        arg=${1}
+
         if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
             export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+        elif [[ "${arg}" = --opt-report ]]; then
+            export MIDAS_COMPILE_OPTIMIZE_REPORT=yes
+        elif [[ "${arg}" = --optreport ]]; then
+            echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
+            exit 1
+        elif [[ "${arg}" = --codecov ]]; then
+            if [[ $# -lt 2 ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            elif [[ ${2} = -* || -z "${2}" ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            fi
+            export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
+            shift
         elif [[ "${arg}" = -* ]]; then
             echo "midas_build: this option '${arg}' is not allowed" >&2
             exit 1
@@ -83,7 +102,9 @@ else
         else
             __target=${arg}
         fi
-    done ## End of 'for arg in ${@}'
+
+        shift
+    done ## End of 'while [[ $# > 0 ]]'
 
     if [[ -n "${__target}" ]]; then
         __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
