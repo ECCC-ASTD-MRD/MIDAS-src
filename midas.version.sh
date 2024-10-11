@@ -19,7 +19,7 @@ ${command} || status=1
 
 if [ "${status}" -ne 0 ]; then
     toplevel=$(git rev-parse --show-toplevel)
-    ${toplevel}/set_resources_def.sh
+    ${toplevel}/set_resources_def.sh ${toplevel}
     suite=${toplevel}/maestro/suites/midas_system_tests
     . ${suite}/set_machine_list.dot ${suite}
 

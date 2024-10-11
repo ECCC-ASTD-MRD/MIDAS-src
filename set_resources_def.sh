@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-typeset -r resourcesDir=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/resources
+typeset -r toplevel=${1:-$(git rev-parse --show-toplevel)}
+
+typeset -r resourcesDir=${toplevel}/maestro/suites/midas_system_tests/resources
 
 # select which file to use for resources.def
 if [ "${TRUE_HOST}" = eccc-ppp1 -o "${TRUE_HOST}" = eccc-ppp2 -o "${TRUE_HOST}" = hare -o "${TRUE_HOST}" = brooks ]; then

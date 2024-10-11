@@ -33,7 +33,7 @@ fi
 typeset -r resources_file=${toplevel}/maestro/suites/midas_system_tests/resources/resources.def
 
 ## Rebuild the 'resources.def' file by calling 'set_resources_def.sh'
-${toplevel}/set_resources_def.sh
+${toplevel}/set_resources_def.sh ${toplevel}
 
 ## First, check if there is one and only one definition of at least one of the
 ## variables in the resources file
