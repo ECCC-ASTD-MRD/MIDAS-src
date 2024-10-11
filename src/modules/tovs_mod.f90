@@ -5279,7 +5279,6 @@ contains
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorHeaderIndexes(:) 
     integer :: allocStatus
-    integer :: nobmax
     integer :: sensorIndex
     integer :: hydroChannelsCount
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,levelIndex,nlv_M,nlv_T
@@ -5384,7 +5383,6 @@ contains
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
       
-      nobmax = sensorHeaderIndexes(profileCount)      
       allocate(profilesdata_tl(profileCount))
       allocate(cld_profiles_tl(profileCount))
       allocate(surfTypeIsWater(profileCount))
@@ -5784,7 +5782,6 @@ contains
     integer, allocatable :: sensorHeaderIndexes(:) 
     integer :: allocStatus
     integer :: nthreads
-    integer :: nobmax
     integer :: sensorIndex
     integer :: hydroChannelsCount
     integer :: ilowlvl_T,ilowlvl_M,profileCount,headerIndex,nlv_M,nlv_T
@@ -5884,7 +5881,6 @@ contains
       
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
-      nobmax = sensorHeaderIndexes(profileCount)
      
       allocate(tt_ad(nlv_T,profileCount))
       allocate(hu_ad(nlv_T,profileCount))
@@ -6348,7 +6344,7 @@ contains
     type(rttov_radiance)               :: radiancedata_k 
     integer, allocatable               :: sensorHeaderIndexes(:) 
     integer                            :: allocStatus
-    integer                            :: nobmax, profileCount, btCount, btCountScatt
+    integer                            :: profileCount, btCount, btCountScatt
     integer                            :: sensorIndex
     integer                            :: nlv_T
     integer                            :: instrum
@@ -6387,7 +6383,6 @@ contains
       
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
-      nobmax = sensorHeaderIndexes(profileCount)
 
       if (btCount > 0) then
         call rttov_alloc_k(                  &
