@@ -695,12 +695,11 @@ contains
       allocate(tvs_radiance(1:tvs_headerEnd))
       do headerIndex = 1, tvs_headerEnd
         sensorIndex = tvs_lsensor(headerIndex)
-        if (sensorIndex > -1) then
-          ! allocate BT equivalent to total direct, tl and ad radiance output
-          allocate(tvs_radiance(headerIndex) % bt (tvs_nchan(sensorIndex)))
-          tvs_radiance(headerIndex) % bt (:) = 0.d0
-          nullify (tvs_radiance(headerIndex) % clear)
-        end if
+        if (sensorIndex <= 0) cycle
+        ! allocate BT equivalent to total direct, tl and ad radiance output
+        allocate(tvs_radiance(headerIndex) % bt (tvs_nchan(sensorIndex)))
+        tvs_radiance(headerIndex) % bt (:) = 0.d0
+        nullify (tvs_radiance(headerIndex) % clear)
       end do
 
     end if !if (radiativeTransferCode == 'RTTOV')
@@ -2116,7 +2115,7 @@ contains
     logical,    optional, intent(in)  :: excludeChannelsFromList_opt! .true. to exclude channels from list; .false. to select them  
 
     ! Locals:
-    integer :: btCount, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber
+    integer :: btCount, profileIndex, headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex, channelNumber
     integer :: channelIndex
     logical :: isChannelInList, excludeChannelsFromList, selected
 
@@ -2133,36 +2132,35 @@ contains
     
     do profileIndex = 1, size(sensorHeaderIndexes)
       headerIndex = sensorHeaderIndexes(profileIndex)
-      if (headerIndex > 0) then
-        istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                channelNumber, channelIndex )
-            if (channelIndex > 0) then
-              isChannelInList = .true.
-              if (present(channelList_opt) ) then
-                isChannelInList = (utl_findloc(channelList_opt, channelNumber) > 0 )
-              end if
-              if (excludeChannelsFromList) then
-                selected = .not. isChannelInList
-              else
-                selected = isChannelInList
-              end if
-              if (selected) then
-                btCount = btCount + 1
-                chanprof(btCount) % prof = profileIndex
-                chanprof(btCount) % chan = channelIndex
-                if (present(iptobs_cma_opt)) iptobs_cma_opt(btCount) = bodyIndex
-                if (present(lchannel_subset_opt)) lchannel_subset_opt(profileIndex,channelIndex) = .true.
-              end if
-            else
-              write(*,*) 'tvs_getChanProf: strange channel number', channelNumber
+      if (headerIndex <= 0) cycle
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+              channelNumber, channelIndex )
+          if (channelIndex > 0) then
+            isChannelInList = .true.
+            if (present(channelList_opt) ) then
+              isChannelInList = (utl_findloc(channelList_opt, channelNumber) > 0 )
             end if
+            if (excludeChannelsFromList) then
+              selected = .not. isChannelInList
+            else
+              selected = isChannelInList
+            end if
+            if (selected) then
+              btCount = btCount + 1
+              chanprof(btCount) % prof = profileIndex
+              chanprof(btCount) % chan = channelIndex
+              if (present(iptobs_cma_opt)) iptobs_cma_opt(btCount) = bodyIndex
+              if (present(lchannel_subset_opt)) lchannel_subset_opt(profileIndex,channelIndex) = .true.
+            end if
+          else
+            write(*,*) 'tvs_getChanProf: strange channel number', channelNumber
           end if
-        end do
-      end if
+        end if
+      end do
     end do
   
   end subroutine tvs_getChanprof
@@ -2186,14 +2184,13 @@ contains
     tvs_countRadiances = 0
     do profileIndex = 1, size(sensorHeaderIndexes)
       headerIndex = sensorHeaderIndexes(profileIndex)
-      if (headerIndex > 0) then
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY:do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
-        end do BODY
-      end if
+      if (headerIndex <= 0) cycle
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY:do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
+      end do BODY
     end do
 
   end function tvs_countRadiances
@@ -2219,21 +2216,20 @@ contains
     tvs_countRadiancesScatt = 0
     do profileIndex = 1, size(sensorHeaderIndexes)
       headerIndex = sensorHeaderIndexes(profileIndex)
-      if (headerIndex > 0) then
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY:do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
-            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-            if (utl_findloc(scattChannelList,channelNumber) > 0) then
-              tvs_countRadiancesScatt  = tvs_countRadiancesScatt + 1
-            end if
+      if (headerIndex <= 0) cycle
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY:do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+          channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
+          channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+          if (utl_findloc(scattChannelList,channelNumber) > 0) then
+            tvs_countRadiancesScatt  = tvs_countRadiancesScatt + 1
           end if
-        end do BODY
-      end if
+        end if
+      end do BODY
     end do
   
   end function tvs_countRadiancesScatt
@@ -2281,22 +2277,21 @@ contains
     real(8),          intent(out) :: surfem(:)              ! surface emissivity
 
     ! Locals:
-    integer :: count, profileIndex, istart, iend, bodyIndex, headerIndex
+    integer :: count, profileIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex, headerIndex
 
     count = 0 
     surfem(:) = 0.98d0
     do profileIndex = 1, size(sensorHeaderIndexes)
       headerIndex = sensorHeaderIndexes(profileIndex)
-      if (headerIndex > 0 ) then
-        istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            count = count + 1
-            surfem ( count ) = obs_bodyElem_r(obsSpaceData,OBS_SEM,bodyIndex)
-          end if
-        end do
-      end if
+      if (headerIndex <= 0 ) cycle
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          count = count + 1
+          surfem ( count ) = obs_bodyElem_r(obsSpaceData,OBS_SEM,bodyIndex)
+        end if
+      end do
     end do
 
   end subroutine tvs_getHIREmissivities
@@ -2520,6 +2515,7 @@ contains
       end if
       
       allocate(sensorHeaderIndexes(profileCount))
+      sensorHeaderIndexes(:) = -1
       allocate(latitudes(profileCount))
       allocate(ozone(nlv_T,profileCount)) 
       allocate(pressure(nlv_T,profileCount))
@@ -5152,7 +5148,7 @@ contains
 
     ! Locals:
     integer :: hydroSensorIndex, channelIndex
-    integer :: btIndex, profileIndex, headerIndex, bodyIndex, istart, iend
+    integer :: btIndex, profileIndex, headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber
     logical :: irBgckMode
 
@@ -5187,6 +5183,7 @@ contains
       end if
     end if
 
+    sensorHeaderIndexes(:) = -1
     profileCount = 0
     do headerIndex = 1, tvs_headerEnd
       ! Currently processed sensor?
@@ -5224,19 +5221,18 @@ contains
         
         do profileIndex = 1, profileCount
           headerIndex = sensorHeaderIndexes(profileIndex)
-          if (headerIndex > 0) then
-            istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-            iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-            do bodyIndex = istart, iend
-              call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                  channelNumber, channelIndex )
-              if (channelIndex > 0) then
-                tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorIndex)+channelIndex,sensorIndex) = bodyIndex
-              else
-                write(*,*) 'tvs_rttov: strange channel number',channelNumber
-              end if
-            end do
-          end if
+          if (headerIndex <= 0) cycle
+          bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                channelNumber, channelIndex )
+            if (channelIndex > 0) then
+              tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorIndex)+channelIndex,sensorIndex) = bodyIndex
+            else
+              write(*,*) 'tvs_rttov: strange channel number',channelNumber
+            end if
+          end do
         end do
       else
         if (btCountScatt > 0) then
