@@ -370,7 +370,7 @@ contains
   !--------------------------------------------------------------------------
   !  sse_extractEmissivityCol
   !--------------------------------------------------------------------------
-  subroutine sse_extractEmissivityCol(column, emissivityFromTrl, profileCount, sensorHeaderIndexes, headerStart, headerEnd)
+  subroutine sse_extractEmissivityCol(column, emissivityFromTrl, profileCount, sensorHeaderIndexes, headerEnd)
     !
     !:Purpose: Extract emissivity from column objects
     !
@@ -381,7 +381,6 @@ contains
     real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
     integer,                         intent(in)      :: profileCount             ! Profile count
     integer,                         intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
-    integer,                         intent(in)      :: headerStart              ! start headerIndex for TOVS observations
     integer,                         intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
     
     ! Locals:
@@ -390,7 +389,7 @@ contains
   
     emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
    
-    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(headerStart:headerEnd, emissTrlNumChan))
+    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(1:headerEnd, emissTrlNumChan))
 
     do profileIndex = 1 , profileCount 
       headerIndex = sensorHeaderIndexes(profileIndex)

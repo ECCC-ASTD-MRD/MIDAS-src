@@ -484,13 +484,14 @@ module fsoi_mod
       end do
     end do
 
-    do headerIndex = tvs_headerStart, tvs_headerEnd
+    do headerIndex = 1, tvs_headerEnd
+      sensorIndex = tvs_lsensor(headerIndex)
+      if (sensorIndex < 0) cycle
       bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle 
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
-        sensorIndex = tvs_lsensor(headerIndex)
         tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
         numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
       end do

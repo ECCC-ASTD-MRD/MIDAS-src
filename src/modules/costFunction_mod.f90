@@ -179,7 +179,7 @@ contains
       end select
     end do
 
-    do headerIndex = tvs_headerStart, tvs_headerEnd
+    do headerIndex = 1, tvs_headerEnd
       bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
       bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
       sensorIndex = tvs_lsensor (headerIndex)

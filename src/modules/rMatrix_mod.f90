@@ -42,13 +42,12 @@ module rMatrix_mod
 
 contains
 
-  subroutine rmat_init(nsensors, headerStart, headerEnd)
+  subroutine rmat_init(nsensors, headerEnd)
    
     implicit none
 
     ! Arguments:
     integer, intent(in) :: nsensors
-    integer, intent(in) :: headerStart
     integer, intent(in) :: headerEnd
 
     ! Locals:
@@ -71,7 +70,7 @@ contains
     call utl_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
-      allocate(R_tovs(headerStart:headerEnd))
+      allocate(R_tovs(1:headerEnd))
     end if
 
   end subroutine rmat_init

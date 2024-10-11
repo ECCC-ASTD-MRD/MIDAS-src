@@ -558,7 +558,7 @@ contains
     ! Locals:
     real(8) :: predictor(NumPredictors)
     integer :: nsize, i, j, npred
-    integer :: headerIndex, idatyp, indxtovs
+    integer :: headerIndex, idatyp
     integer :: iSensor, iFov, iPredictor, ierr
     integer :: bodyIndex, jpred, chanIndx
     real(8), allocatable ::  temp_offset(:,:)
@@ -668,7 +668,7 @@ contains
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -750,7 +750,7 @@ contains
     logical, optional, intent(in)    :: fromGenCoeff_opt
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
     real(8)  :: predictor(NumPredictors)
@@ -1322,7 +1322,7 @@ contains
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -1426,21 +1426,21 @@ contains
     integer :: sensorIndex, bcifChannelIndex, maxChans
     real(8)  :: height1, height2
 
-    if (tvs_headerStart > 0) then
-      allocate(trialHeight300m850(tvs_headerStart:tvs_headerEnd))
-      allocate(trialHeight300m900(tvs_headerStart:tvs_headerEnd))
-      allocate(trialHeight300m1000(tvs_headerStart:tvs_headerEnd))
-      allocate(trialHeight50m200(tvs_headerStart:tvs_headerEnd))
-      allocate(trialHeight5m50(tvs_headerStart:tvs_headerEnd))
-      allocate(trialHeight1m10(tvs_headerStart:tvs_headerEnd))
-      allocate(trialTG(tvs_headerStart:tvs_headerEnd))
-      allocate(trialTotalWaterVaporContent(tvs_headerStart:tvs_headerEnd))
+    if (tvs_headerEnd > 0) then
+      allocate(trialHeight300m850(1:tvs_headerEnd))
+      allocate(trialHeight300m900(1:tvs_headerEnd))
+      allocate(trialHeight300m1000(1:tvs_headerEnd))
+      allocate(trialHeight50m200(1:tvs_headerEnd))
+      allocate(trialHeight5m50(1:tvs_headerEnd))
+      allocate(trialHeight1m10(1:tvs_headerEnd))
+      allocate(trialTG(1:tvs_headerEnd))
+      allocate(trialTotalWaterVaporContent(1:tvs_headerEnd))
       maxChans = 0
       do sensorIndex = 1, tvs_nsensors
         if (size(bias(sensorIndex)%chans) > maxChans) maxChans = size(bias(sensorIndex)%chans)
       end do
-      allocate(trialConvolutedLapseRate(tvs_headerStart:tvs_headerEnd, maxChans))
-      allocate(RadiosondeWeight(tvs_headerStart:tvs_headerEnd))
+      allocate(trialConvolutedLapseRate(1:tvs_headerEnd, maxChans))
+      allocate(RadiosondeWeight(1:tvs_headerEnd))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
       return
@@ -1457,7 +1457,7 @@ contains
         cycle HEADER
       end if
 
-      sensorIndex =  tvs_lsensor(headerIndex)
+      sensorIndex = tvs_lsensor(headerIndex)
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
@@ -1510,7 +1510,7 @@ contains
      
     end do HEADER
 
-    if (trialTG(tvs_headerStart) > 150.0d0) then
+    if (trialTG(1) > 150.0d0) then
       write(*,*) 'bcs_getTrialPredictors: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
@@ -2843,7 +2843,7 @@ contains
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
     integer    :: sensorIndex, iPred1, jPred1
     integer    :: headerIndex, idatyp, nPredMax, ierr, iFov, iScan, idim
-    integer    :: indxtovs, bodyIndex, chanIndx, predstart, ntot
+    integer    :: bodyIndex, chanIndx, predstart, ntot
     real(8)    :: OmF, sigmaObs, lambda, norm
     real(8)    :: predictor(NumPredictors)
     real(8), allocatable :: Matrix(:,:,:), Vector(:,:)
@@ -3120,7 +3120,7 @@ contains
 
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
-    integer :: idatyp, indxtovs, iSensor, chanIndx, ierr
+    integer :: idatyp, iSensor, chanIndx, ierr
     Real(8):: OmF
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
     integer, allocatable :: Count(:), CountMpiGlobal(:)

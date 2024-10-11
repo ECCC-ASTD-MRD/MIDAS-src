@@ -122,10 +122,8 @@ module tovs_mod
   ! Protected module variables
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
-  !integer, public, protected :: tvs_nobtov      ! Number of tovs observations (FOVs)
-  integer, public, protected :: tvs_headerStart ! header index of the first radiance observation
-  integer, public, protected :: tvs_headerEnd   ! header index of the last radiance observation
-  integer, public, protected :: tvs_nsensors ! Number of individual sensors.
+  integer, public, protected :: tvs_headerEnd ! header index of the last radiance observation
+  integer, public, protected :: tvs_nsensors  ! Number of individual sensors.
   logical, public, protected :: tvs_mwAllskyAssim
   logical, public, protected :: tvs_computeJacobian ! Compute Jacobian for brightness temperature
   integer, public, protected :: tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
@@ -204,7 +202,7 @@ contains
     !
     implicit none
 
-    allocate(tvs_surfaceParameters(tvs_headerStart:tvs_headerEnd))
+    allocate(tvs_surfaceParameters(1:tvs_headerEnd))
 
   end subroutine tvs_allocateSurfaceParameters
 
@@ -220,7 +218,7 @@ contains
     ! Arguments:
     integer, intent(in) :: maxChannelNumber  ! maximum number of channels for all sensors 
 
-    allocate(tvs_emissivity(maxChannelNumber,tvs_headerStart:tvs_headerEnd))
+    allocate(tvs_emissivity(maxChannelNumber,1:tvs_headerEnd))
 
   end subroutine tvs_allocateEmissivity
 
@@ -362,7 +360,7 @@ contains
     character(len=300) :: filePrefix
     character(len=400) :: fileName
     character(len=512) :: fullNameWithPath, path
-    logical :: fileExists, firstObs
+    logical :: fileExists
     integer :: extensionIndex
     integer,parameter :: nExtensions = 4
     character(len=4), parameter :: extensionList(nExtensions) = ['.bin', '.h5 ', '.H5 ', '.dat'] 
@@ -388,13 +386,11 @@ contains
     sensorTotalNumberOfProfiles(:) = 0
     tvs_isReallyPresent(:) = .true.
     tvs_lsensor(:) = -1
-    tvs_headerStart = -1
-    tvs_headerEnd = -2
+    tvs_headerEnd = -1
 
     ! Loop over all header indices of the 'TO' family
     ! Set the header list & start at the beginning of the list
     call obs_set_current_header_list(obsSpaceData,'TO')
-    firstObs = .true.
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
@@ -405,11 +401,6 @@ contains
         write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         call rejectObs(obsSpaceData, headerIndex)
         cycle HEADER   ! Proceed to the next headerIndex
-      end if
-      
-      if (firstObs) then
-        tvs_headerStart = headerIndex
-        firstObs = .false.
       end if
       tvs_headerEnd = headerIndex
      
@@ -513,7 +504,7 @@ contains
       end if
     end do
 
-    write(*,*) ' tvs_setupAlloc: tvs_headerStart, tvs_headerEnd = ', tvs_headerStart, tvs_headerEnd
+    write(*,*) ' tvs_setupAlloc: tvs_headerEnd = ', tvs_headerEnd
     
     allocate(ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors))
     do sensorIndex = 1, tvs_nsensors
@@ -701,8 +692,8 @@ contains
       !   4. Memory allocations for radiative tranfer model variables
 
       ! Radiance by profile
-      allocate(tvs_radiance(tvs_headerStart:tvs_headerEnd))
-      do headerIndex = tvs_headerStart, tvs_headerEnd
+      allocate(tvs_radiance(1:tvs_headerEnd))
+      do headerIndex = 1, tvs_headerEnd
         sensorIndex = tvs_lsensor(headerIndex)
         if (sensorIndex > -1) then
           ! allocate BT equivalent to total direct, tl and ad radiance output
@@ -765,9 +756,9 @@ contains
     integer :: headerIndex, sensorIndex, nchannels
 
     if (allocated(tvs_transmission)) deallocate(tvs_transmission)
-    allocate(tvs_transmission(tvs_headerStart:tvs_headerEnd))
+    allocate(tvs_transmission(1:tvs_headerEnd))
 
-    do headerIndex = tvs_headerStart, tvs_headerEnd
+    do headerIndex = 1, tvs_headerEnd
       sensorIndex = tvs_lsensor(headerIndex)
       if (sensorIndex <= 0) cycle
       nchannels = tvs_nchan(sensorIndex)
@@ -826,8 +817,7 @@ contains
 
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
-    tvs_headerStart = -1
-    tvs_headerEnd = -2
+    tvs_headerEnd = -1
 
     ! return if the NAMTOV does not exist
     if (.not. utl_isNamelistPresent('NAMTOV','./flnml')) then
@@ -1033,12 +1023,12 @@ contains
 
       !___ radiance by profile
 
-      do headerIndex = tvs_headerStart, tvs_headerEnd
+      do headerIndex = 1, tvs_headerEnd
         ! deallocate BT equivalent to total direct, tl and ad radiance output
         deallocate(tvs_radiance(headerIndex) % bt)
       end do
       deallocate(tvs_radiance)
-      do headerIndex = tvs_headerStart, tvs_headerEnd
+      do headerIndex = 1, tvs_headerEnd
         sensorIndex = tvs_lsensor(headerIndex)
         nlv_T = tvs_coefs(sensorIndex) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
@@ -2406,7 +2396,7 @@ contains
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: Starting'
   
-    if (tvs_headerStart < 0) return    ! exit if there are no tovs data
+    if (tvs_headerEnd < 0) return    ! exit if there are no tovs data
 
     if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnTrl,'LWCR') ) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
@@ -2447,16 +2437,16 @@ contains
 
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(tvs_headerStart:tvs_headerEnd))
+        allocate(tvs_profiles_nl(1:tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_nl(tvs_headerStart:tvs_headerEnd))
+          allocate(tvs_cld_profiles_nl(1:tvs_headerEnd))
         end if
       end if
     else if ( profileType == 'tlad' ) then
       if ( .not. allocated(tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(tvs_headerStart:tvs_headerEnd))
+        allocate(tvs_profiles_tlad(1:tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_tlad(tvs_headerStart:tvs_headerEnd))
+          allocate(tvs_cld_profiles_tlad(1:tvs_headerEnd))
         end if
       else
         return
@@ -2514,7 +2504,7 @@ contains
 
       ! first loop over all obs.
       profileCount = 0
-      bobs1: do headerIndex = tvs_headerStart, tvs_headerEnd
+      bobs1: do headerIndex = 1, tvs_headerEnd
         if (tvs_lsensor(headerIndex) == sensorIndex) then
           profileCount = profileCount + 1
           headmax = headerIndex
@@ -2555,7 +2545,7 @@ contains
 
       profileCount = 0
       ! second loop over all obs.
-      bobs2: do headerIndex = tvs_headerStart, headmax
+      bobs2: do headerIndex = 1, headmax
         if (tvs_lsensor(headerIndex) /= sensorIndex) cycle bobs2
         profileCount = profileCount + 1
         sensorHeaderIndexes(profileCount) = headerIndex
@@ -2798,7 +2788,7 @@ contains
       ! Extract emissivity from background column object to be used in the computation
       ! of non-linear RTTOV
       if (col_varExist(columnTrl, 'EMMW')) then
-        call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorHeaderIndexes, tvs_headerStart, tvs_headerEnd)
+        call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorHeaderIndexes, tvs_headerEnd)
       end if
 
       deallocate(pressure)
@@ -2905,7 +2895,7 @@ contains
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
 
-    if (tvs_headerStart < 0) return       ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return       ! exit if there are not tovs data
     
     if (.not. beSilent) write(*,*) 'tvs_rttov: Starting'
     if (.not. beSilent) call msg_memUsage('tvs_rttov')
@@ -2914,7 +2904,7 @@ contains
 
     max_nthreads = mmpi_numThread
 
-    allocate(sensorHeaderIndexes(tvs_headerEnd - tvs_headerStart + 1))
+    allocate(sensorHeaderIndexes(tvs_headerEnd))
 
     !   1.1   Read surface information
     if (bgckMode) call TVS_EMIS_READ_CLIMATOLOGY
@@ -2941,7 +2931,7 @@ contains
       if (btCount == 0 .and. btCountScatt==0) cycle sensor_loop
       
       !  loop over all obs.
-      obs_loop: do headerIndex = tvs_headerStart, tvs_headerEnd 
+      obs_loop: do headerIndex = 1, tvs_headerEnd 
         !    Currently processed sensor?
         if (tvs_lsensor(headerIndex) == sensorIndex) then
           nlv_T = tvs_profiles_nl(headerIndex) % nlevels
@@ -4417,7 +4407,7 @@ contains
 
     write(*,*) 'tvs_printDetailledOmfStatistics: Starting'
 
-    if (tvs_headerStart < 0) return    ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return    ! exit if there are not tovs data
 
     ! 1.  Computation of (hx - z)/sigma for tovs data only
 
@@ -5198,7 +5188,7 @@ contains
     end if
 
     profileCount = 0
-    do headerIndex = tvs_headerStart, tvs_headerEnd
+    do headerIndex = 1, tvs_headerEnd
       ! Currently processed sensor?
       if (tvs_lsensor(headerIndex) == sensorIndex) then
         profileCount = profileCount + 1
@@ -5332,7 +5322,7 @@ contains
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
          
-    if (tvs_headerStart < 0) return       ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return       ! exit if there are not tovs data
 
     write(*,*) 'tvs_rttov_tl: Starting'
 
@@ -5367,7 +5357,7 @@ contains
     !     1.  Get number of threads available and allocate memory for some variables
     !     .   ---------------------------------------------------------------------- 
 
-    allocate(sensorHeaderIndexes(tvs_headerEnd - tvs_headerStart + 1))
+    allocate(sensorHeaderIndexes(tvs_headerEnd))
     
     ! 2.  Computation of hx for tovs data only
     
@@ -5401,7 +5391,7 @@ contains
       surfTypeIsWater(:) = .false.
 
       profileCount = 0
-      obs_loop: do headerIndex = tvs_headerStart, tvs_headerEnd  
+      obs_loop: do headerIndex = 1, tvs_headerEnd  
         if (tvs_lsensor(headerIndex) /= sensorIndex) cycle obs_loop
         profileCount = profileCount + 1
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
@@ -5836,7 +5826,7 @@ contains
     logical :: runObsOperatorWithClw_ad
     logical :: runObsOperatorWithHydrometeors_ad
          
-    if (tvs_headerStart < 0) return      ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return      ! exit if there are not tovs data
     write(*,*) 'tvs_rttov_ad: Starting'
 
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
@@ -5869,7 +5859,7 @@ contains
 
     !     1.  Get number of threads available and allocate memory for some variables
  
-    allocate(sensorHeaderIndexes(tvs_headerEnd - tvs_headerStart + 1))
+    allocate(sensorHeaderIndexes(tvs_headerEnd))
 
     !     2.  Computation of adjoint hx for tovs data only
 
@@ -6371,7 +6361,7 @@ contains
     logical, pointer                   :: calcemis(:)
     logical, allocatable               :: lChannelSubset(:,:)
 
-    if (tvs_headerStart < 0) return ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return ! exit if there are not tovs data
   
     call tvs_getProfile(profiles, 'nl', cld_profiles)
   
@@ -6379,7 +6369,7 @@ contains
   
     nlv_T = col_getNumLev(columnTrlOnAnlIncLev, 'TH')
 
-    allocate(sensorHeaderIndexes(tvs_headerEnd - tvs_headerStart + 1))
+    allocate(sensorHeaderIndexes(tvs_headerEnd ))
         
     ! Loop over all sensors specified by user
   

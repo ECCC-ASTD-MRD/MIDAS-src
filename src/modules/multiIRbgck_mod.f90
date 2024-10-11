@@ -178,7 +178,7 @@ contains
     !___ emissivity by profile
 
     maxChannelNumber = 1
-    do headerIndex = tvs_headerStart, tvs_headerEnd
+    do headerIndex = 1, tvs_headerEnd
       sensorIndex = tvs_lsensor(headerIndex)
       channelNumber = tvs_nchan(sensorIndex)
       if (channelNumber > maxChannelNumber) maxChannelNumber=channelNumber
@@ -188,7 +188,7 @@ contains
     
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instruments(sensorIndex) == inst_id_iasi ) then
-        allocate (avhrr_bgck(tvs_headerStart:tvs_headerEnd))
+        allocate (avhrr_bgck(1:tvs_headerEnd))
         exit
       end if
     end do
