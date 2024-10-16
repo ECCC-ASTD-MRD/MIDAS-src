@@ -32,6 +32,9 @@ module gridVariableTransforms_mod
   save
   private
 
+  ! Public structure definition
+  public :: struct_gvt_energyNorm
+
   ! Public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
@@ -53,6 +56,15 @@ module gridVariableTransforms_mod
     module procedure gvt_transform_gsv
     module procedure gvt_transform_ens
   end interface gvt_transform
+
+  type struct_gvt_energyNorm
+    real(8) :: total = 0.0d0
+    real(8) :: uu = 0.0d0
+    real(8) :: vv = 0.0d0
+    real(8) :: tt = 0.0d0
+    real(8) :: p0 = 0.0d0
+    real(8) :: hu = 0.0d0
+  end type struct_gvt_energyNorm
 
 CONTAINS
 
@@ -2554,9 +2566,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_energyNorm
   !--------------------------------------------------------------------------
-  subroutine gvt_energyNorm(statevector_inout, statevector_ref,  &
+  function gvt_energyNorm(statevector_inout, statevector_ref,  &
                             latMin, latMax, lonMin, lonMax,      &
-                            uvNorm,ttNorm,p0Norm,huNorm,tgNorm, straNorm)
+                            uvNorm,ttNorm,p0Norm,huNorm,tgNorm, straNorm) result(energyNorm)
     !
     ! :Purpose: Computes energy norms
     !           For some positive definite symmetric matrix defining the energy,
@@ -2579,6 +2591,8 @@ CONTAINS
     logical,          intent(in)    :: huNorm
     logical,          intent(in)    :: tgNorm
     logical,          intent(in)    :: straNorm
+    ! Result:
+    type(struct_gvt_energyNorm) :: energyNorm
 
     ! Locals:
     integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T
@@ -2696,6 +2710,8 @@ CONTAINS
 
     if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for UU=', sumeu
     if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for VV=', sumev
+    energyNorm%uu = sumeu
+    energyNorm%vv = sumev
 
     ! for Temperature
     call gsv_getField(statevector_inout,field_T,'TT')
@@ -2762,6 +2778,7 @@ CONTAINS
     end if ! if ttNorm
 
     if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for TT=', sumet
+    energyNorm%tt = sumet
 
     ! humidity (set to zero, for now)
     call gsv_getField(statevector_inout,field_LQ,'HU')
@@ -2831,6 +2848,7 @@ CONTAINS
     end if ! if huNorm
 
     if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for HU=', sumeq
+    energyNorm%hu = sumeq
 
     ! surface pressure
     call gsv_getField(statevector_inout,field_Psfc,'P0')
@@ -2871,6 +2889,7 @@ CONTAINS
     end if ! if p0Norm
 
     if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for Ps=', sumep
+    energyNorm%p0 = sumep
 
     ! skin temperature (set to zero for now)
     call gsv_getField(statevector_inout,field_TG,'TG')
@@ -2904,12 +2923,13 @@ CONTAINS
       field_TG(:,:,:,:) = field_TG(:,:,:,:)*0.0D0
     end if ! if tgNorm
 
-    if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: energy for total=', sumeu + sumev + sumet + sumep + sumeq
+    energyNorm%total = sumeu + sumev + sumet + sumep + sumeq
+    if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: energy for total=', energyNorm%total
     deallocate(Press_T,Press_M)
     deallocate(Psfc_ref)
 
     if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: END'
 
-  end subroutine gvt_energyNorm
+  end function gvt_energyNorm
 
 end module gridVariableTransforms_mod

@@ -270,6 +270,7 @@ module fsoi_mod
     type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
     type(struct_vco), pointer       :: vco_anl
     integer                         :: dateStamp_fcst, dateStamp
+    type(struct_gvt_energyNorm)     :: energyNorm_tempfa, energyNorm_tempfb, energyNorm_fb
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
@@ -321,21 +322,21 @@ module fsoi_mod
 
     call gsv_copy(statevector_fa,statevector_tempfa)
     call gsv_copy(statevector_fb,statevector_tempfb)
-    call gvt_energyNorm(statevector_tempfa, statevector_a,  &
-                        latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
-                        includeUVnorm, includeTTnorm, includeP0norm,  &
-                        includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
-    call gvt_energyNorm(statevector_tempfb, statevector_a,  &
-                        latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
-                        includeUVnorm, includeTTnorm, includeP0norm,  &
-                        includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
+    energyNorm_tempfa = gvt_energyNorm(statevector_tempfa, statevector_a,  &
+                                       latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
+                                       includeUVnorm, includeTTnorm, includeP0norm,  &
+                                       includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
+    energyNorm_tempfb = gvt_energyNorm(statevector_tempfb, statevector_a,  &
+                                       latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
+                                       includeUVnorm, includeTTnorm, includeP0norm,  &
+                                       includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
 
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
-    call gvt_energyNorm(statevector_fb, statevector_a,  &
-                        latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
-                        includeUVnorm, includeTTnorm, includeP0norm,  &
-                        includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
+    energyNorm_fb = gvt_energyNorm(statevector_fb, statevector_a,  &
+                                   latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
+                                   includeUVnorm, includeTTnorm, includeP0norm,  &
+                                   includeHUnorm, includeTGnorm, StratoNorm) ! use analysis as reference state
     call gsv_copy(statevector_fb,statevector_out)
     call gsv_copy(statevector_a,statevector_verifAnalysis)
 
