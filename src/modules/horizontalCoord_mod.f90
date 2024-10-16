@@ -502,8 +502,13 @@ contains
     hco%EZscintIDsubGrids(:) = EZscintIDsubGrids(:)
     hco%lon(:)               = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
     hco%lat(:)               = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco%dlon                 = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco%dlat                 = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    if (trim(grtyp) == 'U') then
+      hco%dlon               = max(abs(hco%lon2d_4(2,1) - hco%lon2d_4(1,1)),abs(hco%lon2d_4(1,2) - hco%lon2d_4(1,1))) * MPC_RADIANS_PER_DEGREE_R8
+      hco%dlat               = max(abs(hco%lat2d_4(2,1) - hco%lat2d_4(1,1)),abs(hco%lat2d_4(1,2) - hco%lat2d_4(1,1))) * MPC_RADIANS_PER_DEGREE_R8
+    else
+      hco%dlon               = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+      hco%dlat               = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    end if
     hco%global               = global
     hco%rotated              = rotated
     hco%xlat1                = real(xlat1_4,8)
