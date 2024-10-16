@@ -2672,6 +2672,13 @@ CONTAINS
               else
                 if ( levIndex == nLev_M) then
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+                  ! Here we are mixing diagnostic level and first
+                  ! prognostic levels and there is not guarantee that
+                  ! it will ever be a monotonic progression.  So, if
+                  ! happends to be negative, set it to 0 instead.
+                  if ( scaleFactorLev < 0.0D0 ) then
+                    scaleFactorLev = 0.0D0
+                  end if
                 else if ( Press_T(lonIndex2, latIndex2, levIndex) < 10000.0D0) then
                   scaleFactorLev = 0.0D0
                 else
@@ -2750,6 +2757,13 @@ CONTAINS
               else
                 if (levIndex == nLev_T) then  !surface
                   scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+                  ! Here we are mixing diagnostic level and first
+                  ! prognostic levels and there is not guarantee that
+                  ! it will ever be a monotonic progression.  So, if
+                  ! happends to be negative, set it to 0 instead.
+                  if ( scaleFactorLev < 0.0D0 ) then
+                    scaleFactorLev = 0.0D0
+                  end if
                 else if (levIndex == 1)  then  ! top
                   scaleFactorLev = 0.0D0
                 else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
@@ -2817,6 +2831,13 @@ CONTAINS
               else
                 if ( levIndex == nLev_T) then !surface
                   scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T) - Press_T(lonIndex2, latIndex2, nLev_T-1)
+                  ! Here we are mixing diagnostic level and first
+                  ! prognostic levels and there is not guarantee that
+                  ! it will ever be a monotonic progression.  So, if
+                  ! happends to be negative, set it to 0 instead.
+                  if ( scaleFactorLev < 0.0D0 ) then
+                    scaleFactorLev = 0.0D0
+                  end if
                 else if (levIndex == 1)  then  ! top
                   scaleFactorLev = 0.0D0
                 else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
