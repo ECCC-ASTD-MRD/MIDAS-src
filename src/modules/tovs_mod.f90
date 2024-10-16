@@ -202,7 +202,7 @@ contains
     !
     implicit none
 
-    allocate(tvs_surfaceParameters(1:tvs_headerEnd))
+    allocate(tvs_surfaceParameters(tvs_headerEnd))
 
   end subroutine tvs_allocateSurfaceParameters
 
@@ -218,7 +218,7 @@ contains
     ! Arguments:
     integer, intent(in) :: maxChannelNumber  ! maximum number of channels for all sensors 
 
-    allocate(tvs_emissivity(maxChannelNumber,1:tvs_headerEnd))
+    allocate(tvs_emissivity(maxChannelNumber,tvs_headerEnd))
 
   end subroutine tvs_allocateEmissivity
 
@@ -692,7 +692,7 @@ contains
       !   4. Memory allocations for radiative tranfer model variables
 
       ! Radiance by profile
-      allocate(tvs_radiance(1:tvs_headerEnd))
+      allocate(tvs_radiance(tvs_headerEnd))
       do headerIndex = 1, tvs_headerEnd
         sensorIndex = tvs_lsensor(headerIndex)
         if (sensorIndex <= 0) cycle
@@ -755,7 +755,7 @@ contains
     integer :: headerIndex, sensorIndex, nchannels
 
     if (allocated(tvs_transmission)) deallocate(tvs_transmission)
-    allocate(tvs_transmission(1:tvs_headerEnd))
+    allocate(tvs_transmission(tvs_headerEnd))
 
     do headerIndex = 1, tvs_headerEnd
       sensorIndex = tvs_lsensor(headerIndex)
@@ -2456,16 +2456,16 @@ contains
 
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(1:tvs_headerEnd))
+        allocate(tvs_profiles_nl(tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_nl(1:tvs_headerEnd))
+          allocate(tvs_cld_profiles_nl(tvs_headerEnd))
         end if
       end if
     else if ( profileType == 'tlad' ) then
       if ( .not. allocated(tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(1:tvs_headerEnd))
+        allocate(tvs_profiles_tlad(tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_tlad(1:tvs_headerEnd))
+          allocate(tvs_cld_profiles_tlad(tvs_headerEnd))
         end if
       else
         return
