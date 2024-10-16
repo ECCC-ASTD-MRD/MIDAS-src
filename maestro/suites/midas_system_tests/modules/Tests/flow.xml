@@ -18,6 +18,7 @@
   <SUBMITS sub_name="SST"/>
   <SUBMITS sub_name="adjointTest"/>
   <SUBMITS sub_name="dfs"/>
+  <SUBMITS sub_name="energyNorm"/>
   
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -671,4 +672,13 @@
     <MODULE  name="UnitTest"/>
    </FAMILY>
  </FAMILY> 
+
+  <FAMILY  name="energyNorm">
+    <SUBMITS sub_name="analmean"/>
+    <FAMILY  name="analmean">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+
 </MODULE>
