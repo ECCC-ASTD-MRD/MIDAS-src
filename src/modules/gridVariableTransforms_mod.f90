@@ -2625,7 +2625,7 @@ CONTAINS
 
     ! compute 3D log pressure fields
     call gsv_getField(statevector_ref,Psfc_ptr,'P0')
-    allocate(Psfc_ref(statevector_inout%lonPerPEmax,statevector_inout%latPerPEmax))
+    allocate(Psfc_ref(statevector_inout%lonPerPE,statevector_inout%latPerPE))
     Psfc_ref(:,:) =  &
                   Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
                   statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)
