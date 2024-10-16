@@ -5265,7 +5265,6 @@ contains
         end if
       end if
     end if
-
     if (tvs_bodyIndexFromBtIndexScatt(1,sensorIndex) == -1 .and. btCountScatt > 0) then
       if (allocated(lChannelSubset)) deallocate(lChannelSubset)
       allocate(lChannelSubset(profileCount,tvs_nchan(sensorIndex)))
@@ -5384,8 +5383,8 @@ contains
                                           col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl
-      
-      call utl_reallocate(sensorHeaderIndexes, tvs_countProfiles(sensorIndex))
+      profileCount = tvs_countProfiles(sensorIndex)
+      call utl_reallocate(sensorHeaderIndexes, profileCount)
       call tvs_setupPointers(runObsOperatorWithHydrometeors_tl, sensorIndex, btCount, btCountScatt, &
           hydroChannelsCount, sensorHeaderIndexes, lChannelSubset, obsSpaceData)
       
