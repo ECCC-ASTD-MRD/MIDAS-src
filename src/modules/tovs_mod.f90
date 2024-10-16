@@ -167,7 +167,8 @@ module tovs_mod
   integer :: instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
   integer :: instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
   logical :: tvs_copyCoefficientFileToRamDisk
-  real(8) :: tvs_cloudScaleFactor 
+  real(8) :: tvs_cloudScaleFactor     ! cloud scale factor used for rttov NL in all-sky assimilation
+  real(8) :: tvs_cloudScaleFactor_tl  ! cloud scale factor used for rttov TL/AD in all-sky assimilation
   logical :: tvs_regLimitExtrap                    ! use RTTOV reg_limit_extrap option
   logical :: tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
   logical :: tvs_isAzimuthValid(tvs_maxNumberOfSensors)
@@ -796,7 +797,8 @@ contains
     logical :: copyCoefficientFileToRamDisk ! Copy RTTOV coefficient files to ramdisk
     logical :: mwInstrumUsingCLW_tl ! Choose to use CLW increment in TL/AD if exists as state variable
     logical :: mwInstrumUsingHydrometeors_tl ! Choose to all hydomet variables in TL/AD if exist as state variables
-    real(8) :: cloudScaleFactor  ! Scale factor applied to model produced clouds to account for bias
+    real(8) :: cloudScaleFactor     ! Scale factor applied in rttov NL to model produced clouds to account for bias
+    real(8) :: cloudScaleFactor_tl  ! Scale factor applied in rttov TL/AD to cloud increments
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
@@ -811,7 +813,8 @@ contains
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
     namelist /NAMTOV/ channelsUsingHydrometeors
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
-    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
+    namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
+    namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
 
     ! Use MW surface emissivity from ObsSpaceData
@@ -848,6 +851,7 @@ contains
     channelsUsingHydrometeors(:,:) = -1
     regLimitExtrap = .true.
     cloudScaleFactor = 0.5D0
+    cloudScaleFactor_tl = 1.0D0
     mwAllskyAssim = .false.
     copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false.
@@ -890,6 +894,7 @@ contains
     tvs_doAzimuthCorrection(:) =  doAzimuthCorrection(:)
     tvs_isAzimuthValid(:) =  isAzimuthValid(:)
     tvs_cloudScaleFactor = cloudScaleFactor 
+    tvs_cloudScaleFactor_tl = cloudScaleFactor_tl 
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
@@ -5448,7 +5453,7 @@ contains
         if (runObsOperatorWithClw_tl) then 
           if (surfTypeIsWater(profileIndex)) then
             delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
-            profilesdata_tl(profileIndex) % clw(1:nlv_T)  = delCLW(:)
+            profilesdata_tl(profileIndex) % clw(1:nlv_T)  = delCLW(:) * tvs_cloudScaleFactor_tl
           else
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = 0.d0
           end if
@@ -5459,7 +5464,7 @@ contains
             ! rain flux
             if (col_varExist(columnAnlInc,'RF')) then
               delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
-              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = delRF(:)
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = delRF(:) * tvs_cloudScaleFactor_tl
             else
               cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = 0.0d0
             end if
@@ -5467,7 +5472,7 @@ contains
             ! snow flux
             if (col_varExist(columnAnlInc,'SF')) then
               delSF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'SF')
-              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2)  = delSF(:)
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2)  = delSF(:) * tvs_cloudScaleFactor_tl
             else
               cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2) = 0.0d0
             end if
@@ -5477,11 +5482,11 @@ contains
 
             ! cloud liquid water content
             delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
-            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,4) = delCLW(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,4) = delCLW(:) * tvs_cloudScaleFactor_tl
 
             ! cloud ice water content
             delCIW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'IWCR')
-            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,5)  = delCIW(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,5)  = delCIW(:) * tvs_cloudScaleFactor_tl
           else
             cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1:5)  = 0.d0
           end if ! surfTypeIsWater
@@ -6263,7 +6268,7 @@ contains
             clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'LWCR')
             do levelIndex = 1, col_getNumLev(columnAnlInc, 'TH')
               clw_column(levelIndex) = clw_column(levelIndex) + &
-                  clw_ad(levelIndex,profileIndex)
+                  clw_ad(levelIndex,profileIndex) * tvs_cloudScaleFactor_tl
             end do
           end if
         end do
@@ -6277,7 +6282,8 @@ contains
             if (col_varExist(columnAnlInc,'RF')) then
               rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'RF')
               do levelIndex = 1, col_getNumLev(columnAnlInc, 'TH')
-                rf_column(levelIndex) = rf_column(levelIndex) + rf_ad(levelIndex,profileIndex)
+                rf_column(levelIndex) = rf_column(levelIndex) + &
+                  rf_ad(levelIndex,profileIndex) * tvs_cloudScaleFactor_tl
               end do
             end if
 
@@ -6285,7 +6291,8 @@ contains
             if (col_varExist(columnAnlInc,'SF')) then
               sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'SF')
               do levelIndex = 1, col_getNumLev(columnAnlInc, 'TH')
-                sf_column(levelIndex) = sf_column(levelIndex) + sf_ad(levelIndex,profileIndex)
+                sf_column(levelIndex) = sf_column(levelIndex) + &
+                  sf_ad(levelIndex,profileIndex) * tvs_cloudScaleFactor_tl
               end do
             end if
 
@@ -6293,8 +6300,10 @@ contains
             clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'LWCR')
             ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex), 'IWCR')
             do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-              clw_column(levelIndex) = clw_column(levelIndex) + clwScatt_ad(levelIndex,profileIndex)
-              ciw_column(levelIndex) = ciw_column(levelIndex) + ciw_ad(levelIndex,profileIndex)
+              clw_column(levelIndex) = clw_column(levelIndex) + &
+                clwScatt_ad(levelIndex,profileIndex) * tvs_cloudScaleFactor_tl
+              ciw_column(levelIndex) = ciw_column(levelIndex) + &
+                ciw_ad(levelIndex,profileIndex) * tvs_cloudScaleFactor_tl
             end do
           end if ! surfTypeIsWater
         end do ! profileIndex
