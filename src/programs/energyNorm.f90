@@ -144,18 +144,10 @@ program midas_energyNorm
 
   call gsv_getInfo(stateVectorReference, 'Reading from ''inputFile_ref''')
 
-  ! compute the difference between the state vector and the reference
-  call msg_memUsage('midas-energyNorm')
-  call gsv_add(stateVectorReference, stateVector, -1.0d0)
+  ! Compute the energy norm with state vector and its reference
+  energyNorm = compute_energyNorm(stateVector, stateVectorReference)
 
-  call msg_memUsage('midas-energyNorm')
-  call utl_tmg_start(3,'--computeEnergyNorm')
-  energyNorm = gvt_energyNorm(stateVector, stateVectorReference, &
-                              latMin=-95.0d0, latMax=95.0d0, lonMin=-185.0d0, lonMax=365.0d0, &
-                              uvNorm=.true., ttNorm=.true., p0Norm=.true., huNorm=.true.,  &
-                              tgNorm=.false., straNorm=.false.)
-  call utl_tmg_stop(3)
-  call msg_memUsage('midas-energyNorm')
+  call utl_tmg_start(5,'--WriteEnergyNormsToAscii')
 
   ! outFileName = trim(outFileName) // '_ascii'
   outFileName = 'energyNorm_ascii'
@@ -171,6 +163,8 @@ program midas_energyNorm
 
   ierr = fclos(nulFile)
 
+  call utl_tmg_stop(5)
+
   call gsv_deallocate(stateVector)
   call gsv_deallocate(stateVectorReference)
 
@@ -185,5 +179,58 @@ program midas_energyNorm
   call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
+
+contains
+  !--------------------------------------------------------------------------
+  ! compute_energyNorm
+  !--------------------------------------------------------------------------
+  function compute_energyNorm(stateVector, stateVectorReference) result(energyNorm)
+    !
+    ! :Purpose: Helper function which computes the energy norms by
+    !           taking the difference with the reference and calling
+    !           'gvt_energyNorm' on a stateVector
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: stateVector
+    type(struct_gsv), intent(in)    :: stateVectorReference
+    ! Result:
+    type(struct_gvt_energyNorm) :: energyNorm
+
+    ! Constants
+    real(8), parameter :: latMin = -95.0d0
+    real(8), parameter :: latMax =  95.0d0
+    real(8), parameter :: lonMin = -185.0d0
+    real(8), parameter :: lonMax =  365.0d0
+    logical, parameter :: includeUVNorm = .true.
+    logical, parameter :: includeTTNorm = .true.
+    logical, parameter :: includeP0Norm = .true.
+    logical, parameter :: includeHUNorm = .true.
+    logical, parameter :: includeTGNorm = .false.
+    ! if 'straNorm' is .true. then the error norm is from 100hPa to 1hPa,
+    ! if .false., it is from surface to 100hPa
+    logical, parameter :: straNorm = .false.
+
+    call msg_memUsage('midas-energyNorm')
+
+    ! compute the difference between the state vector and the reference
+    ! stateVector = stateVector - stateVectorReference
+    call utl_tmg_start(3,'--computeStateVectorDifference')
+    call gsv_add(stateVectorReference, stateVector, -1.0d0)
+    call utl_tmg_stop(3)
+
+    call msg_memUsage('midas-energyNorm')
+
+    call utl_tmg_start(4,'--computeEnergyNorm')
+    energyNorm = gvt_energyNorm(stateVector, stateVectorReference, &
+                                latMin=latMin, latMax=latMax, lonMin=lonMin, lonMax=lonMax, &
+                                uvNorm=includeUVNorm, ttNorm=includeTTNorm, p0Norm=includeP0Norm, &
+                                huNorm=includeHUNorm, tgNorm=includeTGNorm, straNorm=straNorm)
+    call utl_tmg_stop(4)
+
+    call msg_memUsage('midas-energyNorm')
+
+  end function compute_energyNorm
 
 end program midas_energyNorm
