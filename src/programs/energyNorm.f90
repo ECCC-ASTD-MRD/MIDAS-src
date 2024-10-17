@@ -74,13 +74,15 @@ program midas_energyNorm
 
   implicit none
 
-  character(len=256) :: outFileName
-  integer            :: istamp,exdb,exfin,fnom,fclos,ierr,nulFile,energyNormIndex
-  type(struct_gsv)   :: stateVector, stateVectorReference
+  character(len=256), parameter :: inputFileName  = 'inputFiles'
+  character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
+  integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileInput,nulFileOutput
+  integer :: readStatus, lineNumber
+  type(struct_gsv), target  :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
-  type(struct_gvt_energyNorm), allocatable :: energyNorms(:)
-  integer, parameter :: numberOfInputFiles = 1
+  character(len=1024) :: line, trimmedLine
+  logical :: isReferenceStateInitialized = .false.
 
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
@@ -97,82 +99,81 @@ program midas_energyNorm
   ! Read the namelists
   call utl_readNml()
 
-  !
   !- Initialize the Temporal grid and set dateStamp from env variable
-  !
   call tim_setup()
 
   ! Setup the format of the output RPN standard files to 'XDF' or 'RSF'
   call gio_setup
 
-  !
   !- Initialize variables of the model states
-  !
   call gsv_setup
   call msg_memUsage('midas-energyNorm')
 
-  !
-  !- Initialize the Analysis grid
-  !
-  call hco_SetupFromFile(hco, 'inputFile', etiketName=' ')
-
-  !
-  !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-  call vco_SetupFromFile(vco, 'inputFile')
-
-  allocate(energyNorms(numberOfInputFiles))
-
-  call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
-                    dateStamp_opt=tim_getDateStamp(), &
-                    mpi_local_opt=.true., dataKind_opt=8,  &
-                    hInterpolateDegree_opt='LINEAR', &
-                    beSilent_opt=.false. )
-
-  call gsv_allocate(stateVectorReference, tim_nstepobs, hco, vco,  &
-                    dateStamp_opt=tim_getDateStamp(), &
-                    mpi_local_opt=.true., dataKind_opt=8,  &
-                    hInterpolateDegree_opt='LINEAR', &
-                    beSilent_opt=.false. )
-
-  call utl_tmg_start(1,'--ReadingStateVector')
-  call gio_readFromFile(stateVector, 'inputFile', etiket_in=' ', typvar_in=' ')
-  call utl_tmg_stop(1)
-
-  call gsv_getInfo(stateVector, 'Reading from ''inputFile''')
-
-  call utl_tmg_start(2,'--ReadingStateVectorRef')
-  call gio_readFromFile(stateVectorReference, 'inputFile_ref', etiket_in=' ', typvar_in=' ')
-  call utl_tmg_stop(2)
-  call msg_memUsage('midas-energyNorm')
-
-  call gsv_getInfo(stateVectorReference, 'Reading from ''inputFile_ref''')
-
-  ! Compute the energy norm with state vector and its reference
-  energyNorms(1) = compute_energyNorm(stateVector, stateVectorReference)
-
-  call utl_tmg_start(5,'--WriteEnergyNormsToAscii')
-
-  ! outFileName = trim(outFileName) // '_ascii'
-  outFileName = 'energyNorm_ascii'
-  write(*,*) 'epp_printRmsStats: Opening ascii output file: ', trim(outFileName)
-  nulFile = 0
-  ierr = fnom (nulFile, outFileName, 'SEQ+R/W', 0)
+  write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
+  nulFileInput = 0
+  ierr = fnom(nulFileInput, trim(inputFileName), 'SEQ+R/O', 0)
   if (ierr /= 0) then
-    call utl_abort('epp_printRmsStats: Cannot open ascii output file')
+    call utl_abort('midas-energyNorm: Cannot open ascii output file')
   end if
 
-  !! Write the energy norm value in the file 'outFileName'
-  do energyNormIndex = 1, numberOfInputFiles
-    write(nulFile,*) 'energy norm = ', energyNorms(energyNormIndex)
-  end do
+  write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
+  nulFileOutput = 0
+  if ( mmpi_myid == 0 ) then
+    ierr = fnom(nulFileOutput, trim(outputFileName), 'SEQ+R/W', 0)
+    if (ierr /= 0) then
+      call utl_abort('midas-energyNorm: Cannot open ascii output file')
+    end if
+  end if
 
-  ierr = fclos(nulFile)
+  lineNumber = 0
+  readLoop: do
+    lineNumber = lineNumber + 1
+    read(nulFileInput, '(a)', iostat=readStatus) line
 
-  call utl_tmg_stop(5)
+    ! If we reached the end of file, exit the loop
+    if ( readStatus < 0 ) exit readLoop
+    ! We encountered an error while reading the file
+    if ( readStatus > 0 ) then
+      call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
+    end if
+
+    write(*,*) 'Reading the line ' // str(lineNumber) // ': ''' // trim(line) // ''''
+    trimmedLine = trim(line)
+    ! If the line starts with '#' or '!' or is empty, we ignore the line.
+    if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len(trim(line)) == 0 ) then
+      write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
+      cycle readLoop
+    end if
+
+    if ( .not. isReferenceStateInitialized ) then
+      call initializeReferenceState(line, stateVectorReference, hco, vco)
+
+      call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
+                        dateStamp_opt=tim_getDateStamp(),     &
+                        mpi_local_opt=.true., dataKind_opt=8, &
+                        hInterpolateDegree_opt='LINEAR',      &
+                        beSilent_opt=.false. )
+
+      isReferenceStateInitialized = .true.
+      call msg_memUsage('midas-energyNorm')
+    else
+      ! Compute the energy norm with state vector and its reference
+      ! and print in the output file given by 'line'
+      call compute_energyNorm(stateVectorReference, line, stateVector, nulFileOutput)
+    endif ! .not. isReferenceStateInitialized
+
+    call utl_printTime()
+  end do readLoop
+
+  ! closing 'inputFileName'
+  ierr = fclos(nulFileInput)
+  ! closing 'outputFileName'
+  if ( mmpi_myid == 0 ) then
+    ierr = fclos(nulFileOutput)
+  end if
 
   call gsv_deallocate(stateVector)
   call gsv_deallocate(stateVectorReference)
-  deallocate(energyNorms)
 
   !
   !- 3. Job termination
@@ -187,24 +188,58 @@ program midas_energyNorm
   call rpn_comm_finalize(ierr)
 
 contains
+
   !--------------------------------------------------------------------------
   ! compute_energyNorm
   !--------------------------------------------------------------------------
-  function compute_energyNorm(stateVector, stateVectorReference) result(energyNorm)
+  subroutine initializeReferenceState(inputFileName, stateVectorReference, hco, vco)
     !
-    ! :Purpose: Helper function which computes the energy norms by
-    !           taking the difference with the reference and calling
-    !           'gvt_energyNorm' on a stateVector
+    ! :Purpose: Helper function initializes the reference state vector
+    !           and horizonal and vertical definitions from
+    !           'inputileName'
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: stateVector
-    type(struct_gsv), intent(in)    :: stateVectorReference
-    ! Result:
-    type(struct_gvt_energyNorm) :: energyNorm
+    character(len=*), intent(in) :: inputFileName
+    type(struct_gsv), pointer, intent(in)  :: stateVectorReference
+    type(struct_vco), pointer, intent(out) :: vco
+    type(struct_hco), pointer, intent(out) :: hco
 
-    ! Constants
+    call hco_SetupFromFile(hco, inputFileName, etiketName=' ')
+    call vco_SetupFromFile(vco, inputFileName)
+
+    call gsv_allocate(stateVectorReference, tim_nstepobs, hco, vco, &
+                      dateStamp_opt=tim_getDateStamp(),             &
+                      mpi_local_opt=.true., dataKind_opt=8,         &
+                      hInterpolateDegree_opt='LINEAR',              &
+                      beSilent_opt=.false.)
+
+    call utl_tmg_start(1,'--ReadingStateVectorRef')
+    call gio_readFromFile(stateVectorReference, inputFileName, etiket_in=' ', typvar_in=' ')
+    call utl_tmg_stop(1)
+    call msg_memUsage('midas-energyNorm')
+
+  end subroutine initializeReferenceState
+
+  !--------------------------------------------------------------------------
+  ! energyNorm
+  !--------------------------------------------------------------------------
+  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, nulFile)
+    !
+    ! :Purpose: Helper function which computes the energy norm for an
+    !           input file with respect to a reference. If then prints
+    !           the result in the outputFile identified by 'nulFile'.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), pointer, intent(in)  :: stateVectorReference
+    character(len=*), intent(in)  :: fileName
+    type(struct_gsv), pointer, intent(in) :: stateVector
+    integer :: nulFile
+
+    ! Constants:
     real(8), parameter :: latMin = -95.0d0
     real(8), parameter :: latMax =  95.0d0
     real(8), parameter :: lonMin = -185.0d0
@@ -218,6 +253,14 @@ contains
     ! if .false., it is from surface to 100hPa
     logical, parameter :: straNorm = .false.
 
+    ! Locals:
+    type(struct_gvt_energyNorm) :: energyNorm
+
+    call msg_memUsage('midas-energyNorm')
+
+    call utl_tmg_start(2,'--ReadingStateVector')
+    call gio_readFromFile(stateVector, fileName, etiket_in=' ', typvar_in=' ')
+    call utl_tmg_stop(2)
     call msg_memUsage('midas-energyNorm')
 
     ! compute the difference between the state vector and the reference
@@ -237,6 +280,12 @@ contains
 
     call msg_memUsage('midas-energyNorm')
 
-  end function compute_energyNorm
+    !! Write the result in the file
+    write(*,'(a1024,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
+    if ( mmpi_myid == 0 ) then
+      write(nulFile,'(a1024,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
+    end if
+
+  end subroutine compute_energyNorm
 
 end program midas_energyNorm
