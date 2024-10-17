@@ -75,11 +75,12 @@ program midas_energyNorm
   implicit none
 
   character(len=256) :: outFileName
-  integer            :: istamp,exdb,exfin,fnom,fclos,ierr,nulFile
+  integer            :: istamp,exdb,exfin,fnom,fclos,ierr,nulFile,energyNormIndex
   type(struct_gsv)   :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
-  type(struct_gvt_energyNorm) :: energyNorm
+  type(struct_gvt_energyNorm), allocatable :: energyNorms(:)
+  integer, parameter :: numberOfInputFiles = 1
 
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
@@ -119,6 +120,8 @@ program midas_energyNorm
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
   call vco_SetupFromFile(vco, 'inputFile')
 
+  allocate(energyNorms(numberOfInputFiles))
+
   call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
                     dateStamp_opt=tim_getDateStamp(), &
                     mpi_local_opt=.true., dataKind_opt=8,  &
@@ -145,7 +148,7 @@ program midas_energyNorm
   call gsv_getInfo(stateVectorReference, 'Reading from ''inputFile_ref''')
 
   ! Compute the energy norm with state vector and its reference
-  energyNorm = compute_energyNorm(stateVector, stateVectorReference)
+  energyNorms(1) = compute_energyNorm(stateVector, stateVectorReference)
 
   call utl_tmg_start(5,'--WriteEnergyNormsToAscii')
 
@@ -159,7 +162,9 @@ program midas_energyNorm
   end if
 
   !! Write the energy norm value in the file 'outFileName'
-  write(nulFile,*) 'energy norm = ', energyNorm
+  do energyNormIndex = 1, numberOfInputFiles
+    write(nulFile,*) 'energy norm = ', energyNorms(energyNormIndex)
+  end do
 
   ierr = fclos(nulFile)
 
@@ -167,6 +172,7 @@ program midas_energyNorm
 
   call gsv_deallocate(stateVector)
   call gsv_deallocate(stateVectorReference)
+  deallocate(energyNorms)
 
   !
   !- 3. Job termination
