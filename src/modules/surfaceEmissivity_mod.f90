@@ -389,7 +389,7 @@ contains
   
     emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
    
-    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(1:headerEnd, emissTrlNumChan))
+    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(headerEnd, emissTrlNumChan))
 
     do profileIndex = 1 , profileCount 
       headerIndex = sensorHeaderIndexes(profileIndex)

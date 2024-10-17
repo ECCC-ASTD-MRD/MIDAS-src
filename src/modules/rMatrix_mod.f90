@@ -70,7 +70,7 @@ contains
     call utl_tmg_stop(181)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))
-      allocate(R_tovs(1:headerEnd))
+      allocate(R_tovs(headerEnd))
     end if
 
   end subroutine rmat_init
