@@ -188,7 +188,7 @@ contains
     
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instruments(sensorIndex) == inst_id_iasi ) then
-        allocate (avhrr_bgck(1:tvs_headerEnd))
+        allocate (avhrr_bgck(tvs_headerEnd))
         exit
       end if
     end do
