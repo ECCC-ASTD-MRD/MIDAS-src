@@ -1427,20 +1427,20 @@ contains
     real(8)  :: height1, height2
 
     if (tvs_headerEnd > 0) then
-      allocate(trialHeight300m850(1:tvs_headerEnd))
-      allocate(trialHeight300m900(1:tvs_headerEnd))
-      allocate(trialHeight300m1000(1:tvs_headerEnd))
-      allocate(trialHeight50m200(1:tvs_headerEnd))
-      allocate(trialHeight5m50(1:tvs_headerEnd))
-      allocate(trialHeight1m10(1:tvs_headerEnd))
-      allocate(trialTG(1:tvs_headerEnd))
-      allocate(trialTotalWaterVaporContent(1:tvs_headerEnd))
+      allocate(trialHeight300m850(tvs_headerEnd))
+      allocate(trialHeight300m900(tvs_headerEnd))
+      allocate(trialHeight300m1000(tvs_headerEnd))
+      allocate(trialHeight50m200(tvs_headerEnd))
+      allocate(trialHeight5m50(tvs_headerEnd))
+      allocate(trialHeight1m10(tvs_headerEnd))
+      allocate(trialTG(tvs_headerEnd))
+      allocate(trialTotalWaterVaporContent(tvs_headerEnd))
       maxChans = 0
       do sensorIndex = 1, tvs_nsensors
         if (size(bias(sensorIndex)%chans) > maxChans) maxChans = size(bias(sensorIndex)%chans)
       end do
-      allocate(trialConvolutedLapseRate(1:tvs_headerEnd, maxChans))
-      allocate(RadiosondeWeight(1:tvs_headerEnd))
+      allocate(trialConvolutedLapseRate(tvs_headerEnd, maxChans))
+      allocate(RadiosondeWeight(tvs_headerEnd))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
       return
