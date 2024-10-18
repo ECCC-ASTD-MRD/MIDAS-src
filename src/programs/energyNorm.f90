@@ -77,7 +77,7 @@ program midas_energyNorm
   character(len=256), parameter :: inputFileName  = 'inputFiles'
   character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
   integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileInput,nulFileOutput
-  integer :: readStatus, lineNumber
+  integer :: readStatus, lineNumber, charIndex
   type(struct_gsv), target  :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
@@ -138,15 +138,25 @@ program midas_energyNorm
     end if
 
     write(*,*) 'Reading the line ' // str(lineNumber) // ': ''' // trim(line) // ''''
-    trimmedLine = trim(line)
+
+    ! build 'trimmedLine' by removing leading spaces in 'line'
+    ! the function 'trim' is only removing the trailing spaces in 'line'
+    trimmedLine = ''
+    trimLoop: do charIndex = 1, len_trim(line)
+      if ( line(charIndex:charIndex) /= ' ' ) then
+        trimmedLine = line(charIndex:len_trim(line))
+        exit trimLoop
+      end if
+    end do trimLoop
+
     ! If the line starts with '#' or '!' or is empty, we ignore the line.
-    if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len(trim(line)) == 0 ) then
+    if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
       write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
       cycle readLoop
     end if
 
     if ( .not. isReferenceStateInitialized ) then
-      call initializeReferenceState(line, stateVectorReference, hco, vco)
+      call initializeReferenceState(trimmedLine, stateVectorReference, hco, vco)
 
       call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
                         dateStamp_opt=tim_getDateStamp(),     &
@@ -159,7 +169,7 @@ program midas_energyNorm
     else
       ! Compute the energy norm with state vector and its reference
       ! and print in the output file given by 'line'
-      call compute_energyNorm(stateVectorReference, line, stateVector, nulFileOutput)
+      call compute_energyNorm(stateVectorReference, trimmedLine, stateVector, nulFileOutput)
     endif ! .not. isReferenceStateInitialized
 
     call utl_printTime()
