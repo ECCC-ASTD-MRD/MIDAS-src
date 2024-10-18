@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The program `midas-energyNorm` has been added (#986 and !894)
  * Adding `cloudScaleFactor_tl` to `NAMTOV` namelist to scale clouds in rttov TL/AD (#984 and !892)
  * Add `--opt-report` and `--codecov` options to `src/midas_build` (#982 and !890)
  * Introduction of filtering criteria to dfs program (mask for obs only on oceans and thinning) (#959 and !888)	
@@ -77,7 +78,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * More namelist variables in `nambgck` for all-sky ATMS humidity channels (#935 and !844)
    * Small impact on number of all-sky humidity ATMS observations assimilated
- * Added new program dfs.f90 to compute DFS and to perform channel selection (#904 and !840)
+ * Added new program `midas-dfs` to compute DFS and to perform channel selection (#904 and !840)
  * A new variable called `outputFormat` has been added to the namelist `NAMSTIO` which allows to write `RSF` files instead of the default `XDF` format (#922 and !842).
    * If the user chooses to output in `RSF`, we will write in parallel using all OpenMP threads available in the routine `gio_writeToFile`.
  * Add a test `/Tests/letkf/glb_3D` to run LETKF on a single node (#932 and !841)
