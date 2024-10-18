@@ -76,14 +76,13 @@ program midas_energyNorm
 
   character(len=256), parameter :: inputFileName  = 'inputFiles'
   character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
-  integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileInput,nulFileOutput
-  integer :: readStatus, lineNumber, charIndex
+  integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileOutput
+  integer :: fileIndex, numberOfFiles
+  character(len=1024) :: referenceFileName
+  character(len=1024), allocatable :: fileNames(:)
   type(struct_gsv), target  :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
-  character(len=1024) :: line, trimmedLine
-  logical :: isReferenceStateInitialized = .false.
-  logical :: isAtLeastOneEnergyNormHasBeenComputed = .false.
 
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
@@ -110,12 +109,8 @@ program midas_energyNorm
   call gsv_setup
   call msg_memUsage('midas-energyNorm')
 
-  write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
-  nulFileInput = 0
-  ierr = fnom(nulFileInput, trim(inputFileName), 'SEQ+R/O', 0)
-  if (ierr /= 0) then
-    call utl_abort('midas-energyNorm: Cannot open ascii output file')
-  end if
+  ! parse the input file to get the files names
+  call parseInputFiles(inputFileName,referenceFileName,fileNames,numberOfFiles)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -126,86 +121,37 @@ program midas_energyNorm
     end if
   end if
 
-  lineNumber = 0
-  readLoop: do
-    lineNumber = lineNumber + 1
-    read(nulFileInput, '(a)', iostat=readStatus) line
-
-    ! If we reached the end of file, exit the loop
-    if ( readStatus < 0 ) exit readLoop
-    ! We encountered an error while reading the file
-    if ( readStatus > 0 ) then
-      call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
-    end if
-
-
-    ! build 'trimmedLine' by removing leading spaces in 'line'
-    ! the function 'trim' is only removing the trailing spaces in 'line'
-    trimmedLine = ''
-    trimLoop: do charIndex = 1, len_trim(line)
-      if ( line(charIndex:charIndex) /= ' ' ) then
-        trimmedLine = line(charIndex:len_trim(line))
-        exit trimLoop
-      end if
-    end do trimLoop
-
-    ! If the line starts with '#' or '!' or is empty, we ignore the line.
-    if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
-      ! write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
-      cycle readLoop
-    end if
-
-    if ( .not. isReferenceStateInitialized ) then
-      call initializeReferenceState(trimmedLine, stateVectorReference, hco, vco)
-
-      if ( mmpi_myid == 0 ) then
-        ! write the reference file in the output
-        write(nulFileOutput,'(a,a)') 'The reference file is ', trim(trimmedLine)
-        write(nulFileOutput,*)
-        ! write header in file
-        write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
-      end if
-
-      call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
-                        dateStamp_opt=tim_getDateStamp(),     &
-                        mpi_local_opt=.true., dataKind_opt=8, &
-                        hInterpolateDegree_opt='LINEAR',      &
-                        beSilent_opt=.false. )
-
-      isReferenceStateInitialized = .true.
-      call msg_memUsage('midas-energyNorm')
-    else
-      ! Compute the energy norm with state vector and its reference
-      ! and print in the output file given by 'line'
-      call compute_energyNorm(stateVectorReference, trimmedLine, stateVector, nulFileOutput)
-      isAtLeastOneEnergyNormHasBeenComputed = .true.
-    endif ! .not. isReferenceStateInitialized
-
-    call utl_printTime()
-  end do readLoop
+  call initializeReferenceState(referenceFileName, stateVectorReference, hco, vco)
 
   call rpn_comm_barrier('GRID',ierr)
 
-  if ( .not. isReferenceStateInitialized ) then
-    write(nulFileOutput,'(a)') 'No input state has been given in the ''' // trim(inputFileName) // ''''
-  else if ( .not. isAtLeastOneEnergyNormHasBeenComputed ) then
-    write(*,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
-    if ( mmpi_myid == 0 ) then
-      write(nulFileOutput,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
-    end if
+  if ( mmpi_myid == 0 ) then
+    ! write the reference file in the output
+    write(nulFileOutput,'(a,a)') 'The reference file is ', trim(referenceFileName)
+    write(nulFileOutput,*)
+    ! write header in file
+    write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
   end if
 
-  ! closing 'inputFileName'
-  ierr = fclos(nulFileInput)
+  call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
+                    dateStamp_opt=tim_getDateStamp(),     &
+                    mpi_local_opt=.true., dataKind_opt=8, &
+                    hInterpolateDegree_opt='LINEAR',      &
+                    beSilent_opt=.false. )
+
+  do fileIndex = 1, numberOfFiles
+    call compute_energyNorm(stateVectorReference, fileNames(fileIndex), stateVector, nulFileOutput)
+    call rpn_comm_barrier('GRID',ierr)
+  end do ! fileIndex
+
   ! closing 'outputFileName'
   if ( mmpi_myid == 0 ) then
     ierr = fclos(nulFileOutput)
   end if
 
-  if ( isReferenceStateInitialized ) then
-    call gsv_deallocate(stateVector)
-    call gsv_deallocate(stateVectorReference)
-  end if
+  call gsv_deallocate(stateVector)
+  call gsv_deallocate(stateVectorReference)
+  deallocate(fileNames)
 
   !
   !- 3. Job termination
@@ -220,6 +166,102 @@ program midas_energyNorm
   call rpn_comm_finalize(ierr)
 
 contains
+
+  !--------------------------------------------------------------------------
+  ! parseInputFiles
+  !--------------------------------------------------------------------------
+  subroutine parseInputFiles(inputFileName,referenceFileName,fileNames,numberOfFilesToComputeTheEnergyNormAgainstTheReference)
+    !
+    ! :Purpose: Helper function which parses the input file to extract
+    !           the input files names
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in)  :: inputFileName
+    character(len=*), intent(out) :: referenceFileName
+    character(len=*), allocatable, intent(out) :: fileNames(:)
+    integer,          intent(out) :: numberOfFilesToComputeTheEnergyNormAgainstTheReference
+
+    ! Locals:
+    integer :: ierr,readStatus, lineNumber, charIndex
+    character(len=1024) :: line, trimmedLine
+    integer :: nulFileInput, readFileIteration
+    integer :: numberOfInputFiles
+
+    write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
+    nulFileInput = 0
+    ierr = fnom(nulFileInput, trim(inputFileName), 'SEQ+R/O', 0)
+    if (ierr /= 0) then
+      call utl_abort('midas-energyNorm: Cannot open ascii output file')
+    end if
+
+    ! Read a first time the file to find the number of files: readFileIteration = 1
+    !     This allows to allocate the array 'fileNames'
+    ! Read a second time the file to set 'referenceFileName' and fill the array 'fileNames' : readFileIteration = 2
+    readFileIteractionLoop: do readFileIteration = 1,2
+      lineNumber = 0
+      numberOfInputFiles = 0
+      readLoop: do
+        lineNumber = lineNumber + 1
+        read(nulFileInput, '(a)', iostat=readStatus) line
+
+        ! If we reached the end of file, exit the loop
+        if ( readStatus < 0 ) exit readLoop
+        ! We encountered an error while reading the file
+        if ( readStatus > 0 ) then
+          call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
+        end if
+
+        ! build 'trimmedLine' by removing leading spaces in 'line'
+        ! the function 'trim' is only removing the trailing spaces in 'line'
+        trimmedLine = ''
+        trimLoop: do charIndex = 1, len_trim(line)
+          if ( line(charIndex:charIndex) /= ' ' ) then
+            trimmedLine = line(charIndex:len_trim(line))
+            exit trimLoop
+          end if
+        end do trimLoop
+
+        ! If the line starts with '#' or '!' or is empty, we ignore the line.
+        if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
+          ! write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
+          cycle readLoop
+        end if
+
+        numberOfInputFiles = numberOfInputFiles + 1
+
+        if ( readFileIteration == 2 ) then
+          if ( numberOfInputFiles == 1 ) then
+            referenceFileName = trimmedLine
+          else
+            fileNames(numberOfInputFiles-1) = trimmedLine
+          end if
+        else if ( readFileIteration /= 1 ) then
+          call utl_abort('midas-energyNorm: in parseInputFiles, we can only have ''readFileIteration'' equals to 1 or 2 and not ' // str(readFileIteration))
+        end if
+      end do readLoop
+
+      if ( readFileIteration == 1 ) then
+        if ( numberOfInputFiles == 0 ) then
+          write(*,*) 'No input state has been given in the ''' // trim(inputFileName) // ''''
+        else if ( numberOfInputFiles == 1 ) then
+          write(*,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
+        end if
+
+        numberOfFilesToComputeTheEnergyNormAgainstTheReference = numberOfInputFiles-1
+        allocate(fileNames(numberOfFilesToComputeTheEnergyNormAgainstTheReference))
+
+        rewind(nulFileInput)
+      else if ( readFileIteration /= 2 ) then
+        call utl_abort('midas-energyNorm: in parseInputFiles, we can only have ''readFileIteration'' equals to 1 or 2 and not ' // str(readFileIteration))
+      end if
+    end do readFileIteractionLoop
+
+    ! closing 'inputFileName'
+    ierr = fclos(nulFileInput)
+
+  end subroutine parseInputFiles
 
   !--------------------------------------------------------------------------
   ! compute_energyNorm
