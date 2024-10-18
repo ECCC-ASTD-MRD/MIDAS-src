@@ -123,9 +123,6 @@ program midas_energyNorm
     if (ierr /= 0) then
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
-
-    ! print header in file
-    write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
   end if
 
   lineNumber = 0
@@ -159,6 +156,14 @@ program midas_energyNorm
 
     if ( .not. isReferenceStateInitialized ) then
       call initializeReferenceState(trimmedLine, stateVectorReference, hco, vco)
+
+      if ( mmpi_myid == 0 ) then
+        ! write the reference file in the output
+        write(nulFileOutput,'(a,a)') 'The reference file is ', trim(trimmedLine)
+        write(nulFileOutput,*)
+        ! write header in file
+        write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
+      end if
 
       call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
                         dateStamp_opt=tim_getDateStamp(),     &
