@@ -123,6 +123,9 @@ program midas_energyNorm
     if (ierr /= 0) then
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
+
+    ! print header in file
+    write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
   end if
 
   lineNumber = 0
@@ -291,9 +294,9 @@ contains
     call msg_memUsage('midas-energyNorm')
 
     !! Write the result in the file
-    write(*,'(a1024,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
+    write(*,'(a,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
     if ( mmpi_myid == 0 ) then
-      write(nulFile,'(a1024,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
+      write(nulFile,'(a,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
     end if
 
   end subroutine compute_energyNorm
