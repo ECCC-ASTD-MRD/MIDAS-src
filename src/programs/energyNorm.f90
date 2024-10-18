@@ -140,7 +140,6 @@ program midas_energyNorm
       call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
     end if
 
-    write(*,*) 'Reading the line ' // str(lineNumber) // ': ''' // trim(line) // ''''
 
     ! build 'trimmedLine' by removing leading spaces in 'line'
     ! the function 'trim' is only removing the trailing spaces in 'line'
@@ -154,7 +153,7 @@ program midas_energyNorm
 
     ! If the line starts with '#' or '!' or is empty, we ignore the line.
     if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
-      write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
+      ! write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
       cycle readLoop
     end if
 
@@ -294,7 +293,6 @@ contains
     call msg_memUsage('midas-energyNorm')
 
     !! Write the result in the file
-    write(*,'(a,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
     if ( mmpi_myid == 0 ) then
       write(nulFile,'(a,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
     end if
