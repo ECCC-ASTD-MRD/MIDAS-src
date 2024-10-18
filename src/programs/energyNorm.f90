@@ -186,8 +186,8 @@ contains
     ! Locals:
     integer :: ierr,readStatus, lineNumber, charIndex
     character(len=1024) :: line, trimmedLine
-    integer :: nulFileInput, readFileIteration
-    integer :: numberOfInputFiles
+    integer :: nulFileInput, numberOfInputFiles
+    logical :: readFileIsFirstPass
 
     write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
     nulFileInput = 0
@@ -196,18 +196,19 @@ contains
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
 
-    ! Read a first time the file to find the number of files: readFileIteration = 1
+    ! Read a first time the file to find the number of files: readFileIsFirstPass = .true.
     !     This allows to allocate the array 'fileNames'
-    ! Read a second time the file to set 'referenceFileName' and fill the array 'fileNames' : readFileIteration = 2
-    readFileIteractionLoop: do readFileIteration = 1,2
+    ! Read a second time the file to set 'referenceFileName' and fill the array 'fileNames' : readFileIsFirstPass = .false.
+    readFileIsFirstPass = .true.
+    readFileIterationLoop: do
       lineNumber = 0
       numberOfInputFiles = 0
-      readLoop: do
+      readLoopLineByLine: do
         lineNumber = lineNumber + 1
         read(nulFileInput, '(a)', iostat=readStatus) line
 
         ! If we reached the end of file, exit the loop
-        if ( readStatus < 0 ) exit readLoop
+        if ( readStatus < 0 ) exit readLoopLineByLine
         ! We encountered an error while reading the file
         if ( readStatus > 0 ) then
           call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
@@ -226,37 +227,36 @@ contains
         ! If the line starts with '#' or '!' or is empty, we ignore the line.
         if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
           ! write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
-          cycle readLoop
+          cycle readLoopLineByLine
         end if
 
         numberOfInputFiles = numberOfInputFiles + 1
 
-        if ( readFileIteration == 2 ) then
+        if ( .not. readFileIsFirstPass ) then
           if ( numberOfInputFiles == 1 ) then
             referenceFileName = trimmedLine
           else
             fileNames(numberOfInputFiles-1) = trimmedLine
           end if
-        else if ( readFileIteration /= 1 ) then
-          call utl_abort('midas-energyNorm: in parseInputFiles, we can only have ''readFileIteration'' equals to 1 or 2 and not ' // str(readFileIteration))
         end if
-      end do readLoop
+      end do readLoopLineByLine
 
-      if ( readFileIteration == 1 ) then
+      if ( readFileIsFirstPass ) then
         if ( numberOfInputFiles == 0 ) then
-          write(*,*) 'No input state has been given in the ''' // trim(inputFileName) // ''''
+          call utl_abort('No input state has been given in the ''' // trim(inputFileName) // '''')
         else if ( numberOfInputFiles == 1 ) then
-          write(*,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
+          call utl_abort('No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
         end if
 
         numberOfFilesToComputeTheEnergyNormAgainstTheReference = numberOfInputFiles-1
         allocate(fileNames(numberOfFilesToComputeTheEnergyNormAgainstTheReference))
 
         rewind(nulFileInput)
-      else if ( readFileIteration /= 2 ) then
-        call utl_abort('midas-energyNorm: in parseInputFiles, we can only have ''readFileIteration'' equals to 1 or 2 and not ' // str(readFileIteration))
+        readFileIsFirstPass = .false.
+      else
+        exit readFileIterationLoop
       end if
-    end do readFileIteractionLoop
+    end do readFileIterationLoop
 
     ! closing 'inputFileName'
     ierr = fclos(nulFileInput)
