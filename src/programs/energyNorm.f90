@@ -83,6 +83,7 @@ program midas_energyNorm
   type(struct_hco), pointer :: hco => null()
   character(len=1024) :: line, trimmedLine
   logical :: isReferenceStateInitialized = .false.
+  logical :: isAtLeastOneEnergyNormHasBeenComputed = .false.
 
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
@@ -177,10 +178,22 @@ program midas_energyNorm
       ! Compute the energy norm with state vector and its reference
       ! and print in the output file given by 'line'
       call compute_energyNorm(stateVectorReference, trimmedLine, stateVector, nulFileOutput)
+      isAtLeastOneEnergyNormHasBeenComputed = .true.
     endif ! .not. isReferenceStateInitialized
 
     call utl_printTime()
   end do readLoop
+
+  call rpn_comm_barrier('GRID',ierr)
+
+  if ( .not. isReferenceStateInitialized ) then
+    write(nulFileOutput,'(a)') 'No input state has been given in the ''' // trim(inputFileName) // ''''
+  else if ( .not. isAtLeastOneEnergyNormHasBeenComputed ) then
+    write(*,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
+    if ( mmpi_myid == 0 ) then
+      write(nulFileOutput,*) 'No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state'
+    end if
+  end if
 
   ! closing 'inputFileName'
   ierr = fclos(nulFileInput)
@@ -189,8 +202,10 @@ program midas_energyNorm
     ierr = fclos(nulFileOutput)
   end if
 
-  call gsv_deallocate(stateVector)
-  call gsv_deallocate(stateVectorReference)
+  if ( isReferenceStateInitialized ) then
+    call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVectorReference)
+  end if
 
   !
   !- 3. Job termination
