@@ -6,7 +6,7 @@ program midas_energyNorm
   !
   !:Algorithm: The energy norm definition is defined in the paper `HFSOI approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
   !
-  !            --
+  !           --
   !
   !:File I/O: The required input files and produced output files are listed as follows.
   !
@@ -15,10 +15,39 @@ program midas_energyNorm
   !============================================== ====================================================================
   ! Input and Output Files                         Description of file
   !============================================== ====================================================================
-  ! ``flnml``                                      In - Main namelist file with parameters user may modify
-  ! ``inputFile``                                  In - File containing the atmospheric state with which the energy norm will be computed
-  ! ``inputFile_ref``                              In - File containing the reference state
+  ! ``flnml``                                      In  - Main namelist file with parameters user may modify
+  ! ``inputFiles``                                 In  - File containing a list of files which are the input atmopheric state
+  ! ``energyNorm_ascii``                           Out - File containing the energy norms for each input file
   !============================================== ====================================================================
+  !
+  !
+  !           --
+  !
+  !:Input file format: Here is a description of the input file format ``inputFiles``
+  !
+  !                    Each line is a path to an input atmospheric
+  !                    state.
+  !
+  !                    The first file specified is considered as the
+  !                    reference state
+  !
+  !                    The energy norm of each other files will be
+  !                    computed using that reference state.
+  !
+  !                    A line starting with '#' or '!' will be ignored
+  !                    and considered as a comment.
+  !
+  !:Output file format: Here is a description of the output file format ``energyNorm_ascii``
+  !
+  !                     The first line is the path to the reference
+  !                     state.
+  !
+  !                     The second line is the legend of the following
+  !                     lines
+  !
+  !                     Each other line starts with the file name and
+  !                     the energy norm total and followed with the
+  !                     energy of each component.
   !
   !           --
   !
@@ -26,30 +55,36 @@ program midas_energyNorm
   !
   !           - **Initial setups:**
   !
-  !             - Setup horizontal and vertical grid objects from ``inputFile``.
+  !             - Parse ``inputFiles`` to get the reference state and
+  !                  the other states to compute the energy norm using
+  !                  the reference state.
+  !
+  !             - Setup horizontal and vertical grid objects the reference state.
   !
   !             - Allocate the stateVector objects on the input grid
   !
-  !             - Read the files 'inputFile_ref' and 'inputFile' with 'gio_readFromFile'
+  !             - Read all the input files with 'gio_readFromFile'
   !
   !           - **Computation:**
   !
-  !             - Compute the difference between the two objects with 'gsv_add'
+  !             - For each atmospheric state:
   !
-  !             - ``gvt_energyNorm``: Compute the energy norm
-  !  !
+  !                - Compute the difference between the atmospheric state and the reference state with 'gsv_add'
+  !
+  !                - Call ``gvt_energyNorm``: Compute the energy norm for that atmospheric state
+  !
+  !                - Write the energy norm in the file ``energyNorm_ascii``
+  !
   !           - **Final steps:**
   !
-  !             - Write the energy norm value in the file ``energyNorm_ascii``
-  !
-  !             - Deallocate the state vectors
+  !             - Deallocate the arrays and state vectors
   !
   !           --
   !
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#energyNorm>`_
   !          that can affect the ``energyNorm`` program.
   !
-  !          * The namelist blocks used to configure FSOI are listed in the following table:
+  !          * The namelist blocks used to configure the program are listed in the following table:
   !
   !
   !========================= ====================== =============================================================
