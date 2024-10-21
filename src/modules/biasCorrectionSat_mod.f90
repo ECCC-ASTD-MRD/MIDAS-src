@@ -557,8 +557,8 @@ contains
 
     ! Locals:
     real(8) :: predictor(NumPredictors)
-    integer :: iobs, nsize, i, j, npred
-    integer :: headerIndex, idatyp, indxtovs
+    integer :: nsize, i, j, npred
+    integer :: headerIndex, idatyp
     integer :: iSensor, iFov, iPredictor, ierr
     integer :: bodyIndex, jpred, chanIndx
     real(8), allocatable ::  temp_offset(:,:)
@@ -578,7 +578,6 @@ contains
       temp_nobs2(:,:) = 0
 
       call obs_set_current_header_list(obsSpaceData, 'TO')
-      iobs = 0
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
@@ -589,12 +588,8 @@ contains
           write(*,*) 'bcs_computePredictorBiases: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER
         end if
-        iobs = iobs + 1
         
-        indxTovs = tvs_tovsIndex(headerIndex)
-        if (indxTovs < 0) cycle HEADER
-
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
 
         call obs_set_current_body_list(obsSpaceData, headerIndex)
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -607,7 +602,7 @@ contains
 
           call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
           if (chanindx > 0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               temp_offset2(iSensor,chanIndx,iPredictor) = temp_offset2(iSensor,chanIndx,iPredictor) + predictor(jPred)
@@ -673,7 +668,7 @@ contains
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -687,7 +682,6 @@ contains
       call bcs_getTrialPredictors(obsSpaceData, columnTrlOnTrlLev)
     end if
 
-    iobs = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -699,13 +693,8 @@ contains
         write(*,*) 'bcs_calBias: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-
-      iobs = iobs + 1
       
-      indxtovs = tvs_tovsIndex(headerIndex)
-      if (indxtovs < 0) cycle HEADER
-
-      iSensor = tvs_lsensor(indxTovs)
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -730,7 +719,7 @@ contains
                  all( bias(iSensor)%chans(chanIndx)%coeff(1:bias(iSensor)%chans(chanIndx)%NumActivePredictors)/= MPC_missingValue_R8) ) then
               biasCor = bias(iSensor)%chans(chanIndx)%coeff_fov(iScan) + &
                    bias(iSensor)%chans(chanIndx)%coeff(1)
-              call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+              call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
               do iPredictor = 2, bias(iSensor)%chans(chanIndx)%NumActivePredictors
                 jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
                 biasCor = biasCor + predictor(jPred) * bias(iSensor)%chans(chanIndx)%coeff(iPredictor)
@@ -761,7 +750,7 @@ contains
     logical, optional, intent(in)    :: fromGenCoeff_opt
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: sensorIndex, iPredictor, chanIndx, codeTypeIndex, fileIndex, searchIndex
     integer  :: iScan, iFov, jPred, burpChanIndex
     real(8)  :: predictor(NumPredictors)
@@ -848,7 +837,6 @@ contains
       write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: obsOffset(fileIndex), dataOffset(fileIndex)', fileIndex, obsOffset(fileIndex), dataOffset(fileIndex) 
     end do
     
-    iobs = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -859,13 +847,10 @@ contains
         write(*,*) 'bcs_dumpBiasToSqliteAfterThinning: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-      iobs = iobs + 1
       fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_IDF, headerIndex))
       if (fileIndex==-1) cycle HEADER
       obsOffset(fileIndex) = obsOffset(fileIndex) + 1
-      indxtovs = tvs_tovsIndex(headerIndex)
-      if (indxtovs < 0) cycle HEADER
-      sensorIndex = tvs_lsensor(indxTovs)
+      sensorIndex = tvs_lsensor(headerIndex)
       if (first(fileIndex)) then
         if (obs_mpiLocal(obsSpaceData)) then
           write(cmyidy,'(i4.4)') (mmpi_myidy + 1)
@@ -930,7 +915,7 @@ contains
         if (chanindx > 0) then
           biasCor = 0.0d0
           if (bias(sensorIndex)%chans(chanIndx)%isDynamic .and. bias(sensorIndex)%numScan > 0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             biasCor = bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan) + &
                  bias(sensorIndex)%chans(chanIndx)%coeff(1) 
             burpChanIndex = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))                   
@@ -1068,8 +1053,7 @@ contains
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
-        if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER
-        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER
           
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -1199,8 +1183,7 @@ contains
       HEADER1: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER1
-        if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER1
-        iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
 
         call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -1268,8 +1251,7 @@ contains
         HEADER2: do
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER2
-          if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER2
-          iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+          iSensor = tvs_lsensor(headerIndex)
           if (iSensor /= sensorIndex) cycle HEADER2
 
           call tim_getStepObsIndex(stepObsIndex, tim_getDatestamp(), &
@@ -1340,7 +1322,7 @@ contains
     type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, iobs, indxtovs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: iSensor, iPredictor, chanIndx
     integer  :: iScan, iFov, jPred
     real(8)  :: predictor(NumPredictors)
@@ -1373,7 +1355,6 @@ contains
     call bcs_cvToCoeff(cv_bias)
 
     ! apply bias increment to specified obs column
-    iobs = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -1386,12 +1367,7 @@ contains
         cycle HEADER
       end if
       
-      iobs = iobs + 1
-
-      indxtovs = tvs_tovsIndex(headerIndex)
-      if (indxtovs < 0) cycle HEADER
-
-      iSensor = tvs_lsensor(indxTovs)
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -1407,7 +1383,7 @@ contains
         if (chanindx > 0) then
           biasCor = 0.0d0
           if (bias(iSensor)%chans(chanIndx)%isDynamic .and. bias(iSensor)%numScan >0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanindx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanindx, obsSpaceData)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
               if (iPredictor == 1) then
@@ -1445,32 +1421,30 @@ contains
     type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer :: headerIndex, idatyp, iobs, channelIndex, bodyIndex
+    integer :: headerIndex, idatyp, channelIndex, bodyIndex
     integer :: channelNumber
-    integer :: sensorIndex, tovsIndex, bcifChannelIndex, maxChans
+    integer :: sensorIndex, bcifChannelIndex, maxChans
     real(8)  :: height1, height2
 
-    if (tvs_nobtov > 0) then
-      allocate(trialHeight300m850(tvs_nobtov))
-      allocate(trialHeight300m900(tvs_nobtov))
-      allocate(trialHeight300m1000(tvs_nobtov))
-      allocate(trialHeight50m200(tvs_nobtov))
-      allocate(trialHeight5m50(tvs_nobtov))
-      allocate(trialHeight1m10(tvs_nobtov))
-      allocate(trialTG(tvs_nobtov))
-      allocate(trialTotalWaterVaporContent(tvs_nobtov))
+    if (tvs_headerEnd > 0) then
+      allocate(trialHeight300m850(tvs_headerEnd))
+      allocate(trialHeight300m900(tvs_headerEnd))
+      allocate(trialHeight300m1000(tvs_headerEnd))
+      allocate(trialHeight50m200(tvs_headerEnd))
+      allocate(trialHeight5m50(tvs_headerEnd))
+      allocate(trialHeight1m10(tvs_headerEnd))
+      allocate(trialTG(tvs_headerEnd))
+      allocate(trialTotalWaterVaporContent(tvs_headerEnd))
       maxChans = 0
       do sensorIndex = 1, tvs_nsensors
         if (size(bias(sensorIndex)%chans) > maxChans) maxChans = size(bias(sensorIndex)%chans)
       end do
-      allocate(trialConvolutedLapseRate(tvs_nobtov, maxChans))
-      allocate(RadiosondeWeight(tvs_nobtov))
+      allocate(trialConvolutedLapseRate(tvs_headerEnd, maxChans))
+      allocate(RadiosondeWeight(tvs_headerEnd))
     else
       write(*,*) 'bcs_getTrialPredictors: No radiance OBS found'
       return
     end if
-    
-    iobs = 0
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
 
@@ -1482,43 +1456,40 @@ contains
         write(*,*) 'bcs_getTrialPredictors: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-      iobs = iobs + 1
 
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex < 0) cycle HEADER
-      sensorIndex =  tvs_lsensor(tovsIndex)
+      sensorIndex = tvs_lsensor(headerIndex)
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, bottomPressureT1)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, topPressureT1)
       
-      trialHeight300m1000(iobs) = height2 - height1
+      trialHeight300m1000(headerIndex) = height2 - height1
 
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 900.d0)
       
-      trialHeight300m900(iobs) = height2 - height1
+      trialHeight300m900(headerIndex) = height2 - height1
 
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 850.d0)
       
-      trialHeight300m850(iobs) = height2 - height1
+      trialHeight300m850(headerIndex) = height2 - height1
       
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 200.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 50.d0)
 
-      trialHeight50m200(iobs) = height2 - height1
+      trialHeight50m200(headerIndex) = height2 - height1
 
       height1 = height2
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 5.d0)
 
-      trialHeight5m50(iobs) = height2 - height1
+      trialHeight5m50(headerIndex) = height2 - height1
 
       height1 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 10.d0)
       height2 = logInterpHeight(columnTrlOnTrlLev, headerIndex, 1.d0)
 
-      trialHeight1m10(iobs) = height2 - height1
+      trialHeight1m10(headerIndex) = height2 - height1
 
-      trialTG(iobs) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
+      trialTG(headerIndex) = col_getElem(columnTrlOnTrlLev, 1, headerIndex, 'TG')
 
-      trialTotalWaterVaporContent(iobs) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
+      trialTotalWaterVaporContent(headerIndex) = integrateWaterVapor(columnTrlOnTrlLev, headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       
@@ -1531,8 +1502,8 @@ contains
             channelNumber, channelIndex )
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, bcifChannelIndex, bodyIndex)
         if (channelIndex > 0 .and. bcifChannelIndex > 0) then
-          trialConvolutedLapseRate(iobs,bcifChannelIndex) = &
-              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(tovsIndex) % tau_levels(:,channelIndex))
+          trialConvolutedLapseRate(headerIndex,bcifChannelIndex) = &
+              convolutedLapseRate(columnTrlOnTrlLev, headerIndex, tvs_transmission(headerIndex) % tau_levels(:,channelIndex))
           
         end if
       end do BODY
@@ -1750,7 +1721,7 @@ contains
   !-----------------------------------
   ! bcs_getPredictors
   !---------------------------------- 
-  subroutine bcs_getPredictors(predictor, headerIndex, obsIndex, chanindx, obsSpaceData)
+  subroutine bcs_getPredictors(predictor, headerIndex, chanindx, obsSpaceData)
     !
     ! :Purpose: get predictors
     !
@@ -1759,7 +1730,6 @@ contains
     ! Arguments:
     real(8),          intent(out)   :: predictor(NumPredictors)
     integer,          intent(in)    :: headerIndex
-    integer,          intent(in)    :: obsIndex
     integer,          intent(in)    :: chanindx ! channel index wrt bcif
     type(struct_obs), intent(inout) :: obsSpaceData
 
@@ -1769,7 +1739,7 @@ contains
 
     predictor(:) = 0.0d0
 
-    sensorIndex = tvs_lsensor(tvs_tovsIndex(headerIndex))
+    sensorIndex = tvs_lsensor(headerIndex)
     
     !computation of scan bias position normalized to [-1;1]
     normalizedScanPosition = (2.d0*obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex) - bias(sensorIndex)%numscan) / bias(sensorIndex)%numscan
@@ -1781,32 +1751,32 @@ contains
         predictor(iPredictor) = 1.0d0
       else if (iPredictor == 2) then
         ! Height300-Height1000 (dam) /1000 T1
-        predictor(iPredictor) = trialHeight300m1000(obsIndex) / 1000.0d0
+        predictor(iPredictor) = trialHeight300m1000(headerIndex) / 1000.0d0
       else if (iPredictor == 3) then
         ! Height50-Height200 (dam) /1000   T2
-        predictor(iPredictor) = trialHeight50m200(obsIndex) / 1000.0d0
+        predictor(iPredictor) = trialHeight50m200(headerIndex) / 1000.0d0
       else if (iPredictor == 4) then
         ! Height5-Height50 (dam) /1000    T3
-        predictor(iPredictor) = trialHeight5m50(obsIndex) / 1000.0d0
+        predictor(iPredictor) = trialHeight5m50(headerIndex) / 1000.0d0
       else if (iPredictor == 5) then
         ! Height1-Height10 (dam) /1000    T4
-        predictor(iPredictor) = trialHeight1m10(obsIndex) / 1000.0d0        
+        predictor(iPredictor) = trialHeight1m10(headerIndex) / 1000.0d0        
       else if (iPredictor == 6) then
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
         if (zenithAngle < 75.) predictor(iPredictor) = (1.d0 / cos(zenithAngle * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
       else if (iPredictor == 7) then
         ! skin temperature (C) /10
-        predictor(iPredictor) = trialTG(obsIndex)
+        predictor(iPredictor) = trialTG(headerIndex)
       else if (iPredictor == 8) then
         ! Height300-Height900 (dam) /1000    T5
-        predictor(iPredictor) = trialHeight300m900(obsIndex) / 1000.0d0   
+        predictor(iPredictor) = trialHeight300m900(headerIndex) / 1000.0d0   
       else if (iPredictor == 9) then
         ! Height300-Height850 (dam) /1000    T6
-        predictor(iPredictor) = trialHeight300m850(obsIndex) / 1000.0d0
+        predictor(iPredictor) = trialHeight300m850(headerIndex) / 1000.0d0
       else if (iPredictor == 10) then
         ! Total Water Vapor Content (aka precipitable water)
-        predictor(iPredictor) = trialTotalWaterVaporContent(obsIndex)
+        predictor(iPredictor) = trialTotalWaterVaporContent(headerIndex)
       else if (iPredictor == 11) then
         ! first order Legendre polynomial of normalized scan bias position
         predictor(iPredictor) = normalizedScanPosition
@@ -1821,10 +1791,10 @@ contains
         predictor(iPredictor) = obs_headElem_r(obsSpaceData, OBS_SUN, headerIndex)
       else if (iPredictor == 15) then
         ! channel convoluted lapse rate (R1)
-        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)
+        predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)
       else if (iPredictor == 16) then
         ! channel convoluted lapse rate squared (R2)
-        predictor(iPredictor) = trialConvolutedLapseRate(obsIndex,chanIndx)**2
+        predictor(iPredictor) = trialConvolutedLapseRate(headerIndex,chanIndx)**2
       end if
     end do
 
@@ -1850,7 +1820,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer  :: headerIndex, bodyIndex, iobs, idatyp
+    integer  :: headerIndex, bodyIndex, idatyp
     integer  :: iSensor, iChannel, iPredictor, chanIndx
     integer  :: iScan, iFOV, jPred
     real(8)  :: predictor(NumPredictors)
@@ -1886,7 +1856,6 @@ contains
       end if
     end do
 
-    iobs = 0
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -1896,10 +1865,8 @@ contains
         write(*,*) 'bcs_calcBias_ad: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-      iobs = iobs + 1
-      if (tvs_tovsIndex(headerIndex) < 0) cycle HEADER
 
-      iSensor = tvs_lsensor(tvs_tovsIndex(headerIndex))
+      iSensor = tvs_lsensor(headerIndex)
 
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
@@ -1914,7 +1881,7 @@ contains
 
         if (chanindx > 0) then
           if (bias(iSensor)%chans(chanIndx)%isDynamic) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             biasCor = obs_bodyElem_r(obsSpaceData, obsColumnIndex, bodyIndex)
             do iPredictor = 1, bias(iSensor)%chans(chanIndx)%numActivePredictors
               jPred = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPredictor)
@@ -2787,7 +2754,7 @@ contains
     logical, optional, intent(in)    :: lmodify_obserror_opt
 
     ! Locals:
-    integer :: iobs, headerIndex, idatyp, nobs, bodyIndex, stepIndex
+    integer :: headerIndex, idatyp, nobs, bodyIndex, stepIndex
     logical :: lmodify_obserror
     real(8) :: sigmaObs
     type(struct_gsv)      :: stateVector_mask, stateVector_mask_4d
@@ -2821,7 +2788,6 @@ contains
                    'NEAREST', moveObsAtPole_opt=.true.)
 
       call obs_set_current_header_list(obsSpaceData, 'TO')
-      iobs = 0
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
@@ -2832,9 +2798,8 @@ contains
           write(*,*) 'bcs_getRadiosondeWeight: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER
         end if
-        iobs = iobs + 1
 
-        RadiosondeWeight(iobs) = col_getElem(column_mask, 1, headerIndex) 
+        RadiosondeWeight(headerIndex) = col_getElem(column_mask, 1, headerIndex) 
 
         if (lmodify_obserror) then
           call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -2846,7 +2811,7 @@ contains
 
             sigmaObs = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
 
-            sigmaObs = sigmaObs / sqrt(RadiosondeWeight(iobs))
+            sigmaObs = sigmaObs / sqrt(RadiosondeWeight(headerIndex))
             call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObs) 
 
           end do BODY
@@ -2876,9 +2841,9 @@ contains
 
     ! Locals:
     integer    :: iSensor, iChannel, npred, nchans, nscan, ndim, ndimmax
-    integer    :: sensorIndex, iPred1, jPred1, iobs
+    integer    :: sensorIndex, iPred1, jPred1
     integer    :: headerIndex, idatyp, nPredMax, ierr, iFov, iScan, idim
-    integer    :: indxtovs, bodyIndex, chanIndx, predstart, ntot
+    integer    :: bodyIndex, chanIndx, predstart, ntot
     real(8)    :: OmF, sigmaObs, lambda, norm
     real(8)    :: predictor(NumPredictors)
     real(8), allocatable :: Matrix(:,:,:), Vector(:,:)
@@ -2941,10 +2906,8 @@ contains
           write(*,*) 'bcs_do_regression: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER1
         end if
-        indxtovs = tvs_tovsIndex(headerIndex)
-        if (indxtovs < 0) cycle HEADER1
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
         iFov = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
         if (nscan > 1) then
@@ -3001,7 +2964,6 @@ contains
      
       ! Second pass to fill matrices and vectors
       call obs_set_current_header_list(obsSpaceData, 'TO')
-      iobs = 0
       HEADER2: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER2
@@ -3012,11 +2974,8 @@ contains
           write(*,*) 'bcs_do_regression: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER2
         end if
-        iobs = iobs + 1
-        indxtovs = tvs_tovsIndex(headerIndex)
-        if (indxtovs < 0) cycle HEADER2
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER2
           
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3032,7 +2991,7 @@ contains
           if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY2 
           call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
           if (chanIndx > 0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
 
             if (mimicSatbcor) OmF = OmF - bias(sensorIndex)%chans(chanIndx)%coeff_fov(iScan)
@@ -3051,7 +3010,7 @@ contains
               lambda = 1.d0 / (sigmaObs ** 2)
             end if
           
-            lambda = lambda * RadiosondeWeight(iobs)
+            lambda = lambda * RadiosondeWeight(headerIndex)
 
             do iPred1 = predstart, bias(iSensor)%chans(chanIndx)%NumActivePredictors
               jPred1 = bias(iSensor)%chans(chanIndx)%PredictorIndex(iPred1)
@@ -3161,7 +3120,7 @@ contains
 
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
-    integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
+    integer :: idatyp, iSensor, chanIndx, ierr
     Real(8):: OmF
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
     integer, allocatable :: Count(:), CountMpiGlobal(:)
@@ -3189,7 +3148,6 @@ contains
       allocate(Count(nchans))
       Count(:) = 0
 
-      iobs = 0
       ! First pass throught ObsSpaceData to estimate biases and count data
       call obs_set_current_header_list(obsSpaceData, 'TO')
       HEADER1: do
@@ -3201,10 +3159,7 @@ contains
           write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER1
         end if
-        iobs = iobs + 1
-        indxtovs = tvs_tovsIndex(headerIndex)
-        if (indxtovs < 0) cycle HEADER1
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER1
         
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3217,7 +3172,7 @@ contains
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
             count(chanIndx) = count(chanIndx) + 1
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             predBias(chanIndx,:) = predBias(chanIndx,:) + predictor(:)
           end if
         end do BODY1
@@ -3268,7 +3223,6 @@ contains
 
       ! Second pass to fill covariance Matrix
       call obs_set_current_header_list(obsSpaceData, 'TO')
-      iobs = 0
       HEADER2: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER2
@@ -3279,11 +3233,8 @@ contains
           write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
           cycle HEADER2
         end if
-        iobs = iobs + 1
-        indxtovs = tvs_tovsIndex(headerIndex)
-        if (indxtovs < 0) cycle HEADER2
 
-        iSensor = tvs_lsensor(indxTovs)
+        iSensor = tvs_lsensor(headerIndex)
         if (iSensor /= sensorIndex) cycle HEADER2
           
         call obs_set_current_body_list(obsSpaceData, headerIndex)
@@ -3293,7 +3244,7 @@ contains
           if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY2 
           call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
           if (chanIndx > 0) then
-            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            call bcs_getPredictors(predictor, headerIndex, chanIndx, obsSpaceData)
             predictor(:) = predictor(:) - predBiasMpiGLobal(chanIndx,:)
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             OmF = OmF - omfBiasMpiGlobal(chanIndx)

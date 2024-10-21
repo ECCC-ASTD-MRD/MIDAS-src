@@ -169,7 +169,7 @@ contains
     implicit none
 
     ! Locals:
-    integer :: tovsIndex, maxChannelNumber
+    integer :: headerIndex, maxChannelNumber
     integer :: sensorIndex, channelNumber
 
     !     Memory allocation for background check related variables
@@ -178,8 +178,8 @@ contains
     !___ emissivity by profile
 
     maxChannelNumber = 1
-    do tovsIndex = 1, tvs_nobtov
-      sensorIndex = tvs_lsensor(tovsIndex)
+    do headerIndex = 1, tvs_headerEnd
+      sensorIndex = tvs_lsensor(headerIndex)
       channelNumber = tvs_nchan(sensorIndex)
       if (channelNumber > maxChannelNumber) maxChannelNumber=channelNumber
     end do
@@ -188,7 +188,7 @@ contains
     
     do sensorIndex = 1, tvs_nsensors
       if ( tvs_instruments(sensorIndex) == inst_id_iasi ) then
-        allocate (avhrr_bgck(tvs_nobtov))
+        allocate (avhrr_bgck(tvs_headerEnd))
         exit
       end if
     end do
@@ -237,7 +237,6 @@ contains
 
     !  Preliminary initializations
 
-    call tvs_setNobtov(0)
     call irbg_init()
     allocate (nobir(ninst))
     nobir = 0
@@ -256,7 +255,7 @@ contains
         write(*,*) 'irbg_bgCheckIR: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER   ! Proceed to the next header_index
       end if
-      call tvs_setNobtov(tvs_nobtov + 1)
+      
       do instrumentIndex=1, ninst
         if ( tvs_isIdBurpInst(idatyp,inst(instrumentIndex)) ) then
           nobir(instrumentIndex) = nobir(instrumentIndex) + 1
@@ -414,9 +413,8 @@ contains
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-      if ( tvs_tovsIndex( headerIndex ) < 0) cycle HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(tvs_tovsIndex (headerIndex)) == id ) then
+      if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(headerIndex) == id ) then
         count = count + 1
       end if
     end do HEADER
@@ -493,7 +491,6 @@ contains
     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
     write(*,*) modelTopIndex
 
-    call tvs_setNobtov(0)
 
     ! Loop over all header indices of the 'TO' family
     call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -503,9 +500,7 @@ contains
 
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
-      if ( tvs_isIdBurpTovs(idatyp) ) call tvs_setNobtov(tvs_nobtov + 1)
-      if ( tvs_tovsIndex(headerIndex) < 0) cycle HEADER_2
-      if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(tvs_tovsIndex (headerIndex)) == id) then
+      if ( tvs_isIdBurpInst(idatyp,instrumentName) .and. tvs_lsensor(headerIndex) == id) then
         btObs(:)    = -1.d0
         btCalc(:)   = -1.d0
         btObsErr(:) = -1.d0
@@ -592,22 +587,22 @@ contains
         do jc = 1, nchannels
           channelIndex = channelIndexes(jc)
           if ( channelIndex ==-1) cycle
-          btCalc(channelIndex) = tvs_radiance(tvs_nobtov) % bt(channelIndex)
-          rcal_clr(channelIndex) = tvs_radiance(tvs_nobtov) % clear(channelIndex)
-          sfctau(channelIndex) = tvs_transmission(tvs_nobtov) % tau_total(channelIndex)
+          btCalc(channelIndex) = tvs_radiance(headerIndex) % bt(channelIndex)
+          rcal_clr(channelIndex) = tvs_radiance(headerIndex) % clear(channelIndex)
+          sfctau(channelIndex) = tvs_transmission(headerIndex) % tau_total(channelIndex)
           do levelIndex = 1, nlv_T 
-            transm(channelIndex,levelIndex) = tvs_transmission(tvs_nobtov) % tau_levels(levelIndex, channelIndex)
+            transm(channelIndex,levelIndex) = tvs_transmission(headerIndex) % tau_levels(levelIndex, channelIndex)
           end do          
           do levelIndex = 1, nlv_T - 1
-            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(tvs_nobtov) % overcast(levelIndex, channelIndex)
+            cloudyRadiance(channelIndex,levelIndex) = tvs_radiance(headerIndex) % overcast(levelIndex, channelIndex)
           end do
-          emi_sfc(channelIndex) = tvs_emissivity(channelIndex,tvs_nobtov)
+          emi_sfc(channelIndex) = tvs_emissivity(channelIndex,headerIndex)
           !  Gross check on computed BTs ***
           if (btCalc(channelIndex) < 150.d0) rejflag(channelIndex,9) = 1
           if (btCalc(channelIndex) > 350.d0) rejflag(channelIndex,9) = 1
         end do
 
-        ksurf = profiles(tvs_nobtov) % skin % surftype
+        ksurf = profiles(headerIndex) % skin % surftype
 
         !Test pour detecter l angle zenithal  manquant (-1) ou anormal
         ! (angle negatif ou superieur a 75 degres )
@@ -621,19 +616,19 @@ contains
         clfr = 0.
         if (lairs .or. lcris) clfr = obs_headElem_r(obsSpaceData, OBS_CLF, headerIndex)
 
-        sunZenithAngle = profiles(tvs_nobtov) % sunzenangle
+        sunZenithAngle = profiles(headerIndex) % sunzenangle
         sunZenithAnglePresent = ( abs(sunZenithAngle - MPC_missingValue_R8) > 0.01 ) 
 
         if (liasi) then
-          satelliteAzimuthAngle = profiles(tvs_nobtov) % azangle
+          satelliteAzimuthAngle = profiles(headerIndex) % azangle
           satelliteAzimuthAnglePresent = ( abs(satelliteAzimuthAngle - MPC_missingValue_R8) > 0.01 ) 
         end if
-        albedo =  tvs_surfaceParameters(tvs_nobtov) % albedo
-        ice =  tvs_surfaceParameters(tvs_nobtov) % ice
-        ltype =  tvs_surfaceParameters(tvs_nobtov) % ltype
+        albedo =  tvs_surfaceParameters(headerIndex) % albedo
+        ice =  tvs_surfaceParameters(headerIndex) % ice
+        ltype =  tvs_surfaceParameters(headerIndex) % ltype
         if (ltype == 20) ksurf = 2
-        pcnt_wat =  tvs_surfaceParameters(tvs_nobtov) % pcnt_wat
-        pcnt_reg =  tvs_surfaceParameters(tvs_nobtov) % pcnt_reg
+        pcnt_wat =  tvs_surfaceParameters(headerIndex) % pcnt_wat
+        pcnt_reg =  tvs_surfaceParameters(headerIndex) % pcnt_reg
            
         !  Find TOA radiances converted from observed BT's
 

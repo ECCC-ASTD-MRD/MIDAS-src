@@ -1310,7 +1310,7 @@ CONTAINS
     type(struct_columnData), intent(in)    :: columnMeanTrl ! column object to supply vertical level info
 
     ! Locals:
-    integer          :: obsIndex, headerIndex, channelIndex, tovsIndex, numTovsLevels, nosensor
+    integer          :: obsIndex, headerIndex, channelIndex, numTovsLevels, sensorIndex
     integer          :: levIndex, levIndexBelow, levIndexAbove, nLev_M
     integer          :: varNumber(ensObs%numObs), obsVcoCode(ensObs%numObs), codType(ensObs%numObs)
     real(8)          :: obsHeight, interpFactor, obsPPP(ensObs%numObs)
@@ -1417,16 +1417,15 @@ CONTAINS
           call utl_abort('eob_setVertLocation: radiance obs only compatible with logPressure coordinate')
         end if
 
-        tovsIndex = tvs_tovsIndex(headerIndex)
-        nosensor = tvs_lsensor(tovsIndex)
-        numTovsLevels   = size(tvs_transmission(tovsIndex)%tau_levels,1)
+        sensorIndex = tvs_lsensor(headerIndex)
+        numTovsLevels   = size(tvs_transmission(headerIndex)%tau_levels,1)
         channelIndex = nint(obsPPP(obsIndex))
         channelIndex = max(0,min(channelIndex,tvs_maxChannelNumber+1))
-        channelIndex = channelIndex - tvs_channelOffset(nosensor)
-        channelIndex = utl_findloc(tvs_ichan(:,nosensor), channelIndex)
+        channelIndex = channelIndex - tvs_channelOffset(sensorIndex)
+        channelIndex = utl_findloc(tvs_ichan(:,sensorIndex), channelIndex)
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
-          call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
-                                channelIndex, profiles(tovsIndex)%p, ensObs%vertLocation(obsIndex))
+          call max_transmission(tvs_transmission(headerIndex), numTovsLevels, &
+                                channelIndex, profiles(headerIndex)%p, ensObs%vertLocation(obsIndex))
           if(mmpi_myid == 0 .and. verbose) then
             write(*,*) 'eob_setVertLocation for tovs: ', codType(obsIndex), &
                        obsPPP(obsIndex), 0.01*exp(ensObs%vertLocation(obsIndex))

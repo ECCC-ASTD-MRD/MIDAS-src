@@ -420,7 +420,7 @@ contains
     integer, allocatable :: nblockoffset(:), nlonblock(:)
     integer, allocatable :: ai_indices(:,:), nstation(:,:), nstationMpiGlobal(:,:)
     real(8), allocatable :: keep_ai(:,:)
-    integer :: tovsIndex, sensorIndex
+    integer :: sensorIndex
     integer, allocatable :: numHeaderPerTovsInstBeforeThin(:,:), numHeaderPerTovsInstAfterThin(:,:)
     integer, allocatable :: numHeaderPerTovsInstBeforeThin_mpiGlobal(:,:), numHeaderPerTovsInstAfterThin_mpiGlobal(:,:)
     logical :: thinTovsPerInst, headerFoundForInst
@@ -566,8 +566,7 @@ contains
         end if
 
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
-          tovsIndex = tvs_tovsIndex(headerIndex)
-          sensorIndex = tvs_lsensor(tovsIndex)
+          sensorIndex = tvs_lsensor(headerIndex)
           numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) = numHeaderPerTovsInstBeforeThin(iblock,sensorIndex) + 1
         end if
 
@@ -652,8 +651,7 @@ contains
         nobs_count_thin = nobs_count_thin + obs_headElem_i(obsSpaceData, obs_nlv, headerIndex)
 
         if (cfam=='TO' .and. tvs_isIdBurpTovs(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex))) then
-          tovsIndex = tvs_tovsIndex(headerIndex)
-          sensorIndex = tvs_lsensor(tovsIndex)
+          sensorIndex = tvs_lsensor(headerIndex)
           numHeaderPerTovsInstAfterThin(iblock,sensorIndex) = numHeaderPerTovsInstAfterThin(iblock,sensorIndex) + 1
         end if
       else

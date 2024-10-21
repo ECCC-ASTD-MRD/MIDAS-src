@@ -70,8 +70,6 @@ module tovs_mod
   use codtyp_mod
   use utilities_mod
   use obsSpaceData_mod
-  use obsSubSpaceData_mod
-  use earthConstants_mod
   use mathPhysConstants_mod
   use climatologies_mod
   use bufr_mod
@@ -90,7 +88,7 @@ module tovs_mod
   private
 
   ! Public procedures
-  public :: tvs_setNobtov, tvs_allocateSurfaceParameters, tvs_allocateEmissivity
+  public :: tvs_allocateSurfaceParameters, tvs_allocateEmissivity
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission
   public :: tvs_deallocateProfilesNlTlAd
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpHyperSpectral, tvs_isIdBurpInst, tvs_getAllIdBurpTovs
@@ -124,8 +122,8 @@ module tovs_mod
   ! Protected module variables
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
-  integer, public, protected :: tvs_nobtov ! Number of tovs observations (FOVs)
-  integer, public, protected :: tvs_nsensors ! Number of individual sensors.
+  integer, public, protected :: tvs_headerEnd ! header index of the last radiance observation
+  integer, public, protected :: tvs_nsensors  ! Number of individual sensors.
   logical, public, protected :: tvs_mwAllskyAssim
   logical, public, protected :: tvs_computeJacobian ! Compute Jacobian for brightness temperature
   integer, public, protected :: tvs_platforms(tvs_maxNumberOfSensors)    ! RTTOV platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
@@ -138,8 +136,6 @@ module tovs_mod
   integer, public, protected, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
   integer, public, protected, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
   integer, public, protected, allocatable :: tvs_lsensor(:)           ! Sensor number for each profile
-  integer, public, protected, allocatable :: tvs_headerIndex(:)       ! Observation position in obsSpaceData header for each profile
-  integer, public, protected, allocatable :: tvs_tovsIndex(:)         ! Index in TOVS structures for each observation header in obsSpaceData
   integer, public, protected, allocatable :: tvs_nchanMpiGlobal(:)    ! Number of channels per instrument (global)
   logical, public, protected, allocatable :: tvs_isReallyPresent(:)   ! Logical flag to identify instruments really assimilated (local)
   logical, public, protected, allocatable :: tvs_isReallyPresentMpiGLobal(:) ! Logical flag to identify instruments really assimilated (global)
@@ -198,22 +194,6 @@ module tovs_mod
 contains
 
   !--------------------------------------------------------------------------
-  ! tvs_setNobtov
-  !--------------------------------------------------------------------------
-  subroutine tvs_setNobtov(nobtov)
-    !
-    ! :Purpose:  Set the global variable `nobtov`.
-    !
-    implicit none
-
-    ! Arguments:
-    integer, intent(in) :: nobtov  ! value of `nobtov` .i.e number of radiance profiles on the current MPI task
-
-    tvs_nobtov = nobtov
-
-  end subroutine tvs_setNobtov
-
-  !--------------------------------------------------------------------------
   ! tvs_allocateSurfaceParameters
   !--------------------------------------------------------------------------
   subroutine tvs_allocateSurfaceParameters()
@@ -222,7 +202,7 @@ contains
     !
     implicit none
 
-    allocate(tvs_surfaceParameters(tvs_nobtov))
+    allocate(tvs_surfaceParameters(tvs_headerEnd))
 
   end subroutine tvs_allocateSurfaceParameters
 
@@ -238,7 +218,7 @@ contains
     ! Arguments:
     integer, intent(in) :: maxChannelNumber  ! maximum number of channels for all sensors 
 
-    allocate(tvs_emissivity(maxChannelNumber,tvs_nobtov))
+    allocate(tvs_emissivity(maxChannelNumber,tvs_headerEnd))
 
   end subroutine tvs_allocateEmissivity
 
@@ -367,7 +347,7 @@ contains
     
     ! Locals:
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
-    integer :: tovsIndex, idatyp, sensorIndex
+    integer :: idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
     integer :: errorStatus
     integer :: headerIndex, bodyIndex, taskIndex
@@ -396,8 +376,6 @@ contains
     allocate(tvs_nchan(tvs_nsensors))
     allocate(tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors))
     allocate(tvs_lsensor(obs_numheader(obsSpaceData)))
-    allocate(tvs_headerIndex (obs_numheader(obsSpaceData)))
-    allocate(tvs_tovsIndex(obs_numheader(obsSpaceData)))
     allocate(tvs_isReallyPresent(tvs_nsensors))
     allocate(tvs_nchanMpiGlobal(tvs_nsensors))
     allocate(tvs_isReallyPresentMpiGlobal(tvs_nsensors))
@@ -408,9 +386,7 @@ contains
     sensorTotalNumberOfProfiles(:) = 0
     tvs_isReallyPresent(:) = .true.
     tvs_lsensor(:) = -1
-    tvs_headerIndex(:) = -1
-    tvs_tovsIndex (:) = -1
-    tvs_nobtov = 0
+    tvs_headerEnd = -1
 
     ! Loop over all header indices of the 'TO' family
     ! Set the header list & start at the beginning of the list
@@ -426,7 +402,7 @@ contains
         call rejectObs(obsSpaceData, headerIndex)
         cycle HEADER   ! Proceed to the next headerIndex
       end if
-      tvs_nobtov = tvs_nobtov + 1
+      tvs_headerEnd = headerIndex
      
       !    Construct list of channels for each sensor:
       !          map burp satellite info to RTTOV platform and satellite.
@@ -455,9 +431,7 @@ contains
       end do
 
       if (nosensor > 0) then
-        tvs_lsensor(tvs_nobtov) = nosensor
-        tvs_headerIndex(tvs_nobtov) = headerIndex
-        tvs_tovsIndex(headerIndex) = tvs_nobtov
+        tvs_lsensor(headerIndex) = nosensor
         sensorTotalNumberOfProfiles(nosensor) = sensorTotalNumberOfProfiles(nosensor) + 1
       else
         write(*,*) ' tvs_setupAlloc: Warning Invalid Sensor ', iplatform, isat, instrum, ' skipping ...'
@@ -530,7 +504,7 @@ contains
       end if
     end do
 
-    write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
+    write(*,*) ' tvs_setupAlloc: tvs_headerEnd = ', tvs_headerEnd
     
     allocate(ichanMpiGlobal(tvs_maxNumberOfChannels,tvs_nsensors))
     do sensorIndex = 1, tvs_nsensors
@@ -718,15 +692,14 @@ contains
       !   4. Memory allocations for radiative tranfer model variables
 
       ! Radiance by profile
-      allocate(tvs_radiance(tvs_nobtov))
-      do tovsIndex = 1, tvs_nobtov
-        sensorIndex = tvs_lsensor(tovsIndex)
-        if (sensorIndex > -1) then
-          ! allocate BT equivalent to total direct, tl and ad radiance output
-          allocate(tvs_radiance(tovsIndex) % bt (tvs_nchan(sensorIndex)))
-          tvs_radiance(tovsIndex) % bt (:) = 0.d0
-          nullify (tvs_radiance(tovsIndex) % clear)
-        end if
+      allocate(tvs_radiance(tvs_headerEnd))
+      do headerIndex = 1, tvs_headerEnd
+        sensorIndex = tvs_lsensor(headerIndex)
+        if (sensorIndex <= 0) cycle
+        ! allocate BT equivalent to total direct, tl and ad radiance output
+        allocate(tvs_radiance(headerIndex) % bt (tvs_nchan(sensorIndex)))
+        tvs_radiance(headerIndex) % bt (:) = 0.d0
+        nullify (tvs_radiance(headerIndex) % clear)
       end do
 
     end if !if (radiativeTransferCode == 'RTTOV')
@@ -779,18 +752,18 @@ contains
     integer, intent(in) :: nlv_T ! number of model thermodynamical vertical levels
 
     ! Locals:
-    integer :: obsIndex, sensorIndex, nchannels
+    integer :: headerIndex, sensorIndex, nchannels
 
     if (allocated(tvs_transmission)) deallocate(tvs_transmission)
-    allocate(tvs_transmission(tvs_nobtov))
+    allocate(tvs_transmission(tvs_headerEnd))
 
-    do obsIndex = 1, tvs_nobtov
-      sensorIndex = tvs_lsensor(obsIndex)
+    do headerIndex = 1, tvs_headerEnd
+      sensorIndex = tvs_lsensor(headerIndex)
       if (sensorIndex <= 0) cycle
       nchannels = tvs_nchan(sensorIndex)
       ! allocate transmittance from surface and from pressure levels
-      allocate(tvs_transmission(obsIndex) % tau_total(nchannels))
-      allocate(tvs_transmission(obsIndex) % tau_levels(nlv_T,nchannels))
+      allocate(tvs_transmission(headerIndex) % tau_total(nchannels))
+      allocate(tvs_transmission(headerIndex) % tau_levels(nlv_T,nchannels))
     end do
 
   end subroutine tvs_allocTransmission
@@ -843,6 +816,7 @@ contains
 
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
+    tvs_headerEnd = -1
 
     ! return if the NAMTOV does not exist
     if (.not. utl_isNamelistPresent('NAMTOV','./flnml')) then
@@ -1040,7 +1014,7 @@ contains
 
     ! Locals:
     integer :: allocStatus
-    integer :: sensorIndex,obsIndex,nlv_T
+    integer :: sensorIndex,headerIndex,nlv_T
 
     write(*,*) 'tvs_cleanup: Starting'
 
@@ -1048,19 +1022,19 @@ contains
 
       !___ radiance by profile
 
-      do obsIndex = 1, tvs_nobtov
+      do headerIndex = 1, tvs_headerEnd
         ! deallocate BT equivalent to total direct, tl and ad radiance output
-        deallocate(tvs_radiance(obsIndex) % bt)
+        deallocate(tvs_radiance(headerIndex) % bt)
       end do
       deallocate(tvs_radiance)
-      do obsIndex = 1, tvs_nobtov
-        sensorIndex = tvs_lsensor(obsIndex)
+      do headerIndex = 1, tvs_headerEnd
+        sensorIndex = tvs_lsensor(headerIndex)
         nlv_T = tvs_coefs(sensorIndex) % coef % nlevels
         ! deallocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(obsIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_nl(headerIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
             tvs_opts(sensorIndex), asw=0,coefs=tvs_coefs(sensorIndex), init=.false. ) ! asw =0 deallocation
         if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_nl')
-        call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(obsIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
+        call rttov_alloc_prof(allocStatus,1,tvs_profiles_tlad(headerIndex),nlv_T, &    ! 1 = nprofiles un profil a la fois
              tvs_opts(sensorIndex),asw=0,coefs=tvs_coefs(sensorIndex),init=.false. ) ! asw =0 deallocation
         if (allocStatus /= 0) call utl_abort('tvs_cleanup: memory deallocation error for tvs_profiles_tlad')
       end do
@@ -1082,8 +1056,6 @@ contains
     deallocate (tvs_nchan)
     deallocate (tvs_ichan)
     deallocate (tvs_lsensor)
-    deallocate (tvs_headerIndex)
-    deallocate (tvs_tovsIndex)
     deallocate (tvs_isReallyPresent)
     deallocate (tvs_nchanMpiGlobal)
     deallocate (tvs_chanProf)
@@ -1330,6 +1302,30 @@ contains
     idatypListSize = ninst_tovs
 
   end subroutine tvs_getAllIdBurpTovs
+
+  !--------------------------------------------------------------------------
+  !  tvs_countProfiles
+  !--------------------------------------------------------------------------
+  function tvs_countProfiles(sensorIndex) result(profileCount)
+    !
+    ! :Purpose: Function to count the number of radiances for a given sensor
+    !
+    implicit none
+    ! Arguments:
+    integer, intent(in) :: sensorIndex  ! RTTOV sensor index
+    ! Result:
+    integer             :: profileCount
+    ! Local:
+    integer :: headerIndex
+    
+    profileCount = 0
+    do headerIndex = 1, tvs_headerEnd
+      if (tvs_lsensor(headerIndex) == sensorIndex) then
+        profileCount = profileCount + 1
+      end if
+    end do
+    
+  end function tvs_countProfiles
 
   !--------------------------------------------------------------------------
   !  tvs_isIdBurpTovs
@@ -2127,14 +2123,14 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getChanProf
   !--------------------------------------------------------------------------
-  subroutine tvs_getChanprof(sensorTovsIndexes, obsSpaceData, chanprof, lchannel_subset_opt, iptobs_cma_opt, channelList_opt, excludeChannelsFromList_opt)
+  subroutine tvs_getChanprof(sensorHeaderIndexes, obsSpaceData, chanprof, lchannel_subset_opt, iptobs_cma_opt, channelList_opt, excludeChannelsFromList_opt)
     ! 
     ! :Purpose: subroutine to initialize the chanprof structure used by RTTOV
     !
     implicit none
 
     ! Arguments:
-    integer,              intent(in)  :: sensorTovsIndexes(:)       ! indexes of radiance observations for the currently processed sensor
+    integer,              intent(in)  :: sensorHeaderIndexes(:)     ! indexes of radiance observations in header table for the currently processed sensor
     type(struct_obs),     intent(in)  :: obsSpaceData               ! obsSpaceData structure
     type(rttov_chanprof), intent(out) :: chanprof(:)                ! chanprof RTTOV structure
     logical,    optional, intent(out) :: lchannel_subset_opt(:,:)   ! logical array for channel selection by profile for RttovScatt
@@ -2143,12 +2139,11 @@ contains
     logical,    optional, intent(in)  :: excludeChannelsFromList_opt! .true. to exclude channels from list; .false. to select them  
 
     ! Locals:
-    integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
+    integer :: btCount, profileIndex, headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex, channelNumber
     integer :: channelIndex
     logical :: isChannelInList, excludeChannelsFromList, selected
 
     ! Build the list of channels/profiles indices
-    count = 0
 
     excludeChannelsFromList = .false.
     if (present(excludeChannelsFromList_opt)) then
@@ -2156,40 +2151,40 @@ contains
     end if
     
     if (present(lchannel_subset_opt)) lchannel_subset_opt(:,:) = .false.
-         
-    do profileIndex = 1, size(sensorTovsIndexes)
-      iobs = sensorTovsIndexes(profileIndex)
-      headerIndex = tvs_headerIndex(iobs)
-      if (headerIndex > 0) then
-        istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
-                channelNumber, channelIndex )
-            if (channelIndex > 0) then
-              isChannelInList = .true.
-              if (present(channelList_opt) ) then
-                isChannelInList = (utl_findloc(channelList_opt, channelNumber) > 0 )
-              end if
-              if (excludeChannelsFromList) then
-                selected = .not. isChannelInList
-              else
-                selected = isChannelInList
-              end if
-              if (selected) then
-                count = count + 1
-                chanprof(count) % prof = profileIndex
-                chanprof(count) % chan = channelIndex
-                if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = bodyIndex
-                if (present(lchannel_subset_opt)) lchannel_subset_opt(profileIndex,channelIndex) = .true.
-              end if
-            else
-              write(*,*) 'tvs_getChanProf: strange channel number', channelNumber
+    
+    btCount = 0
+    
+    do profileIndex = 1, size(sensorHeaderIndexes)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      if (headerIndex <= 0) cycle
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+              channelNumber, channelIndex )
+          if (channelIndex > 0) then
+            isChannelInList = .true.
+            if (present(channelList_opt) ) then
+              isChannelInList = (utl_findloc(channelList_opt, channelNumber) > 0 )
             end if
+            if (excludeChannelsFromList) then
+              selected = .not. isChannelInList
+            else
+              selected = isChannelInList
+            end if
+            if (selected) then
+              btCount = btCount + 1
+              chanprof(btCount) % prof = profileIndex
+              chanprof(btCount) % chan = channelIndex
+              if (present(iptobs_cma_opt)) iptobs_cma_opt(btCount) = bodyIndex
+              if (present(lchannel_subset_opt)) lchannel_subset_opt(profileIndex,channelIndex) = .true.
+            end if
+          else
+            write(*,*) 'tvs_getChanProf: strange channel number', channelNumber
           end if
-        end do
-      end if
+        end if
+      end do
     end do
   
   end subroutine tvs_getChanprof
@@ -2197,31 +2192,29 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_countRadiances
   !--------------------------------------------------------------------------
-  integer function tvs_countRadiances(sensorTovsIndexes, obsSpaceData)
+  integer function tvs_countRadiances(sensorHeaderIndexes, obsSpaceData)
     !
     ! :Purpose: to count all radiances selected for assimilation
     !
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
-    type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
+    integer,           intent(in)    :: sensorHeaderIndexes(:) ! indexes in header table of radiance observations for the currently processed sensor
+    type(struct_obs),  intent(inout) :: obsSpaceData           ! obsSpaceData structure
     
     ! Locals:
-    integer :: profileIndex, headerIndex, bodyIndex, iobs
+    integer :: profileIndex, headerIndex, bodyIndex
 
     tvs_countRadiances = 0
-    do profileIndex = 1, size(sensorTovsIndexes)
-      iobs = sensorTovsIndexes(profileIndex)
-      headerIndex = tvs_headerIndex(iobs)
-      if (headerIndex > 0) then
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY:do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
-        end do BODY
-      end if
+    do profileIndex = 1, size(sensorHeaderIndexes)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      if (headerIndex <= 0) cycle
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY:do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) tvs_countRadiances  = tvs_countRadiances + 1
+      end do BODY
     end do
 
   end function tvs_countRadiances
@@ -2229,40 +2222,38 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_countRadiancesScatt
   !--------------------------------------------------------------------------
-  integer function tvs_countRadiancesScatt(sensorTovsIndexes, obsSpaceData, scattChannelList, sensorIndex)
+  integer function tvs_countRadiancesScatt(sensorHeaderIndexes, obsSpaceData, scattChannelList, sensorIndex)
     !
     ! :Purpose: to count radiances selected for assimilation that need to be simulated using RttovScatt
     !
     implicit none
 
     ! Arguments:
-    integer,           intent(in)    :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    integer,           intent(in)    :: sensorHeaderIndexes(:) ! indexes of radiance observations for the currently processed sensor
     type(struct_obs),  intent(inout) :: obsSpaceData         ! obsSpaceData structure
     integer,           intent(in)    :: scattChannelList(:)  ! list of channel numbers to process using RttovScatt
     integer,           intent(in)    :: sensorIndex          ! sensor index in NAMTOV namelist section
     
     ! Locals:
-    integer :: profileIndex, headerIndex, bodyIndex, iobs, channelNumber
+    integer :: profileIndex, headerIndex, bodyIndex, channelNumber
 
     tvs_countRadiancesScatt = 0
-    do profileIndex = 1, size(sensorTovsIndexes)
-      iobs = sensorTovsIndexes(profileIndex)
-      headerIndex = tvs_headerIndex(iobs)
-      if (headerIndex > 0) then
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY:do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-            channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
-            channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-            if (utl_findloc(scattChannelList,channelNumber) > 0) then
-              tvs_countRadiancesScatt  = tvs_countRadiancesScatt + 1
-            end if
+    do profileIndex = 1, size(sensorHeaderIndexes)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      if (headerIndex <= 0) cycle
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY:do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
+          channelNumber = max(0 , min(channelNumber, tvs_maxChannelNumber + 1))
+          channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
+          if (utl_findloc(scattChannelList,channelNumber) > 0) then
+            tvs_countRadiancesScatt  = tvs_countRadiancesScatt + 1
           end if
-        end do BODY
-      end if
+        end if
+      end do BODY
     end do
   
   end function tvs_countRadiancesScatt
@@ -2298,35 +2289,33 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getHIREmissivities
   !--------------------------------------------------------------------------
-  subroutine tvs_getHIREmissivities(sensorTovsIndexes, obsSpaceData, surfem)
+  subroutine tvs_getHIREmissivities(sensorHeaderIndexes, obsSpaceData, surfem)
     !
     ! :Purpose: to get emissivity for Hyperspectral Infrared Sounders (AIRS, IASI, CrIS, ...)
     !
     implicit none
 
     ! Arguments:
-    integer,          intent(in)  :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
-    type(struct_obs), intent(in)  :: obsSpaceData         ! obsSpaceData structure
-    real(8),          intent(out) :: surfem(:)            ! surface emissivity
+    integer,          intent(in)  :: sensorHeaderIndexes(:) ! header indexes of radiance observations for the currently processed sensor
+    type(struct_obs), intent(in)  :: obsSpaceData           ! obsSpaceData structure
+    real(8),          intent(out) :: surfem(:)              ! surface emissivity
 
     ! Locals:
-    integer :: count, profileIndex, iobs, istart, iend, bodyIndex, headerIndex
+    integer :: count, profileIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex, headerIndex
 
     count = 0 
     surfem(:) = 0.98d0
-    do profileIndex = 1, size(sensorTovsIndexes)
-      iobs = sensorTovsIndexes(profileIndex)
-      headerIndex = tvs_headerIndex(iobs)
-      if (headerIndex > 0 ) then
-        istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
-            count = count + 1
-            surfem ( count ) = obs_bodyElem_r(obsSpaceData,OBS_SEM,bodyIndex)
-          end if
-        end do
-      end if
+    do profileIndex = 1, size(sensorHeaderIndexes)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      if (headerIndex <= 0 ) cycle
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+          count = count + 1
+          surfem ( count ) = obs_bodyElem_r(obsSpaceData,OBS_SEM,bodyIndex)
+        end if
+      end do
     end do
 
   end subroutine tvs_getHIREmissivities
@@ -2334,41 +2323,41 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getOtherEmissivities
   !--------------------------------------------------------------------------
-  subroutine tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrument, surfem, calcemis)
+  subroutine tvs_getOtherEmissivities(chanprof, sensorHeaderIndexes, sensorType, instrument, surfem, calcemis)
     !
     ! :Purpose: to get emissivity for microwave sounders and infrared geostationary imagers
     !
     implicit none
 
     ! Arguments:
-    type(rttov_chanprof), intent(in)  :: chanprof(:)         ! chanprof RTTOV structure
-    integer,              intent(in)  :: sensorTovsIndexes(:)! indexes of radiance observations for the currently processed sensor
-    integer,              intent(in)  :: sensorType          ! RTTOV sensor type
-    integer,              intent(in)  :: instrument          ! RTTOV instrument code
-    real(8),              intent(out) :: surfem(:)           ! surface emissivity
-    logical,              intent(out) :: calcemis(:)         ! flag to request emissivity computation by RTTOV
+    type(rttov_chanprof), intent(in)  :: chanprof(:)           ! chanprof RTTOV structure
+    integer,              intent(in)  :: sensorHeaderIndexes(:)! indexes of radiance observations for the currently processed sensor
+    integer,              intent(in)  :: sensorType            ! RTTOV sensor type
+    integer,              intent(in)  :: instrument            ! RTTOV instrument code
+    real(8),              intent(out) :: surfem(:)             ! surface emissivity
+    logical,              intent(out) :: calcemis(:)           ! flag to request emissivity computation by RTTOV
     
     ! Locals:
-    integer :: radiance_index, profileIndex, iobs, surfaceType
+    integer :: radianceIndex, profileIndex, headerIndex, surfaceType
 
-    do radiance_index = 1, size(chanprof)
-      profileIndex = chanprof(radiance_index) % prof
-      iobs = sensorTovsIndexes(profileIndex)
-      surfaceType = tvs_profiles_nl(iobs) % skin % surftype
+    do radianceIndex = 1, size(chanprof)
+      profileIndex = chanprof(radianceIndex) % prof
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      surfaceType = tvs_profiles_nl(headerIndex) % skin % surftype
       if ( sensorType == sensor_id_mw ) then
         if ( surfaceType == surftype_land .or. &
              surfaceType == surftype_seaice     ) then
-          calcemis(radiance_index) = .false.
-          surfem (radiance_index) = 0.75d0
+          calcemis(radianceIndex) = .false.
+          surfem (radianceIndex) = 0.75d0
         else
-          calcemis(radiance_index) = .true.
-          surfem (radiance_index) = 0.d0
+          calcemis(radianceIndex) = .true.
+          surfem (radianceIndex) = 0.d0
         end if
       else if ( tvs_isInstrumHyperSpectral(instrument) ) then
-        calcemis(radiance_index) = .false. 
+        calcemis(radianceIndex) = .false. 
       else if ( tvs_isInstrumGeostationary(instrument) ) then
-        calcemis(radiance_index) = .true.
-        surfem (radiance_index) = 0.d0
+        calcemis(radianceIndex) = .true.
+        surfem (radianceIndex) = 0.d0
       else
         write(*,*) sensorType,instrument
         call utl_abort('tvs_getOtherEmissivities. invalid sensor type or unknown IR instrument')
@@ -2396,16 +2385,14 @@ contains
 
     ! Locals:
     integer :: instrum, iplatform
-    integer :: nobmax
-    integer :: sensorIndex, tovsIndex
+    integer :: sensorIndex, headmax
     integer :: profileCount, headerIndex
     integer :: profileIndex, levelIndex
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
     integer :: allocStatus    
-    integer,external ::  newdate
-    integer, allocatable :: sensorTovsIndexes(:)
+    integer, external ::  newdate
     integer, allocatable :: sensorHeaderIndexes(:)  
     type(struct_vco), pointer :: vco
     real(8), allocatable :: pressure (:,:)
@@ -2428,7 +2415,7 @@ contains
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: Starting'
   
-    if (tvs_nobtov == 0) return    ! exit if there are no tovs data
+    if (tvs_headerEnd < 0) return    ! exit if there are no tovs data
 
     if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnTrl,'LWCR') ) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
@@ -2469,16 +2456,16 @@ contains
 
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
-        allocate(tvs_profiles_nl(tvs_nobtov))
+        allocate(tvs_profiles_nl(tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_nl(tvs_nobtov))
+          allocate(tvs_cld_profiles_nl(tvs_headerEnd))
         end if
       end if
     else if ( profileType == 'tlad' ) then
       if ( .not. allocated(tvs_profiles_tlad) ) then
-        allocate(tvs_profiles_tlad(tvs_nobtov))
+        allocate(tvs_profiles_tlad(tvs_headerEnd))
         if (tvs_numMWInstrumUsingHydrometeors > 0) then
-          allocate(tvs_cld_profiles_tlad(tvs_nobtov))
+          allocate(tvs_cld_profiles_tlad(tvs_headerEnd))
         end if
       else
         return
@@ -2535,13 +2522,13 @@ contains
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
       ! first loop over all obs.
-      profileCount = 0
-      bobs1: do tovsIndex = 1, tvs_nobtov
-        if (tvs_lsensor(tovsIndex) == sensorIndex) then
-          profileCount = profileCount + 1
-          NOBMAX = tovsIndex
+      bobs1: do headerIndex = 1, tvs_headerEnd
+        if (tvs_lsensor(headerIndex) == sensorIndex) then
+          headmax = headerIndex
         end if
       end do bobs1
+
+      profileCount = tvs_countProfiles(sensorIndex)
 
       if (profileCount == 0) cycle sensor_loop
 
@@ -2551,8 +2538,8 @@ contains
         zmax = zenmax
       end if
       
-      allocate(sensorTovsIndexes(profileCount))
       allocate(sensorHeaderIndexes(profileCount))
+      sensorHeaderIndexes(:) = -1
       allocate(latitudes(profileCount))
       allocate(ozone(nlv_T,profileCount)) 
       allocate(pressure(nlv_T,profileCount))
@@ -2578,17 +2565,15 @@ contains
 
       profileCount = 0
       ! second loop over all obs.
-      bobs2: do tovsIndex = 1, NOBMAX
-        if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle bobs2
+      bobs2: do headerIndex = 1, headmax
+        if (tvs_lsensor(headerIndex) /= sensorIndex) cycle bobs2
         profileCount = profileCount + 1
-        sensorTovsIndexes(profileCount) = tovsIndex
-        headerIndex = tvs_headerIndex(tovsIndex)
         sensorHeaderIndexes(profileCount) = headerIndex
 
         call rttov_alloc_prof(                 &
              allocStatus,                      &
              1,                                & ! 1 = nprofiles un profil a la fois
-             profiles(tovsIndex:tovsIndex),    &
+             profiles(headerIndex:headerIndex),&
              nlv_T,                            & 
              tvs_opts(sensorIndex),            &
              asw=1,                            & ! asw =1 allocation
@@ -2596,37 +2581,37 @@ contains
              init=.true. )
         if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_prof')
         if (runObsOperatorWithHydrometeors) then
-          call rttov_alloc_scatt_prof(            &   
-               allocstatus,                       &
-               1,                                 &
-               cld_profiles(tovsIndex:tovsIndex), &
-               nlv_T,                             &
-               nhydro=5,                          & ! depending on what is defined in the Mie tables
-               nhydro_frac=1,                     & ! 1 cloud fraction for all variable or nhydro 1 cloud fraction for each variable
-               asw=1_jpim,                        & ! 1 => allocate
-               init=.true.,                       & ! initialize profiles to zero
-               flux_conversion=[1,2,0,0,0] )        !flux_conversion  input units: 0 (default) => kg/kg,
-                                                    ! 1,2 => kg/m2/s, optional for rain, snow
+          call rttov_alloc_scatt_prof(                &   
+               allocstatus,                           &
+               1,                                     &
+               cld_profiles(headerIndex:headerIndex), &
+               nlv_T,                                 &
+               nhydro=5,                              & ! depending on what is defined in the Mie tables
+               nhydro_frac=1,                         & ! 1 cloud fraction for all variable or nhydro 1 cloud fraction for each variable
+               asw=1_jpim,                            & ! 1 => allocate
+               init=.true.,                           & ! initialize profiles to zero
+               flux_conversion=[1,2,0,0,0] )            !flux_conversion  input units: 0 (default) => kg/kg,
+                                                        ! 1,2 => kg/m2/s, optional for rain, snow
           if (allocStatus /= 0) call utl_abort('tvs_fillProfiles: memory allocation error in rttov_alloc_scatt_prof')
         end if
 
         !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        profiles(tovsIndex) % skin % surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
+        profiles(headerIndex) % skin % surftype = tvs_ChangedStypValue(obsSpaceData,headerIndex)
 
         !    extract satellite zenith and azimuth angle, 
         !    sun zenith angle, cloud fraction, latitude and longitude
-        profiles(tovsIndex) % zenangle   = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
+        profiles(headerIndex) % zenangle   = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-        call validateRttovVariable(profiles(tovsIndex) % zenangle, "satellite zenith angle", &
+        call validateRttovVariable(profiles(headerIndex) % zenangle, "satellite zenith angle", &
             obsSpaceData, headerIndex, 0.d0, zmax)
  
-        profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
-        profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
+        profiles(headerIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
+        profiles(headerIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
-        profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
+        profiles(headerIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
         if (tvs_opts(sensorIndex) % rt_ir % addsolar) then
-          call validateRttovVariable(profiles(tovsIndex) % sunzenangle, "sun zenith angle", &
+          call validateRttovVariable(profiles(headerIndex) % sunzenangle, "sun zenith angle", &
               obsSpaceData, headerIndex, 0.d0)
         end if
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
@@ -2635,7 +2620,7 @@ contains
         if (latitudes(profileCount) < -90.d0 .and. (-latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = -90.d0
         call validateRttovVariable(latitudes(profileCount), 'latitude', obsSpaceData, headerIndex, -90.d0, 90.d0) 
         
-        profiles(tovsIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        profiles(headerIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
@@ -2722,99 +2707,98 @@ contains
       !   2.5  Fill profiles structure
 
       do  profileIndex = 1 , profileCount 
-        tovsIndex = sensorTovsIndexes(profileIndex)
         headerIndex = sensorHeaderIndexes(profileIndex)
-        profiles(tovsIndex) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
-        profiles(tovsIndex) % id              = '' ! profile id, up to 128 characters, to consider for use
-        profiles(tovsIndex) % nlevels         = nlv_T
-        profiles(tovsIndex) % nlayers         = nlv_T - 1
-        profiles(tovsIndex) % date(1)         = year
-        profiles(tovsIndex) % date(2)         = month
-        profiles(tovsIndex) % date(3)         = day
-        profiles(tovsIndex) % latitude        = latitudes(profileIndex)
-        profiles(tovsIndex) % elevation       = 0.001d0 * col_getHeight(columnTrl,ilowlvl_T,headerIndex,'TH') ! unite km
-        call validateRttovVariable(profiles(tovsIndex) % elevation, "elevation", obsSpaceData, headerIndex, maximum_opt=elevmax)
-        profiles(tovsIndex) % skin % watertype = watertype_ocean_water !utilise pour calcul rayonnement solaire reflechi seulement
-        profiles(tovsIndex) % skin % t         = col_getElem(columnTrl,1,headerIndex,'TG')
-        call validateRttovVariable( profiles(tovsIndex) % skin % t, "skin temperature", obsSpaceData, headerIndex, tmin, tmax) 
-        profiles(tovsIndex) % skin % salinity  = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
-        profiles(tovsIndex) % skin % fastem(:) = 0.0d0
-        profiles(tovsIndex) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
-        profiles(tovsIndex) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
-        profiles(tovsIndex) % s2m % t          = col_getElem(columnTrl,ilowlvl_T,headerIndex,'TT')
-        call validateRttovVariable(profiles(tovsIndex) % s2m % t, '2m air temperature', &
+        profiles(headerIndex) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
+        profiles(headerIndex) % id              = '' ! profile id, up to 128 characters, to consider for use
+        profiles(headerIndex) % nlevels         = nlv_T
+        profiles(headerIndex) % nlayers         = nlv_T - 1
+        profiles(headerIndex) % date(1)         = year
+        profiles(headerIndex) % date(2)         = month
+        profiles(headerIndex) % date(3)         = day
+        profiles(headerIndex) % latitude        = latitudes(profileIndex)
+        profiles(headerIndex) % elevation       = 0.001d0 * col_getHeight(columnTrl,ilowlvl_T,headerIndex,'TH') ! unite km
+        call validateRttovVariable(profiles(headerIndex) % elevation, "elevation", obsSpaceData, headerIndex, maximum_opt=elevmax)
+        profiles(headerIndex) % skin % watertype = watertype_ocean_water !utilise pour calcul rayonnement solaire reflechi seulement
+        profiles(headerIndex) % skin % t         = col_getElem(columnTrl,1,headerIndex,'TG')
+        call validateRttovVariable( profiles(headerIndex) % skin % t, "skin temperature", obsSpaceData, headerIndex, tmin, tmax) 
+        profiles(headerIndex) % skin % salinity  = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
+        profiles(headerIndex) % skin % fastem(:) = 0.0d0
+        profiles(headerIndex) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
+        profiles(headerIndex) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
+        profiles(headerIndex) % s2m % t          = col_getElem(columnTrl,ilowlvl_T,headerIndex,'TT')
+        call validateRttovVariable(profiles(headerIndex) % s2m % t, '2m air temperature', &
             obsSpaceData, headerIndex, tmin, tmax) 
-        profiles(tovsIndex) % s2m % p         = col_getElem(columnTrl,1      ,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
-        call validateRttovVariable(profiles(tovsIndex) % s2m % p, 'surface pressure', &
+        profiles(headerIndex) % s2m % p         = col_getElem(columnTrl,1      ,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
+        call validateRttovVariable(profiles(headerIndex) % s2m % p, 'surface pressure', &
             obsSpaceData, headerIndex, pmin, pmax) 
-        profiles(tovsIndex) % s2m % u         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'UU')
-        profiles(tovsIndex) % s2m % v         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'VV')
-        wind = sqrt( profiles(tovsIndex) % s2m % u ** 2 + &
-            profiles(tovsIndex) % s2m % v ** 2 )
+        profiles(headerIndex) % s2m % u         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'UU')
+        profiles(headerIndex) % s2m % v         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'VV')
+        wind = sqrt( profiles(headerIndex) % s2m % u ** 2 + &
+            profiles(headerIndex) % s2m % v ** 2 )
         if ( wind > wmax ) then
           write(*,*) 'tvs_fillProfiles: !!! WARNING !!!'
           write(*,*) 'tvs_fillProfiles: INVALID 10m wind speed'
           write(*,*) 'tvs_fillProfiles: headerIndex ', headerIndex, " !"
           write(*,*) 'tvs_fillProfiles: modulus ', wind, ' larger than ', wmax, 'set to zero !'
-          profiles(tovsIndex) % s2m % u = 0.d0
-          profiles(tovsIndex) % s2m % v = 0.d0
+          profiles(headerIndex) % s2m % u = 0.d0
+          profiles(headerIndex) % s2m % v = 0.d0
           call rejectObs(obsSpaceData, headerIndex)
         end if
-        profiles(tovsIndex) % s2m % o         = 0.0d0 !surface ozone never used
-        profiles(tovsIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
-        profiles(tovsIndex) % icede_param     = 0
-        profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
-        profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
-        profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
-        call validateRttovVariable(profiles(tovsIndex) % p(nlv_T), "pressure profile near surface", obsSpaceData, headerIndex, maximum_opt=2000.d0)
-        call validateRttovVariable(profiles(tovsIndex) % p(1), "pressure profile near top", obsSpaceData, headerIndex, 0.d0) 
+        profiles(headerIndex) % s2m % o         = 0.0d0 !surface ozone never used
+        profiles(headerIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
+        profiles(headerIndex) % icede_param     = 0
+        profiles(headerIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
+        profiles(headerIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
+        profiles(headerIndex) % p(:)            = pressure(:,profileIndex)
+        call validateRttovVariable(profiles(headerIndex) % p(nlv_T), "pressure profile near surface", obsSpaceData, headerIndex, maximum_opt=2000.d0)
+        call validateRttovVariable(profiles(headerIndex) % p(1), "pressure profile near top", obsSpaceData, headerIndex, 0.d0) 
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
         if (runObsOperatorWithHydrometeors) then
-          cld_profiles(tovsIndex) % ph (1) = 0.d0
-          cld_profiles(tovsIndex) % cfrac = 0.d0
+          cld_profiles(headerIndex) % ph (1) = 0.d0
+          cld_profiles(headerIndex) % cfrac = 0.d0
           do levelIndex = 1, nlv_T - 1
-            cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + &
-                                                                   profiles(tovsIndex) % p(levelIndex+1))
+            cld_profiles(headerIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(headerIndex) % p(levelIndex) + &
+                                                                   profiles(headerIndex) % p(levelIndex+1))
           end do
-          cld_profiles(tovsIndex) % ph (nlv_T+1) = profiles(tovsIndex) % s2m % p
+          cld_profiles(headerIndex) % ph (nlv_T+1) = profiles(headerIndex) % s2m % p
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
-        profiles(tovsIndex) % t(:)   = column_ptr(:)
-        call validateRttovProfile(profiles(tovsIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
+        profiles(headerIndex) % t(:)   = column_ptr(:)
+        call validateRttovProfile(profiles(headerIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
-          profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * microg2kg ! micrograms/kg to kg/kg
+          profiles(headerIndex) % o3(:) = ozone(:,profileIndex) * microg2kg ! micrograms/kg to kg/kg
           if (.not. tvs_useO3Climatology)  then
-            profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * microg2kg 
+            profiles(headerIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * microg2kg 
           end if
-          call validateRttovProfile(profiles(tovsIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
+          call validateRttovProfile(profiles(headerIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
         end if
 
         column_ptr => col_getColumn(columnTrl, headerIndex,'HU' )
-        profiles(tovsIndex) % q(:)            =  column_ptr(:)
-        call validateRttovProfile(profiles(tovsIndex) % q, 'water vapor', qmin, qmax, obsSpaceData, headerIndex)
-        profiles(tovsIndex) % ctp = 1013.25d0
-        profiles(tovsIndex) % cfraction = 0.d0
-        if (runObsOperatorWithClw) profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
+        profiles(headerIndex) % q(:)            =  column_ptr(:)
+        call validateRttovProfile(profiles(headerIndex) % q, 'water vapor', qmin, qmax, obsSpaceData, headerIndex)
+        profiles(headerIndex) % ctp = 1013.25d0
+        profiles(headerIndex) % cfraction = 0.d0
+        if (runObsOperatorWithClw) profiles(headerIndex) % clw(:) = clw(:,profileIndex)
         if (runObsOperatorWithHydrometeors) then
-          cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
-          cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
-          cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
-          cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
+          cld_profiles(headerIndex) % hydro(:,1) = rainFlux(:,profileIndex)
+          cld_profiles(headerIndex) % hydro(:,2) = snowFlux(:,profileIndex)
+          cld_profiles(headerIndex) % hydro(:,4) = clw(:,profileIndex)
+          cld_profiles(headerIndex) % hydro(:,5) = ciw(:,profileIndex)
 
           do levelIndex = 1, nlv_T
-            if (cld_profiles(tovsIndex) % hydro(levelIndex,1) > qlim_getMinValueCloud('RF') .or. &
-                cld_profiles(tovsIndex) % hydro(levelIndex,2) > qlim_getMinValueCloud('SF') .or. &
-                cld_profiles(tovsIndex) % hydro(levelIndex,4) > qlim_getMinValueCloud('LWCR') .or. &
-                cld_profiles(tovsIndex) % hydro(levelIndex,5) > qlim_getMinValueCloud('IWCR')) then
+            if (cld_profiles(headerIndex) % hydro(levelIndex,1) > qlim_getMinValueCloud('RF') .or. &
+                cld_profiles(headerIndex) % hydro(levelIndex,2) > qlim_getMinValueCloud('SF') .or. &
+                cld_profiles(headerIndex) % hydro(levelIndex,4) > qlim_getMinValueCloud('LWCR') .or. &
+                cld_profiles(headerIndex) % hydro(levelIndex,5) > qlim_getMinValueCloud('IWCR')) then
               
               ! set to overcast cloud, if CLDR not part of control variables
               if (col_varExist(columnTrl,'CLDR')) then
-                cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = cloudFraction(levelIndex,profileIndex)
+                cld_profiles(headerIndex) % hydro_frac(levelIndex,1) = cloudFraction(levelIndex,profileIndex)
               else
-                cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = 1.0d0
+                cld_profiles(headerIndex) % hydro_frac(levelIndex,1) = 1.0d0
               end if
             else
-              cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = qlim_getMinValueCloud('CLDR')  
+              cld_profiles(headerIndex) % hydro_frac(levelIndex,1) = qlim_getMinValueCloud('CLDR')  
             end if
 
           end do ! levelIndex
@@ -2824,14 +2808,13 @@ contains
       ! Extract emissivity from background column object to be used in the computation
       ! of non-linear RTTOV
       if (col_varExist(columnTrl, 'EMMW')) then
-        call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, tvs_nobtov)
+        call sse_extractEmissivityCol(columnTrl, tvs_emissivityFromTrl, profileCount, sensorHeaderIndexes, tvs_headerEnd)
       end if
 
       deallocate(pressure)
       deallocate(ozone)
       deallocate(latitudes)
       deallocate(sensorHeaderIndexes)
-      deallocate(sensorTovsIndexes)
       if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. .not.tvs_useO3Climatology) then
         deallocate(ozone)
       end if
@@ -2867,16 +2850,13 @@ contains
     real(8)                      :: correctedAzimuth ! corrected azimuth (function result)
 
     ! Locals:
-    integer :: sensorNo, tovsIndex
+    integer :: sensorNo
 
     correctedAzimuth = obs_headElem_r(obsSpaceData,OBS_AZA,headerIndex)
 
-    tovsIndex = tvs_tovsIndex (headerIndex)
-    if ( tovsIndex < 0) return
+    sensorNo = tvs_lsensor(headerIndex)
 
-    sensorNo  = tvs_lsensor(tovsIndex)
-
-    if ( .not. tvs_isAzimuthValid(sensorNo) ) then
+    if (.not. tvs_isAzimuthValid(sensorNo)) then
       correctedAzimuth = obs_missingValue_R
       return
     end if
@@ -2911,14 +2891,14 @@ contains
     integer :: allocStatus
     integer :: rttov_err_stat ! rttov error return code
     integer :: nthreads,max_nthreads
-    integer :: sensorIndex, tovsIndex
+    integer :: sensorIndex
     integer :: channelIndex
     integer :: hydroChannelsCount
     integer :: profileCount
-    integer :: profileIndex, levelIndex, btIndex
+    integer :: profileIndex, levelIndex, btIndex, headerIndex
     integer :: instrum
     integer :: sensorType        ! sensor type (1=infrared; 2=microwave; 3=high resolution; 4=polarimetric)
-    integer, allocatable :: sensorTovsIndexes(:)
+    integer, allocatable :: sensorHeaderIndexes(:)
     type (rttov_emissivity), pointer :: emissivity_local(:)      ! emissivity structure with input and output
     type (rttov_emissivity), pointer :: emissivity_localScatt(:) ! emissivity structure with input and output
     type (rttov_chanprof), allocatable :: chanprof1(:)
@@ -2935,7 +2915,7 @@ contains
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
 
-    if (tvs_nobtov == 0) return       ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return       ! exit if there are not tovs data
     
     if (.not. beSilent) write(*,*) 'tvs_rttov: Starting'
     if (.not. beSilent) call msg_memUsage('tvs_rttov')
@@ -2943,8 +2923,6 @@ contains
     !   1.  Get number of threads available and allocate memory for some variables
 
     max_nthreads = mmpi_numThread
-
-    allocate(sensorTovsIndexes(tvs_nobtov))
 
     !   1.1   Read surface information
     if (bgckMode) call TVS_EMIS_READ_CLIMATOLOGY
@@ -2962,19 +2940,20 @@ contains
 
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
-    
+      profileCount = tvs_countProfiles(sensorIndex)
+      call utl_reallocate(sensorHeaderIndexes, profileCount)
       call tvs_setupPointers(runObsOperatorWithHydrometeors, sensorIndex, btCount, btCountScatt, &
-          hydroChannelsCount, profileCount, sensorTovsIndexes, lChannelSubset, obsSpaceData, &
+          hydroChannelsCount, sensorHeaderIndexes, lChannelSubset, obsSpaceData, &
           irBgckMode_opt= (bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) )
 
       if (profileCount == 0) cycle sensor_loop
       if (btCount == 0 .and. btCountScatt==0) cycle sensor_loop
       
       !  loop over all obs.
-      obs_loop: do tovsIndex = 1, tvs_nobtov  
+      obs_loop: do headerIndex = 1, tvs_headerEnd 
         !    Currently processed sensor?
-        if (tvs_lsensor(tovsIndex) == sensorIndex) then
-          nlv_T = tvs_profiles_nl(tovsIndex) % nlevels
+        if (tvs_lsensor(headerIndex) == sensorIndex) then
+          nlv_T = tvs_profiles_nl(headerIndex) % nlevels
           exit obs_loop
         end if
       end do obs_loop
@@ -3012,13 +2991,13 @@ contains
           !     get Hyperspectral IR emissivities
           surfem1(:) = 0.
           if (bgckMode) then
-            call emis_getIrEmissivity (surfem1,tvs_nchan(sensorIndex),sensorIndex,profileCount,btCount,sensorTovsIndexes)
+            call emis_getIrEmissivity (surfem1,tvs_nchan(sensorIndex),sensorIndex,profileCount,btCount,sensorHeaderIndexes)
           else
-            call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), obsSpaceData, surfem1)
+            call tvs_getHIREmissivities(sensorHeaderIndexes, obsSpaceData, surfem1)
           end if
         end if
         
-        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
         
         if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
           if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
@@ -3037,13 +3016,13 @@ contains
             end if
           end if
           
-          call rttov_get_emis(rttov_err_stat,                        & ! out
-              tvs_opts(sensorIndex),                                 & ! in
-              tvs_chanprof(1:btCount,sensorIndex),                   & ! in
-              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),    & ! in
-              tvs_coefs(sensorIndex),                                & ! in
-              tvs_atlas(sensorIndex),                                & ! inout
-              uOfWLandWSurfaceEmissivity(1:btCount) )                  ! out
+          call rttov_get_emis(rttov_err_stat,             & ! out
+              tvs_opts(sensorIndex),                      & ! in
+              tvs_chanprof(1:btCount,sensorIndex),        & ! in
+              tvs_profiles_nl(sensorHeaderIndexes),       & ! in
+              tvs_coefs(sensorIndex),                     & ! in
+              tvs_atlas(sensorIndex),                     & ! inout
+              uOfWLandWSurfaceEmissivity(1:btCount) )       ! out
 
           if (rttov_err_stat /= 0) then
             write(*,*) 'Error in rttov_get_emis IR', rttov_err_stat
@@ -3051,7 +3030,7 @@ contains
           end if
               
           do profileIndex=1, profileCount !loop on profiles
-            tovsIndex = sensorTovsIndexes(profileIndex)
+            headerIndex = sensorHeaderIndexes(profileIndex)
             do btIndex=1, btCount !loop on channels
               if (tvs_chanProf(btIndex,sensorIndex) % prof == profileIndex) then
                 ! surftype: 0 land, 1 sea, 2 sea-ice
@@ -3068,7 +3047,7 @@ contains
                 ! other information that could be useful for quality control can be found in the in the profile_qc structure
                 ! Now we have the 'traditionnal' emissivity in surfem1(:)
                 ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-                if (tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
+                if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. &
                     uOfWLandWSurfaceEmissivity(btIndex) > 0.5) then
                   emissivity_local(btIndex) % emis_in = uOfWLandWSurfaceEmissivity(btIndex)
                 else
@@ -3086,8 +3065,8 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from column object to rttov emissivity_local
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, &
-                                              tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, &
+                                              tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                               tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, tvs_profiles_nl(:) % skin % surftype, &
                                               emissivityProfDt_opt = tvs_emissivityFromTrl)
           else if (tvs_useSfcEmissObsSpace) then
@@ -3096,10 +3075,10 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from obsSpaceData Object 
-            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount), tvs_headerIndex)
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)
           else
             ! Read surface emissivity from emissivity atlas
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount))
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)
           end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
@@ -3130,16 +3109,16 @@ contains
             tb1 = 1 + (profileIndex2-1) * tvs_nchan(sensorIndex) 
             tb2 = profileIndex2 * tvs_nchan(sensorIndex)
 
-            call rttov_parallel_direct(                                                             &
-                rttov_err_stat,                                                                     & ! out
-                chanprof1,                                                                          & ! in
-                tvs_opts(sensorIndex),                                                              & ! in
-                tvs_profiles_nl(sensorTovsIndexes(profileIndex2):sensorTovsIndexes(profileIndex2)), & ! in
-                tvs_coefs(sensorIndex),                                                             & ! in
-                transmission1,                                                                      & ! inout
-                radiancedata_d1,                                                                    & ! inout
-                calcemis=calcemis(tb1:tb2),                                                         & ! in
-                emissivity=emissivity_local(tb1:tb2),                                               & ! inout
+            call rttov_parallel_direct(                                                                &
+                rttov_err_stat,                                                                        & ! out
+                chanprof1,                                                                             & ! in
+                tvs_opts(sensorIndex),                                                                 & ! in
+                tvs_profiles_nl(sensorHeaderIndexes(profileIndex2):sensorHeaderIndexes(profileIndex2)),& ! in
+                tvs_coefs(sensorIndex),                                                                & ! in
+                transmission1,                                                                         & ! inout
+                radiancedata_d1,                                                                       & ! inout
+                calcemis=calcemis(tb1:tb2),                                                            & ! in
+                emissivity=emissivity_local(tb1:tb2),                                                  & ! inout
                 nthreads=nthreads )
 
             ! copy contents of single profile structures into complete structures
@@ -3175,20 +3154,20 @@ contains
           if (runObsOperatorWithClw  .and. obs_columnActive_RB(obsSpaceData, OBS_BTCL)) then
             
             ! set the cloud profile in tvs_profiles_nl to zero
-            call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
-                                           nlv_T,                            &
-                                           mode='save',                      &
+            call updateCloudInTovsProfile(sensorHeaderIndexes,  &
+                                           nlv_T,               &
+                                           mode='save',         &
                                            beSilent=.true.)
-            call rttov_parallel_direct(                               &
-                rttov_err_stat,                                       & ! out
-                tvs_chanProf(1:btCount,sensorIndex),                  & ! in
-                tvs_opts(sensorIndex),                                & ! in
-                tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),   & ! in
-                tvs_coefs(sensorIndex),                               & ! in
-                transmission,                                         & ! inout
-                radiancedata_d,                                       & ! inout
-                calcemis=calcemis,                                    & ! in
-                emissivity=emissivity_local,                          & ! inout
+            call rttov_parallel_direct(                         &
+                rttov_err_stat,                                 & ! out
+                tvs_chanProf(1:btCount,sensorIndex),            & ! in
+                tvs_opts(sensorIndex),                          & ! in
+                tvs_profiles_nl(sensorHeaderIndexes(:)),        & ! in
+                tvs_coefs(sensorIndex),                         & ! in
+                transmission,                                   & ! inout
+                radiancedata_d,                                 & ! inout
+                calcemis=calcemis,                              & ! in
+                emissivity=emissivity_local,                    & ! inout
                 nthreads=nthreads      )   
 
             ! save in obsSpaceData
@@ -3201,23 +3180,23 @@ contains
             end do
 
             ! tvs_profiles_nl
-            call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
-                                          nlv_T,                             &
-                                          mode='restore',                    &
+            call updateCloudInTovsProfile(sensorHeaderIndexes, &
+                                          nlv_T,               &
+                                          mode='restore',      &
                                           beSilent=.true.)
           end if
 
           if (.not. beSilent) write(*,*) 'before rttov_parallel_direct...', sensorIndex, profileCount, btCount
-          call rttov_parallel_direct(                              &
-              rttov_err_stat,                                      & ! out
-              tvs_chanProf(1:btCount,sensorIndex),                 & ! in
-              tvs_opts(sensorIndex),                               & ! in
-              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),  & ! in
-              tvs_coefs(sensorIndex),                              & ! in
-              transmission,                                        & ! inout
-              radiancedata_d,                                      & ! inout
-              calcemis=calcemis,                                   & ! in
-              emissivity=emissivity_local,                         & ! inout
+          call rttov_parallel_direct(                  &
+              rttov_err_stat,                          & ! out
+              tvs_chanProf(1:btCount,sensorIndex),     & ! in
+              tvs_opts(sensorIndex),                   & ! in
+              tvs_profiles_nl(sensorHeaderIndexes(:)), & ! in
+              tvs_coefs(sensorIndex),                  & ! in
+              transmission,                            & ! inout
+              radiancedata_d,                          & ! inout
+              calcemis=calcemis,                       & ! in
+              emissivity=emissivity_local,             & ! inout
               nthreads=nthreads      )
           if (.not. beSilent) write(*,*) 'after rttov_parallel_direct...'
           if (rttov_err_stat /= 0) then
@@ -3231,19 +3210,19 @@ contains
         do btIndex = 1, btCount
           profileIndex = tvs_chanProf(btIndex,sensorIndex) % prof
           channelIndex = tvs_chanProf(btIndex,sensorIndex) % chan
-          tovsIndex = sensorTovsIndexes(profileIndex)
-          tvs_radiance(tovsIndex) % bt(channelIndex) = radiancedata_d % bt(btIndex)
+          headerIndex = sensorHeaderIndexes(profileIndex)
+          tvs_radiance(headerIndex) % bt(channelIndex) = radiancedata_d % bt(btIndex)
 
           if (bgckMode) then
-            if (.not. associated(tvs_radiance(tovsIndex) % clear)) then 
-              allocate(tvs_radiance(tovsIndex) % clear ( tvs_nchan(sensorIndex)))
+            if (.not. associated(tvs_radiance(headerIndex) % clear)) then 
+              allocate(tvs_radiance(headerIndex) % clear ( tvs_nchan(sensorIndex)))
               !  allocate overcast black cloud sky radiance output
-              allocate(tvs_radiance(tovsIndex) % overcast (nlv_T-1,tvs_nchan(sensorIndex)))
+              allocate(tvs_radiance(headerIndex) % overcast (nlv_T-1,tvs_nchan(sensorIndex)))
             end if
-            tvs_radiance(tovsIndex) % clear(channelIndex) =  &
+            tvs_radiance(headerIndex) % clear(channelIndex) =  &
                 radiancedata_d % clear(btIndex)
             do levelIndex = 1, nlv_T - 1
-              tvs_radiance(tovsIndex) % overcast(levelIndex,channelIndex) =   &
+              tvs_radiance(headerIndex) % overcast(levelIndex,channelIndex) =   &
                   radiancedata_d % overcast(levelIndex,btIndex)
             end do
           end if
@@ -3251,15 +3230,15 @@ contains
           if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
           do levelIndex = 1, nlv_T
-            tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+            tvs_transmission(headerIndex) % tau_levels(levelIndex,channelIndex) = &
                 transmission % tau_levels(levelIndex,btIndex)
           end do
           
-          tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+          tvs_transmission(headerIndex) % tau_total(channelIndex) = &
               transmission % tau_total(btIndex)
 
           if (allocated(tvs_emissivity)) then
-            tvs_emissivity(channelIndex,tovsIndex) = emissivity_local(btIndex) % emis_out
+            tvs_emissivity(channelIndex,headerIndex) = emissivity_local(btIndex) % emis_out
           end if
           
         end do
@@ -3314,10 +3293,10 @@ contains
             frequencies,                                   &  ! array, frequency number for each channel
             lchannelSubset )                                  ! OPTIONAL array of logical flags to indicate a subset of channels
         deallocate(lchannelSubset)
-        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
+        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
         
         call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, tvs_chanProfScatt(1:btCountScatt,sensorIndex), &
-                                          sensorTovsIndexes(1:profileCount))
+                                          sensorHeaderIndexes)
       
         !   2.3  Compute radiance with rttov_direct
 
@@ -3326,23 +3305,23 @@ contains
         if (runObsOperatorWithHydrometeors .and. obs_columnActive_RB(obsSpaceData, OBS_BTCL)) then
           ! run rttovScatt
           ! set the cloud profile in tvs_cld_profiles_nl to zero
-          call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
-                                             nlv_T,                             &
-                                             mode='save',                       &
+          call updateCloudInTovsCloudProfile(sensorHeaderIndexes,      &
+                                             nlv_T,                    &
+                                             mode='save',              &
                                              beSilent=.true.)
-          call tvs_rttovScatt(                                        &
-              rttov_err_stat,                                         &! out
-              tvs_opts_scatt(sensorIndex),                            &! in
-              nlv_T,                                                  &! in
-              tvs_chanProfScatt(1:btCountScatt,sensorIndex),          &! in
-              frequencies,                                            &! in
-              tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),     &! in
-              tvs_cld_profiles_nl(sensorTovsIndexes(1:profileCount)), &! in
-              tvs_coefs(sensorIndex),                                 &! in
-              tvs_coef_scatt(sensorIndex),                            &! in
-              calcemisScatt,                                          &! in
-              emissivity_localScatt,                                  &! inout
-              transmission,                                           &
+          call tvs_rttovScatt(                                         &
+              rttov_err_stat,                                          &! out
+              tvs_opts_scatt(sensorIndex),                             &! in
+              nlv_T,                                                   &! in
+              tvs_chanProfScatt(1:btCountScatt,sensorIndex),           &! in
+              frequencies,                                             &! in
+              tvs_profiles_nl(sensorHeaderIndexes(:)),                 &! in
+              tvs_cld_profiles_nl(sensorHeaderIndexes(:)),             &! in
+              tvs_coefs(sensorIndex),                                  &! in
+              tvs_coef_scatt(sensorIndex),                             &! in
+              calcemisScatt,                                           &! in
+              emissivity_localScatt,                                   &! inout
+              transmission,                                            &
               radiancedata_dScatt) 
 
           ! save in obsSpaceData
@@ -3351,7 +3330,7 @@ contains
             bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex,sensorIndex)
             profileIndex = tvs_chanprofScatt(btIndex,sensorIndex) % prof
             channelIndex = tvs_chanprofScatt(btIndex,sensorIndex) % chan
-            tovsIndex = sensorTovsIndexes(profileIndex)
+            headerIndex = sensorHeaderIndexes(profileIndex)
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_r(obsSpaceData, OBS_BTCL, bodyIndex, clearMwRadiance)
             end if
@@ -3359,35 +3338,35 @@ contains
             if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
    
             do levelIndex = 1, nlv_T
-              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+              tvs_transmission(headerIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
             end do
-            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+            tvs_transmission(headerIndex) % tau_total(channelIndex) = &
                 transmission % tau_total(btIndex)           
           end do
           
           ! restore the cloud profiles in ...
-          call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
-                                             nlv_T,                             &
-                                             mode='restore',                    &
+          call updateCloudInTovsCloudProfile(sensorHeaderIndexes,  &
+                                             nlv_T,                &
+                                             mode='restore',       &
                                              beSilent=.true.)
           
         end if ! run clear-sky RTTOV
         
         if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorIndex, profileCount, btCountScatt
-        call tvs_rttovScatt(                                        &
-            rttov_err_stat,                                         &! out
-            tvs_opts_scatt(sensorIndex),                            &! in
-            nlv_T,                                                  &! in
-            tvs_chanprofScatt(1:btCountScatt,sensorIndex),          &! in
-            frequencies,                                            &! in
-            tvs_profiles_nl(sensorTovsIndexes(1:profileCount)),     &! in
-            tvs_cld_profiles_nl(sensorTovsIndexes(1:profileCount)), &! in
-            tvs_coefs(sensorIndex),                                 &! in
-            tvs_coef_scatt(sensorIndex),                            &! in
-            calcemisScatt,                                          &! in
-            emissivity_localScatt,                                  &! inout
-            transmission,                                           &! allocated inside
+        call tvs_rttovScatt(                                &
+            rttov_err_stat,                                 &! out
+            tvs_opts_scatt(sensorIndex),                    &! in
+            nlv_T,                                          &! in
+            tvs_chanprofScatt(1:btCountScatt,sensorIndex),  &! in
+            frequencies,                                    &! in
+            tvs_profiles_nl(sensorHeaderIndexes(:)),        &! in
+            tvs_cld_profiles_nl(sensorHeaderIndexes(:)),    &! in
+            tvs_coefs(sensorIndex),                         &! in
+            tvs_coef_scatt(sensorIndex),                    &! in
+            calcemisScatt,                                  &! in
+            emissivity_localScatt,                          &! inout
+            transmission,                                   &! allocated inside
             radiancedata_dScatt) 
         if (.not. beSilent) write(*,*) 'after rttov_scatt...'
         if (rttov_err_stat /= 0) then
@@ -3399,35 +3378,35 @@ contains
         do btIndex = 1, btCountScatt
           profileIndex = tvs_chanProfScatt(btIndex,sensorIndex) % prof
           channelIndex = tvs_chanprofScatt(btIndex,sensorIndex) % chan
-          tovsIndex = sensorTovsIndexes(profileIndex)
-          tvs_radiance(tovsIndex) % bt(channelIndex) = radiancedata_dScatt % bt(btIndex)
+          headerIndex = sensorHeaderIndexes(profileIndex)
+          tvs_radiance(headerIndex) % bt(channelIndex) = radiancedata_dScatt % bt(btIndex)
 
           if (bgckMode) then
-            if (.not. associated(tvs_radiance(tovsIndex) % clear)) then 
-              allocate(tvs_radiance(tovsIndex) % clear(tvs_nchan(sensorIndex)))
+            if (.not. associated(tvs_radiance(headerIndex) % clear)) then 
+              allocate(tvs_radiance(headerIndex) % clear(tvs_nchan(sensorIndex)))
               !  allocate overcast black cloud sky radiance output
-              allocate(tvs_radiance(tovsIndex) % overcast(nlv_T-1,tvs_nchan(sensorIndex)))
+              allocate(tvs_radiance(headerIndex) % overcast(nlv_T-1,tvs_nchan(sensorIndex)))
             end if
-            tvs_radiance(tovsIndex) % clear(channelIndex) =  &
+            tvs_radiance(headerIndex) % clear(channelIndex) =  &
                 radiancedata_dScatt % clear(btIndex)
             do levelIndex = 1, nlv_T - 1
-              tvs_radiance(tovsIndex) % overcast(levelIndex,channelIndex) =   &
+              tvs_radiance(headerIndex) % overcast(levelIndex,channelIndex) = &
                   radiancedata_dScatt % overcast(levelIndex,btIndex)
             end do
             if (.not. allocated(tvs_transmission)) call tvs_allocTransmission(nlv_T)
           end if
 
           if (allocated(tvs_emissivity)) then
-            tvs_emissivity(channelIndex,tovsIndex) = emissivity_localScatt(btIndex) % emis_out
+            tvs_emissivity(channelIndex,headerIndex) = emissivity_localScatt(btIndex) % emis_out
           end if
 
           if (allocated(tvs_transmission)) then
             do levelIndex = 1, nlv_T
-              tvs_transmission(tovsIndex) % tau_levels(levelIndex,channelIndex) = &
+              tvs_transmission(headerIndex) % tau_levels(levelIndex,channelIndex) = &
                   transmission % tau_levels(levelIndex,btIndex)
             end do
           
-            tvs_transmission(tovsIndex) % tau_total(channelIndex) = &
+            tvs_transmission(headerIndex) % tau_total(channelIndex) = &
                 transmission % tau_total(btIndex)
           end if
         end do
@@ -3453,10 +3432,8 @@ contains
       end if ! if (btCountScatt > 0)
       
       if (.not. beSilent) call msg_memUsage('tvs_rttov')
-
     end do sensor_loop
     
-    deallocate(sensorTovsIndexes)
     if (allocated(tvs_bodyIndexFromBtIndex)) then
       deallocate( tvs_bodyIndexFromBtIndex )
       deallocate( tvs_bodyIndexFromBtIndexScatt )
@@ -3470,7 +3447,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
-  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorIndex, chanprof, sensorTovsIndexes)
+  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorIndex, chanprof, sensorHeaderIndexes)
     implicit none
 
     ! Arguments:
@@ -3478,13 +3455,13 @@ contains
     type(rttov_emissivity),  intent(out) :: updatedEmissivity(:)  ! emissivity from atlas where possible
     integer,                 intent(in)  :: sensorIndex           ! sensor Index 
     type(rttov_chanprof),    intent(in)  :: chanprof(:)           ! chanprof RTTOV structure
-    integer,                 intent(in)  :: sensorTovsIndexes(:)  ! indexes of radiance observations for the currently processed sensor
+    integer,                 intent(in)  :: sensorHeaderIndexes(:)! indexes of radiance observations for the currently processed sensor
 
     ! Locals:
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
     integer :: btCount, profileCount
-    integer :: profileIndex, btIndex, tovsIndex
+    integer :: profileIndex, btIndex, headerIndex
     
     btCount = size(originalEmissivity)
     if (useMWEmissivityAtlas) then
@@ -3504,12 +3481,12 @@ contains
         end if
       end if
    
-      call rttov_get_emis( returnCode,            & ! out
-           tvs_opts(sensorIndex),                 & ! in
-           chanprof,                              & ! in
-           tvs_profiles_nl(sensorTovsIndexes(:)), & ! in
-           tvs_coefs(sensorIndex),                & ! in
-           tvs_atlas(sensorIndex),                & ! in
+      call rttov_get_emis( returnCode,             & ! out
+           tvs_opts(sensorIndex),                  & ! in
+           chanprof,                               & ! in
+           tvs_profiles_nl(sensorHeaderIndexes(:)),& ! in
+           tvs_coefs(sensorIndex),                 & ! in
+           tvs_atlas(sensorIndex),                 & ! in
            mWAtlasSurfaceEmissivity)                ! out
     
       if (returnCode /= 0) then
@@ -3517,15 +3494,15 @@ contains
         call utl_abort('tvs_getMWemissivityFromAtlas')
       end if
 
-      profileCount = size( sensorTovsIndexes )
+      profileCount = size( sensorHeaderIndexes )
 
       do profileIndex = 1, profileCount !loop on profiles
-        tovsIndex = sensorTovsIndexes(profileIndex)
+        headerIndex = sensorHeaderIndexes(profileIndex)
         do btIndex = 1, btCount !loop on channels
           if (chanprof(btIndex) % prof == profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
-            if (tvs_profiles_nl(tovsIndex) % skin % surftype == surftype_land .and. &
+            if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. &
                 mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
                 mWAtlasSurfaceEmissivity(btIndex) <= 1.d0) then ! check for missing values
               updatedEmissivity(btIndex) % emis_in = mWAtlasSurfaceEmissivity(btIndex)
@@ -3768,7 +3745,7 @@ contains
   !--------------------------------------------------------------------------
   !  emis_getIrEmissivity
   !--------------------------------------------------------------------------
-  subroutine emis_getIrEmissivity (surfem1, nchn, sensorIndex, nprf, nchannels_max, sensorTovsIndexes)
+  subroutine emis_getIrEmissivity (surfem1, nchn, sensorIndex, nprf, nchannels_max, sensorHeaderIndexes)
     !
     ! :Purpose: Assign new ir surface emissivities based on
     !           cmc analysis surface albedo, sea ice fraction and snow mask
@@ -3778,15 +3755,15 @@ contains
     implicit none
    
     ! Arguments:
-    integer, intent(in)  :: nprf                   ! Number of profiles
-    integer, intent(in)  :: nchannels_max          ! Total number of observations treated
-    real(8), intent(out) :: surfem1(nchannels_max) ! IR surface emissivity estimate (0-1)
-    integer, intent(in)  :: nchn                   ! Number of channels
-    integer, intent(in)  :: sensorindex            ! Sensor number
-    integer, intent(in)  :: sensorTovsIndexes(nprf)! indexes of radiance observations for the currently processed sensor
+    integer, intent(in)  :: nprf                     ! Number of profiles
+    integer, intent(in)  :: nchannels_max            ! Total number of observations treated
+    real(8), intent(out) :: surfem1(nchannels_max)   ! IR surface emissivity estimate (0-1)
+    integer, intent(in)  :: nchn                     ! Number of channels
+    integer, intent(in)  :: sensorindex              ! Sensor number
+    integer, intent(in)  :: sensorHeaderIndexes(nprf)! header indexes of radiance observations for the currently processed sensor
 
     ! Locals:
-    integer :: channelIndex,profileIndex
+    integer :: channelIndex,profileIndex, headerIndex
     integer :: ilat(nprf), ilon(nprf)
     real(8) :: latitudes(nprf), longitudes(nprf), satzang(nprf)
     real(8) :: wind_sfc(nprf), f_low(nprf), waven(nchn), em_oc(nchn,nprf), emi_mat(nchn,20)
@@ -3797,14 +3774,14 @@ contains
     ! satzang(nprf) -- satellite zenith angle (deg)
 
     do profileIndex = 1, nprf
-      latitudes(profileIndex)  = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % latitude
-      longitudes(profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % longitude
-      satzang(profileIndex)    = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % zenangle
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      latitudes(profileIndex)  = tvs_profiles_nl(headerIndex) % latitude
+      longitudes(profileIndex) = tvs_profiles_nl(headerIndex) % longitude
+      satzang(profileIndex)    = tvs_profiles_nl(headerIndex) % zenangle
     end do
 
     !  Assign surface properties from grid to profiles
-    call tvs_interp_sfc(ilat,ilon, nprf,latitudes,longitudes,sensorTovsIndexes)
-
+    call tvs_interp_sfc(ilat,ilon, nprf,latitudes,longitudes,sensorHeaderIndexes)
 
     !  Find the sensor bands (central) wavenumbers
     do channelIndex = 1, nchn      
@@ -3820,7 +3797,8 @@ contains
 
     do profileIndex = 1, nprf
       !       find surface wind
-      wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % s2m %u**2 + tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % s2m % v**2 + 1.d-12),15.d0)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(headerIndex) % s2m %u**2 + tvs_profiles_nl(headerIndex) % s2m % v**2 + 1.d-12),15.d0)
     end do
 
     !     find new ocean emissivities     
@@ -3836,16 +3814,17 @@ contains
 
     do profileIndex = 1, nprf
       !       set albedo to 0.6 where snow is present
-      if (tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow > 0.999) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo = 0.6
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % albedo = 0.6
       !       if albedo too high no water
-      if (tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo >= 0.55) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat = 0.
+      if (tvs_surfaceParameters(headerIndex) % albedo >= 0.55) tvs_surfaceParameters(headerIndex) % pcnt_wat = 0.
       !       if water and CMC ice present then sea ice
-      if (tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ice > 0.001) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype = 20
+      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_surfaceParameters(headerIndex) % ltype = 20
       !       if land and CMC snow present then snow
-      if (tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow > 0.999) tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype = 15
+      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % ltype = 15
       do channelIndex=1,nchn
-        surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat * em_oc(channelIndex,profileIndex)  +   &
-             ( 1.d0 - tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype)
+        surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(headerIndex) % pcnt_wat * em_oc(channelIndex,profileIndex)  +  &
+             ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(headerIndex) % ltype)
       end do
     end do
 
@@ -3853,7 +3832,7 @@ contains
     call tvs_pcnt_box (f_low, nprf,ilat,ilon,7)
 
     do profileIndex = 1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_reg = f_low(profileIndex)
+      tvs_surfaceParameters(sensorHeaderIndexes(profileIndex)) % pcnt_reg = f_low(profileIndex)
     end do
 
   end subroutine emis_getIrEmissivity
@@ -3861,7 +3840,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_interp_sfc
   !--------------------------------------------------------------------------
-  subroutine tvs_interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorTovsIndexes,skipAlbedo_opt)
+  subroutine tvs_interp_sfc (ilat, ilon, nprf, latitudes, longitudes, sensorHeaderIndexes,skipAlbedo_opt)
     !
     ! :Purpose: Associate surface albedo, ice fraction, snow depth 
     !           and ceres surface type and water fraction to observations profiles.
@@ -3869,13 +3848,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in)  :: nprf                    ! number of profiles
-    integer,           intent(out) :: ilat(nprf)              ! y-coordinate of profile
-    integer,           intent(out) :: ilon(nprf)              ! x-coordinate of profile 
-    real(8),           intent(in)  :: latitudes(nprf)         ! latitude (-90s to 90n)
-    real(8),           intent(in)  :: longitudes(nprf)        ! longitude (0 to 360)
-    integer,           intent(in)  :: sensorTovsIndexes(nprf) ! indexes of radiance observations for the currently processed sensor
-    logical,optional,  intent(in)  :: skipAlbedo_opt          ! skip the section of code about Albedo  
+    integer,           intent(in)  :: nprf                      ! number of profiles
+    integer,           intent(out) :: ilat(nprf)                ! y-coordinate of profile
+    integer,           intent(out) :: ilon(nprf)                ! x-coordinate of profile 
+    real(8),           intent(in)  :: latitudes(nprf)           ! latitude (-90s to 90n)
+    real(8),           intent(in)  :: longitudes(nprf)          ! longitude (0 to 360)
+    integer,           intent(in)  :: sensorHeaderIndexes(nprf) ! header indexes of radiance observations for the currently processed sensor
+    logical,optional,  intent(in)  :: skipAlbedo_opt            ! skip the section of code about Albedo  
 
     ! Locals:
     character(len=20)  :: cfile3,cfile5
@@ -3893,7 +3872,7 @@ contains
     integer            :: ig14,ig24,ig34,ig44
     integer            :: ig15,ig25,ig35,ig45
     integer            :: swa,lng,dltf,ubc,ex1,ex2,ex3
-    integer            :: profileIndex
+    integer            :: profileIndex, headerIndex
     character(len=1)   :: typvar
     character(len=1)   :: grtyp3,grtyp4,grtyp5
     character(len=2)   :: nomvar, snowvar
@@ -3949,9 +3928,9 @@ contains
       if (ilon(profileIndex) > kslon) ilon(profileIndex) = 1
 
       !  Assign surface caracteristics to observation profiles
-
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ltype    = surfaceType(ilon(profileIndex),ilat(profileIndex))
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % pcnt_wat = waterFraction(ilon(profileIndex),ilat(profileIndex))
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      tvs_surfaceParameters(headerIndex) % ltype    = surfaceType(ilon(profileIndex),ilat(profileIndex))
+      tvs_surfaceParameters(headerIndex) % pcnt_wat = waterFraction(ilon(profileIndex),ilat(profileIndex))
 
     end do
 
@@ -4121,9 +4100,10 @@ contains
     ! assign surface caracteristics to observation profiles
 
     do profileIndex = 1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % ice    = glace_intrpl(profileIndex,1)
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % snow   = neige_intrpl(profileIndex,1)
-      tvs_surfaceParameters(sensorTovsIndexes(profileIndex)) % albedo = alb_intrpl(profileIndex,1)
+      headerIndex = sensorHeaderIndexes(profileIndex)
+      tvs_surfaceParameters(headerIndex) % ice    = glace_intrpl(profileIndex,1)
+      tvs_surfaceParameters(headerIndex) % snow   = neige_intrpl(profileIndex,1)
+      tvs_surfaceParameters(headerIndex) % albedo = alb_intrpl(profileIndex,1)
     end do
 
     deallocate(glace,neige,alb)
@@ -4429,7 +4409,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData! obsSpacaData structure
 
     ! Locals:
-    integer :: sensorIndex, channelIndex, tovsIndex
+    integer :: sensorIndex, channelIndex
     real(8) :: zjoch(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(pre_obsReal) :: zdtb, obsPRM
@@ -4444,7 +4424,7 @@ contains
 
     write(*,*) 'tvs_printDetailledOmfStatistics: Starting'
 
-    if (tvs_nobtov == 0) return    ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return    ! exit if there are not tovs data
 
     ! 1.  Computation of (hx - z)/sigma for tovs data only
 
@@ -4468,10 +4448,8 @@ contains
         write(*,*) 'tvs_printDetailledOmfStatistics: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
         cycle HEADER
       end if
-      tovsIndex = tvs_tovsIndex(headerIndex)
-      if (tovsIndex == -1) cycle HEADER
        
-      sensorIndex = tvs_lsensor(tovsIndex)
+      sensorIndex = tvs_lsensor(headerIndex)
 
       ! Set the body list
       ! (& start at the beginning of the list)
@@ -4493,11 +4471,11 @@ contains
         end if
 
         zdtb = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex) - &
-             tvs_radiance(tovsIndex) % bt(channelIndex)
+             tvs_radiance(headerIndex) % bt(channelIndex)
         if (tvs_debug) then
           obsPRM = obs_bodyElem_r(obsSpaceData,OBS_PRM,bodyIndex)
           write(*,'(a,i4,2f8.2,f6.2)') ' rttovChannelNumber,sim,obs,diff= ', &
-               rttovChannelNumber, tvs_radiance(tovsIndex) % bt(channelIndex), &
+               rttovChannelNumber, tvs_radiance(headerIndex) % bt(channelIndex), &
                obsPRM, -zdtb
         end if
 
@@ -4612,17 +4590,17 @@ contains
   !--------------------------------------------------------------------------
   !  updateCloudInTovsProfile
   !--------------------------------------------------------------------------
-  subroutine updateCloudInTovsProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
+  subroutine updateCloudInTovsProfile(sensorHeaderIndexes, nlv_T, mode, beSilent)
     !
     ! :Purpose: Modify the cloud in tvs_profiles_nl structure of rttov.
     !
     implicit none
     
     ! Arguments:
-    integer,      intent(in) :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
-    integer,      intent(in) :: nlv_T                ! number of model vertical thermodynamical levels
-    character(*), intent(in) :: mode                 ! save or restore
-    logical,      intent(in) :: beSilent             ! flag to control verbosity
+    integer,      intent(in) :: sensorHeaderIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    integer,      intent(in) :: nlv_T                  ! number of model vertical thermodynamical levels
+    character(*), intent(in) :: mode                   ! save or restore
+    logical,      intent(in) :: beSilent               ! flag to control verbosity
 
     ! Locals:
     integer :: profileIndex, profileCount
@@ -4631,20 +4609,20 @@ contains
     if (.not. beSilent) write(*,*) 'updateCloudInTovsProfile: Starting'
     if (.not. beSilent) call msg_memUsage('updateCloudInTovsProfile')
 
-    profileCount = size(sensorTovsIndexes)
+    profileCount = size(sensorHeaderIndexes)
 
     if (trim(mode) == 'save') then 
       if (allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
       allocate(cloudProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
-        cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_getMinValueCloud('LWCR') 
+        cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorHeaderIndexes(profileIndex)) % clw(:)
+        tvs_profiles_nl(sensorHeaderIndexes(profileIndex)) % clw(:) = qlim_getMinValueCloud('LWCR') 
       end do
 
     else if (trim(mode) == 'restore') then 
       do profileIndex = 1, profileCount
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = cloudProfileToStore(:,profileIndex)
+        tvs_profiles_nl(sensorHeaderIndexes(profileIndex)) % clw(:) = cloudProfileToStore(:,profileIndex)
       end do
 
       deallocate(cloudProfileToStore)
@@ -4658,27 +4636,27 @@ contains
   !--------------------------------------------------------------------------
   !  updateCloudInTovsCloudProfile
   !--------------------------------------------------------------------------
-  subroutine updateCloudInTovsCloudProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
+  subroutine updateCloudInTovsCloudProfile(sensorHeaderIndexes, nlv_T, mode, beSilent)
     !
     ! :Purpose: Modify the cloud in tvs_cld_profiles_nl structure of rttovScatt.
     !
     implicit none
     
     ! Arguments:
-    integer,      intent(in) :: sensorTovsIndexes(:) ! indexes of radiance observations for the currently processed sensor
-    integer,      intent(in) :: nlv_T                ! number of model vertical thermodynamical levels   
-    character(*), intent(in) :: mode                 ! save or restore
-    logical,      intent(in) :: beSilent             ! flag to control verbosity
+    integer,      intent(in) :: sensorHeaderIndexes(:) ! indexes of radiance observations for the currently processed sensor
+    integer,      intent(in) :: nlv_T                  ! number of model vertical thermodynamical levels   
+    character(*), intent(in) :: mode                   ! save or restore
+    logical,      intent(in) :: beSilent               ! flag to control verbosity
 
     ! Locals:
-    integer :: profileIndex, profileCount
+    integer :: profileIndex, profileCount, headerIndex
     real(8), allocatable, save :: rainFluxProfileToStore(:,:)
     real(8), allocatable, save :: snowFluxProfileToStore(:,:)
     real(8), allocatable, save :: clwProfileToStore(:,:)
     real(8), allocatable, save :: ciwProfileToStore(:,:)
     real(8), allocatable, save :: cloudFractionProfileToStore(:,:)
 
-    profileCount = size(sensorTovsIndexes)
+    profileCount = size(sensorHeaderIndexes)
 
     if (.not. beSilent) write(*,*) 'updateCloudInTovsCloudProfile: Starting', profileCount
     if (.not. beSilent) call msg_memUsage('updateCloudInTovsCloudProfile')
@@ -4696,25 +4674,27 @@ contains
       allocate(cloudFractionProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
-        rainFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1)
-        snowFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2)
-        clwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4)
-        ciwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5)
-        cloudFractionProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = qlim_getMinValueCloud('RF')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = qlim_getMinValueCloud('SF')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = qlim_getMinValueCloud('LWCR')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = qlim_getMinValueCloud('IWCR')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        rainFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(headerIndex) % hydro(:,1)
+        snowFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(headerIndex) % hydro(:,2)
+        clwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(headerIndex) % hydro(:,4)
+        ciwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(headerIndex) % hydro(:,5)
+        cloudFractionProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(headerIndex) % hydro_frac(:,1)
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,1) = qlim_getMinValueCloud('RF')
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,2) = qlim_getMinValueCloud('SF')
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,4) = qlim_getMinValueCloud('LWCR')
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,5) = qlim_getMinValueCloud('IWCR')
+        tvs_cld_profiles_nl(headerIndex) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
       end do
 
     else if (trim(mode) == 'restore') then 
       do profileIndex = 1, profileCount
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = rainFluxProfileToStore(:,profileIndex)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = snowFluxProfileToStore(:,profileIndex)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = clwProfileToStore(:,profileIndex)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = ciwProfileToStore(:,profileIndex)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = cloudFractionProfileToStore(:,profileIndex)
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,1) = rainFluxProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,2) = snowFluxProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,4) = clwProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(headerIndex) % hydro(:,5) = ciwProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(headerIndex) % hydro_frac(:,1) = cloudFractionProfileToStore(:,profileIndex)
       end do
 
       deallocate(rainFluxProfileToStore)
@@ -4747,10 +4727,9 @@ contains
     integer,          intent(out) :: channelIndex  ! channel index in tvs_ichan
 
     ! Locals:
-    integer :: tovsIndex, sensorIndex
+    integer :: sensorIndex
 
-    tovsIndex = tvs_tovsIndex(headerIndex)
-    sensorIndex = tvs_lsensor(tovsIndex)
+    sensorIndex = tvs_lsensor(headerIndex)
 
     channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
     channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
@@ -4763,7 +4742,7 @@ contains
   !  tvs_writeJacobianAscii
   !--------------------------------------------------------------------------
   subroutine tvs_writeJacobianAscii(jacobian, jacobian_emiss, profiles, chanprof, obsSpaceData, satelliteName, instrumentName, &
-                                    bodyIndexFromBtIndex, sensorTovsIndexes, btCount)
+                                    bodyIndexFromBtIndex, sensorHeaderIndexes, btCount)
     !
     ! :Purpose: Write the computed Jacobian into ASCII files
     !
@@ -4779,7 +4758,7 @@ contains
     character(len=15),               intent(in)    :: instrumentName           ! Instrument Name
     type (rttov_profile), pointer,   intent(in)    :: profiles(:)              ! Input profiles from background state
     type (rttov_chanprof),           intent(in)    :: chanprof(:)              ! Chanprof structure    
-    integer,                         intent(in)    :: sensorTovsIndexes(:)     ! indexes of radiance observations for the currently processed sensor
+    integer,                         intent(in)    :: sensorHeaderIndexes(:)   ! Sensor obsSpaceData header indexes
    
     ! Locals:
     character(len=4)               :: cmyidx, cmyidy, strNumLev
@@ -4787,7 +4766,7 @@ contains
     character(len=1024)            :: fileName
     integer                        :: btIndex, bodyIndex
     integer(8)                     :: obsIdd, obsIdo
-    integer                        :: profileIndex, tovsIndex, headerIndex
+    integer                        :: profileIndex, headerIndex
     integer                        :: err, iunit, numLev
     integer, external              :: fnom,fclos
     character(len = 12), parameter :: dirName = 'tvs_jacobian'
@@ -4813,22 +4792,21 @@ contains
 
     do btIndex = 1, btCount
       profileIndex = chanprof(btIndex) % prof
-      tovsIndex = sensorTovsIndexes(profileIndex)
-      headerIndex = tvs_headerIndex(tovsIndex)
+      headerIndex = sensorHeaderIndexes(profileIndex)
       obsIdo = obs_headPrimaryKey(obsSpaceData, headerIndex)
       bodyIndex = bodyIndexFromBtIndex(btIndex)
 
       if (bodyIndex > 0) then
         obsIdd = obs_bodyPrimaryKey(obsSpaceData, bodyIndex)
 
-        if (size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % t(:)) .or. &
-            size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % q(:)) .or. &
-            size(profiles(tovsIndex) % p(:)) /= size(jacobian(btIndex) % p(:))) then
+        if (size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % t(:)) .or. &
+            size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % q(:)) .or. &
+            size(profiles(headerIndex) % p(:)) /= size(jacobian(btIndex) % p(:))) then
           call utl_abort('tvs_writeJacobianAscii: Number of pressure levels does not match ' // &
                           'the number of model levels in Jacobian')
         end if
 
-        numLev = size(profiles(tovsIndex) % p(:))
+        numLev = size(profiles(headerIndex) % p(:))
         write (strNumLev,'(I4)') numLev
 
         write(iunit,'(I20, I20, F16.2, F16.2, I4, ' &
@@ -4837,8 +4815,8 @@ contains
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2,' &
                       // trim(strNumLev) // 'E16.5E2)') &
-              obsIdo, obsIdd, profiles(tovsIndex) % latitude, profiles(tovsIndex) % longitude, numLev, &
-              profiles(tovsIndex) % p(:), &
+              obsIdo, obsIdd, profiles(headerIndex) % latitude, profiles(headerIndex) % longitude, numLev, &
+              profiles(headerIndex) % p(:), &
               jacobian_emiss(btIndex) % emis_out, jacobian(btIndex) % skin % t, jacobian(btIndex) % s2m % t, jacobian(btIndex) % s2m % p, &
               jacobian(btIndex) % t(:), jacobian(btIndex) % q(:), jacobian(btIndex) % p(:)
       end if
@@ -5169,7 +5147,7 @@ contains
   !  tvs_setupPointers
   !--------------------------------------------------------------------------
   subroutine tvs_setupPointers(runObsOperatorWithHydrometeors, sensorIndex, btCount, &
-      btCountScatt, hydroChannelsCount, profileCount, sensorTovsIndexes, &
+      btCountScatt, hydroChannelsCount, sensorHeaderIndexes, &
       lChannelSubset, obsSpaceData, irBgckMode_opt)
     !
     ! :Purpose: Allocate and initialize tvs_bodyIndexFromBtIndex*  tvs_chanProf*
@@ -5183,15 +5161,14 @@ contains
     integer,              intent(out)    :: btCount                        ! number of BTs simulated using RTTOV
     integer,              intent(out)    :: btCountScatt                   ! number of BTs simulated using RttovScatt
     integer,              intent(out)    :: hydroChannelsCount             ! number of channels simulated using RttovScatt
-    integer,              intent(out)    :: profileCount                   ! number of profiles for the current sensor
-    integer,              intent(out)    :: sensorTovsIndexes(:)           ! indexes of radiance observations for the currently processed sensor
+    integer,              intent(out)    :: sensorHeaderIndexes(:)         ! indexes of radiance observations for the currently processed sensor
     logical, allocatable, intent(out)    :: lChannelSubset(:,:)            ! logical array to setup RttovScatt
     type(struct_obs),     intent(inout)  :: obsSpaceData                   ! obsSpaceData structure
     logical, optional,    intent(in)     :: irBgckMode_opt                 ! background check mode option
 
     ! Locals:
-    integer :: tovsIndex, hydroSensorIndex, channelIndex
-    integer :: btIndex, profileIndex, headerIndex, bodyIndex, istart, iend
+    integer :: hydroSensorIndex, channelIndex, profileCount
+    integer :: btIndex, profileIndex, headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: channelNumber
     logical :: irBgckMode
 
@@ -5227,11 +5204,11 @@ contains
     end if
 
     profileCount = 0
-    do tovsIndex = 1, tvs_nobtov
+    do headerIndex = 1, tvs_headerEnd
       ! Currently processed sensor?
-      if (tvs_lsensor(tovsIndex) == sensorIndex) then
+      if (tvs_lsensor(headerIndex) == sensorIndex) then
         profileCount = profileCount + 1
-        sensorTovsIndexes(profileCount) = tovsIndex
+        sensorHeaderIndexes(profileCount) = headerIndex
       end if
     end do
     if (profileCount == 0) return
@@ -5240,9 +5217,9 @@ contains
       btCount = profileCount * tvs_nchan(sensorIndex)
       btCountScatt = 0
     else
-      btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData)
+      btCount = tvs_countRadiances(sensorHeaderIndexes, obsSpaceData)
       if (runObsOperatorWithHydrometeors) then
-        btCountScatt = tvs_countRadiancesScatt(sensorTovsIndexes(1:profileCount), obsSpaceData, &
+        btCountScatt = tvs_countRadiancesScatt(sensorHeaderIndexes, obsSpaceData, &
             tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), sensorIndex)
       else
         btCountScatt = 0
@@ -5262,38 +5239,36 @@ contains
         end do
         
         do profileIndex = 1, profileCount
-          headerIndex = tvs_headerIndex(sensorTovsIndexes(profileIndex))
-          if (headerIndex > 0) then
-            istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-            iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
-            do bodyIndex = istart, iend
-              call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                  channelNumber, channelIndex )
-              if (channelIndex > 0) then
-                tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorIndex)+channelIndex,sensorIndex) = bodyIndex
-              else
-                write(*,*) 'tvs_rttov: strange channel number',channelNumber
-              end if
-            end do
-          end if
+          headerIndex = sensorHeaderIndexes(profileIndex)
+          if (headerIndex <= 0) cycle
+          bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+          bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+          do bodyIndex = bodyIndexBeg, bodyIndexEnd
+            call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                channelNumber, channelIndex )
+            if (channelIndex > 0) then
+              tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorIndex)+channelIndex,sensorIndex) = bodyIndex
+            else
+              write(*,*) 'tvs_rttov: strange channel number',channelNumber
+            end if
+          end do
         end do
       else
         if (btCountScatt > 0) then
-          call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, tvs_chanProf(1:btCount,sensorIndex), &
+          call tvs_getChanprof(sensorHeaderIndexes, obsSpaceData, tvs_chanProf(1:btCount,sensorIndex), &
               iptobs_cma_opt = tvs_bodyIndexFromBtIndex(:,sensorIndex), &
               channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount), &
               excludeChannelsFromList_opt=.true.)
         else
-          call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, tvs_chanProf(1:btCount,sensorIndex), &
+          call tvs_getChanprof(sensorHeaderIndexes, obsSpaceData, tvs_chanProf(1:btCount,sensorIndex), &
               iptobs_cma_opt = tvs_bodyIndexFromBtIndex(:,sensorIndex))
         end if
       end if
     end if
-
     if (tvs_bodyIndexFromBtIndexScatt(1,sensorIndex) == -1 .and. btCountScatt > 0) then
       if (allocated(lChannelSubset)) deallocate(lChannelSubset)
       allocate(lChannelSubset(profileCount,tvs_nchan(sensorIndex)))
-      call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, tvs_chanProfScatt(1:btCountScatt,sensorIndex), &
+      call tvs_getChanprof(sensorHeaderIndexes, obsSpaceData, tvs_chanProfScatt(1:btCountScatt,sensorIndex), &
           lchannel_subset_opt = lChannelSubset, iptobs_cma_opt = tvs_bodyIndexFromBtIndexScatt(:,sensorIndex), &
           channelList_opt=tvs_channelsUsingHydrometeors(hydroSensorIndex,1:hydroChannelsCount))
     end if
@@ -5316,11 +5291,9 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
-    integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
     integer :: allocStatus
-    integer :: nobmax
-    integer :: sensorIndex, tovsIndex
+    integer :: sensorIndex
     integer :: hydroChannelsCount
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,levelIndex,nlv_M,nlv_T
     integer :: profileIndex
@@ -5362,7 +5335,7 @@ contains
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
          
-    if (tvs_nobtov == 0) return       ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return       ! exit if there are not tovs data
 
     write(*,*) 'tvs_rttov_tl: Starting'
 
@@ -5396,8 +5369,6 @@ contains
       
     !     1.  Get number of threads available and allocate memory for some variables
     !     .   ---------------------------------------------------------------------- 
-
-    allocate(sensorTovsIndexes(tvs_nobtov))
     
     ! 2.  Computation of hx for tovs data only
     
@@ -5412,10 +5383,11 @@ contains
                                           col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl
-      
+      profileCount = tvs_countProfiles(sensorIndex)
+      call utl_reallocate(sensorHeaderIndexes, profileCount)
       call tvs_setupPointers(runObsOperatorWithHydrometeors_tl, sensorIndex, btCount, btCountScatt, &
-          hydroChannelsCount, profileCount, sensorTovsIndexes, lChannelSubset, obsSpaceData)
-
+          hydroChannelsCount, sensorHeaderIndexes, lChannelSubset, obsSpaceData)
+      
       if (profileCount == 0) cycle sensor_loop
       if (btCount == 0 .and. btCountScatt == 0) cycle  sensor_loop
       
@@ -5424,18 +5396,14 @@ contains
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
       
-      nobmax = sensorTovsIndexes(profileCount)      
-      allocate(sensorHeaderIndexes(profileCount))
       allocate(profilesdata_tl(profileCount))
       allocate(cld_profiles_tl(profileCount))
       allocate(surfTypeIsWater(profileCount))
-      sensorHeaderIndexes(:) = 0
       surfTypeIsWater(:) = .false.
 
       profileCount = 0
-      obs_loop: do tovsIndex = 1, nobmax
-        if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle obs_loop
-        headerIndex = tvs_headerIndex(tovsIndex)
+      obs_loop: do headerIndex = 1, tvs_headerEnd  
+        if (tvs_lsensor(headerIndex) /= sensorIndex) cycle obs_loop
         profileCount = profileCount + 1
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
         sensorHeaderIndexes(profileCount) = headerIndex
@@ -5552,7 +5520,6 @@ contains
         end if
       end do profileLoop
 
-      deallocate(sensorHeaderIndexes)
       deallocate(surfTypeIsWater) 
 
       ! allocate profiledata_tl structures
@@ -5577,10 +5544,10 @@ contains
         if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory allocation error 1 in rttov_alloc_tl')
         allocate(surfem1(btCount))
          !    get Hyperspecral IR emissivities
-        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), &
+        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorHeaderIndexes, &
             obsSpaceData, surfem1)
        
-        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
         
         if (sensorType == sensor_id_mw) then
           if (col_varExist(columnAnlInc, 'EMMW')) then
@@ -5589,8 +5556,8 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the emissivity_tl from column object
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, &
-                                              tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, &
+                                              tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                               tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
                                               emissivityProfDt_opt = tvs_emissivityFromTrl)
           else if (tvs_useSfcEmissObsSpace) then
@@ -5598,10 +5565,10 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
   
             ! Setup the surface emissvity from obsSpaceData Object 
-            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)    
           else
             ! Read surface emissivity from emissivity atlas
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount))
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)
           end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
@@ -5610,7 +5577,7 @@ contains
         !  2.3  Compute tl radiance with rttov_tl
         
         if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
-          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, tvs_tovsIndex, tvs_headerIndex, &
+          call sse_setupEmissivityfromState(emissivity_tl, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, &
                                   tvs_nsensors, tvs_lsensor, tvs_instrumentName, tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, columProfTl_opt  = columnAnlInc)
         else
           emissivity_tl(:) % emis_in = 0.0d0
@@ -5625,7 +5592,7 @@ contains
             errorStatus,                                    & ! out
             tvs_chanProf(1:btCount,sensorIndex),            & ! in
             tvs_opts(sensorIndex),                          & ! in
-            profiles(sensorTovsIndexes(1:profileCount)),    & ! in
+            profiles(sensorHeaderIndexes(:)),               & ! in
             profilesdata_tl,                                & ! inout
             tvs_coefs(sensorIndex),                         & ! in
             transmission,                                   & ! inout
@@ -5639,7 +5606,7 @@ contains
 
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'Error in rttov_parallel_tl', errorStatus
-          write(*,*) 'temperature           profile=',profiles(sensorTovsIndexes(1)) % t(:)
+          write(*,*) 'temperature           profile=',profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
           call utl_abort('tvs_rttov_tl')
         end if
@@ -5712,10 +5679,10 @@ contains
           call utl_abort('tvs_rttov_tl')
         end if
       
-        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
+        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1Scatt, calcemisScatt)
 
         call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, &
-            tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes(1:profileCount))
+            tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes)
         errorStatus = errorStatus_success
         emissivity_tlScatt(:) % emis_in = 0.0d0
         call rttov_scatt_tl(                                  &
@@ -5724,8 +5691,8 @@ contains
             nlv_T,                                            & ! in
             tvs_chanProfScatt(1:btCountScatt,sensorIndex),    & ! in
             frequencies,                                      & ! in
-            profiles(sensorTovsIndexes(1:profileCount)),      & ! in  
-            cld_profiles(sensorTovsIndexes(1:profileCount)),  & ! in
+            profiles(sensorHeaderIndexes(:)),                 & ! in  
+            cld_profiles(sensorHeaderIndexes(:)),             & ! in
             tvs_coefs(sensorIndex),                           & ! in
             tvs_coef_scatt(sensorIndex),                      & ! in
             calcemisScatt,                                    & ! in
@@ -5738,7 +5705,7 @@ contains
         
         if (errorStatus /= errorStatus_success) then
           write(*,*) 'Error in rttov_scatt_tl', errorStatus
-          write(*,*) 'temperature           profile=',profiles(sensorTovsIndexes(1)) % t(:)
+          write(*,*) 'temperature           profile=',profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
           call utl_abort('tvs_rttov_tl')
         end if
@@ -5794,9 +5761,9 @@ contains
           coefs=tvs_coefs(sensorIndex), &
           init=.true.)
       if (allocStatus /= 0) call utl_abort('tvs_rttov_tl: memory deallocation error in rttov_alloc_prof')
+      deallocate (sensorHeaderIndexes)
     end do sensor_loop
 
-    deallocate (sensorTovsIndexes)
     nullify( profiles )
     if (allocated(tvs_bodyIndexFromBtIndex)) then
       deallocate( tvs_bodyIndexFromBtIndex )
@@ -5825,12 +5792,10 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
-    integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
     integer :: allocStatus
     integer :: nthreads
-    integer :: nobmax
-    integer :: sensorIndex, tovsIndex
+    integer :: sensorIndex
     integer :: hydroChannelsCount
     integer :: ilowlvl_T,ilowlvl_M,profileCount,headerIndex,nlv_M,nlv_T
     integer :: profileIndex, levelIndex
@@ -5871,7 +5836,7 @@ contains
     logical :: runObsOperatorWithClw_ad
     logical :: runObsOperatorWithHydrometeors_ad
          
-    if (tvs_nobtov == 0) return      ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return      ! exit if there are not tovs data
     write(*,*) 'tvs_rttov_ad: Starting'
 
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
@@ -5904,7 +5869,7 @@ contains
 
     !     1.  Get number of threads available and allocate memory for some variables
  
-    allocate(sensorTovsIndexes(tvs_nobtov))
+  
 
     !     2.  Computation of adjoint hx for tovs data only
 
@@ -5920,18 +5885,17 @@ contains
                                           col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl
-      
+      profileCount = tvs_countProfiles(sensorIndex)
+      call utl_reallocate(sensorHeaderIndexes, profileCount)
       call tvs_setupPointers(runObsOperatorWithHydrometeors_ad, sensorIndex, btCount, btCountScatt, &
-          hydroChannelsCount, profileCount, sensorTovsIndexes, lChannelSubset, obsSpaceData)
+          hydroChannelsCount, sensorHeaderIndexes, lChannelSubset, obsSpaceData)
       
       if (profileCount == 0) cycle sensor_loop
       if (btCount == 0 .and. btCountScatt == 0) cycle sensor_loop
       
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
-      nobmax = sensorTovsIndexes(profileCount)
      
-      allocate(sensorHeaderIndexes(profileCount))
       allocate(tt_ad(nlv_T,profileCount))
       allocate(hu_ad(nlv_T,profileCount))
       allocate(pressure_ad(nlv_T,profileCount))
@@ -5950,15 +5914,6 @@ contains
       allocate(surfTypeIsWater(profileCount))
       surfTypeIsWater(:) = .false.
 
-      profileCount = 0       
-      ! loop over all obs.
-      obs_loop: do tovsIndex = 1, nobmax
-        if (tvs_lsensor(tovsIndex) /= sensorIndex) cycle obs_loop
-        headerIndex = tvs_headerIndex(tovsIndex)
-        profileCount = profileCount + 1
-        sensorHeaderIndexes(profileCount) = headerIndex
-      end do obs_loop
-     
       !  2.1  Calculate the actual number of threads which will be used.
 
       nthreads = min(mmpi_numThread, profileCount )  
@@ -5995,10 +5950,10 @@ contains
         allocate(surfem1(btCount))
       
         !  get Hyperspectral IR emissivities
-        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), obsSpaceData, surfem1)
+        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorHeaderIndexes, obsSpaceData, surfem1)
         
         !     get non Hyperspectral IR emissivities
-        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
 
         if (sensorType == sensor_id_mw) then
           if (col_varExist(columnAnlInc, 'EMMW')) then
@@ -6008,8 +5963,8 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from column object to rttov emissivity_local
-            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, &
-                                        tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+            call sse_setupEmissivityfromState(emissivity_local, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, &
+                                        tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                         tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
                                         emissivityProfDt_opt = tvs_emissivityFromTrl)
           else if (tvs_useSfcEmissObsSpace) then
@@ -6017,10 +5972,10 @@ contains
             emissivity_local(:) % emis_in = surfem1(:)
 
             ! Setup the surface emissvity from obsSpaceData Object 
-            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount), tvs_headerIndex)    
+            call sse_emissFromObsSpace(obsSpaceData, emissivity_local, tvs_bodyIndexFromBtIndex(:,sensorIndex), tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)    
           else
             ! Read surface emissivity from emissivity atlas
-            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount))
+            call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)
           end if
         else
           emissivity_local(:) % emis_in = surfem1(:)
@@ -6038,7 +5993,7 @@ contains
             errorstatus,                                    &! out
             tvs_chanProf(1:btCount,sensorIndex),            &! in
             tvs_opts(sensorIndex),                          &! in
-            profiles(sensorTovsIndexes(1:profileCount)),    &! in
+            profiles(sensorHeaderIndexes(:)),               &! in
             profilesdata_ad,                                &! in
             tvs_coefs(sensorIndex),                         &! in
             transmission,                                   &! inout
@@ -6117,11 +6072,11 @@ contains
           call utl_abort('tvs_rttov_ad')
         end if
         !     get non Hyperspectral IR emissivities
-        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes, &
+        call tvs_getOtherEmissivities(tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes, &
             sensorType, instrum, surfem1Scatt, calcemisScatt)
 
         call tvs_getMWemissivityFromAtlas(surfem1Scatt(1:btcountScatt), emissivity_localScatt, sensorIndex, &
-            tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorTovsIndexes(1:profileCount))
+            tvs_chanProfScatt(1:btCountScatt,sensorIndex), sensorHeaderIndexes)
         
         do btIndex = 1, btCountScatt
           bodyIndex = tvs_bodyIndexFromBtIndexScatt(btIndex,sensorIndex)
@@ -6138,8 +6093,8 @@ contains
             nlv_T,                                            &! in
             tvs_chanProfScatt(1:btCountScatt,sensorIndex),    &! in
             frequencies,                                      &! in
-            profiles(sensorTovsIndexes(1:profileCount)),      &! in
-            cld_profiles(sensorTovsIndexes(1:profileCount)),  &! in
+            profiles(sensorHeaderIndexes(:)),                 &! in
+            cld_profiles(sensorHeaderIndexes(:)),             &! in
             tvs_coefs(sensorIndex),                           &! in
             tvs_coef_scatt(sensorIndex),                      &! in
             calcemisScatt,                                    &! in
@@ -6232,8 +6187,8 @@ contains
       if (col_varExist(columnAnlInc, 'EMMW') .and. sensorType == sensor_id_mw) then
         ! Setup emissivity in column object from emissivity_ad
         call sse_setupEmissivityfromState(emissivity_ad, obsSpaceData, tvs_bodyIndexFromBtIndex(:,sensorIndex), & 
-                                          tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, &
-                                          tvs_tovsIndex, tvs_headerIndex, tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
+                                          tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, &
+                                          tvs_nsensors, tvs_lsensor, tvs_instrumentName, &
                                           tvs_maxChannelNumber, tvs_channelOffset, tvs_ichan, profiles(:) % skin % surftype, &
                                           columProfAd_opt = columnAnlInc)
       end if
@@ -6345,7 +6300,6 @@ contains
         end do ! profileIndex
       end if ! runObsOperatorWithHydrometeors_ad
 
-      deallocate(sensorHeaderIndexes)
       deallocate(tt_ad)
       deallocate(hu_ad)
       deallocate(pressure_ad)
@@ -6362,12 +6316,10 @@ contains
         deallocate(rf_ad)
         deallocate(sf_ad)
       end if
-      
     end do sensor_loop
 
     ! 3.  Close up
 
-    deallocate(sensorTovsIndexes)
     nullify(profiles)
     if (allocated(tvs_bodyIndexFromBtIndex)) then
       deallocate( tvs_bodyIndexFromBtIndex )
@@ -6402,9 +6354,9 @@ contains
     type(rttov_transmission)           :: transmission_k
     type(rttov_radiance)               :: radiancedata_d 
     type(rttov_radiance)               :: radiancedata_k 
-    integer, allocatable               :: sensorTovsIndexes(:) 
+    integer, allocatable               :: sensorHeaderIndexes(:) 
     integer                            :: allocStatus
-    integer                            :: nobmax, profileCount, btCount, btCountScatt
+    integer                            :: profileCount, btCount, btCountScatt
     integer                            :: sensorIndex
     integer                            :: nlv_T
     integer                            :: instrum
@@ -6417,15 +6369,13 @@ contains
     logical, pointer                   :: calcemis(:)
     logical, allocatable               :: lChannelSubset(:,:)
 
-    if (tvs_nobtov == 0) return ! exit if there are not tovs data
+    if (tvs_headerEnd < 0) return ! exit if there are not tovs data
   
     call tvs_getProfile(profiles, 'nl', cld_profiles)
   
     ! Set index for model's lowest level and model top
   
     nlv_T = col_getNumLev(columnTrlOnAnlIncLev, 'TH')
-
-    allocate(sensorTovsIndexes(tvs_nobtov))
         
     ! Loop over all sensors specified by user
   
@@ -6434,16 +6384,16 @@ contains
       runObsOperatorWithHydrometeors_k = col_varExist(columnTrlOnAnlIncLev,'LWCR') .and. &
                                          col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
                                          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex))
-      
+      profileCount = tvs_countProfiles(sensorIndex)
+      call utl_reallocate(sensorHeaderIndexes, profileCount)
       call tvs_setupPointers(runObsOperatorWithHydrometeors_k, sensorIndex, btCount, btCountScatt, &
-          hydroChannelsCount, profileCount, sensorTovsIndexes, lChannelSubset, obsSpaceData)
+          hydroChannelsCount, sensorHeaderIndexes, lChannelSubset, obsSpaceData)
       
       if (profileCount == 0) cycle sensor_loop
       if (btCount == 0 .and. btCountScatt == 0) cycle sensor_loop
       
       sensorType = tvs_coefs(sensorIndex) % coef % id_sensor
       instrum = tvs_coefs(sensorIndex) % coef % id_inst
-      nobmax = sensorTovsIndexes(profileCount)
 
       if (btCount > 0) then
         call rttov_alloc_k(                  &
@@ -6473,13 +6423,13 @@ contains
         write(*,*) 'tvs_rttov_k: Get surface emissiviy'
         allocate(surfem1(btCount))
         !    get Hyperspecral IR emissivities
-        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), &
+        if (tvs_isInstrumHyperSpectral(instrum)) call tvs_getHIREmissivities(sensorHeaderIndexes, &
                                                           obsSpaceData, surfem1)
   
-        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
+        call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
   
         if (sensorType == sensor_id_mw) then
-          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorTovsIndexes(1:profileCount))
+          call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes)
         else
           emissivity_local(:) % emis_in = surfem1(:)
         end if
@@ -6499,7 +6449,7 @@ contains
             errorstatus,                                     & ! out
             tvs_chanProf(1:btCount,sensorIndex),             & ! in
             tvs_opts(sensorIndex),                           & ! in
-            profiles(sensorTovsIndexes(1:profileCount)),     & ! in
+            profiles(sensorHeaderIndexes(:)),                & ! in
             profiles_k,                                      & ! inout
             tvs_coefs(sensorIndex),                          & ! in
             transmission,                                    & ! inout
@@ -6513,7 +6463,7 @@ contains
                    
         if (errorstatus /= errorStatus_success) then
           write(*,*) "Error in rttov_parallel_k", errorstatus
-          write(*,*) 'temperature profile=', profiles(sensorTovsIndexes(1)) % t(:)
+          write(*,*) 'temperature profile=', profiles(sensorHeaderIndexes(1)) % t(:)
           write(*,*) 'temperature Jacobian profile=', profiles_k(1) % t(:)
           call utl_abort('tovs_rttov_k')
         end if
@@ -6521,7 +6471,7 @@ contains
         ! Write Jacobian to ASCII files
         call tvs_writeJacobianAscii(profiles_k, emissivity_k, profiles, tvs_chanProf(1:btCount,sensorIndex), &
             obsSpaceData, tvs_satelliteName(sensorIndex), tvs_instrumentName(sensorIndex), &
-            tvs_bodyIndexFromBtIndex(:,sensorIndex), sensorTovsIndexes, btCount)
+            tvs_bodyIndexFromBtIndex(:,sensorIndex), sensorHeaderIndexes, btCount)
   
         ! deallocate profiledata structures
         call rttov_alloc_k(                  &
@@ -6547,10 +6497,8 @@ contains
       if (btCountScatt > 0) then
         call utl_abort("tvs_rttov_k: jacobians not (yet) available when rttov_scatt is used !")
       end if
-      
     end do sensor_loop
   
-    deallocate (sensorTovsIndexes)
     nullify(profiles)
     if (allocated(tvs_bodyIndexFromBtIndex)) then
       deallocate( tvs_bodyIndexFromBtIndex )

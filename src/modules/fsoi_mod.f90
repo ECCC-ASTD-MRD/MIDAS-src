@@ -446,7 +446,7 @@ module fsoi_mod
 
     ! Locals:
     real(8)            :: pfso_1
-    integer            :: bodyIndex,itvs,isens,headerIndex
+    integer            :: bodyIndex, headerIndex, sensorIndex
     integer            :: bodyIndexBeg, bodyIndexEnd
     integer, parameter :: numFamily = 10
     character(len=2), parameter :: familyList(numFamily) = (/'UA','AI','SF','SC','TO','SW','PR','RO','GP','CH'/)
@@ -484,20 +484,17 @@ module fsoi_mod
       end do
     end do
 
-    do itvs = 1, tvs_nobtov
-      headerIndex  = tvs_headerIndex(itvs)
-      if (headerIndex > 0 ) then
-        bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-        bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
-        do bodyIndex = bodyIndexBeg, bodyIndexEnd
-          pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
-          if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
-            isens = tvs_lsensor (itvs)
-            tfsotov_sensors(isens) =  tfsotov_sensors(isens) + pfso_1
-            numAss_sensors_loc(isens) = numAss_sensors_loc(isens) + 1
-          end if
-        end do
-      end if
+    do headerIndex = 1, tvs_headerEnd
+      sensorIndex = tvs_lsensor(headerIndex)
+      if (sensorIndex < 0) cycle
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated) cycle 
+        pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
+        tfsotov_sensors(sensorIndex) =  tfsotov_sensors(sensorIndex) + pfso_1
+        numAss_sensors_loc(sensorIndex) = numAss_sensors_loc(sensorIndex) + 1
+      end do
     end do
 
     do familyIndex = 1, numFamily
@@ -506,9 +503,9 @@ module fsoi_mod
       call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
-    do isens = 1, tvs_nsensors
-      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),'GRID')
-      call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
+    do sensorIndex = 1, tvs_nsensors
+      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(sensorIndex),'GRID')
+      call rpn_comm_allreduce(numAss_sensors_loc(sensorIndex), numAss_sensors_glb(sensorIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
     if (mmpi_myid == 0) then
@@ -525,9 +522,9 @@ module fsoi_mod
       if (tvs_nsensors > 0) then
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    FSO'
-        do isens = 1, tvs_nsensors
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') isens,inst_name(tvs_instruments(isens)), &
-                platform_name(tvs_platforms(isens)),tvs_satellites(isens),tfsotov_sensors(isens), numAss_sensors_glb(isens)
+        do sensorIndex = 1, tvs_nsensors
+          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f15.8,i10)') sensorIndex,inst_name(tvs_instruments(sensorIndex)), &
+                platform_name(tvs_platforms(sensorIndex)),tvs_satellites(sensorIndex),tfsotov_sensors(sensorIndex), numAss_sensors_glb(sensorIndex)
         end do
         write(*,*) ' '
       end if

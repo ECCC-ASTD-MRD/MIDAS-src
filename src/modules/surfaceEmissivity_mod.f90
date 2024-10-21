@@ -30,7 +30,7 @@ contains
   !--------------------------------------------------------------------------
   ! sse_emissFromObsSpace
   !--------------------------------------------------------------------------
-  subroutine sse_emissFromObsSpace(obsSpaceData, updatedEmissivity, bodyIndexFromBtIndex, chanprof, sensorTovsIndexes, tovsHeaderIndexList)
+  subroutine sse_emissFromObsSpace(obsSpaceData, updatedEmissivity, bodyIndexFromBtIndex, chanprof, sensorHeaderIndexes)
     !
     !:Purpose: Reading emissivity from ObsSpaceData
     !
@@ -41,25 +41,23 @@ contains
     type(rttov_emissivity),  intent(inout) :: updatedEmissivity(:)    ! Update emissivity 
     integer,                 intent(in)    :: bodyIndexFromBtIndex(:) ! Provides the bodyIndex in ObsSpaceData based on btIndex
     type(rttov_chanprof),    intent(in)    :: chanprof(:)             ! Profile and channel index object
-    integer,                 intent(in)    :: sensorTovsIndexes(:)    ! Sensor TOVS Indexes
-    integer,                 intent(in)    :: tovsHeaderIndexList(:)  ! Header index for each tovs structure index (tvs_headerIndex)
+    integer,                 intent(in)    :: sensorHeaderIndexes(:)  ! Sensor obsSpaceDate header Indexes
 
     ! Locals:
     integer :: btCount, profileCount
     integer :: profileIndex, btIndex
-    integer :: bodyIndex, headerIndex, tovsIndex
+    integer :: bodyIndex, headerIndex
     real(8) :: emissObsSpace
     integer :: sfcType
 
     write(*,*) 'sse_emissFromObsSpace: Use emissivity from obsSpaceData'
 
     btCount = size(updatedEmissivity)
-    profileCount = size(sensorTovsIndexes)
+    profileCount = size(sensorHeaderIndexes)
     
     do profileIndex = 1, profileCount !loop on profiles
 
-      tovsIndex = sensorTovsIndexes(profileIndex)
-      headerIndex = tovsHeaderIndexList(tovsIndex)
+      headerIndex = sensorHeaderIndexes(profileIndex)
 
       do btIndex = 1, btCount !loop on channels
         if (chanprof(btIndex)%prof == profileIndex) then
@@ -265,7 +263,7 @@ contains
   !  sse_setupEmissivityfromState
   !--------------------------------------------------------------------------
   subroutine sse_setupEmissivityfromState(emissivity_inout, obsSpaceData, bodyIndexFromBtIndex, & 
-                                   chanprof, sensorTovsIndexes, tovsIndexList, tovsheaderIndex, &
+                                   chanprof, sensorHeaderIndexes, &
                                    nSensor, sensorList, instrumentName, tovsMaxChanneNum, &
                                    tovsChannelOffset, tovsIChan, surftype, &
                                    columProfTl_opt, columProfAd_opt, emissivityProfDt_opt)
@@ -283,9 +281,7 @@ contains
     type(struct_obs),                          intent(in)    :: obsSpaceData                ! ObsSpaceData object
     integer,                                   intent(in)    :: bodyIndexFromBtIndex(:)     ! Provides the bodyIndex in ObsSpaceData based on btIndex
     type(rttov_chanprof),                      intent(in)    :: chanprof(:)                 ! Profile and channel index object
-    integer,                                   intent(in)    :: sensorTovsIndexes(:)        ! Sensor TOVS Indexes
-    integer,                                   intent(in)    :: tovsheaderIndex(:)          ! Header index for each tovs structure index (tvs_headerIndex)
-    integer,                                   intent(in)    :: tovsIndexList(:)            ! TOVS index (tvs_tovsIndex)
+    integer,                                   intent(in)    :: sensorHeaderIndexes(:)      ! Sensor obsSpaceData header Indexes
     integer,                                   intent(in)    :: nSensor                     ! Number of individual sensors.
     integer,                                   intent(in)    :: sensorList(:)               ! Sensor number for each profile (tvs_lsensor)
     character(len=15),                         intent(in)    :: instrumentName(:)           ! Satellite name (tvs_instrumentName)
@@ -298,7 +294,7 @@ contains
     real(8), optional, target,                 intent(in)    :: emissivityProfDt_opt(:,:)   ! Column object for rttov direct computation
 
     ! Locals:
-    integer                          :: profileIndex, btIndex, sensorIndex, tovsIndex
+    integer                          :: profileIndex, btIndex, sensorIndex
     integer                          :: bodyIndex, headerIndex
     integer                          :: channelNumber, channelIndex
     integer                          :: btCount, numSourceFile
@@ -346,11 +342,10 @@ contains
     do btIndex = 1, btCount
       bodyIndex = bodyIndexFromBtIndex(btIndex)
       profileIndex = chanprof(btIndex)%prof
-      tovsIndex  = sensorTovsIndexes(profileIndex)
-      headerIndex = tovsheaderIndex(tovsIndex)
+      headerIndex = sensorHeaderIndexes(profileIndex)
 
       call sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                         channelNumber, channelIndex, tovsIndexList, &
+                                         channelNumber, channelIndex, &
                                          sensorList, tovsMaxChanneNum, tovsChannelOffset, &
                                          tovsIChan)
 
@@ -361,11 +356,11 @@ contains
         emissivityCol => col_getColumn(column, headerIndex,'EMMW')
         emissivityCol(channelNumber) = emissivity_inout(btIndex)%emis_out
       else if (profType == 'dt') then
-        if (surftype(tovsIndex) == surftype_land .and. &
-           emissivityTovsIndex(tovsIndex, channelNumber) > 0.d0 .and. &
-           emissivityTovsIndex(tovsIndex, channelNumber) <= 1.d0) then
+        if (surftype(headerIndex) == surftype_land .and. &
+           emissivityTovsIndex(headerIndex, channelNumber) > 0.d0 .and. &
+           emissivityTovsIndex(headerIndex, channelNumber) <= 1.d0) then
 
-          emissivity_inout(btIndex)%emis_in = emissivityTovsIndex(tovsIndex, channelNumber)
+          emissivity_inout(btIndex)%emis_in = emissivityTovsIndex(headerIndex, channelNumber)
         end if
       end if
     end do
@@ -375,7 +370,7 @@ contains
   !--------------------------------------------------------------------------
   !  sse_extractEmissivityCol
   !--------------------------------------------------------------------------
-  subroutine sse_extractEmissivityCol(column, emissivityFromTrl, profileCount, sensorTovsIndexes, sensorHeaderIndexes, nobtov)
+  subroutine sse_extractEmissivityCol(column, emissivityFromTrl, profileCount, sensorHeaderIndexes, headerEnd)
     !
     !:Purpose: Extract emissivity from column objects
     !
@@ -385,22 +380,20 @@ contains
     type(struct_columnData),         intent(in)      :: column                   ! column structure
     real(8), allocatable,            intent(inout)   :: emissivityFromTrl(:, :)  ! Extract emissivity
     integer,                         intent(in)      :: profileCount             ! Profile count
-    integer,                         intent(in)      :: sensorTovsIndexes(:)     ! Sensor TOVS Indexes
     integer,                         intent(in)      :: sensorHeaderIndexes(:)   ! Sensor header index
-    integer,                         intent(in)      :: nobtov                   ! Number of TOVS observations
+    integer,                         intent(in)      :: headerEnd                ! end headerIndex for TOVS observations
     
     ! Locals:
     integer :: emissTrlNumChan
-    integer :: profileIndex, tovsIndex, headerIndex
+    integer :: profileIndex, headerIndex
   
     emissTrlNumChan = col_getNumLev(column, 'OT', varName_opt = 'EMMW')
    
-    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(nobtov, emissTrlNumChan))
+    if (.not. allocated(emissivityFromTrl)) allocate(emissivityFromTrl(headerEnd, emissTrlNumChan))
 
     do profileIndex = 1 , profileCount 
-      tovsIndex = sensorTovsIndexes(profileIndex)
       headerIndex = sensorHeaderIndexes(profileIndex)
-      emissivityFromTrl(tovsIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
+      emissivityFromTrl(headerIndex, :) = col_getColumn(column, headerIndex, 'EMMW')
     end do
   end subroutine sse_extractEmissivityCol
 
@@ -408,7 +401,7 @@ contains
   !  sse_getChannelNumIndexFromPPP
   !--------------------------------------------------------------------------
   subroutine sse_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
-                                           channelNumber, channelIndex, tovsIndexList, &
+                                           channelNumber, channelIndex, &
                                            sensorList, tovsMaxChanneNum, tovsChannelOffset, &
                                            tovsIChan)
     !
@@ -421,7 +414,6 @@ contains
     type(struct_obs), intent(in)  :: obsSpaceData            ! ObsSpaceData object
     integer,          intent(in)  :: headerIndex             ! Header Index
     integer,          intent(in)  :: bodyIndex               ! Body Index
-    integer,          intent(in)  :: tovsIndexList(:)        ! Tovs Index List (tvs_tovsIndex)
     integer,          intent(in)  :: sensorList(:)           ! Sensor number for each profile (tvs_lsensor)
     integer,          intent(in)  :: tovsMaxChanneNum        ! Max. value for channel number (tvs_maxChannelNumber)
     integer,          intent(in)  :: tovsChannelOffset(:)    ! RTTOV channel mapping offset (tvs_channelOffset)
@@ -430,10 +422,9 @@ contains
     integer,          intent(out) :: channelIndex            ! Channel Index
 
     ! Locals:
-    integer :: tovsIndex, sensorIndex
+    integer :: sensorIndex
 
-    tovsIndex = tovsIndexList(headerIndex)
-    sensorIndex = sensorList(tovsIndex)
+    sensorIndex = sensorList(headerIndex)
 
     channelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
     channelNumber = max(0, min(channelNumber, tovsMaxChanneNum + 1))
