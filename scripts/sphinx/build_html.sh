@@ -352,7 +352,11 @@ echo "Sourcing config"
 cd ${toplevel}/src
 source ./config.dot.sh
 GITDESC=$(cd ${toplevel}; ./midas.version.sh)
-OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
+if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
+    OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
+else
+    OBJBLD_PATH=${toplevel}/compiledir/midas_bld/${ARCH}/
+fi
 make depend
 
 cat > ${ORIG_PWD}/namelists_in_each_program.rst << 'EOF'
