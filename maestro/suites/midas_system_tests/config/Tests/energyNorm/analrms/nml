@@ -1,3 +1,6 @@
+ &NAMENERGYNORM
+   fullStates = .false.
+/
  &NAMSTATE
    RHUMIN  = 1.0D-07
    abortOnMpiImbalance = .false.

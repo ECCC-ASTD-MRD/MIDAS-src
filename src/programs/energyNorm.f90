@@ -90,6 +90,7 @@ program midas_energyNorm
   !========================= ====================== =============================================================
   ! Module                   Namelist               Description of what is controlled
   !========================= ====================== =============================================================
+  ! ``midas_energy``         ``NAMENERGYNORM``      The variable ``fullStates`` if input state are full or not.
   ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
   !                                                 the background state and increment
   ! ``gridStateVector_mod``  ``NAMSTATE``           set the variables to read
@@ -119,6 +120,11 @@ program midas_energyNorm
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
 
+  ! Namelist variables
+  logical :: fullStates
+
+  namelist /namEnergyNorm/ fullStates
+
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
   call ver_printNameAndVersion('energyNorm','Compute the energy norm of an atmospheric state')
@@ -133,6 +139,22 @@ program midas_energyNorm
 
   ! Read the namelists
   call utl_readNml()
+
+  !- Read the namelist for energyNorm program (if it exists)
+  ! set default values for the namelist variable
+  fullStates = .true.
+  if (utl_isNamelistPresent('namEnergyNorm', './flnml')) then
+    call utl_tmg_start(181,'low-level--readNML')
+    read(utl_flnml, nml = namEnergyNorm, iostat = ierr)
+    if (ierr /= 0) call utl_abort('midas-energyNorm: Error reading namelist namEnergyNorm')
+    if (mmpi_myid == 0) write(*,nml = namEnergyNorm)
+    call utl_tmg_stop(181)
+  else
+    write(*,*)
+    write(*,*) 'midas-energyNorm: Namelist block namEnergyNorm is missing in the namelist.'
+    write(*,*) '                    The default value will be taken.'
+    if (mmpi_myid == 0) write(*, nml = namEnergyNorm)
+  end if
 
   !- Initialize the Temporal grid and set dateStamp from env variable
   call tim_setup()
@@ -175,7 +197,8 @@ program midas_energyNorm
                     beSilent_opt=.false. )
 
   do fileIndex = 1, numberOfFiles
-    call compute_energyNorm(stateVectorReference, fileNames(fileIndex), stateVector, nulFileOutput)
+    call compute_energyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
+                            fullStates, nulFileOutput)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
 
@@ -334,7 +357,7 @@ contains
   !--------------------------------------------------------------------------
   ! energyNorm
   !--------------------------------------------------------------------------
-  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, nulFile)
+  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, fullState, nulFile)
     !
     ! :Purpose: Helper function which computes the energy norm for an
     !           input file with respect to a reference. If then prints
@@ -346,6 +369,7 @@ contains
     type(struct_gsv), pointer, intent(in)  :: stateVectorReference
     character(len=*), intent(in)  :: fileName
     type(struct_gsv), pointer, intent(in) :: stateVector
+    logical :: fullState
     integer :: nulFile
 
     ! Constants:
@@ -372,13 +396,18 @@ contains
     call utl_tmg_stop(2)
     call msg_memUsage('midas-energyNorm')
 
-    ! compute the difference between the state vector and the reference
-    ! stateVector = stateVector - stateVectorReference
-    call utl_tmg_start(3,'--computeStateVectorDifference')
-    call gsv_add(stateVectorReference, stateVector, -1.0d0)
-    call utl_tmg_stop(3)
-
-    call msg_memUsage('midas-energyNorm')
+    !! If 'fullState' is true then we must compute the difference
+    !! between the reference state and the state itself.
+    !! If 'fullState' is false, then we don't need it because it is
+    !! already a difference (for example, a standard deviation or RMS).
+    if ( fullState ) then
+      ! compute the difference between the state vector and the reference
+      ! stateVector = stateVector - stateVectorReference
+      call utl_tmg_start(3,'--computeStateVectorDifference')
+      call gsv_add(stateVectorReference, stateVector, -1.0d0)
+      call utl_tmg_stop(3)
+      call msg_memUsage('midas-energyNorm')
+    end if
 
     call utl_tmg_start(4,'--computeEnergyNorm')
     energyNorm = gvt_energyNorm(stateVector, stateVectorReference, &
