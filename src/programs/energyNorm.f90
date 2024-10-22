@@ -81,7 +81,7 @@ program midas_energyNorm
   !
   !           --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#energyNorm>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#energynorm>`_
   !          that can affect the ``energyNorm`` program.
   !
   !          * The namelist blocks used to configure the program are listed in the following table:
