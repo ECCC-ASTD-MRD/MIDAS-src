@@ -90,7 +90,7 @@ program midas_energyNorm
   !========================= ====================== =============================================================
   ! Module                   Namelist               Description of what is controlled
   !========================= ====================== =============================================================
-  ! ``midas_energy``         ``NAMENERGYNORM``      The variable ``fullStates`` if input state are full or not.
+  ! ``midas_energy``         ``NAMENERGYNORM``      The variable ``fullStates`` if input states are full or not.
   ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
   !                                                 the background state and increment
   ! ``gridStateVector_mod``  ``NAMSTATE``           set the variables to read
@@ -228,7 +228,8 @@ contains
   !--------------------------------------------------------------------------
   ! parseInputFiles
   !--------------------------------------------------------------------------
-  subroutine parseInputFiles(inputFileName,referenceFileName,fileNames,numberOfFilesToComputeTheEnergyNormAgainstTheReference)
+  subroutine parseInputFiles(inputFileName, referenceFileName, fileNames, &
+                             numberOfFilesToComputeTheEnergyNormAgainstTheReference)
     !
     ! :Purpose: Helper function which parses the input file to extract
     !           the input files names
@@ -322,12 +323,12 @@ contains
   end subroutine parseInputFiles
 
   !--------------------------------------------------------------------------
-  ! compute_energyNorm
+  ! initializeReferenceState
   !--------------------------------------------------------------------------
   subroutine initializeReferenceState(inputFileName, stateVectorReference, hco, vco)
     !
-    ! :Purpose: Helper function initializes the reference state vector
-    !           and horizonal and vertical definitions from
+    ! :Purpose: Helper function which initializes the reference state
+    !           vector and horizonal and vertical definitions from
     !           'inputileName'
     !
     implicit none
@@ -355,12 +356,12 @@ contains
   end subroutine initializeReferenceState
 
   !--------------------------------------------------------------------------
-  ! energyNorm
+  ! compute_energyNorm
   !--------------------------------------------------------------------------
   subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, fullState, nulFile)
     !
     ! :Purpose: Helper function which computes the energy norm for an
-    !           input file with respect to a reference. If then prints
+    !           input file with respect to a reference. It then prints
     !           the result in the outputFile identified by 'nulFile'.
     !
     implicit none

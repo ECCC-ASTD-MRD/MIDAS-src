@@ -59,7 +59,6 @@ module gridVariableTransforms_mod
 
   type struct_gvt_energyNorm
     ! This is the derived type to store the energy norm components
-
     real(8) :: total = 0.0d0
     real(8) :: uu = 0.0d0
     real(8) :: vv = 0.0d0
