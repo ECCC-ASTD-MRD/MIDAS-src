@@ -22,6 +22,10 @@
   * [ ] yes
   * [ ] no
   * [ ] does not apply since no Fortran code was changed
+* all the system tests run correctly?
+  * [ ] yes
+  * [ ] no
+  * [ ] does not apply since no Fortran code was changed
 * all the programs run correctly when compiled with debug options enabled (compile with [`midas_build --debug` or set environment variable `MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/src/README.md#activate-the-debug-options-for-compilation))?
   * [ ] yes
   * [ ] no
