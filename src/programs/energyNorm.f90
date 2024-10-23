@@ -91,6 +91,7 @@ program midas_energyNorm
   ! Module                   Namelist               Description of what is controlled
   !========================= ====================== =============================================================
   ! ``midas_energy``         ``NAMENERGYNORM``      The variable ``fullStates`` if input states are full or not.
+  !                                                 You can apply a factor to energy norm values with ``factor``.
   ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
   !                                                 the background state and increment
   ! ``gridStateVector_mod``  ``NAMSTATE``           set the variables to read
@@ -122,8 +123,9 @@ program midas_energyNorm
 
   ! Namelist variables
   logical :: fullStates
+  real(8) :: factor
 
-  namelist /namEnergyNorm/ fullStates
+  namelist /namEnergyNorm/ fullStates, factor
 
   istamp = exdb('ENERGYNORM','DEBUT','NON')
 
@@ -141,8 +143,9 @@ program midas_energyNorm
   call utl_readNml()
 
   !- Read the namelist for energyNorm program (if it exists)
-  ! set default values for the namelist variable
+  ! set default values for the namelist variables
   fullStates = .true.
+  factor = 1.0D0
   if (utl_isNamelistPresent('namEnergyNorm', './flnml')) then
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namEnergyNorm, iostat = ierr)
@@ -198,7 +201,7 @@ program midas_energyNorm
 
   do fileIndex = 1, numberOfFiles
     call compute_energyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
-                            fullStates, nulFileOutput)
+                            fullStates, factor, nulFileOutput)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
 
@@ -358,7 +361,8 @@ contains
   !--------------------------------------------------------------------------
   ! compute_energyNorm
   !--------------------------------------------------------------------------
-  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, fullState, nulFile)
+  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, &
+                                fullState, factor, nulFile)
     !
     ! :Purpose: Helper function which computes the energy norm for an
     !           input file with respect to a reference. It then prints
@@ -371,6 +375,7 @@ contains
     character(len=*), intent(in)  :: fileName
     type(struct_gsv), pointer, intent(in) :: stateVector
     logical, intent(in) :: fullState
+    real(8), intent(in) :: factor
     integer, intent(in) :: nulFile
 
     ! Constants:
@@ -421,7 +426,8 @@ contains
 
     !! Write the result in the file
     if ( mmpi_myid == 0 ) then
-      write(nulFile,'(a,6ES14.4)') trim(fileName), energyNorm%total, energyNorm%tt, energyNorm%uu, energyNorm%vv, energyNorm%hu, energyNorm%p0
+      write(nulFile,'(a,6ES14.4)') trim(fileName), factor*energyNorm%total, factor*energyNorm%tt, factor*energyNorm%uu, &
+                                                   factor*energyNorm%vv, factor*energyNorm%hu, factor*energyNorm%p0
     end if
 
   end subroutine compute_energyNorm

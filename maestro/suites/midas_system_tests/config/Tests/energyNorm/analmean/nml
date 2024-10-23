@@ -1,3 +1,6 @@
+ &NAMENERGYNORM
+   factor = 100.0D0
+/
  &NAMSTATE
    RHUMIN  = 1.0D-07
    abortOnMpiImbalance = .false.
