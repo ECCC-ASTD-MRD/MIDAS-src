@@ -2580,8 +2580,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector_inout
-    type(struct_gsv), intent(in)    :: statevector_ref
+    type(struct_gsv), intent(inout) :: statevector_inout ! This state vector should represent a state difference
+    type(struct_gsv), intent(in)    :: statevector_ref   ! This should be a full state
     real(8),          intent(in)    :: latMin
     real(8),          intent(in)    :: latMax
     real(8),          intent(in)    :: lonMin
@@ -2607,6 +2607,8 @@ CONTAINS
     real(8), allocatable :: Psfc_ref(:,:)
     real(8), parameter   :: T_r = 280.0D0
     real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
+    real(8), parameter   :: PstratoTop = 100.0D0 ! unit Pa
+    real(8), parameter   :: PstratoBottom = 10000.0D0 ! unit Pa
     real(8), parameter   :: sigma = 0.3 ! weight factor for humidity
 
     if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: START'
@@ -2664,14 +2666,14 @@ CONTAINS
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then !for strato Norm
                 if (levIndex == nLev_M .or. levIndex == 1 .or. &
-                    Press_T(lonIndex2, latIndex2, levIndex) < 100.0D0 .or. &
-                    Press_T(lonIndex2, latIndex2, levIndex) > 10000.0D0) then
+                    Press_T(lonIndex2, latIndex2, levIndex) < PstratoTop .or. &
+                    Press_T(lonIndex2, latIndex2, levIndex) > PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
                 end if
               else
-                if ( levIndex == nLev_M) then
+                if ( levIndex == nLev_M ) then ! top
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
                   ! Here we are mixing diagnostic level and first
                   ! prognostic levels and there is not guarantee that
@@ -2680,7 +2682,7 @@ CONTAINS
                   if ( scaleFactorLev < 0.0D0 ) then
                     scaleFactorLev = 0.0D0
                   end if
-                else if ( Press_T(lonIndex2, latIndex2, levIndex) < 10000.0D0) then
+                else if ( Press_T(lonIndex2, latIndex2, levIndex) < PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
@@ -2745,18 +2747,17 @@ CONTAINS
                 scaleFactorLon = 0.0D0
               end if
               ! do all thermo levels for which there is a momentum level above and below
-              if (straNorm) then !for strato norm
+              if (straNorm) then ! for strato norm
                 if (levIndex == nLev_T .or. levIndex == 1) then
                   scaleFactorLev = 0.0D0
-                else if (Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
-                         Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then
+                else if (Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoTop .or. &
+                         Press_M(lonIndex2, latIndex2, levIndex-1) > PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
                 end if
-
               else
-                if (levIndex == nLev_T) then  !surface
+                if (levIndex == nLev_T) then ! surface
                   scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1)
                   ! Here we are mixing diagnostic level and first
                   ! prognostic levels and there is not guarantee that
@@ -2765,9 +2766,9 @@ CONTAINS
                   if ( scaleFactorLev < 0.0D0 ) then
                     scaleFactorLev = 0.0D0
                   end if
-                else if (levIndex == 1)  then  ! top
+                else if ( levIndex == 1 ) then ! top
                   scaleFactorLev = 0.0D0
-                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
+                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
@@ -2819,18 +2820,17 @@ CONTAINS
                 scaleFactorLon = 0.0D0
               end if
               ! do all thermo levels for which there is a momentum level above and below
-              if (straNorm) then !for strato norm
+              if (straNorm) then ! for strato norm
                 if (levIndex == nLev_T .or. levIndex == 1) then
                   scaleFactorLev = 0.0D0
-                else if(Press_M(lonIndex2, latIndex2, levIndex-1) < 100.0D0 .or. &
-                        Press_M(lonIndex2, latIndex2, levIndex-1) > 10000.0D0 ) then
+                else if( Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoTop .or. &
+                         Press_M(lonIndex2, latIndex2, levIndex-1) > PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
                 end if
-
               else
-                if ( levIndex == nLev_T) then !surface
+                if ( levIndex == nLev_T ) then ! surface
                   scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T) - Press_T(lonIndex2, latIndex2, nLev_T-1)
                   ! Here we are mixing diagnostic level and first
                   ! prognostic levels and there is not guarantee that
@@ -2839,9 +2839,9 @@ CONTAINS
                   if ( scaleFactorLev < 0.0D0 ) then
                     scaleFactorLev = 0.0D0
                   end if
-                else if (levIndex == 1)  then  ! top
+                else if (levIndex == 1) then ! top
                   scaleFactorLev = 0.0D0
-                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < 10000.0D0) then
+                else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoBottom ) then
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
