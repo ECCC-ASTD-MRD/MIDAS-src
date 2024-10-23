@@ -2651,35 +2651,13 @@ CONTAINS
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
             scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
-              ! do all thermo levels for which there is a momentum level above and below
-              if (straNorm) then !for strato Norm
-                if (levIndex == nLev_M .or. levIndex == 1 .or. &
-                    Press_T(lonIndex2, latIndex2, levIndex) < PstratoTop .or. &
-                    Press_T(lonIndex2, latIndex2, levIndex) > PstratoBottom ) then
-                  scaleFactorLev = 0.0D0
-                else
-                  scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
-                end if
-              else
-                if ( levIndex == nLev_M ) then ! top
-                  scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
-                  ! Here we are mixing diagnostic level and first
-                  ! prognostic levels and there is not guarantee that
-                  ! it will ever be a monotonic progression.  So, if
-                  ! happends to be negative, set it to 0 instead.
-                  if ( scaleFactorLev < 0.0D0 ) then
-                    scaleFactorLev = 0.0D0
-                  end if
-                else if ( Press_T(lonIndex2, latIndex2, levIndex) < PstratoBottom ) then
-                  scaleFactorLev = 0.0D0
-                else
-                  scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
-                end if
-              end if
 
-              scaleFactor = scaleFactorConst * scaleFactorLat* scaleFactorLon * scaleFactorLev
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              scaleFactorLev = findScaleFactorLev_M(latIndex2, lonIndex2, levIndex, nLev_M, nLev_T, &
+                                                    Press_T, Press_M, straNorm, PstratoTop, PstratoBottom)
+
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
               sumScale = sumScale + scaleFactor
 
               sumeu = sumeu + &
@@ -2955,5 +2933,57 @@ CONTAINS
       scaleFactorLon = 0.0D0
     end if
   end function findScaleFactorLon
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLev_M
+  !--------------------------------------------------------------------------
+  function findScaleFactorLev_M(latIndex2, lonIndex2, levIndex, nLev_M, nLev_T,        &
+                                Press_T, Press_M, straNorm, PstratoTop, PstratoBottom) &
+                                     result(scaleFactorLev)
+    !
+    ! :Purpose: Computes the scale factor accounting for momentum vertical levels
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: latIndex2
+    integer, intent(in) :: lonIndex2
+    integer, intent(in) :: levIndex
+    integer, intent(in) :: nLev_M
+    integer, intent(in) :: nLev_T
+    real(8), intent(in), pointer :: Press_T(:,:,:)
+    real(8), intent(in), pointer :: Press_M(:,:,:)
+    logical, intent(in) :: straNorm
+    real(8), intent(in) :: PstratoTop
+    real(8), intent(in) :: PstratoBottom
+    ! Result:
+    real(8) :: scaleFactorLev
+
+    ! do all thermo levels for which there is a momentum level above and below
+    if ( straNorm ) then ! for strato Norm
+      if ( levIndex == nLev_M .or. levIndex == 1 .or. &
+           Press_T(lonIndex2, latIndex2, levIndex) < PstratoTop .or. &
+           Press_T(lonIndex2, latIndex2, levIndex) > PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+      end if
+    else
+      if ( levIndex == nLev_M ) then ! top
+        scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+        ! Here we are mixing diagnostic level and first
+        ! prognostic levels and there is not guarantee that
+        ! it will ever be a monotonic progression.  So, if
+        ! happends to be negative, set it to 0 instead.
+        if ( scaleFactorLev < 0.0D0 ) then
+          scaleFactorLev = 0.0D0
+        end if
+      else if ( Press_T(lonIndex2, latIndex2, levIndex) < PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+      end if
+    end if
+  end function findScaleFactorLev_M
 
 end module gridVariableTransforms_mod
