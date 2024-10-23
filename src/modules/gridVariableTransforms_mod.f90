@@ -2567,9 +2567,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_energyNorm
   !--------------------------------------------------------------------------
-  function gvt_energyNorm(statevector_inout, statevector_ref,  &
-                            latMin, latMax, lonMin, lonMax,      &
-                            uvNorm,ttNorm,p0Norm,huNorm,tgNorm, straNorm) result(energyNorm)
+  function gvt_energyNorm(statevector_inout, statevector_ref, &
+                          latMin, latMax, lonMin, lonMax,     &
+                          uvNorm,ttNorm,p0Norm,huNorm,tgNorm,straNorm) result(energyNorm)
     !
     ! :Purpose: Computes energy norms
     !           For some positive definite symmetric matrix defining the energy,

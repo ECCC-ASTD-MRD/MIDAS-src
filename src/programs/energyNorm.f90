@@ -370,8 +370,8 @@ contains
     type(struct_gsv), pointer, intent(in)  :: stateVectorReference
     character(len=*), intent(in)  :: fileName
     type(struct_gsv), pointer, intent(in) :: stateVector
-    logical :: fullState
-    integer :: nulFile
+    logical, intent(in) :: fullState
+    integer, intent(in) :: nulFile
 
     ! Constants:
     real(8), parameter :: latMin = -95.0d0
