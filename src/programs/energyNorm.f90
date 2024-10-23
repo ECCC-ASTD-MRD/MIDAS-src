@@ -122,8 +122,8 @@ program midas_energyNorm
   type(struct_hco), pointer :: hco => null()
 
   ! Namelist variables
-  logical :: fullStates
-  real(8) :: factor
+  logical :: fullStates ! If '.true.', then the files will be considered as full states and the energy norm will be compute with the difference of the state and the reference state (default is ``.true``).
+  real(8) :: factor     ! Multiplicative factor to apply to energy norm outputs (default is 1)
 
   namelist /namEnergyNorm/ fullStates, factor
 
