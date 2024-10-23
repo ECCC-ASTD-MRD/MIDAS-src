@@ -2649,20 +2649,10 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
-            else
-              scaleFactorLat = 0.0D0
-            end if
+            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
-              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
-                scaleFactorLon = 1.0D0
-              else
-                scaleFactorLon = 0.0D0
-              end if
+              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then !for strato Norm
                 if (levIndex == nLev_M .or. levIndex == 1 .or. &
@@ -2732,20 +2722,11 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
-            else
-              scaleFactorLat = 0.0D0
-            end if
+            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
-              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
-                scaleFactorLon = 1.0D0
-              else
-                scaleFactorLon = 0.0D0
-              end if
+              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then ! for strato norm
                 if (levIndex == nLev_T .or. levIndex == 1) then
@@ -2805,20 +2786,11 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
-            else
-              scaleFactorLat = 0.0D0
-            end if
+            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
-              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
-                scaleFactorLon = 1.0D0
-              else
-                scaleFactorLon = 0.0D0
-              end if
+              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
               ! do all thermo levels for which there is a momentum level above and below
               if (straNorm) then ! for strato norm
                 if (levIndex == nLev_T .or. levIndex == 1) then
@@ -2879,25 +2851,15 @@ CONTAINS
     if (p0Norm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
-            else
-              scaleFactorLat = 0.0D0
-            end if
-            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
-                scaleFactorLon = 1.0D0
-              else
-                scaleFactorLon = 0.0D0
-              end if
-              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
-              sumScale = sumScale + scaleFactor
-              sumep = sumep + 0.5 * pfac * &
-                  field_Psfc(lonIndex,latIndex,1,stepIndex) * field_Psfc(lonIndex,latIndex,1,stepIndex) * scaleFactor
-              field_Psfc(lonIndex,latIndex,1,stepIndex) = &
-              field_Psfc(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * pfac
+          scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+          do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+            sumScale = sumScale + scaleFactor
+            sumep = sumep + 0.5 * pfac * &
+                 field_Psfc(lonIndex,latIndex,1,stepIndex) * field_Psfc(lonIndex,latIndex,1,stepIndex) * scaleFactor
+            field_Psfc(lonIndex,latIndex,1,stepIndex) = &
+                 field_Psfc(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * pfac
           end do
         end do ! latIndex
       end do ! stepIndex
@@ -2919,23 +2881,13 @@ CONTAINS
     if (tgNorm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-            ! IF lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-            if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-              scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
-            else
-              scaleFactorLat = 0.0D0
-            end if
-            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-              if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
-                scaleFactorLon = 1.0D0
-              else
-                scaleFactorLon = 0.0D0
-              end if
-              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
-              sumScale = sumScale + scaleFactor
-              field_TG(lonIndex,latIndex,1,stepIndex) = &
-              field_TG(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * 0.0
+          scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+          do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+            sumScale = sumScale + scaleFactor
+            field_TG(lonIndex,latIndex,1,stepIndex) = &
+                 field_TG(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * 0.0
           end do
         end do ! latIndex
       end do ! stepIndex
@@ -2953,5 +2905,55 @@ CONTAINS
     if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: END'
 
   end function gvt_energyNorm
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLat
+  !--------------------------------------------------------------------------
+  function findScaleFactorLat(statevector_inout, latIndex, latMin, latMax) result(scaleFactorLat)
+    !
+    ! :Purpose: Computes the scale factor accounting for latitude
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector_inout
+    integer, intent(in) :: latIndex
+    real(8), intent(in) :: latMin
+    real(8), intent(in) :: latMax
+    ! Result:
+    real(8) :: scaleFactorLat
+
+    ! If lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
+    if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
+      scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
+    else
+      scaleFactorLat = 0.0D0
+    end if
+  end function findScaleFactorLat
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLon
+  !--------------------------------------------------------------------------
+  function findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax) result(scaleFactorLon)
+    !
+    ! :Purpose: Computes the scale factor accounting for longitude
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector_inout
+    integer, intent(in) :: lonIndex
+    real(8), intent(in) :: lonMin
+    real(8), intent(in) :: lonMax
+    ! Result:
+    real(8) :: scaleFactorLon
+
+    ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+    if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+      scaleFactorLon = 1.0D0
+    else
+      scaleFactorLon = 0.0D0
+    end if
+  end function findScaleFactorLon
 
 end module gridVariableTransforms_mod
