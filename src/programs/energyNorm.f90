@@ -200,8 +200,8 @@ program midas_energyNorm
                     beSilent_opt=.false. )
 
   do fileIndex = 1, numberOfFiles
-    call compute_energyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
-                            fullStates, factor, nulFileOutput)
+    call computeEnergyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
+                           fullStates, factor, nulFileOutput)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
 
@@ -359,10 +359,10 @@ contains
   end subroutine initializeReferenceState
 
   !--------------------------------------------------------------------------
-  ! compute_energyNorm
+  ! computeEnergyNorm
   !--------------------------------------------------------------------------
-  subroutine compute_energyNorm(stateVectorReference, fileName, stateVector, &
-                                fullState, factor, nulFile)
+  subroutine computeEnergyNorm(stateVectorReference, fileName, stateVector, &
+                               fullState, factor, nulFile)
     !
     ! :Purpose: Helper function which computes the energy norm for an
     !           input file with respect to a reference. It then prints
@@ -430,6 +430,6 @@ contains
                                                    factor*energyNorm%vv, factor*energyNorm%hu, factor*energyNorm%p0
     end if
 
-  end subroutine compute_energyNorm
+  end subroutine computeEnergyNorm
 
 end program midas_energyNorm
