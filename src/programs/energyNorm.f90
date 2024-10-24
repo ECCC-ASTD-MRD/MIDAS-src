@@ -114,8 +114,8 @@ program midas_energyNorm
   character(len=256), parameter :: inputFileName  = 'inputFiles'
   character(len=256), parameter :: outputFileName = 'energyNorm_ascii'
   integer :: istamp,exdb,exfin,fnom,fclos,ierr,nulFileOutput
-  integer :: fileIndex, numberOfFiles
-  character(len=1024) :: referenceFileName
+  integer :: fileIndex, numberOfFiles, maxFileLength
+  character(len=1024) :: referenceFileName, fileNameHeader, fileNameFormat
   character(len=1024), allocatable :: fileNames(:)
   type(struct_gsv), target  :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
@@ -170,7 +170,7 @@ program midas_energyNorm
   call msg_memUsage('midas-energyNorm')
 
   ! parse the input file to get the files names
-  call parseInputFiles(inputFileName, referenceFileName, fileNames, numberOfFiles)
+  call parseInputFiles(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -188,10 +188,23 @@ program midas_energyNorm
   if ( mmpi_myid == 0 ) then
     ! write the reference file in the output
     write(nulFileOutput,'(a,a)') 'The reference file is ', trim(referenceFileName)
-    write(nulFileOutput,'(a,6ES14.4)') 'multiplicative factor = ', multiplicativeFactor
+    write(nulFileOutput,'(a,ES14.4)') 'multiplicative factor = ', multiplicativeFactor
     write(nulFileOutput,*)
+
+    ! Here, we add 4 to the length for the string to be written.  This
+    ! number comes from the fact that the numeric format in
+    ! 'computeEnergyNorm' is 'ES14.4' which is leaving 4 blank spaces.
+    fileNameFormat = 'a' // str(maxFileLength+4)
+
     ! write header in file
-    write(nulFileOutput,'("fileName",6a14)') 'total', 'tt', 'uu', 'vv', 'hu', 'p0'
+    fileNameHeader = 'fileName' ! We put this string in a character array to have 'fileName' left justified
+    write(nulFileOutput,'(' // trim(fileNameFormat) // ',6a14)') fileNameHeader,   &
+                                                                  'total         ', &
+                                                                  'tt            ', &
+                                                                  'uu            ', &
+                                                                  'vv            ', &
+                                                                  'hu            ', &
+                                                                  'p0            '
   end if
 
   call gsv_allocate(stateVector, tim_nstepobs, hco, vco,  &
@@ -200,9 +213,10 @@ program midas_energyNorm
                     hInterpolateDegree_opt='LINEAR',      &
                     beSilent_opt=.false. )
 
+  fileNameFormat = 'a' // str(maxFileLength)
   do fileIndex = 1, numberOfFiles
     call computeEnergyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
-                           fullStates, multiplicativeFactor, nulFileOutput)
+                           fullStates, multiplicativeFactor, nulFileOutput, fileNameFormat)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
 
@@ -233,7 +247,7 @@ contains
   ! parseInputFiles
   !--------------------------------------------------------------------------
   subroutine parseInputFiles(inputFileName, referenceFileName, fileNames, &
-                             numberOfFilesToProcess)
+                             numberOfFilesToProcess, maxFileLength)
     !
     ! :Purpose: Helper function which parses the input file to extract
     !           the input files names
@@ -245,6 +259,7 @@ contains
     character(len=*), intent(out) :: referenceFileName
     character(len=*), allocatable, intent(out) :: fileNames(:)
     integer,          intent(out) :: numberOfFilesToProcess
+    integer,          intent(out) :: maxFileLength
 
     ! Locals:
     integer :: ierr,readStatus, lineNumber, charIndex
@@ -258,6 +273,8 @@ contains
     if (ierr /= 0) then
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
+
+    maxFileLength = 0
 
     ! Read a first time the file 'inputFileName' (when
     ! 'readFileIsFirstPass = .true.') to find the number of files to
@@ -304,6 +321,9 @@ contains
           if ( numberOfInputFiles == 1 ) then
             referenceFileName = trimmedLine
           else
+            ! write(*,*) 'Ervig: parseInputFiles len_trim(trimmedLine), maxFileLength, ', len_trim(trimmedLine), maxFileLength, trim(trimmedLine)
+            maxFileLength = max(len_trim(trimmedLine), maxFileLength)
+
             fileNames(numberOfInputFiles-1) = trimmedLine
           end if
         end if
@@ -370,7 +390,8 @@ contains
   ! computeEnergyNorm
   !--------------------------------------------------------------------------
   subroutine computeEnergyNorm(stateVectorReference, fileName, stateVector, &
-                               fullState, multiplicativeFactor, nulFile)
+                               fullState, multiplicativeFactor, nulFile,    &
+                               fileNameFormat)
     !
     ! :Purpose: Helper function which computes the energy norm for an
     !           input file with respect to a reference. It then prints
@@ -385,6 +406,7 @@ contains
     logical, intent(in) :: fullState
     real(8), intent(in) :: multiplicativeFactor
     integer, intent(in) :: nulFile
+    character(len=*), intent(in) :: fileNameFormat
 
     ! Constants:
     real(8), parameter :: latMin = -95.0d0
@@ -434,8 +456,12 @@ contains
 
     !! Write the result in the file
     if ( mmpi_myid == 0 ) then
-      write(nulFile,'(a,6ES14.4)') trim(fileName), multiplicativeFactor*energyNorm%total, multiplicativeFactor*energyNorm%tt, multiplicativeFactor*energyNorm%uu, &
-                                                   multiplicativeFactor*energyNorm%vv, multiplicativeFactor*energyNorm%hu, multiplicativeFactor*energyNorm%p0
+      write(nulFile,'(' // trim(fileNameFormat) // ',6ES14.4)') fileName, multiplicativeFactor*energyNorm%total, &
+                                                                          multiplicativeFactor*energyNorm%tt,    &
+                                                                          multiplicativeFactor*energyNorm%uu,    &
+                                                                          multiplicativeFactor*energyNorm%vv,    &
+                                                                          multiplicativeFactor*energyNorm%hu,    &
+                                                                          multiplicativeFactor*energyNorm%p0
     end if
 
   end subroutine computeEnergyNorm
