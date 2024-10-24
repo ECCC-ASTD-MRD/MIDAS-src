@@ -258,9 +258,14 @@ contains
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
 
-    ! Read a first time the file to find the number of files: readFileIsFirstPass = .true.
-    !     This allows to allocate the array 'fileNames'
-    ! Read a second time the file to set 'referenceFileName' and fill the array 'fileNames' : readFileIsFirstPass = .false.
+    ! Read a first time the file 'inputFileName' (when
+    ! 'readFileIsFirstPass = .true.') to find the number of files to
+    ! process ('numberOfFilesToProcess') and allocate the array
+    ! 'fileNames'.
+    ! Then set 'readFileIsFirstPass = .false.' to indicate that the
+    ! first pass have been done.
+    ! Read a second time the file to set 'referenceFileName' and fill
+    ! the array 'fileNames' with the file names to process
     readFileIsFirstPass = .true.
     readFileIterationLoop: do
       lineNumber = 0
