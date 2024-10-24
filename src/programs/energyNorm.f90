@@ -170,7 +170,7 @@ program midas_energyNorm
   call msg_memUsage('midas-energyNorm')
 
   ! parse the input file to get the files names
-  call parseInputFiles(inputFileName,referenceFileName,fileNames,numberOfFiles)
+  call parseInputFiles(inputFileName, referenceFileName, fileNames, numberOfFiles)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -232,7 +232,7 @@ contains
   ! parseInputFiles
   !--------------------------------------------------------------------------
   subroutine parseInputFiles(inputFileName, referenceFileName, fileNames, &
-                             numberOfFilesToComputeTheEnergyNormAgainstTheReference)
+                             numberOfFilesToProcess)
     !
     ! :Purpose: Helper function which parses the input file to extract
     !           the input files names
@@ -243,7 +243,7 @@ contains
     character(len=*), intent(in)  :: inputFileName
     character(len=*), intent(out) :: referenceFileName
     character(len=*), allocatable, intent(out) :: fileNames(:)
-    integer,          intent(out) :: numberOfFilesToComputeTheEnergyNormAgainstTheReference
+    integer,          intent(out) :: numberOfFilesToProcess
 
     ! Locals:
     integer :: ierr,readStatus, lineNumber, charIndex
@@ -310,8 +310,10 @@ contains
           call utl_abort('No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
         end if
 
-        numberOfFilesToComputeTheEnergyNormAgainstTheReference = numberOfInputFiles-1
-        allocate(fileNames(numberOfFilesToComputeTheEnergyNormAgainstTheReference))
+        ! numberOfInputFiles includes the reference file which
+        ! numberOfFilesToProcess does not include
+        numberOfFilesToProcess = numberOfInputFiles-1
+        allocate(fileNames(numberOfFilesToProcess))
 
         rewind(nulFileInput)
         readFileIsFirstPass = .false.
