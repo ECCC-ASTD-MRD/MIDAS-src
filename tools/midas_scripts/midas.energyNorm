@@ -1,0 +1,158 @@
+#!/bin/bash
+
+set -euo pipefail
+
+typeset -r description="This script launches the program 'midas-energyNorm.Abs'"
+
+## This is the memory, in GB, that each core, on the supercomputer can
+## request.  There is 440 GB available on each node for 80 cores.
+## This same code is in 'midas.launch_program'
+typeset -r memory_in_gigs_per_openmp_num_thread=5.5
+
+typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
+
+arguments=$*
+eval $(cclargs -D "" $0 "[${description}]"                                               \
+  -pgm         "" "" "[path to MIDAS program]"                                           \
+  -nml         "" "" "[path to namelist file]"                                           \
+  -date        "" "" "[date of the input files]"                                         \
+  -reference   "" "" "[path to reference file]"                                          \
+  -states      "" "" "[path to several files on which the energy norm will be computed]" \
+  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
+  -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+  -jobname        energyNorm energyNorm "[name of the job (default: 'letkf')]"           \
+  -memory           ""     ""   "[${memory_description}]"                                \
+  -npex      1      1    "[Number of mpi components in the 'x' direction (default: 1)]"  \
+  -npey      1      1    "[Number of mpi components in the 'y' direction (default: 1)]"  \
+  -omp_num_threads  1      1    "[Number of Open MP threads per MPI rank (default: 1)]"  \
+  -wallclocktime    10     10   "[wall clock time for job in minutes (default: 10]"      \
+  ++ $arguments)
+
+scriptName=${0##*/}
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## Check if all mandatory arguments have been given
+## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'
+for launch_arg in pgm nml date reference states workdir supercomputer jobname npex npey omp_num_threads wallclocktime; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [ -z "${launch_tmp_var}" ]; then
+        die "the argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ ! -f "${reference}" ]]; then
+    die "The reference file given with option '-reference', ${reference}, does not exist."
+fi
+for stateFile in ${states}; do
+    if [[ ! -f "${stateFile}" ]]; then
+        die "One of the state files given with option '-states', ${stateFile}, does not exist."
+    fi
+done
+
+if [[ -d "${workdir}" ]]; then
+    die "The working directory ${workdir} already exists!"
+fi
+
+mkdir ${workdir}
+cd ${workdir}
+
+if [[ -n "${nml}" ]]; then
+    if [[ -f "${nml}" ]]; then
+        say "We will replace 'flnml' in the working directory with ${nml}"
+        cp ${nml} flnml
+    else
+        die "The namelist given with option '-nml', ${nml}, does not exist."
+    fi
+fi
+
+say "Preparing 'ptopo_nml' for ${npex}x${npey} MPI decomposition"
+cat > ptopo_nml <<EOF
+ &ptopo
+  npex=${npex}
+  npey=${npey}
+/
+EOF
+
+cat > inputFiles <<EOF
+## reference file
+${reference}
+
+## file containing the states which energy norm will be computed
+EOF
+for stateFile in $(echo ${states} | tr ' '  '\n'); do
+    echo ${stateFile} >> inputFiles
+done
+
+## Erase any previous directory for 'r.run_in_parallel'
+[[ -d mpitmpdir ]] && rm -r mpitmpdir
+
+cat > launcher.sh <<EOF
+#!/bin/bash
+
+set -e
+set +x
+
+ulimit -c unlimited
+
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
+export OMP_NUM_THREADS=${omp_num_threads}
+
+export MIDAS_DATE=${date}
+
+## When FOR_DUMP_CORE_FILE=1 and the code abort on runtime error, cores
+## will be dumped in the work directory; one per process.
+## Each core can weight O(10) Gb (times the number of processes)
+export FOR_DUMP_CORE_FILE=
+
+echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+
+echo loading eccc/mrd/rpn/libs/20240612-alpha
+. r.load.dot eccc/mrd/rpn/libs/20240612-alpha
+
+echo loading eccc/mrd/rpn/utils/20240612-alpha
+. r.load.dot eccc/mrd/rpn/utils/20240612-alpha
+
+cd ${PWD}
+
+echo "Start of ${pgm} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+
+SECONDS=0
+
+r.run_in_parallel -pgm ${pgm} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir
+
+echo "End of ${pgm} in \${SECONDS} seconds at \$(date +%Y%m%d:%H:%M:%S.%N)"
+EOF
+
+## Compute the memory to request at 'ord_soumet' call
+if [[ -z "${memory}" ]]; then
+    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
+    memory=${computed_memory}G
+fi
+
+cpus=${npex}x${npey}x${omp_num_threads}
+
+say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" "cpus=${cpus}" "memory=${memory}"
+
+ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
+                       -listing ${PWD} -w ${wallclocktime} -m ${memory}
+
+say "Once the job will be over, you can get the result in the file" "${workdir}/energyNorm_ascii"
