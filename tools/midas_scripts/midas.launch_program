@@ -148,4 +148,4 @@ say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}
 ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
                        -listing ${PWD} -w ${wallclocktime} -m ${memory}
 
-say "You can follow the execution in the workding directory ${workdir}"
+say "You can follow the execution in the working directory ${workdir}"
