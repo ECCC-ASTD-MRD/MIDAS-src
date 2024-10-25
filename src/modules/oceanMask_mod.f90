@@ -56,6 +56,8 @@ module oceanMask_mod
     type(struct_vco),          intent(in)    :: vco
     character(len=*),          intent(in)    :: inputFileName
 
+    ! Constants:
+    character(len=*), parameter :: netcdfFileExtention = '_fst'
     ! Locals:
     integer :: nulfile, ierr, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
@@ -64,10 +66,10 @@ module oceanMask_mod
     integer :: maxkeys
     integer :: ip1
     logical :: fileExist
-    character(len=100) :: fileName
+    character(len=len_trim(inputFileName)+len_trim(netcdfFileExtention)) :: fileName
     
     if (trim(utl_fileType(inputFileName)) == 'NetCDF') then
-      fileName = trim(inputFileName)//'_fst'
+      fileName = trim(inputFileName) // netcdfFileExtention
       inquire(file = trim(fileName), exist = fileExist)
       if (.not. fileExist) then
         call utl_abort('ocm_readMaskFromFile: mandatory FST file does not exist: '//&

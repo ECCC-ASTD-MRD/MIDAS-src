@@ -76,6 +76,8 @@ contains
     character(len=*), optional, intent(in)  :: gridName_opt
     character(len=*), optional, intent(in)  :: varName_opt
 
+    ! Constants:
+    character(len=*), parameter :: netcdfFileExtention = '_fst'
     ! Locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
@@ -105,20 +107,20 @@ contains
     character(len=2 ) :: typvar
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
-    character(len=100) :: fileName
+    character(len=len_trim(templateFile)+len_trim(netcdfFileExtention)) :: fileName
+
+    ! Define template file where to look for variables:
+    if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
+      ! analysis grid RPN standard file has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
+      fileName = trim(templateFile) // netcdfFileExtention
+    else
+      fileName = trim(templateFile)
+    end if
 
     if(.not.associated(hco)) then
       allocate(hco)
     else
       call utl_abort('hco_setupFromFile: supplied hco must be null')
-    end if
-
-    ! Define template file where to look for variables:
-    if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
-      ! analysis grid RPN standard file has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
-      fileName = trim(templateFile) // '_fst'    
-    else
-      fileName = trim(templateFile)
     end if
 
     ! Check if file exists
