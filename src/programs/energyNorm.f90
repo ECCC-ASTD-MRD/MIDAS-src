@@ -42,8 +42,13 @@ program midas_energyNorm
   !                     The first line is the path to the reference
   !                     state.
   !
-  !                     The second line is the legend of the following
-  !                     lines
+  !                     The second line is the multiplicative factor
+  !                     applied to the energy norms.
+  !
+  !                     The third line is an empty line.
+  !
+  !                     The fourth line is the legend of the following
+  !                     lines.
   !
   !                     Each other line starts with the file name and
   !                     the energy norm total and followed with the
@@ -61,15 +66,15 @@ program midas_energyNorm
   !
   !             - Setup horizontal and vertical grid objects the reference state.
   !
-  !             - Allocate the stateVector objects on the input grid
+  !             - Allocate the ``stateVector`` objects on the input grid
   !
-  !             - Read all the input files with 'gio_readFromFile'
+  !             - Read all the input files with ``gio_readFromFile``
   !
   !           - **Computation:**
   !
   !             - For each atmospheric state:
   !
-  !                - Compute the difference between the atmospheric state and the reference state with 'gsv_add'
+  !                - Compute the difference between the atmospheric state and the reference state with ``gsv_add``
   !
   !                - Call ``gvt_energyNorm``: Compute the energy norm for that atmospheric state
   !
@@ -91,7 +96,7 @@ program midas_energyNorm
   ! Module                   Namelist               Description of what is controlled
   !========================= ====================== =============================================================
   ! ``midas_energy``         ``NAMENERGYNORM``      The variable ``fullStates`` if input states are full or not.
-  !                                                 You can apply a factor to energy norm values with ``multiplicativeFactor``.
+  !                                                 You can apply a scaling to energy norm values with ``multiplicativeFactor``.
   ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
   !                                                 the background state and increment
   ! ``gridStateVector_mod``  ``NAMSTATE``           set the variables to read
@@ -198,7 +203,7 @@ program midas_energyNorm
 
     ! write header in file
     fileNameHeader = 'fileName' ! We put this string in a character array to have 'fileName' left justified
-    write(nulFileOutput,'(' // trim(fileNameFormat) // ',6a14)') fileNameHeader,   &
+    write(nulFileOutput,'(' // trim(fileNameFormat) // ',6a14)') fileNameHeader,    &
                                                                   'total         ', &
                                                                   'tt            ', &
                                                                   'uu            ', &
@@ -215,7 +220,7 @@ program midas_energyNorm
 
   fileNameFormat = 'a' // str(maxFileLength)
   do fileIndex = 1, numberOfFiles
-    call computeEnergyNorm(stateVectorReference, fileNames(fileIndex), stateVector, &
+    call computeEnergyNorm(stateVectorReference, fileNames(fileIndex), stateVector,       &
                            fullStates, multiplicativeFactor, nulFileOutput, fileNameFormat)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
@@ -259,10 +264,10 @@ contains
     character(len=*), intent(out) :: referenceFileName
     character(len=*), allocatable, intent(out) :: fileNames(:)
     integer,          intent(out) :: numberOfFilesToProcess
-    integer,          intent(out) :: maxFileLength
+    integer,          intent(out) :: maxFileLength ! maximum length of the input file names
 
     ! Locals:
-    integer :: ierr,readStatus, lineNumber, charIndex
+    integer :: ierr, readStatus, lineNumber, charIndex
     character(len=1024) :: line, trimmedLine
     integer :: nulFileInput, numberOfInputFiles
     logical :: readFileIsFirstPass
@@ -311,7 +316,6 @@ contains
 
         ! If the line starts with '#' or '!' or is empty, we ignore the line.
         if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
-          ! write(*,*) 'The line ' // str(lineNumber) // ' is a comment or is empty'
           cycle readLoopLineByLine
         end if
 
@@ -321,9 +325,7 @@ contains
           if ( numberOfInputFiles == 1 ) then
             referenceFileName = trimmedLine
           else
-            ! write(*,*) 'Ervig: parseInputFiles len_trim(trimmedLine), maxFileLength, ', len_trim(trimmedLine), maxFileLength, trim(trimmedLine)
             maxFileLength = max(len_trim(trimmedLine), maxFileLength)
-
             fileNames(numberOfInputFiles-1) = trimmedLine
           end if
         end if
@@ -341,6 +343,9 @@ contains
         numberOfFilesToProcess = numberOfInputFiles-1
         allocate(fileNames(numberOfFilesToProcess))
 
+        ! In the next iteration of 'readFileIterationLoop', we will
+        ! read again each lines so we rewind the file unit position to
+        ! the beginning of the file.
         rewind(nulFileInput)
         readFileIsFirstPass = .false.
       else
@@ -409,17 +414,20 @@ contains
     character(len=*), intent(in) :: fileNameFormat
 
     ! Constants:
+    ! The energy norm will be computed on the globe
     real(8), parameter :: latMin = -95.0d0
     real(8), parameter :: latMax =  95.0d0
     real(8), parameter :: lonMin = -185.0d0
     real(8), parameter :: lonMax =  365.0d0
+    ! The energy norm will include all those components
     logical, parameter :: includeUVNorm = .true.
     logical, parameter :: includeTTNorm = .true.
     logical, parameter :: includeP0Norm = .true.
     logical, parameter :: includeHUNorm = .true.
     logical, parameter :: includeTGNorm = .false.
-    ! if 'straNorm' is .true. then the error norm is from 100hPa to 1hPa,
-    ! if .false., it is from surface to 100hPa
+    ! If 'straNorm' is .true. then the error norm is from 100hPa to 1hPa.
+    ! If .false., it is from surface to 100hPa.
+    ! The energy norm is computed for the troposphere.
     logical, parameter :: straNorm = .false.
 
     ! Locals:
@@ -432,10 +440,10 @@ contains
     call utl_tmg_stop(2)
     call msg_memUsage('midas-energyNorm')
 
-    !! If 'fullState' is true then we must compute the difference
-    !! between the reference state and the state itself.
-    !! If 'fullState' is false, then we don't need it because it is
-    !! already a difference (for example, a standard deviation or RMS).
+    ! If 'fullState' is true then we must compute the difference
+    ! between the reference state and the state itself.
+    ! If 'fullState' is false, then we don't need it because it is
+    ! already a difference (for example, a standard deviation or RMS).
     if ( fullState ) then
       ! compute the difference between the state vector and the reference
       ! stateVector = stateVector - stateVectorReference
