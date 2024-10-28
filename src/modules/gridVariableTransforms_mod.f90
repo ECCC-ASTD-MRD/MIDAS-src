@@ -2567,9 +2567,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_energyNorm
   !--------------------------------------------------------------------------
-  function gvt_energyNorm(statevector_inout, statevector_ref, &
-                          latMin, latMax, lonMin, lonMax,     &
-                          uvNorm,ttNorm,p0Norm,huNorm,tgNorm,straNorm) result(energyNorm)
+  function gvt_energyNorm(statevector_inout, statevector_ref,     &
+                          latMin, latMax, lonMin, lonMax,         &
+                          uvNorm, ttNorm, p0Norm, huNorm, tgNorm, &
+                          straNorm) result(energyNorm)
     !
     ! :Purpose: Computes energy norms
     !           For some positive definite symmetric matrix defining the energy,
@@ -2884,7 +2885,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! findScaleFactorLev_M
   !--------------------------------------------------------------------------
-  function findScaleFactorLev_M(latIndex2, lonIndex2, levIndex, nLev_M, nLev_T,        &
+  function findScaleFactorLev_M(latIndex, lonIndex, levIndex, nLev_M, nLev_T,          &
                                 Press_T, Press_M, straNorm, PstratoTop, PstratoBottom) &
                                      result(scaleFactorLev)
     !
@@ -2893,8 +2894,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex2
-    integer, intent(in) :: lonIndex2
+    integer, intent(in) :: latIndex
+    integer, intent(in) :: lonIndex
     integer, intent(in) :: levIndex
     integer, intent(in) :: nLev_M
     integer, intent(in) :: nLev_T
@@ -2909,15 +2910,15 @@ CONTAINS
     ! do all thermo levels for which there is a momentum level above and below
     if ( straNorm ) then ! for strato Norm
       if ( levIndex == nLev_M .or. levIndex == 1 .or. &
-           Press_T(lonIndex2, latIndex2, levIndex) < PstratoTop .or. &
-           Press_T(lonIndex2, latIndex2, levIndex) > PstratoBottom ) then
+           Press_T(lonIndex, latIndex, levIndex) < PstratoTop .or. &
+           Press_T(lonIndex, latIndex, levIndex) > PstratoBottom ) then
         scaleFactorLev = 0.0D0
       else
-        scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+        scaleFactorLev = Press_T(lonIndex, latIndex, levIndex+1) - Press_T(lonIndex, latIndex, levIndex)
       end if
     else
       if ( levIndex == nLev_M ) then ! top
-        scaleFactorLev = Press_M(lonIndex2, latIndex2, nLev_M)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+        scaleFactorLev = Press_M(lonIndex, latIndex, nLev_M)-Press_T(lonIndex, latIndex, nLev_T-1)
         ! Here we are mixing diagnostic level and first
         ! prognostic levels and there is not guarantee that
         ! it will ever be a monotonic progression.  So, if
@@ -2925,10 +2926,10 @@ CONTAINS
         if ( scaleFactorLev < 0.0D0 ) then
           scaleFactorLev = 0.0D0
         end if
-      else if ( Press_T(lonIndex2, latIndex2, levIndex) < PstratoBottom ) then
+      else if ( Press_T(lonIndex, latIndex, levIndex) < PstratoBottom ) then
         scaleFactorLev = 0.0D0
       else
-        scaleFactorLev = Press_T(lonIndex2, latIndex2, levIndex+1) - Press_T(lonIndex2, latIndex2, levIndex)
+        scaleFactorLev = Press_T(lonIndex, latIndex, levIndex+1) - Press_T(lonIndex, latIndex, levIndex)
       end if
     end if
   end function findScaleFactorLev_M
@@ -2936,8 +2937,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! findScaleFactorLev_T
   !--------------------------------------------------------------------------
-  function findScaleFactorLev_T(latIndex2, lonIndex2, levIndex, nLev_T, Press_T, &
-                                Press_M, straNorm, PstratoTop, PstratoBottom) &
+  function findScaleFactorLev_T(latIndex, lonIndex, levIndex, nLev_T, Press_T, &
+                                Press_M, straNorm, PstratoTop, PstratoBottom)  &
                                      result(scaleFactorLev)
     !
     ! :Purpose: Computes the scale factor accounting for thermodynamic vertical levels
@@ -2945,8 +2946,8 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex2
-    integer, intent(in) :: lonIndex2
+    integer, intent(in) :: latIndex
+    integer, intent(in) :: lonIndex
     integer, intent(in) :: levIndex
     integer, intent(in) :: nLev_T
     real(8), intent(in), pointer :: Press_T(:,:,:)
@@ -2961,15 +2962,15 @@ CONTAINS
     if ( straNorm ) then ! for strato norm
       if ( levIndex == nLev_T .or. levIndex == 1 ) then
         scaleFactorLev = 0.0D0
-      else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoTop .or. &
-                Press_M(lonIndex2, latIndex2, levIndex-1) > PstratoBottom ) then
+      else if ( Press_M(lonIndex, latIndex, levIndex-1) < PstratoTop .or. &
+                Press_M(lonIndex, latIndex, levIndex-1) > PstratoBottom ) then
         scaleFactorLev = 0.0D0
       else
-        scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+        scaleFactorLev = Press_M(lonIndex, latIndex, levIndex ) - Press_M(lonIndex, latIndex, levIndex-1)
       end if
     else
       if ( levIndex == nLev_T ) then ! surface
-        scaleFactorLev =  Press_T(lonIndex2, latIndex2, nLev_T)-Press_T(lonIndex2, latIndex2, nLev_T-1)
+        scaleFactorLev =  Press_T(lonIndex, latIndex, nLev_T)-Press_T(lonIndex, latIndex, nLev_T-1)
         ! Here we are mixing diagnostic level and first
         ! prognostic levels and there is not guarantee that
         ! it will ever be a monotonic progression.  So, if
@@ -2979,10 +2980,10 @@ CONTAINS
         end if
       else if ( levIndex == 1 ) then ! top
         scaleFactorLev = 0.0D0
-      else if ( Press_M(lonIndex2, latIndex2, levIndex-1) < PstratoBottom ) then
+      else if ( Press_M(lonIndex, latIndex, levIndex-1) < PstratoBottom ) then
         scaleFactorLev = 0.0D0
       else
-        scaleFactorLev = Press_M(lonIndex2, latIndex2, levIndex ) - Press_M(lonIndex2, latIndex2, levIndex-1)
+        scaleFactorLev = Press_M(lonIndex, latIndex, levIndex ) - Press_M(lonIndex, latIndex, levIndex-1)
       end if
     end if
   end function findScaleFactorLev_T
