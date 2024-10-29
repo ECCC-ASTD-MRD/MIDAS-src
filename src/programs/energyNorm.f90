@@ -361,7 +361,7 @@ contains
   !--------------------------------------------------------------------------
   ! initializeReferenceState
   !--------------------------------------------------------------------------
-  subroutine initializeReferenceState(inputFileName, stateVectorReference, hco, vco)
+  subroutine initializeReferenceState(inputFileName, stateVector, hco, vco)
     !
     ! :Purpose: Helper function which initializes the reference state
     !           vector and horizonal and vertical definitions from
@@ -370,22 +370,22 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: inputFileName
-    type(struct_gsv), pointer, intent(in)  :: stateVectorReference
-    type(struct_vco), pointer, intent(out) :: vco
-    type(struct_hco), pointer, intent(out) :: hco
+    character(len=*),          intent(in)  :: inputFileName ! The path to the file read the reference state
+    type(struct_gsv), pointer, intent(in)  :: stateVector ! gridStateVector structure to store the reference state
+    type(struct_hco), pointer, intent(out) :: hco ! 'horizontalCoord' which will be used for all gridStateVector reads after
+    type(struct_vco), pointer, intent(out) :: vco ! 'verticalCoord' which will be used for all gridStateVector reads after
 
     call hco_SetupFromFile(hco, inputFileName, etiketName=' ')
     call vco_SetupFromFile(vco, inputFileName)
 
-    call gsv_allocate(stateVectorReference, tim_nstepobs, hco, vco, &
+    call gsv_allocate(stateVector, tim_nstepobs, hco, vco, &
                       dateStamp_opt=tim_getDateStamp(),             &
                       mpi_local_opt=.true., dataKind_opt=8,         &
                       hInterpolateDegree_opt='LINEAR',              &
                       beSilent_opt=.false.)
 
     call utl_tmg_start(1,'--ReadingStateVectorRef')
-    call gio_readFromFile(stateVectorReference, inputFileName, etiket_in=' ', typvar_in=' ')
+    call gio_readFromFile(stateVector, inputFileName, etiket_in=' ', typvar_in=' ')
     call utl_tmg_stop(1)
     call msg_memUsage('midas-energyNorm')
 
@@ -405,13 +405,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), pointer, intent(in)  :: stateVectorReference
-    character(len=*), intent(in)  :: fileName
-    type(struct_gsv), pointer, intent(in) :: stateVector
-    logical, intent(in) :: fullState
-    real(8), intent(in) :: multiplicativeFactor
-    integer, intent(in) :: nulFile
-    character(len=*), intent(in) :: fileNameFormat
+    type(struct_gsv), pointer, intent(in) :: stateVectorReference ! state vector representing the reference state
+    character(len=*),          intent(in) :: fileName ! input file to read the state vector on which the energy norm will be computed
+    type(struct_gsv), pointer, intent(in) :: stateVector ! state vector structure filled by the content of 'fileName'
+    logical,                   intent(in) :: fullState ! Does the state vector in 'fileName' representing a full state or not
+    real(8),                   intent(in) :: multiplicativeFactor ! factor applied to energy norm values to scale them
+    integer,                   intent(in) :: nulFile ! output file unit in which the energy norm will be written
+    character(len=*),          intent(in) :: fileNameFormat ! format when writing the file name in the output file
 
     ! Constants:
     ! The energy norm will be computed on the globe
