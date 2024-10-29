@@ -122,7 +122,7 @@ program midas_energyNorm
   integer :: fileIndex, numberOfFiles, maxFileLength
   character(len=1024) :: referenceFileName, fileNameHeader, fileNameFormat
   character(len=1024), allocatable :: fileNames(:)
-  type(struct_gsv), target  :: stateVector, stateVectorReference
+  type(struct_gsv) :: stateVector, stateVectorReference
   type(struct_vco), pointer :: vco => null()
   type(struct_hco), pointer :: hco => null()
 
@@ -220,7 +220,7 @@ program midas_energyNorm
 
   fileNameFormat = 'a' // str(maxFileLength)
   do fileIndex = 1, numberOfFiles
-    call computeEnergyNorm(stateVectorReference, fileNames(fileIndex), stateVector,       &
+    call computeEnergyNorm(stateVector, stateVectorReference, fileNames(fileIndex),       &
                            fullStates, multiplicativeFactor, nulFileOutput, fileNameFormat)
     call rpn_comm_barrier('GRID',ierr)
   end do ! fileIndex
@@ -371,7 +371,7 @@ contains
 
     ! Arguments:
     character(len=*),          intent(in)  :: inputFileName ! The path to the file read the reference state
-    type(struct_gsv), pointer, intent(in)  :: stateVector ! gridStateVector structure to store the reference state
+    type(struct_gsv),          intent(out) :: stateVector ! gridStateVector structure to store the reference state
     type(struct_hco), pointer, intent(out) :: hco ! 'horizontalCoord' which will be used for all gridStateVector reads after
     type(struct_vco), pointer, intent(out) :: vco ! 'verticalCoord' which will be used for all gridStateVector reads after
 
@@ -394,7 +394,7 @@ contains
   !--------------------------------------------------------------------------
   ! computeEnergyNorm
   !--------------------------------------------------------------------------
-  subroutine computeEnergyNorm(stateVectorReference, fileName, stateVector, &
+  subroutine computeEnergyNorm(stateVector, stateVectorReference, fileName, &
                                fullState, multiplicativeFactor, nulFile,    &
                                fileNameFormat)
     !
@@ -405,13 +405,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), pointer, intent(in) :: stateVectorReference ! state vector representing the reference state
-    character(len=*),          intent(in) :: fileName ! input file to read the state vector on which the energy norm will be computed
-    type(struct_gsv), pointer, intent(in) :: stateVector ! state vector structure filled by the content of 'fileName'
-    logical,                   intent(in) :: fullState ! Does the state vector in 'fileName' representing a full state or not
-    real(8),                   intent(in) :: multiplicativeFactor ! factor applied to energy norm values to scale them
-    integer,                   intent(in) :: nulFile ! output file unit in which the energy norm will be written
-    character(len=*),          intent(in) :: fileNameFormat ! format when writing the file name in the output file
+    type(struct_gsv), intent(inout) :: stateVector ! state vector structure filled by the content of 'fileName'
+    type(struct_gsv), intent(in) :: stateVectorReference ! state vector representing the reference state
+    character(len=*), intent(in) :: fileName ! input file to read the state vector on which the energy norm will be computed
+    logical,          intent(in) :: fullState ! Does the state vector in 'fileName' representing a full state or not
+    real(8),          intent(in) :: multiplicativeFactor ! factor applied to energy norm values to scale them
+    integer,          intent(in) :: nulFile ! output file unit in which the energy norm will be written
+    character(len=*), intent(in) :: fileNameFormat ! format when writing the file name in the output file
 
     ! Constants:
     ! The energy norm will be computed on the globe
