@@ -1086,6 +1086,8 @@ contains
     if (radiativeTransferCode == 'RTTOV') then
       if (allocated(tvs_profiles_nl))   deallocate(tvs_profiles_nl)
       if (allocated(tvs_profiles_tlad)) deallocate(tvs_profiles_tlad)
+      if (allocated(tvs_cld_profiles_nl)) deallocate(tvs_cld_profiles_nl)
+      if (allocated(tvs_cld_profiles_tlad)) deallocate(tvs_cld_profiles_tlad)
     end if
 
     write(*,*) 'tvs_deallocateProfilesNlTlAd: Finished'
