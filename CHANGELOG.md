@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Deallocating RTTOV cloud profile objects at the end of each outer-loop (#989 and !)
 
 ### Removed
 
