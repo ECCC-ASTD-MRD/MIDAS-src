@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" ON)
+option(SQLITE_FORTRAN_SUPPORT "Enable SQLite support in fortran code (links with 'f90sqlite' and 'udfsqlite' internal ECCC librairies)" OFF)
 option(MKL_SUPPORT "Use Intel MKL mathematical library for blas and lapack routines" OFF)
 
 #----- Append EC specific module path

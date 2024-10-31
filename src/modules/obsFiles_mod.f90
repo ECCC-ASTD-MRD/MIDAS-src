@@ -15,9 +15,6 @@ module obsFiles_mod
   use utilities_mod
   use obsSpaceData_mod
   use burpFiles_mod
-  use sqliteFiles_mod
-  use sqliteUtilities_mod
-  use obsdbFiles_mod
   use obsDiagFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
@@ -98,10 +95,6 @@ contains
     !
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_fileName(1) )
-    else if ( obsFileType == 'OBSDB' ) then
-      call odbf_getDateStamp( dateStamp_out, obsf_fileName(1) )
-    else if ( obsFileType == 'SQLITE' ) then
-      call sqlf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else
       dateStamp_out = -1
     end if
@@ -181,12 +174,6 @@ contains
           numBodies = obs_numBody(obsSpaceData)
           numHeaderRead = numHeaders - numHeaderBefore
           numBodyRead = numBodies - numBodyBefore
-        end if
-        if ( obsFileType == 'SQLITE' ) then
-          call sqlf_readFile(obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal)
-        end if
-        if ( obsFileType == 'OBSDB' ) then
-          call odbf_readFile(obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal)
         end if
       else
         numHeaderRead = 0
@@ -292,12 +279,6 @@ contains
         if ( obsFileType == 'BURP'   ) then
           call brpf_updateFile( obsSpaceData, obsf_fileName(fileIndex), obsf_familyType(fileIndex), &
                                 fileIndex )
-        else if ( obsFileType == 'OBSDB' ) then
-          call odbf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
-                                obsf_familyType(fileIndex), fileIndex )
-        else if ( obsFileType == 'SQLITE' ) then
-          call sqlf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
-                                obsf_familyType(fileIndex), fileIndex )
         end if
       end do
 
@@ -328,8 +309,6 @@ contains
 
           fullNameWithPath = trim(fileNameDir) // trim(obsDirectory) // '/'//trim(baseName)
 
-          call odbf_updateFile(obsSpaceData, fullNameWithPath, &
-                               obsf_familyType(fileIndex), fileIndex)
         end do
       end if
 
@@ -390,10 +369,6 @@ contains
 
       if ( obsFileType == 'BURP' ) then
         call brpr_burpClean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
-      else if ( obsFileType == 'OBSDB' ) then
-        call odbf_clean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
-      else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       end if
     end do
 
@@ -931,14 +906,6 @@ contains
       call utl_abort('obsf_determineSplitFileType: unknown obs file type')
     end if
 
-    if (trim(obsFileType) == 'sqliteOrObsdb') then
-      if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
-        obsFileType = 'OBSDB'
-      else
-        obsFileType = 'SQLITE'
-      end if
-    end if
-
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineSplitFileType
@@ -1148,9 +1115,7 @@ contains
     do fileIndex = 1, obsf_nfiles
 
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
-      if ( trim(obsFileType) == 'SQLITE' )  then
-        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_fileName(fileIndex))
-      else if ( trim(obsFileType) == 'BURP' ) then
+      if ( trim(obsFileType) == 'BURP' ) then
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_fileName(fileIndex) ) )
       else if ( trim(obsFileType) == 'OBSDB' ) then
         ! The variables updated here for other file types are added/updated in ObsDb files using a

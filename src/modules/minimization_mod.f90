@@ -27,7 +27,6 @@ module minimization_mod
   use obsOperators_mod
   use quasinewton_mod
   use utilities_mod
-  use biasCorrectionSat_mod
   use columnVariableTransforms_mod
 
   implicit none
