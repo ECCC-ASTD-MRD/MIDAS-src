@@ -29,7 +29,6 @@ module innovation_mod
   use obsErrors_mod
   use bufr_mod
   use statetocolumn_mod
-  use biascorrectionSat_mod
   use rmatrix_mod
   use costFunction_mod
   use varqc_mod
@@ -132,12 +131,6 @@ contains
     !- Filter out data from the obs data base
     !
     call filt_suprep(obsSpaceData)
-
-    ! Additional filtering for bias correction if requested
-    if (trim(innovationMode) /= 'thinning') then
-      call bcs_setup()
-      call bcs_filterObs(obsSpaceData)
-    end if
 
     if ( present(obsClean_opt) ) then
       if ( obsClean_opt ) then
