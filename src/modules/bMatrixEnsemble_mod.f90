@@ -416,9 +416,9 @@ CONTAINS
     ! Locals:
     type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
     type(struct_gbi) :: gbi_horizontalMean, gbi_landSeaTopo
-    real(8) :: pSurfRef, delT_hour
+    real(8) :: pSurfRef, hSurfRef, delT_hour
     real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
-    real(8),pointer :: vertLocationEns(:), vertLocationFile(:), vertLocationInc(:)
+    real(8), pointer :: vertLocationEns(:), vertLocationFile(:), vertLocationInc(:)
     real(4), pointer :: bin2d(:,:,:)
     real(8), pointer :: HeightSfc(:,:)
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
@@ -570,12 +570,12 @@ CONTAINS
         write(*,*) 'ben_setupOneInstance: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
         call utl_abort('ben_setupOneInstance: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       end if
-    else if (bEns(instanceIndex)%vco_anl%Vcode == 5005) then
+    else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001) then
       if ( bEns(instanceIndex)%nLevEns_T /= bEns(instanceIndex)%nLevEns_M .and. &
            bEns(instanceIndex)%nLevEns_T /= 0 .and. &
            bEns(instanceIndex)%nLevEns_M /= 0 ) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',bEns(instanceIndex)%nLevEns_T,bEns(instanceIndex)%nLevEns_M
-        call utl_abort('ben_setupOneInstance: Vcode=5005, nLevEns_T must equal nLevEns_M!')
+        call utl_abort('ben_setupOneInstance: Vcode=(5005 or 21001), nLevEns_T must equal nLevEns_M!')
       end if
     else if (bEns(instanceIndex)%vco_anl%Vcode == 0) then
       if ( bEns(instanceIndex)%nLevEns_T /= 0 .and. bEns(instanceIndex)%nLevEns_M /= 0 ) then
@@ -597,7 +597,8 @@ CONTAINS
     end if
 
     !- 1.5 Bmatrix Weight
-    if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
+    if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. &
+         bEns(instanceIndex)%vco_anl%Vcode == 21001 ) then
       if (bEns(instanceIndex)%nLevEns_M > 0) then
         ! Multi-level or momentum-level-only analysis
         bEns(instanceIndex)%varNameALFA(:) = varNameALFAatmMM(:)
@@ -796,13 +797,22 @@ CONTAINS
       end select
 
       ! Setup the localization
-      if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
-        pSurfRef = 101000.D0
-        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
-                               profM_opt=vertLocationInc)
+      if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. &
+           bEns(instanceIndex)%vco_anl%Vcode == 21001) then
+        if (bEns(instanceIndex)%vco_anl%Vcode == 21001) then
+          hSurfRef = 0.D0
+          call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, hSurfRef, &
+                                 profM_opt=vertLocationInc)
+          call czp_calcPressureProfileUsingStdAtm(vertLocationInc,               & ! INOUT
+                                                  bEns(instanceIndex)%nLevEns_M)   ! IN
+        else
+          pSurfRef = 101000.D0
+          call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                                 profM_opt=vertLocationInc)
+        end if
         allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
         do levIndex = 1, bEns(instanceIndex)%nLevEns_M
-          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
+          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))         
         end do
         deallocate(vertLocationInc)
       else if ( bEns(instanceIndex)%vco_anl%nLev_depth > 0 ) then

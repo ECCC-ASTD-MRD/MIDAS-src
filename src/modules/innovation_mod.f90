@@ -305,7 +305,7 @@ contains
     call msg('inn_setupColumnsOnAnlIncLev','START',verb_opt=2)
 
     !
-    !- Data copying from columnh to columnTrlOnAnlIncLev
+    !- Data copying from columnTrlOnTrlLev to columnTrlOnAnlIncLev
     !
     
     ! copy latitude

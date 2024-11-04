@@ -38,6 +38,7 @@ module calcHeightAndPressure_mod
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
   public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
+  public :: czp_calcPressureProfileUsingStdAtm
   public :: czp_ensureCompatibleTops
   public :: czp_fetch3DLevels, czp_fetch1DLevels, czp_fetch1DdPdPs
 
@@ -3777,6 +3778,104 @@ contains
       end subroutine calcPressure_col_ad_vcode5xxx
 
   end subroutine calcPressure_col_ad
+
+  !---------------------------------------------------------
+  ! czp_calcPressureProfileUsingStdAtm
+  !---------------------------------------------------------
+  subroutine czp_calcPressureProfileUsingStdAtm(height2pres_profile, nLev)
+    !
+    ! :Purpose: Estimate pressure at height levels using the U.S. Standard
+    !           Atmosphere profile
+    !
+    !           Example of a Standard Atmosphere Layer
+    !
+    !           \- (presTop, heightTop)
+    !            \  
+    !             \  gammaT (laspe rate in the layer)
+    !              \  
+    !               \- (tempBot, presBot, heightBot) 
+    !
+    implicit none
+    
+    ! Arguments:
+    integer, intent(in)    :: nLev
+    real(8), intent(inout) :: height2pres_profile(nLev)
+    
+    ! Locals:
+    real(8) :: height_profile(nLev)
+    real(8) :: lapseRate, heightTop, heightBot, presTop, presBot, tempBot, gravity 
+    
+    integer :: levIndex, layerIndex, associatedLayerIndex
+
+    integer, parameter :: nLayer=7 ! see https://en.wikipedia.org/wiki/U.S._Standard_Atmosphere#1976_version
+    real(8), dimension(1:nLayer) :: tgrad = (/            -6.5D-3,     0.D0,   1.0D-3,   2.8D-3,     0.D0,  -2.8D-3,  -2.0D-3/)
+    real(8), dimension(0:nLayer) :: zbase = (/     0.D0, 11000.D0, 20000.D0, 32000.D0, 47000.D0, 51000.D0, 71000.D0, 84852.D0/)
+    real(8), dimension(0:nLayer) :: pbase = (/101325.D0, 22632.D0, 5474.9D0, 868.02D0, 110.91D0, 66.939D0, 3.9564D0, 0.3734D0/)
+    real(8), dimension(0:nLayer) :: tbase = (/    15.D0,  -56.5D0,  -56.5D0,  -44.5D0,   -2.5D0,   -2.5D0,  -58.5D0, -86.28D0/)
+
+    logical :: zeroLapseRate
+    
+    !- Make sure that heights are in increasing order
+    if (height2pres_profile(2) > height2pres_profile(1)) then
+      height_profile(:) = height2pres_profile(:)
+    else
+      do levIndex = 1, nLev
+        height_profile(levIndex) = height2pres_profile(nLev-levIndex+1)
+      end do
+    end if
+    do levIndex = 1, nLev-1
+      if (height_profile(levIndex+1) <= height_profile(levIndex)) then
+        write(*,*) levIndex+1, height_profile(levIndex+1)
+        write(*,*) levIndex  , height_profile(levIndex)
+        call utl_abort('czp_caclPressureProfileUsingStdAtm: Invalid ordering')
+      end if
+    end do
+
+    !- Verify that the top is not outside the range covered by the Standard Atm.
+    if (height_profile(nLev) > zbase(nLayer)) then
+      write(*,*)  'Height at model top = ', height_profile(nLev)
+      write(*,*)  'Std Atm max height  = ', zbase(nLayer)
+      call utl_abort('czp_caclPressureProfileUsingStdAtm: Maximum layer exceeded')
+    end if
+
+    !
+    !- Estimate pressure for each height
+    !
+    do levIndex = 1, nLev
+
+      heightTop = height_profile(levIndex)
+      
+      !- Find the corresponding layer
+      do layerIndex = 1, nLayer
+        if (heightTop >= zbase(layerIndex-1) .and. heightTop < zbase(layerIndex)) then
+          associatedLayerIndex = layerIndex
+        end if
+      end do
+
+      !- Set which hypsometric equation form to use (with or without a lapse rate)
+      zeroLapseRate = tgrad(associatedLayerIndex) > -epsilon(tgrad(associatedLayerIndex)) .and. &
+                      tgrad(associatedLayerIndex) <  epsilon(tgrad(associatedLayerIndex))
+
+      !- Estimate the pressure based on the hypsometric equation and the Std Atm profile
+      heightBot = zbase(associatedLayerIndex-1)
+      presBot   = pbase(associatedLayerIndex-1)
+      tempBot   = tbase(associatedLayerIndex-1) + MPC_K_C_DEGREE_OFFSET_R8
+      gravity   = phf_gravityalt(sin(45.d0*MPC_RADIANS_PER_DEGREE_R8), 0.d0) ! At the mid-latitude's surface
+
+      if (zeroLapseRate) then
+        presTop = presBot * exp(-gravity*(heightTop-heightBot)/(MPC_RGAS_DRY_AIR_R8*tempBot))
+      else
+        lapseRate = tgrad(associatedlayerIndex)
+        presTop = presBot * exp( -gravity/(MPC_RGAS_DRY_AIR_R8*lapseRate) * &
+                                log((heightTop-heightBot+tempBot/lapseRate)*lapseRate/tempBot))
+      end if
+
+      ! Output and flip so that pressure decreases with levels
+      height2pres_profile(nLev-levIndex+1) = presTop
+
+    end do
+
+  end subroutine czp_calcPressureProfileUsingStdAtm
 
   !---------------------------------------------------------------------
   ! subroutines wrapping vgd_levels and vgd_dpidpis queries
