@@ -91,7 +91,7 @@ program midas_sstTrial
   ! namelist variables
   character(len=10) :: etiketAnalysis    ! etiket in the analysis file for grid setup
   integer           :: datestampClim(12) ! datestamps of input climatology fields 
-  real(4)           :: alphaClim         ! scaling factor to relax towards climatology
+  real(8)           :: alphaClim         ! scaling factor to relax towards climatology
   
   istamp = exdb('SSTTRIAL','DEBUT','NON')
 
@@ -157,7 +157,7 @@ program midas_sstTrial
     ! namelist variables default values
     etiketAnalysis = ''
     datestampClim(:) = 0
-    alphaClim = 0.983
+    alphaClim = 0.983d0
     
     ! Read the namelist
     call utl_tmg_start(181,'low-level--readNML')

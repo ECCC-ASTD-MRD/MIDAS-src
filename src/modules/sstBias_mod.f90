@@ -34,20 +34,21 @@ module sstBias_mod
   integer            :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
   integer, parameter :: maxNumberSensors = 10
+  real(pre_obsReal), parameter :: solarZenithThreshold = real(90.0d0, pre_obsReal) ! to distinguish day and night
 
   ! namelist variables
   real(8)            :: searchRadius                 ! horizontal search radius, in km, for obs gridding
-  real(4)            :: maxBias                      ! max acceptable difference (insitu - satellite)
-  real(4)            :: iceFractionThreshold         ! consider no ice condition below this threshold
+  real(8)            :: maxBias                      ! max acceptable difference (insitu - satellite)
+  real(8)            :: iceFractionThreshold         ! consider no ice condition below this threshold
   integer            :: numberPointsBG               ! parameter, number of matchups of the background bias estimation
   character(len=20)  :: timeInterpType_nl            ! 'NEAREST' or 'LINEAR'
   integer            :: numObsBatches                ! number of batches for calling interp setup
   integer            :: numberSensors                ! MUST NOT BE INCLUDED IN NAMELIST!
   character(len=10)  :: sensorList(maxNumberSensors) ! list of sensors
   logical            :: saveAuxFields                ! to store or not auxiliary fields: nobs and weight        
-  real(4)            :: weightMin                    ! minimum value of weight for the current day bias
-  real(4)            :: weightMax                    ! maximum value of weight for the current day bias
-  real(4)            :: bgTermZeroBias               ! background term of zero bias estimate
+  real(8)            :: weightMin                    ! minimum value of weight for the current day bias
+  real(8)            :: weightMax                    ! maximum value of weight for the current day bias
+  real(8)            :: bgTermZeroBias               ! background term of zero bias estimate
 
   contains
 
@@ -75,7 +76,7 @@ module sstBias_mod
     integer                     :: nobsFoundInsituGlob, nobsFoundInsituLoc
     integer                     :: nobsFoundSatGlob, nobsFoundSatLoc
     type(struct_gsv)            :: stateVector_ice
-    real(4), pointer            :: seaice_ptr(:,:,:)
+    real(8), pointer            :: seaice_ptr(:,:,:)
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day  ', 'night'/)
 
@@ -90,7 +91,7 @@ module sstBias_mod
     call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
 
     ! get latest sea-ice analysis
-    call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .false.,    &
                       varNames_opt = (/'LG'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
@@ -180,7 +181,6 @@ module sstBias_mod
     
     ! Locals:
     integer, parameter        :: maxPointsSearch = 200000
-    real(4), parameter        :: solarZenithThreshold = 90.0 ! to distinguish day and night
     type(kdtree2), pointer    :: tree => null() 
     real(kdkind), allocatable :: positionArray(:,:)
     type(kdtree2_result)      :: searchResults(maxPointsSearch)
@@ -365,7 +365,6 @@ module sstBias_mod
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
 
     ! Locals:
-    real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
     integer, parameter          :: maxPointsSearch = 200000    
@@ -380,9 +379,9 @@ module sstBias_mod
     type(struct_gsv)            :: stateVector                      ! state vector containing bias estimation field
     type(struct_gsv)            :: stateVector_searchRadius, stateVector_previous
     type(struct_gsv)            :: stateVectorNobs, stateVectorWeight    
-    real(4), pointer            :: griddedBias_r4_ptr(:,:,:), searchRadius_ptr(:,:,:)
-    real(4), pointer            :: nobsField_r4_ptr(:,:,:), weightField_r4_ptr(:,:,:)
-    real(4), pointer            :: griddedBias_r4_previous_ptr(:,:,:)
+    real(8), pointer            :: griddedBias_r8_ptr(:,:,:), searchRadius_ptr(:,:,:)
+    real(8), pointer            :: nobsField_r8_ptr(:,:,:), weightField_r8_ptr(:,:,:)
+    real(8), pointer            :: griddedBias_r8_previous_ptr(:,:,:)
     integer, allocatable        :: gridPointIndexes(:,:)
     real(8)                     :: weight, distance, correlation, lengthscale, difference, numberPoints
     character(len=1)            :: extension
@@ -429,7 +428,7 @@ module sstBias_mod
     end if POSITIVEOBSNUMBER 
 
     ! get search radius field
-    call gsv_allocate(stateVector_searchRadius, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_searchRadius, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
@@ -437,35 +436,35 @@ module sstBias_mod
 
     if (saveAuxFields) then
       ! output nobs state vector
-      call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 8, &
                         dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for nobs stateVector
-      call gsv_getField(stateVectorNobs, nobsField_r4_ptr)
+      call gsv_getField(stateVectorNobs, nobsField_r8_ptr)
       ! output weight state vector
-      call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 8, &
                         dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for weight stateVector
-      call gsv_getField(stateVectorWeight, weightField_r4_ptr)
-      nobsField_r4_ptr(:,:,1) = 0.0d0
-      weightField_r4_ptr(:,:,1) = 0.0d0
+      call gsv_getField(stateVectorWeight, weightField_r8_ptr)
+      nobsField_r8_ptr(:,:,1) = 0.0d0
+      weightField_r8_ptr(:,:,1) = 0.0d0
     end if
     
     ! previous bias estimation
-    call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//trim(sensor)//'_'//trim(extension), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
+    call gsv_getField(stateVector_previous, griddedBias_r8_previous_ptr) 
        
     ! resulting bias estimation state vector
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
-    call gsv_getField(stateVector, griddedBias_r4_ptr)
+    call gsv_getField(stateVector, griddedBias_r8_ptr)
     
-    griddedBias_r4_ptr(:,:,1) = 0.0d0
+    griddedBias_r8_ptr(:,:,1) = 0.0d0
 
     if (nobsLoc > 0) then
       write(*,*) 'sstb_getGriddedBias: do the search for '//trim(sensor)//' '//trim(dayOrNight)//'...'
@@ -504,14 +503,14 @@ module sstBias_mod
                   distance = sqrt(searchResults(localIndex)%dis)
                   lengthscale = 1000.d0 * searchRadius_ptr(lonIndex, latIndex, 1)
                   correlation = lfn_response(distance, lengthscale)
-                  griddedBias_r4_ptr(lonIndex, latIndex, 1) = griddedBias_r4_ptr(lonIndex, latIndex, 1) + &
+                  griddedBias_r8_ptr(lonIndex, latIndex, 1) = griddedBias_r8_ptr(lonIndex, latIndex, 1) + &
                                                               correlation * difference 
                   numberPoints = numberPoints + correlation
                 end if
               end do
     
               if (numberPoints > 0.0d0) &
-              griddedBias_r4_ptr(lonIndex, latIndex, 1) = griddedBias_r4_ptr(lonIndex, latIndex, 1) / numberPoints
+              griddedBias_r8_ptr(lonIndex, latIndex, 1) = griddedBias_r8_ptr(lonIndex, latIndex, 1) / numberPoints
             end if POSITIVENPTSFOUND   
           end if LANDSEAMASK
 
@@ -520,18 +519,18 @@ module sstBias_mod
           if (weight > weightMax) weight = weightMax
        
           if (saveAuxFields) then
-            weightField_r4_ptr(lonIndex, latIndex, 1) = weight
-            nobsField_r4_ptr(lonIndex, latIndex, 1) = numberPoints
+            weightField_r8_ptr(lonIndex, latIndex, 1) = weight
+            nobsField_r8_ptr(lonIndex, latIndex, 1) = numberPoints
           end if
 
           ! computation of the bias:
-          griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * bgTermZeroBias * &
-                                                      griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
-                                                      weight * griddedBias_r4_ptr(lonIndex, latIndex, 1)
+          griddedBias_r8_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * bgTermZeroBias * &
+                                                      griddedBias_r8_previous_ptr(lonIndex, latIndex, 1) + &
+                                                      weight * griddedBias_r8_ptr(lonIndex, latIndex, 1)
         else ! no data on the current processor   
 
           ! the bias estimation on the current processor is the estimation from previous state:
-          griddedBias_r4_ptr(lonIndex, latIndex, 1) = griddedBias_r4_previous_ptr(lonIndex, latIndex, 1)
+          griddedBias_r8_ptr(lonIndex, latIndex, 1) = griddedBias_r8_previous_ptr(lonIndex, latIndex, 1)
 
         end if POSITIVEOBSNUMBER2
       end do
@@ -578,7 +577,6 @@ module sstBias_mod
     character(len=*)       , intent(in)          :: dayOrNight        ! look for daytime or nighttime obs
 
     ! Locals:
-    real(4), parameter :: solarZenithThreshold = 90.0 ! to distinguish day and night
     integer            :: bodyIndex, headerIndex
     real(8)            :: currentObs
 
@@ -631,18 +629,18 @@ module sstBias_mod
                                   weightMin, weightMax, saveAuxFields, bgTermZeroBias
 
     ! Setting default namelist variable values
-    searchRadius = 10.            
-    maxBias = 1.                  
-    iceFractionThreshold   = 0.6 
+    searchRadius = 10.d0
+    maxBias = 1.d0
+    iceFractionThreshold   = 0.6d0
     numberSensors = MPC_missingValue_INT
     numberPointsBG = 0            
     timeInterpType_nl = 'NEAREST'
     numObsBatches = 20
     sensorList(:) = ''
-    weightMin = 0.0
-    weightMax = 1.0
+    weightMin = 0.0d0
+    weightMax = 1.0d0
     saveAuxFields = .False.
-    bgTermZeroBias = 1.0
+    bgTermZeroBias = 1.0d0
     
     ! Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
@@ -703,7 +701,7 @@ module sstBias_mod
     call readNml()
 
     ! allocate state vector for bias estimation field
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, hInterpolateDegree_opt = 'LINEAR', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
 
     do sensorIndex = 1, numberSensors 
@@ -748,8 +746,8 @@ module sstBias_mod
     ! Locals:
     type(struct_gsv)            :: stateVector                  ! state vector containing current  bias estimation field
     type(struct_gsv)            :: stateVector_previous         ! state vector containing previous bias estimation field
-    real(4), pointer            :: griddedBias_r4_ptr(:, :, :)
-    real(4), pointer            :: griddedBias_r4_previous_ptr(:, :, :)
+    real(8), pointer            :: griddedBias_r8_ptr(:, :, :)
+    real(8), pointer            :: griddedBias_r8_previous_ptr(:, :, :)
     character(len=1)            :: extension
     character(len=*), parameter :: outputFileName = './satellite_bias.fst'
 
@@ -765,19 +763,19 @@ module sstBias_mod
     end if
 
     ! read previous bias estimation
-    call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 8, &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//trim(sensor)//'_'//trim(extension), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
+    call gsv_getField(stateVector_previous, griddedBias_r8_previous_ptr) 
 
     ! resulting bias estimation state vector
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = (/tim_getDateStamp()/), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
-    call gsv_getField(stateVector, griddedBias_r4_ptr)
+    call gsv_getField(stateVector, griddedBias_r8_ptr)
         
-    griddedBias_r4_ptr(:, :, :) = griddedBias_r4_previous_ptr(:, :, :)
+    griddedBias_r8_ptr(:, :, :) = griddedBias_r8_previous_ptr(:, :, :)
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
 
     call gsv_deallocate(stateVector)

@@ -131,12 +131,12 @@ program midas_pseudoSSTobs
   character(len=48),parameter :: varMode        = 'analysis'
 
   ! namelist variables
-  real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
-  real(4)                     :: outputSST               ! output SST value for pseudo observations
-  real(4)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.  
+  real(8)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
+  real(8)                     :: outputSST               ! output SST value for pseudo observations
+  real(8)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.  
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
   character(len=100)          :: outputFileName          ! name of the file containing the generated observations
-  real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
+  real(8)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
   logical                     :: useSalinity             ! to use or not NEMO salinity field to compute freezing point temperature
 
   namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
@@ -199,12 +199,12 @@ program midas_pseudoSSTobs
     write(*,*) '-------------------------------------------------'
 
     ! Setting default namelist variable values
-    iceFractionThreshold   = 0.05 
-    outputSST              = 271.4
-    outputFreshWaterST     = 271.4
+    iceFractionThreshold   = 0.05d0
+    outputSST              = 271.4d0
+    outputFreshWaterST     = 271.4d0
     outputFileName         = ''
     seaiceThinning         = 5
-    seaWaterThreshold      = 0.0
+    seaWaterThreshold      = 0.0d0
     useSalinity            = .false.
 
     ! Read the namelist

@@ -387,7 +387,7 @@ CONTAINS
     ! Locals:
     integer          :: variableIndex, ierr
     type(struct_gsv) :: stateVector
-    real(4), pointer :: field3D_r4_ptr(:,:,:)
+    real(8), pointer :: field3D_r8_ptr(:,:,:)
     real(8)          :: minStddev, maxStddev
 
     call msg('bdiff_readBGstdField', 'Reading 2D fields from ./bgstddev...')
@@ -395,7 +395,7 @@ CONTAINS
                                      str(bdiff_varNameList(1:numvar2d)))
   
     call gsv_allocate(stateVector, 1, hco, vco, dateStamp_opt = -1, &
-                      dataKind_opt = 4, mpi_local_opt = .true., &
+                      dataKind_opt = 8, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', &
                       varNames_opt = bdiff_varNameList(1:numvar2d))
     call gsv_zero(stateVector)
@@ -404,11 +404,11 @@ CONTAINS
 
     do variableIndex = 1, numvar2d
 
-      call gsv_getField(statevector, field3D_r4_ptr, bdiff_varNameList(variableIndex))
-      stddev(:,:,variableIndex) = dble(field3D_r4_ptr(:,:,1))
+      call gsv_getField(statevector, field3D_r8_ptr, bdiff_varNameList(variableIndex))
+      stddev(:,:,variableIndex) = dble(field3D_r8_ptr(:,:,1))
       if (mmpi_nprocs > 1) then
-        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
-        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+        call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)), minStddev,1, 'mpi_real8', 'mpi_min', 'GRID', ierr)
+        call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)), maxStddev,1, 'mpi_real8', 'mpi_max', 'GRID', ierr)
       else
         minStddev = minval(stddev(:,:,variableIndex))
         maxStddev = maxval(stddev(:,:,variableIndex))
@@ -784,12 +784,12 @@ CONTAINS
     ! Locals:
     integer          :: ierr, indexLeft, indexRight
     type(struct_gsv) :: stateVectorLeft, stateVectorRight
-    real(4), pointer :: field3DLeft_r4_ptr(:,:,:), field3DRight_r4_ptr(:,:,:)
-    real(4), pointer :: ptr_r4(:,:,:) 
+    real(8), pointer :: field3DLeft_r8_ptr(:,:,:), field3DRight_r8_ptr(:,:,:)
+    real(8), pointer :: ptr_r8(:,:,:) 
     real(8)          :: minStddev, maxStddev
     integer          :: hour, day, month, yyyy, ndays, indexMonth
     integer          :: dateStamp ! date stamp for the current day
-    real(4)          :: weight
+    real(8)          :: weight
     logical          :: updatedDatestampNov
     real(8)          :: deltaDatestampLeft, deltaRightLeft, delta
 
@@ -880,33 +880,33 @@ CONTAINS
     ! read BG std from the left
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexLeft)//&
                                                  ' BG std field with etiket: '//bgstd%etiket(indexLeft))
-    call gsv_allocate(stateVectorLeft, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorLeft, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVectorLeft, './bgstddev', bgstd%etiket(indexLeft), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVectorLeft, field3DLeft_r4_ptr) 
+    call gsv_getField(stateVectorLeft, field3DLeft_r8_ptr) 
 
     ! read BG std from the right
     call msg('bdiff_getSSTBGstdFromFourSeasons', 'Reading '//bgstd%validMonthName(indexRight)//&
                                                  ' BG std field with etiket: '//bgstd%etiket(indexRight))
-    call gsv_allocate(stateVectorRight, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorRight, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .true., &
                       hInterpolateDegree_opt = 'LINEAR', varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVectorRight, './bgstddev', bgstd%etiket(indexRight), &
                           ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVectorRight, field3DRight_r4_ptr) 
+    call gsv_getField(stateVectorRight, field3DRight_r8_ptr) 
 
     if (present(stateVector_opt)) then
-      call gsv_getField(stateVector_opt, ptr_r4)
-      ptr_r4(:,:,1) = (1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
-                            weight  * field3DRight_r4_ptr(:,:,1)
+      call gsv_getField(stateVector_opt, ptr_r8)
+      ptr_r8(:,:,1) = (1. - weight) * field3DLeft_r8_ptr(:,:,1) + &
+                            weight  * field3DRight_r8_ptr(:,:,1)
     else
-      stddev(:,:,1) = dble((1. - weight) * field3DLeft_r4_ptr(:,:,1) + &
-                                 weight  * field3DRight_r4_ptr(:,:,1))
+      stddev(:,:,1) = (1. - weight) * field3DLeft_r8_ptr(:,:,1) + &
+                            weight  * field3DRight_r8_ptr(:,:,1)
       if (mmpi_nprocs > 1) then
-        call rpn_comm_allreduce(minval(stddev(:,:,1)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
-        call rpn_comm_allreduce(maxval(stddev(:,:,1)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
+        call rpn_comm_allreduce(minval(stddev(:,:,1)), minStddev, 1, 'mpi_real8', 'mpi_min', 'GRID', ierr)
+        call rpn_comm_allreduce(maxval(stddev(:,:,1)), maxStddev, 1, 'mpi_real8', 'mpi_max', 'GRID', ierr)
       else
         minStddev = minval(stddev(:,:,1))
         maxStddev = maxval(stddev(:,:,1))

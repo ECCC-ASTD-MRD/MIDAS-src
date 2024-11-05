@@ -704,8 +704,8 @@ module gridStateVectorFileIO_mod
     
       ! Inquire dimension using time dimension ID 'dimTimeCounterID'. how many records are there?
       call utl_checkNetCDFstatus(nf90_inquire_dimension(ncid, dimTimeCounterID, &
-                                                      name = recordDimName, &
-                                                      len = numberRecords))
+                                                        name = recordDimName, &
+                                                        len = numberRecords))
 
       write(*,*)'gio_readFileNetCDF: time variable: ', trim(recordDimName), &
                 ' (', numberRecords, ' currently in the file)'
