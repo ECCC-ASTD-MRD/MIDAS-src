@@ -180,3 +180,6 @@ midas.energyNorm [positionnels] This script launches the program 'midas-energyNo
  IN       -omp_num_threads [1:1] Number of Open MP threads per MPI rank (default: 1)
  IN       -wallclocktime [10:10] wall clock time for job in minutes (default: 10
 ```
+
+We suggest to use the namelist from the test
+[`/Tests/energyNorm/analmean`](maestro/suites/midas_system_tests/config/Tests/energyNorm/analmean/nml).
