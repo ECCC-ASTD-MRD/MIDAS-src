@@ -43,12 +43,12 @@ module oceanBackground_mod
     integer                  , intent(in) :: analysisDateStamp ! datestamp for last analysis 
     integer                  , intent(in) :: nmonthsClim       ! number of climatological fields (= 12)
     integer                  , intent(in) :: datestampClim(:)  ! datestamps of input climatology fields
-    real(4)                  , intent(in) :: alphaClim         ! scalling factor to relax towards climatology
+    real(8)                  , intent(in) :: alphaClim         ! scalling factor to relax towards climatology
     character(len=10)        , intent(in) :: etiket            ! etiket from namelist and for trial
     
     ! Locals:
     type(struct_gsv) :: stateVector, stateVectorAnomaly 
-    real(4), pointer :: stateVector_ptr(:, :, :), stateVectorAnomaly_ptr(:, :, :)
+    real(8), pointer :: stateVector_ptr(:, :, :), stateVectorAnomaly_ptr(:, :, :)
     integer          :: lonIndex, latIndex, status
     real(8)          :: climatology_m1(hco % ni, hco % nj), climatology(hco % ni, hco % nj)
     
@@ -58,7 +58,7 @@ module oceanBackground_mod
     status = utl_copyFile('./analysis', './analysisAndAnomaly')
 
     ! get SST analysis
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = (/analysisDateStamp/), &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './analysisAndAnomaly', ' ','A', &
@@ -67,7 +67,7 @@ module oceanBackground_mod
     call gsv_getField(stateVector, stateVector_ptr)
 
     ! initialize state vector for analysis anomaly
-    call gsv_allocate(stateVectorAnomaly, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorAnomaly, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = (/analysisDateStamp/), &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gsv_copy(stateVector, stateVectorAnomaly)
@@ -97,6 +97,15 @@ module oceanBackground_mod
     ! save trial field in RPN standard file
     call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
+    ! save climatology corresponding to the analysisDateStamps
+    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd
+      do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
+        stateVector_ptr(lonIndex, latIndex, 1) = climatology_m1(lonIndex, latIndex)
+      end do
+    end do
+    stateVector%etiket = 'CLIMATO'
+    call gio_writeToFile(stateVector, './analysisAndAnomaly', etiket, typvar_opt = 'C@')
+
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorAnomaly)
 
@@ -125,7 +134,7 @@ module oceanBackground_mod
     ! Locals:
     integer          :: hour, day, month, yyyy, ndays, nextMonth
     type(struct_gsv) :: stateVector, stateVector_nextMonth
-    real(4), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)
+    real(8), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)
     integer          :: lonIndex, latIndex
    
     call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy)
@@ -140,7 +149,7 @@ module oceanBackground_mod
      
     ! get climatology, current month
     write(*,*) 'obgd_getClimatology: reading climatology, month: ', month, ', datestamp: ', datestampClim(month) 
-    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = datestampClim(month:month), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector, './climatology', ' ',' ', &
@@ -149,7 +158,7 @@ module oceanBackground_mod
     
     ! get climatology, next month
     write(*,*) 'obgd_getClimatology: reading climatology, month: ', nextMonth, ', datestamp: ', datestampClim(nextMonth) 
-    call gsv_allocate(stateVector_nextMonth, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_nextMonth, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = datestampClim(nextMonth:nextMonth), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
     call gio_readFromFile(stateVector_nextMonth, './climatology', ' ',' ', &
@@ -158,8 +167,8 @@ module oceanBackground_mod
 
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
-        output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) + real(day - 1) / real(ndays - 1) * &
-                                     (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))
+        output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) + real(day - 1, 8) / real(ndays - 1, 8) * &
+                                    (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))
       end do
     end do
     

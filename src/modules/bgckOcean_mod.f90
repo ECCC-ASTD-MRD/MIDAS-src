@@ -39,21 +39,21 @@ module bgckOcean_mod
   integer           :: ndaysWinds        = 4         ! number of days in the 'winds' file to detect tropical storm (TS)
   integer           :: timeStepWinds     = 6         ! in hours, winds are available every timeStepWinds-hours
   integer           :: windForecastLeadtime = 6      ! in hours, lead time of wind forecast in the input file
-  real(4)           :: minLatNH = 10.                ! min lat of N. hemisphere lat band where TS is detected
-  real(4)           :: maxLatNH = 40.                ! max lat of N. hemisphere lat band where TS is detected
-  real(4)           :: maxLatExceptionNH = 45.       ! max lat of N. hemisphere lat band allows TS to penetrate further North in some months
+  real(8)           :: minLatNH = 10.d0              ! min lat of N. hemisphere lat band where TS is detected
+  real(8)           :: maxLatNH = 40.d0              ! max lat of N. hemisphere lat band where TS is detected
+  real(8)           :: maxLatExceptionNH = 45.d0     ! max lat of N. hemisphere lat band allows TS to penetrate further North in some months
   integer           :: nmonthsExceptionNH  = 0       ! MUST NOT BE INCLUDED IN NAMELIST!
   character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
-  real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
-  real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
-  real(8)           :: smoothLenghtScale = 50000.    ! length scale. in m, to smooth the amplification error field
+  real(8)           :: minLatSH = -35.d0             ! min lat of Southern hemisphere latutude band where TS is detected
+  real(8)           :: maxLatSH = -10.d0             ! max lat of Southern hemisphere latutude band where TS is detected
+  real(8)           :: smoothLenghtScale = 50000.d0  ! length scale. in m, to smooth the amplification error field
   real(8)           :: globalSelectCriteria(3) = (/5.d0, 25.d0, 30.d0/) ! global selection criteria
   logical           :: separateSelectCriteria = .false. ! apply separate selection criteria: sea/inland waters; insitu/satellite
   real(8)           :: inlandWaterSelectCriteriaSatData(3) = (/5.d0, 25.d0, 30.d0/) ! inland water, satellite selection criteria
   real(8)           :: inlandWaterSelectCriteriaInsitu(3)  = (/5.d0, 25.d0, 30.d0/) ! inland water, insitu selection criteria
   real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
   real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
-  real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
+  real(8)           :: seaWaterThreshold = 0.1d0     ! threshold to distinguish inland water from sea water
   logical           :: fourSeasonsBgstdSST = .false. ! Compute daily BG stddev from 4 seasonal fields valid on the 15th of Feb, May, Aug and Nov. 
 
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
@@ -86,14 +86,14 @@ module bgckOcean_mod
     ! Locals:
     type(struct_gsv)            :: stateVectorFGE        ! state vector containing std B estimation field
     type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
-    real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
+    real(8), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
     type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
     integer                     :: ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
     integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
     real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
     type(struct_columnData)     :: columnFGE, columnSeaWaterFraction
-    real(4), pointer            :: stateVectorFGE_ptr(:,:,:)
+    real(8), pointer            :: stateVectorFGE_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
     
@@ -139,7 +139,7 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaSatData(:)
       call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//str(seaWaterThreshold))
       ! read sea water fraction
-      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
+      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 8, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
                         varNames_opt = (/'VF'/), hInterpolateDegree_opt ='LINEAR')
       call gio_readFromFile(stateVectorSeaWaterFraction, './seaice_analysis', ' ','A', &
@@ -155,7 +155,7 @@ module bgckOcean_mod
     end if
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVectorFGE, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
+    call gsv_allocate(stateVectorFGE, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 8, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     if (fourSeasonsBgstdSST) then
@@ -187,7 +187,7 @@ module bgckOcean_mod
       end do
       
       ! amplification error field state vector  
-      call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 4, &
+      call gsv_allocate(stateVectorAmplFactor, 1, hco, col_getVco(columnTrlOnTrlLev), dataKind_opt = 8, &
                         hInterpolateDegree_opt = 'LINEAR', dateStampList_opt = (/dateStamp/), &
                         mpi_local_opt = .true., varNames_opt = (/'TM'/))
       call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
@@ -561,15 +561,15 @@ module bgckOcean_mod
     ! Locals:
     type(struct_gsv)          :: stateVector         ! state vector for surface winds
     type(struct_vco), pointer :: vco_winds           ! vertical grid structure for winds
-    real(4)         , pointer :: uu_ptr4d(:,:,:,:)   ! pointer to get UU wind component
-    real(4)         , pointer :: vv_ptr4d(:,:,:,:)   ! pointer to get VV wind component
+    real(8)         , pointer :: uu_ptr4d(:,:,:,:)   ! pointer to get UU wind component
+    real(8)         , pointer :: vv_ptr4d(:,:,:,:)   ! pointer to get VV wind component
     integer                   :: dataStampList(ndaysWinds * 24 / timeStepWinds) ! datastamp list for wind fields
-    real(4)                   :: windSpeed
+    real(8)                   :: windSpeed
     integer                   :: hour, day, monthNumber
     integer                   :: yyyy, ndays, timeStepIndex
     real(8)                   :: deltaT, lat
     integer                   :: lonIndex, latIndex, monthIndex
-    real(4)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
+    real(8)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
     real(8)                   :: amplFactor
     
     nullify(vco_winds)
@@ -586,7 +586,7 @@ module bgckOcean_mod
 
     call vco_SetupFromFile(vco_winds, './winds')
     call gsv_allocate(stateVector, ndaysWinds * 24 / timeStepWinds, hco, vco_winds, &
-                      dateStampList_opt = dataStampList, dataKind_opt = 4, &
+                      dateStampList_opt = dataStampList, dataKind_opt = 8, &
                       varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
                       hInterpolateDegree_opt = 'LINEAR')
       

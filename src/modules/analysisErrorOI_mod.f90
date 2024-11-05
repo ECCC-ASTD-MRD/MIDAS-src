@@ -65,7 +65,7 @@ contains
     integer :: lonIndex, latIndex
     character(len=4), pointer :: analysisVariable(:)
     type(struct_gsv)          :: statevectorLcorr
-    real(4), pointer          :: field3D_r4_ptr(:,:,:)
+    real(8), pointer          :: field3D_r8_ptr(:,:,:)
     type(struct_columnData)   :: column
     type(struct_columnData)   :: columng
     type(struct_ocm)          :: oceanMask
@@ -80,7 +80,7 @@ contains
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
     logical           :: propagateAnalysisError ! choose to propagate analysis error
     logical           :: propagateDSLO          ! choose to propagate Days Since Last Obs field
-    real(4)           :: errorGrowth            ! seaice: fraction of ice per hour, SST: estimated growth
+    real(8)           :: errorGrowth            ! seaice: fraction of ice per hour, SST: estimated growth
     character(len=12) :: analysisEtiket         ! analysis field etiket in a standard file
     character(len=12) :: anlErrorStdEtiket      ! analysis error standard deviation field etiket in the input/output standard files
     character(len=12) :: trlErrorStdEtiket      ! background error standard deviation field etiket in the input/output standard files
@@ -88,7 +88,7 @@ contains
     logical           :: saveTrlStdField        ! choose to save trial standard deviation field
     character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
     character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
-    real(4)           :: multFactorLcorr        ! multiplication scaling factor to increase the correlation length scale field
+    real(8)           :: multFactorLcorr        ! multiplication scaling factor to increase the correlation length scale field
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, anlErrorStdEtiket, trlErrorStdEtiket, &
                       hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar, outputTypeVar, &
@@ -102,7 +102,7 @@ contains
     maxAnalysisErrorStdDev = 1.0d0
     propagateAnalysisError = .false.
     propagateDSLO = .false.
-    errorGrowth = 1.0
+    errorGrowth = 1.0d0
     analysisEtiket = ''
     anlErrorStdEtiket = 'A-ER STD DEV'
     trlErrorStdEtiket = 'B-ER STD DEV'
@@ -110,7 +110,7 @@ contains
     saveTrlStdField = .false.
     inputTypeVar = 'P@'
     outputTypeVar = 'A@'
-    multFactorLcorr = 1.0
+    multFactorLcorr = 1.0d0
     
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
@@ -216,18 +216,18 @@ contains
     write(*,*) 'aer_analysisError: get correlation length scale field...'
     call gsv_allocate(statevectorLcorr, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .false., mpi_distribution_opt = 'None', &
-                      dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
+                      dataKind_opt = 8, hInterpolateDegree_opt = 'LINEAR', &
                       varNames_opt = (/analysisVariable(1)/))
     call gsv_zero(statevectorLcorr)
     call gio_readFromFile(statevectorLcorr, './bgstddev', 'CORRLEN', ' ', &
                           unitConversion_opt = .false.)
-    call gsv_getField(statevectorLcorr, field3D_r4_ptr, analysisVariable(1))
+    call gsv_getField(statevectorLcorr, field3D_r8_ptr, analysisVariable(1))
 
     ! apply multiplication scaling factor
-    field3D_r4_ptr(:, :, 1) = field3D_r4_ptr(:, :, 1) * multFactorLcorr
+    field3D_r8_ptr(:, :, 1) = field3D_r8_ptr(:, :, 1) * multFactorLcorr
 
     ! Convert from km to meters
-    Lcorr(:,:) = 1000.0d0 * real(field3D_r4_ptr(:, :, 1), 8)
+    Lcorr(:,:) = 1000.0d0 * field3D_r8_ptr(:, :, 1)
 
     write(*,*) 'aer_analysisError: min/max correlation length scale 2D field: ', &
                minval(Lcorr(:,:) ), maxval(Lcorr(:,:))
@@ -333,8 +333,8 @@ contains
     integer :: lonIndex, latIndex, resultsIndex, gridIndex, numStep
     type(kdtree2_result) :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)         :: refPosition(3), maxRadiusSquared
-    real(4) :: footprintRadius_r4 ! (metres) used for seaice observations only
-    real(4) :: influenceRadius_r4 ! (metres)
+    real(8) :: footprintRadius_r8 ! (metres) used for seaice observations only
+    real(8) :: influenceRadius_r8 ! (metres)
     real(8) :: obsLonInRad, obsLatInRad, maxLcorr
     type(kdtree2), pointer :: tree
     real(kdkind), allocatable :: positionArray(:,:)
@@ -345,7 +345,7 @@ contains
     integer, allocatable :: obsRln(:), allObsRln(:,:)
     integer, allocatable :: obsNlv(:), allObsNlv(:,:)
     integer :: ierr, numHeaderMax, allNumHeader(mmpi_nprocs), numBodyMax, allNumBody(mmpi_nprocs)
-    real(4), allocatable :: footprintRadiusVec_r4(:), allFootprintRadius_r4(:,:)
+    real(8), allocatable :: footprintRadiusVec_r8(:), allFootprintRadius_r8(:,:)
     real(8), allocatable :: obsLon(:), allObsLon(:,:), obsLat(:), allObsLat(:,:)
 
     numStep = stateVectorTrlErrorStd%numStep
@@ -399,13 +399,13 @@ contains
     call rpn_comm_gather(obsLat,    numHeaderMax, 'mpi_real8',  &
                          allObsLat, numHeaderMax, 'mpi_real8', 0, 'grid', ierr)
 
-    allocate(footprintRadiusVec_r4(numHeaderMax))
+    allocate(footprintRadiusVec_r8(numHeaderMax))
     do headerIndex = 1, obs_numHeader(obsSpaceData)
-      footprintRadiusVec_r4(headerIndex) = s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex)
+      footprintRadiusVec_r8(headerIndex) = real(s2c_getFootprintRadius(obsSpaceData, stateVectorTrlErrorStd, headerIndex), 8)
     end do
-    allocate(allFootprintRadius_r4(numHeaderMax,mmpi_nprocs))
-    call rpn_comm_gather(footprintRadiusVec_r4,      numHeaderMax, 'MPI_REAL4', &
-                         allFootprintRadius_r4(:,:), numHeaderMax, 'MPI_REAL4', &
+    allocate(allFootprintRadius_r8(numHeaderMax,mmpi_nprocs))
+    call rpn_comm_gather(footprintRadiusVec_r8,      numHeaderMax, 'MPI_REAL8', &
+                         allFootprintRadius_r8(:,:), numHeaderMax, 'MPI_REAL8', &
                          0, 'GRID', ierr)
 
     ! create kdtree
@@ -454,10 +454,10 @@ contains
             end if
 
             if (trim(variableName) == 'GL') then
-              footprintRadius_r4 = allFootPrintRadius_r4(headerIndex, procIndex)
-              influenceRadius_r4 = max(0.0, footprintRadius_r4) + maxLcorr
+              footprintRadius_r8 = allFootPrintRadius_r8(headerIndex, procIndex)
+              influenceRadius_r8 = max(0.0d0, footprintRadius_r8) + maxLcorr
             else if (trim(variableName) == 'TM') then 
-              influenceRadius_r4 = maxLcorr
+              influenceRadius_r8 = maxLcorr
             else
               call utl_abort('findObs: The current code does not work with '&
                              //trim(variableName)//' analysis variable.')
@@ -502,7 +502,7 @@ contains
               obsLatInRad = allObsLat(headerIndex, procIndex)
 
               ! do the search
-              maxRadiusSquared = real(influenceRadius_r4, 8) ** 2
+              maxRadiusSquared = real(influenceRadius_r8, 8) ** 2
               refPosition(:) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
               call kdtree2_r_nearest(tp = tree, qv = refPosition, r2 = maxRadiusSquared, &
                                      nfound = numLocalGridptsFoundSearch, &
@@ -580,8 +580,8 @@ contains
     deallocate(allObsNlv)
     deallocate(allObsLon)
     deallocate(allObsLat)
-    deallocate(footprintRadiusVec_r4)
-    deallocate(allFootprintRadius_r4)
+    deallocate(footprintRadiusVec_r8)
+    deallocate(allFootprintRadius_r8)
 
   end subroutine findObs
 
@@ -749,7 +749,7 @@ contains
     type(struct_ocm),          intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
     character(len=*),          intent(in)    :: variableName        ! variable name
     character(len=*),          intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
-    real(4)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
+    real(8)         ,          intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
     type(struct_hco), pointer, intent(in)    :: hco_ptr             ! horizontal coordinates structure, pointer
     type(struct_vco), pointer, intent(in)    :: vco_ptr             ! vertical coordinates structure, pointer
 
@@ -757,7 +757,7 @@ contains
     type(struct_gsv) :: stateVectorAnalysis
     integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount 
     real(8), pointer :: stateVectorStdError_ptr(:,:,:), stateVectorAnalysis_ptr(:,:,:)
-    real(4) :: totalLocalVariance
+    real(8) :: totalLocalVariance
 
     write(*,*) ''
     write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
@@ -805,7 +805,7 @@ contains
         end if OCEANPOINTS
 
         if (pointCount > 0) then
-          totalLocalVariance = totalLocalVariance / real(pointCount)
+          totalLocalVariance = totalLocalVariance / real(pointCount, 8)
           if (stateVectorStdError_ptr(lonIndex, latIndex,1) < totalLocalVariance) then
             stateVectorStdError_ptr(lonIndex, latIndex, 1) = totalLocalVariance
           end if
@@ -829,7 +829,7 @@ contains
         else if (trim(variableName) == 'TM') then
           stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
                          stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
-                         errorGrowth * tim_dstepobs / 2.0
+                         errorGrowth * tim_dstepobs / 2.0d0
         end if
       end do
     end do

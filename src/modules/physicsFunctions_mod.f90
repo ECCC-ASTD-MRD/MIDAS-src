@@ -9,6 +9,7 @@ module physicsFunctions_mod
   use earthConstants_mod
   use utilities_mod
   use message_mod
+  use codePrecision_mod
   
   implicit none
   private
@@ -1451,19 +1452,19 @@ module physicsFunctions_mod
     implicit none
 
     ! Arguments:
-    real(4), intent(in) :: salinity ! sea water salinity (in psu)
-    real(4), intent(in) :: pressure ! pressure (in bar)
+    real(8), intent(in) :: salinity ! sea water salinity (in psu)
+    real(8), intent(in) :: pressure ! pressure (in bar)
     ! Result:
-    real(4) :: freezingPointTemperature ! freezing point temperature (in K)
+    real(pre_obsReal) :: freezingPointTemperature ! freezing point temperature (in K)
 
     ! Locals:
-    real(4), parameter :: a1 = -0.0575
-    real(4), parameter :: a2 =  1.710523e-3
-    real(4), parameter :: a3 = -2.154996e-4
-    real(4), parameter :: b1 = -7.53e-3
+    real(8), parameter :: a1 = -0.0575d0
+    real(8), parameter :: a2 =  1.710523d-3
+    real(8), parameter :: a3 = -2.154996d-4
+    real(8), parameter :: b1 = -7.53d-3
 
-    freezingPointTemperature = (a1 + a2 * sqrt(abs(salinity)) + a3 * salinity) * &
-                               salinity + b1 * pressure + MPC_K_C_DEGREE_OFFSET_R4
+    freezingPointTemperature = real((a1 + a2 * sqrt(abs(salinity)) + a3 * salinity) * &
+                                    salinity + b1 * pressure + MPC_K_C_DEGREE_OFFSET_R8, pre_obsReal)
 
   end function phf_getFreezingPoint
   

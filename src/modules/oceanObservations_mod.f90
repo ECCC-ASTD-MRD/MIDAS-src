@@ -49,24 +49,25 @@ module oceanObservations_mod
     ! Arguments:
     type(struct_hco), pointer , intent(inout) :: hco                  ! horizontal grid structure
     type(struct_vco), pointer , intent(in)    :: vco                  ! vertical grid structure
-    real(4)                   , intent(in)    :: iceFractionThreshold ! consider no ice condition below this threshold
-    real(4)                   , intent(in)    :: outputSST            ! output SST value for pseudo observations
-    real(4)                   , intent(in)    :: outputFreshWaterST   ! output fresh water surface temperature for pseudo obs
+    real(8)                   , intent(in)    :: iceFractionThreshold ! consider no ice condition below this threshold
+    real(8)                   , intent(in)    :: outputSST            ! output SST value for pseudo observations
+    real(8)                   , intent(in)    :: outputFreshWaterST   ! output fresh water surface temperature for pseudo obs
     integer                   , intent(in)    :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
     character(len=*)          , intent(in)    :: outputFileName    
-    real(4)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    real(8)                   , intent(in)    :: seaWaterThreshold    ! to distinguish inland water from sea water  
     logical                   , intent(in)    :: useSalinity          ! to use or not NEMO salinity field to compute freezing point temperature
     
     ! Locals:
     type(struct_gsv)     :: stateVector_ice, stateVector_seaWater, stateVector_salinity
-    real(4), pointer     :: seaIce_ptr(:, :, :), seaWater_ptr(:, :, :), salinity_ptr(:, :, :)
+    real(8), pointer     :: seaIce_ptr(:, :, :), seaWater_ptr(:, :, :)
+    real(4), pointer     :: salinity_ptr(:, :, :)
     type(struct_ocm)     :: oceanMask
     integer              :: numberIceCoveredPoints, lonIndex, latIndex, dateStamp, inlandWaterPoints
     integer              :: datePrint, timePrint, imode, seaWaterPoints
     integer              :: randomSeed, newDate, ierr 
     integer, allocatable :: iceDomainIndexesAux(:), iceDomainIndexes(:)
-    real(4), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:) 
-    real(4), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
+    real(8), allocatable :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:) , salinityAux(:) 
+    real(8), allocatable :: seaWaterFraction(:), iceLons(:), iceLats(:), salinity(:)
     type(struct_obs)     :: obsData   
     
     ! get mpi topology
@@ -74,7 +75,7 @@ module oceanObservations_mod
     call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
 
     ! get latest sea-ice analysis
-    call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'LG'/), &
                       hInterpolateDegree_opt = 'LINEAR')
     call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
@@ -82,7 +83,7 @@ module oceanObservations_mod
     call gsv_getField(stateVector_ice, seaIce_ptr)
 
     ! read sea water fraction
-    call gsv_allocate(stateVector_seaWater, 1, hco, vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector_seaWater, 1, hco, vco, dataKind_opt = 8, &
                       datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'VF'/), &
                       hInterpolateDegree_opt = 'LINEAR')
     call gio_readFromFile(stateVector_seaWater, './seaice_analysis', ' ','A', &
@@ -237,22 +238,21 @@ module oceanObservations_mod
     ! Arguments:
     type(struct_obs) , intent(inout) :: obsData            ! obsSpaceData   
     integer          , intent(in)    :: iceDomainIndexes(:)! array of the ice-covered point indexes
-    real(4)          , intent(in)    :: iceLons(:)         ! longitudes of sea ice 
-    real(4)          , intent(in)    :: iceLats(:)         ! latitudes of sea ice 
+    real(8)          , intent(in)    :: iceLons(:)         ! longitudes of sea ice 
+    real(8)          , intent(in)    :: iceLats(:)         ! latitudes of sea ice 
     integer          , intent(in)    :: iceThinning        ! generate pseudo obs in every 'iceThinning' points   
-    real(4)          , intent(in)    :: outputSST          ! output SST value for pseudo observations
-    real(4)          , intent(in)    :: outputFreshWaterST ! output fresh water surface temperature for pseudo obs
+    real(8)          , intent(in)    :: outputSST          ! output SST value for pseudo observations
+    real(8)          , intent(in)    :: outputFreshWaterST ! output fresh water surface temperature for pseudo obs
     character(len=*) , intent(in)    :: outputFileName    
     integer          , intent(in)    :: datePrint
     integer          , intent(in)    :: timePrint
-    real(4)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water
-    real(4)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water 
+    real(8)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water
+    real(8)          , intent(in)    :: seaWaterThreshold  ! to distinguish inland water from sea water 
     integer          , intent(in)    :: inlandWaterPoints  ! number of inland water points 
-    real(4), optional, intent(in)    :: salinity_opt(:)    ! to use or not NEMO salinity field to compute freezing point temperature
+    real(8), optional, intent(in)    :: salinity_opt(:)    ! to use or not NEMO salinity field to compute freezing point temperature
      
     ! Locals:
-    real(pre_obsReal) :: obsLon, obsLat
-    real(4)           :: obsValue
+    real(pre_obsReal) :: obsLon, obsLat, obsValue
     integer           :: iceIndex, iceDomainDimension, pseudoObsDimension
     integer           :: codeType, headerIndex
     integer           :: coordinatesIndex, counterThinning, checkInlandWatersCount, checkSeaWatersCount
@@ -285,12 +285,12 @@ module oceanObservations_mod
       obsLat   = iceLats(coordinatesIndex)
  
       if (seaWaterFraction(coordinatesIndex) <= seaWaterThreshold) then
-        obsValue = (1.0d0 - seaWaterFraction(coordinatesIndex)) * outputFreshWaterST + &
-                   seaWaterFraction(coordinatesIndex)* outputSST
+        obsValue = real((1.0d0 - seaWaterFraction(coordinatesIndex)) * outputFreshWaterST + &
+                        seaWaterFraction(coordinatesIndex)* outputSST, pre_obsReal)
         checkInlandWatersCount =  checkInlandWatersCount + 1
       else
         if (counterThinning == iceThinning) then  
-          obsValue = outputSST
+          obsValue = real(outputSST, pre_obsReal)
           checkSeaWatersCount = checkSeaWatersCount + 1
           counterThinning = 1
         else
@@ -302,7 +302,7 @@ module oceanObservations_mod
       if (present(salinity_opt)) then
         ! observation value is set to freezing point temperature (in Kelvin),
         ! pressure is set to zero as in the current operational system
-        obsValue = phf_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0)
+        obsValue = real(phf_getFreezingPoint(salinity_opt(coordinatesIndex), 0.0d0), pre_obsReal)
       end if
 
       call obs_setFamily(obsData, 'SF'   , headerIndex)
