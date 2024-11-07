@@ -118,8 +118,7 @@ module oceanBackground_mod
     !
     !: Purpose: 1) to read SST climatological fields from a std file
     !           2) to interpolate the field in time using the current day (t) in current month (m)    
-    !           SST(t) = SST_clim(m) + (t-1)/(ndays-1) * (SST_clim(m+1) - SST_clim(m)),
-    !           where ndays is a number of days in current month        
+    !           SST(t) = SST_neighbourMonth * weight + SST_currentMonth * (1.0 - weight),
     !
     implicit none
 
@@ -132,23 +131,68 @@ module oceanBackground_mod
     real(8)                  , intent(inout) :: output(:,:)      ! interpolated SST field from climatology
   
     ! Locals:
-    integer          :: hour, day, month, yyyy, ndays, nextMonth
-    type(struct_gsv) :: stateVector, stateVector_nextMonth
-    real(8), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)
+    integer          :: hour, day, month, yyyy  ! these variables correspond to the current time (dateStamp)
+    integer          :: ndays                   ! number of days in the current month
+    integer          :: neighbourMonth          ! neighbour month to the current month, can be previous or next
+    integer          :: neighbourYear
+    type(struct_gsv) :: stateVector, stateVector_neighbourMonth
+    real(8), pointer :: clim_ptr(:, :, :), clim_neighbourMonth_ptr(:, :, :)
     integer          :: lonIndex, latIndex
-   
+    real(8)          :: weight                  ! weight for linear interpolation of climatology in time
+    real(8)          :: numberHours             ! number of hours between the 15th of the current and neighbour months
+    integer          :: dataStampMonth          ! dataStamp of the 15th of the current month
+    integer          :: dataStampNeighbourMonth ! dataStamp of the 15th of the neighbour month
+
     call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy)
     write(*,'(a,3i5,a,i12,a)') 'obgd_getClimatology: interpolating climatology for day/month/year (datestamp): ', &
     day, month, yyyy, '(', datestamp, ')'
 
-    if (month == nmonthsClim) then
-      nextMonth = 1
-    else
-      nextMonth = month + 1
+    neighbourYear = yyyy
+
+    if (day < 15) then
+      if (month == 1) then
+        neighbourMonth = 12
+        neighbourYear  = yyyy - 1
+      else
+        neighbourMonth = month - 1
+      end if
+    else ! day >=15
+      if (month == nmonthsClim) then
+        neighbourMonth = 1
+        neighbourYear  = yyyy + 1
+      else
+        neighbourMonth = month + 1
+      end if
+    end if
+
+    ! compute datestamp of the 15th of the current month/year
+    dataStampMonth = tim_yyyymmddhhToDatestamp(yyyy, month, 15, hour)
+    ! compute datestamps of the 15th of the neighbour month/year
+    dataStampNeighbourMonth = tim_yyyymmddhhToDatestamp(neighbourYear, neighbourMonth, 15, hour)
+    write(*,*) 'obgd_getClimatology: the 15th of the current   month dateStamp: ', dataStampMonth
+    write(*,*) 'obgd_getClimatology: the 15th of the neighbour month dateStamp: ', dataStampNeighbourMonth
+
+    ! Difference (in hours) between the 15th of the current and neighbour months
+    call difdatr(dataStampMonth, dataStampNeighbourMonth, numberHours)
+    if (numberHours == 2.d0**30) then
+      call utl_abort('obgd_getClimatology: difdatr received invalid arguments: '//&
+                                           char(dataStampMonth)//' and '//&
+                                           char(dataStampNeighbourMonth))
     end if 
-     
+    ! safe check: the number of hours cannot be greater than 31 days * 24h = 744h
+    if (abs(numberHours) > 744.d0) then
+      call utl_abort('obgd_getClimatology: number of hours between two months exceeds 744h!')
+    end if
+ 
+    ! computing weight for linear interpolation of climatology in time
+    ! The weight depends on the distance between the current day and the 15th of the month
+    ! and the number of days between the 15th of the month and the neighbour month  
+    weight = abs(real(day - 15, 8) / numberHours / 24.d0)
+    write(*,*) 'obgd_getClimatology: weight for the current date: ', weight
+
     ! get climatology, current month
-    write(*,*) 'obgd_getClimatology: reading climatology, month: ', month, ', datestamp: ', datestampClim(month) 
+    write(*,*) 'obgd_getClimatology: reading climatology, current month: ', &
+               month, ', datestamp: ', datestampClim(month) 
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 8, &
                       dateStampList_opt = datestampClim(month:month), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
@@ -156,24 +200,25 @@ module oceanBackground_mod
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector, clim_ptr)
     
-    ! get climatology, next month
-    write(*,*) 'obgd_getClimatology: reading climatology, month: ', nextMonth, ', datestamp: ', datestampClim(nextMonth) 
-    call gsv_allocate(stateVector_nextMonth, 1, hco, vco, dataKind_opt = 8, &
-                      dateStampList_opt = datestampClim(nextMonth:nextMonth), mpi_local_opt = .true., &
+    ! get climatology, neighbour month
+    write(*,*) 'obgd_getClimatology: reading climatology, neighbour month: ', &
+               neighbourMonth, ', datestamp: ', datestampClim(neighbourMonth) 
+    call gsv_allocate(stateVector_neighbourMonth, 1, hco, vco, dataKind_opt = 8, &
+                      dateStampList_opt = datestampClim(neighbourMonth:neighbourMonth), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
-    call gio_readFromFile(stateVector_nextMonth, './climatology', ' ',' ', &
+    call gio_readFromFile(stateVector_neighbourMonth, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
-    call gsv_getField(stateVector_nextMonth, clim_nextMonth_ptr)
+    call gsv_getField(stateVector_neighbourMonth, clim_neighbourMonth_ptr)
 
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
-        output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) + real(day - 1, 8) / real(ndays - 1, 8) * &
-                                    (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))
+        output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) * (1.0d0 - weight) + &
+                                     clim_neighbourMonth_ptr(lonIndex, latIndex, 1) * weight
       end do
     end do
     
     call gsv_deallocate(stateVector)
-    call gsv_deallocate(stateVector_nextMonth)
+    call gsv_deallocate(stateVector_neighbourMonth)
   
   end subroutine obgd_getClimatology 
   
