@@ -19,9 +19,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Modify the computation of SST climatology (#992 and !898)
+   * Major impact on results for test `/Tests/SST/SSTtrial` for program `midas-sstTrial`
  * Code precision converted to `real(8)` for SST related subroutines (#987 and !893)
-  * minor impact on results
-  * The program `midas-sstTrial` now outputs two additional fields in the file `analysisAndAnomaly` which are `TM` climatology with the etiket `CLIMATO` and typvars `C@` and `@@`.
+   * minor impact on results
+   * The program `midas-sstTrial` now outputs two additional fields in the file `analysisAndAnomaly` which are `TM` climatology with the etiket `CLIMATO` and typvars `C@` and `@@`.
  * Replacement of tovs indexing by header indexing whenever possible. Minor impact on results (#972 and !891)
  * Improved efficiency of `enkf_LETKFgetMpiGlobalTags` and new test `letkf/glb_10km` (#978 and !884)
  * The code now complies to Fortran 2008 standard (#969 and !883)
