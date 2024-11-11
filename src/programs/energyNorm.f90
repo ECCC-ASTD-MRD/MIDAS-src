@@ -175,7 +175,7 @@ program midas_energyNorm
   call msg_memUsage('midas-energyNorm')
 
   ! parse the input file to get the files names
-  call parseInputFiles(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
+  call findFindFiles(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -249,10 +249,10 @@ program midas_energyNorm
 contains
 
   !--------------------------------------------------------------------------
-  ! parseInputFiles
+  ! findFileNames
   !--------------------------------------------------------------------------
-  subroutine parseInputFiles(inputFileName, referenceFileName, fileNames, &
-                             numberOfFilesToProcess, maxFileLength)
+  subroutine findFindFiles(inputFileName, referenceFileName, fileNames, &
+                           numberOfFilesToProcess, maxFileLength)
     !
     ! :Purpose: Helper function which parses the input file to extract
     !           the input files names
@@ -267,10 +267,7 @@ contains
     integer,          intent(out) :: maxFileLength ! maximum length of the input file names
 
     ! Locals:
-    integer :: ierr, readStatus, lineNumber, charIndex
-    character(len=1024) :: line, trimmedLine
-    integer :: nulFileInput, numberOfInputFiles
-    logical :: readFileIsFirstPass
+    integer :: ierr, nulFileInput
 
     write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
     nulFileInput = 0
@@ -279,82 +276,117 @@ contains
       call utl_abort('midas-energyNorm: Cannot open ascii output file')
     end if
 
-    maxFileLength = 0
+    ! Read a first time the file 'inputFileName' to find the number of files to
+    ! process ('numberOfFilesToProcess')
+    call parseInputFiles(nulFileInput, numberOfFilesToProcess)
 
-    ! Read a first time the file 'inputFileName' (when
-    ! 'readFileIsFirstPass = .true.') to find the number of files to
-    ! process ('numberOfFilesToProcess') and allocate the array
-    ! 'fileNames'.
-    ! Then set 'readFileIsFirstPass = .false.' to indicate that the
-    ! first pass have been done.
+    ! Allocate the array 'fileNames'
+    allocate(fileNames(numberOfFilesToProcess))
+
+    ! We will read again each lines so we rewind the file unit
+    ! position to the beginning of the file.
+    rewind(nulFileInput)
+
     ! Read a second time the file to set 'referenceFileName' and fill
     ! the array 'fileNames' with the file names to process
-    readFileIsFirstPass = .true.
-    readFileIterationLoop: do
-      lineNumber = 0
-      numberOfInputFiles = 0
-      readLoopLineByLine: do
-        lineNumber = lineNumber + 1
-        read(nulFileInput, '(a)', iostat=readStatus) line
-
-        ! If we reached the end of file, exit the loop
-        if ( readStatus < 0 ) exit readLoopLineByLine
-        ! We encountered an error while reading the file
-        if ( readStatus > 0 ) then
-          call utl_abort('midas-energyNorm: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
-        end if
-
-        ! build 'trimmedLine' by removing leading spaces in 'line'
-        ! the function 'trim' is only removing the trailing spaces in 'line'
-        trimmedLine = ''
-        trimLoop: do charIndex = 1, len_trim(line)
-          if ( line(charIndex:charIndex) /= ' ' ) then
-            trimmedLine = line(charIndex:len_trim(line))
-            exit trimLoop
-          end if
-        end do trimLoop
-
-        ! If the line starts with '#' or '!' or is empty, we ignore the line.
-        if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
-          cycle readLoopLineByLine
-        end if
-
-        numberOfInputFiles = numberOfInputFiles + 1
-
-        if ( .not. readFileIsFirstPass ) then
-          if ( numberOfInputFiles == 1 ) then
-            referenceFileName = trimmedLine
-          else
-            maxFileLength = max(len_trim(trimmedLine), maxFileLength)
-            fileNames(numberOfInputFiles-1) = trimmedLine
-          end if
-        end if
-      end do readLoopLineByLine
-
-      if ( readFileIsFirstPass ) then
-        if ( numberOfInputFiles == 0 ) then
-          call utl_abort('No input state has been given in the ''' // trim(inputFileName) // '''')
-        else if ( numberOfInputFiles == 1 ) then
-          call utl_abort('No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
-        end if
-
-        ! numberOfInputFiles includes the reference file which
-        ! numberOfFilesToProcess does not include
-        numberOfFilesToProcess = numberOfInputFiles-1
-        allocate(fileNames(numberOfFilesToProcess))
-
-        ! In the next iteration of 'readFileIterationLoop', we will
-        ! read again each lines so we rewind the file unit position to
-        ! the beginning of the file.
-        rewind(nulFileInput)
-        readFileIsFirstPass = .false.
-      else
-        exit readFileIterationLoop
-      end if
-    end do readFileIterationLoop
+    call parseInputFiles(nulFileInput, numberOfFilesToProcess, referenceFileName, fileNames, maxFileLength)
 
     ! closing 'inputFileName'
     ierr = fclos(nulFileInput)
+
+  end subroutine findFindFiles
+
+  !--------------------------------------------------------------------------
+  ! parseInputFiles
+  !--------------------------------------------------------------------------
+  subroutine parseInputFiles(nulFile, numberOfFilesToProcess, &
+                             referenceFileName_opt, fileNames_opt, maxFileLength_opt)
+    !
+    ! :Purpose: Helper function which parses the input file line by line to extract
+    !           the number of files or the input files names themselves
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in) :: nulFile
+    integer,          intent(out) :: numberOfFilesToProcess
+    character(len=*), intent(out), optional :: referenceFileName_opt
+    integer,          intent(out), optional :: maxFileLength_opt ! maximum length of the input file names
+    character(len=*), allocatable, intent(out), optional :: fileNames_opt(:)
+
+    ! Locals:
+    integer :: readStatus, lineNumber, charIndex
+    character(len=1024) :: line, trimmedLine
+    integer :: numberOfInputFiles
+    logical :: initializeAllFileNames, anyOptArgIsGiven
+
+    if ( present(maxFileLength_opt) .and. .not. present(fileNames_opt) ) then
+      call utl_abort('midas-energyNorm: parseInputFiles has been called with ''maxFileLength_opt'' but without ''fileNames_opt''.  Both must be specified')
+    end if
+    if ( .not. present(maxFileLength_opt) .and. present(fileNames_opt) ) then
+      call utl_abort('midas-energyNorm: parseInputFiles has been called with ''fileNames_opt'' but without ''maxFileLength_opt''.  Both must be specified')
+    end if
+
+    initializeAllFileNames = present(referenceFileName_opt) .and. present(maxFileLength_opt) .and. present(fileNames_opt)
+    anyOptArgIsGiven = present(referenceFileName_opt) .or. present(maxFileLength_opt) .or. present(fileNames_opt)
+
+    if (.not. initializeAllFileNames .and. anyOptArgIsGiven ) then
+      call utl_abort('midas-energyNorm: parseInputFiles has been called with one or two of ''referenceFileName_opt'', ''fileNames_opt'', ''maxFileLength_opt''.  All must be specified or none.')
+    end if
+
+    if ( initializeAllFileNames ) then
+      maxFileLength_opt = 0
+    end if
+
+    lineNumber = 0
+    numberOfInputFiles = 0
+    readLoopLineByLine: do
+      lineNumber = lineNumber + 1
+      read(nulFile, '(a)', iostat=readStatus) line
+
+      ! If we reached the end of file, exit the loop
+      if ( readStatus < 0 ) exit readLoopLineByLine
+      ! We encountered an error while reading the file
+      if ( readStatus > 0 ) then
+        call utl_abort('midas-energyNorm: parseInputFiles: Problem reading line ' // str(lineNumber) // ' of file ' // trim(inputFileName))
+      end if
+
+      ! build 'trimmedLine' by removing leading spaces in 'line'
+      ! the function 'trim' is only removing the trailing spaces in 'line'
+      trimmedLine = ''
+      trimLoop: do charIndex = 1, len_trim(line)
+        if ( line(charIndex:charIndex) /= ' ' ) then
+          trimmedLine = line(charIndex:len_trim(line))
+          exit trimLoop
+        end if
+      end do trimLoop
+
+      ! If the line starts with '#' or '!' or is empty, we ignore the line.
+      if ( trimmedLine(1:1) == '#' .or. trimmedLine(1:1) == '!' .or. len_trim(trimmedLine) == 0 ) then
+        cycle readLoopLineByLine
+      end if
+
+      numberOfInputFiles = numberOfInputFiles + 1
+
+      if ( initializeAllFileNames ) then
+        if ( numberOfInputFiles == 1 ) then
+          referenceFileName_opt = trimmedLine
+        else
+          maxFileLength_opt = max(len_trim(trimmedLine), maxFileLength_opt)
+          fileNames_opt(numberOfInputFiles-1) = trimmedLine
+        end if
+      end if
+    end do readLoopLineByLine
+
+    if ( numberOfInputFiles == 0 ) then
+      call utl_abort('midas-energyNorm: parseInputFiles: No input state has been given in the ''' // trim(inputFileName) // '''')
+    else if ( numberOfInputFiles == 1 ) then
+      call utl_abort('midas-energyNorm: parseInputFiles: No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
+    end if
+
+    ! numberOfInputFiles includes the reference file which
+    ! numberOfFilesToProcess does not include
+    numberOfFilesToProcess = numberOfInputFiles-1
 
   end subroutine parseInputFiles
 
