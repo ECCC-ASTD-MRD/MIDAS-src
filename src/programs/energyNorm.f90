@@ -175,7 +175,7 @@ program midas_energyNorm
   call msg_memUsage('midas-energyNorm')
 
   ! parse the input file to get the files names
-  call findFindFiles(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
+  call findFileNames(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -251,7 +251,7 @@ contains
   !--------------------------------------------------------------------------
   ! findFileNames
   !--------------------------------------------------------------------------
-  subroutine findFindFiles(inputFileName, referenceFileName, fileNames, &
+  subroutine findFileNames(inputFileName, referenceFileName, fileNames, &
                            numberOfFilesToProcess, maxFileLength)
     !
     ! :Purpose: Helper function which parses the input file to extract
@@ -269,11 +269,11 @@ contains
     ! Locals:
     integer :: ierr, nulFileInput
 
-    write(*,*) 'midas-energyNorm: Opening file: ', trim(inputFileName)
+    write(*,*) 'midas-energyNorm: findFileNames: Opening file: ', trim(inputFileName)
     nulFileInput = 0
     ierr = fnom(nulFileInput, trim(inputFileName), 'SEQ+R/O', 0)
     if (ierr /= 0) then
-      call utl_abort('midas-energyNorm: Cannot open ascii output file')
+      call utl_abort('midas-energyNorm: findFileNames: Cannot open ascii output file')
     end if
 
     ! Read a first time the file 'inputFileName' to find the number of files to
@@ -295,7 +295,7 @@ contains
     ! closing 'inputFileName'
     ierr = fclos(nulFileInput)
 
-  end subroutine findFindFiles
+  end subroutine findFileNames
 
   !--------------------------------------------------------------------------
   ! parseInputFiles
