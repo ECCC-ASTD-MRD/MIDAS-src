@@ -313,7 +313,7 @@ contains
     integer,          intent(out), optional :: numberOfFilesToProcess_opt
     character(len=*), intent(out), optional :: referenceFileName_opt
     integer,          intent(out), optional :: maxFileLength_opt ! maximum length of the input file names
-    character(len=*), allocatable, intent(out), optional :: fileNames_opt(:)
+    character(len=*), allocatable, intent(inout), optional :: fileNames_opt(:)
 
     ! Locals:
     integer :: readStatus, lineNumber, charIndex
