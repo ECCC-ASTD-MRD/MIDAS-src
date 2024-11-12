@@ -289,7 +289,8 @@ contains
 
     ! Read a second time the file to set 'referenceFileName' and fill
     ! the array 'fileNames' with the file names to process
-    call parseInputFiles(nulFileInput, numberOfFilesToProcess, referenceFileName, fileNames, maxFileLength)
+    call parseInputFiles(nulFileInput, referenceFileName_opt = referenceFileName, &
+                         fileNames_opt = fileNames, maxFileLength_opt = maxFileLength)
 
     ! closing 'inputFileName'
     ierr = fclos(nulFileInput)
@@ -299,7 +300,7 @@ contains
   !--------------------------------------------------------------------------
   ! parseInputFiles
   !--------------------------------------------------------------------------
-  subroutine parseInputFiles(nulFile, numberOfFilesToProcess, &
+  subroutine parseInputFiles(nulFile, numberOfFilesToProcess_opt, &
                              referenceFileName_opt, fileNames_opt, maxFileLength_opt)
     !
     ! :Purpose: Helper function which parses the input file line by line to extract
@@ -308,8 +309,8 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in) :: nulFile
-    integer,          intent(out) :: numberOfFilesToProcess
+    integer,          intent(in)            :: nulFile
+    integer,          intent(out), optional :: numberOfFilesToProcess_opt
     character(len=*), intent(out), optional :: referenceFileName_opt
     integer,          intent(out), optional :: maxFileLength_opt ! maximum length of the input file names
     character(len=*), allocatable, intent(out), optional :: fileNames_opt(:)
@@ -318,19 +319,12 @@ contains
     integer :: readStatus, lineNumber, charIndex
     character(len=1024) :: line, trimmedLine
     integer :: numberOfInputFiles
-    logical :: initializeAllFileNames, anyOptArgIsGiven
-
-    if ( present(maxFileLength_opt) .and. .not. present(fileNames_opt) ) then
-      call utl_abort('midas-energyNorm: parseInputFiles has been called with ''maxFileLength_opt'' but without ''fileNames_opt''.  Both must be specified')
-    end if
-    if ( .not. present(maxFileLength_opt) .and. present(fileNames_opt) ) then
-      call utl_abort('midas-energyNorm: parseInputFiles has been called with ''fileNames_opt'' but without ''maxFileLength_opt''.  Both must be specified')
-    end if
+    logical :: initializeAllFileNames, anyFileNamesOptArgIsGiven
 
     initializeAllFileNames = present(referenceFileName_opt) .and. present(maxFileLength_opt) .and. present(fileNames_opt)
-    anyOptArgIsGiven = present(referenceFileName_opt) .or. present(maxFileLength_opt) .or. present(fileNames_opt)
+    anyFileNamesOptArgIsGiven = present(referenceFileName_opt) .or. present(maxFileLength_opt) .or. present(fileNames_opt)
 
-    if (.not. initializeAllFileNames .and. anyOptArgIsGiven ) then
+    if (.not. initializeAllFileNames .and. anyFileNamesOptArgIsGiven ) then
       call utl_abort('midas-energyNorm: parseInputFiles has been called with one or two of ''referenceFileName_opt'', ''fileNames_opt'', ''maxFileLength_opt''.  All must be specified or none.')
     end if
 
@@ -384,9 +378,11 @@ contains
       call utl_abort('midas-energyNorm: parseInputFiles: No state has been given in the ''' // trim(inputFileName) // ''' other than the reference state')
     end if
 
-    ! numberOfInputFiles includes the reference file which
-    ! numberOfFilesToProcess does not include
-    numberOfFilesToProcess = numberOfInputFiles-1
+    if (present(numberOfFilesToProcess_opt)) then
+      ! numberOfInputFiles includes the reference file which
+      ! numberOfFilesToProcess does not include
+      numberOfFilesToProcess_opt = numberOfInputFiles-1
+    end if
 
   end subroutine parseInputFiles
 
