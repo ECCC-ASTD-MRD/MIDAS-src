@@ -2653,7 +2653,7 @@ CONTAINS
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
             scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
 
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_M(latIndex2, lonIndex2, levIndex, nLev_M, nLev_T, &
@@ -2704,7 +2704,7 @@ CONTAINS
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
             scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
 
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_T(latIndex2, lonIndex2, levIndex, nLev_T, &
@@ -2743,7 +2743,7 @@ CONTAINS
             scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
 
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_T(latIndex2, lonIndex2, levIndex, nLev_T, &
                                                     Press_T, Press_M, straNorm, PstratoTop, PstratoBottom)
@@ -2781,7 +2781,7 @@ CONTAINS
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
           scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
           do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+            scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
             scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
             sumScale = sumScale + scaleFactor
             sumep = sumep + 0.5 * pfac * &
@@ -2811,7 +2811,7 @@ CONTAINS
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
           scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
           do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+            scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
             scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
             sumScale = sumScale + scaleFactor
             field_TG(lonIndex,latIndex,1,stepIndex) = &
