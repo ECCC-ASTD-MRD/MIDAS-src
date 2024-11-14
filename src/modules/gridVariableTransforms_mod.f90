@@ -2651,9 +2651,9 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
 
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_M(latIndex2, lonIndex2, levIndex, nLev_M, nLev_T, &
@@ -2702,9 +2702,9 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
 
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_T(latIndex2, lonIndex2, levIndex, nLev_T, &
@@ -2740,10 +2740,10 @@ CONTAINS
         do stepIndex = 1, statevector_inout%numStep
           do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
             latIndex2 = latIndex - statevector_inout%myLatBeg + 1
-            scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
 
             do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-              scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+              scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_T(latIndex2, lonIndex2, levIndex, nLev_T, &
                                                     Press_T, Press_M, straNorm, PstratoTop, PstratoBottom)
@@ -2779,9 +2779,9 @@ CONTAINS
     if (p0Norm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-          scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+          scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
           do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+            scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
             scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
             sumScale = sumScale + scaleFactor
             sumep = sumep + 0.5 * pfac * &
@@ -2809,9 +2809,9 @@ CONTAINS
     if (tgNorm .and. .not.straNorm) then
       do stepIndex = 1, statevector_inout%numStep
         do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
-          scaleFactorLat = findScaleFactorLat(statevector_inout, latIndex, latMin, latMax)
+          scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
           do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            scaleFactorLon = findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax)
+            scaleFactorLon = findScaleFactorLat(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
             scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
             sumScale = sumScale + scaleFactor
             field_TG(lonIndex,latIndex,1,stepIndex) = &
@@ -2837,24 +2837,23 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! findScaleFactorLat
   !--------------------------------------------------------------------------
-  function findScaleFactorLat(statevector_inout, latIndex, latMin, latMax) result(scaleFactorLat)
+  function findScaleFactorLat(latitude, latMin, latMax) result(scaleFactorLat)
     !
     ! :Purpose: Computes the scale factor accounting for latitude
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector_inout ! state vector containing the latitude information
-    integer,          intent(in) :: latIndex ! index in the latitude axis to get the real latitude from 'statevector_inout'
-    real(8),          intent(in) :: latMin ! minimum latitude of the domain to compute the energy norm
-    real(8),          intent(in) :: latMax ! maximum latitude of the domain to compute the energy norm
+    real(8), intent(in) :: latitude ! latitude of the point for which we need the scaling factor
+    real(8), intent(in) :: latMin   ! minimum latitude of the domain to compute the energy norm
+    real(8), intent(in) :: latMax   ! maximum latitude of the domain to compute the energy norm
 
     ! Result:
     real(8) :: scaleFactorLat ! scaling factor along latitude for that latitude
 
     ! If lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
-    if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
-      scaleFactorLat = cos(statevector_inout%hco%lat(latIndex))
+    if (latitude >= latMin .and. latitude <= latMax) then
+      scaleFactorLat = cos(latitude)
     else
       scaleFactorLat = 0.0D0
     end if
@@ -2864,23 +2863,22 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! findScaleFactorLon
   !--------------------------------------------------------------------------
-  function findScaleFactorLon(statevector_inout, lonIndex, lonMin, lonMax) result(scaleFactorLon)
+  function findScaleFactorLon(longitude, lonMin, lonMax) result(scaleFactorLon)
     !
     ! :Purpose: Computes the scale factor accounting for longitude
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector_inout ! state vector containing the longitude information
-    integer,          intent(in) :: lonIndex ! index in the longitude axis to get the real longitude from 'statevector_inout'
-    real(8),          intent(in) :: lonMin ! minimum longitude of the domain to compute the energy norm
-    real(8),          intent(in) :: lonMax ! maximum longitude of the domain to compute the energy norm
+    real(8), intent(in) :: longitude ! longitude of the point for which we need the scaling factor
+    real(8), intent(in) :: lonMin    ! minimum longitude of the domain to compute the energy norm
+    real(8), intent(in) :: lonMax    ! maximum longitude of the domain to compute the energy norm
 
     ! Result:
     real(8) :: scaleFactorLon ! scaling factor along longitude for that longitude
 
-    ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
-    if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
+    ! If longitude is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
+    if (longitude >= lonMin .and. longitude <= lonMax) then
       scaleFactorLon = 1.0D0
     else
       scaleFactorLon = 0.0D0
