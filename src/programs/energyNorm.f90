@@ -330,6 +330,9 @@ contains
 
     if ( initializeAllFileNames ) then
       maxFileLength_opt = 0
+      if (.not.allocated(fileNames_opt)) then
+        call utl_abort('midas-energyNorm: parseInputFiles has been called without a proper allocated ''fileNames_opt'' argument.')
+      end if
     end if
 
     lineNumber = 0
