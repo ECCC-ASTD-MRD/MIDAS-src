@@ -260,11 +260,11 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: inputFileName
-    character(len=*), intent(out) :: referenceFileName
-    character(len=*), allocatable, intent(out) :: fileNames(:)
-    integer,          intent(out) :: numberOfFilesToProcess
-    integer,          intent(out) :: maxFileLength ! maximum length of the input file names
+    character(len=*),              intent(in)  :: inputFileName ! input file name in which all the atmospheric state vectors are defined
+    character(len=*),              intent(out) :: referenceFileName ! reference file name with which the energy norm will be computed
+    character(len=*), allocatable, intent(out) :: fileNames(:) ! list of file names for which the energy norms will be computed
+    integer,                       intent(out) :: numberOfFilesToProcess ! number of files described in 'inputFiles' (excluding the reference file)
+    integer,                       intent(out) :: maxFileLength ! maximum length of the input file names
 
     ! Locals:
     integer :: ierr, nulFileInput
@@ -309,11 +309,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer,          intent(in)            :: nulFile
-    integer,          intent(out), optional :: numberOfFilesToProcess_opt
-    character(len=*), intent(out), optional :: referenceFileName_opt
-    integer,          intent(out), optional :: maxFileLength_opt ! maximum length of the input file names
-    character(len=*), allocatable, intent(inout), optional :: fileNames_opt(:)
+    integer,                       intent(in)              :: nulFile ! file unit of the 'inputFiles'
+    integer,                       intent(out),   optional :: numberOfFilesToProcess_opt ! number of files described in 'inputFiles' (excluding the reference file)
+    character(len=*),              intent(out),   optional :: referenceFileName_opt ! reference file name with which the energy norm will be computed
+    integer,                       intent(out),   optional :: maxFileLength_opt ! maximum length of the input file names
+    character(len=*), allocatable, intent(inout), optional :: fileNames_opt(:) ! list of file names for which the energy norms will be computed
 
     ! Locals:
     integer :: readStatus, lineNumber, charIndex
@@ -434,12 +434,12 @@ contains
 
     ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector ! state vector structure filled by the content of 'fileName'
-    type(struct_gsv), intent(in) :: stateVectorReference ! state vector representing the reference state
-    character(len=*), intent(in) :: fileName ! input file to read the state vector on which the energy norm will be computed
-    logical,          intent(in) :: fullState ! Does the state vector in 'fileName' representing a full state or not
-    real(8),          intent(in) :: multiplicativeFactor ! factor applied to energy norm values to scale them
-    integer,          intent(in) :: nulFile ! output file unit in which the energy norm will be written
-    character(len=*), intent(in) :: fileNameFormat ! format when writing the file name in the output file
+    type(struct_gsv), intent(in)    :: stateVectorReference ! state vector representing the reference state
+    character(len=*), intent(in)    :: fileName ! input file to read the state vector on which the energy norm will be computed
+    logical,          intent(in)    :: fullState ! Does the state vector in 'fileName' representing a full state or not
+    real(8),          intent(in)    :: multiplicativeFactor ! factor applied to energy norm values to scale them
+    integer,          intent(in)    :: nulFile ! output file unit in which the energy norm will be written
+    character(len=*), intent(in)    :: fileNameFormat ! format when writing the file name in the output file
 
     ! Constants:
     ! The energy norm will be computed on the globe
