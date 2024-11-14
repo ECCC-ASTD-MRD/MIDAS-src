@@ -2898,16 +2898,16 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: nLev_M ! number of momentum levels
-    integer, intent(in) :: nLev_T ! number of thermodynamic levels
-    real(8), intent(in), pointer :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
-    real(8), intent(in), pointer :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
-    logical, intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
-    real(8), intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
-    real(8), intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+    integer,          intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: nLev_M ! number of momentum levels
+    integer,          intent(in) :: nLev_T ! number of thermodynamic levels
+    real(8), pointer, intent(in) :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
+    real(8), pointer, intent(in) :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
+    logical,          intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8),          intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8),          intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
 
     ! Result:
     real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
@@ -2952,15 +2952,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
-    integer, intent(in) :: nLev_T ! number of thermodynamic levels
-    real(8), intent(in), pointer :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
-    real(8), intent(in), pointer :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
-    logical, intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
-    real(8), intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
-    real(8), intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+    integer,          intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
+    integer,          intent(in) :: nLev_T ! number of thermodynamic levels
+    real(8), pointer, intent(in) :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
+    real(8), pointer, intent(in) :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
+    logical,          intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8),          intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8),          intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
 
     ! Result:
     real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
