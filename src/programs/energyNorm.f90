@@ -175,7 +175,7 @@ program midas_energyNorm
   call msg_memUsage('midas-energyNorm')
 
   ! parse the input file to get the files names
-  call findFileNames(inputFileName, referenceFileName, fileNames, numberOfFiles, maxFileLength)
+  call findFileNames(inputFileName, numberOfFiles, referenceFileName, fileNames, maxFileLength)
 
   write(*,*) 'midas-energyNorm: Opening ascii output file: ', trim(outputFileName)
   nulFileOutput = 0
@@ -251,8 +251,8 @@ contains
   !--------------------------------------------------------------------------
   ! findFileNames
   !--------------------------------------------------------------------------
-  subroutine findFileNames(inputFileName, referenceFileName, fileNames, &
-                           numberOfFilesToProcess, maxFileLength)
+  subroutine findFileNames(inputFileName, numberOfFilesToProcess, referenceFileName, &
+                           fileNames, maxFileLength)
     !
     ! :Purpose: Helper function which parses the input file to extract
     !           the input files names
@@ -261,9 +261,9 @@ contains
 
     ! Arguments:
     character(len=*),              intent(in)  :: inputFileName ! input file name in which all the atmospheric state vectors are defined
+    integer,                       intent(out) :: numberOfFilesToProcess ! number of files described in 'inputFiles' (excluding the reference file)
     character(len=*),              intent(out) :: referenceFileName ! reference file name with which the energy norm will be computed
     character(len=*), allocatable, intent(out) :: fileNames(:) ! list of file names for which the energy norms will be computed
-    integer,                       intent(out) :: numberOfFilesToProcess ! number of files described in 'inputFiles' (excluding the reference file)
     integer,                       intent(out) :: maxFileLength ! maximum length of the input file names
 
     ! Locals:
