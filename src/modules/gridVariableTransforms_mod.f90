@@ -2583,18 +2583,26 @@ CONTAINS
     ! Arguments:
     type(struct_gsv), intent(inout) :: statevector_inout ! This state vector should represent a state difference
     type(struct_gsv), intent(in)    :: statevector_ref   ! This should be a full state
-    real(8),          intent(in)    :: latMin
-    real(8),          intent(in)    :: latMax
-    real(8),          intent(in)    :: lonMin
-    real(8),          intent(in)    :: lonMax
-    logical,          intent(in)    :: uvNorm
-    logical,          intent(in)    :: ttNorm
-    logical,          intent(in)    :: p0Norm
-    logical,          intent(in)    :: huNorm
-    logical,          intent(in)    :: tgNorm
-    logical,          intent(in)    :: straNorm
+    real(8),          intent(in)    :: latMin ! minimum latitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: latMax ! maximum latitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: lonMin ! minimum longitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: lonMax ! maximum longitude of the domain to compute the energy norm
+    logical,          intent(in)    :: uvNorm ! should the winds be included in the energy norm computation
+    logical,          intent(in)    :: ttNorm ! should the temperature be included in the energy norm computation
+    logical,          intent(in)    :: p0Norm ! should the surface pressure be included in the energy norm computation
+    logical,          intent(in)    :: huNorm ! should the humidity be included in the energy norm computation
+    logical,          intent(in)    :: tgNorm ! should the surface temperature be included in the energy norm computation
+    logical,          intent(in)    :: straNorm ! should the energy norm be computed in the stratosphere (if not, then only consider levels below 100 hPa)
+
     ! Result:
-    type(struct_gvt_energyNorm) :: energyNorm
+    type(struct_gvt_energyNorm) :: energyNorm ! This structure contains all the components of the energy norm
+
+    ! Constants:
+    real(8), parameter :: T_r = 280.0D0 ! Kelvin
+    real(8), parameter :: Psfc_r = 100000.0D0 ! unit Pa
+    real(8), parameter :: PstratoTop = 100.0D0 ! unit Pa
+    real(8), parameter :: PstratoBottom = 10000.0D0 ! unit Pa
+    real(8), parameter :: sigma = 0.3 ! weight factor for humidity
 
     ! Locals:
     integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T
@@ -2603,14 +2611,8 @@ CONTAINS
     real(8)              :: sumScale , sumeu, sumev, sumep, sumet, sumeq
     real(8), pointer     :: field_UU(:,:,:,:), field_VV(:,:,:,:), field_T(:,:,:,:), field_LQ(:,:,:,:)
     real(8), pointer     :: field_Psfc(:,:,:,:), field_TG(:,:,:,:),Psfc_ptr(:,:,:)
-    real(8), pointer     :: Press_T(:,:,:)
-    real(8), pointer     :: Press_M(:,:,:)
+    real(8), pointer     :: Press_T(:,:,:), Press_M(:,:,:)
     real(8), allocatable :: Psfc_ref(:,:)
-    real(8), parameter   :: T_r = 280.0D0
-    real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
-    real(8), parameter   :: PstratoTop = 100.0D0 ! unit Pa
-    real(8), parameter   :: PstratoBottom = 10000.0D0 ! unit Pa
-    real(8), parameter   :: sigma = 0.3 ! weight factor for humidity
 
     if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: START'
     nullify(Press_T,Press_M)
@@ -2842,12 +2844,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector_inout
-    integer, intent(in) :: latIndex
-    real(8), intent(in) :: latMin
-    real(8), intent(in) :: latMax
+    type(struct_gsv), intent(in) :: statevector_inout ! state vector containing the latitude information
+    integer,          intent(in) :: latIndex ! index in the latitude axis to get the real latitude from 'statevector_inout'
+    real(8),          intent(in) :: latMin ! minimum latitude of the domain to compute the energy norm
+    real(8),          intent(in) :: latMax ! maximum latitude of the domain to compute the energy norm
+
     ! Result:
-    real(8) :: scaleFactorLat
+    real(8) :: scaleFactorLat ! scaling factor along latitude for that latitude
 
     ! If lat is out of the domain where we want to compute the NRJ norm, we put scaleFactorLat = 0.
     if (statevector_inout%hco%lat(latIndex) >= latMin .and. statevector_inout%hco%lat(latIndex) <= latMax) then
@@ -2855,6 +2858,7 @@ CONTAINS
     else
       scaleFactorLat = 0.0D0
     end if
+
   end function findScaleFactorLat
 
   !--------------------------------------------------------------------------
@@ -2867,12 +2871,13 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector_inout
-    integer, intent(in) :: lonIndex
-    real(8), intent(in) :: lonMin
-    real(8), intent(in) :: lonMax
+    type(struct_gsv), intent(in) :: statevector_inout ! state vector containing the longitude information
+    integer,          intent(in) :: lonIndex ! index in the longitude axis to get the real longitude from 'statevector_inout'
+    real(8),          intent(in) :: lonMin ! minimum longitude of the domain to compute the energy norm
+    real(8),          intent(in) :: lonMax ! maximum longitude of the domain to compute the energy norm
+
     ! Result:
-    real(8) :: scaleFactorLon
+    real(8) :: scaleFactorLon ! scaling factor along longitude for that longitude
 
     ! Similarly, if lon is out of the domain where we want to compute the NRJ norm, we put scaleFactorLon = 0.
     if (statevector_inout%hco%lon(lonIndex) >= lonMin .and. statevector_inout%hco%lon(lonIndex) <= lonMax) then
@@ -2880,6 +2885,7 @@ CONTAINS
     else
       scaleFactorLon = 0.0D0
     end if
+
   end function findScaleFactorLon
 
   !--------------------------------------------------------------------------
@@ -2894,18 +2900,19 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex
-    integer, intent(in) :: lonIndex
-    integer, intent(in) :: levIndex
-    integer, intent(in) :: nLev_M
-    integer, intent(in) :: nLev_T
-    real(8), intent(in), pointer :: Press_T(:,:,:)
-    real(8), intent(in), pointer :: Press_M(:,:,:)
-    logical, intent(in) :: straNorm
-    real(8), intent(in) :: PstratoTop
-    real(8), intent(in) :: PstratoBottom
+    integer, intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: nLev_M ! number of momentum levels
+    integer, intent(in) :: nLev_T ! number of thermodynamic levels
+    real(8), intent(in), pointer :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
+    real(8), intent(in), pointer :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
+    logical, intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8), intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8), intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+
     ! Result:
-    real(8) :: scaleFactorLev
+    real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
 
     ! do all thermo levels for which there is a momentum level above and below
     if ( straNorm ) then ! for strato Norm
@@ -2917,7 +2924,7 @@ CONTAINS
         scaleFactorLev = Press_T(lonIndex, latIndex, levIndex+1) - Press_T(lonIndex, latIndex, levIndex)
       end if
     else
-      if ( levIndex == nLev_M ) then ! top
+      if ( levIndex == nLev_M ) then ! surface
         scaleFactorLev = Press_M(lonIndex, latIndex, nLev_M)-Press_T(lonIndex, latIndex, nLev_T-1)
         ! Here we are mixing diagnostic level and first
         ! prognostic levels and there is not guarantee that
@@ -2932,6 +2939,7 @@ CONTAINS
         scaleFactorLev = Press_T(lonIndex, latIndex, levIndex+1) - Press_T(lonIndex, latIndex, levIndex)
       end if
     end if
+
   end function findScaleFactorLev_M
 
   !--------------------------------------------------------------------------
@@ -2946,17 +2954,18 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer, intent(in) :: latIndex
-    integer, intent(in) :: lonIndex
-    integer, intent(in) :: levIndex
-    integer, intent(in) :: nLev_T
-    real(8), intent(in), pointer :: Press_T(:,:,:)
-    real(8), intent(in), pointer :: Press_M(:,:,:)
-    logical, intent(in) :: straNorm
-    real(8), intent(in) :: PstratoTop
-    real(8), intent(in) :: PstratoBottom
+    integer, intent(in) :: latIndex ! index in the latitude axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: lonIndex ! index in the longitude axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
+    integer, intent(in) :: nLev_T ! number of thermodynamic levels
+    real(8), intent(in), pointer :: Press_T(:,:,:) ! array containing the pressure for each lat-lon-'thermodynamic level'
+    real(8), intent(in), pointer :: Press_M(:,:,:) ! array containing the pressure for each lat-lon-'momentum level'
+    logical, intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8), intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8), intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+
     ! Result:
-    real(8) :: scaleFactorLev
+    real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
 
     ! do all thermodynamic levels for which there is a momentum level above and below
     if ( straNorm ) then ! for strato norm
@@ -2986,6 +2995,7 @@ CONTAINS
         scaleFactorLev = Press_M(lonIndex, latIndex, levIndex ) - Press_M(lonIndex, latIndex, levIndex-1)
       end if
     end if
+
   end function findScaleFactorLev_T
 
 end module gridVariableTransforms_mod
