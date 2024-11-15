@@ -2657,7 +2657,7 @@ CONTAINS
 
               lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
               scaleFactorLev = findScaleFactorLev_M(levIndex, Press_T(lonIndex2,latIndex2,:), &
-                                                    Press_M(lonIndex2,latIndex2,:), nLev_M, nLev_T, &
+                                                    Press_M(lonIndex2,latIndex2,nLev_M), nLev_M, nLev_T, &
                                                     straNorm, PstratoTop, PstratoBottom)
 
               scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
@@ -2892,7 +2892,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! findScaleFactorLev_M
   !--------------------------------------------------------------------------
-  function findScaleFactorLev_M(levIndex, columnPressT, columnPressM, nLev_M, nLev_T, &
+  function findScaleFactorLev_M(levIndex, columnPressT, surfacePressM, nLev_M, nLev_T, &
                                 straNorm, PstratoTop, PstratoBottom) &
                                      result(scaleFactorLev)
     !
@@ -2903,7 +2903,7 @@ CONTAINS
     ! Arguments:
     integer,          intent(in) :: levIndex ! index in the vertical axis in the vectors 'columPressT' and 'columnPressM'
     real(8), pointer, intent(in) :: columnPressT(:) ! the pressure for each 'thermodynamic level' (indexed by 'levIndex')
-    real(8), pointer, intent(in) :: columnPressM(:) ! array containing the pressure for each lat-lon-'momentum level'
+    real(8),          intent(in) :: surfacePressM   ! pressure of the lowest momentum level
     integer,          intent(in) :: nLev_M ! number of momentum levels
     integer,          intent(in) :: nLev_T ! number of thermodynamic levels
     logical,          intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
@@ -2924,7 +2924,7 @@ CONTAINS
       end if
     else
       if ( levIndex == nLev_M ) then ! surface
-        scaleFactorLev = columnPressM(nLev_M)-columnPressT(nLev_T-1)
+        scaleFactorLev = surfacePressM-columnPressT(nLev_T-1)
         ! Here we are mixing diagnostic level and first
         ! prognostic levels and there is not guarantee that
         ! it will ever be a monotonic progression.  So, if
