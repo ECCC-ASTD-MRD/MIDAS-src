@@ -30,7 +30,7 @@ Les variables d'environnement suivantes sont possibles:
  * `MIDAS_MPI_BARRIER_VERBOSE`: Si cette variable est égale à `yes`,
    alors un `set -x` sera effectué dans le script `midas.mpi_barrier`.
 
-## midas.launch
+## `midas.launch`
 
 Le script `midas.launch` est le script principal qui lance les
 programmes MIDAS qui servent dans l'assimilation et le contrôle de
@@ -44,24 +44,24 @@ qualité.  Ce script appelle les scripts suivants:
  * `midas.reunir_obs`
    * `midas.reunir_obs_mpi`
 
-### midas.check_ensemble
+### `midas.check_ensemble`
 
 Ce script verifie si tous les trials d'ensemble sont présents.  Dans
 le cas où on appelle le script avec `-fallback_mode` égal à `continue`
 et qu'il manque des membres d'ensemble, on applique l'[algorithme de
 contigence](https://wiki.cmc.ec.gc.ca/wiki/RPN-AD/Ensemble_contingency/FullDescription).
 
-### midas.tripotenml
+### `midas.tripotenml`
 
 Ce script sert à modifier des entrées dans un namelist fortran.  On
 l'utilise pour changer la valeur de l'étiquette.
 
-#### midas.mpirun
+#### `midas.mpirun`
 
 Ce script est un wrapper autour de `r.run_in_parallel` pour rassembler
 le code qui doit être exécuté avant de lancer le MPI.
 
-### midas.mpi
+### `midas.mpi`
 
 Ce script est lancé en MPI et est celui qui appelle vraiment les
 programmes de MIDAS.  C'est ce script qui appelle `midas.splitobs` qui
@@ -69,26 +69,26 @@ fait le splitting en parallèle des observations avant d'appeler les
 véritables programmes MPI.  On peut limiter le nombre de processus en
 parallèle envoyés avec la variable `MIDAS_CONCURRENT_SPLITOBS`.
 
-#### midas.splitobs
+#### `midas.splitobs`
 
 Ce script fait le splitting des observations avant de lancer le
 programme MIDAS qui a besoin des observations déjà splittées.  On
 supporte les fichiers BURP et SQLite.
 
-#### midas.mpi_barrier
+#### `midas.mpi_barrier`
 
 Ce script permet de resynchronier toutes les tuiles MPI après le
 splitting des observations et avant de lancer le programme MPI.
 Sinon, on obtient des timeout avec des erreurs `Alarm call` sur les
 PPP.
 
-### midas.reunir_obs
+### `midas.reunir_obs`
 
 Ce script est le driver principal pour rassembler les observations qui
 ont ete splittées par `midas.splitobs` et modifiées par le programme
 MIDAS.  On appelle `midas.reunir_obs_mpi` pour chaque famille.
 
-#### midas.reunir_obs_mpi
+#### `midas.reunir_obs_mpi`
 
 Ce script est lancé par `midas.reunir_obs` et fait le rassemblage des
 observations pour une seule famille.
@@ -156,3 +156,30 @@ The results have been verified with the reference for the test
 
 If we would have the original unsplit files, running
 `midas.unsplitobs` can be avoided.
+
+### `midas.energyNorm`
+
+The program `midas-energyNorm` is useful to compare two atmospheric
+states.
+
+The script `midas.energyNorm` is the tool to prepare the working
+directory for that program:
+```bash
+midas.energyNorm [positionnels] This script launches the program 'midas-energyNorm.Abs'
+ IN       -pgm [:] path to MIDAS program
+ IN       -nml [:] path to namelist file
+ IN       -date [:] date of the input files
+ IN       -reference [:] path to reference file
+ IN       -states [:] path to several files on which the energy norm will be computed
+ IN       -workdir [:] path to working directory prepared by 'midas.prepare_workdir'
+ IN       -supercomputer [ppp6:ppp6] supercomputer to launch the job (default: 'ppp6')
+ IN       -jobname [energyNorm:energyNorm] name of the job (default: 'letkf')
+ IN       -memory [:] memory request per MPI rank (default: 2.25G*${omp_num_threads})
+ IN       -npex [1:1] Number of mpi components in the 'x' direction (default: 1)
+ IN       -npey [1:1] Number of mpi components in the 'y' direction (default: 1)
+ IN       -omp_num_threads [1:1] Number of Open MP threads per MPI rank (default: 1)
+ IN       -wallclocktime [10:10] wall clock time for job in minutes (default: 10
+```
+
+We suggest to use the namelist from the test
+[`/Tests/energyNorm/analmean`](maestro/suites/midas_system_tests/config/Tests/energyNorm/analmean/nml).

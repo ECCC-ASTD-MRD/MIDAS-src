@@ -32,9 +32,13 @@ module gridVariableTransforms_mod
   save
   private
 
+  ! Public structure definition
+  public :: struct_gvt_energyNorm
+
   ! Public procedures
   public :: gvt_setup, gvt_transform, gvt_getStateVectorTrial
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
+  public :: gvt_energyNorm
 
   logical :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
 
@@ -52,6 +56,16 @@ module gridVariableTransforms_mod
     module procedure gvt_transform_gsv
     module procedure gvt_transform_ens
   end interface gvt_transform
+
+  type struct_gvt_energyNorm
+    ! This is the derived type to store the energy norm components
+    real(8) :: total = 0.0d0
+    real(8) :: uu = 0.0d0
+    real(8) :: vv = 0.0d0
+    real(8) :: tt = 0.0d0
+    real(8) :: p0 = 0.0d0
+    real(8) :: hu = 0.0d0
+  end type struct_gvt_energyNorm
 
 CONTAINS
 
@@ -2549,5 +2563,436 @@ CONTAINS
     end if
 
   end subroutine gvt_iceLimits
+
+  !--------------------------------------------------------------------------
+  ! gvt_energyNorm
+  !--------------------------------------------------------------------------
+  function gvt_energyNorm(statevector_inout, statevector_ref,     &
+                          latMin, latMax, lonMin, lonMax,         &
+                          uvNorm, ttNorm, p0Norm, huNorm, tgNorm, &
+                          straNorm) result(energyNorm)
+    !
+    ! :Purpose: Computes energy norms
+    !           For some positive definite symmetric matrix defining the energy,
+    !             total energy = x^T * C * x
+    !             statevector_inout = C * statevector_inout
+    !           (Buehner, Du and Bedard, 2018)
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_inout ! This state vector should represent a state difference
+    type(struct_gsv), intent(in)    :: statevector_ref   ! This should be a full state
+    real(8),          intent(in)    :: latMin ! minimum latitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: latMax ! maximum latitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: lonMin ! minimum longitude of the domain to compute the energy norm
+    real(8),          intent(in)    :: lonMax ! maximum longitude of the domain to compute the energy norm
+    logical,          intent(in)    :: uvNorm ! should the winds be included in the energy norm computation
+    logical,          intent(in)    :: ttNorm ! should the temperature be included in the energy norm computation
+    logical,          intent(in)    :: p0Norm ! should the surface pressure be included in the energy norm computation
+    logical,          intent(in)    :: huNorm ! should the humidity be included in the energy norm computation
+    logical,          intent(in)    :: tgNorm ! should the surface temperature be included in the energy norm computation
+    logical,          intent(in)    :: straNorm ! should the energy norm be computed in the stratosphere (if not, then only consider levels below 100 hPa)
+
+    ! Result:
+    type(struct_gvt_energyNorm) :: energyNorm ! This structure contains all the components of the energy norm
+
+    ! Constants:
+    real(8), parameter :: T_r = 280.0D0 ! Kelvin
+    real(8), parameter :: Psfc_r = 100000.0D0 ! unit Pa
+    real(8), parameter :: PstratoTop = 100.0D0 ! unit Pa
+    real(8), parameter :: PstratoBottom = 10000.0D0 ! unit Pa
+    real(8), parameter :: sigma = 0.3 ! weight factor for humidity
+
+    ! Locals:
+    integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T
+    real(8)              :: scaleFactor, scaleFactorConst, scaleFactorLat, scaleFactorLon, scaleFactorLev
+    real(8)              :: pfac, tfac, qfac
+    real(8)              :: sumScale , sumeu, sumev, sumep, sumet, sumeq
+    real(8), pointer     :: field_UU(:,:,:,:), field_VV(:,:,:,:), field_T(:,:,:,:), field_LQ(:,:,:,:)
+    real(8), pointer     :: field_Psfc(:,:,:,:), field_TG(:,:,:,:),Psfc_ptr(:,:,:)
+    real(8), pointer     :: Press_T(:,:,:), Press_M(:,:,:)
+    real(8), allocatable :: Psfc_ref(:,:)
+
+    if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: START'
+    nullify(Press_T,Press_M)
+
+    ! the factors for TT, HU and Ps (for wind is 1)
+    tfac = mpc_cp_dry_air_r8/T_r                                 ! temperature factor (c_p/T_r)
+    qfac = sigma*mpc_heat_condens_water_r8**2/(mpc_cp_dry_air_r8*T_r)  ! humidity factor ( (l_p*l_p)/(c_p*T_r) )
+    pfac = mpc_rgas_dry_air_r8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
+
+    if (.not. gsv_isAllocated(statevector_inout)) then
+      call utl_abort('gvt_energyNorm: gridStateVector_inout not yet allocated')
+    end if
+
+    nLev_M = gsv_getNumLev(statevector_inout,'MM')
+    nLev_T = gsv_getNumLev(statevector_inout,'TH')
+
+    ! compute 3D log pressure fields
+    call gsv_getField(statevector_ref,Psfc_ptr,'P0')
+    allocate(Psfc_ref(statevector_inout%lonPerPE,statevector_inout%latPerPE))
+    Psfc_ref(:,:) = Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
+                    statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)
+    call czp_fetch3DLevels(statevector_inout%vco, Psfc_ref, &
+                           fldM_opt=Press_M, fldT_opt=Press_T)
+    ! dlat * dlon
+    scaleFactorConst = statevector_inout%hco%dlat*statevector_inout%hco%dlon
+
+    ! for wind components if to include in Norm calculation
+    call gsv_getField(statevector_inout,field_UU,'UU')
+    call gsv_getField(statevector_inout,field_VV,'VV')
+
+    sumeu = 0.0D0
+    sumev = 0.0D0
+    sumScale = 0.0D0
+    if (uvNorm) then
+      do levIndex = 1, nLev_M
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              scaleFactorLev = findScaleFactorLev_M(levIndex, Press_T(lonIndex2,latIndex2,:), &
+                                                    Press_M(lonIndex2,latIndex2,nLev_M), nLev_M, nLev_T, &
+                                                    straNorm, PstratoTop, PstratoBottom)
+
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
+              sumScale = sumScale + scaleFactor
+
+              sumeu = sumeu + &
+                      0.5 * field_UU(lonIndex,latIndex,levIndex,stepIndex) * field_UU(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
+              sumev = sumev + &
+                      0.5 * field_VV(lonIndex,latIndex,levIndex,stepIndex) * field_VV(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
+
+              field_UU(lonIndex,latIndex,levIndex,stepIndex) = &
+                   field_UU(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor
+              field_VV(lonIndex,latIndex,levIndex,stepIndex) = &
+                   field_VV(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor
+            end do !lonIndex
+          end do !latIndex
+        end do ! stepIndex
+      end do ! levIndex
+      call mmpi_allreduce_sumreal8scalar(sumeu,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumev,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumeu = sumeu/sumScale
+      sumev = sumev/sumScale
+
+      field_UU(:,:,:,:) = field_UU(:,:,:,:)/sumScale
+      field_VV(:,:,:,:) = field_VV(:,:,:,:)/sumScale
+    else
+      field_UU(:,:,:,:) = field_UU(:,:,:,:)*0.0D0
+      field_VV(:,:,:,:) = field_VV(:,:,:,:)*0.0D0
+    end if ! if uvNorm
+
+    if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for UU=', sumeu
+    if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for VV=', sumev
+    energyNorm%uu = sumeu
+    energyNorm%vv = sumev
+
+    ! for Temperature
+    call gsv_getField(statevector_inout,field_T,'TT')
+    sumScale = 0.0D0
+    sumet = 0.0D0
+    if (ttNorm) then
+      do levIndex = 1, nLev_T
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              scaleFactorLev = findScaleFactorLev_T(levIndex, Press_T(lonIndex2,latIndex2,:), &
+                                                    Press_M(lonIndex2,latIndex2,:),           &
+                                                    nLev_T, straNorm, PstratoTop, PstratoBottom)
+
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
+              sumet = sumet + &
+                   0.5 * tfac * field_T(lonIndex,latIndex,levIndex,stepIndex) * field_T(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
+              sumScale = sumScale + scaleFactor
+              field_T(lonIndex,latIndex,levIndex,stepIndex) = &
+                           field_T(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * tfac * scaleFactor
+            end do
+          end do
+        end do ! stepIndex
+      end do ! levIndex
+      call mmpi_allreduce_sumreal8scalar(sumet,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumet = sumet/sumScale
+      field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
+    else
+      field_T(:,:,:,:) = field_T(:,:,:,:)*0.0D0
+    end if ! if ttNorm
+
+    if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for TT=', sumet
+    energyNorm%tt = sumet
+
+    ! humidity (set to zero, for now)
+    call gsv_getField(statevector_inout,field_LQ,'HU')
+    sumScale = 0.0D0
+    sumeq = 0.0D0
+    if (huNorm) then
+      do levIndex = 1, nLev_T
+        do stepIndex = 1, statevector_inout%numStep
+          do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+            latIndex2 = latIndex - statevector_inout%myLatBeg + 1
+            scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
+
+            do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+              scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+              lonIndex2 = lonIndex - statevector_inout%myLonBeg + 1
+              scaleFactorLev = findScaleFactorLev_T(levIndex, Press_T(lonIndex2,latIndex2,:), &
+                                                    Press_M(lonIndex2,latIndex2,:),           &
+                                                    nLev_T, straNorm, PstratoTop, PstratoBottom)
+
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon * scaleFactorLev
+              sumScale = sumScale + scaleFactor
+
+              sumeq = sumeq + 0.5 * qfac * &
+                    field_LQ(lonIndex,latIndex,levIndex,stepIndex) * field_LQ(lonIndex,latIndex,levIndex,stepIndex) * scaleFactor
+
+              field_LQ(lonIndex,latIndex,levIndex,stepIndex) = &
+                       field_LQ(lonIndex,latIndex,levIndex,stepIndex) * 0.5 * scaleFactor * qfac
+
+            end do
+          end do
+        end do ! stepIndex
+      end do ! latIndex
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumeq,'grid')
+      sumeq = sumeq/sumScale
+      field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale
+    else
+      field_LQ(:,:,:,:) = field_LQ(:,:,:,:)*0.0D0
+    end if ! if huNorm
+
+    if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for HU=', sumeq
+    energyNorm%hu = sumeq
+
+    ! surface pressure
+    call gsv_getField(statevector_inout,field_Psfc,'P0')
+    sumScale = 0.0D0
+    sumep = 0.0
+    if (p0Norm .and. .not.straNorm) then
+      do stepIndex = 1, statevector_inout%numStep
+        do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+          scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
+          do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+            sumScale = sumScale + scaleFactor
+            sumep = sumep + 0.5 * pfac * &
+                 field_Psfc(lonIndex,latIndex,1,stepIndex) * field_Psfc(lonIndex,latIndex,1,stepIndex) * scaleFactor
+            field_Psfc(lonIndex,latIndex,1,stepIndex) = &
+                 field_Psfc(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * pfac
+          end do
+        end do ! latIndex
+      end do ! stepIndex
+
+      call mmpi_allreduce_sumreal8scalar(sumep,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      sumep = sumep/sumScale
+      field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
+    else
+      field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)*0.0D0
+    end if ! if p0Norm
+
+    if (mmpi_myid == 0)  write(*,*) 'gvt_energyNorm: energy for Ps=', sumep
+    energyNorm%p0 = sumep
+
+    ! skin temperature (set to zero for now)
+    call gsv_getField(statevector_inout,field_TG,'TG')
+    sumScale = 0.0D0
+    if (tgNorm .and. .not.straNorm) then
+      do stepIndex = 1, statevector_inout%numStep
+        do latIndex = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+          scaleFactorLat = findScaleFactorLat(statevector_inout%hco%lat(latIndex), latMin, latMax)
+          do lonIndex = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            scaleFactorLon = findScaleFactorLon(statevector_inout%hco%lon(lonIndex), lonMin, lonMax)
+            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLon
+            sumScale = sumScale + scaleFactor
+            field_TG(lonIndex,latIndex,1,stepIndex) = &
+                 field_TG(lonIndex,latIndex,1,stepIndex) * 0.5 * scaleFactor * 0.0
+          end do
+        end do ! latIndex
+      end do ! stepIndex
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale
+    else
+      field_TG(:,:,:,:) = field_TG(:,:,:,:)*0.0D0
+    end if ! if tgNorm
+
+    energyNorm%total = sumeu + sumev + sumet + sumep + sumeq
+    if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: energy for total=', energyNorm%total
+    deallocate(Press_T,Press_M)
+    deallocate(Psfc_ref)
+
+    if (mmpi_myid == 0) write(*,*) 'gvt_energyNorm: END'
+
+  end function gvt_energyNorm
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLat
+  !--------------------------------------------------------------------------
+  function findScaleFactorLat(latitude, latMin, latMax) result(scaleFactorLat)
+    !
+    ! :Purpose: Computes the scale factor accounting for latitude
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: latitude ! latitude of the point for which we need the scaling factor
+    real(8), intent(in) :: latMin   ! minimum latitude of the domain to compute the energy norm
+    real(8), intent(in) :: latMax   ! maximum latitude of the domain to compute the energy norm
+
+    ! Result:
+    real(8) :: scaleFactorLat ! scaling factor along latitude for that latitude
+
+    ! If latitude is out of the domain where we want to compute the energy norm, we put scaleFactorLat = 0.
+    if (latitude >= latMin .and. latitude <= latMax) then
+      scaleFactorLat = cos(latitude)
+    else
+      scaleFactorLat = 0.0D0
+    end if
+
+  end function findScaleFactorLat
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLon
+  !--------------------------------------------------------------------------
+  function findScaleFactorLon(longitude, lonMin, lonMax) result(scaleFactorLon)
+    !
+    ! :Purpose: Computes the scale factor accounting for longitude
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(in) :: longitude ! longitude of the point for which we need the scaling factor
+    real(8), intent(in) :: lonMin    ! minimum longitude of the domain to compute the energy norm
+    real(8), intent(in) :: lonMax    ! maximum longitude of the domain to compute the energy norm
+
+    ! Result:
+    real(8) :: scaleFactorLon ! scaling factor along longitude for that longitude
+
+    ! If longitude is out of the domain where we want to compute the energy norm, we put scaleFactorLon = 0.
+    if (longitude >= lonMin .and. longitude <= lonMax) then
+      scaleFactorLon = 1.0D0
+    else
+      scaleFactorLon = 0.0D0
+    end if
+
+  end function findScaleFactorLon
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLev_M
+  !--------------------------------------------------------------------------
+  function findScaleFactorLev_M(levIndex, columnPressT, surfacePressM, nLev_M, nLev_T, &
+                                straNorm, PstratoTop, PstratoBottom) &
+                                     result(scaleFactorLev)
+    !
+    ! :Purpose: Computes the scale factor accounting for momentum vertical levels
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: levIndex ! index in the vertical axis in the vectors 'columPressT' and 'columnPressM'
+    real(8), pointer, intent(in) :: columnPressT(:) ! the pressure for each 'thermodynamic level' (indexed by 'levIndex')
+    real(8),          intent(in) :: surfacePressM   ! pressure of the lowest momentum level
+    integer,          intent(in) :: nLev_M ! number of momentum levels
+    integer,          intent(in) :: nLev_T ! number of thermodynamic levels
+    logical,          intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8),          intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8),          intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+
+    ! Result:
+    real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
+
+    ! do all thermo levels for which there is a momentum level above and below
+    if ( straNorm ) then ! for strato Norm
+      if ( levIndex == nLev_M .or. levIndex == 1 .or. &
+           columnPressT(levIndex) < PstratoTop .or. &
+           columnPressT(levIndex) > PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = columnPressT(levIndex+1) - columnPressT(levIndex)
+      end if
+    else
+      if ( levIndex == nLev_M ) then ! surface
+        scaleFactorLev = surfacePressM-columnPressT(nLev_T-1)
+        ! Here we are mixing diagnostic level and first
+        ! prognostic levels and there is not guarantee that
+        ! it will ever be a monotonic progression.  So, if
+        ! happends to be negative, set it to 0 instead.
+        if ( scaleFactorLev < 0.0D0 ) then
+          scaleFactorLev = 0.0D0
+        end if
+      else if ( columnPressT(levIndex) < PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = columnPressT(levIndex+1) - columnPressT(levIndex)
+      end if
+    end if
+
+  end function findScaleFactorLev_M
+
+  !--------------------------------------------------------------------------
+  ! findScaleFactorLev_T
+  !--------------------------------------------------------------------------
+  function findScaleFactorLev_T(levIndex, columnPressT, columnPressM, nLev_T, &
+                                straNorm, PstratoTop, PstratoBottom)  &
+                                     result(scaleFactorLev)
+    !
+    ! :Purpose: Computes the scale factor accounting for thermodynamic vertical levels
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: levIndex ! index in the vertical axis in the arrays 'Press_T' and 'Press_M'
+    real(8), pointer, intent(in) :: columnPressT(:) ! the pressure for each 'thermodynamic level' (indexed by 'levIndex')
+    real(8), pointer, intent(in) :: columnPressM(:) ! array containing the pressure for each lat-lon-'momentum level'
+    integer,          intent(in) :: nLev_T ! number of thermodynamic levels
+    logical,          intent(in) :: straNorm ! decides if whether or not we should compute the energy norm in the statostphere
+    real(8),          intent(in) :: PstratoTop ! defines the top level, in hPa, of the statosphere
+    real(8),          intent(in) :: PstratoBottom ! defines the top level, in hPa, of the statosphere
+
+    ! Result:
+    real(8) :: scaleFactorLev ! scaling factor to apply to the energy norm computation at that level at this point
+
+    ! do all thermodynamic levels for which there is a momentum level above and below
+    if ( straNorm ) then ! for strato norm
+      if ( levIndex == nLev_T .or. levIndex == 1 ) then
+        scaleFactorLev = 0.0D0
+      else if ( columnPressM(levIndex-1) < PstratoTop .or. &
+                columnPressM(levIndex-1) > PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = columnPressM(levIndex) - columnPressM(levIndex-1)
+      end if
+    else
+      if ( levIndex == nLev_T ) then ! surface
+        scaleFactorLev =  columnPressT(nLev_T)-columnPressT(nLev_T-1)
+        ! Here we are mixing diagnostic level and first
+        ! prognostic levels and there is not guarantee that
+        ! it will ever be a monotonic progression.  So, if
+        ! happends to be negative, set it to 0 instead.
+        if ( scaleFactorLev < 0.0D0 ) then
+          scaleFactorLev = 0.0D0
+        end if
+      else if ( levIndex == 1 ) then ! top
+        scaleFactorLev = 0.0D0
+      else if ( columnPressM(levIndex-1) < PstratoBottom ) then
+        scaleFactorLev = 0.0D0
+      else
+        scaleFactorLev = columnPressM(levIndex) - columnPressM(levIndex-1)
+      end if
+    end if
+
+  end function findScaleFactorLev_T
 
 end module gridVariableTransforms_mod

@@ -76,6 +76,8 @@ contains
     character(len=*), optional, intent(in)  :: gridName_opt
     character(len=*), optional, intent(in)  :: varName_opt
 
+    ! Constants:
+    character(len=*), parameter :: netcdfFileExtention = '_fst'
     ! Locals:
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
@@ -105,20 +107,20 @@ contains
     character(len=2 ) :: typvar
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
-    character(len=100) :: fileName
+    character(len=len_trim(templateFile)+len_trim(netcdfFileExtention)) :: fileName
+
+    ! Define template file where to look for variables:
+    if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
+      ! analysis grid RPN standard file has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
+      fileName = trim(templateFile) // netcdfFileExtention
+    else
+      fileName = trim(templateFile)
+    end if
 
     if(.not.associated(hco)) then
       allocate(hco)
     else
       call utl_abort('hco_setupFromFile: supplied hco must be null')
-    end if
-
-    ! Define template file where to look for variables:
-    if (trim(utl_fileType(trim(templateFile))) == 'NetCDF') then
-      ! analysis grid RPN standard file has to be provided to MIDAS when dealing with netCDF file to define the horizontal grid
-      fileName = trim(templateFile) // '_fst'    
-    else
-      fileName = trim(templateFile)
     end if
 
     ! Check if file exists
@@ -502,8 +504,13 @@ contains
     hco%EZscintIDsubGrids(:) = EZscintIDsubGrids(:)
     hco%lon(:)               = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
     hco%lat(:)               = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco%dlon                 = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco%dlat                 = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    if (trim(grtyp) == 'U') then
+      hco%dlon               = max(abs(hco%lon2d_4(2,1) - hco%lon2d_4(1,1)),abs(hco%lon2d_4(1,2) - hco%lon2d_4(1,1))) * MPC_RADIANS_PER_DEGREE_R8
+      hco%dlat               = max(abs(hco%lat2d_4(2,1) - hco%lat2d_4(1,1)),abs(hco%lat2d_4(1,2) - hco%lat2d_4(1,1))) * MPC_RADIANS_PER_DEGREE_R8
+    else
+      hco%dlon               = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+      hco%dlat               = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    end if
     hco%global               = global
     hco%rotated              = rotated
     hco%xlat1                = real(xlat1_4,8)

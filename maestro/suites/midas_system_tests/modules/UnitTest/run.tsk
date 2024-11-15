@@ -88,6 +88,9 @@ fi
 cat >> load_env.sh <<EOF
 ulimit -c unlimited
 
+## If you want to use DDT:
+## . ssmuse-sh -x main/opt/forge/23.1
+
 EOF
 
 localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
@@ -211,6 +214,7 @@ echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
 
 SECONDS=0
 $(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+## ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) \${run_pgm}
 echo RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
