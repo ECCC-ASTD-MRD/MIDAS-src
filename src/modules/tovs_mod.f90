@@ -3774,7 +3774,7 @@ contains
     ! Locals:
     integer :: channelIndex, profileIndex, headerIndex, errorStatus
     integer :: btIndex
-    integer :: ilat(nprf), ilon(nprf)
+    integer :: ilat(nprf), ilon(nprf), surfType(nprf)
     real(8) :: latitudes(nprf), longitudes(nprf), satzang(nprf)
     real(8) :: wind_sfc(nprf), f_low(nprf), waven(nchn), em_oc(nchn,nprf), emi_mat(nchn,20)
     real(8) :: emissivity(btCount)
@@ -3821,6 +3821,10 @@ contains
       calcemis(:) = .true.
       do profileIndex = 1, nprf
         geometry(profileIndex) % normzen = tvs_profiles_nl(sensorHeaderIndexes(profileIndex))%zenangle / 60.0_jprb
+        ! Save RTTOV surface type
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        surfType(profileIndex) = tvs_profiles_nl(headerIndex) % skin % surftype
+        tvs_profiles_nl(headerIndex) % skin % surftype = surftype_sea
       end do
       call rttov_calcemis_ir(                      &
           errorStatus,                             &
@@ -3835,6 +3839,11 @@ contains
       if (errorStatus /= 0) then
         call utl_abort('emis_getIrEmissivity: problem in rttov_calcemis_ir')
       end if
+      !Restore RTTOV surface type
+      do profileIndex = 1, nprf
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        tvs_profiles_nl(headerIndex) % skin % surftype = surfType(profileIndex)
+      end do
       do btIndex = 1, btCount
         profileIndex = tvs_chanProf(btIndex,sensorIndex)%prof
         channelIndex = tvs_chanProf(btIndex,sensorIndex)%chan
@@ -3846,11 +3855,6 @@ contains
 
     do profileIndex = 1, nprf
       headerIndex = sensorHeaderIndexes(profileIndex)
-      !if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % pcnt_wat == 1.d0 .and. mmpi_myid == 0) then
-      !  do channelIndex = 1, nchn
-      !    write(*,*) 'dumpirEmiss ', channelIndex, em_oc(channelIndex,profileIndex)
-      !  end do
-      !end if
       !       set albedo to 0.6 where snow is present
       if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % albedo = 0.6
       !       if albedo too high no water
