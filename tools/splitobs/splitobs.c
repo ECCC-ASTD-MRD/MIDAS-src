@@ -2057,7 +2057,7 @@ int main(int argc, char** argv) {
 	else if (VERBOSE>2)
 	  printf("On a efface le fichier BURP %s\n", opt.obsout);
       }
-      else { /* On imprime le nombre de headers presents dans le domaine */
+      else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans le domaine */
 	FILE* file;
 	char burpout_num_headers[MAXSTR];
 
@@ -2111,7 +2111,7 @@ int main(int argc, char** argv) {
 	    else if (VERBOSE>2)
 	      printf("On a efface le fichier BURP %s\n", burpout);
 	  }
-	  else { /* On imprime le nombre de headers presents dans la tuile id */
+	  else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
 	    FILE* file;
 	    char burpout_num_headers[MAXSTR];
 
@@ -2128,19 +2128,21 @@ int main(int argc, char** argv) {
 	  if (num_obs_per_tile[id]>max_num_headers) max_num_headers=num_obs_per_tile[id];
 	}
 
-      if (max_num_headers>0) { /* On imprime le nombre maximal de headers */
-	FILE* file;
-	char burpout_max_num_headers[MAXSTR];
+      if (max_num_headers>0) {
+        if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
+          FILE* file;
+          char burpout_max_num_headers[MAXSTR];
 
-	sprintf(burpout_max_num_headers,"%s.max_num_headers", opt.obsout);
+          sprintf(burpout_max_num_headers,"%s.max_num_headers", opt.obsout);
 
-	status = access(burpout_max_num_headers,F_OK);
-	if (status==0)
-	  fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
+          status = access(burpout_max_num_headers,F_OK);
+          if (status==0)
+            fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
 
-	file = (FILE*) fopen(burpout_max_num_headers,"w");
-	fprintf(file,"%d\n", max_num_headers);
-        fclose(file);
+          file = (FILE*) fopen(burpout_max_num_headers,"w");
+          fprintf(file,"%d\n", max_num_headers);
+          fclose(file);
+        }
       }
       else
 	printf("Il n'y a aucune observation qui a ete acceptee\n");
