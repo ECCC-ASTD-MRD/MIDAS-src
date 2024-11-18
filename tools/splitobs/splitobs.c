@@ -73,6 +73,7 @@
                             0                     /* roundrobin */, \
                             -1                    /* cherrypick_x */, \
                             -1                    /* cherrypick_y */, \
+                            0                     /* numheaders_files */, \
                             RDB_HEADER_DEFAUT     /* rdb_header_table */, \
                             RDB_DATA_DEFAUT       /* rdb_data_table */, \
                             RDB_SPLITONKEY_DEFAUT /* rdb_split_on_key */ }
@@ -114,6 +115,7 @@
 #define IP2_OPTION         "-ip2"
 #define IP3_OPTION         "-ip3"
 #define ROUNDROBIN_OPTION  "-round-robin"
+#define NUMHEADERS_FILES_OPTION "-numheaders-files"
 #define VERBOSE_OPTION     "-verbose"
 #define CHECK_UA4D_OPTION  "-check_ua4d"
 #define HELP_OPTION1       "-h"
@@ -147,6 +149,7 @@ typedef struct {
   int check_ua4d;
   int roundrobin;
   int cherrypick_x, cherrypick_y;
+  int numheaders_files;
   char rdb_header_table[MAXSTR], rdb_data_table[MAXSTR], rdb_split_on_key[MAXSTR];
 } options, *optionsptr;
 
@@ -2054,7 +2057,7 @@ int main(int argc, char** argv) {
 	else if (VERBOSE>2)
 	  printf("On a efface le fichier BURP %s\n", opt.obsout);
       }
-      else { /* On imprime le nombre de headers presents dans le domaine */
+      else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans le domaine */
 	FILE* file;
 	char burpout_num_headers[MAXSTR];
 
@@ -2108,7 +2111,7 @@ int main(int argc, char** argv) {
 	    else if (VERBOSE>2)
 	      printf("On a efface le fichier BURP %s\n", burpout);
 	  }
-	  else { /* On imprime le nombre de headers presents dans la tuile id */
+	  else if (opt.numheaders_files == 1) { /* On imprime le nombre de headers presents dans la tuile id */
 	    FILE* file;
 	    char burpout_num_headers[MAXSTR];
 
@@ -2125,19 +2128,21 @@ int main(int argc, char** argv) {
 	  if (num_obs_per_tile[id]>max_num_headers) max_num_headers=num_obs_per_tile[id];
 	}
 
-      if (max_num_headers>0) { /* On imprime le nombre maximal de headers */
-	FILE* file;
-	char burpout_max_num_headers[MAXSTR];
+      if (max_num_headers>0) {
+        if (opt.numheaders_files == 1) { /* On imprime le nombre maximal de headers */
+          FILE* file;
+          char burpout_max_num_headers[MAXSTR];
 
-	sprintf(burpout_max_num_headers,"%s.max_num_headers", opt.obsout);
+          sprintf(burpout_max_num_headers,"%s.max_num_headers", opt.obsout);
 
-	status = access(burpout_max_num_headers,F_OK);
-	if (status==0)
-	  fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
+          status = access(burpout_max_num_headers,F_OK);
+          if (status==0)
+            fprintf(stderr,"Attention le fichier '%s' sera efface\n", burpout_max_num_headers);
 
-	file = (FILE*) fopen(burpout_max_num_headers,"w");
-	fprintf(file,"%d\n", max_num_headers);
-        fclose(file);
+          file = (FILE*) fopen(burpout_max_num_headers,"w");
+          fprintf(file,"%d\n", max_num_headers);
+          fclose(file);
+        }
       }
       else
 	printf("Il n'y a aucune observation qui a ete acceptee\n");
@@ -5023,6 +5028,15 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
 	}
 	optptr->roundrobin = 1;
       }
+      else if (!strcmp(argv[i],NUMHEADERS_FILES_OPTION)) { /* Cette option indique que l'on veut en sortie les fichiers
+						            * '*.num_headers' et '*.max_num_headers'.
+						            */
+	if (i+1<argc && argv[i+1][0]!='-') {
+	  fprintf(stderr,"Fonction parseOptions: L'option %s ne demande aucun argument\n", argv[i]);
+	  exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+	}
+	optptr->numheaders_files = 1;
+      }
       else if (!strcmp(argv[i],RDB_HEADER_OPTION)) { /* Cette option enregistrera le nom de la table qui joue le role du 'header' */
 	if (i+1>=argc || argv[i+1][0]=='-') {
 	  fprintf(stderr,"Fonction parseOptions: L'option %s demande un argument\n", argv[i]);
@@ -5191,7 +5205,7 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   if (optptr->npex!=1 || optptr->npey!=1) {
     char npex_str[MAXSTR], npey_str[MAXSTR], format_digits[MAXSTR];
 
-    printf("Le domaine sera separee en %d par %d parties egales grace aux options (%s et %s)\n", optptr->npex, optptr->npey, NPEX_OPTION, NPEY_OPTION);
+    printf("Le domaine sera separe en %d par %d parties egales grace aux options (%s et %s)\n", optptr->npex, optptr->npey, NPEX_OPTION, NPEY_OPTION);
     sprintf(format_digits,"%%.%dd",optptr->ndigits);
     sprintf(npex_str,format_digits,optptr->npex);
     sprintf(npey_str,format_digits,optptr->npey);
@@ -5208,6 +5222,10 @@ int parseOptions(int argc, char** argv, optionsptr optptr) {
   else if (!(optptr->cherrypick_x<0 && optptr->cherrypick_y<0)) {
     fprintf(stderr,"Fonction parseOptions: On doit absolument specifier les deux arguments %s et %s en meme temps.\n", CHERRYPICK_X_OPTION, CHERRYPICK_Y_OPTION);
     exit_program(NOT_OK,PROGRAM_NAME,PROBLEM,VERSION);
+  }
+
+  if ( optptr->numheaders_files == 1 ) {
+    printf("On creera les fichiers '*.num_headers' et '*.max_num_headers' qui indiquent combien d'entetes contient chaque fichier.\n");
   }
 
   if ( optptr->roundrobin == 1 ) {
@@ -5298,6 +5316,8 @@ void aide(void) {
   printf("     Le fichier d'input peut etre un fichier BURP, RDB (SQLite) ou ASCII (avec un format precis)\n\n");
 
   printf("  %s  [Utilisation de la methode 'round-robin' pour separer les enregistrements d'un fichier BURP ou RDB en parties egales]\n\n", ROUNDROBIN_OPTION);
+
+  printf("  %s  [Activation de la sortie des fichiers '*.num_headers' et '*.max_num_headers' qui indiquent combien d'entetes contient chaque fichier.]\n\n", NUMHEADERS_FILES_OPTION);
 
   printf("  %s        [fichier standard RPN d'entree dans lequel on va chercher le champ voulu]\n\n", FSTIN_OPTION);
 
@@ -5396,6 +5416,8 @@ void help(void) {
   printf("     The input file can be a BURP file, a RDB (SQLite) or ASCII (with a specific format)\n\n");
 
   printf("  %s  [Use the round-robin method to split the observations in equal parts]\n\n", ROUNDROBIN_OPTION);
+
+  printf("  %s  [Activate the creation of the files '*.num_headers' et '*.max_num_headers' which count how many headers are contained in each file.]\n\n", NUMHEADERS_FILES_OPTION);
 
   printf("  %s        [input RPN standard file that contains the field which defines the domain]\n\n", FSTIN_OPTION);
 

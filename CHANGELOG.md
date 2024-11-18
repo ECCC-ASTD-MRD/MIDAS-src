@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The program `midas.splitobs.Abs` now requires `-numheaders-files`
+   argument to output the `*.num_headers` and `*.max_num_headers` files (#983 and !899)
  * The program `midas-energyNorm` has been added (#986 and !894)
  * Adding `cloudScaleFactor_tl` to `NAMTOV` namelist to scale clouds in rttov TL/AD (#984 and !892)
  * Add `--opt-report` and `--codecov` options to `src/midas_build` (#982 and !890)

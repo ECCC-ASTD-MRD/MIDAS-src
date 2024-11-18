@@ -344,7 +344,7 @@ test_burp_identity () {
 	assert "test_burp_identity fam=${fam} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
 
 	[ "${status}" -ne 0 ] && return 1
-	rm 2011070112_${fam} 2011070112_${fam}.num_headers
+	rm 2011070112_${fam}
     done
 
     echo "test_burp_identity() ends"
@@ -1043,7 +1043,7 @@ test_burp_cherrypick_subdomains () {
                         rm -f ${filein}_cherrypick* 2>/dev/null
                     else
                         assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j ${filein}_cherrypick_${i}_${j} exists" [ -f ${filein}_cherrypick_${procx_str}_${procy_str} ] || status=$?
-                        nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
+                        nfiles=$(ls -1 ${filein}_cherrypick_*_* | wc -l)
 		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
 		        check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
 		        assert "test_burp_cherrypick_subdomains filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
@@ -1076,7 +1076,7 @@ test_burp_latbands () {
 
 	status=0
 	program_status=0
-	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -fstin /home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.8/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north \
+	${SPLITOBS} -burpin ${INPUTS}/burp/latbands/${filein} -burpout ${filein} -numheaders-files -fstin /home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.8/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north \
 	    -nomvar P0 -npex ${npex} -npey ${npey} 1>> check_result.listing 2>&1 || program_status=$?
 	assert "test_burp_latbands filein=${filein} program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
@@ -1095,7 +1095,7 @@ test_burp_latbands () {
 	done
 
 	[ "${status}" -ne 0 ] && return 1
-	rm ${filein}_*
+	rm ${filein}_* ${filein}.max_num_headers
     done ## Fin du 'for filein in brpai brpairs brpcsr brpgp brpiasi brppr brpro brpsc brpsfc brpsw brpto_amsua brpto_amsub brpuan brpuas'
 
     echo "test_burp_latbands() ends"
@@ -1159,7 +1159,7 @@ test_burp_cherrypick_roundrobin () {
 		    -x ${i} -y ${j} -npex ${test_burp_cherrypick_roundrobin_npex} -npey ${test_burp_cherrypick_roundrobin_npey} \
                     -ndigits ${test_burp_cherrypick_roundrobin_ndigits} 1>> check_result.listing 2>&1 || program_status=$?
 	        assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
-                nfiles=$(ls -1 ${filein}_cherrypick_*_* | grep -v '\.num_headers$' | wc -l)
+                nfiles=$(ls -1 ${filein}_cherrypick_*_* | wc -l)
 		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j nfiles=${nfiles}" [ "${nfiles}" -eq 1 ] || status=$?
 		check_result ${filein}_${procx_str}_${procy_str} ${filein}_cherrypick_${procx_str}_${procy_str} liburp 1>> check_result.listing 2>&1 || check_status=$?
 		assert "test_burp_cherrypick_roundrobin filein=${filein} i=$i j=$j check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
