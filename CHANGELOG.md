@@ -17,8 +17,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Add `--debug` option to `src/midas_build` (#981 and !889)
  * Ability to recenter ensemble around weekly GIOPS analysis state, netCDF ensemble output (#979 and !886)
  * Introduce scripts to prepare and launch `midas-letkf.Abs` (#974 and !885)
- * Introduction of new radiance bias correction predictors and of the possibility to redefine the way the T1 predictor is computed and to control which BUFR element define scan position for the CrIS instrument (#835 and !881)
- * Correction of pseudo SST observations using freezing point (#977 and !882)
+ * Introduction of new radiance bias correction predictors and of the
+   possibility to redefine the way the T1 predictor is computed and to
+   control which BUFR element define scan position for the CrIS
+   instrument (#835 and !881)
+ * Correction of pseudo SST observations using freezing point (#977
+   and !882)
 
 ### Changed
 
@@ -26,7 +30,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Major impact on results for test `/Tests/SST/SSTtrial` for program `midas-sstTrial`
  * Code precision converted to `real(8)` for SST related subroutines (#987 and !893)
    * minor impact on results
-   * The program `midas-sstTrial` now outputs two additional fields in the file `analysisAndAnomaly` which are `TM` climatology with the etiket `CLIMATO` and typvars `C@` and `@@`.
+   * The program `midas-sstTrial` now outputs two additional fields in
+     the file `analysisAndAnomaly` which are `TM` climatology with the
+     etiket `CLIMATO` and typvars `C@` and `@@`.
  * Replacement of tovs indexing by header indexing whenever possible. Minor impact on results (#972 and !891)
  * Improved efficiency of `enkf_LETKFgetMpiGlobalTags` and new test `letkf/glb_10km` (#978 and !884)
  * The code now complies to Fortran 2008 standard (#969 and !883)
@@ -49,10 +55,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added ability to apply random additive inflation to background ensemble in `letkf` (#963 and !876)
  * Add namelist variables to `prepcma` for flexible radiance obs thinning for each instrument (#961 and !873)
  * Introduction of a new logical variable `computeInParallel` in NAMDFS namelist section (#941 and !870)
- * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
+ * Added `copyCoefficientsToRamDisk` to `NAMTOV` namelist (default is
+   `.true.`) and removed `mpiTask0ReadCoeffs` (#954 and !868)
  * Include fasttmp (i.e. ramDisk) memory usage in `msg_memUsage` (#953 and !867)
- * A bullet has been added to the merge request template to encourage developers to test programs in debug mode (#951 and !863)
- * Allow user to omit version identifier in build directory name by setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
+ * A bullet has been added to the merge request template to encourage
+   developers to test programs in debug mode (#951 and !863)
+ * Allow user to omit version identifier in build directory name by
+   setting `MIDAS_APPEND_VERSION_ID_BUILDDIR=false` (#946 and !861)
  * Set lowest threshold for `QC` before writing the analysis and increment files (#944 and !859)
  * All-sky assimilation for MWHS2 (#942 and !855)
 
