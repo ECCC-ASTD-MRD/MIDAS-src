@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Introduction of `oldFashionIRSeaEmiss` logical variable in `NAMTOV` namelist section (#997 and !901)
 
 ### Changed
 
