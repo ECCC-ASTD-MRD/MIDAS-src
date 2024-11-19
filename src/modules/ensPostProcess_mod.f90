@@ -112,6 +112,7 @@ contains
     logical  :: writeRawAnalStats     ! write mean and standard deviation of the raw analysis ensemble
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
+    real(8)  :: horizSmoothMeanInc ! Length scale (in meters) for smoothing the control member increment
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -122,7 +123,8 @@ contains
                                    etiket_anlmeanpert, etiket_anlrmspert,  &
                                    etiket_anlmean_raw, etiket_anlrms_raw,  &
                                    etiket_trlmean, etiket_trlrms, numBits, numBits2D, useAnalIncMask,  &
-                                   writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble
+                                   writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble, &
+                                   horizSmoothMeanInc
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -193,6 +195,7 @@ contains
     writeRawAnalStats = .false.
     useMemberAsHuRefState = .false.
     use4Drecentering3Densemble = .false.
+    horizSmoothMeanInc = -1.0D0
 
     !- Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
@@ -560,6 +563,11 @@ contains
           call gsv_copy(stateVectorMeanInc4D,stateVectorMeanAnl4D)
           call gsv_add(stateVectorCtrlTrl4D,stateVectorMeanAnl4D)
         end if
+
+        !- Horizontally smooth the mean increment if requested
+        if (horizSmoothMeanInc > 0.0d0) then
+          call gsv_smoothHorizontal(stateVectorMeanInc4D, horizSmoothMeanInc)
+        end if
       else
         call gsv_varNamesList(varNames, stateVectorMeanAnl)
         call gsv_allocate( stateVectorMeanInc, tim_nstepobsinc, hco_ens, vco_ens, &
@@ -586,6 +594,11 @@ contains
           call gsv_applyMaskLAM(stateVectorMeanInc, stateVectorAnalIncMask)
           call gsv_copy(stateVectorMeanInc,stateVectorMeanAnl)
           call gsv_add(stateVectorCtrlTrl,stateVectorMeanAnl)
+        end if
+
+        !- Horizontally smooth the mean increment if requested
+        if (horizSmoothMeanInc > 0.0d0) then
+          call gsv_smoothHorizontal(stateVectorMeanInc, horizSmoothMeanInc)
         end if
       end if
 

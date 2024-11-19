@@ -5530,7 +5530,7 @@ module gridStateVector_mod
   ! gsv_smoothHorizontal
   !--------------------------------------------------------------------------
   subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, &
-       varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt)
+                                  varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt)
     !
     ! :Purpose: To apply a horizontal smoothing to all of the fields according
     !           to the specified horizontal length scale
@@ -5538,13 +5538,13 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target,   intent(inout) :: stateVector_inout
-    real(8),                    intent(in)    :: horizontalScale
-    logical,          optional, intent(in)    :: maskNegatives_opt
-    character(len=*), optional, intent(in)    :: varName_opt
-    real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:)
-    real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)
-    real(8),          optional, intent(in)    :: binRealThreshold_opt
+    type(struct_gsv), target,   intent(inout) :: stateVector_inout ! Input/output statevector to be smoothed
+    real(8),                    intent(in)    :: horizontalScale   ! Smoothing length scale in meters
+    logical,          optional, intent(in)    :: maskNegatives_opt ! Choose to mask negative values (default is false)
+    character(len=*), optional, intent(in)    :: varName_opt       ! Allow user to apply smoothing to only the specified variable
+    real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:) ! Integer value field used to apply smoothing separately for each 
+    real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)      ! Similar to binInteger, but using a real-valued field
+    real(8),          optional, intent(in)    :: binRealThreshold_opt  ! Threshold value used to distinguish between values of binReal
 
     ! Locals:
     type(struct_gsv), pointer :: stateVector
@@ -5622,17 +5622,23 @@ module gridStateVector_mod
       call utl_abort('gsv_smoothHorizontal: cannot compute a value for maxDeltaIndex')
     end if
 
+    if (mmpi_myid == 0) write(*,*) 'gsv_smoothHorizontal: mykIndexBeg, mykIndexEnd = ', &
+         stateVector%mykBeg, stateVector%mykEnd
+
     ! apply a simple footprint operator type of averaging within specified radius
-    do stepIndex = 1, stateVector%numStep
-      do kIndex = stateVector%mykBeg, stateVector%mykEnd
-      
+    stepIndexLoop: do stepIndex = 1, stateVector%numStep
+      kIndexLoop: do kIndex = stateVector%mykBeg, stateVector%mykEnd
+        if (mmpi_myid == 0) write(*,*) 'gsv_smoothHorizontal: Smoothing kIndex = ', kIndex
+
         if (present(varName_opt)) then
-          if (gsv_getVarNameFromK(stateVector,kIndex) /= trim(varName_opt)) cycle
+          if (gsv_getVarNameFromK(stateVector,kIndex) /= trim(varName_opt)) cycle kIndexLoop
         end if
 	
         smoothedField(:,:) = 0.0d0
-        do latIndex = 1, stateVector%nj
-          do lonIndex = 1, stateVector%ni
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,count,latBeg,latEnd,lonBeg,lonEnd, &
+        !$OMP                     myBinInteger,myBinReal,latIndex2,lonIndex2,lat2_r8,lon2_r8,distance)
+        latLoop: do latIndex = 1, stateVector%nj
+          lonLoop: do lonIndex = 1, stateVector%ni
 	  
             lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
             lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
@@ -5649,30 +5655,30 @@ module gridStateVector_mod
               myBinReal = binReal(lonIndex,latIndex)
             end if
 	    
-            do latIndex2 = latBeg, latEnd
-              do lonIndex2 = lonBeg, lonEnd
+            latLoop2: do latIndex2 = latBeg, latEnd
+              lonLoop2: do lonIndex2 = lonBeg, lonEnd
 
                 ! skip negative value if it should be masked
                 if (maskNegatives .and. stateVector%dataKind == 8) then
-                  if (stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0d0) cycle
+                  if (stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0d0) cycle lonLoop2
                 else if (maskNegatives .and. statevector%dataKind == 4) then
-                  if (stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0) cycle
+                  if (stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0) cycle lonLoop2
                 end if
 
                 ! skip value if it is beyond the specified distance
                 lat2_r8 = stateVector%hco%lat2d_4(lonIndex2,latIndex2)
                 lon2_r8 = stateVector%hco%lon2d_4(lonIndex2,latIndex2)
                 distance = phf_calcDistanceFast(lat2_r8, lon2_r8, lat1_r8, lon1_r8)
-                if (distance > horizontalScale) cycle
+                if (distance > horizontalScale) cycle lonLoop2
 
-                ! skip value if it lie in a different bin
+                ! skip value if it lies in a different bin
                 if (binIntegerTest) then
                   if (int(binInteger(lonIndex2,latIndex2,1)) /=  myBinInteger .or. & 
-                      int(binInteger(lonIndex2,latIndex2,1)) == -1) cycle
+                      int(binInteger(lonIndex2,latIndex2,1)) == -1) cycle lonLoop2
                 end if
 		
                 if (binRealTest) then
-                  if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle
+                  if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle lonLoop2
                 end if
 
                 count = count + 1
@@ -5684,25 +5690,27 @@ module gridStateVector_mod
                                                      real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
                 end if
             
-	      end do
-            end do
-            
+	      end do lonLoop2
+            end do latLoop2
+
 	    if (count > 0) then
               smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / real(count,8)
             else
               if (maskNegatives) smoothedField(lonIndex,latIndex) = mpc_missingValue_r8
             end if
 	    
-          end do
-        end do
-	
+          end do lonLoop
+        end do latLoop
+	!$OMP END PARALLEL DO
+
         if (stateVector%dataKind == 8) then
           stateVector%gd_r8(:,:,kIndex,stepIndex) = smoothedField(:,:)
         else
           stateVector%gd_r4(:,:,kIndex,stepIndex) = real(smoothedField(:,:),4)
         end if
-      end do
-    end do
+
+      end do kIndexLoop
+    end do stepIndexLoop
 
     deallocate(smoothedField)
 
