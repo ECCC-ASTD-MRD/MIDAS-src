@@ -24,6 +24,7 @@ midas_build:
     - v_3.7
     - v_3.9
     - v_3.9-RandD
+    - 1002-job-failed-569894
     - tags
   tags:
     - hpcr-u2
@@ -117,6 +118,7 @@ midas_tests:
      - v_3.7
      - v_3.9
      - v_3.9-RandD
+     - 1002-job-failed-569894
      - tags
    tags:
      - hpcr-u2
@@ -147,6 +149,7 @@ clean_midas_abs:
      - v_3.7
      - v_3.9
      - v_3.9-RandD
+     - 1002-job-failed-569894
      - tags
    tags:
      - hpcr-u2
