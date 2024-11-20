@@ -9,12 +9,20 @@ ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module random hpco
 add_executable(calcStats calcStats.f90)
 target_link_libraries(calcStats PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas irc random hpcoperf)
 
+add_executable(dfs dfs.f90)
+target_link_libraries(dfs PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas irc random hpcoperf
+${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module)
+
 add_executable(diagBmatrix diagBmatrix.f90)
 target_link_libraries(diagBmatrix PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas irc random hpcoperf)
 
 add_executable(diagHBHt diagHBHt.f90)
 target_link_libraries(diagHBHt PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas 
 ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module irc random hpcoperf)
+
+add_executable(energyNorm energyNorm.f90)
+target_link_libraries(energyNorm PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas 
+irc random ${HDF5_Libraries} hpcoperf)
 
 add_executable(ensembleH ensembleH.f90)
 target_link_libraries(ensembleH PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas 
@@ -75,7 +83,9 @@ add_executable(var1D var1D.f90)
 target_link_libraries(var1D PRIVATE MPI::MPI_Fortran  rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid midas 
 ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module irc random hpcoperf)
 
-set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats diagBmatrix diagHBHt ensembleH ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF prepcma pseudoSSTobs randomPert sstBias sstTrial var var1D)
+set(PROJECT_PROGRAMS adjointTest analysisErrorOI calcStats dfs diagBmatrix diagHBHt energyNorm ensembleH
+ensPostProcess extractBmatrixFor1Dvar genCoeff letkf obsImpact obsSelection oMinusF prepcma pseudoSSTobs
+randomPert sstBias sstTrial var var1D)
 
 foreach(prog ${PROJECT_PROGRAMS})
   set_target_properties(${prog} PROPERTIES 
