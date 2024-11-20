@@ -195,7 +195,7 @@ contains
     writeRawAnalStats = .false.
     useMemberAsHuRefState = .false.
     use4Drecentering3Densemble = .false.
-    horizSmoothMeanInc = -1.0D0
+    horizSmoothMeanInc = MPC_missingValue_R8 ! A large negative value
 
     !- Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
