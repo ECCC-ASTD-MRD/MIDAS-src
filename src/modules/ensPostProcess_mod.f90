@@ -552,9 +552,9 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-        call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanInc4D)
         deallocate(varNames)
 
+        call gsv_copy(stateVectorMeanAnl4D, stateVectorMeanInc4D)
         call gsv_add(stateVectorCtrlTrl4D, stateVectorMeanInc4D, scaleFactor_opt=-1.0D0)
 
         !- Mask the mean increment for LAM grid and recompute the mean analysis
@@ -575,7 +575,6 @@ contains
                            mpi_local_opt=.true., mpi_distribution_opt='Tiles',  &
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=varNames )
-        call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
         deallocate(varNames)
 
         call gsv_varNamesList(varNames, stateVectorCtrlTrl4D)
@@ -587,6 +586,8 @@ contains
                            varNames_opt=varNames )
         deallocate(varNames)
         call gsv_copy(stateVectorCtrlTrl4D, stateVectorCtrlTrl, allowTimeMismatch_opt=.true.)
+
+        call gsv_copy(stateVectorMeanAnl, stateVectorMeanInc)
         call gsv_add(stateVectorCtrlTrl, stateVectorMeanInc, scaleFactor_opt=-1.0D0)
 
         !- Mask the mean increment for LAM grid and recompute the mean analysis
