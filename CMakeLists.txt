@@ -42,7 +42,7 @@ find_package(SQLite3 ${sqlite3_REQ_VERSION} REQUIRED)
 find_package(HDF5 ${hdf5_REQ_VERSION} REQUIRED COMPONENTS C Fortran HL)
 
 # Define libraries bundle
-set(rttov_FIND_COMPONENTS rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main rttov_coef_io rttov_hdf)
+set(rttov_FIND_COMPONENTS rttov_coef_io rttov_hdf rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main)
 foreach(component ${rttov_FIND_COMPONENTS})
     find_library(${component}_lib NAME ${component}
        HINTS ENV LIBRARY_PATH)
