@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to horizontally smooth control member analysis increment (#999 and !905)
  * Added ability to apply random additive inflation to background ensemble in `letkf` (#963 and !876)
  * Added namelist variable to control precision of surface fields written to mean/rms files by `ensPostProcess` (#925 and !837)
  * Added dynamic load balancing option to speed up LETKF weight calculation (#890 and !818)
