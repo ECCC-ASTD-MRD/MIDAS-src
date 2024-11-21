@@ -64,7 +64,8 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
+                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
+                                localSelectionOutput)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -102,6 +103,7 @@ contains
     character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
     integer,                     intent(in)    :: myNumLatLonSendFactor
+    logical,                     intent(in)    :: localSelectionOutput
 
     ! Locals:
     character :: readySignal
@@ -485,7 +487,8 @@ contains
                                         hLocalize, hLocalizePressure, vLocalize, &
                                         vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
                                         countMaxExceeded, maxCountMaxExceeded, &
-                                        ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                        ensObs_mpiglobal, ensObsGain_mpiglobal, &
+                                        localSelectionOutput)
 
           !
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -762,7 +765,8 @@ contains
                                       hLocalize, hLocalizePressure, vLocalize, &
                                       vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
                                       countMaxExceeded, maxCountMaxExceeded, &
-                                      ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                      ensObs_mpiglobal, ensObsGain_mpiglobal, &
+                                      localSelectionOutput)
     !
     !:Purpose:
     !
@@ -788,6 +792,7 @@ contains
     integer,                  intent(inout) :: maxCountMaxExceeded
     type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
     type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal
+    logical,                  intent(in)    :: localSelectionOutput
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -1024,7 +1029,8 @@ contains
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                           distances, anlLat, anlLon, anlVertLocation,  &
-                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound)
+                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound, &
+                                          localSelectionOutput)
     if (numLocalObsFound > maxNumLocalObs) then
       countMaxExceeded = countMaxExceeded + 1
       maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)

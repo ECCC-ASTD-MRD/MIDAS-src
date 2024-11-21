@@ -247,6 +247,7 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
+  logical  :: localSelectionOutput ! write output about the local selection of observations
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
@@ -262,7 +263,7 @@ program midas_letkf
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep, alphaRandomPertPrior, &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
+                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
                      numRetainedEigen, myNumLatLonSendFactor, debug
@@ -316,6 +317,7 @@ program midas_letkf
   ignoreEnsDate            = .false.
   outputOnlyEnsMean        = .false.
   outputEnsObs             = .false.
+  localSelectionOutput     = .false.
   hLocalize(:)             = -1.0D0
   hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize                = -1.0D0
@@ -458,9 +460,9 @@ program midas_letkf
     ensObsGain => ensObs
   end if
 
-  ! Set lat, lon, obs values in ensObs
-  call eob_setLatLonObs(ensObs)
-  if ( useModulatedEns ) call eob_setLatLonObs(ensObsGain)
+  ! Set lat, lon, obs, codType values in ensObs
+  call eob_setLatLonObsCod(ensObs)
+  if ( useModulatedEns ) call eob_setLatLonObsCod(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -789,7 +791,8 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
+                          mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
+                          localSelectionOutput)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then

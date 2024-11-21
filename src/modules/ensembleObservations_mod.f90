@@ -34,7 +34,7 @@ MODULE ensembleObservations_mod
 
   ! public procedures
   public :: eob_init, eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv
+  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObsCod, eob_setObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
@@ -79,6 +79,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
     integer, allocatable          :: assFlag(:)       ! assimilation flag
+    integer, allocatable          :: codTyp(:)       ! observation code type
   end type struct_eob
 
   type(kdtree2), pointer :: tree => null()
@@ -267,6 +268,7 @@ CONTAINS
     allocate(ensObs%meanYb(ensObs%numObs))
     allocate(ensObs%deterYb(ensObs%numObs))
     allocate(ensObs%assFlag(ensObs%numObs))
+    allocate(ensObs%codTyp(ensObs%numObs))
 
     ensObs%allocated = .true.
 
@@ -297,6 +299,7 @@ CONTAINS
     deallocate(ensObs%meanYb)
     deallocate(ensObs%deterYb)
     deallocate(ensObs%assFlag)
+    deallocate(ensObs%codTyp)
 
     if (ensObs%Yb_window /= -1) then
       ! using shared memory
@@ -357,6 +360,7 @@ CONTAINS
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
+    ensObs%codTyp(:)        = 0
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -445,6 +449,7 @@ CONTAINS
         ensObsClean%deterYb(obsCleanIndex)       = ensObs%deterYb(obsIndex)
         ensObsClean%obsValue(obsCleanIndex)      = ensObs%obsValue(obsIndex)
         ensObsClean%assFlag(obsCleanIndex)       = ensObs%assFlag(obsIndex)
+        ensObsClean%codTyp(obsCleanIndex)        = ensObs%codTyp(obsIndex)
       end if
     end do
 
@@ -484,6 +489,7 @@ CONTAINS
     ensObsOut%deterYb(:)       = ensObsIn%deterYb(:)
     ensObsOut%obsValue(:)      = ensObsIn%obsValue(:)
     ensObsOut%assFlag(:)       = ensObsIn%assFlag(:)
+    ensObsOut%codTyp(:)        = ensObsIn%codTyp(:)
     ensObsOut%typeVertCoord    = ensObsIn%typeVertCoord
 
   end subroutine eob_copy
@@ -624,6 +630,9 @@ CONTAINS
     call rpn_comm_gatherv(ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
                           ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
                           0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%codTyp, ensObsClean%numObs, 'mpi_integer', &
+                          ensObs_mpiglobal%codTyp, allNumObs, displs, 'mpi_integer',  &
+                          0, 'GRID', ierr)
     if (allocated(ensObsClean%obsErrInv_sim)) then
       call rpn_comm_gatherv(ensObsClean%obsErrInv_sim, ensObsClean%numObs, 'mpi_real8', &
                             ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
@@ -687,6 +696,8 @@ CONTAINS
     call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
+                        0, 'GRID', ierr)
+    call rpn_comm_bcast(ensObs_mpiglobal%codTyp, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
 
     ! For shared memory we only need to send data to the other node masters
@@ -1012,7 +1023,8 @@ CONTAINS
   ! eob_getLocalBodyIndices
   !--------------------------------------------------------------------------
   function eob_getLocalBodyIndices(ensObs,localBodyIndices,distances,lat,lon,vertLocation,  &
-                                   hLocalize,vLocalize,numLocalObsFound) result(numLocalObs)
+                                   hLocalize,vLocalize,numLocalObsFound,localSelectionOutput) &
+                                   result(numLocalObs)
     !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
     !           the local volume around the specified lat/lon used for assimilation
@@ -1031,16 +1043,22 @@ CONTAINS
     real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
     real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
     integer         , intent(out) :: numLocalObsFound    ! total number of local obs
+    logical         , intent(in)  :: localSelectionOutput ! output information about the selection of observations
     ! Result:
     integer                       :: numLocalObs         ! number of local obs up to the array size
 
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
-    real(8) :: distance
+    real(8) :: distance ! horizontal distance of the furthest observation selected (m)
+    real(8) :: distanceSelected(256) ! horizontal distance of the furthest observation selected for each type (m)
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)
     real(kdkind)                      :: maxRadius
     real(kdkind)                      :: refPosition(3)
+    integer                           :: counterSelected(256)    ! counter of selected observations for each type
+    integer                           :: counterNotSelected(256) ! counter of not selected observations for each type
+    integer                           :: localCodTyp, i
+    real(8)                           :: distmax
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1072,23 +1090,38 @@ CONTAINS
 
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
-      numLocalObsFound = 0
-      numLocalObs = 0
+      numLocalObsFound      = 0
+      numLocalObs           = 0
+      counterSelected(:)    = 0
+      counterNotSelected(:) = 0
+      distanceSelected(:)   = 0.0d0
+      ! loop on all the observations inside the horizontal radius column
       do localObsIndex=1, numLocalObsFoundSearch
         distance = abs( vertLocation - ensObs%vertLocation(searchResults(localObsIndex)%idx) )
+        ! if the observation is inside the localization volume
         if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
           numLocalObsFound = numLocalObsFound + 1
+          localCodTyp = ensObs%codTyp(searchResults(localObsIndex)%idx)
+          ! select the observation if the maximum number has not been reached
           if (numLocalObs < maxNumLocalObs) then
-            numLocalObs = numLocalObs + 1
+            numLocalObs                   = numLocalObs + 1
             localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+            distances(numLocalObs)        = sqrt(searchResults(localObsIndex)%dis)
+            distanceSelected(localCodTyp) = max(distanceSelected(localCodTyp),distances(numLocalObs))
+            counterSelected(localCodTyp)  = counterSelected(localCodTyp) + 1
+          ! do not select the observation
+          else
+            counterNotSelected(localCodTyp)  = counterNotSelected(localCodTyp) + 1
           end if
         end if
       end do
     else
       ! no vertical location, so just copy results
-      numLocalObsFound = 0
-      numLocalObs = 0
+      numLocalObsFound      = 0
+      numLocalObs           = 0
+      counterSelected(:)    = 0
+      counterNotSelected(:) = 0
+      distanceSelected(:)   = 0.0d0
       do localObsIndex=1, numLocalObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
           numLocalObsFound = numLocalObsFound + 1
@@ -1100,14 +1133,44 @@ CONTAINS
         end if
       end do      
     end if
+
+    ! send information about this grid point to the main ouput text file
+    ! it adds ~500 Mb of text, and the output file may exceed 1 Gb, the limit of your /tmp directory
+    ! therefore, be careful if you open the LETKF listing with maestro, prefer the nodelister command instead
+    if(localSelectionOutput) then
+      if (numLocalObs .eq. 0) then
+        distmax = 0.0d0
+      else
+        distmax = distances(numLocalObs)
+      endif
+      ! first generic information about the gridpoint
+      write(*,'(A7,X,2(F7.3,X),2(F12.2,X),I7)') 'eob_loc', &
+            lat*MPC_DEGREES_PER_RADIAN_R8, &
+            lon*MPC_DEGREES_PER_RADIAN_R8, &
+            vertlocation, &
+            distmax, &
+            numLocalObsFound
+      ! then more detailed information for each observation type
+      do i = 1, size(counterSelected)
+        if ((counterSelected(i) + counterNotSelected(i)) .ne. 0) then
+          ! ctr stands for counter
+          write(*,'(A7,X,I3,2(X,I7),X,F12.2)') 'eob_ctr', &
+                i, &
+                counterSelected(i), &
+                counterNotSelected(i), &
+                distanceSelected(i)
+        end if
+      end do
+    end if
+
     deallocate(searchResults)
 
   end function eob_getLocalBodyIndices
 
   !--------------------------------------------------------------------------
-  ! eob_setLatLonObs
+  ! eob_setLatLonObsCod
   !--------------------------------------------------------------------------
-  subroutine eob_setLatLonObs(ensObs)
+  subroutine eob_setLatLonObsCod(ensObs)
     implicit none
 
     ! Arguments:
@@ -1116,8 +1179,9 @@ CONTAINS
     call obs_extractObsRealHeaderColumn(ensObs%lat, ensObs%obsSpaceData, OBS_LAT)
     call obs_extractObsRealHeaderColumn(ensObs%lon, ensObs%obsSpaceData, OBS_LON)
     call obs_extractObsRealBodyColumn(ensObs%obsValue, ensObs%obsSpaceData, OBS_VAR)
+    call obs_extractObsIntHeaderColumn(ensObs%codTyp, ensObs%obsSpaceData, OBS_ITY)
 
-  end subroutine eob_setLatLonObs
+  end subroutine eob_setLatLonObsCod
 
   !--------------------------------------------------------------------------
   ! eob_setobsErrInv
