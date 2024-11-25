@@ -727,9 +727,14 @@ contains
       end if
     end do HEADER1
 
-    write(*,*) 'thn_preThinning: Actual percentage of observations kept = ', &
-               100.0*real(count)/real(obs_numHeader(obsdat))
-    
+    if (obs_numHeader(obsdat) > 0) then
+      write(*,*) 'thn_preThinning: Actual percentage of observations kept = ', &
+                 100.0*real(count)/real(obs_numHeader(obsdat))
+    else
+      write(*,*) 'thn_preThinning: No observations on this MPI task, so no ', &
+                 'pre-thinning performed'
+    end if
+
     write(*,*) 'thn_preThinning: Finished'
 
   end subroutine thn_preThinning
