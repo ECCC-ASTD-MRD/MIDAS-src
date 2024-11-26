@@ -23,6 +23,7 @@ MODULE ensembleObservations_mod
   use codtyp_mod
   use obsfamilylist_mod
   use varnamelist_mod
+  use localizationFunction_mod
   use, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
   use mpi
   implicit none
@@ -1022,8 +1023,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices
   !--------------------------------------------------------------------------
-  function eob_getLocalBodyIndices(ensObs,localBodyIndices,distances,lat,lon,vertLocation,  &
-                                   hLocalize,vLocalize,numLocalObsFound,localSelectionOutput) &
+  function eob_getLocalBodyIndices(ensObs,localBodyIndices,localizations,lat,lon,vertLocation,  &
+                                   hLocalize,vLocalize,numLocalObsFound, &
+                                   maxNumLocalObsPerType, localSelectionOutput, localObsSorting) &
                                    result(numLocalObs)
     !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
@@ -1036,29 +1038,34 @@ CONTAINS
     ! Arguments:
     type(struct_eob), intent(in)  :: ensObs  ! input eob object
     integer         , intent(out) :: localBodyIndices(:) ! resulting dist of body indexes
-    real(8)         , intent(out) :: distances(:)        ! corresponding list of obs distances
+    real(8)         , intent(out) :: localizations(:)    ! corresponding list of obs localization function values
     real(8)         , intent(in)  :: lat                 ! reference location lat
     real(8)         , intent(in)  :: lon                 ! reference location lon
     real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
     real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
     real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
     integer         , intent(out) :: numLocalObsFound    ! total number of local obs
-    logical         , intent(in)  :: localSelectionOutput ! output information about the selection of observations
+    logical         , intent(in)  :: localSelectionOutput  ! output information about the selection of observations
+    integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimiliated locally
+    character(len=*), intent(in)  :: localObsSorting       ! sort by HORIZONTAL distance (default), or LOCFUN
     ! Result:
     integer                       :: numLocalObs         ! number of local obs up to the array size
 
     ! Locals:
-    integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
-    real(8) :: distance ! horizontal distance of the furthest observation selected (m)
-    real(8) :: distanceSelected(256) ! horizontal distance of the furthest observation selected for each type (m)
+    integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex,sortedIndex
+    real(8) :: distanceSelected(256)  ! horizontal distance of the furthest observation selected for each type (m)
+    real(8) :: sortValueSelected(256) ! sorting value of the furthest observation selected for each type
     real(kdkind), allocatable         :: positionArray(:,:)
-    type(kdtree2_result), allocatable :: searchResults(:)
+    type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
     real(kdkind)                      :: maxRadius
     real(kdkind)                      :: refPosition(3)
     integer                           :: counterSelected(256)    ! counter of selected observations for each type
     integer                           :: counterNotSelected(256) ! counter of not selected observations for each type
     integer                           :: localCodTyp, i
-    real(8)                           :: distmax
+    real(8)                           :: hDistance, vDistance
+    real(8), allocatable              :: sortValue(:)            ! values used to sort the kdtree results, choice of values is given by localObsSorting
+    integer, allocatable              :: sortIndex(:)            ! sorted indices of the kdtree results
+    real(8), allocatable              :: lfns(:)
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1088,6 +1095,51 @@ CONTAINS
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
+    ! searchResults is an array of maxNumLocalObsSearch observations
+    ! Its first numLocalObsFoundSearch observations are all the ones inside the localization column
+    ! and are sorted by horizontal distance
+
+    ! sortValue are the values used for sorting the numLocalObsFoundSearch obs of the localization column
+    ! sortIndex are the indices of the searchResults array
+    !
+    ! An observation with index sortIndex(i) has sort value sortValue(i), localization function lfns(i)
+    ! and is found in searchResults(sortIndex(i)) and in ensObs(searchResults(sortIndex(i))%idx)
+
+    ! create values to sort the observations
+    allocate(sortValue(numLocalObsFoundSearch))
+    allocate(sortIndex(numLocalObsFoundSearch))
+    allocate(lfns(numLocalObsFoundSearch))
+    ! loop on searchResults
+    do localObsIndex=1, numLocalObsFoundSearch
+      bodyIndex           = searchResults(localObsIndex)%idx
+      hDistance           = sqrt(searchResults(localObsIndex)%dis)
+      vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
+      lfns(localObsindex) = lfn_Response(hDistance,hLocalize)
+      if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
+         lfns(localObsIndex) = lfns(localObsindex) * lfn_Response(vDistance,vLocalize)
+      endif
+      sortIndex(localObsIndex) = localObsIndex
+      if ( trim(localObsSorting) == 'HORIZONTAL' ) then
+        sortValue(localObsIndex) = hDistance
+      else if ( trim(localObsSorting) == 'LOCFUN' ) then
+        sortValue(localObsIndex) = lfns(localObsindex)
+      else if ( trim(localObsSorting) == 'MINTRACE' ) then
+        sortValue(localObsIndex) = lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
+      else
+        call utl_abort('eob_getLocalBodyIndices: localObsSorting has unknown value:'//trim(localObsSorting))
+      endif
+    end do
+    ! sort observations by sortValue
+    ! for the localObsSorting = HORIZONTAL case, sortValue is already sorted
+    if (numLocalObsFoundSearch > 0) then
+      if ( trim(localObsSorting) == 'LOCFUN' .or. trim(localObsSorting) == 'MINTRACE' ) then
+        call utl_heapsort1d(sortValue,sortIndex)
+        ! In these cases, we select observations by decreasing order of their sort value
+        sortValue = sortValue(size(sortValue):1:-1)
+        sortIndex = sortIndex(size(sortIndex):1:-1)
+      endif
+    endif
+
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numLocalObsFound      = 0
@@ -1095,23 +1147,31 @@ CONTAINS
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
       distanceSelected(:)   = 0.0d0
+      sortValueSelected(:)  = 0.0d0
+      localizations(:)      = 0.0d0
       ! loop on all the observations inside the horizontal radius column
-      do localObsIndex=1, numLocalObsFoundSearch
-        distance = abs( vertLocation - ensObs%vertLocation(searchResults(localObsIndex)%idx) )
+      ! loop on sortValue
+      do sortedIndex=1, numLocalObsFoundSearch
+        localObsIndex = sortIndex(sortedIndex)
+        bodyIndex     = searchResults(localObsIndex)%idx
         ! if the observation is inside the localization volume
-        if (distance <= vLocalize .and. ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
-          numLocalObsFound = numLocalObsFound + 1
-          localCodTyp = ensObs%codTyp(searchResults(localObsIndex)%idx)
-          ! select the observation if the maximum number has not been reached
-          if (numLocalObs < maxNumLocalObs) then
-            numLocalObs                   = numLocalObs + 1
-            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-            distances(numLocalObs)        = sqrt(searchResults(localObsIndex)%dis)
-            distanceSelected(localCodTyp) = max(distanceSelected(localCodTyp),distances(numLocalObs))
-            counterSelected(localCodTyp)  = counterSelected(localCodTyp) + 1
-          ! do not select the observation
+        ! ideally, we would have this condition instead, but it does not pass the UnitTest:
+        !if (lfns(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex)==1) then
+        ! instead, if lfn == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
+        vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
+        if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex)==1) then
+          numLocalObsFound  = numLocalObsFound + 1
+          localCodTyp       = ensObs%codTyp(bodyIndex)
+          ! select the observation if the maximum numbers have not been reached
+          if (counterSelected(localCodTyp) < maxNumLocalObsPerType .and. numLocalObs < maxNumLocalObs) then
+            numLocalObs                    = numLocalObs + 1
+            localBodyIndices(numLocalObs)  = bodyIndex
+            localizations(numLocalObs)     = lfns(localObsIndex)
+            counterSelected(localCodTyp)   = counterSelected(localCodTyp) + 1
+            distanceSelected(localCodTyp)  = max(distanceSelected(localCodTyp),sqrt(searchResults(localObsIndex)%dis))
+            sortValueSelected(localCodTyp) = sortValueSelected(localCodTyp) + sortValue(sortedIndex)
           else
-            counterNotSelected(localCodTyp)  = counterNotSelected(localCodTyp) + 1
+            counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
           end if
         end if
       end do
@@ -1122,13 +1182,15 @@ CONTAINS
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
       distanceSelected(:)   = 0.0d0
+      sortValueSelected(:)  = 0.0d0
+      localizations(:)      = 0.0d0
       do localObsIndex=1, numLocalObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
           numLocalObsFound = numLocalObsFound + 1
           if (numLocalObs < maxNumLocalObs) then
             numLocalObs = numLocalObs + 1
             localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-            distances(numLocalObs) = sqrt(searchResults(localObsIndex)%dis)
+            localizations(numLocalObs)    = lfns(localObsIndex)
           end if
         end if
       end do      
@@ -1138,31 +1200,32 @@ CONTAINS
     ! it adds ~500 Mb of text, and the output file may exceed 1 Gb, the limit of your /tmp directory
     ! therefore, be careful if you open the LETKF listing with maestro, prefer the nodelister command instead
     if(localSelectionOutput) then
-      if (numLocalObs .eq. 0) then
-        distmax = 0.0d0
-      else
-        distmax = distances(numLocalObs)
-      endif
       ! first generic information about the gridpoint
-      write(*,'(A7,X,2(F7.3,X),2(F12.2,X),I7)') 'eob_loc', &
+      write(*,'(A7,X,2(F7.3,X),2(F12.4,X),I7,X,I7)') 'eob_loc', &
             lat*MPC_DEGREES_PER_RADIAN_R8, &
             lon*MPC_DEGREES_PER_RADIAN_R8, &
             vertlocation, &
-            distmax, &
-            numLocalObsFound
+            maxval(distanceSelected), &
+            numLocalObsFound, &
+            numLocalObs 
       ! then more detailed information for each observation type
       do i = 1, size(counterSelected)
         if ((counterSelected(i) + counterNotSelected(i)) .ne. 0) then
+          sortValueSelected(i) = sortValueSelected(i) / real(max(1,counterSelected(i)))
           ! ctr stands for counter
-          write(*,'(A7,X,I3,2(X,I7),X,F12.2)') 'eob_ctr', &
+          write(*,'(A7,X,I3,2(X,I7),2(X,F12.2))') 'eob_ctr', &
                 i, &
                 counterSelected(i), &
                 counterNotSelected(i), &
-                distanceSelected(i)
+                distanceSelected(i), &
+                sortValueSelected(i)
         end if
       end do
     end if
 
+    deallocate(lfns)
+    deallocate(sortIndex)
+    deallocate(sortValue)
     deallocate(searchResults)
 
   end function eob_getLocalBodyIndices

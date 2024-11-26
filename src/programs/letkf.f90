@@ -235,6 +235,7 @@ program midas_letkf
   logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
   logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
+  integer  :: maxNumLocalObsPerType ! maximum number of obs of each type in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   real(8)  :: alphaRandomPertPrior ! Random perturbation additive inflation coeff applied to trials (0->1)
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
@@ -257,14 +258,15 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
+  character(len=20) :: localObsSorting   ! method to sort observations in eob_getLocalBodyIndices() ('HORIZONTAL','LOCFUNCTION')
   
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
-                     maxNumLocalObs, weightLatLonStep, alphaRandomPertPrior, &
+                     maxNumLocalObs, maxNumLocalObsPerType, weightLatLonStep, alphaRandomPertPrior, &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs, localSelectionOutput, &
-                     obsTimeInterpType, mpiDistribution, etiket_anl, &
+                     obsTimeInterpType, mpiDistribution, etiket_anl, localObsSorting, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
                      numRetainedEigen, myNumLatLonSendFactor, debug
 
@@ -307,6 +309,7 @@ program midas_letkf
   numSubEns                = 2
   randomShuffleSubEns      = .false.
   maxNumLocalObs           = 1000
+  maxNumLocalObsPerType    = 1000000
   weightLatLonStep         = 1
   alphaRandomPertPrior     = 0.0D0
   modifyAmsubObsError      = .false.
@@ -325,6 +328,7 @@ program midas_letkf
   obsTimeInterpType        = 'LINEAR'
   mpiDistribution          = 'ROUNDROBIN'
   etiket_anl               = 'ENS_ANL'
+  localObsSorting          = 'HORIZONTAL'
   readEnsObsFromFile       = .false.
   writeLocalEnsObsToFile   = .false.
   numRetainedEigen         = 0
@@ -789,10 +793,10 @@ program midas_letkf
                           ensembleAnl, ensembleTrl, &
                           ensObs_mpiglobal, ensObsGain_mpiglobal, &
                           stateVectorMeanAnl, &
-                          wInterpInfo, maxNumLocalObs,  &
+                          wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
                           hLocalize, hLocalizePressure, vLocalize, &
                           mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
-                          localSelectionOutput)
+                          localSelectionOutput, localObsSorting)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
