@@ -35,12 +35,10 @@
 
 ##=========================================================
 ## some prior defitions
-typeset __target
 typeset __job
 typeset __job_opt
 typeset __job_test_target
 typeset __here
-typeset __abs_exist_list
 typeset __abs_all
 
 __here=$(pwd)
@@ -64,67 +62,13 @@ __abs_external='splitobs'
 __abs_all="${__abs_all} ${__abs_external}"
 
 ##=========================================================
-##  parsing input and building job for submissions
-##
-
-if [ $# -eq 0 ]
-## default: make all
-then
-    __target='all'
-    __abs_exist_list=${__abs_all}
-else
-    __target=
-    while [[ $# > 0 ]]; do
-        arg=${1}
-
-        if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
-            export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
-        elif [[ "${arg}" = --opt-report ]]; then
-            export MIDAS_COMPILE_OPTIMIZE_REPORT=yes
-        elif [[ "${arg}" = --optreport ]]; then
-            echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
-            exit 1
-        elif [[ "${arg}" = --vtune ]]; then
-            __vtune_options="-debug -parallel-source-info=2"
-            export MIDAS_COMPILE_COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL} ${__vtune_options}"
-            echo "midas_build: Adding compilation options '${__vtune_options}' needed for 'vtune'"
-        elif [[ "${arg}" = --codecov ]]; then
-            if [[ $# -lt 2 ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
-                exit 1
-            elif [[ ${2} = -* || -z "${2}" ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
-                exit 1
-            fi
-            export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
-            shift
-        elif [[ "${arg}" = -* ]]; then
-            echo "midas_build: this option '${arg}' is not allowed" >&2
-            exit 1
-        elif [[  -n "${__target}" ]]; then
-            __target="${__target} ${arg}"
-        else
-            __target=${arg}
-        fi
-
-        shift
-    done ## End of 'while [[ $# > 0 ]]'
-
-    if [[ -n "${__target}" ]]; then
-        __abs_exist_list=$(echo ${__target} | tr -s ' ' '\n'  | grep '.Abs' | sed 's/\.Abs//' | column )
-        ## ^ there must be a simpler solution
-    else
-        __target='all'
-        __abs_exist_list=${__abs_all}
-    fi
-fi
-
+##  MIDAS configuration
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
 source ${__midas_dot_cfg} &> .tmp.config.out || __midas_source_config_status__=1
-__listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
-__listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+__listing_config=${__here}/${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
+__listing_frontend=${__here}/${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
   mv .tmp.config.out ${__listing_config}
   echo "An error occured in the build configuration, consult ${__listing_config}"
@@ -178,10 +122,6 @@ function printHeader {
     echo
     echo "+---| MIDAS BUILDER starts |--------------------------------------------------"
     echo "| ${__dateLong} (${__date})"
-    echo "| targets"
-    for __t in ${__target}; do
-        echo "| * ${__t}"
-    done
     echo "| code version : ${__revstring}"
     echo "| append version to build dir : ${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
@@ -224,58 +164,66 @@ function printFooter {
 }
 
 ##=========================================================
-## Header and dependency check
+## Header
 printHeader
 
-echo "Building dependencies"
-make depend || exit 1
+##=========================================================
+# build files genration with CMake
+cd ${MIDAS_COMPILE_DIR_MAIN}
+echo "Generating build files using CMake"
+cat > .tmp.cmake.out << EOF
++-----------------------------------+
+| Generating build files with CMake |
++-----------------------------------+
+EOF
+__midas_cmake_build_status__=0
+cmake $MIDAS_SOURCE_DIR &>> .tmp.cmake.out || __midas_cmake_build_status__=1
+if [ "${__midas_cmake_build_status__}" -ne 0 ]; then
+  cat .tmp.cmake.out >> ${__listing_config}
+  echo "An error occured in the build configuration, consult ${__listing_config}"
+  exit 1
+fi
+cat .tmp.cmake.out >> ${__listing_config}
+rm .tmp.cmake.out
 
 ##=========================================================
-## testing target validity on frontend first
+## testing CMake configuration
+#__job_test_target="make -n ${__job_opt}"
+#
+###-- lauching dry-run to test target
+#${__job_test_target} > /dev/null 2>&1 || {
+#    echo
+#    echo "+--------------------+"
+#    echo "|                    |"
+#    echo "| DRY RUN FAILED!    |"
+#    echo "| check cmake output |"
+#    echo "|                    |"
+#    echo "+--------------------+"
+#    exit 1
+#    }
 
-__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
-__job_test_target="make -n ${__target} ${__job_opt}"
-
-##-- lauching dry-run to test target
-echo ${__job_test_target}
-${__job_test_target} > /dev/null 2>&1 || {
-    echo
-    echo "> ${__target}"
-    echo "+-------------------+"
-    echo "|                   |"
-    echo "| INVALID TARGET(S) |"
-    echo "|                   |"
-    echo "+-------------------+"
-    exit 1
-    }
-
-##-- if the dry-run passes, then we define the job adding multi-cores query
-__job="make ${__target} -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt}"
 
 
 ##=========================================================
 ##  Checking presence of absolute targets in programs.mk
 ##  Check prior existence of absolutes : remove them first
-if [ -n "${__abs_exist_list}" ]; then
-    echo "Checking src/programs/programs.mk for absolute targets"
-    for __abs in ${__abs_exist_list}; do
-        ## external programs are not expected in programs/programs.mk
-        if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
-            typeset __search=$(grep "^ *${__abs}.Abs *:" programs/programs.mk)
-            if [ -z "${__search}" ]; then
-                echo "<!> ${__abs}.Abs target not in src/programs/programs.mk"
-                exit 1
-        fi; fi
-    done
-    echo "Checking prior existence of target absolutes"
-    for __abs in ${__abs_exist_list}; do
-        typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
-        [ -f  "${__abs_full}" ] && \
-        ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
-        rm ${__abs_full} )
-    done
-    echo
-fi
+for __abs in ${__abs_all}; do
+    ## external programs are not expected in programs/programs.mk
+    if [[ ! "${__abs_external}" == *"${__abs}"* ]]; then
+        typeset __search=$(grep "add_executable(${__abs}" ${__toplevel}/src/programs/CMakeLists.txt)
+        if [ -z "${__search}" ]; then
+            echo "<!> ${__abs} target not in src/programs/CMakeLists.txt"
+            exit 1
+    fi; fi
+done
+echo "Checking prior existence of target absolutes"
+for __abs in ${__abs_all}; do
+    typeset __abs_full=$(abs_path ${__abs} ${ORDENV_PLAT})
+    [ -f  "${__abs_full}" ] && \
+    ( echo "   > ${__abs_full} exists; removing it" | tee -a ${__listing_config}
+    rm ${__abs_full} )
+done
+echo
 
 ##=========================================================
 ##  Compilation job for submission
@@ -306,12 +254,20 @@ export MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION}
 
 cd ${__here}
 source ${__midas_dot_cfg}
+cd ${MIDAS_COMPILE_DIR_MAIN}
 EOF
 
+__job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN} MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR=${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}"
+__job="make  -j ${MIDAS_COMPILE_NCORES} -O ${__job_opt} && make install"
 echo "${__job}" >> .compile_job
 
 ##=========================================================
 ##  Compilation on frontend
+echo "========================================================================"
+echo "Job submitted:"
+echo "\`\`\`"
+cat .compile_job
+echo "\`\`\`"
 echo "========================================================================"
 echo "... Launching compilation on ${MIDAS_COMPILE_FRONTEND}"
 if [ "${MIDAS_COMPILE_HEADNODE_FRONTEND}" = true ]
@@ -329,7 +285,6 @@ else
 fi
 
 ##=========================================================
-
 ## waiting for compilation to terminate
 echo
 echo "Compilation underway : ${__job_or_pid_frontend}"
@@ -337,6 +292,8 @@ echo "Working directory : ${__build_dir_version}"
 echo
 
 are_jobs_completed ${__job_or_pid_frontend} ${MIDAS_COMPILE_HEADNODE_FRONTEND}
+
+
 
 ##-- renaming ord_soumet frontend listing
 if [ ! -f "${__listing_frontend}" ]; then
@@ -357,65 +314,54 @@ mv ${__listing_config} ${__listing_frontend}
 ##=========================================================
 ## Checking if compilation and linking have been successful
 
-typeset __remarks=0
-## Check for unused variables
-typeset __remark_unused_variables=$(grep 'remark #7712: ' ${__listing_frontend} | sort -u)
-if [ -n "${__remark_unused_variables}" ]; then
-    echo
-    echo "<!> Some unused variables have been found.  Would you please remove them?"
-    echo
-    echo "${__remark_unused_variables}"
-    __remarks=1
-fi
-
-typeset __warnings=0
-## Check for unused variables
-typeset __warnings_all=$(grep -v '^icc: warning #10237: -lcilkrts linked in dynamically, static library not available$' ${__listing_frontend} | grep -A 2 'warning #')
-if [ -n "${__warnings_all}" ]; then
-    echo
-    echo "<!> Some compiling warnings have been triggered."
-    echo
-    echo "${__warnings_all}"
-    __warnings=1
-fi
-
-if [ -z "${__remark_unused_variables}" -a -z "${__warnings_all}" ]; then
-    echo
-    echo "No compilation warnings has been detected!"
-fi
-
-## regex elements to find errors
-typeset __err_regex='error #|(?<!-)undefined|make.*Circular|[Ff]ailed| Error '
-
-typeset __err_comp=0
-typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_frontend})
-if [ -n "${__err_front}" ]; then
-    echo
-    echo "<!> some error found in ${__listing_frontend}"
-    echo "${__err_front}"
-    __err_comp=1
-    exit 1
-fi
+# @TODO uncomment and adapt
+#typeset __remarks=0
+### Check for unused variables
+#typeset __remark_unused_variables=$(grep 'remark #7712: ' ${__listing_frontend} | sort -u)
+#if [ -n "${__remark_unused_variables}" ]; then
+#    echo
+#    echo "<!> Some unused variables have been found.  Would you please remove them?"
+#    echo
+#    echo "${__remark_unused_variables}"
+#    __remarks=1
+#fi
+#
+#typeset __warnings=0
+### Check for unused variables
+#typeset __warnings_all=$(grep -v '^icc: warning #10237: -lcilkrts linked in dynamically, static library not available$' ${__listing_frontend} | grep -A 2 'warning #')
+#if [ -n "${__warnings_all}" ]; then
+#    echo
+#    echo "<!> Some compiling warnings have been triggered."
+#    echo
+#    echo "${__warnings_all}"
+#    __warnings=1
+#fi
+#
+#if [ -z "${__remark_unused_variables}" -a -z "${__warnings_all}" ]; then
+#    echo
+#    echo "No compilation warnings has been detected!"
+#fi
+#
+### regex elements to find errors
+#typeset __err_regex='error #|(?<!-)undefined|make.*Circular|[Ff]ailed| Error '
+#
+#typeset __err_comp=0
+#typeset __err_front=$(grep -Pn "${__err_regex}" ${__listing_frontend})
+#if [ -n "${__err_front}" ]; then
+#    echo
+#    echo "<!> some error found in ${__listing_frontend}"
+#    echo "${__err_front}"
+#    __err_comp=1
+#    exit 1
+#fi
 
 ##========================================================
-##  Installing (copying + renaming) target programs
-if [ -n "${__abs_exist_list}" -a  "${__install_always_midas}" = true ]
-then
-    ##  Copying target programs to the install directory
-    echo
-    echo "Installing target programs"
+##  Verification of installed programs
     typeset __status=0
     typeset __abs_name
     typeset __install_dir=${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}
-    [ ! -d ${__install_dir} ] && mkdir -p ${__install_dir}
-    for __abs in ${__abs_exist_list}; do
+    for __abs in ${__abs_all}; do
         typeset __abs_installed=$(abs_path ${__abs} ${ORDENV_PLAT})
-        if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
-            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}/${ORDENV_PLAT}/
-        else
-            typeset __bld_dir=${MIDAS_COMPILE_DIR_MAIN}/midas_bld/${ORDENV_PLAT}/
-        fi
-        find ${__bld_dir} -name ${__abs}.Abs -exec cp {} ${__abs_installed} \;
         if [ ! -f  "${__abs_installed}" ]; then
             echo "  <!> ${__abs} not found in ${__install_dir}"
             __status=1
@@ -427,37 +373,27 @@ then
     [ -f ".checkAbs" ] && (cat .checkAbs >> ${__listing_frontend} && rm .checkAbs)
 
     if [ "${__status}" -eq 0 ]; then
-        if [ "${__abs_exist_list}" = "${__abs_all}" ]; then
-            echo
-            echo "+------------------------------+"
-            echo "|                              |"
-            echo "| MIDAS INSTALLATION COMPLETED |"
-            echo "|   ALL PROGRAMS INSTALLED     |"
-            echo "|                              |"
-        else
-            echo
-            echo "+------------------------------+"
-            echo "|                              |"
-            echo "| MIDAS INSTALLATION COMPLETED |"
-            echo "|                              |"
-            echo "    All target programs have been installed correctly!"
-            for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
-        fi
-        if [ "${__remarks}" -eq 1 ]; then
-            echo "| <!> with some remarks <!>    |"
-        fi
+        echo
         echo "+------------------------------+"
-        if [ "${__warnings}" -eq 1 ]; then
-            echo "| <!> with some warnings <!>    |"
-        fi
+        echo "|                              |"
+        echo "| MIDAS INSTALLATION COMPLETED |"
+        echo "|   ALL PROGRAMS INSTALLED     |"
+        echo "|                              |"
+#        if [ "${__remarks}" -eq 1 ]; then
+#            echo "| <!> with some remarks <!>    |"
+#        fi
+#        echo "+------------------------------+"
+#        if [ "${__warnings}" -eq 1 ]; then
+#            echo "| <!> with some warnings <!>    |"
+#        fi
         echo "+------------------------------+"
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
-
-	${__toplevel}/src/update_resources.sh ${__toplevel}
-        ${__toplevel}/maestro/suites/midas_system_tests/update_abs.dot.sh ${__toplevel}
-
+#
+#        ${__toplevel}/src/update_resources.sh ${__toplevel}
+#        ${__toplevel}/maestro/suites/midas_system_tests/update_abs.dot.sh ${__toplevel}
+#
         if [ "${MIDAS_COMPILE_CLEAN}" = true ]
         then
             echo
@@ -477,8 +413,7 @@ then
         echo "+--------------------------------------+"
         echo
         exit 1
-    fi
-fi
+    fi       #fi
 
 ##=========================================================
 ## Some final clean up if compilation (and possibly linking

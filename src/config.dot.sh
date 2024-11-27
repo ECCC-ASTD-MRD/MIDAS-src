@@ -194,9 +194,6 @@ fi
 # Shortcut commands for cmake and make
 alias cado=${PWD}/cado
 
-# Autocomplete for commands
-source ./_cado
-
 export COMPF
 export FOPTMIZ
 
