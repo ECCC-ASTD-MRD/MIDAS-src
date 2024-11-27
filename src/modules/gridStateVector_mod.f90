@@ -17,6 +17,7 @@ module gridStateVector_mod
   use utilities_mod
   use message_mod
   use physicsFunctions_mod
+  use localizationFunction_mod
   implicit none
   save
   private
@@ -5530,7 +5531,8 @@ module gridStateVector_mod
   ! gsv_smoothHorizontal
   !--------------------------------------------------------------------------
   subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, &
-                                  varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt)
+                                  varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt, &
+                                  horizSmoothShape_opt)
     !
     ! :Purpose: To apply a horizontal smoothing to all of the fields according
     !           to the specified horizontal length scale
@@ -5545,6 +5547,7 @@ module gridStateVector_mod
     real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:) ! Integer value field used to apply smoothing separately for each 
     real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)      ! Similar to binInteger, but using a real-valued field
     real(8),          optional, intent(in)    :: binRealThreshold_opt  ! Threshold value used to distinguish between values of binReal
+    character(len=*), optional, intent(in)    :: horizSmoothShape_opt  ! Shape of smoothing function
 
     ! Locals:
     type(struct_gsv), pointer :: stateVector
@@ -5554,11 +5557,12 @@ module gridStateVector_mod
     integer :: latBeg, latEnd, lonBeg, lonEnd
     integer :: myBinInteger
     real(8), allocatable :: smoothedField(:,:)
-    real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance
+    real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance, weight, sumWeight
     real(8) :: binRealThreshold, myBinReal
     real(4), pointer :: binInteger(:,:,:)
     real(8), pointer :: binReal(:,:)
     logical :: maskNegatives, binIntegerTest, binRealTest
+    character(len=10) :: horizSmoothShape
     
     call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
 
@@ -5584,6 +5588,19 @@ module gridStateVector_mod
       end if
     else
       binRealTest = .false.
+    end if
+
+    if (present(horizSmoothShape_opt)) then
+      horizSmoothShape = horizSmoothShape_opt
+    else
+      horizSmoothShape = 'tophat'
+    end if
+    if (horizSmoothShape /= 'tophat' .and. &
+        horizSmoothShape /= 'gaussian') then
+      call utl_abort('gsv_smoothHorizontal: Invalid value of horizSmoothShape: ' // trim(horizSmoothShape))
+    end if
+    if (horizSmoothShape == 'gaussian') then
+      call lfn_Setup('FifthOrder')
     end if
 
     if (stateVector_inout%mpi_distribution /= 'VarsLevs' .and. stateVector_inout%mpi_local) then
@@ -5635,14 +5652,16 @@ module gridStateVector_mod
         end if
 	
         smoothedField(:,:) = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,count,latBeg,latEnd,lonBeg,lonEnd, &
-        !$OMP                     myBinInteger,myBinReal,latIndex2,lonIndex2,lat2_r8,lon2_r8,distance)
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,count,sumWeight, &
+        !$OMP                     latBeg,latEnd,lonBeg,lonEnd,myBinInteger,myBinReal, &
+        !$OMP                     latIndex2,lonIndex2,lat2_r8,lon2_r8,distance,weight)
         latLoop: do latIndex = 1, stateVector%nj
           lonLoop: do lonIndex = 1, stateVector%ni
 	  
             lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
             lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
             count = 0
+            sumWeight = 0.0D0
             latBeg = max(1, latIndex - maxDeltaIndex)
             latEnd = min(stateVector%nj, latIndex + maxDeltaIndex)
             lonBeg = max(1, lonIndex - maxDeltaIndex)
@@ -5681,20 +5700,29 @@ module gridStateVector_mod
                   if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle lonLoop2
                 end if
 
+                if (horizSmoothShape == 'tophat') then
+                  weight = 1.0D0
+                else if (horizSmoothShape == 'gaussian') then
+                  weight = lfn_Response(distance,horizontalScale)
+                else
+                  weight = 0.0D0
+                end if
+
                 count = count + 1
+                sumWeight = sumWeight + weight
                 if (stateVector%dataKind == 8) then
                   smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + &
-                                                     stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex)
+                                                     weight*stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex)
                 else
                   smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + &
-                                                     real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
+                                                     weight*real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
                 end if
             
 	      end do lonLoop2
             end do latLoop2
 
-	    if (count > 0) then
-              smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / real(count,8)
+	    if (sumWeight > 0.0D0) then
+              smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / sumWeight
             else
               if (maskNegatives) smoothedField(lonIndex,latIndex) = mpc_missingValue_r8
             end if

@@ -113,6 +113,7 @@ contains
     logical  :: useMemberAsHuRefState ! use each member as reference state for variable transforms
     logical  :: use4Drecentering3Densemble ! Choose to use 4D recentering analysis with 3D ensemble
     real(8)  :: horizSmoothMeanInc ! Length scale (in meters) for smoothing the control member increment
+    character(len=10) :: horizSmoothMeanIncShape ! Shape of smoothing function ('tophat' or 'gaussian')
 
     NAMELIST /namEnsPostProcModule/randomSeed, includeYearInSeed, writeSubSample, writeSubSampleUnPert,  &
                                    alphaRTPS, alphaRTPP, alphaRandomPert, alphaRandomPertSubSample,      &
@@ -124,7 +125,7 @@ contains
                                    etiket_anlmean_raw, etiket_anlrms_raw,  &
                                    etiket_trlmean, etiket_trlrms, numBits, numBits2D, useAnalIncMask,  &
                                    writeRawAnalStats, useMemberAsHuRefState, use4Drecentering3Densemble, &
-                                   horizSmoothMeanInc
+                                   horizSmoothMeanInc, horizSmoothMeanIncShape
 
     ! Check if the two numSteps are as expected
     if (tim_nstepobs == tim_nstepobsinc .or. &
@@ -196,6 +197,7 @@ contains
     useMemberAsHuRefState = .false.
     use4Drecentering3Densemble = .false.
     horizSmoothMeanInc = MPC_missingValue_R8 ! A large negative value
+    horizSmoothMeanIncShape = 'tophat'
 
     !- Read the namelist
     call utl_tmg_start(181,'low-level--readNML')
@@ -566,7 +568,8 @@ contains
 
         !- Horizontally smooth the mean increment if requested
         if (horizSmoothMeanInc > 0.0d0) then
-          call gsv_smoothHorizontal(stateVectorMeanInc4D, horizSmoothMeanInc)
+          call gsv_smoothHorizontal(stateVectorMeanInc4D, horizSmoothMeanInc, &
+                                    horizSmoothShape_opt = horizSmoothMeanIncShape)
         end if
       else
         call gsv_varNamesList(varNames, stateVectorMeanAnl)
@@ -599,7 +602,8 @@ contains
 
         !- Horizontally smooth the mean increment if requested
         if (horizSmoothMeanInc > 0.0d0) then
-          call gsv_smoothHorizontal(stateVectorMeanInc, horizSmoothMeanInc)
+          call gsv_smoothHorizontal(stateVectorMeanInc, horizSmoothMeanInc, &
+                                    horizSmoothShape_opt = horizSmoothMeanIncShape)
         end if
       end if
 
