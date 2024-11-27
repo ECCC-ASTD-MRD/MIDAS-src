@@ -62,7 +62,43 @@ __abs_external='splitobs'
 __abs_all="${__abs_all} ${__abs_external}"
 
 ##=========================================================
-##  MIDAS configuration
+##  parsing input and building job for submissions
+##
+
+if [ $# -gt 0 ]
+then
+    while [[ $# > 0 ]]; do
+        arg=${1}
+
+        if [[ "${arg}" = -d || "${arg}" = -debug || "${arg}" = --debug ]]; then
+            export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes
+        elif [[ "${arg}" = --opt-report ]]; then
+            export MIDAS_COMPILE_OPTIMIZE_REPORT=yes
+        elif [[ "${arg}" = --optreport ]]; then
+            echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
+            exit 1
+        elif [[ "${arg}" = --codecov ]]; then
+            if [[ $# -lt 2 ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            elif [[ ${2} = -* || -z "${2}" ]]; then
+                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                exit 1
+            fi
+            export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}
+            shift
+        elif [[ "${arg}" = -* ]]; then
+            echo "midas_build: this option '${arg}' is not allowed" >&2
+            exit 1
+        else
+            echo "midas_build: this option '${arg}' is not allowed" >&2
+            exit 1
+        fi
+
+        shift
+    done ## End of 'while [[ $# > 0 ]]'
+fi
+
 __midas_dot_cfg=${__here}/config.dot.sh
 echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
 __midas_source_config_status__=0
