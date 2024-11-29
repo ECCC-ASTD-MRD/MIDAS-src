@@ -4,32 +4,26 @@
 ##  MIDAS automated build script
 ##
 ##  @SYNOPSIS
-##      * edit configuration: `./config.dot.sh`
+##      * specify your configuration by exporting some MIDAS_ variables in the environment
+##        (consult `./config.dot.sh` for these variables)
 ##
-##      * compile, link and install all programs on both architectures
+##      * compile, link and install all programs
 ##        ```
 ##        ./midas_build
 ##        ```
-##      * build specific targets on both architectures
-##        ```
-##        ./midas_build [ <target_1> [ <target_2> [ ... ] ] ]
-##        ```
 ##      * use '-d', '-debug' or '--debug' to activate debug options, which is equivalent to setting 'MIDAS_COMPILE_ADD_DEBUG_OPTIONS=yes'
 ##      * use '-opt-report' to activate compiler optimization report, which is equivalent to setting 'MIDAS_COMPILE_OPTIMIZE_REPORT=yes'
-##      * use '--codepath ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
+##      * use '--codecov ${datapath}' to activate code coverage, which is equivalent to setting 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${datapath}'
 ##
-##      * install auto-completion feature
-##        ```
-##        ./install_build_completion.sh
-##        source ${HOME}/.bash_completion
-##        ```
 ##
 ##  @REFERENCES
 ##      * `./README.md`
-##      * `./Makefile`
 ##
 ##  @AUTHORS
 ##      Martin Deshaies-Jacques (@mad001) - CMDA - January 2020
+##
+##  @MAJOR MODIFICATIONS
+##      * november 2024 - adapatation and simplification for the usage of cmake
 ##
 ###############################################################################
 
@@ -78,10 +72,10 @@ then
             exit 1
         elif [[ "${arg}" = --codecov ]]; then
             if [[ $# -lt 2 ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2
                 exit 1
             elif [[ ${2} = -* || -z "${2}" ]]; then
-                echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
+                echo "midas_build: The option '--codecov' must be followed by a path where to put the code coverage files" >&2
                 exit 1
             fi
             export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${2}

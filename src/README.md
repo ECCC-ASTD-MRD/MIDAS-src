@@ -2,13 +2,10 @@
 
 The present `README` **assumes you are in the `src` directory** (the directory in which is this `README`), meaning onward `./` points to the `src` directory.
 
-The former compilation solution is still functionning, although there is a
-change in the [environment variable naming convention](#new-environment-variable-convention).
-
-
 ## Using midas_build - for most use cases
 
-Although the present build strategy is based on [GNU make](https://www.gnu.org/software/make/),
+Although the present build strategy is based on [cmake](https://cmake.org)
+which in turn produces makefiles for [GNU make](https://www.gnu.org/software/make/),
 we provide a fully automated build wrapper script that should be used in most use cases:
 **`midas_build`**.  It builds MIDAS executables using multicore compilation and does some
 error checking.
@@ -22,7 +19,7 @@ You can either modify and export them in your shell or add them to your profile.
 
 Their default values (in parentheses), **should be good for most users**.
 
-* `MIDAS_COMPILE_DIR_MAIN` : directory where build directories and the
+* `MIDAS_COMPILE_DIR_MAIN (unset)`: directory where build directories and the
   executables directory will be.  Each git version will have its build
   directory `${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${VERSION}`, but
   executables **of all versions** will be in
@@ -121,34 +118,6 @@ It will
 Please remember to remove listings (`./midasCompilitation.*`) that are in the
 `src` directory.
 
-### Using `midas_build` for specific targets
-
-`midas_build` is a wrapper around `make`; it defaults to compiling,
-linking and installing all the absolutes on both architectures, but it can also
-be used to build specific targets by passing it as arguments:
-```
-$ ./midas_build obsSelection.Abs var.Abs
-```
-
-A *target* is something (often a file) to build; you can get information on
-available targets by calling `make help`.
-See [this section](#using-make-advanced-use-cases) for more on targets.
-
-If the targets contains absolutes (`*.Abs`), `midas_build` will also install these and a
-sucessful installation of a subsets of programs will be confirmed with the display
-```
-+------------------------------+
-|                              |
-| MIDAS INSTALLATION COMPLETED |
-|                              |
-+------------------------------+
-    All target programs have been installed correctly!
-    * <target_program_1>
-    * <target_program_2>
-    ...
-```
-
-If there is no absolute in the target list, **there won't be this display**.
 
 ### Activate the debug options for compilation
 
@@ -158,33 +127,6 @@ to `yes`, the debug options will be enabled at compilation.
 The `midas_build` options `--debug`, `-debug` or `-d` will also enable
 the debug options avoiding to set the environment variable prior to
 compilation.
-
-### Auto-completion
-
-`midas_build` comes with a bash auto-completion feature, such that argument
-passing can be auto-completed by pressing `<TAB>`:
-```
-$ ./midas_build <TAB><TAB>
-Display all 143 possibilities? (y or n)
-$ ./midas_build obsImpact.<TAB><TAB>
-obsImpact.Abs  obsImpact.o
-```
-
-However, this feature needs to be installed:
-```
-./install_build_completion.sh
-...
-Auto completion for midas_build installed
-
-To use it directly (in the present shell):
-   source ${HOME}/.bash_completion
-(in any case, it will be automatically loaded on next shells)
-
-```
-This will create a file `~/.bash_completion` and a directory
-`~/.bash_completion.d` in your home.
-For it to be functionnal in the present shell, you'll have to source
-`~/.bash_completion.d` (it will be automatic in future shells).
 
 ### New environment variable convention
 In the spirit of uniformizing environment variable convention across our
@@ -204,69 +146,35 @@ and you should remove them.
 The program `splitobs` is built by default with the other programs as described
 in the [section Building all](#building-all).  It can also be built as a specific
 program in the same manner as described in the
-[previous section](#using-midas_build-for-specific-targets).
+[advanced use cases section](#using-make-advanced-use-cases).
 
-However, under the hood, the sources and compilation are dealt with in a totally
-independant manner and can be found in [`../tools/splitobs`](./tools/splitobs).
+The sources can be found in [`../tools/splitobs`](./tools/splitobs).
 
 ## Adding a new program or changing external dependencies
 
 Internal dependencies (the `use` statements in the programs and modules) are
-dealt with automatically (consult the section
-[Automatic dependencies](#automatic-dependencies)).
+dealt with automatically by `cmake`.
 
 External dependencies however, that are needed at link time by the programs,
 need to be specified by the contributor in the file
-[`./programs/programs.mk`](programs/programs.mk).
+[`./programs/CMakeLists.txt`](programs/CMakeLists.txt).
 
 So **when a new program is added** or when **external libraries change for an
-existing program**, edit the [`./programs/programs.mk`](programs/programs.mk)
-file and list all external libraries (previously in `compile_setup_${PGM}.sh`)
+existing program**, edit the [`./programs/CMakeLists.txt`](programs/CMakeLists.txt)
+file and list all external libraries (previously in `programs/programs.mk`)
 as prerequisite of the absolute target, such as:
-```
-var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
-         rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-         $(HDF5_LIBS) burpmodule $(VGRID_LIBNAME) irc $(MPILIB) random
+```cmake
+add_executable(var var.f90)
+target_link_libraries(var PRIVATE MPI::MPI_Fortran rmn::rmn-ompi rpncomm::rpncomm vgrid::vgrid  midas
+${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module irc random hpcoperf)
 ```
 
 ### New external dependencies in a module
 When new external dependencies are added in a module, it will potentially impact
 multiple programs (for which the dependencies will have to be added as described
 above).
-You are refered to the section [Automatic dependencies](#automatic-dependencies)
-for a general discussion on the dependency tree processing.
 
-First you will need to have the dependency files (`dep.{obj,abs}.inc`) which are
-produced first thing when `make` (or `midas_build`) is called for any target
-(or even just through [autocompletion attempt](#auto-completion)).
-Most probably they are already there in the build directory (at least on the
-frontend):
-`${MIDAS_COMPILE_DIR_MAIN}/midas_bld-$(../midas.version)/ubuntu-18.04-skylake-64/intel-19.0.3.19/dep.{obj,abs}.inc`
-(`${MIDAS_COMPILE_DIR_MAIN}` is by default linked to `../compiledir`).
-If they aren't, you can either launch `midas_build` or faster:
-```sh
-source config.dot.sh && make depend
-```
-
-The script [`analyzeDep.py`](analyzeDep.py) can be used to analyze the
-dependency tree to determine which absolutes are concerned by the
-introduction of new dependencies in a given module; those absolutes outputed are
-the ones for which you need to add the new external dependencies in their
-respective sections of `./programs/programs.mk`.
-
-For example, say you add an external `newlib` through a `use` statement in
-`varqc_mod.f90`, then you will call `./analyzeDep.py` to find which
-programs will need it at link time:
-```bash
-$ source config.dot.sh
-$ ./analyzeDep.py -a varqc
-The following absolutes depends on innovation:
-  * oMinusF.Abs
-  * var.Abs
-  * var1D.Abs
-```
-You would then add `newlib` to `oMinusF.Abs`, `var.Abs` and `var1D.Abs`
-sections of `./programs/programs.mk`.
+<!-- TODO: is it still an issue-->
 
 ### Addressing circular dependency issues
 A circular dependency happens when a module uses another module

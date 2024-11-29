@@ -91,7 +91,6 @@ export MIDAS_COMPILE_DIR_MAIN=${__midas_compile_dir_main}
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
 MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
-MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
 __install_always_midas=true
 
 if [ "${MIDAS_COMPILE_APPEND_VERSION_ID_BUILDDIR}" = true ]; then
@@ -201,7 +200,6 @@ export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
 export MIDAS_ABS_LEAFDIR
 export MIDAS_COMPILE_VERBOSE
-export MIDAS_MAKEDEP_TIMEOUT
 
 export MIDAS_SSM_TARGET
 export MIDAS_SSM_PKGNAME
