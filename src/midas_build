@@ -37,7 +37,6 @@
 ## some prior defitions
 typeset __job
 typeset __job_opt
-typeset __job_test_target
 typeset __here
 typeset __abs_all
 
@@ -114,6 +113,20 @@ mv .tmp.config.out ${__listing_config}
 
 ##=========================================================
 ##  functions
+function dryRun {
+    __exitCode=1
+    __libmidas_expected_location="${MIDAS_COMPILE_DIR_MAIN}/src/modules/libmidas.a"
+    echo "Testing MIDAS static library building"
+    make -n midas > /dev/null 2>&1 || return ${__exitCode}
+    echo "Testing the global build"
+    # simulating the presence of libmidas.a prerequisite for all programs
+    touch ${__libmidas_expected_location}
+    # testing the build assuming libmidas.a is present
+    make -n > /dev/null 2>&1 && __exitCode=0
+    rm  ${__libmidas_expected_location}
+    return ${__exitCode}
+}
+
 function are_jobs_completed {
     set -e
     typeset job_or_pid_front=$1
@@ -224,21 +237,18 @@ rm .tmp.cmake.out
 
 ##=========================================================
 ## testing CMake configuration
-#__job_test_target="make -n ${__job_opt}"
-#
-###-- lauching dry-run to test target
-#${__job_test_target} > /dev/null 2>&1 || {
-#    echo
-#    echo "+--------------------+"
-#    echo "|                    |"
-#    echo "| DRY RUN FAILED!    |"
-#    echo "| check cmake output |"
-#    echo "|                    |"
-#    echo "+--------------------+"
-#    exit 1
-#    }
+## -- lauching dry-run to test target
 
-
+dryRun || {
+    echo
+    echo "+--------------------+"
+    echo "|                    |"
+    echo "| DRY RUN FAILED!    |"
+    echo "| check cmake output |"
+    echo "|                    |"
+    echo "+--------------------+"
+    exit 1
+    }
 
 ##=========================================================
 ##  Checking presence of absolute targets in programs.mk
