@@ -242,7 +242,7 @@ if [ -n "${trials}" ]; then
         done
     elif [ -f "${trials}" ]; then
 
-        filetype=`r.filetype ${trials}`
+        r.filetype ${trials} || filetype=$?
 
         case "${filetype}" in 
 
