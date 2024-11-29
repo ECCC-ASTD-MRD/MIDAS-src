@@ -3093,10 +3093,16 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      isCloudVariable = vnl_isCloudVar( gsv_getVarNameFromVarLev(stateVector,varLevIndex) )
-      if (isCloudVariable .and. nearesNeighbourInterpForCloudVariables) then
-        dldx = real(nint(dldx), 8)
-        dldy = real(nint(dldy), 8)
+      if (nearesNeighbourInterpForCloudVariables) then
+        if (varLevIndex > 0) then
+          isCloudVariable = vnl_isCloudVar( gsv_getVarNameFromVarLev(stateVector,varLevIndex) )
+        else
+          isCloudVariable = .false.
+        end if
+        if (isCloudVariable) then
+          dldx = real(nint(dldx), 8)
+          dldy = real(nint(dldy), 8)
+        end if
       end if
       
       if ( mask(leftIndex ,bottomIndex) ) then
