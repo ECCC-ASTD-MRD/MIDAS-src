@@ -819,6 +819,7 @@ contains
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
     namelist /NAMTOV/ oldFashionIRSeaEmiss
+    
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
     tvs_headerEnd = -1
@@ -832,7 +833,6 @@ contains
     end if
  
     !   1.1 Default values for namelist variables
-
     nsensors = MPC_missingValue_INT
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
@@ -924,7 +924,6 @@ contains
     end if
 
     !  1.5 Print the content of this NAMELIST
-
     if (mmpi_myid == 0) then
       write(*,'(A)') 
       write(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
