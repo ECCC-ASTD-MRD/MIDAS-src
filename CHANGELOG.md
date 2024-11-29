@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Introduction of `oldFashionIRSeaEmiss` logical variable in `NAMTOV` namelist section (#997 and !904)
+ * Introduction of a new way to compute hyperspectral IR sea surface emissivity controlled by `oldFashionIRSeaEmiss` logical variable in `NAMTOV` namelist section (#997 and !904)
 
 ### Changed
 
