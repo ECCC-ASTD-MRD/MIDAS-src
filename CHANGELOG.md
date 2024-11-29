@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * The script 'midas.launch' runs fine when a single trial file is supplied (#1009 and !907)
+ * Corrected `midas.launch` bug when a single trial file is supplied (#1009 and !907).
 
 ### Removed
 
