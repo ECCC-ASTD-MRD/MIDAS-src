@@ -98,7 +98,7 @@ module stateToColumn_mod
   logical :: useFootprintForTovs           ! choose to use a horizontal footprint operator for radiance obs
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
-  character(len=4) :: nearestNeighbourVariableList(10) ! List of variable to interpolate using nearest neighbour interpolation instead of bilinear
+  logical :: nearesNeighbourInterpForCloudVariables ! to perform nearest neighbour horizontal interpolation for cloudy variables
 
 contains 
 
@@ -380,7 +380,7 @@ contains
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
     namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
-    namelist /nams2c/ nearestNeighbourVariableList
+    namelist /nams2c/ nearesNeighbourInterpForCloudVariables
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     call msg_memUsage('s2c_setupInterpInfo')
@@ -405,7 +405,7 @@ contains
       useFootprintForTovs = .false.
       rejectObsNonMonotonicPressure =.true.
       rejectObsOutsideGlobalGrid = .false.
-      nearestNeighbourVariableList(:) = 'XXXX'
+      nearesNeighbourInterpForCloudVariables = .false.
 
       if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mmpi_myid == 0 ) then
@@ -2958,15 +2958,14 @@ contains
     integer :: ipoint, gridptCount
     integer :: latIndexVec(4), lonIndexVec(4)
     logical :: mask(2,2)
-    logical :: nearestNeighbour
     real(8) :: WeightVec(4)
     real(8) :: dldx, dldy
     real(8) :: weightsSum
     real(4) :: lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     integer, parameter :: leftIndex = 1, rightIndex = 2, bottomIndex = 1, topIndex = 2
-
-    nearestNeighbour = .false.
+    logical :: isCloudVariable
+    
     numGridpt(:) = 0
 
     lat_deg_r4 = real(interpInfo%stepProcData(procIndex, stepIndex)%allLat(headerIndex, varLevIndex) *  &
@@ -3093,10 +3092,13 @@ contains
         dldx = real(xpos2_r4,8) - real(lonIndex,8)
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
-      if (nearestNeighbour) then
-        dldx = real(nint(dldx),8)
-        dldy = real(nint(dldy),8)
+
+      isCloudVariable = vnl_isCloudVar( gsv_getVarNameFromVarLev(stateVector,varLevIndex) )
+      if (isCloudVariable .and. nearesNeighbourInterpForCloudVariables) then
+        dldx = real(nint(dldx), 8)
+        dldy = real(nint(dldy), 8)
       end if
+      
       if ( mask(leftIndex ,bottomIndex) ) then
         gridptCount = gridptCount + 1
         latIndexVec(gridptCount) = latIndex
