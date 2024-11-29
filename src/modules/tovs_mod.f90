@@ -805,7 +805,7 @@ contains
     integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
-    logical :: oldFashionIRSeaEmiss
+    logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
     
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -857,9 +857,9 @@ contains
     mwAllskyAssim = .false.
     copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false.
-    oldFashionIRSeaEmiss = .true. 
+    oldFashionIRSeaEmiss = .true.
+    
     !   1.2 Read the NAMELIST NAMTOV to modify them
- 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namtov, iostat=ierr)
     if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist NAMTOV')
@@ -902,8 +902,8 @@ contains
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
-    !  1.4 Validate namelist values
     
+    !  1.4 Validate namelist values
     if (tvs_nsensors == 0) then
       if (mmpi_myid == 0) then 
         write(*,*) ' ====================================================='
