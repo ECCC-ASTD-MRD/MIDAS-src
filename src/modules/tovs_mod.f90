@@ -120,6 +120,7 @@ module tovs_mod
   real(pre_obsReal), public, parameter :: tvs_defaultEmissivity = 0.95
 
   ! Protected module variables
+  logical, public, protected :: tvs_oldFashionIRSeaEmiss ! use of the old Masuda IR emissivity instead of built-in RTTOV IREMIS
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
   integer, public, protected :: tvs_headerEnd ! header index of the last radiance observation
@@ -804,7 +805,8 @@ contains
     integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
-
+    logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
+    
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
@@ -816,7 +818,8 @@ contains
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
-
+    namelist /NAMTOV/ oldFashionIRSeaEmiss
+    
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
     tvs_headerEnd = -1
@@ -830,7 +833,6 @@ contains
     end if
  
     !   1.1 Default values for namelist variables
-
     nsensors = MPC_missingValue_INT
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
@@ -855,9 +857,9 @@ contains
     mwAllskyAssim = .false.
     copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false.
+    oldFashionIRSeaEmiss = .true.
     
     !   1.2 Read the NAMELIST NAMTOV to modify them
- 
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml=namtov, iostat=ierr)
     if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist NAMTOV')
@@ -899,9 +901,9 @@ contains
     tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
+    tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     
     !  1.4 Validate namelist values
-    
     if (tvs_nsensors == 0) then
       if (mmpi_myid == 0) then 
         write(*,*) ' ====================================================='
@@ -922,7 +924,6 @@ contains
     end if
 
     !  1.5 Print the content of this NAMELIST
-
     if (mmpi_myid == 0) then
       write(*,'(A)') 
       write(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
@@ -3752,7 +3753,7 @@ contains
   !--------------------------------------------------------------------------
   !  emis_getIrEmissivity
   !--------------------------------------------------------------------------
-  subroutine emis_getIrEmissivity (surfem1, nchn, sensorIndex, nprf, nchannels_max, sensorHeaderIndexes)
+  subroutine emis_getIrEmissivity (surfem1, nchn, sensorIndex, nprf, btCount, sensorHeaderIndexes)
     !
     ! :Purpose: Assign new ir surface emissivities based on
     !           cmc analysis surface albedo, sea ice fraction and snow mask
@@ -3763,17 +3764,21 @@ contains
    
     ! Arguments:
     integer, intent(in)  :: nprf                     ! Number of profiles
-    integer, intent(in)  :: nchannels_max            ! Total number of observations treated
-    real(8), intent(out) :: surfem1(nchannels_max)   ! IR surface emissivity estimate (0-1)
+    integer, intent(in)  :: btCount                  ! Total number of observations treated
+    real(8), intent(out) :: surfem1(btCount)         ! IR surface emissivity estimate (0-1)
     integer, intent(in)  :: nchn                     ! Number of channels
     integer, intent(in)  :: sensorindex              ! Sensor number
     integer, intent(in)  :: sensorHeaderIndexes(nprf)! header indexes of radiance observations for the currently processed sensor
 
     ! Locals:
-    integer :: channelIndex,profileIndex, headerIndex
-    integer :: ilat(nprf), ilon(nprf)
+    integer :: channelIndex, profileIndex, headerIndex, errorStatus
+    integer :: btIndex
+    integer :: ilat(nprf), ilon(nprf), surfType(nprf)
     real(8) :: latitudes(nprf), longitudes(nprf), satzang(nprf)
     real(8) :: wind_sfc(nprf), f_low(nprf), waven(nchn), em_oc(nchn,nprf), emi_mat(nchn,20)
+    real(8) :: emissivity(btCount)
+    logical :: thermal(btCount), calcemis(btCount)
+    type(rttov_geometry) :: geometry(nprf) 
 
     ! Information to extract (transvidage)
     ! latitudes(nprf) -- latitude (-90 to 90)
@@ -3793,35 +3798,63 @@ contains
     !  Find the sensor bands (central) wavenumbers
     do channelIndex = 1, nchn      
       waven(channelIndex) = tvs_coefs(sensorIndex) % coef % ff_cwn(channelIndex)
-    end do
-
+    end do 
 
     !  Get the CERES emissivity matrix for all sensor wavenumbers and surface types
     call ceres_ematrix(emi_mat, waven,nchn)
 
-
-    ! Refine water emissivities
-
-    do profileIndex = 1, nprf
-      !       find surface wind
-      headerIndex = sensorHeaderIndexes(profileIndex)
-      wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(headerIndex) % s2m %u**2 + tvs_profiles_nl(headerIndex) % s2m % v**2 + 1.d-12),15.d0)
-    end do
-
-    !     find new ocean emissivities     
-
-    do channelIndex = 1, nchn
-      em_oc(channelIndex,:)= emi_mat(channelIndex,17)
-    end do
-    
-    call emi_sea (em_oc, waven,satzang,wind_sfc,nprf,nchn)
-    
+    if (tvs_oldFashionIRSeaEmiss) then
+      do profileIndex = 1, nprf
+        !       find surface wind
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(headerIndex) % s2m %u**2 + tvs_profiles_nl(headerIndex) % s2m % v**2 + 1.d-12),15.d0)
+      end do
+      ! Refine water emissivities
+      !     find new ocean emissivities  
+      do channelIndex = 1, nchn
+        em_oc(channelIndex,:)= emi_mat(channelIndex,17)
+      end do
+      call emi_sea (em_oc, waven,satzang,wind_sfc,nprf,nchn)
+    else
+      thermal(:) = .true.
+      calcemis(:) = .true.
+      do profileIndex = 1, nprf
+        geometry(profileIndex) % normzen = tvs_profiles_nl(sensorHeaderIndexes(profileIndex))%zenangle / 60.0_jprb
+        ! Save RTTOV surface type
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        surfType(profileIndex) = tvs_profiles_nl(headerIndex) % skin % surftype
+        tvs_profiles_nl(headerIndex) % skin % surftype = surftype_sea
+      end do
+      call rttov_calcemis_ir(                      &
+          errorStatus,                             &
+          tvs_opts(sensorIndex),                   &
+          tvs_chanProf(1:btCount,sensorIndex),     &
+          tvs_profiles_nl(sensorHeaderIndexes),    &
+          geometry,                                &
+          tvs_coefs(sensorIndex),                  &
+          thermal,                                 &
+          calcemis,                                &
+          emissivity)
+      if (errorStatus /= 0) then
+        call utl_abort('emis_getIrEmissivity: problem in rttov_calcemis_ir')
+      end if
+      !Restore RTTOV surface type
+      do profileIndex = 1, nprf
+        headerIndex = sensorHeaderIndexes(profileIndex)
+        tvs_profiles_nl(headerIndex) % skin % surftype = surfType(profileIndex)
+      end do
+      do btIndex = 1, btCount
+        profileIndex = tvs_chanProf(btIndex,sensorIndex)%prof
+        channelIndex = tvs_chanProf(btIndex,sensorIndex)%chan
+        em_oc(channelIndex,profileIndex) = emissivity(btIndex)
+      end do
+    end if
 
     ! Get surface emissivities
 
     do profileIndex = 1, nprf
-      !       set albedo to 0.6 where snow is present
       headerIndex = sensorHeaderIndexes(profileIndex)
+      !       set albedo to 0.6 where snow is present
       if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % albedo = 0.6
       !       if albedo too high no water
       if (tvs_surfaceParameters(headerIndex) % albedo >= 0.55) tvs_surfaceParameters(headerIndex) % pcnt_wat = 0.

@@ -23,6 +23,7 @@ public
 #include "rttov_print_profile.interface"
 #include "rttov_print_opts.interface"
 #include "rttov_get_emis.interface"
+#include "rttov_calcemis_ir.interface"
 #include "rttov_setup_emis_atlas.interface"
 #include "rttov_read_coefs.interface"
 #include "rttov_dealloc_coefs.interface"
