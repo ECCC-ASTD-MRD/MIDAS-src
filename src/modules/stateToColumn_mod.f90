@@ -98,7 +98,7 @@ module stateToColumn_mod
   logical :: useFootprintForTovs           ! choose to use a horizontal footprint operator for radiance obs
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
-  logical :: nearesNeighbourInterpForCloudVariables ! to perform nearest neighbour horizontal interpolation for cloudy variables
+  logical :: NNInterpForCloudVars ! to perform nearest neighbour horizontal interpolation for cloudy variables
 
 contains 
 
@@ -380,7 +380,7 @@ contains
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
     namelist /nams2c/ useFootprintForTovs, rejectObsNonMonotonicPressure, rejectObsOutsideGlobalGrid
-    namelist /nams2c/ nearesNeighbourInterpForCloudVariables
+    namelist /nams2c/ NNInterpForCloudVars
 
     write(*,*) 's2c_setupInterpInfo: STARTING'
     call msg_memUsage('s2c_setupInterpInfo')
@@ -405,7 +405,7 @@ contains
       useFootprintForTovs = .false.
       rejectObsNonMonotonicPressure =.true.
       rejectObsOutsideGlobalGrid = .false.
-      nearesNeighbourInterpForCloudVariables = .false.
+      NNInterpForCloudVars = .false.
 
       if (.not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
         if ( mmpi_myid == 0 ) then
@@ -3093,7 +3093,7 @@ contains
         dldy = real(ypos2_r4,8) - real(latIndex,8)
       end if
 
-      if (nearesNeighbourInterpForCloudVariables) then
+      if (NNInterpForCloudVars) then
         if (varLevIndex > 0) then
           isCloudVariable = vnl_isCloudVar( gsv_getVarNameFromVarLev(stateVector,varLevIndex) )
         else
