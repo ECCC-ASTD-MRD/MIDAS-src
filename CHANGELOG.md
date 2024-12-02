@@ -8,11 +8,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added new way to compute hyperspectral IR ocean emissivity activated by oldFashionIRSeaEmiss=.false. in NAMTOV (#997 and !904)
+ * Added new way to compute hyperspectral IR ocean emissivity activated by `oldFashionIRSeaEmiss=.false.` in `NAMTOV` (#997 and !904)
 
 ### Changed
 
- * (Nothing yet)
+ * The test `/Tests/var/EnVar/rdps` is replaced by `/Tests/var/EnVar/hrdps` (#995 and !908)
 
 ### Fixed
 
