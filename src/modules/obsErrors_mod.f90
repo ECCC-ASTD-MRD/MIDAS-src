@@ -2278,6 +2278,8 @@ contains
     ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,jlev
     integer :: iass,ixtr,ivco,ivnm,iqiv,iqiv1,iqiv2,imet,ilsv,igav,ihav,itrn,J_SAT
+    integer :: ierr, satIndex, nsats, isat
+    integer, parameter :: maxSat = 99
     real(8) :: zvar,zoer
     real(8) :: zwb,zwt,ZOTR,ZMOD
     real(8) :: zlat,zlon,zlev,zpt,zpb,zpc
@@ -2285,9 +2287,16 @@ contains
     character(len=4) :: varName
     character(len=4) :: varLevel
     character(len=9) :: cstnid
+    character(len=20), allocatable :: SWname(:), QIvalue(:)
+    character(len=20), allocatable :: SWQIArray(:)
     real(8), pointer :: col_ptr_uv(:)
     logical :: passe_once, valeurs_defaut, print_debug
     logical, save :: firstCall=.true.
+
+    ! namelist variables
+    character(len=20) :: SWQI(maxSat)
+
+    namelist /NAMSW/ SWQI
 
     ! If requested, just read oer from the burp file (only 1st time)
     if(obsfile_oer_sw) then
@@ -2306,6 +2315,31 @@ contains
 
     if (firstCall) write(*,*) "Entering subroutine oer_sw"
     firstCall = .false.
+
+    ! Default values for namelist variables
+    SWQI(:) = ''
+
+    if (utl_isNamelistPresent('namsw','./flnml')) then
+      call utl_tmg_start(181,'low-level--readNML')
+      read (utl_flnml, nml = NAMSW, iostat = ierr)
+      if (ierr /= 0) call utl_abort('oer_sw: Error reading namelist')
+      if (mmpi_myid == 0) write(*,nml=namsw)
+      call utl_tmg_stop(181)
+    else
+      write(*,*)
+      call utl_abort('oer_sw: Error reading namsw in the namelist')
+    end if
+
+    nsats = get_num_sats(maxSat,SWQI)
+    allocate(SWname(nsats))
+    allocate(QIvalue(nsats))
+    !call SplitString(nsats,SWQI,SWname,QIvalue)
+    do isat = 1, nsats
+      call utl_splitString(SWQI(isat),':',SWQIArray)
+      SWname(isat) = SWQIArray(1)
+      QIvalue(isat) = SWQIArray(2)
+      deallocate(SWQIArray)
+    end do
 
     call obs_set_current_body_list(obsSpaceData, 'SW')
     BODY: do
@@ -2338,9 +2372,35 @@ contains
       if(igav == 1) itrn = 2
       if(imet >  3) imet = 3
       if(ihav /= 4) ihav = 1
-      ! Use the quality score qiv2, but if it is missing then use qiv1
-      iqiv = iqiv2
-      if(iqiv < 0) iqiv = iqiv1
+
+      ! select qi
+      iqiv = -1
+      LOOP_QI: do satIndex = 1, nsats
+        if ( trim(SWname(satIndex)) == trim(cstnid(2:)) ) then
+          select case (trim(QIvalue(satIndex)))
+            case ('qi1')
+              iqiv = iqiv1
+              exit LOOP_QI
+            case ('qi2')
+              ! consider the case where iqiv2 <= 0
+              if (iqiv2 <= 0) then
+                iqiv = iqiv1
+                exit LOOP_QI
+              end if
+              iqiv = iqiv2
+              exit LOOP_QI
+            case default
+              call utl_abort('oer_sw: QI defined in the namelist is wrong (should be either qi1 or qi2)')
+          end select
+          exit LOOP_QI
+        end if
+        if (satIndex == nsats) call utl_abort('oer_sw: cannot find matched satellite from the namelist')
+      end do LOOP_QI
+
+      if(iqiv == -1) then
+        write(*,*) cstnid
+        call utl_abort('oer_sw: iqiv is not set appropriately')
+      end if
 
       if(valeurs_defaut) then
         E_DRIFT  = 2.5
@@ -2394,6 +2454,25 @@ contains
       if(print_debug) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
       
     end do BODY
+
+    deallocate(QIvalue)
+    deallocate(SWname)
+
+
+    contains
+
+      integer function get_num_sats(maxSat,vars)
+        implicit none
+        integer, intent(in) :: maxSat
+        character(len=20), intent(in) :: vars(maxSat)
+        integer :: varIndex
+
+        get_num_sats = 0
+        do varIndex = 1, maxSat
+          if (trim(vars(varIndex)) /= '') get_num_sats = get_num_sats + 1
+        end do
+
+      end function get_num_sats
 
   end subroutine oer_sw
 
