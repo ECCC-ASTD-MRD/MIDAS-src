@@ -655,7 +655,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat ! obsSpaceData object
 
     ! Locals:
-    integer :: headerIndex, bodyIndex, obsFlag, codtyp, headerSkip, count
+    integer :: headerIndex, bodyIndex, obsFlag, headerSkip, keepCount
     integer :: nulnam, ierr, fnom, fclos
     ! Namelist variables
     integer :: preThinPercent    ! percentage of obs to keep after pre-thinning
@@ -696,24 +696,18 @@ contains
       end if
     end if
 
-    ! Build list of unique codtyp values???
-    !HEADER0: do headerIndex = 1, obs_numHeader(obsdat)
-    !  codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
-    !end do HEADER0
-
     ! Perform the pre-thinning
-    count = 0
+    keepCount = 0
     HEADER1: do headerIndex = 1, obs_numHeader(obsdat)
-      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
-
+      ! Choose to either keep or reject obs with this headerIndex
       if (mod(headerIndex, headerSkip) == 0) then
 
-        ! keep observations with this headerIndex value
-        count = count + 1
+        ! Keep observations with this headerIndex value
+        keepCount = keepCount + 1
 
       else
 
-        ! reject observations with this headerIndex value
+        ! Reject observations with this headerIndex value
         call obs_headSet_i(obsdat, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsdat, OBS_ST1, headerIndex), 6))
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY: do
@@ -729,10 +723,10 @@ contains
 
     if (obs_numHeader(obsdat) > 0) then
       write(*,*) 'thn_preThinning: Actual percentage of observations kept = ', &
-                 100.0*real(count)/real(obs_numHeader(obsdat))
+                 100.0*real(keepCount)/real(obs_numHeader(obsdat))
     else
-      write(*,*) 'thn_preThinning: No observations on this MPI task, so no ', &
-                 'pre-thinning performed'
+      write(*,*) 'thn_preThinning: No observations on this MPI task, so no '
+      write(*,*) '                 pre-thinning performed'
     end if
 
     write(*,*) 'thn_preThinning: Finished'
