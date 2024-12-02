@@ -202,12 +202,16 @@ contains
 
     ! Locals:
     integer :: ierr
+    integer :: nsats
+    integer, parameter :: maxSat = 99
+    character(len=20), allocatable :: SWname(:), QIvalue(:)
 
     ! Namelist variables:
     integer :: deltemps ! number of time bins between adjacent observations
     integer :: deldist  ! minimal distance in km between adjacent observations
+    character(len=20) :: SWQI(maxSat)
 
-    namelist /thin_satwind/deltemps, deldist
+    namelist /thin_satwind/deltemps, deldist, SWQI
 
     ! return if no satwind obs
     if (.not. obs_famExist(obsdat,'SW')) return
@@ -215,6 +219,7 @@ contains
     ! Default values for namelist variables
     deltemps = 6
     deldist  = 200
+    SWQI(:)  = '                    '
 
     ! Read the namelist for SatWinds observations (if it exists)
     if (utl_isNamelistPresent('thin_satwind','./flnml')) then
@@ -230,9 +235,50 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_satwind)
     end if
 
+    nsats = get_num_sats(maxSat,SWQI)
+    allocate(SWname(nsats))
+    allocate(QIvalue(nsats))
+
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
+    call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist, nsats, SWname, QIvalue)
     call utl_tmg_stop(114)
+
+    contains
+
+      subroutine splitString(ndim, varIn, split1, split2)
+
+        implicit none
+
+        integer, intent(in)            :: ndim
+        character(len=20), intent(in)  :: varIn(ndim)
+        character(len=20), intent(out) :: split1(ndim), split2(ndim)
+
+        ! local variables
+        integer :: varIndex, colonPos
+
+        do varIndex = 1, ndim
+          colonPos         = INDEX(varIn(varIndex), ':')
+          split1(varIndex) = varIn(varIndex)(1:colonPos-1)
+          split2(varIndex) = varIn(varIndex)(colonPos+1:)
+        end do
+
+      end subroutine splitString
+
+      integer function get_num_sats(maxSat,vars)
+
+        implicit none
+
+        integer, intent(in)           :: maxSat
+        character(len=20), intent(in) :: vars(maxSat)
+        integer                       :: varIndex
+
+        get_num_sats = 0
+
+        do varIndex = 1, maxSat
+          if (vars(varIndex) /= '                    ') get_num_sats = get_num_sats + 1
+        end do
+
+      end function get_num_sats
 
   end subroutine thn_thinSatWinds
 
@@ -3664,7 +3710,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_satWindsByDistance
   !--------------------------------------------------------------------------
-  subroutine thn_satWindsByDistance(obsdat, familyType, deltemps, deldist)
+  subroutine thn_satWindsByDistance(obsdat, familyType, deltemps, deldist, numSats, SWname, QIvalue)
     !
     ! :Purpose: Original method for thinning SatWinds data by the distance method.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -3676,6 +3722,9 @@ contains
     character(len=*), intent(in)    :: familyType
     integer,          intent(in)    :: delTemps
     integer,          intent(in)    :: deldist
+    integer,          intent(in)    :: numSats
+    character(len=20),intent(in)    :: SWname(numSats)
+    character(len=20),intent(in)    :: QIvalue(numSats)
 
     ! Locals:
     integer, parameter :: numStnIdMax = 100
@@ -3691,6 +3740,7 @@ contains
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2
     integer :: headerIndexBeg, headerIndexEnd, mpiTaskId
+    integer :: satIndex
     real(4) :: thinDistance, deltaLat, deltaLon, obsLat1, obsLat2
     real(4) :: obsPressure
     real(8) :: obsLonInDegrees, obsLatInDegrees
@@ -3820,8 +3870,23 @@ contains
       ! extract additional information
       obsMethod(headerIndex) = obs_headElem_i(obsdat, OBS_SWMT, headerIndex)
 
-      ! set the observation quality based on QI1
-      quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+      ! set the observation quality based on QI1 or QI2
+      LOOP_QI: do satIndex = 1, numSats
+        if ( trim(SWname(satIndex)) == trim(stnId(2:)) ) then
+          select case (trim(QIvalue(satIndex)))
+            case ('qi1')
+              write(*,*) 'thn_satWindsByDistance: ', trim(SWname(satIndex)), ' ', trim(QIvalue(satIndex))
+              quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
+            case ('qi2')
+              write(*,*) 'thn_satWindsByDistance: ', trim(SWname(satIndex)), ' ', trim(QIvalue(satIndex))
+              quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ2, headerIndex)
+            case default
+              call utl_abort('thn_satWindsByDistance: QI defined in the namelist is wrong (should be either qi1 or qi2)')
+          end select
+          exit LOOP_QI
+        end if
+        if (satIndex == numSats) call utl_abort('thn_satWindsByDistance: cannout find matched satellite from the namelist')
+      end do LOOP_QI
 
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = nullValue
