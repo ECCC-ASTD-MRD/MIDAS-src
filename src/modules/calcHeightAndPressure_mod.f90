@@ -706,7 +706,7 @@ contains
     real(8) ::  ScaleFactorBottom, ScaleFactorTop
     real(8) ::  P_M, P_M1, P_Mm1, P_T
     real(8) ::  hu, tt, Pr, cmp, h0, Rgh, P0, dh, rMt
-    real(8) ::  sLat, cLat, lat_8
+    real(8) ::  sLat, lat_8
     real(8), allocatable :: tv(:), height_T(:), height_M(:)
     real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
     real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
@@ -806,7 +806,7 @@ contains
 
     ! compute virtual temperature on thermo levels (corrected of compressibility)
     do_computeHeight_gsv_nl : do stepIndex = 1, numStep
-      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, height_T, height_M, lat_4, lat_8, sLat, cLat, lev_T, &
+      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, height_T, height_M, lat_4, lat_8, sLat, lev_T, &
       !$OMP                     hu, tt, Pr, cmp, tv, rMT, P_T, P_M, P0, ratioP, h0, Rgh, dh, delThick, lev_M, P_M1, &
       !$OMP                     scaleFactorBottom, scaleFactorTop, P_Mm1)
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -819,7 +819,6 @@ contains
           lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
           lat_8 = real(lat_4,8)
           sLat = sin(lat_8)
-          cLat = cos(lat_8)
 
           do lev_T = 1, nlev_T
             if ( statevector%dataKind == 4 ) then
@@ -1072,8 +1071,9 @@ contains
       end if
       call calcHeight_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+      end if
       call calcHeight_gsv_tl_vcode2100x
     else
       call utl_abort('calcHeight_gsv_tl (czp): not implemented')
@@ -1089,7 +1089,20 @@ contains
       subroutine calcHeight_gsv_tl_vcode2100x
         implicit none
 
-        call utl_abort('calcHeight_gsv_tl (czp): vcode 21001 not implemented yet')
+        ! Locals:
+        real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
+        
+        call msg('calcHeight_gsv_tl_vcode2100x (czp)', 'START', verb_opt=4)
+
+        call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
+        call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
+
+        ! Height increments are always zero with an height-based coordinate
+        delHeight_M_ptr_r48(:,:,:,:) = 0.0d0
+        delHeight_T_ptr_r48(:,:,:,:) = 0.0d0
+
+        call msg('calcHeight_gsv_tl_vcode2100x (czp)', 'END', verb_opt=4)
 
       end subroutine calcHeight_gsv_tl_vcode2100x
 
@@ -1344,8 +1357,9 @@ contains
       end if
       call calcHeight_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+      end if
       call calcHeight_gsv_ad_vcode2100x
     else
       call utl_abort('calcHeight_gsv_ad (czp): not implemented')
@@ -1361,12 +1375,25 @@ contains
       subroutine calcHeight_gsv_ad_vcode2100x
         implicit none
 
-        call utl_abort('calcHeight_gsv_ad (czp): vcode 21001 not implemented yet')
+        ! Locals:
+        real(pre_incrReal), pointer :: delHeight_M_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delHeight_T_ptr_r48(:,:,:,:)
+        
+        call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'START', verb_opt=4)
+
+        call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
+        call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
+
+        ! Height increments are always zero with an height-based coordinate
+        delHeight_M_ptr_r48(:,:,:,:) = 0.0d0
+        delHeight_T_ptr_r48(:,:,:,:) = 0.0d0
+
+        call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'END', verb_opt=4)
 
       end subroutine calcHeight_gsv_ad_vcode2100x
 
       !---------------------------------------------------------
-      ! calcHeight_gsv_ad
+      ! calcHeight_gsv_ad_vcode5xxx
       !---------------------------------------------------------
       subroutine calcHeight_gsv_ad_vcode5xxx
         implicit none
@@ -1832,7 +1859,7 @@ contains
     real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
     real(4) ::  lat_4
     real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_M, Z_M1, logP
-    real(8) ::  sLat, cLat, lat_8
+    real(8) ::  sLat, lat_8
     real(8) ::  ScaleFactorBottom
     real(8), allocatable :: tv(:),  pressure_T(:), pressure_M(:)
     real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
@@ -1931,7 +1958,6 @@ contains
           lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
           lat_8 = real(lat_4,8)
           sLat = sin(lat_8)
-          cLat = cos(lat_8)
 
           if ( statevector%dataKind == 4 ) then
             P0 = real(P0_ptr_r4(lonIndex,latIndex,1, stepIndex),8)
@@ -2166,7 +2192,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_tl
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_tl( statevector, statevectorRef)
+  subroutine calcPressure_gsv_tl(statevector, statevectorRef)
     !
     !:Purpose: Tangent of pressure computation.
     !
@@ -2192,8 +2218,21 @@ contains
       end if
       call calcPressure_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+      end if
       call calcPressure_gsv_tl_vcode2100x
     else
       call utl_abort('calcPressure_gsv_tl (czp): not implemented')
@@ -2210,8 +2249,197 @@ contains
       subroutine calcPressure_gsv_tl_vcode2100x
         implicit none
 
-        call utl_abort('calcPressure_gsv_tl (czp): vcode 21001 not implemented yet')
+        ! Locals:
+        integer ::  stepIndex, latIndex, lonIndex, numStep
+        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+ 
+        real(4) ::  lat_4
+        real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
+        real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
+        real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
+        real(8) ::  sLat, lat_8
+        real(8) ::  scaleFactorBottom
 
+        real(8), allocatable :: delP_T(:), delP_M(:)
+        
+        real(pre_incrReal), pointer     :: delTT_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer     :: delHU_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer     :: delP_T_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer     :: delP_M_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer     :: delPsfc_ptr_r48(:,:,:,:)
+        
+        real(8), pointer     :: TT_ptr(:,:,:,:)
+        real(8), pointer     :: HU_ptr(:,:,:,:)
+        real(8), pointer     :: P_T_ptr(:,:,:,:)
+        real(8), pointer     :: P_M_ptr(:,:,:,:)
+        real(8), pointer     :: Z_T_ptr(:,:,:,:)
+        real(8), pointer     :: Z_M_ptr(:,:,:,:)
+        real(8), pointer     :: Psfc_ptr(:,:,:,:)
+
+        real(8), pointer     :: HeightSfc_ptr(:,:)
+
+        call msg('calcPressure_gsv_tl_vcode2100x (czp)', 'START', verb_opt=4)
+
+        nlev_T = gsv_getNumLev(statevector,'TH')
+        nlev_M = gsv_getNumLev(statevector,'MM')
+        numStep = statevector%numStep
+
+        allocate(delP_T(nlev_T))
+        allocate(delP_M(nlev_M))
+
+        nullify(tt_ptr)
+        nullify(hu_ptr)
+        nullify(P_T_ptr)
+        nullify(P_M_ptr)
+        nullify(Z_T_ptr)
+        nullify(Z_M_ptr)
+        nullify(Psfc_ptr)
+        nullify(HeightSfc_ptr)
+        
+        call gsv_getField(statevector,deltt_ptr_r48,'TT')
+        call gsv_getField(statevector,delhu_ptr_r48,'HU')
+        call gsv_getField(statevector,delP_T_ptr_r48,'P_T')
+        call gsv_getField(statevector,delP_M_ptr_r48,'P_M')
+        call gsv_getField(statevector,delPsfc_ptr_r48,'P0')
+        call gsv_getField(statevectorRef,tt_ptr,'TT')
+        call gsv_getField(statevectorRef,hu_ptr,'HU')
+        call gsv_getField(statevectorRef,P_T_ptr,'P_T')
+        call gsv_getField(statevectorRef,P_M_ptr,'P_M')
+        call gsv_getField(statevectorRef,Z_T_ptr,'Z_T')
+        call gsv_getField(statevectorRef,Z_M_ptr,'Z_M')
+        call gsv_getField(statevectorRef,Psfc_ptr,'P0')
+
+        HeightSfc_ptr => gsv_getHeightSfc(statevectorRef)
+        
+        do_computePressure_gsv_tl: do stepIndex = 1, numStep
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+
+              delP_T(:) = 0.0D0
+              delP_M(:) = 0.0D0
+
+              ! latitude
+              lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
+              lat_8 = real(lat_4,8)
+              sLat = sin(lat_8)
+
+              !
+              !- Compute pressure on diagnostic levels
+              !
+              rMT = HeightSfc_ptr(lonIndex,latIndex)
+
+              hu    = hu_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              tt    = tt_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              p_T   = p_T_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              p_M   = p_M_ptr(lonIndex,latIndex,nlev_M,stepIndex)
+              p0    = Psfc_ptr(lonIndex,latIndex,1,stepIndex)
+              Z_T   = Z_T_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              Z_M   = Z_M_ptr(lonIndex,latIndex,nlev_M,stepIndex)
+              delTT = deltt_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delHU = delhu_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delP0 = delPsfc_ptr_r48(lonIndex,latIndex,1,stepIndex)
+              
+              tv0 = phf_fotvt8(tt,hu)
+              cmp = gpscompressibility(P0,tt,hu) 
+              tv  = tv0*cmp
+
+              delTV0delTT = 1.0D0 + MPC_DELTA_R8*hu
+              delTV0delHU = MPC_DELTA_R8*tt
+              delTV0 = delTT*delTV0delTT + delHU*delTV0delHU
+
+              !delCMPdelP0 = 0.d0 ! ???
+              !delCMPdelTT = 0.d0 ! ???
+              !delCMPdelHU = 0.d0 ! ???
+              delCMP = 0.d0 ! delP0*delCMPdelP0 + delTT*delCMPdelTT + delHU*delCMPdelHU
+              
+              delTVdelTV0 = cmp
+              delTVdelCMP = tv0
+              delTV = delTV0*delTVdelTV0 + delCMP*delTVdelCMP
+              
+              ! Thermo diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
+              dh = Z_T - rMT
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              delP_delP0 = p_T/P0
+              delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+              delP_T(nlev_T) = delP0*delP_delP0 + delTV*delP_delTV
+
+              ! Momentum diagnostic level, NL: pressure = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv)
+              dh = Z_M - rMT
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              delP_delP0 = p_M/P0
+              delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+              delP_M(nlev_T) = delP0*delP_delP0 + delTV*delP_delTV
+
+              !
+              !- Compute pressure on all levels above except the last
+              !
+              do lev_M = nlev_M-1, 1, -1
+                lev_T = lev_M ! thermo level just below
+                
+                hu    = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                tt    = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                delhu = delhu_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+                deltt = deltt_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+                Z_M   = Z_M_ptr(lonIndex,latIndex,lev_M ,stepIndex)
+                Z_M1  = Z_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex)
+                Z_T   = Z_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                P_M   = P_M_ptr(lonIndex,latIndex,lev_M,stepIndex)
+                P_M1  = P_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex)
+                P_T   = P_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                
+                tv0 = phf_fotvt8(tt,hu)
+                cmp = gpscompressibility(P_M1,tt,hu) 
+                tv  = tv0*cmp
+
+                delTV0delTT = 1.0D0 + MPC_DELTA_R8*hu
+                delTV0delHU = MPC_DELTA_R8*tt
+                delTV0 = delTT*delTV0delTT + delHU*delTV0delHU
+
+                !delCMPdelP_M1 = 0.d0 ! ???
+                !delCMPdelTT   = 0.d0 ! ???
+                !delCMPdelHU   = 0.d0 ! ???
+                delCMP = 0.d0 ! delP_M(lev_M+1)*delCMPdelP_M1 + delTT*delCMPdelTT + delHU*delCMPdelHU
+
+                delTVdelTV0 = cmp
+                delTVdelCMP = tv0
+                delTV = delTV0*delTVdelTV0 + delCMP*delTVdelCMP
+                
+                dh = Z_M - Z_M1
+                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+
+                ! Pressure increment on momentum level
+                ! NL: p_M(lev_M) = p_M(lev_M+1) * exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+                delP_delP_M1 = p_M/p_M1
+                delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+                delP_M(lev_M) = delP_M(lev_M+1)*delP_delP_M1 + delTV*delP_delTV
+
+                ! Interpolation on thermo pressure
+                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
+                !NL: logP = (1.0D0-scaleFactorBottom)*log(p_M(lev_M+1)) + &
+                !                   scaleFactorBottom*log(p_M(lev_M))
+                !NL: p_T(lev_T) = exp(logP)
+                delLogP = (1.0D0-scaleFactorBottom) / p_M1 * delP_M(lev_M+1) + &
+                           scaleFactorBottom / p_M * delP_M(lev_M)
+                delP_T(lev_T) = p_T * delLogP
+              end do
+
+              !
+              !- Fill the pressure increment array
+              !
+              delP_T_ptr_r48(lonIndex,latIndex,1:nlev_T,stepIndex)=delP_T(1:nlev_T)
+              delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex)=delP_M(1:nlev_M)
+
+            end do ! lonIndex
+          end do ! latIndex
+        end do do_computePressure_gsv_tl
+
+        deallocate(delP_M)
+        deallocate(delP_T)
+        
+        call msg('calcPressure_gsv_tl_vcode2100x (czp)', 'END', verb_opt=4)
+        
       end subroutine calcPressure_gsv_tl_vcode2100x
 
       !---------------------------------------------------------
@@ -2374,8 +2602,21 @@ contains
       end if
       call calcPressure_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
+      if ( .not. gsv_varExist(statevector,'P_*')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'TT')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'HU')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+      end if
+      if ( .not. gsv_varExist(statevector,'P0')  ) then
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+      end if
       call calcPressure_gsv_ad_vcode2100x
     else
       call utl_abort('calcPressure_gsv_ad (czp): not implemented')
@@ -2392,8 +2633,196 @@ contains
       subroutine calcPressure_gsv_ad_vcode2100x
         implicit none
 
-        call utl_abort('calcPressure_gsv_ad (czp): vcode 21001 not implemented yet')
+        ! Locals:
+        integer ::  stepIndex, latIndex, lonIndex, numStep
+        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+ 
+        real(4) ::  lat_4
+        real(8) ::  hu, tt, cmp, Rgh, p0, dh, tv0, rMt, tv
+        real(8) ::  Z_T, Z_M, Z_M1, p_T, p_M, p_M1, logP
+        real(8) ::  delTT, delHU, delP0, delTV0, delTV, delCMP
+        real(8) ::  delTV0delTT, delTV0delHU, delCMPdelP0, delCMPdelTT, delCMPdelHU, delCMPdelP_M1
+        real(8) ::  delTVdelTV0, delTVdelCMP, delP_delP0, delP_delTV, delP_delP_M1, delLogP
+        real(8) ::  sLat, lat_8
+        real(8) ::  scaleFactorBottom
 
+        real(8), allocatable :: delP_T(:), delP_M(:)
+
+        real(pre_incrReal), pointer :: delTT_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delHU_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delP_T_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delP_M_ptr_r48(:,:,:,:)
+        real(pre_incrReal), pointer :: delPsfc_ptr_r48(:,:,:,:)
+        
+        real(8), pointer     :: TT_ptr(:,:,:,:)
+        real(8), pointer     :: HU_ptr(:,:,:,:)
+        real(8), pointer     :: P_T_ptr(:,:,:,:)
+        real(8), pointer     :: P_M_ptr(:,:,:,:)
+        real(8), pointer     :: Z_T_ptr(:,:,:,:)
+        real(8), pointer     :: Z_M_ptr(:,:,:,:)
+        real(8), pointer     :: Psfc_ptr(:,:,:,:)
+
+        real(8), pointer     :: HeightSfc_ptr(:,:)
+        
+        call msg('calcPressure_gsv_ad_vcode2100x (czp)', 'START', verb_opt=4)
+
+        nlev_T = gsv_getNumLev(statevector,'TH')
+        nlev_M = gsv_getNumLev(statevector,'MM')
+        numStep = statevector%numStep
+
+        allocate(delP_T(nlev_T))
+        allocate(delP_M(nlev_M))
+        
+        nullify(tt_ptr)
+        nullify(hu_ptr)
+        nullify(P_T_ptr)
+        nullify(P_M_ptr)
+        nullify(Z_T_ptr)
+        nullify(Z_M_ptr)
+        nullify(Psfc_ptr)
+        nullify(HeightSfc_ptr)
+        
+        call gsv_getField(statevector,deltt_ptr_r48,'TT')
+        call gsv_getField(statevector,delhu_ptr_r48,'HU')
+        call gsv_getField(statevector,delP_T_ptr_r48,'P_T')
+        call gsv_getField(statevector,delP_M_ptr_r48,'P_M')
+        call gsv_getField(statevector,delPsfc_ptr_r48,'P0')
+        call gsv_getField(statevectorRef,tt_ptr,'TT')
+        call gsv_getField(statevectorRef,hu_ptr,'HU')
+        call gsv_getField(statevectorRef,P_T_ptr,'P_T')
+        call gsv_getField(statevectorRef,P_M_ptr,'P_M')
+        call gsv_getField(statevectorRef,Z_T_ptr,'Z_T')
+        call gsv_getField(statevectorRef,Z_M_ptr,'Z_M')
+        call gsv_getField(statevectorRef,Psfc_ptr,'P0')
+
+        HeightSfc_ptr => gsv_getHeightSfc(statevectorRef)
+        
+        do_computePressure_gsv_ad: do stepIndex = 1, numStep
+          do latIndex = statevector%myLatBeg, statevector%myLatEnd
+            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+
+              lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
+              lat_8 = real(lat_4,8)
+              sLat = sin(lat_8)
+
+              !
+              !- Fill the pressure increment array
+              !
+              delP_T(1:nlev_T)=delP_T_ptr_r48(lonIndex,latIndex,1:nlev_T,stepIndex)
+              delP_M(1:nlev_M)= 0.d0 !delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex)
+
+              !
+              !- Compute pressure on all levels above except the last
+              !
+              do lev_M = 1, nlev_M-1
+                lev_T = lev_M ! thermo level just below
+                
+                hu    = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                tt    = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                delhu = delhu_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+                deltt = deltt_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+                Z_M   = Z_M_ptr(lonIndex,latIndex,lev_M ,stepIndex)
+                Z_M1  = Z_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex)
+                Z_T   = Z_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
+                P_M   = P_M_ptr(lonIndex,latIndex,lev_M,stepIndex)
+                P_M1  = P_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex)
+                P_T   = P_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
+
+                tv0 = phf_fotvt8(tt,hu)
+                cmp = gpscompressibility(P_M1,tt,hu) 
+                tv  = tv0*cmp
+                dh  = Z_M - Z_M1
+                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+                
+                ! Interpolation on thermo pressure
+                delLogP = p_T * delP_T(lev_T)
+                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
+                delP_M(lev_M+1) = delP_M(lev_M+1) + (1.0D0-scaleFactorBottom) / p_M1 * delLogP
+                delP_M(lev_M)   = delP_M(lev_M)   + scaleFactorBottom / p_M * delLogP
+                
+                ! Pressure increment on momentum level
+                delP_delP_M1 = p_M/p_M1
+                delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+                delP_M(lev_M+1) = delP_M(lev_M+1) + delP_M(lev_M)*delP_delP_M1
+                delTV = delP_M(lev_M)*delP_delTV
+                
+                delTVdelTV0 = cmp
+                delTV0 = delTV*delTVdelTV0
+                ! delTVdelCMP = tv0
+                ! delCMP = delTV*delTVdelCMP ! not used because delCMP = 0.d0 in TL version
+
+                delTV0delTT = 1.0D0 + MPC_DELTA_R8*hu
+                delTV0delHU = MPC_DELTA_R8*tt
+                delTT = delTT + delTV0*delTV0delTT
+                delHU = delHU + delTV0*delTV0delHU
+
+                delhu_ptr_r48(lonIndex,latIndex,lev_T,stepIndex) = delHU
+                deltt_ptr_r48(lonIndex,latIndex,lev_T,stepIndex) = delTT
+                
+              end do
+
+              delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex)= delP_M(1:nlev_M)
+              
+              !
+              !- Compute pressure on diagnostic levels
+              !
+              rMT = HeightSfc_ptr(lonIndex,latIndex)
+
+              hu    = hu_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              tt    = tt_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              p_T   = p_T_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              p_M   = p_M_ptr(lonIndex,latIndex,nlev_M,stepIndex)
+              p0    = Psfc_ptr(lonIndex,latIndex,1,stepIndex)
+              Z_T   = Z_T_ptr(lonIndex,latIndex,nlev_T,stepIndex)
+              Z_M   = Z_M_ptr(lonIndex,latIndex,nlev_M,stepIndex)
+              delTT = deltt_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delHU = delhu_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delP0 = delPsfc_ptr_r48(lonIndex,latIndex,1,stepIndex)
+
+              tv0 = phf_fotvt8(tt,hu)
+              cmp = gpscompressibility(P0,tt,hu) 
+              tv  = tv0*cmp
+
+              ! Momentum diagnostic level
+              dh = Z_M - rMT
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              delP_delP0 = p_M/P0
+              delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+              delP0 = delP0 + delP_M(nlev_M)*delP_delP0
+              delTV = delP_M(nlev_M)*delP_delTV
+
+              ! Thermo diagnostic level
+              dh = Z_T - rMT
+              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+              delP_delP0 = p_T/P0
+              delP_delTV = p_T*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
+              delP0 = delP0 + delP_T(nlev_T)*delP_delP0
+              delTV = delTV + delP_T(nlev_T)*delP_delTV
+
+              delTVdelTV0 = cmp
+              delTVdelCMP = tv0
+              delTV0 = delTV*delTVdelTV0
+              ! delTVdelCMP = tv0
+              ! delCMP = delTV*delTVdelCMP ! not used because delCMP = 0.d0 in TL version
+              
+              delTV0delTT = 1.0D0 + MPC_DELTA_R8*hu
+              delTV0delHU = MPC_DELTA_R8*tt
+              delTT = delTT + delTV0*delTV0delTT
+              delHU = delHU + delTV0*delTV0delHU
+
+              delhu_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex) = delHU
+              deltt_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex) = delTT
+              delPsfc_ptr_r48(lonIndex,latIndex,1,stepIndex)    = delP0
+              
+            end do ! lonIndex
+          end do ! latIndex
+        end do do_computePressure_gsv_ad
+
+        deallocate(delP_M)
+        deallocate(delP_T)
+
+        call msg('calcPressure_gsv_ad_vcode2100x (czp)', 'END', verb_opt=4)
+        
       end subroutine calcPressure_gsv_ad_vcode2100x
 
       !---------------------------------------------------------
@@ -2758,6 +3187,9 @@ contains
     allocate(hSfc(1, numCol))
     do colIndex = 1, numCol
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
+      !if (colIndex <= 5) then
+      !  write(*,*) 'hSfc(1,colIndex) = ', hSfc(1,colIndex)
+      !end if
     end do
 
     call fetch3DLevels_r8(col_getVco(column), hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
@@ -3380,7 +3812,7 @@ contains
     real(8), allocatable  :: tv(:)
     integer :: numCol, nLev_T, nLev_M
     integer :: colIndex, lev_T, lev_M
-    real(8) :: lat, sLat, cLat
+    real(8) :: lat, sLat
     real(8) :: P0, rMT, hu, tt, tv0, cmp, dh, Rgh
     real(8) :: scaleFactorBottom, logP
     real(8) :: Z_T, Z_M, Z_M1
@@ -3397,7 +3829,6 @@ contains
       ! column%lat populated in innovation_mod from obsSpaceData latitudes
       lat = col_getLat(column, colIndex)
       sLat = sin(lat)
-      cLat = cos(lat)
 
       ! surface values
       P0  = col_getElem(  column, 1, colIndex, 'P0') ! surface pressure

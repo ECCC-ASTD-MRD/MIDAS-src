@@ -2094,7 +2094,7 @@ CONTAINS
             ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_MT(:,:,:,:)
           end if
 
-        else if (bEns(instanceIndex)%vco_anl%Vcode == 5005) then
+        else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001) then
 
           if (lev == bEns(instanceIndex)%nLevEns_T) then
             ! use surface momentum level amplitudes for surface thermo level
@@ -2384,7 +2384,7 @@ CONTAINS
                      ensAmplitude_oneLevM1(1:bEns(instanceIndex)%nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
               end if
 
-            else if (bEns(instanceIndex)%vco_anl%Vcode == 5005) then
+            else if (bEns(instanceIndex)%vco_anl%Vcode == 5005 .or. bEns(instanceIndex)%vco_anl%Vcode == 21001) then
 
               if (lev == bEns(instanceIndex)%nLevEns_T) then
                 ! use surface momentum level amplitudes for surface thermo level

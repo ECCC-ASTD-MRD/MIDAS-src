@@ -308,9 +308,10 @@ contains
     !- Data copying from columnTrlOnTrlLev to columnTrlOnAnlIncLev
     !
     
-    ! copy latitude
+    ! copy latitude and surface height
     call col_copyLat(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
-
+    call col_copyHeightSfc(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
+    
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) ) cycle
@@ -332,7 +333,7 @@ contains
         columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
         end do
     end do
-
+    
     !
     !- Vertical interpolation of 3D variables from trials levels to analysis increment levels
     !
@@ -389,9 +390,6 @@ contains
     !
     !- Height adjustments
     !
-
-    ! Set surface height
-    call col_copyHeightSfc(columnTrlOnTrlLev, columnTrlOnAnlIncLev)
 
     ! Remove the height offset for the diagnostic levels for backward compatibility only
     if ( col_varExist(columnTrlOnAnlIncLev,'Z_T') .and. .not.col_addHeightSfcOffset(columnTrlOnAnlIncLev) ) then 
