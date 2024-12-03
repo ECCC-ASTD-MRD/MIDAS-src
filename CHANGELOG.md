@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Introduction of `NAMS2C` namelist section new logical variable `NNInterpForCloudVars` to use nearest neighbour interpolation instead of bilinear for cloud model variables (#996 and !909)
 
 ### Changed
 
