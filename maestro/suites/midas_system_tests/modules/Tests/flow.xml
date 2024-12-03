@@ -38,8 +38,8 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="rdps"/>
-      <FAMILY  name="rdps">
+      <SUBMITS sub_name="hrdps"/>
+      <FAMILY  name="hrdps">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
