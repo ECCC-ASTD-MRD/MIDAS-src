@@ -98,7 +98,7 @@ module stateToColumn_mod
   logical :: useFootprintForTovs           ! choose to use a horizontal footprint operator for radiance obs
   logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
   logical :: rejectObsOutsideGlobalGrid    ! choose to reject obs outside a global domain, currently employed for ORCA025 global grid
-  logical :: NNInterpForCloudVars ! to perform nearest neighbour horizontal interpolation for cloudy variables
+  logical :: NNInterpForCloudVars          ! to perform nearest neighbour horizontal interpolation for cloudy variables
 
 contains 
 
