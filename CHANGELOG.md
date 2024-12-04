@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Make shorter the tests `/Tests/letkf/glb_3D` and `/Tests/var1D/idealized` (#991 and !910)
  * The test `/Tests/var/EnVar/rdps` is replaced by `/Tests/var/EnVar/hrdps` (#995 and !908)
 
 ### Fixed
@@ -20,7 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * The test `/Tests/var/EnVar/geps` has been removed (#991 and !910)
 
 ## [4.0.3]
 
@@ -39,8 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    possibility to redefine the way the T1 predictor is computed and to
    control which BUFR element define scan position for the CrIS
    instrument (#835 and !881)
- * Correction of pseudo SST observations using freezing point (#977
-   and !882)
+ * Correction of pseudo SST observations using freezing point (#977 and !882)
 
 ### Changed
 
