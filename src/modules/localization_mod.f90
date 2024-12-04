@@ -73,7 +73,7 @@ CONTAINS
     loc%hco => hco_loc
     loc%vco => vco_loc
 
-    if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 ) then
+    if ( loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005 .or. loc%vco%Vcode == 21001 ) then
       if (loc%vco%nLev_M > 0) then
         nLev = loc%vco%nLev_M
       else

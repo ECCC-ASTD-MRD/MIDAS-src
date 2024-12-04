@@ -2337,10 +2337,7 @@ contains
               p0    = Psfc_ptr(lonIndex,latIndex,1,stepIndex)
               Z_T   = Z_T_ptr(lonIndex,latIndex,nlev_T,stepIndex)
               Z_M   = Z_M_ptr(lonIndex,latIndex,nlev_M,stepIndex)
-              delTT = deltt_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
-              delHU = delhu_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
-              delP0 = delPsfc_ptr_r48(lonIndex,latIndex,1,stepIndex)
-              
+
               tv0 = phf_fotvt8(tt,hu)
               cmp = gpscompressibility(P0,tt,hu) 
               tv  = tv0*cmp
@@ -2353,6 +2350,10 @@ contains
               delCMPdelTT = 0.d0 ! simplification
               delCMPdelHU = 0.d0 ! simplification
 
+              delTT = deltt_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delHU = delhu_ptr_r48(lonIndex,latIndex,nlev_T,stepIndex)
+              delP0 = delPsfc_ptr_r48(lonIndex,latIndex,1,stepIndex)
+              
               ! Virtual temperature
               delTV0 = delTT*delTV0delTT + delHU*delTV0delHU
               delCMP = delP0*delCMPdelP0 + delTT*delCMPdelTT + delHU*delCMPdelHU
@@ -2370,7 +2371,7 @@ contains
               Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
               delP_delP0 = p_M/P0
               delP_delTV = p_M*Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv**2
-              delP_M(nlev_T) = delP0*delP_delP0 + delTV*delP_delTV
+              delP_M(nlev_M) = delP0*delP_delP0 + delTV*delP_delTV
 
               !
               !- Compute pressure on all levels above except the last
@@ -2380,8 +2381,6 @@ contains
                 
                 hu    = hu_ptr(lonIndex,latIndex,lev_T,stepIndex)
                 tt    = tt_ptr(lonIndex,latIndex,lev_T,stepIndex)
-                delHU = delhu_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
-                delTT = deltt_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
                 Z_M   = Z_M_ptr(lonIndex,latIndex,lev_M ,stepIndex)
                 Z_M1  = Z_M_ptr(lonIndex,latIndex,lev_M+1,stepIndex)
                 Z_T   = Z_T_ptr(lonIndex,latIndex,lev_T,stepIndex)
@@ -2406,6 +2405,9 @@ contains
                 delCMPdelTT  = 0.d0 ! simplification
                 delCMPdelHU  = 0.d0 ! simplification
 
+                delHU = delhu_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+                delTT = deltt_ptr_r48(lonIndex,latIndex,lev_T,stepIndex)
+
                 ! Virtual temperature
                 delTV0 = delTT*delTV0delTT + delHU*delTV0delHU
                 delCMP = delP_M(lev_M+1)*delCMPdelP_M1 + delTT*delCMPdelTT + delHU*delCMPdelHU
@@ -2426,6 +2428,8 @@ contains
               !
               delP_T_ptr_r48(lonIndex,latIndex,1:nlev_T,stepIndex)=delP_T(1:nlev_T)
               delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex)=delP_M(1:nlev_M)
+              !!!delP_T_ptr_r48(lonIndex,latIndex,1:nlev_T,stepIndex) = 0.0D0
+              !!!delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex) = 0.0D0
 
             end do ! lonIndex
           end do ! latIndex
@@ -2692,7 +2696,7 @@ contains
         call gsv_getField(statevectorRef,Psfc_ptr,'P0')
 
         heightSfc_ptr => gsv_getHeightSfc(statevectorRef)
-        
+
         do_computePressure_gsv_ad: do stepIndex = 1, numStep
           do latIndex = statevector%myLatBeg, statevector%myLatEnd
             do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -2705,7 +2709,7 @@ contains
               !- Fill the pressure increment array
               !
               delP_T(1:nlev_T)=delP_T_ptr_r48(lonIndex,latIndex,1:nlev_T,stepIndex)
-              delP_M(1:nlev_M)=0.d0
+              delP_M(1:nlev_M)=delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex)
 
               !
               !- Compute pressure on all levels above except the last
@@ -2764,8 +2768,6 @@ contains
                 
               end do
 
-              delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex) = delP_M_ptr_r48(lonIndex,latIndex,1:nlev_M,stepIndex) + delP_M(1:nlev_M)
-              
               !
               !- Compute pressure on diagnostic levels
               !
