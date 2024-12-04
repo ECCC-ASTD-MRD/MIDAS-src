@@ -145,8 +145,8 @@ echo "... loading eccc/cmd/cmda/libs/20230531/${COMP_ARCH}"
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
-. r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
