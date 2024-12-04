@@ -122,8 +122,8 @@ export MIDAS_DATE=${date}
 ## Each core can weight O(10) Gb (times the number of processes)
 export FOR_DUMP_CORE_FILE=
 
-echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2
+. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
 
 echo loading eccc/mrd/rpn/libs/20240612-alpha
 . r.load.dot eccc/mrd/rpn/libs/20240612-alpha

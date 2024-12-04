@@ -126,8 +126,8 @@ fi
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+echo "... loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2"
+. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
