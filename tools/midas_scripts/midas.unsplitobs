@@ -60,8 +60,8 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    echo loading eccc/mrd/rpn/utils/20241105-alpha
-   . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
+    echo loading eccc/mrd/rpn/utils/20231219
+   . r.load.dot eccc/mrd/rpn/utils/20231219
 fi
 
 if ! which liburp >/dev/null 2>&1; then
