@@ -1054,6 +1054,8 @@ CONTAINS
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex,sortedIndex
     real(8) :: distanceSelected(256)  ! horizontal distance of the furthest observation selected for each type (m)
+    real(8) :: vertpLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
+    real(8) :: vertmLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
     real(8) :: sortValueSelected(256) ! sorting value of the furthest observation selected for each type
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
@@ -1065,7 +1067,10 @@ CONTAINS
     real(8)                           :: hDistance, vDistance
     real(8), allocatable              :: sortValue(:)            ! values used to sort the kdtree results, choice of values is given by localObsSorting
     integer, allocatable              :: sortIndex(:)            ! sorted indices of the kdtree results
-    real(8), allocatable              :: lfns(:)
+    real(8), allocatable              :: lfns(:)                 ! localization function of observations inside the localization volume
+    real(8)                           :: dist, lfn, trace        ! variables for the output
+    logical, save                     :: firstcall = .true.      ! firstcall to create the ouput and its header
+    character(len=50)                 :: outfilename             ! filename for the output
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1147,19 +1152,28 @@ CONTAINS
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
       distanceSelected(:)   = 0.0d0
+      vertpLocSelected(:)   = 0.0d0
+      vertmLocSelected(:)   = 0.0d0
       sortValueSelected(:)  = 0.0d0
       localizations(:)      = 0.0d0
+      trace                 = 0.0d0
+      lfn                   = 0.0d0
+      dist                  = 0.0d0
       ! loop on all the observations inside the horizontal radius column
       ! loop on sortValue
       do sortedIndex=1, numLocalObsFoundSearch
         localObsIndex = sortIndex(sortedIndex)
         bodyIndex     = searchResults(localObsIndex)%idx
         ! if the observation is inside the localization volume
-        ! ideally, we would have this condition instead, but it does not pass the UnitTest:
+
+        ! ==== UnitTest Warning ====
+        ! ideally, we would have this condition, but it does not pass the UnitTest:
         !if (lfns(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex)==1) then
         ! instead, if lfn == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
         vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
         if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex)==1) then
+        ! ==== UnitTest Warning ====
+
           numLocalObsFound  = numLocalObsFound + 1
           localCodTyp       = ensObs%codTyp(bodyIndex)
           ! select the observation if the maximum numbers have not been reached
@@ -1169,7 +1183,12 @@ CONTAINS
             localizations(numLocalObs)     = lfns(localObsIndex)
             counterSelected(localCodTyp)   = counterSelected(localCodTyp) + 1
             distanceSelected(localCodTyp)  = max(distanceSelected(localCodTyp),sqrt(searchResults(localObsIndex)%dis))
+            vertpLocSelected(localCodTyp)  = max(vertpLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
+            vertmLocSelected(localCodTyp)  = min(vertmLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
             sortValueSelected(localCodTyp) = sortValueSelected(localCodTyp) + sortValue(sortedIndex)
+            lfn   = lfn   + lfns(localObsIndex)
+            dist  = dist  + sqrt(searchResults(localObsIndex)%dis)
+            trace = trace + lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
           else
             counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
           end if
@@ -1182,8 +1201,13 @@ CONTAINS
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
       distanceSelected(:)   = 0.0d0
+      vertpLocSelected(:)   = 0.0d0
+      vertmLocSelected(:)   = 0.0d0
       sortValueSelected(:)  = 0.0d0
       localizations(:)      = 0.0d0
+      trace                 = 0.0d0
+      lfn                   = 0.0d0
+      dist                  = 0.0d0
       do localObsIndex=1, numLocalObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
           numLocalObsFound = numLocalObsFound + 1
@@ -1196,31 +1220,70 @@ CONTAINS
       end do      
     end if
 
-    ! send information about this grid point to the main ouput text file
-    ! it adds ~500 Mb of text, and the output file may exceed 1 Gb, the limit of your /tmp directory
-    ! therefore, be careful if you open the LETKF listing with maestro, prefer the nodelister command instead
+    ! send information about this grid point to an output text file
     if(localSelectionOutput) then
-      ! first generic information about the gridpoint
-      write(*,'(A7,X,2(F7.3,X),2(F12.4,X),I7,X,I7)') 'eob_loc', &
+      write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+      outfilename = './eob_glbi_'//trim(adjustl(outfilename))
+      if (firstcall) then
+        firstcall = .false.
+        open(unit=99,file=trim(outfilename),action='write',status='new')
+        write(99,'(12(A,X))') 'gdp', &
+              'lat', &
+              'lon', &
+              'lnp', &
+              'dist', &
+              'vdistp', &
+              'vdistm', &
+              'numtot', &
+              'numsel', &
+              'meandist', &
+              'meanlfn', &
+              'meantrace'
+        write(99,'(8(A,X))') 'typ', &
+              'codtyp', &
+              'numsel', &
+              'numrej', &
+              'dist', &
+              'vdistp', &
+              'vdistm', &
+              'meansort'
+      else
+        open(unit=99,file=trim(outfilename),access='append',action='write',status='old')
+      endif
+
+      ! generic information about the gridpoint
+      dist  = dist  / real(max(1,numLocalObsFound))
+      trace = trace / real(max(1,numLocalObsFound))
+      lfn   = lfn   / real(max(1,numLocalObsFound))
+      write(99,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
             lat*MPC_DEGREES_PER_RADIAN_R8, &
             lon*MPC_DEGREES_PER_RADIAN_R8, &
             vertlocation, &
             maxval(distanceSelected), &
+            maxval(vertpLocSelected), &
+            minval(vertmLocSelected), &
             numLocalObsFound, &
-            numLocalObs 
-      ! then more detailed information for each observation type
+            numLocalObs, &
+            dist, &
+            lfn, &
+            trace
+      ! followed by more detailed information for each observation type
       do i = 1, size(counterSelected)
         if ((counterSelected(i) + counterNotSelected(i)) .ne. 0) then
           sortValueSelected(i) = sortValueSelected(i) / real(max(1,counterSelected(i)))
-          ! ctr stands for counter
-          write(*,'(A7,X,I3,2(X,I7),2(X,F12.2))') 'eob_ctr', &
+          write(99,'(A3,X,I3,2(X,I7),4(X,F12.2))') 'typ', &
                 i, &
                 counterSelected(i), &
                 counterNotSelected(i), &
                 distanceSelected(i), &
+                vertpLocSelected(i), &
+                vertmLocSelected(i), &
                 sortValueSelected(i)
         end if
       end do
+
+     close(unit=99)
+
     end if
 
     deallocate(lfns)

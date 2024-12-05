@@ -813,7 +813,7 @@ contains
     logical :: hLocalizeIsConstant, useModulatedEns
 
     real(8) :: anlLat, anlLon, anlVertLocation
-    real(8) :: tolerance, localization
+    real(8) :: tolerance
 
     real(8), allocatable, target, save :: YbTinvRYb_pert(:,:)
     real(8), allocatable, target, save :: YbTinvRCopy_pert(:,:)
@@ -1048,21 +1048,18 @@ contains
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
 
-      ! Compute value of localization function
-      ! Horizontal
-      localization = localizations(localObsIndex)
       do memberIndex = 1, nEnsGain
         ! YbTinvR for updating ensemble perturbations
         YbTinvR_pert(memberIndex,localObsIndex) =  &
              ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-             localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
+             localizations(localObsIndex) * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
       end do
       if (eob_simObsAssim) then
         do memberIndex = 1, nEnsGain
           ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
           YbTinvR_mean(memberIndex,localObsIndex) =  &
                ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-               localization * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)             
+               localizations(localObsIndex) * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)
         end do
       end if
     end do ! localObsIndex
