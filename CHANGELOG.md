@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Update LibRMN to `20.1.0-a8` and RTTOV to `13v2.0` (#1008 and !911)
+   * minor impact on results
 
 ### Fixed
 
