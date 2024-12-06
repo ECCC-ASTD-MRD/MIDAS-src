@@ -1,4 +1,27 @@
 
+## This logic is to let the user know to update the other possible
+## MPI topology for the test '/Tests/letkf/glb_10km/UnitTest/update'
+if [ "${SEQ_NODE}" = /Tests/letkf/glb_10km/UnitTest/update ]; then
+    if [ "${LETKF_GLB10KM_MPITOPOLOGY}" = 11x52 ]; then
+        other_mpitopo=48x52
+    elif [ "${LETKF_GLB10KM_MPITOPOLOGY}" = 48x52 ]; then
+        other_mpitopo=11x52
+    else
+        echo "Only the MPI topology 11x52 or 48x52 are understandable by this script!"
+        exit 1
+    fi
+
+    ## The variable '${updated_results}' is of either form:
+    ##   /home/sanl000/data_maestro/${REFERENCE_MACHINE}/UnitTests/midas/letkf/glb_10km/0001_11x52
+    ##   /home/sanl000/data_maestro/${REFERENCE_MACHINE}/UnitTests/midas/letkf/glb_10km/0001_48x52
+    other_updated_results=$(echo ${updated_results} | sed "s/_${LETKF_GLB10KM_MPITOPOLOGY}$/_${other_mpitopo}/")
+    if [ -d "${other_updated_results}" ]; then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The other MPI topology seems already updated, it not, check that!!! (${other_updated_results})"
+    else
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You must also update for the other MPI topology (${other_mpitopo}) in ${other_updated_results}"
+    fi
+fi
+
 updated_results=$(${TASK_BIN}/readlink ${TASK_OUTPUT}/updated_results)
 does_dir_exist=false
 if [[ "${updated_results}" = /* ]]; then
