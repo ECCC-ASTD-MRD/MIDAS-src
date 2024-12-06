@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * Ability to compute EnVar analysis increments on GEM-H levels (#905 and !915)
+   * WARNING: minor impact on results when vertically interpolating columns
  * Added namelist variable NNInterpForCloudVars to `NAMS2C` to use nearest-neighbour interpolation instead of bilinear for cloud variables (#996 and !909)
 
 ### Changed
@@ -26,7 +27,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [4.0.4]
 
 ### Added
-
  * Added new way to compute hyperspectral IR ocean emissivity activated by `oldFashionIRSeaEmiss=.false.` in `NAMTOV` (#997 and !904)
 
 ### Changed
