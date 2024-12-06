@@ -3856,11 +3856,11 @@ contains
       if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % albedo = 0.6
       !       if albedo too high no water
       if (tvs_surfaceParameters(headerIndex) % albedo >= 0.55) tvs_surfaceParameters(headerIndex) % pcnt_wat = 0.
-      if (tvs_oldFashionIRLandEmiss) then
-        !       if water and CMC ice present then sea ice
-        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_surfaceParameters(headerIndex) % ltype = 20
-        !       if land and CMC snow present then snow
-        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % ltype = 15
+      !       if water and CMC ice present then sea ice
+      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_surfaceParameters(headerIndex) % ltype = 20
+      !       if land and CMC snow present then snow
+      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % ltype = 15
+      if (tvs_oldFashionIRLandEmiss) then 
         do channelIndex = 1, nchn
           surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(headerIndex) % pcnt_wat * em_oc(channelIndex,profileIndex)  +  &
               ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(headerIndex) % ltype)
