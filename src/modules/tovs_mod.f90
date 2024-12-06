@@ -121,6 +121,7 @@ module tovs_mod
 
   ! Protected module variables
   logical, public, protected :: tvs_oldFashionIRSeaEmiss ! use of the old Masuda IR emissivity instead of built-in RTTOV IREMIS
+  logical, public, protected :: tvs_oldFashionIRLandEmiss ! use of the CERES instead of built-in RTTOV 
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
   integer, public, protected :: tvs_headerEnd ! header index of the last radiance observation
@@ -806,6 +807,7 @@ contains
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
+    logical :: oldFashionIRLandEmiss ! if .true. use of the old CERES based land emissivity instead of Borbas 2xxx
     
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -818,7 +820,7 @@ contains
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
-    namelist /NAMTOV/ oldFashionIRSeaEmiss
+    namelist /NAMTOV/ oldFashionIRSeaEmiss, oldFashionIRLandEmiss
     
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
@@ -858,6 +860,7 @@ contains
     copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false.
     oldFashionIRSeaEmiss = .true.
+    oldFashionIRLandEmiss = .true.
     
     !   1.2 Read the NAMELIST NAMTOV to modify them
     call utl_tmg_start(181,'low-level--readNML')
@@ -902,7 +905,8 @@ contains
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
-    
+    tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
+
     !  1.4 Validate namelist values
     if (tvs_nsensors == 0) then
       if (mmpi_myid == 0) then 
@@ -3801,7 +3805,7 @@ contains
     end do 
 
     !  Get the CERES emissivity matrix for all sensor wavenumbers and surface types
-    call ceres_ematrix(emi_mat, waven,nchn)
+    call ceres_ematrix(emi_mat, waven, nchn)
 
     if (tvs_oldFashionIRSeaEmiss) then
       do profileIndex = 1, nprf
@@ -3811,9 +3815,9 @@ contains
       end do
       ! Refine water emissivities
       !     find new ocean emissivities  
-      do channelIndex = 1, nchn
-        em_oc(channelIndex,:)= emi_mat(channelIndex,17)
-      end do
+      !do channelIndex = 1, nchn
+      !  em_oc(channelIndex,:)= emi_mat(channelIndex,17)
+      !end do !Is it really usefull?
       call emi_sea (em_oc, waven,satzang,wind_sfc,nprf,nchn)
     else
       thermal(:) = .true.
