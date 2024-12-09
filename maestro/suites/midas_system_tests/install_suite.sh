@@ -19,7 +19,7 @@ which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 ## If 'r.date' does not exist in the environment, try to find it
 if ! which r.date 1>/dev/null 2>&1; then
     if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-        __rmnlib_version__=20240612-alpha
+        __rmnlib_version__=20241105-alpha
     elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
         __rmnlib_version__=19.6.0
     else
