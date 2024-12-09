@@ -1,6 +1,6 @@
 
 ## This logic is to let the user know to update the other possible
-## MPI topology for the test '/Tests/letkf/glb_10km/UnitTest/update'
+## MPI topology for the test '/Tests/letkf/glb_10km'
 if [ "${SEQ_NODE}" = /Tests/letkf/glb_10km/UnitTest/update ]; then
     if [ "${LETKF_GLB10KM_MPITOPOLOGY}" = 11x52 ]; then
         other_mpitopo=48x52
