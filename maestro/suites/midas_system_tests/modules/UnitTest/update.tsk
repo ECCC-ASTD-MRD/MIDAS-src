@@ -16,7 +16,7 @@ if [ "${SEQ_NODE}" = /Tests/letkf/glb_10km/UnitTest/update ]; then
     ##   /home/sanl000/data_maestro/${REFERENCE_MACHINE}/UnitTests/midas/letkf/glb_10km/0001_48x52
     other_updated_results=$(echo ${updated_results} | sed "s/_${LETKF_GLB10KM_MPITOPOLOGY}$/_${other_mpitopo}/")
     if [ -d "${other_updated_results}" ]; then
-        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The other MPI topology seems already updated, it not, check that!!! (${other_updated_results})"
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The other MPI topology seems already updated, if not, check that!!! (${other_updated_results})"
     else
         ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "You must also update for the other MPI topology (${other_mpitopo}) in ${other_updated_results}"
     fi
