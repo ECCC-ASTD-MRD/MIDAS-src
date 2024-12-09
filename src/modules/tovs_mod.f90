@@ -177,6 +177,7 @@ module tovs_mod
   logical :: tvs_userDefinedDoAzimuthCorrection
   logical :: tvs_userDefinedIsAzimuthValid
   logical :: tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
+  logical :: tvs_irEmissAngularCorrection
   character(len=8) :: radiativeTransferCode            ! RadiativeTransferCode : TOVS radiation model used
   real(8), allocatable :: tvs_emissivityFromTrl(:,:) ! Surface emissivities extracted from trial
   type(rttov_chanprof), allocatable :: tvs_chanProf(:,:)
@@ -807,6 +808,7 @@ contains
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
     logical :: oldFashionIRLandEmiss ! if .true. use of the old CERES based land emissivity instead of Borbas 2xxx
+    logical :: irEmissAngularCorrection
     
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -819,7 +821,7 @@ contains
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
-    namelist /NAMTOV/ oldFashionIRSeaEmiss, oldFashionIRLandEmiss
+    namelist /NAMTOV/ oldFashionIRSeaEmiss, oldFashionIRLandEmiss, irEmissAngularCorrection
     
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
@@ -859,6 +861,7 @@ contains
     computeJacobian = .false.
     oldFashionIRSeaEmiss = .true.
     oldFashionIRLandEmiss = .true.
+    irEmissAngularCorrection = .false.
     
     !   1.2 Read the NAMELIST NAMTOV to modify them
     call utl_tmg_start(181,'low-level--readNML')
@@ -904,7 +907,8 @@ contains
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
-
+    tvs_irEmissAngularCorrection = irEmissAngularCorrection
+    
     !  1.4 Validate namelist values
     if (tvs_nsensors == 0) then
       if (mmpi_myid == 0) then 
@@ -3778,14 +3782,28 @@ contains
       !  Get the Camel V2 emissivity climatology
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
       if (.not. tvs_atlas(sensorIndex) % init) then
+        !SUBROUTINE rttov_setup_emis_atlas(  &
+        !        err,                        &! out
+        !        opts,                       &! in
+        !        imonth,                     &! in
+        !        atlas_type,                 &! in
+        !        atlas,                      &! inout
+        !        atlas_id,                   &! in, optional
+        !        path,                       &! in, optional
+        !        coefs,                      &! in, optional
+        !        ir_atlas_read_std,          &! in, optional
+        !        ir_atlas_ang_corr,          &! in, optional
+        !        year)                        ! in, optional
         call rttov_setup_emis_atlas(errorStatus, & ! out
             tvs_opts(sensorIndex),               & ! in
-            tvs_profiles_nl(1) % date(2) ,       & ! in
+            tvs_profiles_nl(1) % date(2),        & ! in
             atlas_type_ir,                       & ! in
-            tvs_atlas(sensorIndex),              & ! in
-            ir_atlas_ang_corr = .false.,         & ! in
+            tvs_atlas(sensorIndex),              & ! inout
+            atlas_id = camel_clim_atlas_id,      & ! in
+            coefs = tvs_coefs(sensorIndex),      & ! in
             ir_atlas_read_std = .false.,         & ! in
-            coefs = tvs_coefs(sensorIndex)  )
+            ir_atlas_ang_corr = tvs_irEmissAngularCorrection ) ! in
+            
         if (errorStatus /= 0) then
           write(*,*) 'Error in rttov_atlas_setup IR', errorStatus
           call utl_abort('emis_getIrEmissivity')
