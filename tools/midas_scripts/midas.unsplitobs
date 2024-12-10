@@ -60,13 +60,13 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    echo loading eccc/mrd/rpn/utils/20231219
-   . r.load.dot eccc/mrd/rpn/utils/20231219
+    echo loading eccc/mrd/rpn/utils/20241105-alpha
+   . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
 fi
 
 if ! which liburp >/dev/null 2>&1; then
-    echo loading eccc/cmd/cmda/utils/20231219-3
-   . ssmuse-sh -d eccc/cmd/cmda/utils/20231219-3
+    echo loading eccc/cmd/cmda/utils/20240912-alpha
+   . ssmuse-sh -d eccc/cmd/cmda/utils/20240912-alpha
 fi
 
 set -u

@@ -321,7 +321,9 @@ program midas_extractBmatrixFor1Dvar
 
   end do locationLoop
     
-  ierr = fclos(nulmat)
+  if (mmpi_myId ==0) then
+    ierr = fclos(nulmat)
+  end if
 
   deallocate(Bmatrix)
   deallocate(controlVector)

@@ -126,27 +126,27 @@ fi
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.9/SCIENCE/inteloneapi-2022.1.2
+echo "... loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2"
+. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20240612-alpha"
-. r.load.dot eccc/mrd/rpn/libs/20240612-alpha
+echo "... loading eccc/mrd/rpn/libs/20241105-alpha"
+. r.load.dot eccc/mrd/rpn/libs/20241105-alpha
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/cmd/cmda/libs/20230531/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20230531/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
-. r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/rttov/13v2.0/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
