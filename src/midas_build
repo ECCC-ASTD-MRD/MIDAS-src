@@ -84,6 +84,8 @@ else
         elif [[ "${arg}" = --optreport ]]; then
             echo "midas_build: use '--opt-report' instead of '--optreport'" >&2
             exit 1
+        elif [[ "${arg}" = --vtune ]]; then
+            export MIDAS_COMPILE_COMPF_GLOBAL="${MIDAS_COMPILE_COMPF_GLOBAL} -debug -parallel-source-info=2"
         elif [[ "${arg}" = --codecov ]]; then
             if [[ $# -lt 2 ]]; then
                 echo "midas_build: The option '--codedov' must be followed by a path where to put the code coverage files" >&2
