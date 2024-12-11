@@ -187,21 +187,24 @@ gdb -ex run -ex where -ex quit \${run_pgm}
 
 EOFLAUNCH
 elif [[ "\${debugger_mode}" = --vtune* ]]; then
-    export LAUNCH_PROGRAM_VTUNE_MODE=\${debugger_mode}
-    cat > launch_cmd <<EOFLAUNCH
+     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
 set -ex
 
-if [ "\${LAUNCH_PROGRAM_VTUNE_MODE}" = --vtune ]; then
-    vtune_collect_mode=hotspots
-else
-    ## The script 'launch_program.sh' can be called with '--vtune=hotspots' or '--vtune=hpc-performance'
-    vtune_collect_mode=\$(echo \${LAUNCH_PROGRAM_VTUNE_MODE} | sed 's/^--vtune=//')
-fi
-
 ## this will generate directories named 'vtune.\\\${hostname}'
-vtune -collect \\\${vtune_collect_mode} –r vtune -- \${run_pgm}
+EOFLAUNCH
+
+    if [ "\${debugger_mode}" = --vtune ]; then
+        vtune_collect_mode=hotspots
+    else
+        ## The script 'launch_program.sh' can be called with '--vtune=hotspots' or '--vtune=hpc-performance'
+        vtune_collect_mode=\$(echo \${debugger_mode} | sed 's/^--vtune=//')
+    fi
+
+    cat >> launch_cmd <<EOFLAUNCH
+## this will generate directories named 'vtune.\\\${hostname}'
+vtune -collect \${vtune_collect_mode} –r vtune -- \${run_pgm}
 
 EOFLAUNCH
 elif [ -z "\${debugger_mode}" ]; then
