@@ -110,8 +110,9 @@ echo "$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
 sscp -r obs.original obs
 
 echo "$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
+
 for file in *; do
-    if $(which isFileInList.sh) ${file} not in obs ${localFilesNotToErase}; then
+    if ./isFileInList.sh ${file} not in obs $(cat localFilesNotToErase); then
         rm -r ${file}
     fi
 done

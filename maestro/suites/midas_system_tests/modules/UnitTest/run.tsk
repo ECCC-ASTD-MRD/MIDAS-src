@@ -15,9 +15,14 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
-localFilesNotToErase="flnml pgm obs.original"
+cat > localFilesNotToErase <<EOF
+localFilesNotToErase
+flnml
+pgm
+obs.original
+EOF
 for target in ${TASK_INPUT}/inputs/*; do
-    localFilesNotToErase="${localFilesNotToErase} $(basename ${target})"
+    echo $(basename ${target}) >> localFilesNotToErase
 done
 
 mkdir obs.original
@@ -35,7 +40,7 @@ else
     fi
 fi
 
-localFilesNotToErase="${localFilesNotToErase} load_env.sh"
+echo load_env.sh >> localFilesNotToErase
 
 cat >> load_env.sh <<EOF
 
@@ -93,7 +98,7 @@ ulimit -c unlimited
 
 EOF
 
-localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
+echo ptopo_nml >> localFilesNotToErase
 
 cat << EOF > ptopo_nml
  &ptopo
@@ -106,7 +111,7 @@ pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
-    localFilesNotToErase="${localFilesNotToErase} mpiscript"
+    echo mpiscript >> localFilesNotToErase
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
     LAUNCH_CMD=./mpiscript
@@ -115,11 +120,18 @@ else
 fi
 
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
+cat >> localFilesNotToErase <<EOF
+isFileInList.sh
+launch_program.sh
+launch_cmd
+listing
+EOF
 
 source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
 . ./load_env.sh
 
+ln -s ${TASK_BIN}/isFileInList.sh isFileInList.sh
 ln -s ${TASK_BIN}/launch_program.sh launch_program.sh
 
 vtune_args=
