@@ -187,8 +187,8 @@ echo Changing directory for ${working_directory}
 cd ${working_directory}
 
 echo
-echo Loading execution environment in file load_env.sh
-. ./load_env.sh
+echo Loading execution environment in file load_env.dot
+. ./load_env.dot
 
 echo
 echo You can now run your program interactively with:

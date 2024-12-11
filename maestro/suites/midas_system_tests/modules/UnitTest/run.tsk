@@ -40,9 +40,9 @@ else
     fi
 fi
 
-echo load_env.sh >> localFilesNotToErase
+echo load_env.dot >> localFilesNotToErase
 
-cat >> load_env.sh <<EOF
+cat >> load_env.dot <<EOF
 
 export AFSISIO=/home/smco502
 export CMCCONST=/home/smco502/datafiles/constants
@@ -56,41 +56,41 @@ export SEQ_NPEY=${SEQ_NPEY}
 export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 EOF
 
-echo                    >> load_env.sh
+echo                    >> load_env.dot
 ## for non-interactive use, we want to unset the 'set -x' done in the job
-echo "tty -s || set +x" >> load_env.sh
+echo "tty -s || set +x" >> load_env.dot
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
-    echo echo loading load craype-hugepages16M >> load_env.sh
-    echo module load craype-hugepages16M       >> load_env.sh
-    echo export FOR_DISABLE_KMP_MALLOC=0       >> load_env.sh
+    echo echo loading load craype-hugepages16M >> load_env.dot
+    echo module load craype-hugepages16M       >> load_env.dot
+    echo export FOR_DISABLE_KMP_MALLOC=0       >> load_env.dot
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
-    echo echo loading intelpsxe-cluster-19.0.3.199 and OpenMPI 3.1.2 librairies                  >> load_env.sh
-    echo . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199                                    >> load_env.sh
+    echo echo loading intelpsxe-cluster-19.0.3.199 and OpenMPI 3.1.2 librairies                  >> load_env.dot
+    echo . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199                                    >> load_env.dot
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
-    echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.sh
-    echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.sh
+    echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.dot
+    echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.dot
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20241105-alpha >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20241105-alpha >> load_env.sh
+    echo echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.dot
+    echo . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20241105-alpha >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/libs/20241105-alpha >> load_env.dot
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
 ## for non-interactive use, we want to set back 'set -x'
-echo "tty -s || set -x" >> load_env.sh
-echo                    >> load_env.sh
+echo "tty -s || set -x" >> load_env.dot
+echo                    >> load_env.dot
 
 if [ -n "${UnitTest_run_environment_variables}" ]; then
     for __envvar__ in ${UnitTest_run_environment_variables}; do
-        echo export ${__envvar__} >> load_env.sh
+        echo export ${__envvar__} >> load_env.dot
     done
-    echo >> load_env.sh
+    echo >> load_env.dot
 fi
 
-cat >> load_env.sh <<EOF
+cat >> load_env.dot <<EOF
 ulimit -c unlimited
 
 ## If you want to use DDT:
@@ -119,8 +119,8 @@ else
     LAUNCH_CMD=./launch_cmd
 fi
 
-echo export LAUNCH_CMD=${LAUNCH_CMD} >> load_env.sh
-echo export VTUNE_SSM=${UnitTest_run_vtune_ssm} >> load_env.sh
+echo export LAUNCH_CMD=${LAUNCH_CMD} >> load_env.dot
+echo export VTUNE_SSM=${UnitTest_run_vtune_ssm} >> load_env.dot
 
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
 cat >> localFilesNotToErase <<EOF
@@ -132,7 +132,7 @@ EOF
 
 source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
-. ./load_env.sh
+. ./load_env.dot
 
 ln -s ${TASK_BIN}/isFileInList.sh isFileInList.sh
 ln -s ${TASK_BIN}/launch_program.sh launch_program.sh
@@ -194,7 +194,7 @@ else
 
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-    rm -f load_env.sh launch_program.sh launch_cmd listing
+    rm -f load_env.dot launch_program.sh launch_cmd listing
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
     [ -d obs.original ] && rm -r obs.original
