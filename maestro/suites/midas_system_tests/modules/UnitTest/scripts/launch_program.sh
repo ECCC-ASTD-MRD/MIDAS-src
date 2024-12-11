@@ -127,7 +127,8 @@ done
 echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}"
 
 SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+echo Using r.run_in_parallel from $(which r.run_in_parallel)
+r.run_in_parallel -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 ## ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
 echo RUNTIME=${SECONDS}
 
