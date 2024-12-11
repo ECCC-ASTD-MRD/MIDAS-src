@@ -131,7 +131,11 @@ while [ \$# -ne 0 ]; do
     elif [ "\${1}" = --gdb ]; then
         debugger_mode=gdb
     elif [[ "\${1}" = --vtune* ]]; then
+        ## Can be '--vtune', '--vtune=${vtune options}'
+        ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html#GUID-09766DB6-3FA8-445B-8E70-5BC9A1BE7C55
         debugger_mode=\${1}
+        ## Load the full compiler suite
+        . ssmuse-sh -x ${UnitTest_run_vtune_ssm}
     elif [ "\${1}" = -h -o "\${1}" = --help ]; then
         echo "\${0} [--ddt] [--gdb] [--vtune] \\\${path_to_program}"
         exit
@@ -183,16 +187,17 @@ gdb -ex run -ex where -ex quit \${run_pgm}
 
 EOFLAUNCH
 elif [[ "\${debugger_mode}" = --vtune* ]]; then
+    export LAUNCH_PROGRAM_VTUNE_MODE=\${debugger_mode}
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
 set -ex
 
-if [[ "\${debugger_mode}" = --vtune ]]; then
+if [[ "\${LAUNCH_PROGRAM_VTUNE_MODE}" = --vtune ]]; then
     vtune_collect_mode=hotspots
 else
-    ## The script 'launch_program.sh' can be called with '--vtune-hotspots' or '--vtune-hpc-performance'
-    vtune_collect_mode=\$(echo \${debugger_mode} | sed 's/^--vtune-//')
+    ## The script 'launch_program.sh' can be called with '--vtune=hotspots' or '--vtune=hpc-performance'
+    vtune_collect_mode=\$(echo \${LAUNCH_PROGRAM_VTUNE_MODE} | sed 's/^--vtune=//')
 fi
 
 ## this will generate directories named 'vtune.\${hostname}'
