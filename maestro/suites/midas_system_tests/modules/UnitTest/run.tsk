@@ -248,8 +248,12 @@ chmod +x launch_program.sh
 
 . ./load_env.sh
 
+vtune_args=
+if [ -n "${UnitTest_run_vtune_mode}" ]; then
+    vtune_args=--vtune-${UnitTest_run_vtune_mode}
+fi
 status=0
-./launch_program.sh ./pgm 1> listing 2>&1 || status=1
+./launch_program.sh ${vtune_args} ./pgm 1> listing 2>&1 || status=1
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
