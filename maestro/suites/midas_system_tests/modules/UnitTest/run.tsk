@@ -127,15 +127,15 @@ debugger_mode=
 while [ \$# -ne 0 ]; do
     if [ "\${1}" = --ddt ]; then
         debugger_mode=ddt
-        . ssmuse-sh -x main/opt/forge/21.1.3
+        which ddt 1>/dev/null 2>&1 || . ssmuse-sh -x main/opt/forge/21.1.3
     elif [ "\${1}" = --gdb ]; then
         debugger_mode=gdb
     elif [[ "\${1}" = --vtune* ]]; then
         ## Can be '--vtune', '--vtune=\${vtune options}'
-        ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html#GUID-09766DB6-3FA8-445B-8E70-5BC9A1BE7C55
+        ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html
         debugger_mode=\${1}
         ## Load the full compiler suite
-        . ssmuse-sh -x ${UnitTest_run_vtune_ssm}
+        which vtune 1>/dev/null 2>&1 || . ssmuse-sh -x ${UnitTest_run_vtune_ssm}
     elif [ "\${1}" = -h -o "\${1}" = --help ]; then
         echo "\${0} [--ddt] [--gdb] [--vtune] \\\${path_to_program}"
         exit
