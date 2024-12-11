@@ -271,6 +271,76 @@ because we want to avoid running the task `check` and `clean` from the
 `UnitTest` module since it is expected that activating the coverage
 report options will change the results of the programs.
 
+## Profiling the code
+
+The Intel compiler suite contains the [`vtune`
+tool](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html)
+which profiles the code and helps identify optimization opportunities.
+
+You can use the tool while running the job in batch or [run it
+interactively](#interactive).
+
+First, you need to instrument the binary to allow profiling.  This can
+be done by using the `--vtune` option when calling `midas_build` such
+as:
+```bash
+cd src
+./midas_build --vtune
+```
+
+### Profiling the code in batch job
+
+The MIDAS system tests suite is supporting the 'vtune' profiling when
+running the tests in a batch job.
+
+One has to set
+``̀bash
+UnitTest_run_vtune_mode=hotspots
+```
+in
+[`experiment.cfg`](maestro/suites/midas_system_tests/experiment.cfg)
+which informs the launching script to profile the code with `vtune`
+the `hotspots` mode.  You can use any of the modes supported by the
+`-collect` option of
+`vtune`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
+
+The MIDAS program will run ̀vtune` will collect the profiling
+information in the working directory.  Once the program will have run,
+you can visualize the data using
+[`vtune-gui`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/standalone-ui.html)
+with the commands:
+```bash
+## Load the Intel compiler suite which contains 'vtune'
+. ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
+
+## Move to working directory
+cd ${workding directory}
+
+## Launch the vtune GUI
+vtune-gui ./vtune.*
+``̀
+
+### Profiling the code in a interactive job
+
+Once all the [steps have been followed to launch an interactive
+job](#interactive), you can profile the code using `vtune` by doing
+this:
+```bash
+./launch_program.sh --vtune=${vtune_mode} pgm
+```
+where `${vtune_mode}` is one of the [`vtune` mode accepted by `vtune
+-collect`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
+
+Then, you can visualize the date with the `vtune GUI`:
+``̀
+bash
+## Load the Intel compiler suite which contains 'vtune'
+. ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
+
+## Launch the vtune GUI
+vtune-gui ./vtune.*
+``̀
+
 ## Updating Test Results
 
 The results can be updated by running the task `UnitTest/update` for
