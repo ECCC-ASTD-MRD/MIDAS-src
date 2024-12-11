@@ -266,6 +266,12 @@ if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
         exit 1
     fi
     SEQ_XFER=stop
+elif [ -n "${UnitTest_run_vtune_mode}" ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you inspect the 'vtune' profiling data with the commands:"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   cd ${TASK_WORK}"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   vtune-gui ./vtune.*"
+    SEQ_XFER=stop
 else
     if [ "${status}" -ne 0 ]; then
         echo "launch_program.sh did end with an error!" >&2
