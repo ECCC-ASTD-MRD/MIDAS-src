@@ -246,6 +246,15 @@ echo RUNTIME=\${SECONDS}
 
 echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
+if [[ "\${debugger_mode}" = --vtune* ]]; then
+    echo "You can now vizualize the profiling data using the commands"
+    if which vtune 1>/dev/null 2>&1; then
+        echo "    . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
+    fi
+    echo "    vtune-gui ./vtune.*"
+    echo "Select only one of the 'vtune.*' directories"
+fi
+
 EOF
 chmod +x launch_program.sh
 
@@ -274,6 +283,7 @@ elif [ -n "${UnitTest_run_vtune_mode}" ]; then
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   cd ${TASK_WORK}"
     ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   vtune-gui ./vtune.*"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "Select only one of the 'vtune.*' directories"
     SEQ_XFER=stop
 else
     if [ "${status}" -ne 0 ]; then
