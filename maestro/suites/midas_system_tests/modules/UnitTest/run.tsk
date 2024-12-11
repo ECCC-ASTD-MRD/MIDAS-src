@@ -119,6 +119,9 @@ else
     LAUNCH_CMD=./launch_cmd
 fi
 
+echo export LAUNCH_CMD=${LAUNCH_CMD} >> load_env.sh
+echo export VTUNE_SSM=${UnitTest_run_vtune_ssm} >> load_env.sh
+
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
 cat >> localFilesNotToErase <<EOF
 isFileInList.sh

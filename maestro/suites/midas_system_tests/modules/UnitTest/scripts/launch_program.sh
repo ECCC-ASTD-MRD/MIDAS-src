@@ -14,7 +14,14 @@ while [ $# -ne 0 ]; do
         ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html
         debugger_mode=${1}
         ## Load the full compiler suite
-        which vtune 1>/dev/null 2>&1 || . ssmuse-sh -x ${UnitTest_run_vtune_ssm}
+        if ! which vtune 1>/dev/null 2>&1; then
+            if [ -n "${VTUNE_SSM}" ]; then
+                . ssmuse-sh -x ${VTUNE_SSM}
+            else
+                echo "${0}: aborts because it cannot find 'vtune' and 'VTUNE_SSM' environment variable does not exist"
+                exit 1
+            fi
+        fi
     elif [ "${1}" = -h -o "${1}" = --help ]; then
         echo "${0} [--ddt] [--gdb] [--vtune] \${path_to_program}"
         exit
@@ -128,8 +135,8 @@ echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 if [[ "${debugger_mode}" = --vtune* ]]; then
     echo "You can now vizualize the profiling data using the commands"
-    if which vtune 1>/dev/null 2>&1; then
-        echo "    . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
+    if ! which vtune 1>/dev/null 2>&1; then
+        echo "    . ssmuse-sh -x ${VTUNE_SSM}"
     fi
     echo "    vtune-gui ./vtune.*"
     echo "Select only one of the 'vtune.*' directories"
