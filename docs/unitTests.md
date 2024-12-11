@@ -273,11 +273,11 @@ report options will change the results of the programs.
 
 ## Profiling the code
 
-The Intel compiler suite contains the [`vtune`
+The Intel compiler suite provides the [`vtune`
 tool](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html)
 which profiles the code and helps identify optimization opportunities.
 
-You can use the tool while running the job in batch or [run it
+You can use the tool while running the [job in batch]() or [run it
 interactively](#interactive).
 
 First, you need to instrument the binary to allow profiling.  This can
@@ -287,6 +287,8 @@ as:
 cd src
 ./midas_build --vtune
 ```
+
+Then you can run the profiler in a batch job or interactively.
 
 ### Profiling the code in batch job
 
@@ -301,16 +303,16 @@ in
 [`experiment.cfg`](maestro/suites/midas_system_tests/experiment.cfg)
 which informs the launching script to profile the code with `vtune`
 the `hotspots` mode.  You can use any of the modes supported by the
-`-collect` option of
+[`-collect` option of
 `vtune`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
 
-The MIDAS program will run ̀vtune` will collect the profiling
-information in the working directory.  Once the program will have run,
+The MIDAS program will run and ̀vtune` will collect the profiling
+information in the working directory.  Once the program has run,
 you can visualize the data using
 [`vtune-gui`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/standalone-ui.html)
 with the commands:
 ```bash
-## Load the Intel compiler suite which contains 'vtune'
+## Load the Intel compiler suite which contains 'vtune-gui'
 . ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
 
 ## Move to working directory
@@ -330,6 +332,7 @@ this:
 ```
 where `${vtune_mode}` is one of the [`vtune` mode accepted by `vtune
 -collect`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
+If only `--vtune` is given, the mode `hotspots` will be used.
 
 Then, you can visualize the date with the `vtune GUI`:
 ``̀
