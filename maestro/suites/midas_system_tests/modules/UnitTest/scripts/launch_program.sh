@@ -2,7 +2,7 @@
 
 set -e
 
-running_mode=
+running_mode=run
 while [ $# -ne 0 ]; do
     if [ "${1}" = --ddt ]; then
         running_mode=ddt
@@ -52,7 +52,9 @@ if [ ! -f "${run_pgm}" ]; then
 fi
 
 if [ "${running_mode}" = ddt ]; then
-    true ## do nothing here when running in DDT mode
+    true ## no script to prepare when running in DDT mode
+elif [ "${running_mode}" = run ]; then
+    true ## no script to prepare when just running the program
 elif [ "${running_mode}" = gdb ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
@@ -99,7 +101,7 @@ EOFLAUNCH
     chmod +x launch_cmd
 
 else
-    echo "The 'running_mode' can only be 'ddt', 'gdb', 'vtune' or empty and not '${running_mode}'!" >&2
+    echo "The 'running_mode' can only be 'run', 'ddt', 'gdb', 'vtune' and not '${running_mode}'!" >&2
     exit 1
 fi
 
