@@ -17,6 +17,8 @@ module gridStateVector_mod
   use utilities_mod
   use message_mod
   use physicsFunctions_mod
+  use localizationFunction_mod
+  use kdTree2_mod
   implicit none
   save
   private
@@ -5530,7 +5532,8 @@ module gridStateVector_mod
   ! gsv_smoothHorizontal
   !--------------------------------------------------------------------------
   subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, &
-                                  varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt)
+                                  varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt, &
+                                  horizSmoothShape_opt)
     !
     ! :Purpose: To apply a horizontal smoothing to all of the fields according
     !           to the specified horizontal length scale
@@ -5545,21 +5548,30 @@ module gridStateVector_mod
     real(4), pointer, optional, intent(in)    :: binInteger_opt(:,:,:) ! Integer value field used to apply smoothing separately for each 
     real(8), pointer, optional, intent(in)    :: binReal_opt(:,:)      ! Similar to binInteger, but using a real-valued field
     real(8),          optional, intent(in)    :: binRealThreshold_opt  ! Threshold value used to distinguish between values of binReal
+    character(len=*), optional, intent(in)    :: horizSmoothShape_opt  ! Shape of smoothing function
 
     ! Locals:
     type(struct_gsv), pointer :: stateVector
     type(struct_gsv), target  :: stateVector_varsLevs
-    integer :: latIndex, lonIndex, stepIndex, kIndex
-    integer :: latIndex2, lonIndex2, maxDeltaIndex, count
-    integer :: latBeg, latEnd, lonBeg, lonEnd
+    integer :: latIndex, lonIndex, stepIndex, kIndex, gridIndex
+    integer :: latIndex2, lonIndex2, maxDeltaIndex
     integer :: myBinInteger
+    integer, external :: omp_get_thread_num
     real(8), allocatable :: smoothedField(:,:)
-    real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance
+    real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance, weight, sumWeight
     real(8) :: binRealThreshold, myBinReal
     real(4), pointer :: binInteger(:,:,:)
     real(8), pointer :: binReal(:,:)
     logical :: maskNegatives, binIntegerTest, binRealTest
-    
+    character(len=10) :: horizSmoothShape
+    integer                   :: numLocalGridPointsFound, gridFoundIndex
+    integer, parameter        :: maxNumLocalGridPointsSearch = 10000
+    type(kdtree2), pointer    :: tree => null()
+    real(kdkind), allocatable :: positionArray(:,:)
+    type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
+    real(kdkind)              :: searchRadiusSquared
+    real(kdkind)              :: refPosition(3)
+
     call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
 
     if (horizontalScale <= 0.0d0) then
@@ -5586,19 +5598,28 @@ module gridStateVector_mod
       binRealTest = .false.
     end if
 
+    if (present(horizSmoothShape_opt)) then
+      horizSmoothShape = horizSmoothShape_opt
+    else
+      horizSmoothShape = 'tophat'
+    end if
+    if (horizSmoothShape /= 'tophat' .and. &
+        horizSmoothShape /= 'gaussian') then
+      call utl_abort('gsv_smoothHorizontal: Invalid value of horizSmoothShape: ' // trim(horizSmoothShape))
+    end if
+    if (horizSmoothShape == 'gaussian') then
+      call lfn_Setup('FifthOrder')
+    end if
+
     if (stateVector_inout%mpi_distribution /= 'VarsLevs' .and. stateVector_inout%mpi_local) then
-    
       call gsv_allocate(statevector_varsLevs, statevector_inout%numStep, statevector_inout%hco, &
                         statevector_inout%vco, dataKind_opt=statevector_inout%dataKind,         &
                         mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', &
                         allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_transposeTilesToVarsLevs(statevector_inout, statevector_varsLevs)
       stateVector => stateVector_varsLevs
-      
     else
-    
       stateVector => stateVector_inout
-      
     end if
 
     if (present(maskNegatives_opt)) then
@@ -5609,6 +5630,19 @@ module gridStateVector_mod
 
     allocate(smoothedField(stateVector%ni,stateVector%nj))
 
+    ! create a kdtree to index all grid locations
+    allocate(positionArray(3,stateVector%ni*stateVector%nj))
+    gridIndex = 0
+    do lonIndex = 1, stateVector%ni
+      do latIndex = 1, stateVector%nj
+        gridIndex = gridIndex + 1
+        positionArray(:,gridIndex) = &
+             kdtree2_3dPosition(real(stateVector%hco%lon2d_4(lonIndex,latIndex),8), &
+                                real(stateVector%hco%lat2d_4(lonIndex,latIndex),8))
+      end do
+    end do
+    tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+    
     ! figure out the maximum possible number of grid points to search
     if (stateVector%hco%dlat > 0.0d0) then
       maxDeltaIndex = ceiling(1.5d0 * horizontalScale / (ec_ra * max(stateVector%hco%dlat,stateVector%hco%dlon)))
@@ -5628,80 +5662,98 @@ module gridStateVector_mod
     ! apply a simple footprint operator type of averaging within specified radius
     stepIndexLoop: do stepIndex = 1, stateVector%numStep
       kIndexLoop: do kIndex = stateVector%mykBeg, stateVector%mykEnd
-        if (mmpi_myid == 0) write(*,*) 'gsv_smoothHorizontal: Smoothing kIndex = ', kIndex
+        if (mmpi_myid == 0) then
+          write(*,*) 'gsv_smoothHorizontal: Do smoothing for kIndex = ', kIndex
+        end if
 
         if (present(varName_opt)) then
           if (gsv_getVarNameFromK(stateVector,kIndex) /= trim(varName_opt)) cycle kIndexLoop
         end if
-	
+
         smoothedField(:,:) = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,count,latBeg,latEnd,lonBeg,lonEnd, &
-        !$OMP                     myBinInteger,myBinReal,latIndex2,lonIndex2,lat2_r8,lon2_r8,distance)
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,sumWeight, &
+        !$OMP        myBinInteger,myBinReal,latIndex2,lonIndex2,lat2_r8,lon2_r8,distance, &
+        !$OMP        weight,searchRadiusSquared,refPosition,numLocalGridPointsFound, &
+        !$OMP        searchResults,gridFoundIndex,gridIndex)
         latLoop: do latIndex = 1, stateVector%nj
           lonLoop: do lonIndex = 1, stateVector%ni
-	  
-            lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
-            lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
-            count = 0
-            latBeg = max(1, latIndex - maxDeltaIndex)
-            latEnd = min(stateVector%nj, latIndex + maxDeltaIndex)
-            lonBeg = max(1, lonIndex - maxDeltaIndex)
-            lonEnd = min(stateVector%ni, lonIndex + maxDeltaIndex)
+
             if (binIntegerTest) then
               myBinInteger = int(binInteger(lonIndex,latIndex,1)) 
             end if
-            
-	    if (binRealTest) then
+
+            if (binRealTest) then
               myBinReal = binReal(lonIndex,latIndex)
             end if
-	    
-            latLoop2: do latIndex2 = latBeg, latEnd
-              lonLoop2: do lonIndex2 = lonBeg, lonEnd
 
-                ! skip negative value if it should be masked
-                if (maskNegatives .and. stateVector%dataKind == 8) then
-                  if (stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0d0) cycle lonLoop2
-                else if (maskNegatives .and. statevector%dataKind == 4) then
-                  if (stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex) < 0.0) cycle lonLoop2
-                end if
+            lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
+            lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
+            searchRadiusSquared = (horizontalScale)**2
+            refPosition(:) = kdtree2_3dPosition(lon1_r8, lat1_r8)
+            call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=searchRadiusSquared, &
+                                   nfound=numLocalGridPointsFound, &      ! OUT
+                                   nalloc=maxNumLocalGridPointsSearch, &
+                                   results=searchResults)                 ! OUT
 
-                ! skip value if it is beyond the specified distance
-                lat2_r8 = stateVector%hco%lat2d_4(lonIndex2,latIndex2)
-                lon2_r8 = stateVector%hco%lon2d_4(lonIndex2,latIndex2)
-                distance = phf_calcDistanceFast(lat2_r8, lon2_r8, lat1_r8, lon1_r8)
-                if (distance > horizontalScale) cycle lonLoop2
-
-                ! skip value if it lies in a different bin
-                if (binIntegerTest) then
-                  if (int(binInteger(lonIndex2,latIndex2,1)) /=  myBinInteger .or. & 
-                      int(binInteger(lonIndex2,latIndex2,1)) == -1) cycle lonLoop2
-                end if
-		
-                if (binRealTest) then
-                  if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle lonLoop2
-                end if
-
-                count = count + 1
-                if (stateVector%dataKind == 8) then
-                  smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + &
-                                                     stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex)
-                else
-                  smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + &
-                                                     real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
-                end if
+            if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
+              call utl_abort('gsv_smoothHorizontal: The parameter maxNumLocalGridPointsSearch must be increased')
+            end if
+            if (numLocalGridPointsFound == 0) then
+              call utl_abort('gsv_smoothHorizontal: No nearby grid points found. This should not happen.')
+            end if
             
-	      end do lonLoop2
-            end do latLoop2
+            sumWeight = 0.0D0
+            gridFoundIndexLoop: do gridFoundIndex = 1, numLocalGridPointsFound
 
-	    if (count > 0) then
-              smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / real(count,8)
+              gridIndex = searchResults(gridFoundIndex)%idx
+              lonIndex2 = 1 + ((gridIndex-1)/stateVector%nj)
+              latIndex2 = gridIndex - ((gridIndex-1)/stateVector%nj)*stateVector%nj
+
+              ! skip value if it lies in a different bin
+              if (binIntegerTest) then
+                if (int(binInteger(lonIndex2,latIndex2,1)) /=  myBinInteger .or. & 
+                    int(binInteger(lonIndex2,latIndex2,1)) == -1) cycle gridFoundIndexLoop
+              end if
+              if (binRealTest) then
+                if (abs(binReal(lonIndex2,latIndex2) - myBinReal) > binRealThreshold) cycle gridFoundIndexLoop
+              end if
+
+              ! skip value if it is beyond the specified distance
+              lat2_r8 = stateVector%hco%lat2d_4(lonIndex2,latIndex2)
+              lon2_r8 = stateVector%hco%lon2d_4(lonIndex2,latIndex2)
+              distance = phf_calcDistanceFast(lat2_r8, lon2_r8, lat1_r8, lon1_r8)
+              if (distance > horizontalScale) then
+                cycle gridFoundIndexLoop
+              end if
+
+              if (horizSmoothShape == 'tophat') then
+                weight = 1.0D0
+              else if (horizSmoothShape == 'gaussian') then
+                weight = lfn_Response(distance,horizontalScale)
+              else
+                weight = 0.0D0
+              end if
+              sumWeight = sumWeight + weight
+
+              if (stateVector%dataKind == 8) then
+                smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + weight* &
+                                                   stateVector%gd_r8(lonIndex2,latIndex2,kIndex,stepIndex)
+              else
+                smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) + weight* &
+                                                   real(stateVector%gd_r4(lonIndex2,latIndex2,kIndex,stepIndex),8)
+              end if
+
+            end do gridFoundIndexLoop
+
+            if (sumWeight > 0.0D0) then
+              smoothedField(lonIndex,latIndex) = smoothedField(lonIndex,latIndex) / sumWeight
             else
               if (maskNegatives) smoothedField(lonIndex,latIndex) = mpc_missingValue_r8
             end if
-	    
+
           end do lonLoop
         end do latLoop
-	!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 
         if (stateVector%dataKind == 8) then
           stateVector%gd_r8(:,:,kIndex,stepIndex) = smoothedField(:,:)
@@ -5713,12 +5765,13 @@ module gridStateVector_mod
     end do stepIndexLoop
 
     deallocate(smoothedField)
+    call kdtree2_destroy(tree)
 
     if (stateVector_inout%mpi_distribution /= 'VarsLevs' .and. stateVector_inout%mpi_local) then
       call gsv_transposeVarsLevsToTiles(statevector_varsLevs, statevector_inout)
       call gsv_deallocate(statevector_varsLevs)
     end if
-    
+
     call utl_tmg_stop(169)
 
   end subroutine gsv_smoothHorizontal
