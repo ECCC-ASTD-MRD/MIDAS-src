@@ -1381,12 +1381,14 @@ contains
         
         call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
-        call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
-        call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
+        ! Do nothing since height increments are always zero with an height-based coordinate
+        
+        !call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
+        !call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
 
         ! Height increments are always zero with an height-based coordinate
-        delHeight_M_ptr_r48(:,:,:,:) = 0.0d0
-        delHeight_T_ptr_r48(:,:,:,:) = 0.0d0
+        !delHeight_M_ptr_r48(:,:,:,:) = 0.0d0
+        !delHeight_T_ptr_r48(:,:,:,:) = 0.0d0
 
         call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'END', verb_opt=4)
 
@@ -2219,19 +2221,19 @@ contains
       call calcPressure_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_tl_vcode2100x
     else
@@ -2606,19 +2608,19 @@ contains
       call calcPressure_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 2100x, variable P0 must be allocated in gridstatevector')
       end if
       call calcPressure_gsv_ad_vcode2100x
     else
@@ -3205,9 +3207,6 @@ contains
     allocate(hSfc(1, numCol))
     do colIndex = 1, numCol
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
-      !if (colIndex <= 5) then
-      !  write(*,*) 'hSfc(1,colIndex) = ', hSfc(1,colIndex)
-      !end if
     end do
 
     call fetch3DLevels_r8(col_getVco(column), hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
@@ -3536,12 +3535,14 @@ contains
 
         call msg('calcHeight_col_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
-        delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
-        delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
+        ! Do nothing since height increments are always zero with an height-based coordinate
+        
+        !delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
+        !delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
 
         ! Height increments are always zero with an height-based coordinate
-        delHeight_M_ptr(:,:) = 0.0d0
-        delHeight_T_ptr(:,:) = 0.0d0
+        !delHeight_M_ptr(:,:) = 0.0d0
+        !delHeight_T_ptr(:,:) = 0.0d0
         
         call msg('calcHeight_col_ad_vcode5xxx (czp)', 'END', verb_opt=4)
 
@@ -4602,8 +4603,8 @@ contains
     implicit none
     
     ! Arguments:
-    integer, intent(in)    :: nLev
-    real(8), intent(inout) :: height2pres_profile(nLev)
+    integer, intent(in)    :: nLev                      ! Number of vertical levels
+    real(8), intent(inout) :: height2pres_profile(nLev) ! Input: Height profile, Output: Pressure profile 
     
     ! Locals:
     real(8) :: height_profile(nLev)
@@ -4612,10 +4613,10 @@ contains
     integer :: levIndex, layerIndex, associatedLayerIndex
 
     integer, parameter :: nLayer=7 ! see https://en.wikipedia.org/wiki/U.S._Standard_Atmosphere#1976_version
-    real(8), dimension(1:nLayer) :: tgrad = (/            -6.5D-3,     0.D0,   1.0D-3,   2.8D-3,     0.D0,  -2.8D-3,  -2.0D-3/)
-    real(8), dimension(0:nLayer) :: zbase = (/     0.D0, 11000.D0, 20000.D0, 32000.D0, 47000.D0, 51000.D0, 71000.D0, 84852.D0/)
-    real(8), dimension(0:nLayer) :: pbase = (/101325.D0, 22632.D0, 5474.9D0, 868.02D0, 110.91D0, 66.939D0, 3.9564D0, 0.3734D0/)
-    real(8), dimension(0:nLayer) :: tbase = (/    15.D0,  -56.5D0,  -56.5D0,  -44.5D0,   -2.5D0,   -2.5D0,  -58.5D0, -86.28D0/)
+    real(8) :: tgrad(nLayer)   = (/            -6.5D-3,     0.D0,   1.0D-3,   2.8D-3,     0.D0,  -2.8D-3,  -2.0D-3/)
+    real(8) :: zbase(0:nLayer) = (/     0.D0, 11000.D0, 20000.D0, 32000.D0, 47000.D0, 51000.D0, 71000.D0, 84852.D0/)
+    real(8) :: pbase(0:nLayer) = (/101325.D0, 22632.D0, 5474.9D0, 868.02D0, 110.91D0, 66.939D0, 3.9564D0, 0.3734D0/)
+    real(8) :: tbase(0:nLayer) = (/    15.D0,  -56.5D0,  -56.5D0,  -44.5D0,   -2.5D0,   -2.5D0,  -58.5D0, -86.28D0/)
 
     logical :: zeroLapseRate
     
@@ -4631,7 +4632,7 @@ contains
       if (height_profile(levIndex+1) <= height_profile(levIndex)) then
         write(*,*) levIndex+1, height_profile(levIndex+1)
         write(*,*) levIndex  , height_profile(levIndex)
-        call utl_abort('czp_caclPressureProfileUsingStdAtm: Invalid ordering')
+        call utl_abort('czp_calcPressureProfileUsingStdAtm: Invalid ordering')
       end if
     end do
 
@@ -4639,7 +4640,7 @@ contains
     if (height_profile(nLev) > zbase(nLayer)) then
       write(*,*)  'Height at model top = ', height_profile(nLev)
       write(*,*)  'Std Atm max height  = ', zbase(nLayer)
-      call utl_abort('czp_caclPressureProfileUsingStdAtm: Maximum layer exceeded')
+      call utl_abort('czp_calcPressureProfileUsingStdAtm: Maximum layer exceeded')
     end if
 
     !
