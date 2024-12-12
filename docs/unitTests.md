@@ -280,8 +280,8 @@ tool](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profi
 which profiles the code and helps identify optimization opportunities.
 
 You can use the tool while running the [job in
-batch](#profiling-the-code-in-batch-job) or [run it
-interactively](#profiling-the-code-in-a-interactive-job).
+batch](#profiling-the-code-in-a-batch-job) or [run it
+interactively](#profiling-the-code-in-an-interactive-job).
 
 First, you need to instrument the binary to allow profiling.  This can
 be done by using the `--vtune` option when calling `midas_build` such
@@ -293,9 +293,9 @@ cd src
 
 Then you can run the profiler in a batch job or interactively.
 
-### Profiling the code in batch job
+### Profiling the code in a batch job
 
-The MIDAS system tests suite is supporting the 'vtune' profiling when
+The MIDAS system tests suite is supporting the `vtune` profiling when
 running the tests in a batch job.
 
 One has to set
@@ -325,7 +325,7 @@ cd ${workding directory}
 vtune-gui ./vtune.*
 ```
 
-### Profiling the code in a interactive job
+### Profiling the code in an interactive job
 
 Once all the [steps have been followed to launch an interactive
 job](#interactive-debugging), you can profile the code using `vtune`
