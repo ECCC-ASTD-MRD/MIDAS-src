@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduction of support for RTTOV built-in IR land emissivity atlases. Deleted `useUofWIREmiss` and added `oldFashionIRLandEmiss`, `irEmissAngularCorrection` and `useWaterFraction` logical variables to `NAMTOV` namelist section (#1001 and !916)
  * Profiling the code with `vtune` has been introduced and documented (#1011 and !917)
  * Ability to compute EnVar analysis increments on GEM-H levels (#905 and !915)
    * WARNING: minor impact on results when vertically interpolating columns
