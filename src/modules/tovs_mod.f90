@@ -3015,36 +3015,6 @@ contains
         
         call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
         
-        !if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
-                
-         ! do profileIndex=1, profileCount !loop on profiles
-          !  headerIndex = sensorHeaderIndexes(profileIndex)
-           ! do btIndex=1, btCount !loop on channels
-            !  if (tvs_chanProf(btIndex,sensorIndex) % prof == profileIndex) then
-                ! surftype: 0 land, 1 sea, 2 sea-ice
-                ! this logic is primitive and could be improved for example using
-                ! additional criteria based on emissivity_std and emissivity_flg
-                !Definition of emis_flag:
-                ! emis_flag:Flag_0 = '0 = sea, no MOD11 data' ;
-                ! emis_flag:Flag_1 = '1 = land where BF method was applied' ;
-                ! emis_flag:Flag_2 = '2 = land where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! emis_flag:Flag_3 = '3 = contains inland water or coastline by the sea/land mask where the BF method was used' ;
-                ! emis_flag:Flag_4 = '4 = contains inland water or coastline by the sea/land mask where data was filled with average original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! emis_flag:Flag_5 = '5 = contains coastline by land fraction where the BF method was used' ;
-                ! emis_flag:Flag_6 = '6 = contains coastline by land fraction where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! other information that could be useful for quality control can be found in the in the profile_qc structure
-                ! Now we have the 'traditionnal' emissivity in surfem1(:)
-                ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-              !  if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. &
-               !     uOfWLandWSurfaceEmissivity(btIndex) > 0.5) then
-                !  emissivity_local(btIndex) % emis_in = uOfWLandWSurfaceEmissivity(btIndex)
-        !else
-         !         emissivity_local(btIndex) % emis_in = surfem1(btIndex)
-          !      end if
-           !   end if
-            !end do
-          !end do
-
         if (sensorType == sensor_id_mw) then
           if (allocated(tvs_emissivityFromTrl)) then
             ! Read surface emissivity from column when it's included as an analysis variable
