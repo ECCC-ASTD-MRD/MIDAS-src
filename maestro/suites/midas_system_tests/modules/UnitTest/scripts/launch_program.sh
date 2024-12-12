@@ -53,8 +53,6 @@ fi
 
 if [ "${running_mode}" = ddt ]; then
     true ## no script to prepare when running in DDT mode
-elif [ "${running_mode}" = run ]; then
-    true ## no script to prepare when just running the program
 elif [ "${running_mode}" = gdb ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
@@ -89,7 +87,7 @@ vtune -collect ${vtune_collect_mode} –r vtune -- ${run_pgm}
 EOFLAUNCH
     chmod +x launch_cmd
 
-elif [ -z "${running_mode}" ]; then
+elif [ "${running_mode}" = run ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
@@ -125,9 +123,16 @@ if [ "${running_mode}" = ddt ]; then
     ## DDT cannot run a script, it must launch the program itself
     ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
 else
-    SECONDS=0
-    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}"
+    if [ "${running_mode}" = --vtune ]; then
+        info_mode=" with vtune"
+    elif [ "${running_mode}" = gdb ]; then
+        info_mode=" with gdb"
+    fi
+
+    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}${info_mode}"
     echo Using r.run_in_parallel from $(which r.run_in_parallel)
+
+    SECONDS=0
     r.run_in_parallel -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
     echo RUNTIME=${SECONDS}
 fi
@@ -136,7 +141,7 @@ echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 if [[ "${running_mode}" = --vtune* ]]; then
     echo "You can now vizualize the profiling data using the commands"
-    if ! which vtune 1>/dev/null 2>&1; then
+    if ! which vtune-gui 1>/dev/null 2>&1; then
         echo "    . ssmuse-sh -x ${VTUNE_SSM}"
     fi
     echo "    vtune-gui ./vtune.*"
