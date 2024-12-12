@@ -52,7 +52,7 @@ if [ ! -f "${run_pgm}" ]; then
 fi
 
 if [ "${debugger_mode}" = ddt ]; then
-    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
+    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${LAUNCH_PROGRAM_SOURCE_DIRS} &
     sleep 5
 
     cat > launch_cmd <<EOFLAUNCH

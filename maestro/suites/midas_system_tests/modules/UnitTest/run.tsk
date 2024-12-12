@@ -121,6 +121,7 @@ fi
 
 echo export LAUNCH_CMD=${LAUNCH_CMD} >> load_env.dot
 echo export VTUNE_SSM=${UnitTest_run_vtune_ssm} >> load_env.dot
+echo export LAUNCH_PROGRAM_SOURCE_DIRS=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs >> load_env.dot
 
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
 cat >> localFilesNotToErase <<EOF
@@ -129,8 +130,6 @@ launch_program.sh
 launch_cmd
 listing
 EOF
-
-source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
 
 . ./load_env.dot
 
