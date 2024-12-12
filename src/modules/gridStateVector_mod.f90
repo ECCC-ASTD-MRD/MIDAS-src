@@ -5557,7 +5557,6 @@ module gridStateVector_mod
     integer :: latIndex2, lonIndex2, maxDeltaIndex
     integer :: myBinInteger
     integer, external :: omp_get_thread_num
-    integer(8) :: countSkip(0:mmpi_numthread-1), countIncl(0:mmpi_numthread-1)
     real(8), allocatable :: smoothedField(:,:)
     real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance, weight, sumWeight
     real(8) :: binRealThreshold, myBinReal
@@ -5671,8 +5670,6 @@ module gridStateVector_mod
           if (gsv_getVarNameFromK(stateVector,kIndex) /= trim(varName_opt)) cycle kIndexLoop
         end if
 
-        countSkip(:) = 0
-        countIncl(:) = 0
         smoothedField(:,:) = 0.0d0
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,lat1_r8,lon1_r8,sumWeight, &
         !$OMP        myBinInteger,myBinReal,latIndex2,lonIndex2,lat2_r8,lon2_r8,distance, &
@@ -5685,7 +5682,7 @@ module gridStateVector_mod
               myBinInteger = int(binInteger(lonIndex,latIndex,1)) 
             end if
 
-	    if (binRealTest) then
+            if (binRealTest) then
               myBinReal = binReal(lonIndex,latIndex)
             end if
 
@@ -5699,15 +5696,12 @@ module gridStateVector_mod
                                    results=searchResults)                 ! OUT
 
             if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
-              call utl_abort('The parameter maxNumLocalGridPointsSearch must be increased')
+              call utl_abort('gsv_smoothHorizontal: The parameter maxNumLocalGridPointsSearch must be increased')
             end if
             if (numLocalGridPointsFound == 0) then
-              call utl_abort('No nearby grid points found. This should not happen.')
+              call utl_abort('gsv_smoothHorizontal: No nearby grid points found. This should not happen.')
             end if
             
-            countIncl(omp_get_thread_num()) = countIncl(omp_get_thread_num()) + &
-                                              int(numLocalGridPointsFound,8)
-
             sumWeight = 0.0D0
             gridFoundIndexLoop: do gridFoundIndex = 1, numLocalGridPointsFound
 
@@ -5729,8 +5723,6 @@ module gridStateVector_mod
               lon2_r8 = stateVector%hco%lon2d_4(lonIndex2,latIndex2)
               distance = phf_calcDistanceFast(lat2_r8, lon2_r8, lat1_r8, lon1_r8)
               if (distance > horizontalScale) then
-                countSkip(omp_get_thread_num()) = countSkip(omp_get_thread_num()) + 1
-                countIncl(omp_get_thread_num()) = countIncl(omp_get_thread_num()) - 1
                 cycle gridFoundIndexLoop
               end if
 
@@ -5761,10 +5753,7 @@ module gridStateVector_mod
 
           end do lonLoop
         end do latLoop
-	!$OMP END PARALLEL DO
-
-        write(*,*) 'gsv_smoothHorizontal: countSkip = ', countSkip(:)
-        write(*,*) 'gsv_smoothHorizontal: countIncl = ', countIncl(:)
+        !$OMP END PARALLEL DO
 
         if (stateVector%dataKind == 8) then
           stateVector%gd_r8(:,:,kIndex,stepIndex) = smoothedField(:,:)
