@@ -187,14 +187,16 @@ again the program you are debugging.  This is the script
 Sometimes, it is very helpful to use some debugging tools.  So the
 script `launch_program.sh` supports two tools for debugging:
  * [`gdb`](https://www.gnu.org/software/gdb) and
- * [`DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
+ * [DDT](https://portal.science.gc.ca/xwiki/bin/view/Projects/Science/Software%20Resources/DDT)
 
 which can be activated by using respectively the options `--gdb` and
 `--ddt` when calling `launch_program.sh` like this:
 ```bash
 ./launch_program.sh ${path_to_program} --ddt
 ```
-For DDT, the GUI is automatically started for you.
+For DDT, the GUI is automatically started for you.  For `GDB`, you
+cannot run interactively.  Each MPI tank is launching its own copy of
+the program by wrapping it with `gdb`.
 
 When you use those tools, it is suggested to compile with debugging
 options enabled by using:

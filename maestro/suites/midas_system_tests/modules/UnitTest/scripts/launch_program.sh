@@ -52,17 +52,7 @@ if [ ! -f "${run_pgm}" ]; then
 fi
 
 if [ "${debugger_mode}" = ddt ]; then
-    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${LAUNCH_PROGRAM_SOURCE_DIRS} &
-    sleep 5
-
-    cat > launch_cmd <<EOFLAUNCH
-#!/bin/bash
-
-set -ex
-
-ddt --connect ${run_pgm}
-
-EOFLAUNCH
+    true ## do nothing here when running in DDT mode
 elif [ "${debugger_mode}" = gdb ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
@@ -72,6 +62,8 @@ set -ex
 gdb -ex run -ex where -ex quit ${run_pgm}
 
 EOFLAUNCH
+    chmod +x launch_cmd
+
 elif [[ "${debugger_mode}" = --vtune* ]]; then
      cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
@@ -93,6 +85,8 @@ EOFLAUNCH
 vtune -collect ${vtune_collect_mode} –r vtune -- ${run_pgm}
 
 EOFLAUNCH
+    chmod +x launch_cmd
+
 elif [ -z "${debugger_mode}" ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
@@ -102,12 +96,12 @@ set -e
 /usr/bin/time --format="Total Memory %M Kb" ${run_pgm}
 
 EOFLAUNCH
+    chmod +x launch_cmd
+
 else
     echo "The 'debugger_mode' can only be 'ddt', 'gdb', 'vtune' or empty and not '${debugger_mode}'!" >&2
     exit 1
 fi
-
-chmod +x launch_cmd
 
 ## This may be needed for 'mpiscript'
 export RUN_PGM=${PWD}/launch_cmd
@@ -124,13 +118,17 @@ for file in *; do
     fi
 done
 
-echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}"
-
-SECONDS=0
-echo Using r.run_in_parallel from $(which r.run_in_parallel)
-r.run_in_parallel -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
-## ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
-echo RUNTIME=${SECONDS}
+if [ "${debugger_mode}" = ddt ]; then
+    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm} with DDT"
+    ## DDT cannot run a script, it must launch the program itself
+    ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
+else
+    SECONDS=0
+    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}"
+    echo Using r.run_in_parallel from $(which r.run_in_parallel)
+    r.run_in_parallel -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+    echo RUNTIME=${SECONDS}
+fi
 
 echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
