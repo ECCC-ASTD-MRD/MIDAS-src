@@ -2,17 +2,17 @@
 
 set -e
 
-debugger_mode=
+running_mode=
 while [ $# -ne 0 ]; do
     if [ "${1}" = --ddt ]; then
-        debugger_mode=ddt
+        running_mode=ddt
         which ddt 1>/dev/null 2>&1 || . ssmuse-sh -x main/opt/forge/21.1.3
     elif [ "${1}" = --gdb ]; then
-        debugger_mode=gdb
+        running_mode=gdb
     elif [[ "${1}" = --vtune* ]]; then
         ## Can be '--vtune', '--vtune=${vtune options}'
         ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html
-        debugger_mode=${1}
+        running_mode=${1}
         ## Load the full compiler suite
         if ! which vtune 1>/dev/null 2>&1; then
             if [ -n "${VTUNE_SSM}" ]; then
@@ -51,9 +51,9 @@ if [ ! -f "${run_pgm}" ]; then
     exit 1
 fi
 
-if [ "${debugger_mode}" = ddt ]; then
+if [ "${running_mode}" = ddt ]; then
     true ## do nothing here when running in DDT mode
-elif [ "${debugger_mode}" = gdb ]; then
+elif [ "${running_mode}" = gdb ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
@@ -64,7 +64,7 @@ gdb -ex run -ex where -ex quit ${run_pgm}
 EOFLAUNCH
     chmod +x launch_cmd
 
-elif [[ "${debugger_mode}" = --vtune* ]]; then
+elif [[ "${running_mode}" = --vtune* ]]; then
      cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
@@ -73,11 +73,11 @@ set -ex
 ## this will generate directories named 'vtune.\${hostname}'
 EOFLAUNCH
 
-    if [ "${debugger_mode}" = --vtune ]; then
+    if [ "${running_mode}" = --vtune ]; then
         vtune_collect_mode=hotspots
     else
         ## The script 'launch_program.sh' can be called with '--vtune=hotspots' or '--vtune=hpc-performance'
-        vtune_collect_mode=$(echo ${debugger_mode} | sed 's/^--vtune=//')
+        vtune_collect_mode=$(echo ${running_mode} | sed 's/^--vtune=//')
     fi
 
     cat >> launch_cmd <<EOFLAUNCH
@@ -87,7 +87,7 @@ vtune -collect ${vtune_collect_mode} –r vtune -- ${run_pgm}
 EOFLAUNCH
     chmod +x launch_cmd
 
-elif [ -z "${debugger_mode}" ]; then
+elif [ -z "${running_mode}" ]; then
     cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
@@ -99,7 +99,7 @@ EOFLAUNCH
     chmod +x launch_cmd
 
 else
-    echo "The 'debugger_mode' can only be 'ddt', 'gdb', 'vtune' or empty and not '${debugger_mode}'!" >&2
+    echo "The 'running_mode' can only be 'ddt', 'gdb', 'vtune' or empty and not '${running_mode}'!" >&2
     exit 1
 fi
 
@@ -118,7 +118,7 @@ for file in *; do
     fi
 done
 
-if [ "${debugger_mode}" = ddt ]; then
+if [ "${running_mode}" = ddt ]; then
     echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm} with DDT"
     ## DDT cannot run a script, it must launch the program itself
     ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
@@ -132,7 +132,7 @@ fi
 
 echo "End of ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
-if [[ "${debugger_mode}" = --vtune* ]]; then
+if [[ "${running_mode}" = --vtune* ]]; then
     echo "You can now vizualize the profiling data using the commands"
     if ! which vtune 1>/dev/null 2>&1; then
         echo "    . ssmuse-sh -x ${VTUNE_SSM}"
