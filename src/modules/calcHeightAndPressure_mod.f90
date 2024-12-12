@@ -1383,13 +1383,6 @@ contains
 
         ! Do nothing since height increments are always zero with an height-based coordinate
         
-        !call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
-        !call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
-
-        ! Height increments are always zero with an height-based coordinate
-        !delHeight_M_ptr_r48(:,:,:,:) = 0.0d0
-        !delHeight_T_ptr_r48(:,:,:,:) = 0.0d0
-
         call msg('calcHeight_gsv_ad_vcode2100x (czp)', 'END', verb_opt=4)
 
       end subroutine calcHeight_gsv_ad_vcode2100x
@@ -3536,13 +3529,6 @@ contains
         call msg('calcHeight_col_ad_vcode2100x (czp)', 'START', verb_opt=4)
 
         ! Do nothing since height increments are always zero with an height-based coordinate
-        
-        !delHeight_M_ptr => col_getAllColumns(columnInc,'Z_M')
-        !delHeight_T_ptr => col_getAllColumns(columnInc,'Z_T')
-
-        ! Height increments are always zero with an height-based coordinate
-        !delHeight_M_ptr(:,:) = 0.0d0
-        !delHeight_T_ptr(:,:) = 0.0d0
         
         call msg('calcHeight_col_ad_vcode5xxx (czp)', 'END', verb_opt=4)
 
