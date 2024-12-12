@@ -86,7 +86,8 @@ program midas_adjointTest
   use ensembleStateVector_mod
   use localization_mod
   use lamBmatrixHI_mod
-
+  use calcHeightAndPressure_mod
+  
   implicit none
 
   type(struct_vco),       pointer :: vco_anl  => null()
@@ -219,6 +220,9 @@ program midas_adjointTest
   !else if ( test == 'addMem') then
   !  !- 2.6 Localization
   !  call check_addmem
+  else if ( test == 'ZandP') then
+    !- 2.7 Height and pressure computation
+    call check_calcHeightAndPressure
   else
     call utl_abort('midas-adjointTest: inexistant test label ('//test//')')
   end if
@@ -971,6 +975,148 @@ contains
     call gsv_deallocate(statevector_y)
 
   end subroutine check_advectionGSV
+
+  !--------------------------------------------------------------------------
+  !- check AdvectionGSV
+  !--------------------------------------------------------------------------
+  subroutine check_calcHeightAndPressure
+    implicit none
+
+    ! Locals:
+    integer :: seed, varLevIndex, stepIndex, latIndex, lonIndex, dateStamp
+    real(8), pointer     :: field4d_x_r8(:,:,:,:), field4d_y_r8(:,:,:,:)
+    real(8), pointer     :: field4d_LTx_r8(:,:,:,:), field4d_Ly_r8(:,:,:,:)
+    integer,allocatable :: dateStampList(:)
+
+    type(struct_gsv) :: statevectorRef
+    type(struct_gsv) :: statevectorRef_noZnoP
+    
+    allocate(dateStampList(tim_nstepobsinc))
+    call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
+
+    dateStamp = tim_getDatestamp()
+    write(*,*) 'check_advectionGSV: tim_getDatestamp = ', dateStamp
+    write(*,*) 'check_advectionGSV: dateStampList = ', dateStampList(:)
+
+    !
+    !- Create the needed reference state
+    !
+    
+    ! Initialize stateVectorHeight on analysis grid
+    call gsv_allocate(stateVectorRef, tim_nstepobsinc, hco_anl, &
+                      vco_anl, dateStamp_opt=tim_getDateStamp(), &
+                      mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=&
+                      (/'Z_T','Z_M','P_T','P_M','TT ','HU ','P0 '/) )
+    call gsv_zero(stateVectorRef)
+
+    ! initialize statevectorRef_noZnoP on analysis grid
+    call gsv_allocate(statevectorRef_noZnoP, tim_nstepobsinc, hco_anl, vco_anl, &
+                      dateStamp_opt=tim_getDateStamp(), &
+                      mpi_local_opt=.true., allocHeightSfc_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR', &
+                      varNames_opt=(/'TT','HU','P0'/))
+
+    ! read trial files using default horizontal interpolation degree
+    call gio_readTrials(statevectorRef_noZnoP) ! IN/OUT
+
+    ! copy the statevectors
+    call gsv_copy(statevectorRef_noZnoP, stateVectorRef, &
+                  allowVarMismatch_opt=.true. )
+
+    call gsv_deallocate(statevectorRef_noZnoP)
+
+    ! do height/P calculation of the grid
+    call czp_calcZandP_nl(stateVectorRef)
+
+    !
+    !- Adjoint test
+    !
+    call gsv_allocate(statevector_x  , tim_nstepobsinc, hco_anl, vco_anl, &
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.true., allocPressure_opt=.true.)
+    call gsv_allocate(statevector_Ly , tim_nstepobsinc, hco_anl, vco_anl, &
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.true., allocPressure_opt=.true.)
+    call gsv_allocate(statevector_y  , tim_nstepobsinc, hco_anl, vco_anl, &
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.true., allocPressure_opt=.true.)
+    call gsv_allocate(statevector_LTx , tim_nstepobsinc, hco_anl, vco_anl, &
+                      mpi_local_opt=.true., &
+                      allocHeight_opt=.true., allocPressure_opt=.true.)
+
+    ! x
+    seed=1
+    call rng_setup(abs(seed+mmpi_myid))
+    call gsv_getField(statevector_x,  field4d_x_r8 )
+    do varLevIndex = statevector_x%myVarLevBeg, statevector_x%myVarLevEnd
+      do stepIndex = 1, statevector_x%numStep
+        do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
+          do lonIndex = statevector_x%myLonBeg, statevector_x%myLonEnd
+            field4d_x_r8(lonIndex,latIndex,varLevIndex,stepIndex) = rng_gaussian()
+          end do
+        end do
+      end do
+    end do
+
+    ! y
+    call gsv_getField(statevector_y,  field4d_y_r8 )
+    do varLevIndex = statevector_y%myVarLevBeg, statevector_y%myVarLevEnd
+      do stepIndex = 1, statevector_y%numStep
+        do latIndex = statevector_y%myLatBeg, statevector_y%myLatEnd
+          do lonIndex = statevector_y%myLonBeg, statevector_y%myLonEnd
+            field4d_y_r8(lonIndex,latIndex,varLevIndex,stepIndex) = rng_gaussian()
+          end do
+        end do
+      end do
+    end do
+
+    ! Ly
+    call gsv_copy(statevector_y, & ! IN
+                  statevector_Ly)  ! OUT
+    call czp_calcPressure_tl(statevector_Ly, & ! INOUT
+                             statevectorRef)   ! IN
+
+    ! <x ,L(y)>
+    innerProduct1_local = 0.d0
+    call gsv_getField(statevector_x,  field4d_x_r8 )
+    call gsv_getField(statevector_Ly, field4d_Ly_r8 )
+    call euclid(innerProduct1_local, &
+         field4d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         field4d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:,:), &
+         statevector_Ly%myLonBeg, statevector_Ly%myLonEnd, statevector_Ly%myLatBeg, statevector_Ly%myLatEnd, statevector_Ly%numVarLev, statevector_Ly%numStep)
+    write(*,*) "<x     ,L(y)> local = ",innerProduct1_local
+    call rpn_comm_allreduce(innerProduct1_local,innerProduct1_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+    write(*,*) "<x     ,L(y)> global= ",innerProduct1_global
+    
+    ! L_T(x)
+    call gsv_copy(statevector_x,  & ! IN
+                  statevector_LTx)  ! OUT
+    call czp_calcPressure_ad(statevector_LTx, & ! INOUT
+                             statevectorRef)    ! IN
+ 
+    ! <L_T(x),y>
+    innerProduct2_local = 0.d0
+    call gsv_getField(statevector_LTx, field4d_LTx_r8 )
+    call gsv_getField(statevector_y,   field4d_y_r8 )
+    call euclid(innerProduct2_local, &
+         field4d_LTx_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+         field4d_y_r8(statevector_y%myLonBeg:statevector_y%myLonEnd,statevector_y%myLatBeg:statevector_y%myLatEnd,:,:), &
+         statevector_y%myLonBeg, statevector_y%myLonEnd, statevector_y%myLatBeg, statevector_y%myLatEnd, statevector_y%numVarLev, statevector_y%numStep)
+    print*,"<Lt(x) ,y   > local = ",innerProduct2_local
+    call rpn_comm_allreduce(innerProduct2_local,innerProduct2_global,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
+    
+    ! Results
+    call checkAndOutputInnerProd
+
+    call gsv_deallocate(statevector_x)
+    call gsv_deallocate(statevector_Ly)
+    call gsv_deallocate(statevector_LTx)
+    call gsv_deallocate(statevector_y)
+       
+  end subroutine check_calcHeightAndPressure
   
   !--------------------------------------------------------------------------
   !- Inner product computation

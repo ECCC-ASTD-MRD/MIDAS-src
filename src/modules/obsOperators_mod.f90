@@ -1861,7 +1861,7 @@ contains
 
       ! Locals:
       type(struct_vco), pointer :: vco_anl
-      integer :: jlev,columnIndex,nlev_T,vcode_anl,status
+      integer :: jlev,columnIndex,nlev_T,status
       real(8) :: zhu,one
 
       if ( .not.col_varExist(columnTrlOnAnlIncLev,'TT') .or. .not.col_varExist(columnTrlOnAnlIncLev,'HU') ) return
@@ -1871,11 +1871,6 @@ contains
       vco_anl => col_getVco(columnTrlOnAnlIncLev)
       one=1.0D0
       nlev_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
-      Vcode_anl = vco_anl%vCode
-
-      if ( Vcode_anl /= 5002 .and. Vcode_anl /= 5005 ) then
-         call utl_abort('subasic_obs: invalid vertical coord!')
-      end if
 
       ! initialize virtual temperature operator
 

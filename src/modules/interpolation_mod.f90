@@ -1051,7 +1051,7 @@ contains
         weight2 = 0.0d0 
         deltaHourInOut = 0.0d0
       else
-        ! find staevector_in%dateStamp on the left and right
+        ! find statevector_in%dateStamp on the left and right
         if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then
           stepIndexIn2 = numStepIn
         else
@@ -1153,6 +1153,13 @@ contains
   subroutine int_vInterp_col(column_in,column_out,varName,sfcPressureRef_opt)
     !
     ! :Purpose: Vertical interpolation of a columData object
+    !           Interpolation coordinates are either height or log(P)
+    !           based on target vertical descriptor vcode.
+    !           * When target vertical coordinates are pressure (interpolating
+    !             to GEM-P), log(P) is used;
+    !           * When they are height (interpolating to GEM-H), height is used.
+    !           Call to ``calcHeightAndPressure_mod`` will return required
+    !           interpolation coordinates (log is then applied when required).
     !
     implicit none
 
@@ -1164,9 +1171,9 @@ contains
 
     ! Locals:
     real(8), pointer :: varInterp_in(:), varInterp_out(:)
-    real(8), pointer :: coordRef_in(:)  , coordRef_out(:)
-    real(8), pointer :: PT_in(:,:), PM_in(:,:)
-    real(8), pointer :: PT_out(:,:), PM_out(:,:)
+    real(8), pointer :: hLike_in(:), hLike_out(:)
+    real(8), pointer :: hLikeT_in(:,:), hLikeM_in(:,:)   ! abstract height dimensioned coordinate
+    real(8), pointer :: hLikeT_out(:,:), hLikeM_out(:,:) ! abstract height dimensioned coordinate
     real(8), pointer :: pSfcIn_ptr(:,:), pSfcOut_ptr(:,:)
     character(len=4) :: varLevel
     real(8)          :: zwb, zwt
@@ -1233,23 +1240,33 @@ contains
                         //'vcode_out='//str(vcode_out), verb_opt=3)
 
       ! Compute interpolation variables (pressures and or heights)
-      allocate(PT_in(nLevIn_T, col_getNumCol(columnInRef_ptr)))
-      allocate(PM_in(nLevIn_M, col_getNumCol(columnInRef_ptr)))
-      allocate(PT_out(nLevOut_T, col_getNumCol(columnOutRef_ptr)))
-      allocate(PM_out(nLevOut_M, col_getNumCol(columnOutRef_ptr)))
+      allocate(hLikeT_in(nLevIn_T, col_getNumCol(columnInRef_ptr)))
+      allocate(hLikeM_in(nLevIn_M, col_getNumCol(columnInRef_ptr)))
+      allocate(hLikeT_out(nLevOut_T, col_getNumCol(columnOutRef_ptr)))
+      allocate(hLikeM_out(nLevOut_M, col_getNumCol(columnOutRef_ptr)))
 
-      call czp_calcReturnPressure_col_nl(columnInRef_ptr, PT_in, PM_in)
-      call czp_calcReturnPressure_col_nl(columnOutRef_ptr, PT_out, PM_out)
-
+      if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
+        ! output grid GEM-P interpolation in log-pressure
+        call czp_calcReturnPressure_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
+        call czp_calcReturnPressure_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
+        hLikeT_in(:,:)  = -1.d0 * log(hLikeT_in(:,:))  ! -1 is to get increasing values when level decrease
+        hLikeM_in(:,:)  = -1.d0 * log(hLikeM_in(:,:))
+        hLikeT_out(:,:) = -1.d0 * log(hLikeT_out(:,:))
+        hLikeM_out(:,:) = -1.d0 * log(hLikeM_out(:,:))
+      else if ( vcode_out==21001 ) then
+        ! output grid GEM-H interpolation in height
+        call czp_calcReturnHeight_col_nl(columnInRef_ptr, hLikeT_in, hLikeM_in)
+        call czp_calcReturnHeight_col_nl(columnOutRef_ptr, hLikeT_out, hLikeM_out)
+      end if
+        
       do columnIndex = 1, col_getNumCol(column_out)
 
-        ! coordRef_{in,out}
         if ( varLevel == 'TH' ) then
-          coordRef_in  => PT_in(:, columnIndex)
-          coordRef_out => PT_out(:, columnIndex)
+          hLike_in  => hLikeT_in(:, columnIndex)
+          hLike_out => hLikeT_out(:, columnIndex)
         else if ( varLevel == 'MM' ) then
-          coordRef_in  => PM_in(:, columnIndex)
-          coordRef_out => PM_out(:, columnIndex)
+          hLike_in  => hLikeM_in(:, columnIndex)
+          hLike_out => hLikeM_out(:, columnIndex)
         else
           call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if
@@ -1264,22 +1281,16 @@ contains
                mpiAll_opt=.false.)
         end if
 
-        ! actual interpolation
-        !   Development notes (@mad001)
-        !     Potential issue with GEM-H height based interpolation
-        !     we should consider to convert to pure logP interpolation
-        !     as we did for int_vInterp_gsv
-        !     see also #466 https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/466#note_497052
         levIndex_in = 1
         do levIndex_out = 1, col_getNumLev(column_out,varLevel)
           levIndex_in = levIndex_in + 1
-          do while( coordRef_out(levIndex_out) .gt. coordRef_in(levIndex_in) .and. &
+          do while( hLike_out(levIndex_out) .lt. hLike_in(levIndex_in) .and. &
                levIndex_in .lt. col_getNumLev(column_in,varLevel) )
             levIndex_in = levIndex_in + 1
           end do
           levIndex_in = levIndex_in - 1
-          zwb = log(coordRef_out(levIndex_out)/coordRef_in(levIndex_in))/  &
-               log(coordRef_in(levIndex_in+1)/coordRef_in(levIndex_in))
+          zwb = (hLike_out(levIndex_out) - hLike_in(levIndex_in))/  &
+                (hLike_in(levIndex_in+1) - hLike_in(levIndex_in))
           zwt = 1. - zwb
 
           if ( trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) then
