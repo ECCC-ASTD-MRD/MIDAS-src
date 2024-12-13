@@ -187,14 +187,16 @@ again the program you are debugging.  This is the script
 Sometimes, it is very helpful to use some debugging tools.  So the
 script `launch_program.sh` supports two tools for debugging:
  * [`gdb`](https://www.gnu.org/software/gdb) and
- * [`DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
+ * [DDT](https://portal.science.gc.ca/xwiki/bin/view/Projects/Science/Software%20Resources/DDT)
 
 which can be activated by using respectively the options `--gdb` and
 `--ddt` when calling `launch_program.sh` like this:
 ```bash
 ./launch_program.sh ${path_to_program} --ddt
 ```
-For DDT, the GUI is automatically started for you.
+For DDT, the GUI is automatically started for you.  For `gdb`, you
+cannot run interactively.  Each MPI tank is launching its own copy of
+the program by wrapping it with `gdb`.
 
 When you use those tools, it is suggested to compile with debugging
 options enabled by using:
@@ -270,6 +272,80 @@ according to the values of `MIDAS_COMPILE_CODECOVERAGE_DATAPATH`
 because we want to avoid running the task `check` and `clean` from the
 `UnitTest` module since it is expected that activating the coverage
 report options will change the results of the programs.
+
+## Profiling the code
+
+The Intel compiler suite provides the [`vtune`
+tool](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html)
+which profiles the code and helps identify optimization opportunities.
+
+You can use the tool while running the [job in
+batch](#profiling-the-code-in-a-batch-job) or [run it
+interactively](#profiling-the-code-in-an-interactive-job).
+
+First, you need to instrument the binary to allow profiling.  This can
+be done by using the `--vtune` option when calling `midas_build` such
+as:
+```bash
+cd src
+./midas_build --vtune
+```
+
+Then you can run the profiler in a batch job or interactively.
+
+### Profiling the code in a batch job
+
+The MIDAS system tests suite is supporting the `vtune` profiling when
+running the tests in a batch job.
+
+One has to set
+```bash
+UnitTest_run_vtune_mode=hotspots
+```
+in
+[`experiment.cfg`](maestro/suites/midas_system_tests/experiment.cfg)
+which informs the launching script to profile the code with `vtune`
+the `hotspots` mode.  You can use any of the modes supported by the
+[`-collect` option of
+`vtune`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
+
+The MIDAS program will run and `vtune` will collect the profiling
+information in the working directory.  Once the program has run,
+you can visualize the data using
+[`vtune-gui`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/standalone-ui.html)
+with the commands:
+```bash
+## Load the Intel compiler suite which contains 'vtune-gui'
+. ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
+
+## Move to working directory
+cd ${workding directory}
+
+## Launch the vtune GUI
+vtune-gui ./vtune.*
+```
+
+### Profiling the code in an interactive job
+
+Once all the [steps have been followed to launch an interactive
+job](#interactive-debugging), you can profile the code using `vtune`
+by doing this:
+```bash
+./launch_program.sh --vtune=${vtune_mode} pgm
+```
+
+where `${vtune_mode}` is one of the [`vtune` mode accepted by `vtune
+-collect`](https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html).
+If only `--vtune` is given, the mode `hotspots` will be used.
+
+Then, you can visualize the date with the `vtune GUI`:
+```bash
+## Load the Intel compiler suite which contains 'vtune'
+. ssmuse-sh -x main/opt/intelcomp/inteloneapi-2022.1.2
+
+## Launch the vtune GUI
+vtune-gui ./vtune.*
+```
 
 ## Updating Test Results
 

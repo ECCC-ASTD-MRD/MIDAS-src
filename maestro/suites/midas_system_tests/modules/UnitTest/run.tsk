@@ -15,9 +15,14 @@ cp ${UnitTest_run_namelist} flnml
 cp ${TASK_BIN}/pgm .
 ln -s ${TASK_INPUT}/inputs/* .
 
-localFilesNotToErase="flnml pgm obs.original"
+cat > localFilesNotToErase <<EOF
+localFilesNotToErase
+flnml
+pgm
+obs.original
+EOF
 for target in ${TASK_INPUT}/inputs/*; do
-    localFilesNotToErase="${localFilesNotToErase} $(basename ${target})"
+    echo $(basename ${target}) >> localFilesNotToErase
 done
 
 mkdir obs.original
@@ -35,9 +40,9 @@ else
     fi
 fi
 
-localFilesNotToErase="${localFilesNotToErase} load_env.sh"
+echo load_env.dot >> localFilesNotToErase
 
-cat >> load_env.sh <<EOF
+cat >> load_env.dot <<EOF
 
 export AFSISIO=/home/smco502
 export CMCCONST=/home/smco502/datafiles/constants
@@ -51,41 +56,41 @@ export SEQ_NPEY=${SEQ_NPEY}
 export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 EOF
 
-echo                    >> load_env.sh
+echo                    >> load_env.dot
 ## for non-interactive use, we want to unset the 'set -x' done in the job
-echo "tty -s || set +x" >> load_env.sh
+echo "tty -s || set +x" >> load_env.dot
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
-    echo echo loading load craype-hugepages16M >> load_env.sh
-    echo module load craype-hugepages16M       >> load_env.sh
-    echo export FOR_DISABLE_KMP_MALLOC=0       >> load_env.sh
+    echo echo loading load craype-hugepages16M >> load_env.dot
+    echo module load craype-hugepages16M       >> load_env.dot
+    echo export FOR_DISABLE_KMP_MALLOC=0       >> load_env.dot
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
-    echo echo loading intelpsxe-cluster-19.0.3.199 and OpenMPI 3.1.2 librairies                  >> load_env.sh
-    echo . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199                                    >> load_env.sh
+    echo echo loading intelpsxe-cluster-19.0.3.199 and OpenMPI 3.1.2 librairies                  >> load_env.dot
+    echo . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199                                    >> load_env.dot
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
-    echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.sh
-    echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.sh
+    echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.dot
+    echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.dot
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.sh
-    echo echo loading eccc/mrd/rpn/libs/20241105-alpha >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/libs/20241105-alpha >> load_env.sh
+    echo echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.dot
+    echo . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2 >> load_env.dot
+    echo echo loading eccc/mrd/rpn/libs/20241105-alpha >> load_env.dot
+    echo . r.load.dot eccc/mrd/rpn/libs/20241105-alpha >> load_env.dot
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
 ## for non-interactive use, we want to set back 'set -x'
-echo "tty -s || set -x" >> load_env.sh
-echo                    >> load_env.sh
+echo "tty -s || set -x" >> load_env.dot
+echo                    >> load_env.dot
 
 if [ -n "${UnitTest_run_environment_variables}" ]; then
     for __envvar__ in ${UnitTest_run_environment_variables}; do
-        echo export ${__envvar__} >> load_env.sh
+        echo export ${__envvar__} >> load_env.dot
     done
-    echo >> load_env.sh
+    echo >> load_env.dot
 fi
 
-cat >> load_env.sh <<EOF
+cat >> load_env.dot <<EOF
 ulimit -c unlimited
 
 ## If you want to use DDT:
@@ -93,7 +98,7 @@ ulimit -c unlimited
 
 EOF
 
-localFilesNotToErase="${localFilesNotToErase} ptopo_nml"
+echo ptopo_nml >> localFilesNotToErase
 
 cat << EOF > ptopo_nml
  &ptopo
@@ -106,7 +111,7 @@ pgmpath=$(${TASK_BIN}/read_link ${TASK_BIN}/pgm)
 ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Launching ${pgmpath##*/} at ${pgmpath}"
 
 if [ -L ${TASK_BIN}/mpiscript ]; then
-    localFilesNotToErase="${localFilesNotToErase} mpiscript"
+    echo mpiscript >> localFilesNotToErase
     cp ${TASK_BIN}/mpiscript ./mpiscript
     chmod +x mpiscript
     LAUNCH_CMD=./mpiscript
@@ -114,118 +119,29 @@ else
     LAUNCH_CMD=./launch_cmd
 fi
 
+echo export LAUNCH_CMD=${LAUNCH_CMD} >> load_env.dot
+echo export VTUNE_SSM=${UnitTest_run_vtune_ssm} >> load_env.dot
+echo export LAUNCH_PROGRAM_SOURCE_DIRS=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs >> load_env.dot
+
 localFilesNotToErase="${localFilesNotToErase} launch_program.sh launch_cmd listing"
-
-source_dirs=${MIDAS_toplevel}/src/modules:${MIDAS_toplevel}/src/programs
-
-cat > launch_program.sh <<EOF
-#!/bin/bash
-
-set -e
-
-debugger_mode=
-while [ \$# -ne 0 ]; do
-    if [ "\${1}" = --ddt ]; then
-        debugger_mode=ddt
-        . ssmuse-sh -x main/opt/forge/21.1.3
-    elif [ "\${1}" = --gdb ]; then
-        debugger_mode=gdb
-    elif [ "\${1}" = -h -o "\${1}" = --help ]; then
-        echo "\${0} [--ddt] [--gdb] \\\${path_to_program}"
-        exit
-    else
-        run_pgm=\${1}
-    fi
-    shift
-done
-
-if [ -z "\${run_pgm}" ]; then
-    echo 'You must provide a program to launch' >&2
-    exit 1
-fi
-
-if [[ \${run_pgm} != */* ]]; then
-    status=0
-    which \${run_pgm} 1> /dev/null 2>&1 || status=1
-    if [ "\${status}" -ne 0 ]; then
-        if [ -x \${run_pgm} ]; then
-            run_pgm=./\${run_pgm}
-        fi
-    fi
-fi
-
-if [ ! -f "\${run_pgm}" ]; then
-    echo "The program specified '\${run_pgm}' does not exist!" >&2
-    exit 1
-fi
-
-if [ "\${debugger_mode}" = ddt ]; then
-    ddt -n $((SEQ_NPEX*SEQ_NPEY)) --manual --source-dirs=${source_dirs} &
-    sleep 5
-
-    cat > launch_cmd <<EOFLAUNCH
-#!/bin/bash
-
-set -ex
-
-ddt --connect \${run_pgm}
-
-EOFLAUNCH
-elif [ "\${debugger_mode}" = gdb ]; then
-    cat > launch_cmd <<EOFLAUNCH
-#!/bin/bash
-
-set -ex
-
-gdb -ex run -ex where -ex quit \${run_pgm}
-
-EOFLAUNCH
-elif [ -z "\${debugger_mode}" ]; then
-    cat > launch_cmd <<EOFLAUNCH
-#!/bin/bash
-
-set -e
-
-/usr/bin/time --format="Total Memory %M Kb" \${run_pgm}
-
-EOFLAUNCH
-else
-    echo "The 'debugger_mode' can only be 'ddt', 'gdb' or '' and not '\${debugger_mode}'!" >&2
-    exit 1
-fi
-
-chmod +x launch_cmd
-
-## This may be needed for 'mpiscript'
-export RUN_PGM=${PWD}/launch_cmd
-
-echo "\$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
-[ -d obs ] && rm -rf obs
-sscp -r obs.original obs
-
-echo "\$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
-for file in *; do
-    if $(which isFileInList.sh) \${file} not in obs ${localFilesNotToErase}; then
-        rm -r \${file}
-    fi
-done
-
-echo "\$(date +%Y%m%d:%H:%M:%S.%N): Launching \${run_pgm}"
-
-SECONDS=0
-$(readlink -f ${TASK_BIN}/r.run_in_parallel) -pgm ${LAUNCH_CMD} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
-## ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) \${run_pgm}
-echo RUNTIME=\${SECONDS}
-
-echo "End of ${pgmpath} at \$(date +%Y%m%d:%H:%M:%S.%N)"
-
+cat >> localFilesNotToErase <<EOF
+isFileInList.sh
+launch_program.sh
+launch_cmd
+listing
 EOF
-chmod +x launch_program.sh
 
-. ./load_env.sh
+. ./load_env.dot
 
+ln -s ${TASK_BIN}/isFileInList.sh isFileInList.sh
+ln -s ${TASK_BIN}/launch_program.sh launch_program.sh
+
+vtune_args=
+if [ -n "${UnitTest_run_vtune_mode}" ]; then
+    vtune_args=--vtune=${UnitTest_run_vtune_mode}
+fi
 status=0
-./launch_program.sh ./pgm 1> listing 2>&1 || status=1
+./launch_program.sh ${vtune_args} ./pgm 1> listing 2>&1 || status=1
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
@@ -237,6 +153,13 @@ if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
         ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The program aborted!"
         exit 1
     fi
+    SEQ_XFER=stop
+elif [ -n "${UnitTest_run_vtune_mode}" ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "We stop here to let you inspect the 'vtune' profiling data with the commands:"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   . ssmuse-sh -x ${UnitTest_run_vtune_ssm}"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   cd ${TASK_WORK}"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "   vtune-gui ./vtune.*"
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "Select only one of the 'vtune.*' directories"
     SEQ_XFER=stop
 else
     if [ "${status}" -ne 0 ]; then
@@ -270,7 +193,7 @@ else
 
     ## remove other files created by the execution
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
-    rm -f load_env.sh launch_program.sh launch_cmd listing
+    rm -f load_env.dot launch_program.sh launch_cmd listing localFilesNotToErase
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
     [ -d obs.original ] && rm -r obs.original
