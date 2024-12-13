@@ -194,7 +194,7 @@ which can be activated by using respectively the options `--gdb` and
 ```bash
 ./launch_program.sh ${path_to_program} --ddt
 ```
-For DDT, the GUI is automatically started for you.  For `GDB`, you
+For DDT, the GUI is automatically started for you.  For `gdb`, you
 cannot run interactively.  Each MPI tank is launching its own copy of
 the program by wrapping it with `gdb`.
 
