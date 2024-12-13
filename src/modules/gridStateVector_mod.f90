@@ -5553,16 +5553,17 @@ module gridStateVector_mod
     ! Locals:
     type(struct_gsv), pointer :: stateVector
     type(struct_gsv), target  :: stateVector_varsLevs
-    integer :: latIndex, lonIndex, stepIndex, kIndex, gridIndex
-    integer :: latIndex2, lonIndex2, maxDeltaIndex
-    integer :: myBinInteger
+    integer :: latIndex, lonIndex, stepIndex, kIndex, latIndex2, lonIndex2
+    integer :: myBinInteger, gridIndex, gridIndex2
     integer, external :: omp_get_thread_num
+    integer, allocatable :: subGridIndex(:)
     real(8), allocatable :: smoothedField(:,:)
     real(8) :: lat1_r8, lon1_r8, lat2_r8, lon2_r8, distance, weight, sumWeight
     real(8) :: binRealThreshold, myBinReal
     real(4), pointer :: binInteger(:,:,:)
     real(8), pointer :: binReal(:,:)
     logical :: maskNegatives, binIntegerTest, binRealTest
+    logical, allocatable :: overLap(:,:)
     character(len=10) :: horizSmoothShape
     integer                   :: numLocalGridPointsFound, gridFoundIndex
     integer, parameter        :: maxNumLocalGridPointsSearch = 10000
@@ -5642,20 +5643,50 @@ module gridStateVector_mod
       end do
     end do
     tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
-    
-    ! figure out the maximum possible number of grid points to search
-    if (stateVector%hco%dlat > 0.0d0) then
-      maxDeltaIndex = ceiling(1.5d0 * horizontalScale / (ec_ra * max(stateVector%hco%dlat,stateVector%hco%dlon)))
-      write(*,*) 'gsv_smoothHorizontal: maxDistance, maxDeltaIndex = ', horizontalScale / 1000.0d0, 'km', &
-           maxDeltaIndex, max(stateVector%hco%dlat,stateVector%hco%dlon)
-    else if(stateVector%hco%dlat == 0.0d0) then
-      maxDeltaIndex = ceiling(1.5d0 * horizontalScale / statevector%hco%minGridSpacing)
-      write(*,*) 'gsv_smoothHorizontal: maxDistance: ', horizontalScale / 1000.0d0, ' km,', &
-           ' maxDeltaIndex: ', maxDeltaIndex, ', minGridSpacing: ', statevector%hco%minGridSpacing
-    else
-      call utl_abort('gsv_smoothHorizontal: cannot compute a value for maxDeltaIndex')
-    end if
 
+    ! determine which grid points are in the yin-yang overlap region
+    allocate(overLap(stateVector%ni,stateVector%nj))
+    overLap(lonIndex,latIndex) = .false.
+
+    if (stateVector%hco%numSubGrid == 2) then
+
+      ! determine subGridIndex for each latIndex
+      allocate(subGridIndex(stateVector%nj))
+      do latIndex = 1, statevector%nj
+        if (latIndex <= statevector%nj/2) then
+          subGridIndex(latIndex) = 1
+        else
+          subGridIndex(latIndex) = 2
+        end if
+      end do
+
+      gridIndex = 0
+      do lonIndex = 1, stateVector%ni
+        do latIndex = 1, stateVector%nj
+
+          gridIndex = gridIndex + 1
+          lat1_r8 = stateVector%hco%lat2d_4(lonIndex,latIndex)
+          lon1_r8 = stateVector%hco%lon2d_4(lonIndex,latIndex)
+
+          call kdtree2_n_nearest_around_point(tp=tree, idxin=gridIndex, &
+                                              correltime=1, nn=4, &
+                                              results=searchResults)   ! OUT
+
+          gridIndex2Loop: do gridIndex2 = 1, 4
+            gridFoundIndex = searchResults(gridIndex2)%idx
+            latIndex2 = gridFoundIndex - ((gridFoundIndex-1)/stateVector%nj)*stateVector%nj
+            if (subGridIndex(latIndex) /= subGridIndex(latIndex2)) then
+              overLap(lonIndex,latIndex) = .true.
+              cycle gridIndex2Loop
+            end if
+          end do gridIndex2Loop
+
+        end do
+      enddo
+      deallocate(subGridIndex)
+
+    end if ! numSubGrid == 2
+    
     if (mmpi_myid == 0) write(*,*) 'gsv_smoothHorizontal: mykIndexBeg, mykIndexEnd = ', &
          stateVector%mykBeg, stateVector%mykEnd
 
@@ -5701,7 +5732,7 @@ module gridStateVector_mod
             if (numLocalGridPointsFound == 0) then
               call utl_abort('gsv_smoothHorizontal: No nearby grid points found. This should not happen.')
             end if
-            
+
             sumWeight = 0.0D0
             gridFoundIndexLoop: do gridFoundIndex = 1, numLocalGridPointsFound
 
@@ -5726,6 +5757,7 @@ module gridStateVector_mod
                 cycle gridFoundIndexLoop
               end if
 
+              ! compute averaging weight
               if (horizSmoothShape == 'tophat') then
                 weight = 1.0D0
               else if (horizSmoothShape == 'gaussian') then
@@ -5733,6 +5765,10 @@ module gridStateVector_mod
               else
                 weight = 0.0D0
               end if
+
+              ! in overlap region we must reduce weight
+              if (overLap(lonIndex2,latIndex2)) weight = weight*0.5D0
+
               sumWeight = sumWeight + weight
 
               if (stateVector%dataKind == 8) then
@@ -5765,6 +5801,7 @@ module gridStateVector_mod
     end do stepIndexLoop
 
     deallocate(smoothedField)
+    deallocate(overLap)
     call kdtree2_destroy(tree)
 
     if (stateVector_inout%mpi_distribution /= 'VarsLevs' .and. stateVector_inout%mpi_local) then
