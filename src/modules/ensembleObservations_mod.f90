@@ -1056,7 +1056,7 @@ CONTAINS
     real(8) :: distanceSelected(256)  ! horizontal distance of the furthest observation selected for each type (m)
     real(8) :: vertpLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
     real(8) :: vertmLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
-    real(8) :: sortValueSelected(256) ! sorting value of the furthest observation selected for each type
+    real(8) :: err(256), spd(256), lfn(256), trace(256), dist(256)   ! variables for the output
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
     real(kdkind)                      :: maxRadius
@@ -1068,7 +1068,6 @@ CONTAINS
     real(8), allocatable              :: sortValue(:)            ! values used to sort the kdtree results, choice of values is given by localObsSorting
     integer, allocatable              :: sortIndex(:)            ! sorted indices of the kdtree results
     real(8), allocatable              :: lfns(:)                 ! localization function of observations inside the localization volume
-    real(8)                           :: dist, lfn, trace        ! variables for the output
     logical, save                     :: firstcall = .true.      ! firstcall to create the ouput and its header
     character(len=50)                 :: outfilename             ! filename for the output
 
@@ -1154,11 +1153,12 @@ CONTAINS
       distanceSelected(:)   = 0.0d0
       vertpLocSelected(:)   = 0.0d0
       vertmLocSelected(:)   = 0.0d0
-      sortValueSelected(:)  = 0.0d0
       localizations(:)      = 0.0d0
-      trace                 = 0.0d0
-      lfn                   = 0.0d0
-      dist                  = 0.0d0
+      trace(:)              = 0.0d0
+      lfn(:)                = 0.0d0
+      dist(:)               = 0.0d0
+      err(:)                = 0.0d0
+      spd(:)                = 0.0d0
       ! loop on all the observations inside the horizontal radius column
       ! loop on sortValue
       do sortedIndex=1, numLocalObsFoundSearch
@@ -1185,10 +1185,11 @@ CONTAINS
             distanceSelected(localCodTyp)  = max(distanceSelected(localCodTyp),sqrt(searchResults(localObsIndex)%dis))
             vertpLocSelected(localCodTyp)  = max(vertpLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
             vertmLocSelected(localCodTyp)  = min(vertmLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
-            sortValueSelected(localCodTyp) = sortValueSelected(localCodTyp) + sortValue(sortedIndex)
-            lfn   = lfn   + lfns(localObsIndex)
-            dist  = dist  + sqrt(searchResults(localObsIndex)%dis)
-            trace = trace + lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
+            lfn(localCodTyp)   = lfn(localCodTyp)   + lfns(localObsIndex)
+            dist(localCodTyp)  = dist(localCodTyp)  + sqrt(searchResults(localObsIndex)%dis)
+            trace(localCodTyp) = trace(localCodTyp) + lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
+            err(localCodTyp)   = err(localCodTyp)   + 1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
+            spd(localCodTyp)   = spd(localCodTyp)   + sum(ensObs%Yb_r4(:,bodyIndex)**2)
           else
             counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
           end if
@@ -1203,11 +1204,12 @@ CONTAINS
       distanceSelected(:)   = 0.0d0
       vertpLocSelected(:)   = 0.0d0
       vertmLocSelected(:)   = 0.0d0
-      sortValueSelected(:)  = 0.0d0
       localizations(:)      = 0.0d0
-      trace                 = 0.0d0
-      lfn                   = 0.0d0
-      dist                  = 0.0d0
+      trace(:)              = 0.0d0
+      lfn(:)                = 0.0d0
+      dist(:)               = 0.0d0
+      err(:)                = 0.0d0
+      spd(:)                = 0.0d0
       do localObsIndex=1, numLocalObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
           numLocalObsFound = numLocalObsFound + 1
@@ -1238,23 +1240,24 @@ CONTAINS
               'numsel', &
               'meandist', &
               'meanlfn', &
-              'meantrace'
-        write(99,'(8(A,X))') 'typ', &
+              'sumtrace'
+        write(99,'(12(A,X))') 'typ', &
               'codtyp', &
               'numsel', &
               'numrej', &
               'dist', &
               'vdistp', &
               'vdistm', &
-              'meansort'
+              'meandist', &
+              'meanlfn', &
+              'sumtrace', &
+              'meanerr', &
+              'meanspd'
       else
         open(unit=99,file=trim(outfilename),access='append',action='write',status='old')
       endif
 
       ! generic information about the gridpoint
-      dist  = dist  / real(max(1,numLocalObsFound))
-      trace = trace / real(max(1,numLocalObsFound))
-      lfn   = lfn   / real(max(1,numLocalObsFound))
       write(99,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
             lat*MPC_DEGREES_PER_RADIAN_R8, &
             lon*MPC_DEGREES_PER_RADIAN_R8, &
@@ -1264,21 +1267,28 @@ CONTAINS
             minval(vertmLocSelected), &
             numLocalObsFound, &
             numLocalObs, &
-            dist, &
-            lfn, &
-            trace
+            sum(dist) / real(max(1,numLocalObs)), &
+            sum(lfn)  / real(max(1,numLocalObs)), &
+            sum(trace)
       ! followed by more detailed information for each observation type
       do i = 1, size(counterSelected)
         if ((counterSelected(i) + counterNotSelected(i)) .ne. 0) then
-          sortValueSelected(i) = sortValueSelected(i) / real(max(1,counterSelected(i)))
-          write(99,'(A3,X,I3,2(X,I7),4(X,F12.2))') 'typ', &
+          dist(i) = dist(i) / real(max(1,counterSelected(i)))
+          lfn(i)  = lfn(i)  / real(max(1,counterSelected(i)))
+          err(i)  = err(i)  / real(max(1,counterSelected(i)))
+          spd(i)  = spd(i)  / real(max(1,counterSelected(i)))
+          write(99,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
                 i, &
                 counterSelected(i), &
                 counterNotSelected(i), &
                 distanceSelected(i), &
                 vertpLocSelected(i), &
                 vertmLocSelected(i), &
-                sortValueSelected(i)
+                dist(i), &
+                lfn(i), &
+                trace(i), &
+                err(i), &
+                spd(i)
         end if
       end do
 
