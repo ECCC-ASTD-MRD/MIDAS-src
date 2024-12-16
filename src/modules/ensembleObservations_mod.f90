@@ -1037,17 +1037,17 @@ CONTAINS
 
     ! Arguments:
     type(struct_eob), intent(in)  :: ensObs  ! input eob object
-    integer         , intent(out) :: localBodyIndices(:) ! resulting dist of body indexes
-    real(8)         , intent(out) :: localizations(:)    ! corresponding list of obs localization function values
+    integer         , intent(out) :: localBodyIndices(:) ! body indexes of selected local obs
+    real(8)         , intent(out) :: localizations(:)    ! values of localization function of selected local obs
     real(8)         , intent(in)  :: lat                 ! reference location lat
     real(8)         , intent(in)  :: lon                 ! reference location lon
     real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
     real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
     real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
-    integer         , intent(out) :: numLocalObsFound    ! total number of local obs
+    integer         , intent(out) :: numLocalObsFound    ! total number of local obs within the local volume
     logical         , intent(in)  :: localSelectionOutput  ! output information about the selection of observations
-    integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimiliated locally
-    character(len=*), intent(in)  :: localObsSorting       ! sort by HORIZONTAL distance (default), or LOCFUN
+    integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimilated locally
+    character(len=*), intent(in)  :: localObsSorting       ! sort by HORIZONTAL distance (default), LOCFUN, or MINTRACE
     ! Result:
     integer                       :: numLocalObs         ! number of local obs up to the array size
 

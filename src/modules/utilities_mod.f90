@@ -2200,7 +2200,7 @@ contains
 
   subroutine utl_heapsort1d(rvalues,indices)
     !
-    !:Purpose: Sort a real 1D array in ascending order and gives its indexes
+    !:Purpose: Sort a real 1D array in ascending order and give its indexes
     !
     implicit none
 
