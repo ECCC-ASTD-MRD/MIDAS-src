@@ -5646,7 +5646,7 @@ module gridStateVector_mod
 
     ! determine which grid points are in the yin-yang overlap region
     allocate(overLap(stateVector%ni,stateVector%nj))
-    overLap(lonIndex,latIndex) = .false.
+    overLap(:,:) = .false.
 
     if (stateVector%hco%numSubGrid == 2) then
 
