@@ -3749,11 +3749,13 @@ contains
       waven(channelIndex) = tvs_coefs(sensorIndex) % coef % ff_cwn(channelIndex)
     end do 
 
-   
     if (tvs_oldFashionIRLandEmiss) then
+
       !  Get the CERES emissivity matrix for all sensor wavenumbers and surface types
       call ceres_ematrix(emi_mat, waven, nchn)
+      
     else
+      
       !  Get the Camel V2 emissivity climatology
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
       if (.not. tvs_atlas(sensorIndex) % init) then
@@ -3836,6 +3838,7 @@ contains
               ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(headerIndex) % ltype)
         end do
       else
+
         !       if water and CMC ice present then sea ice
         if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_profiles_nl(headerIndex) % skin % surftype = surftype_seaice
         !       if land and CMC snow present then snow
@@ -3868,7 +3871,9 @@ contains
             end do
           end if
         end if
+        
       end if
+      
     end do
     
     ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
