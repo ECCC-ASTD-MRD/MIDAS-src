@@ -5677,7 +5677,7 @@ module gridStateVector_mod
             latIndex2 = gridFoundIndex - ((gridFoundIndex-1)/stateVector%nj)*stateVector%nj
             if (subGridIndex(latIndex) /= subGridIndex(latIndex2)) then
               overLap(lonIndex,latIndex) = .true.
-              cycle gridIndex2Loop
+              exit gridIndex2Loop
             end if
           end do gridIndex2Loop
 
