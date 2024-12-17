@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Correct handing of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
 ### Removed
 
