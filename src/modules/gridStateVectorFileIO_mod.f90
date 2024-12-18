@@ -2120,6 +2120,7 @@ module gridStateVectorFileIO_mod
       call ocm_copyToInt(statevector%oceanMask,mask,maskLevIndex)
       fstRecordTmp%data = c_loc(mask)
       fstRecordTmp%typvar = '@@'
+      fstRecordTmp%pack_bits = 1
       fstRecordTmp%data_type = FST_TYPE_UNSIGNED
       success = fstFile % write(fstRecordTmp)
       deallocate(mask)
