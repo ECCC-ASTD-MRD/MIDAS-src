@@ -192,7 +192,7 @@ else
     done
 
     ## remove other files created by the execution
-    rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
+    rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot isFileInList.sh
     rm -f load_env.dot launch_program.sh launch_cmd listing localFilesNotToErase
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
