@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the precision expected for a mask (#1012 and !922)
 
 ### Removed
 
