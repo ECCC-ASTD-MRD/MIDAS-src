@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added ability to "pre-thin" observations in `obsSelection` (#1003 and !906)
+ * (Nothing yet)
 
 ### Changed
 
@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.4]
+
+### Added
+
+ * Added ability to "pre-thin" observations in `obsSelection` (#1003 and !906)
 
 ## [3.9.3]
 
@@ -1171,7 +1177,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...HEAD
+[3.9.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
 [3.9.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_3.9.2
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1
