@@ -121,6 +121,8 @@ module tovs_mod
 
   ! Protected module variables
   logical, public, protected :: tvs_oldFashionIRSeaEmiss ! use of the old Masuda IR emissivity instead of built-in RTTOV IREMIS
+  logical, public, protected :: tvs_oldFashionIRLandEmiss ! use of the CERES instead of built-in RTTOV
+  logical, public, protected :: tvs_useWaterFraction ! use of water fraction to compute hyperspectral IR surface emissivity
   logical, public, protected :: tvs_debug ! Logical key controlling statements to be  executed while debugging TOVS only
   real(8), public, protected, allocatable :: tvs_emissivity(:,:) ! Surface emissivities organized by profiles and channels
   integer, public, protected :: tvs_headerEnd ! header index of the last radiance observation
@@ -176,7 +178,8 @@ module tovs_mod
   logical :: tvs_userDefinedDoAzimuthCorrection
   logical :: tvs_userDefinedIsAzimuthValid
   logical :: tvs_useSfcEmissObsSpace                   ! Logical key to use MW surface emissivity from ObsSpaceData
-  character(len=8) :: radiativeTransferCode             ! RadiativeTransferCode : TOVS radiation model used
+  logical :: tvs_irEmissAngularCorrection
+  character(len=8) :: radiativeTransferCode            ! RadiativeTransferCode : TOVS radiation model used
   real(8), allocatable :: tvs_emissivityFromTrl(:,:) ! Surface emissivities extracted from trial
   type(rttov_chanprof), allocatable :: tvs_chanProf(:,:)
   type(rttov_chanprof), allocatable :: tvs_chanProfScatt(:,:)
@@ -189,7 +192,6 @@ module tovs_mod
   type(rttov_profile_cloud), target, allocatable :: tvs_cld_profiles_tlad(:) ! rttov scatt cloud profiles on increment vertical coordinates
 
   ! Namelist variables:
-  logical :: useUofWIREmiss       ! Flag to activate use of RTTOV U of W IR emissivity Atlases
   logical :: useMWEmissivityAtlas ! Flag to activate use of RTTOV built-in MW emissivity Atlases
   integer :: mWAtlasId            ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
@@ -806,10 +808,13 @@ contains
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
+    logical :: oldFashionIRLandEmiss ! if .true. use of the old CERES based land emissivity instead of Borbas 2xxx
+    logical :: irEmissAngularCorrection ! apply emissivity angular correction for hyperspectral IR when using RTTOV built-in land emissivity atlas
+    logical :: useWaterFraction ! use of water fraction to compute hyperspectral IR surface emissivity when using RTTOV built-in land emissivity atlas
     
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
-    namelist /NAMTOV/ useUofWIREmiss, crtmodl
+    namelist /NAMTOV/ crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
@@ -818,7 +823,8 @@ contains
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
     namelist /NAMTOV/ mwAllskyAssim, copyCoefficientFileToRamDisk, computeJacobian
-    namelist /NAMTOV/ oldFashionIRSeaEmiss
+    namelist /NAMTOV/ oldFashionIRSeaEmiss, oldFashionIRLandEmiss, irEmissAngularCorrection
+    namelist /NAMTOV/ useWaterFraction
     
     ! Use MW surface emissivity from ObsSpaceData
     tvs_useSfcEmissObsSpace = .false.
@@ -843,7 +849,6 @@ contains
     userDefinedDoAzimuthCorrection = .false.
     userDefinedIsAzimuthValid = .false.
     crtmodl = 'RTTOV'
-    useUofWIREmiss = .false.
     useMWEmissivityAtlas = .false.
     mWAtlasId = 1 !Default to TELSEM-2
     mwInstrumUsingCLW_tl = .false.
@@ -858,6 +863,9 @@ contains
     copyCoefficientFileToRamDisk = .true.
     computeJacobian = .false.
     oldFashionIRSeaEmiss = .true.
+    oldFashionIRLandEmiss = .true.
+    irEmissAngularCorrection = .false.
+    useWaterFraction = .true.
     
     !   1.2 Read the NAMELIST NAMTOV to modify them
     call utl_tmg_start(181,'low-level--readNML')
@@ -902,6 +910,9 @@ contains
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
+    tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
+    tvs_irEmissAngularCorrection = irEmissAngularCorrection
+    tvs_useWaterFraction = useWaterFraction
     
     !  1.4 Validate namelist values
     if (tvs_nsensors == 0) then
@@ -929,7 +940,7 @@ contains
       write(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
       write(*,'(3X,A)') '  ----------------------------------------------------'
       write(*,'(6X,A,2X,L1)') 'TOVS debug                           : ', tvs_debug
-      write(*,'(6X,A,2X,L1)') 'Use of UW IR land emissivity atlases : ', useUofWIREmiss
+      write(*,'(6X,A,2X,L1)') 'Use of UW IR land emissivity atlases : ', .not. tvs_oldFashionIRLandEmiss
       write(*,'(6X,A,2X,L1)') 'Use of MW land emissivity atlases    : ', useMWEmissivityAtlas
       if (useMWEmissivityAtlas) then
         write(*,'(6X,A,2X,I1)') 'MW atlas Id                          : ', mWAtlasId
@@ -2915,7 +2926,6 @@ contains
     logical, pointer :: calcemis(:), calcemisScatt(:)
     real(8), allocatable  :: surfem1(:), surfem1Scatt(:)
     integer, allocatable  :: frequencies(:)
-    real(8), allocatable  :: uOfWLandWSurfaceEmissivity(:)
     logical, allocatable  :: lchannelSubset(:,:)
     integer               :: profileIndex2, tb1, tb2
     integer :: bodyIndex
@@ -2992,9 +3002,7 @@ contains
             init=.true.)
         if (allocStatus /= 0) call utl_abort('tvs_rttov: memory allocation error 1 in rttov_alloc_direct')
         allocate(surfem1(btCount))
-        if (useUofWIREmiss) then
-          allocate(uOfWLandWSurfaceEmissivity(btCount))
-        end if
+        
         if (tvs_isInstrumHyperSpectral(instrum)) then
           !     get Hyperspectral IR emissivities
           surfem1(:) = 0.
@@ -3007,65 +3015,7 @@ contains
         
         call tvs_getOtherEmissivities(tvs_chanProf(1:btCount,sensorIndex), sensorHeaderIndexes, sensorType, instrum, surfem1, calcemis)
         
-        if (useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
-          if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
-          if (.not. tvs_atlas(sensorIndex) % init) then
-            call rttov_setup_emis_atlas( rttov_err_stat, &! out
-                tvs_opts(sensorIndex),                   &! in
-                tvs_profiles_nl(1) % date(2) ,           &! in
-                atlas_type_ir,                           &! in
-                tvs_atlas(sensorIndex),                  &! in
-                ir_atlas_ang_corr = .false.,             &! in
-                ir_atlas_read_std = .false.,             &! in
-                coefs = tvs_coefs(sensorIndex)  )
-            if (rttov_err_stat /= 0) then
-              write(*,*) 'Error in rttov_atlas_setup IR',rttov_err_stat
-              call utl_abort('tvs_rttov')
-            end if
-          end if
-          
-          call rttov_get_emis(rttov_err_stat,             & ! out
-              tvs_opts(sensorIndex),                      & ! in
-              tvs_chanprof(1:btCount,sensorIndex),        & ! in
-              tvs_profiles_nl(sensorHeaderIndexes),       & ! in
-              tvs_coefs(sensorIndex),                     & ! in
-              tvs_atlas(sensorIndex),                     & ! inout
-              uOfWLandWSurfaceEmissivity(1:btCount) )       ! out
-
-          if (rttov_err_stat /= 0) then
-            write(*,*) 'Error in rttov_get_emis IR', rttov_err_stat
-            call utl_abort('tvs_rttov')
-          end if
-              
-          do profileIndex=1, profileCount !loop on profiles
-            headerIndex = sensorHeaderIndexes(profileIndex)
-            do btIndex=1, btCount !loop on channels
-              if (tvs_chanProf(btIndex,sensorIndex) % prof == profileIndex) then
-                ! surftype: 0 land, 1 sea, 2 sea-ice
-                ! this logic is primitive and could be improved for example using
-                ! additional criteria based on emissivity_std and emissivity_flg
-                !Definition of emis_flag:
-                ! emis_flag:Flag_0 = '0 = sea, no MOD11 data' ;
-                ! emis_flag:Flag_1 = '1 = land where BF method was applied' ;
-                ! emis_flag:Flag_2 = '2 = land where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! emis_flag:Flag_3 = '3 = contains inland water or coastline by the sea/land mask where the BF method was used' ;
-                ! emis_flag:Flag_4 = '4 = contains inland water or coastline by the sea/land mask where data was filled with average original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! emis_flag:Flag_5 = '5 = contains coastline by land fraction where the BF method was used' ;
-                ! emis_flag:Flag_6 = '6 = contains coastline by land fraction where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4' ;
-                ! other information that could be useful for quality control can be found in the in the profile_qc structure
-                ! Now we have the 'traditionnal' emissivity in surfem1(:)
-                ! and University of Wisconsin emissivity in uOfWLandWSurfaceEmissivity(:)
-                if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. &
-                    uOfWLandWSurfaceEmissivity(btIndex) > 0.5) then
-                  emissivity_local(btIndex) % emis_in = uOfWLandWSurfaceEmissivity(btIndex)
-                else
-                  emissivity_local(btIndex) % emis_in = surfem1(btIndex)
-                end if
-              end if
-            end do
-          end do
-
-        else if (sensorType == sensor_id_mw) then
+        if (sensorType == sensor_id_mw) then
           if (allocated(tvs_emissivityFromTrl)) then
             ! Read surface emissivity from column when it's included as an analysis variable
 
@@ -3266,9 +3216,7 @@ contains
             emissivity=emissivity_local, &
             init=.true.)
         if (allocStatus /= 0) call utl_abort('tvs_rttov: memory deallocation error 1 in rttov_alloc_direct')
-        if (useUofWIREmiss) then
-          deallocate(uOfWLandWSurfaceEmissivity)
-        end if
+        
         deallocate(surfem1)
       end if ! if (btCount > 0)
       
@@ -3779,7 +3727,8 @@ contains
     real(8) :: emissivity(btCount)
     logical :: thermal(btCount), calcemis(btCount)
     type(rttov_geometry) :: geometry(nprf) 
-
+    real(8) :: uOfWLandWSurfaceEmissivity(btcount)
+    
     ! Information to extract (transvidage)
     ! latitudes(nprf) -- latitude (-90 to 90)
     ! longitudes(nprf) -- longitude (0 to 360)
@@ -3800,8 +3749,33 @@ contains
       waven(channelIndex) = tvs_coefs(sensorIndex) % coef % ff_cwn(channelIndex)
     end do 
 
-    !  Get the CERES emissivity matrix for all sensor wavenumbers and surface types
-    call ceres_ematrix(emi_mat, waven,nchn)
+    if (tvs_oldFashionIRLandEmiss) then
+
+      !  Get the CERES emissivity matrix for all sensor wavenumbers and surface types
+      call ceres_ematrix(emi_mat, waven, nchn)
+      
+    else
+      
+      !  Get the Camel V2 emissivity climatology
+      if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
+      if (.not. tvs_atlas(sensorIndex) % init) then
+        call rttov_setup_emis_atlas(errorStatus, & ! out
+            tvs_opts(sensorIndex),               & ! in
+            tvs_profiles_nl(1) % date(2),        & ! in
+            atlas_type_ir,                       & ! in
+            tvs_atlas(sensorIndex),              & ! inout
+            atlas_id = camel_clim_atlas_id,      & ! in
+            coefs = tvs_coefs(sensorIndex),      & ! in
+            ir_atlas_read_std = .false.,         & ! in
+            ir_atlas_ang_corr = tvs_irEmissAngularCorrection ) ! in
+            
+        if (errorStatus /= 0) then
+          write(*,*) 'Error in rttov_atlas_setup IR', errorStatus
+          call utl_abort('emis_getIrEmissivity')
+        end if
+      end if
+      
+    end if
 
     if (tvs_oldFashionIRSeaEmiss) then
       do profileIndex = 1, nprf
@@ -3809,11 +3783,7 @@ contains
         headerIndex = sensorHeaderIndexes(profileIndex)
         wind_sfc(profileIndex) = min(sqrt(tvs_profiles_nl(headerIndex) % s2m %u**2 + tvs_profiles_nl(headerIndex) % s2m % v**2 + 1.d-12),15.d0)
       end do
-      ! Refine water emissivities
-      !     find new ocean emissivities  
-      do channelIndex = 1, nchn
-        em_oc(channelIndex,:)= emi_mat(channelIndex,17)
-      end do
+      ! find ocean emissivities  
       call emi_sea (em_oc, waven,satzang,wind_sfc,nprf,nchn)
     else
       thermal(:) = .true.
@@ -3851,25 +3821,63 @@ contains
     end if
 
     ! Get surface emissivities
-
     do profileIndex = 1, nprf
       headerIndex = sensorHeaderIndexes(profileIndex)
       !       set albedo to 0.6 where snow is present
       if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % albedo = 0.6
       !       if albedo too high no water
       if (tvs_surfaceParameters(headerIndex) % albedo >= 0.55) tvs_surfaceParameters(headerIndex) % pcnt_wat = 0.
-      !       if water and CMC ice present then sea ice
-      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_surfaceParameters(headerIndex) % ltype = 20
-      !       if land and CMC snow present then snow
-      if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % ltype = 15
-      do channelIndex=1,nchn
-        surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(headerIndex) % pcnt_wat * em_oc(channelIndex,profileIndex)  +  &
-             ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(headerIndex) % ltype)
-      end do
-    end do
+     
+      if (tvs_oldFashionIRLandEmiss) then
+        !       if water and CMC ice present then sea ice
+        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_surfaceParameters(headerIndex) % ltype = 20
+        !       if land and CMC snow present then snow
+        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_surfaceParameters(headerIndex) % ltype = 15
+        do channelIndex = 1, nchn
+          surfem1((profileIndex-1)*nchn+channelIndex) =  tvs_surfaceParameters(headerIndex) % pcnt_wat * em_oc(channelIndex,profileIndex)  +  &
+              ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * emi_mat(channelIndex,tvs_surfaceParameters(headerIndex) % ltype)
+        end do
+      else
 
+        !       if water and CMC ice present then sea ice
+        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(headerIndex) % ice > 0.001) tvs_profiles_nl(headerIndex) % skin % surftype = surftype_seaice
+        !       if land and CMC snow present then snow
+        if (tvs_profiles_nl(headerIndex) % skin % surftype == surftype_land .and. tvs_surfaceParameters(headerIndex) % snow > 0.999) tvs_profiles_nl(headerIndex) % skin % snow_fraction = 1.d0
+        call rttov_get_emis(errorStatus,          & ! out
+            tvs_opts(sensorIndex),                & ! in
+            tvs_chanprof(1:btCount,sensorIndex),  & ! in
+            tvs_profiles_nl(sensorHeaderIndexes), & ! in
+            tvs_coefs(sensorIndex),               & ! in
+            tvs_atlas(sensorIndex),               & ! inout
+            uOfWLandWSurfaceEmissivity )            ! out
+        if (errorStatus /= 0) then
+          write(*,*) 'Error in rttov_get_emis IR', errorStatus
+          call utl_abort('emis_getIrEmissivity')
+        end if
+        if (uOfWLandWSurfaceEmissivity((profileIndex-1)*nchn + 1) < 0.d0) then
+          ! land Emissivity atlas is not defined where there is too much water
+          do channelIndex = 1, nchn
+            surfem1((profileIndex-1)*nchn+channelIndex) = em_oc(channelIndex,profileIndex)
+          end do
+        else
+          if (tvs_useWaterFraction) then
+            do channelIndex = 1, nchn
+              surfem1((profileIndex-1)*nchn+channelIndex) = tvs_surfaceParameters(headerIndex) % pcnt_wat * em_oc(channelIndex,profileIndex) +  &
+                  ( 1.d0 - tvs_surfaceParameters(headerIndex) % pcnt_wat ) * uOfWLandWSurfaceEmissivity((profileIndex-1)*nchn+channelIndex)
+            end do
+          else
+            do channelIndex = 1, nchn
+              surfem1((profileIndex-1)*nchn+channelIndex) = uOfWLandWSurfaceEmissivity((profileIndex-1)*nchn+channelIndex)
+            end do
+          end if
+        end if
+        
+      end if
+      
+    end do
+    
     ! Find the regional water fraction (here in a 15x15 pixel box centered on profile)
-    call tvs_pcnt_box (f_low, nprf,ilat,ilon,7)
+    call tvs_pcnt_box (f_low, nprf, ilat, ilon, 7)
 
     do profileIndex = 1, nprf
       tvs_surfaceParameters(sensorHeaderIndexes(profileIndex)) % pcnt_reg = f_low(profileIndex)
