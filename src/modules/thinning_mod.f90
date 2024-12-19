@@ -28,7 +28,7 @@ module thinning_mod
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
-  public :: thn_thinSatSST
+  public :: thn_thinSatSST, thn_preThinning
   integer, external :: get_max_rss
 
 contains
@@ -641,6 +641,98 @@ contains
 
   end subroutine thn_thinHyper
 
+  !--------------------------------------------------------------------------
+  ! thn_preThinning
+  !--------------------------------------------------------------------------
+  subroutine thn_preThinning(obsdat)
+    !
+    ! :Purpose: Do a pre-thinning of the observations before O-P is computed
+    !           and any QC is performed.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat ! obsSpaceData object
+
+    ! Locals:
+    integer :: headerIndex, bodyIndex, obsFlag, headerSkip, keepCount
+    integer :: nulnam, ierr, fnom, fclos
+    ! Namelist variables
+    integer :: preThinPercent    ! percentage of obs to keep after pre-thinning
+
+    namelist /thin_preThin/preThinPercent
+
+    if (mmpi_myid == 0) write(*,*) 'thn_preThinning: Starting'
+
+    ! Read the namelist (if it exists)
+    preThinPercent    = 100
+
+    if (utl_isNamelistPresent('thin_preThin', './flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
+      if (ierr /= 0) call utl_abort('thn_preThinning: Error opening file flnml')
+      read(nulnam,nml = thin_preThin, iostat = ierr)
+      if (ierr /= 0) call utl_abort('thn_preThinning: Error reading namelist')
+      if (mmpi_myid == 0) write(*, nml = thin_preThin)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_preThinning: Namelist block thin_preThin is missing in the namelist.'
+      write(*,*) '                 The default value will be taken.'
+      if (mmpi_myid == 0) write(*, nml = thin_preThin)
+    end if
+
+    ! Check value of preThinPercent
+    if (preThinPercent == 100) then
+      if (mmpi_myid == 0) write(*,*) 'thn_preThinning: 100% specified, so no pre-thinning done'
+      return
+    else if(preThinPercent > 50) then
+      if (mmpi_myid == 0) write(*,*) 'thn_preThinning: value of preThinPercent greater than 50% not valid'
+    else
+      headerSkip = floor(100.0D0 / real(preThinPercent,8))
+      if (mmpi_myid == 0) then
+        write(*,*) 'thn_preThinning: Doing pre-thinning to keep only ', preThinPercent, '%'
+        write(*,*) '                 by skipping ', headerSkip, ' observations'
+      end if
+    end if
+
+    ! Perform the pre-thinning
+    keepCount = 0
+    HEADER1: do headerIndex = 1, obs_numHeader(obsdat)
+      ! Choose to either keep or reject obs with this headerIndex
+      if (mod(headerIndex, headerSkip) == 0) then
+
+        ! Keep observations with this headerIndex value
+        keepCount = keepCount + 1
+
+      else
+
+        ! Reject observations with this headerIndex value
+        call obs_headSet_i(obsdat, OBS_ST1, headerIndex, ibset(obs_headElem_i(obsdat, OBS_ST1, headerIndex), 6))
+        call obs_set_current_body_list(obsdat, headerIndex)
+        BODY: do
+          bodyIndex = obs_getBodyIndex(obsdat)
+          if (bodyIndex < 0) exit BODY
+          call obs_bodySet_i(obsdat, OBS_ASS, bodyIndex, obs_notAssimilated)
+          obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
+          call obs_bodySet_i(obsdat, obs_flg, bodyIndex, ibset(obsFlag,11))
+        end do BODY
+
+      end if
+    end do HEADER1
+
+    if (obs_numHeader(obsdat) > 0) then
+      write(*,*) 'thn_preThinning: Actual percentage of observations kept = ', &
+                 100.0*real(keepCount)/real(obs_numHeader(obsdat))
+    else
+      write(*,*) 'thn_preThinning: No observations on this MPI task, so no '
+      write(*,*) '                 pre-thinning performed'
+    end if
+
+    write(*,*) 'thn_preThinning: Finished'
+
+  end subroutine thn_preThinning
+  
 !_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 !_/
 !_/ The following methods are intended to be general algorithms that may be

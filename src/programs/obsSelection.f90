@@ -173,8 +173,6 @@ program midas_obsSelection
   !                                                       GPS radio-occultation observations.
   ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
   !                                                       aladin wind observations.
-  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
-  !                                                       aladin wind observations.
   ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length, 
   !                                                       temporal resolution of the background 
   !                                                       state.
@@ -224,9 +222,10 @@ program midas_obsSelection
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
-  logical                        :: doThinning  ! Control whether or not thinning is done
+  logical                        :: doThinning     ! Control whether or not thinning is done
+  logical                        :: doPreThinning  ! Control whether or not pre-thinning is done
 
-  namelist /namObsSelection/ doThinning
+  namelist /namObsSelection/ doThinning, doPreThinning
 
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
@@ -239,7 +238,9 @@ program midas_obsSelection
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
   ! set default values for namelist variables
-  doThinning = .false.
+  doThinning    = .false.
+  doPreThinning = .false.
+
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -302,13 +303,36 @@ program midas_obsSelection
   write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
 
   !
-  !- Setup and read observations
+  !- Perform a prethinning of observations, if requested
   !
+  if (doPreThinning) then
+
+    ! Setup and read observations
+    call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', 'thinning')
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    ! Flag observations rejected by the pre-thinning
+    call thn_preThinning(obsSpaceData)
+
+    ! Write obs files after the pre-thinning is done
+    call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt = .false.)
+
+    ! Clean the observation files (remove rejected obs at header-level)
+    call obsf_cleanObsFiles()
+
+    ! Copy the after pre-thinning files into another directory
+    call obsf_copyObsDirectory('./obsAfterPreThinning', direction = 'TO')
+
+    ! Deallocate objects before reallocating
+    call obs_finalize(obsSpaceData)
+
+  end if
+
+  ! Read (or reread) the observation files
   call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', 'bgck')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! if ssmis, compute the surface type ele and update obspacedata
-
   call ssbg_computeSsmisSurfaceType(obsSpaceData)
 
   ! Only for MWHS2 data and if modLSQ option is set to .true. in nambgck namelist, set values for land qualifier
@@ -417,7 +441,7 @@ program midas_obsSelection
       call obsf_addCloudParametersAndEmissivity(obsSpaceData)
     end if
 
-    ! Copy the pre-thinning files into another directory
+    ! Copy the before-thinning files into another directory
     call obsf_copyObsDirectory('./obsBeforeThinning', direction = 'TO')
 
     ! Copy original obs files back into usual directory

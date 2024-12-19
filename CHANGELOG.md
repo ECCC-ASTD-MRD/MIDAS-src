@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added ability to "pre-thin" observations in `obsSelection` (#1003 and !906)
 
 ### Changed
 
