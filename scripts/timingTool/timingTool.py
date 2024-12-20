@@ -159,10 +159,10 @@ for label in labelList:
     countLists.append((countList))
 
 print()
-print('{:30}'.format('LABEL'), '{:>8}'.format('minTime'), '{:>8}'.format('maxTime'), '{:>8}'.format('meanTime'), '{:>10}'.format('minCount'), '{:>10}'.format('maxCount'), '{:>10}'.format('meanCount'))
-print('{:30}'.format('====='), '{:>8}'.format('======='), '{:>8}'.format('======='), '{:>8}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========='))
+print('{:40}'.format('LABEL'), '{:>8}'.format('minTime'), '{:>8}'.format('maxTime'), '{:>8}'.format('meanTime'), '{:>10}'.format('minCount'), '{:>10}'.format('maxCount'), '{:>10}'.format('meanCount'))
+print('{:40}'.format('====='), '{:>8}'.format('======='), '{:>8}'.format('======='), '{:>8}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========='))
 for listIndex in range(0,len(labelList)):
-    print('{:30}'.format(labelList[listIndex]), \
+    print('{:40}'.format(labelList[listIndex]), \
           '{:8.2f}'.format(minTimingList[listIndex]), \
           '{:8.2f}'.format(maxTimingList[listIndex]), \
           '{:8.2f}'.format(meanTimingList[listIndex]), \
