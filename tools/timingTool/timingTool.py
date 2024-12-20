@@ -18,13 +18,15 @@ minimumTimingLimit=args.limit
 exptOrder=args.order
 
 filename = args.listing
+if not os.path.exists(filename):
+    print(f"The listing file '{filename}' does not exist!")
+    exit(1)
 
 # this allows the user to specify a reference listing - timing information
 # will not be generated from this file, but it will be used to ensure a 
 # common list (and order) of the labels to facilitate an xxdiff of files
 # from running the script twice, once for each listing file
 filename2 = args.reference
-
 
 print(f"Processing the file: {filename}")
 if filename2:
@@ -34,9 +36,9 @@ if filename2:
     else:
         print("Main file used first for constructing label list")
 
-if not os.path.exists(filename):
-    print("The file does not exist!")
-    exit()
+    if not os.path.exists(filename2):
+        print(f"The reference file '{filename2}' does not exist!")
+        exit(1)
 
 allLines = []
 with open(filename, "r") as ins:
@@ -47,7 +49,7 @@ with open(filename, "r") as ins:
         allLines.append(line.rstrip('\n'))
 
 allLines2 = []
-if os.path.exists(filename2):
+if filename2:
     with open(filename2, "r") as ins2:
         for line in ins2:
             strIndex = line.find(" TMG:")
@@ -65,14 +67,14 @@ if exptOrder == "1":
             labelListOrig.append(label)
 
     # add new labels from reference file, if supplied
-    if os.path.exists(filename2):
+    if filename2:
         for line in allLines2:
             label = line.partition("LABEL=")[2].partition(",")[0].strip()
             if label not in labelListOrig:
                 labelListOrig.append(label)
 else:
     # start with reference file
-    if os.path.exists(filename2):
+    if filename2:
         for line in allLines2:
             label = line.partition("LABEL=")[2].partition(",")[0].strip()
             if label not in labelListOrig:
