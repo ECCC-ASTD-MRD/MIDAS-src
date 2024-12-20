@@ -3,43 +3,28 @@
 
 import sys
 import subprocess, os
+import argparse
 
-minimumTimingLimit = 3.0
-
-if len(sys.argv) < 2 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
-    print()
-    print(" #***************************************************************************#")
-    print(" #                                                                           #")
-    print(" # timingTool.py                                                             #")
-    print(" #                                                                           #")
-    print(" # example of usage for comparing 2 listing files:                           #")
-    print(" #                                                                           #")
-    print(" # timingTool.py file1 file2 1 > timings1.dat  # extracts timings from file1 #")
-    print(" # timingTool.py file2 file1 2 > timings2.dat  # extracts timings from file2 #")
-    print(" # xxdiff timings1.dat timings2.dat                                          #")
-    print(" #                                                                           #")
-    print(" #***************************************************************************#")
-    print()
-    exit()
+# Command line interface
+parser = argparse.ArgumentParser()
+parser.add_argument("listing", help="input listing to be parsed for timings")
+parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
+parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
+parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)
+args = parser.parse_args()
 
 
-filename = sys.argv[1]
+minimumTimingLimit=args.limit
+exptOrder=args.order
+
+filename = args.listing
 
 # this allows the user to specify a reference listing - timing information
 # will not be generated from this file, but it will be used to ensure a 
 # common list (and order) of the labels to facilitate an xxdiff of files
 # from running the script twice, once for each listing file
-if len(sys.argv) > 2:
-    filename2 = sys.argv[2]
-else:
-    filename2 = ''
+filename2 = args.reference
 
-# this allows the user to specify in which order to construct the 
-# list of labels when a reference listing is provided
-if len(sys.argv) > 3:
-    exptOrder = sys.argv[3]
-else:
-    exptOrder = "1"
 
 print(f"Processing the file: {filename}")
 if filename2:
