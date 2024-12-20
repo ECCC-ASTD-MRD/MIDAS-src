@@ -22,7 +22,7 @@
 #
 # Input would be `ni`, `nj` and maybe the min and max values
 # #(i.e. the range of values) to consider for `npex+npey`
-# #(i.e. the total number of mpi tasks)... since we don't want 
+# #(i.e. the total number of mpi tasks)... since we don't want
 # #it to tell us that 1x1 is a good mpi topology!
 #
 # And also the maximum acceptable value of the differences.
@@ -33,98 +33,98 @@ import unittest
 
 class TestFindMpiTopologies(unittest.TestCase):
     """
-    Tests unitaires pour la fonction find_mpi_topologies
+    Unit tests for the find_mpi_topologies function
     """
-    
-    def test_grille_carree(self):
-        """Test avec une grille carrée 100x100"""
+
+    def test_square_grid(self):
+        """Test with a 100x100 square grid"""
         result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=16)
-        self.assertGreater(len(result), 0, "Devrait trouver au moins une topologie")
-        
-        # Vérifie que les différences sont triées
+        self.assertGreater(len(result), 0, "Should find at least one topology")
+
+        # Verify that differences are sorted
         diffs = list(result.keys())
         for i in range(len(diffs)-1):
-            self.assertLessEqual(diffs[i], diffs[i+1], "Les différences devraient être triées")
-    
-    def test_grille_rectangulaire(self):
-        """Test avec une grille rectangulaire 200x100"""
+            self.assertLessEqual(diffs[i], diffs[i+1], "Differences should be sorted")
+
+    def test_rectangular_grid(self):
+        """Test with a 200x100 rectangular grid"""
         result = find_mpi_topologies(200, 100, min_tasks=4, max_tasks=16)
         for diff, topos in result.items():
             for topo in topos:
-                # Vérifie que npex * npey donne bien le nombre total de tâches
+                # Verify that npex * npey gives the total number of tasks
                 self.assertGreaterEqual(topo['npex'] * topo['npey'], 4)
                 self.assertLessEqual(topo['npex'] * topo['npey'], 16)
-    
-    def test_diff_percent_restrictif(self):
-        """Test avec max_diff_percent restrictif"""
+
+    def test_restrictive_diff_percent(self):
+        """Test with restrictive max_diff_percent"""
         result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=10, max_diff_percent=1)
         for diff, topos in result.items():
             for topo in topos:
-                # Calcule les distributions
+                # Calculate distributions
                 lon_per_pe_min = 100 // topo['npex']
                 lon_per_pe_max = 100 - (topo['npex'] - 1) * lon_per_pe_min
                 lat_per_pe_min = 100 // topo['npey']
                 lat_per_pe_max = 100 - (topo['npey'] - 1) * lat_per_pe_min
-                
-                # Vérifie que les différences respectent max_diff_percent
+
+                # Verify that differences respect max_diff_percent
                 lon_diff_percent = ((lon_per_pe_max - lon_per_pe_min) / lon_per_pe_max) * 100
                 lat_diff_percent = ((lat_per_pe_max - lat_per_pe_min) / lat_per_pe_max) * 100
                 self.assertLessEqual(lon_diff_percent, 1)
                 self.assertLessEqual(lat_diff_percent, 1)
-    
-    def test_petite_grille(self):
-        """Test avec valeurs limites"""
+
+    def test_small_grid(self):
+        """Test with limit values"""
         result = find_mpi_topologies(10, 10, min_tasks=2, max_tasks=4)
-        self.assertGreater(len(result), 0, "Devrait trouver des topologies même pour petite grille")
-    
-    def test_parametres_invalides(self):
-        """Test avec min_tasks > max_tasks"""
+        self.assertGreater(len(result), 0, "Should find topologies even for small grid")
+
+    def test_invalid_parameters(self):
+        """Test with min_tasks > max_tasks"""
         result = find_mpi_topologies(100, 100, min_tasks=10, max_tasks=5)
-        self.assertEqual(len(result), 0, "Ne devrait pas trouver de topologies si min_tasks > max_tasks")
+        self.assertEqual(len(result), 0, "Should not find topologies if min_tasks > max_tasks")
 
 def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5):
     """
-    Trouve les meilleures topologies MPI basées sur la distribution des points de grille.
-    
+    Finds the best MPI topologies based on grid point distribution.
+
     Args:
-        ni (int): Nombre de points dans la direction longitude
-        nj (int): Nombre de points dans la direction latitude
-        min_tasks (int): Nombre minimum total de tâches MPI
-        max_tasks (int): Nombre maximum total de tâches MPI (si None, utilisera ni*nj)
-        max_diff_percent (float): Différence maximale acceptable en pourcentage
-    
+        ni (int): Number of points in longitude direction
+        nj (int): Number of points in latitude direction
+        min_tasks (int): Minimum total number of MPI tasks
+        max_tasks (int): Maximum total number of MPI tasks (if None, will use ni*nj)
+        max_diff_percent (float): Maximum acceptable difference in percentage
+
     Returns:
-        dict: Topologies groupées par différence
+        dict: Topologies grouped by difference
     """
     if max_tasks is None:
-        max_tasks = min(ni * nj, 1000)  # Limite raisonnable par défaut
-    
-    topologies = {}  # {différence: [(npex, npey, diff_lon, diff_lat)]}
-    
+        max_tasks = min(ni * nj, 1000)  # Reasonable default limit
+
+    topologies = {}  # {difference: [(npex, npey, diff_lon, diff_lat)]}
+
     for total_tasks in range(min_tasks, max_tasks + 1):
-        # Trouve tous les facteurs possibles pour npex et npey
+        # Find all possible factors for npex and npey
         for npex in range(1, total_tasks + 1):
             if total_tasks % npex != 0:
                 continue
-            
+
             npey = total_tasks // npex
-            
-            # Calcule la distribution en longitude
+
+            # Calculate longitude distribution
             lon_per_pe_min = ni // npex
             lon_per_pe_max = ni - (npex - 1) * lon_per_pe_min
-            
-            # Calcule la distribution en latitude
+
+            # Calculate latitude distribution
             lat_per_pe_min = nj // npey
             lat_per_pe_max = nj - (npey - 1) * lat_per_pe_min
-            
-            # Calcule les différences
+
+            # Calculate differences
             lon_diff = lon_per_pe_max - lon_per_pe_min
             lat_diff = lat_per_pe_max - lat_per_pe_min
-            
-            # Vérifie si les différences sont acceptables en pourcentage
+
+            # Check if differences are acceptable in percentage
             lon_diff_percent = (lon_diff / lon_per_pe_max) * 100 if lon_per_pe_max > 0 else 0
             lat_diff_percent = (lat_diff / lat_per_pe_max) * 100 if lat_per_pe_max > 0 else 0
-            
+
             if lon_diff_percent <= max_diff_percent and lat_diff_percent <= max_diff_percent:
                 total_diff = lon_diff + lat_diff
                 if total_diff not in topologies:
@@ -137,28 +137,28 @@ def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5)
                     'lat_per_pe': (lat_per_pe_min, lat_per_pe_max),
                     'differences': (lon_diff, lat_diff)
                 })
-    
+
     return topologies
 
 def print_topologies(topologies):
     """
-    Affiche les topologies trouvées de manière formatée.
+    Displays found topologies in a formatted way.
     """
     if not topologies:
-        print("Aucune topologie trouvée satisfaisant les critères.")
+        print("No topology found matching the criteria.")
         return
-        
+
     for diff, topos in sorted(topologies.items()):
-        print(f"\nTopologies avec différence totale de {diff}:")
+        print(f"\nTopologies with total difference of {diff}:")
         for topo in topos:
-            print(f"  {topo['npex']}x{topo['npey']} ({topo['total_tasks']} tâches):")
+            print(f"  {topo['npex']}x{topo['npey']} ({topo['total_tasks']} tasks):")
             print(f"    Longitude: min={topo['lon_per_pe'][0]}, max={topo['lon_per_pe'][1]}, diff={topo['differences'][0]}")
             print(f"    Latitude: min={topo['lat_per_pe'][0]}, max={topo['lat_per_pe'][1]}, diff={topo['differences'][1]}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
 
-# Exemple d'utilisation
+# Usage example
 if __name__ == "__main__":
-    ni, nj = 100, 100  # Exemple de dimensions
+    ni, nj = 100, 100  # Example dimensions
     topologies = find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=16, max_diff_percent=5)
