@@ -6,11 +6,15 @@
   RESETQC = .false.,
 /
  &namObsSelection
-  doThinning = .true.
+  doThinning    = .true.
+  doPreThinning = .true.
 /
  &THIN_TOVS
    delta   = 150
    deltrad = 30
+/
+ &THIN_PRETHIN
+   preThinPercent = 10
 /
  &NAMDIMO
    NMXOBS=120000,

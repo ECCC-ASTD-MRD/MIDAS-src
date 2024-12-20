@@ -72,7 +72,7 @@ CONTAINS
 
     if ( .not. initialized ) then
       write(*,*)
-      write(*,*) 'The localixation function module was NOT initialized'
+      write(*,*) 'The localization function module was NOT initialized'
       call utl_abort('lfn_horizResponse')
     endif
 
@@ -107,7 +107,7 @@ CONTAINS
 
     if ( .not. initialized ) then
       write(*,*)
-      write(*,*) 'The localixation function module was NOT initialized'
+      write(*,*) 'The localization function module was NOT initialized'
       call utl_abort('lfn_gradient')
     endif
 

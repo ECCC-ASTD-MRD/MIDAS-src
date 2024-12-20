@@ -1302,7 +1302,14 @@ module physicsFunctions_mod
     ! Locals:
     real(8) :: dlat, dlon
 
-    dlon = (lon2 - lon1)*cos(lat1)
+    dlon = (lon2 - lon1)
+    if (dlon > MPC_PI_R8) then
+      dlon = dlon - 2.0D0*MPC_PI_R8
+    else if (dlon < -1.0D0*MPC_PI_R8) then
+      dlon = dlon + 2.0D0*MPC_PI_R8
+    end if
+    dlon = dlon*cos(lat1)
+
     dlat = lat2 - lat1
 
     distanceInM = ec_ra * sqrt(dlon*dlon + dlat*dlat)

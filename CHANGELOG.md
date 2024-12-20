@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Introduction of support for RTTOV built-in IR land emissivity atlases with several changes to `NAMTOV` namelist (#1001 and !916)
  * Profiling the code with `vtune` has been introduced and documented (#1011 and !917)
+ * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
+   * Small impacts on results when using `gsv_smoothHorizontal`
  * Ability to compute EnVar analysis increments on GEM-H levels (#905 and !915)
    * WARNING: minor impact on results when vertically interpolating columns
  * Added namelist variable `NNInterpForCloudVars` to `NAMS2C` to use nearest-neighbour interpolation instead of bilinear for cloud variables (#996 and !909)
+ * Added ability to horizontally smooth control member analysis increment (#999 and !905)
 
 ### Changed
 
@@ -22,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the precision expected for a mask (#1012 and !922)
+ * Correct handling of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
 ### Removed
 
@@ -228,6 +232,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Place the compiled object before the libraries when linking the final absolute (#854 and !766)
  * Fixed directory creation bug in midas.launch (#860 and !767)
  * Introduced some missing `deallocates` to reduce memory usage of 4D-EnVar (#845 and !759)
+
+## [3.9.4]
+
+### Added
+
+ * Added ability to "pre-thin" observations in `obsSelection` (#1003 and !906)
 
 ## [3.9.3]
 
@@ -1383,7 +1393,8 @@ are not documenting them here.
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
 [4.0.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.0...v_4.0.1
-[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_4.0.0
+[4.0.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.4...v_4.0.0
+[3.9.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.3...v_3.9.4
 [3.9.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.2...v_3.9.3
 [3.9.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.1...v_3.9.2
 [3.9.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0...v_3.9.1

@@ -13,6 +13,8 @@
    imposeRttovHuLimits      = .true.
    useOptionTableRecenter   = .true.
    use4Drecentering3Densemble = .true.
+   horizSmoothMeanIncShape = 'gaussian'
+   horizSmoothMeanInc = 200000.0D0
 /
  &NAMBHI
    NTRUNC  =          42,

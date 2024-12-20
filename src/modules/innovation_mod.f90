@@ -134,8 +134,10 @@ contains
     call filt_suprep(obsSpaceData)
 
     ! Additional filtering for bias correction if requested 
-    call bcs_setup()
-    call bcs_filterObs(obsSpaceData)
+    if (trim(innovationMode) /= 'thinning') then
+      call bcs_setup()
+      call bcs_filterObs(obsSpaceData)
+    end if
 
     if ( present(obsClean_opt) ) then
       if ( obsClean_opt ) then
