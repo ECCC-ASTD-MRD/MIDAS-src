@@ -1070,6 +1070,7 @@ CONTAINS
     real(8), allocatable              :: lfns(:)                 ! localization function of observations inside the localization volume
     logical, save                     :: firstcall = .true.      ! firstcall to create the ouput and its header
     character(len=50)                 :: outfilename             ! filename for the output
+    integer                           :: fclos, funit, ierr
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1228,8 +1229,8 @@ CONTAINS
       outfilename = './eob_glbi_'//trim(adjustl(outfilename))
       if (firstcall) then
         firstcall = .false.
-        open(unit=99,file=trim(outfilename),action='write',status='new')
-        write(99,'(12(A,X))') 'gdp', &
+        call utl_open_asciifile(outfilename,funit)
+        write(funit,'(12(A,X))') 'gdp', &
               'lat', &
               'lon', &
               'lnp', &
@@ -1254,11 +1255,11 @@ CONTAINS
               'meanerr', &
               'meanspd'
       else
-        open(unit=99,file=trim(outfilename),access='append',action='write',status='old')
+        call utl_open_asciifile(outfilename,funit)
       endif
 
       ! generic information about the gridpoint
-      write(99,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
+      write(funit,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
             lat*MPC_DEGREES_PER_RADIAN_R8, &
             lon*MPC_DEGREES_PER_RADIAN_R8, &
             vertlocation, &
@@ -1277,7 +1278,7 @@ CONTAINS
           lfn(i)  = lfn(i)  / real(max(1,counterSelected(i)))
           err(i)  = err(i)  / real(max(1,counterSelected(i)))
           spd(i)  = spd(i)  / real(max(1,counterSelected(i)))
-          write(99,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
+          write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
                 i, &
                 counterSelected(i), &
                 counterNotSelected(i), &
@@ -1292,7 +1293,7 @@ CONTAINS
         end if
       end do
 
-     close(unit=99)
+     ierr = fclos(funit)
 
     end if
 
