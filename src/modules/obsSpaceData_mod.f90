@@ -635,8 +635,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_OERI= OBS_TSEM+1 ! Initial sigma(obs)
    integer, parameter, public :: OBS_TRAN= OBS_OERI+1 ! Transmisivity
    integer, parameter, public :: OBS_ETRU= OBS_TRAN+1 ! Truth based on true state and simulated emissivity
+   integer, parameter, public :: OBS_OMHX= OBS_ETRU+1 ! obs - H (updated state vector)
    ! the number of real body variables defined just above
-   integer, parameter :: NBDY_REAL_END = OBS_ETRU
+   integer, parameter :: NBDY_REAL_END = OBS_OMHX
    integer, parameter :: NBDY_REAL_SIZE = NBDY_REAL_END - NBDY_REAL_BEG + 1
 
    !
@@ -645,7 +646,8 @@ module ObsColumnNames_mod
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
       (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OMAM','OER ','HPHT','HAHT','ZHA ','OMP6',     &
          'OMA0','SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ','CRPS','BCOR',     &
-         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','TSEM','OERI','TRAN','ETRU'  /)
+         'OMPE','ROLA','ROLO','VAR2','LOCI','TRUO','EMER','TSEM','OERI','TRAN','ETRU',     &
+         'OMHX' /)
 end module ObsColumnNames_mod
 
 
@@ -1632,11 +1634,11 @@ module ObsSpaceData_mod
    public :: OBS_XTR, OBS_QCF2, OBS_CLA
 
    !    real-body column numbers
-   public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OMAM, OBS_OER
-   public :: OBS_HPHT,OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI, OBS_SIGO
-   public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS, OBS_BCOR
-   public :: OBS_POB, OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI, OBS_TRUO
-   public :: OBS_EMER, OBS_TSEM, OBS_OERI, OBS_TRAN, OBS_ETRU
+   public :: OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER
+   public :: OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO
+   public :: OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , OBS_CRPS, OBS_BCOR
+   public :: OBS_POB , OBS_OMPE, OBS_LATD, OBS_LOND, OBS_BTCL, OBS_LOCI, OBS_TRUO
+   public :: OBS_EMER, OBS_TSEM, OBS_OERI, OBS_TRAN, OBS_ETRU, OBS_OMHX
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs
