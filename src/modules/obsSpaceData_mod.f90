@@ -1107,7 +1107,7 @@ contains
             (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OER , OBS_HPHT, &
               OBS_ZHA , OBS_POB , OBS_WORK, OBS_PRM , OBS_JOBS, OBS_QCV , OBS_FSO , &
               OBS_CRPS, OBS_BCOR, OBS_OMPE, OBS_LOND, OBS_LATD, OBS_BTCL, OBS_LOCI, &
-              (0,ii=22,100) /)
+              OBS_OMHX, (0,ii=23,100) /)
          
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1510,6 +1510,7 @@ module ObsSpaceData_mod
    public obs_columnIndexFromName_RH !         "
    public obs_columnDataType ! tell user if column index has real or integer data
    public obs_copy       ! copy an obsdat object
+   public obs_copyRealColumnBodyToBody ! one real column body to another real column body
    public obs_elem_c     ! obtain character element from the observation object
    public obs_enkf_prntbdy! print all data records associated with an observation
    public obs_enkf_prnthdr! print the header of an observation record
@@ -2604,6 +2605,35 @@ contains
      end if
 
    end function obs_columnDataType
+
+
+   subroutine obs_copyRealColumnBodyToBody(obsSpaceData,bodySource,bodyDestination)
+      !
+      ! :Purpose: copy one real column body to another real column body
+      !
+      implicit none
+
+      ! Arguments:
+      type(struct_obs), intent(inout) :: obsSpaceData
+      integer,             intent(in) :: bodySource      ! source body column
+      integer,             intent(in) :: bodyDestination ! destination body column
+
+      ! Locals:
+      integer :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
+
+      do headerIndex = 1, obs_numHeader(obsSpaceData)
+         bodyIndexStart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+         bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexStart - 1
+         
+         do bodyIndex = bodyIndexStart, bodyIndexEnd
+            if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
+               call obs_bodySet_r(obsSpaceData,bodyDestination,bodyIndex, &
+                                 obs_bodyElem_r(obsSpaceData,bodySource,bodyIndex))
+            end if
+         end do
+      end do
+      
+   end subroutine obs_copyRealColumnBodyToBody
 
 
    subroutine obs_copy( obs_a, obs_b )
