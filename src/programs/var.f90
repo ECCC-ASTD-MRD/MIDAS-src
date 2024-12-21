@@ -514,7 +514,9 @@ program midas_var
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo, &
-                                callSetErrGpsgb_opt=filterObsAndInitOer)
+                                callSetErrGpsgb_opt=filterObsAndInitOer, &
+                                fillOmpColumn_opt=filterObsAndInitOer, &
+                                destObsColumn_opt=OBS_OMHX)
     call msg_memUsage('var')
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.

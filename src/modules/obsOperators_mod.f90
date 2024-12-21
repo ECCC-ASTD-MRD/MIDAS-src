@@ -684,7 +684,7 @@ contains
             else
               trlWindSpeed = 0.0
             end if
-            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+            call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,  &
                               obsValue-trlWindSpeed)  
 
           end if

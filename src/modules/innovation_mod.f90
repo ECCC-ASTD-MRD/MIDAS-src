@@ -437,7 +437,7 @@ contains
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
                                     beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
-                                    analysisMode_opt)
+                                    analysisMode_opt, fillOmpColumn_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     !
@@ -453,59 +453,71 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
+    logical, optional      , intent(in)    :: fillOmpColumn_opt ! copy OBS_OMHX to OBS_OMP
     
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
+    logical :: fillOmpColumn
 
     logical, save :: lgpdata = .false.
 
     call utl_tmg_start(10,'--Observations')
 
-    if ( present(beSilent_opt) ) then
+    if (present(beSilent_opt)) then
       beSilent = beSilent_opt
     else
       beSilent = .false.
     end if
 
-    if ( .not. beSilent ) then
+    if (.not. beSilent) then
       write(*,*)
       write(*,*) '--Starting subroutine inn_computeInnovation--'
       call msg_memUsage('inn_computeInnovation')
     end if
 
-    if ( present(filterObsAndInitOer_opt) ) then
+    if (present(filterObsAndInitOer_opt)) then
       filterObsAndInitOer = filterObsAndInitOer_opt
     else
       filterObsAndInitOer = .true.
     end if
 
-    if ( present(applyVarqcOnNlJo_opt) ) then
+    if (present(applyVarqcOnNlJo_opt)) then
       applyVarqcOnNlJo = applyVarqcOnNlJo_opt
     else
       applyVarqcOnNlJo = .false.
     end if
 
-    if ( present(destObsColumn_opt) ) then
+    if (present(destObsColumn_opt)) then
       destObsColumn = destObsColumn_opt
     else
       destObsColumn = obs_omp
     end if
+    
+    if (present(fillOmpColumn_opt)) then
+      fillOmpColumn = fillOmpColumn_opt
+    else
+      fillOmpColumn = .false.   
+    end if  
 
-    if ( present(callFiltTopo_opt) ) then
+    if (fillOmpColumn .and. destObsColumn == obs_omp) then
+      call utl_abort('inn_computeInnovation: destObsColumn should not be OBS_OMP')
+    end if
+    
+    if (present(callFiltTopo_opt)) then
       callFiltTopo = callFiltTopo_opt
     else
       callFiltTopo = .true.
     end if   
 
-    if ( present(callSetErrGpsgb_opt ) ) then
+    if (present(callSetErrGpsgb_opt)) then
       callSetErrGpsgb = callSetErrGpsgb_opt
     else
-      callSetErrGpsgb = .true.   
+      callSetErrGpsgb = .true.
     end if    
 
-    if ( present(analysisMode_opt ) ) then
+    if (present(analysisMode_opt)) then
       analysisMode = analysisMode_opt
     else
       analysisMode = .true.
@@ -630,6 +642,12 @@ contains
       end if
       if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                      destObsColumn, analysisMode_opt=analysisMode)   
+    end if
+
+    ! copy OBS_OMHX to OBS_OMP
+    if (fillOmpColumn) then
+      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'inn_computeInnovation: copy OBS_OMHX -> OBS_OMP'
+      call obs_copyRealColumnBodyToBody(obsSpaceData,OBS_OMHX,OBS_OMP)
     end if
 
     call utl_tmg_stop(17)
