@@ -453,7 +453,7 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
-    logical, optional      , intent(in)    :: fillOmpColumn_opt ! copy OBS_OMHX to OBS_OMP
+    logical, optional      , intent(in)    :: fillOmpColumn_opt ! copy destObsColumn to OBS_OMP
     
     ! Locals:
     real(8) :: Jo
@@ -644,10 +644,10 @@ contains
                                      destObsColumn, analysisMode_opt=analysisMode)   
     end if
 
-    ! copy OBS_OMHX to OBS_OMP
+    ! copy destObsColumn to OBS_OMP
     if (fillOmpColumn) then
-      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'inn_computeInnovation: copy OBS_OMHX -> OBS_OMP'
-      call obs_copyRealColumnBodyToBody(obsSpaceData,OBS_OMHX,OBS_OMP)
+      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'inn_computeInnovation: copy destObsColumn -> OBS_OMP'
+      call obs_copyRealColumnBodyToBody(obsSpaceData,destObsColumn,OBS_OMP)
     end if
 
     call utl_tmg_stop(17)
