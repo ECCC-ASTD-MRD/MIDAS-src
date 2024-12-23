@@ -31,6 +31,17 @@
 
 import unittest
 from typing import Tuple, Optional, Dict, List
+import argparse
+
+# Command line interface
+parser = argparse.ArgumentParser()
+parser.add_argument("listing", help="input listing to be parsed for timings")
+parser.add_argument("--ni", help="number of grid points in the i-direction (x)", type=int, required=True)
+parser.add_argument("--nj", help="number of grid points in the j-direction (y)", type=int, required=True)
+parser.add_argument("--min-mpi-tasks", help="minimum of MPI tasks to consider", type=int, required=True)
+parser.add_argument("--max-mpi-tasks", help="maximum of MPI tasks to consider", type=int, required=True)
+parser.add_argument("--max-diff", help="maximum difference allowed", type=float, required=True)
+args = parser.parse_args()
 
 class MPITopology:
     npex: int
@@ -182,5 +193,4 @@ if __name__ == '__main__':
 
 # Usage example
 if __name__ == "__main__":
-    ni, nj = 100, 100  # Example dimensions
-    topologies = find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=16, max_diff_percent=5)
+    topologies = find_mpi_topologies(ni=args.ni, nj=args.nj, min_tasks=args.min_mpi_tasks, max_tasks=args.max_mpi_tasks, max_diff_percent=args.max_diff)
