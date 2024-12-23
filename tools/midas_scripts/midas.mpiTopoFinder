@@ -43,15 +43,15 @@ parser.add_argument("--max-diff", help="maximum difference allowed", type=float)
 parser.add_argument('--unittests', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
 
-def check_if_any_args_is_defined(args: List[Optional[int]]) -> bool:
-    args_list=[args.ni, args.nj, args.min_tasks, args.max_tasks, args.max_diff]
-    not_none = [arg for arg in args_list if arg is not None]
-    return len(not_none) != 0
+## This is the argument list other than '--unittests'
+args_list=[args.ni, args.nj, args.min_tasks, args.max_tasks, args.max_diff]
+not_none_args = [arg for arg in args_list if arg is not None]
 
-def check_if_all_args_are_defined(args: List[Optional[int]]) -> bool:
-    args_list=[args.ni, args.nj, args.min_tasks, args.max_tasks, args.max_diff]
-    not_none = [arg for arg in args_list if arg is not None]
-    return len(not_none) == len(args_list)
+def check_if_any_args_is_defined() -> bool:
+    return len(not_none_args) != 0
+
+def check_if_all_args_are_defined() -> bool:
+    return len(not_none_args) == len(args_list)
 
 class MinMax:
     min: int
@@ -208,10 +208,10 @@ class TestFindMpiTopologies(unittest.TestCase):
 # Usage example
 if __name__ == "__main__":
     if args.unittests:
-         if check_if_any_args_is_defined(args):
+         if check_if_any_args_is_defined():
              print(f"{parser.prog}: Since '--unittests' was specified, ignoring any other option\n")
          unittest.main(argv=[parser.prog],verbosity=2)
-    elif check_if_all_args_are_defined(args):
+    elif check_if_all_args_are_defined():
         topologies = find_mpi_topologies(ni=args.ni, nj=args.nj, min_tasks=args.min_tasks, max_tasks=args.max_tasks, max_diff_percent=args.max_diff)
         print_topologies(topologies)
     else:
