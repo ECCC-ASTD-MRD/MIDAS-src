@@ -12,7 +12,7 @@
 #             latPerPEmin = floor(real(stateVector%nj)/real(npey))
 #             latPerPEmax = stateVector%nj - (npey - 1) * latPerPEmin
 # ```
-# And choosing `npex` and `npey` so that we minimize `latPerPEmax-latPerPEmin` 
+# And choosing `npex` and `npey` so that we minimize `latPerPEmax-latPerPEmin`
 # and `lonPerPEmax-lonPerPEmin`. Ideally so that both are 0, but if the
 # differences are just much smaller than `latPerPEmax` and `lonPerPEmax`
 # then that should be ok too.
@@ -21,9 +21,9 @@
 # a separate list for differences of 1, and another for 2, etc.
 #
 # Input would be `ni`, `nj` and maybe the min and max values
-# #(i.e. the range of values) to consider for `npex+npey`
-# #(i.e. the total number of mpi tasks)... since we don't want
-# #it to tell us that 1x1 is a good mpi topology!
+# (i.e. the range of values) to consider for `npex+npey`
+# (i.e. the total number of mpi tasks)... since we don't want
+# it to tell us that 1x1 is a good mpi topology!
 #
 # And also the maximum acceptable value of the differences.
 # This could possibly be stated as a percentage of `lonPerPEmax`
@@ -31,56 +31,6 @@
 
 import unittest
 
-class TestFindMpiTopologies(unittest.TestCase):
-    """
-    Unit tests for the find_mpi_topologies function
-    """
-
-    def test_square_grid(self):
-        """Test with a 100x100 square grid"""
-        result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=16)
-        self.assertGreater(len(result), 0, "Should find at least one topology")
-
-        # Verify that differences are sorted
-        diffs = list(result.keys())
-        for i in range(len(diffs)-1):
-            self.assertLessEqual(diffs[i], diffs[i+1], "Differences should be sorted")
-
-    def test_rectangular_grid(self):
-        """Test with a 200x100 rectangular grid"""
-        result = find_mpi_topologies(200, 100, min_tasks=4, max_tasks=16)
-        for diff, topos in result.items():
-            for topo in topos:
-                # Verify that npex * npey gives the total number of tasks
-                self.assertGreaterEqual(topo['npex'] * topo['npey'], 4)
-                self.assertLessEqual(topo['npex'] * topo['npey'], 16)
-
-    def test_restrictive_diff_percent(self):
-        """Test with restrictive max_diff_percent"""
-        result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=10, max_diff_percent=1)
-        for diff, topos in result.items():
-            for topo in topos:
-                # Calculate distributions
-                lon_per_pe_min = 100 // topo['npex']
-                lon_per_pe_max = 100 - (topo['npex'] - 1) * lon_per_pe_min
-                lat_per_pe_min = 100 // topo['npey']
-                lat_per_pe_max = 100 - (topo['npey'] - 1) * lat_per_pe_min
-
-                # Verify that differences respect max_diff_percent
-                lon_diff_percent = ((lon_per_pe_max - lon_per_pe_min) / lon_per_pe_max) * 100
-                lat_diff_percent = ((lat_per_pe_max - lat_per_pe_min) / lat_per_pe_max) * 100
-                self.assertLessEqual(lon_diff_percent, 1)
-                self.assertLessEqual(lat_diff_percent, 1)
-
-    def test_small_grid(self):
-        """Test with limit values"""
-        result = find_mpi_topologies(10, 10, min_tasks=2, max_tasks=4)
-        self.assertGreater(len(result), 0, "Should find topologies even for small grid")
-
-    def test_invalid_parameters(self):
-        """Test with min_tasks > max_tasks"""
-        result = find_mpi_topologies(100, 100, min_tasks=10, max_tasks=5)
-        self.assertEqual(len(result), 0, "Should not find topologies if min_tasks > max_tasks")
 
 def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5):
     """
@@ -154,6 +104,57 @@ def print_topologies(topologies):
             print(f"  {topo['npex']}x{topo['npey']} ({topo['total_tasks']} tasks):")
             print(f"    Longitude: min={topo['lon_per_pe'][0]}, max={topo['lon_per_pe'][1]}, diff={topo['differences'][0]}")
             print(f"    Latitude: min={topo['lat_per_pe'][0]}, max={topo['lat_per_pe'][1]}, diff={topo['differences'][1]}")
+
+class TestFindMpiTopologies(unittest.TestCase):
+    """
+    Unit tests for the find_mpi_topologies function
+    """
+
+    def test_square_grid(self):
+        """Test with a 100x100 square grid"""
+        result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=16)
+        self.assertGreater(len(result), 0, "Should find at least one topology")
+
+        # Verify that differences are sorted
+        diffs = list(result.keys())
+        for i in range(len(diffs)-1):
+            self.assertLessEqual(diffs[i], diffs[i+1], "Differences should be sorted")
+
+    def test_rectangular_grid(self):
+        """Test with a 200x100 rectangular grid"""
+        result = find_mpi_topologies(200, 100, min_tasks=4, max_tasks=16)
+        for diff, topos in result.items():
+            for topo in topos:
+                # Verify that npex * npey gives the total number of tasks
+                self.assertGreaterEqual(topo['npex'] * topo['npey'], 4)
+                self.assertLessEqual(topo['npex'] * topo['npey'], 16)
+
+    def test_restrictive_diff_percent(self):
+        """Test with restrictive max_diff_percent"""
+        result = find_mpi_topologies(100, 100, min_tasks=2, max_tasks=10, max_diff_percent=1)
+        for diff, topos in result.items():
+            for topo in topos:
+                # Calculate distributions
+                lon_per_pe_min = 100 // topo['npex']
+                lon_per_pe_max = 100 - (topo['npex'] - 1) * lon_per_pe_min
+                lat_per_pe_min = 100 // topo['npey']
+                lat_per_pe_max = 100 - (topo['npey'] - 1) * lat_per_pe_min
+
+                # Verify that differences respect max_diff_percent
+                lon_diff_percent = ((lon_per_pe_max - lon_per_pe_min) / lon_per_pe_max) * 100
+                lat_diff_percent = ((lat_per_pe_max - lat_per_pe_min) / lat_per_pe_max) * 100
+                self.assertLessEqual(lon_diff_percent, 1)
+                self.assertLessEqual(lat_diff_percent, 1)
+
+    def test_small_grid(self):
+        """Test with limit values"""
+        result = find_mpi_topologies(10, 10, min_tasks=2, max_tasks=4)
+        self.assertGreater(len(result), 0, "Should find topologies even for small grid")
+
+    def test_invalid_parameters(self):
+        """Test with min_tasks > max_tasks"""
+        result = find_mpi_topologies(100, 100, min_tasks=10, max_tasks=5)
+        self.assertEqual(len(result), 0, "Should not find topologies if min_tasks > max_tasks")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
