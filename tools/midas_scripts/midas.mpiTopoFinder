@@ -30,7 +30,32 @@
 # and `latPerPEmax` instead of an actual value.
 
 import unittest
+from typing import Tuple
 
+class MPITopology:
+    npex: int
+    npey: int
+    lat_per_pe: Tuple[int,int]
+    lon_per_pe: Tuple[int,int]
+
+    def __init__(self, npex: int, npey : int, lat_per_pe: int, lon_per_pe: int) -> None:
+        self.npex = npex
+        self.npey = npey
+        self.lat_per_pe = lat_per_pe
+        self.lon_per_pe = lon_per_pe
+
+    def total_tasks(self) -> int:
+        return self.npex*self.npey
+
+    def differences(self) -> Tuple[int,int]:
+        lat_diff = self.lat_per_pe_max - self.lat_per_pe_min
+        lon_diff = self.lon_per_pe_max - self.lon_per_pe_min
+        return (lat_diff, lon_diff)
+
+    def __str__(self) -> str:
+        differences = self.differences()
+        string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  min={self.lat_per_pe[0]}, max={self.lat_per_pe[1]}, diff={differences[0]}" + "\n" + f"  Longitude: min={self.lon_per_pe[0]}, max={self.lon_per_pe[1]}, diff={differences[1]}"
+        return string
 
 def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5):
     """
@@ -79,14 +104,12 @@ def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5)
                 total_diff = lon_diff + lat_diff
                 if total_diff not in topologies:
                     topologies[total_diff] = []
-                topologies[total_diff].append({
-                    'npex': npex,
-                    'npey': npey,
-                    'total_tasks': total_tasks,
-                    'lon_per_pe': (lon_per_pe_min, lon_per_pe_max),
-                    'lat_per_pe': (lat_per_pe_min, lat_per_pe_max),
-                    'differences': (lon_diff, lat_diff)
-                })
+
+                topo = MPITopology(npex,npey,
+                                   (lat_per_pe_min, lat_per_pe_max),
+                                   (lon_per_pe_min, lon_per_pe_max))
+
+                topologies[total_diff].append(topo)
 
     return topologies
 
@@ -101,9 +124,7 @@ def print_topologies(topologies):
     for diff, topos in sorted(topologies.items()):
         print(f"\nTopologies with total difference of {diff}:")
         for topo in topos:
-            print(f"  {topo['npex']}x{topo['npey']} ({topo['total_tasks']} tasks):")
-            print(f"    Longitude: min={topo['lon_per_pe'][0]}, max={topo['lon_per_pe'][1]}, diff={topo['differences'][0]}")
-            print(f"    Latitude: min={topo['lat_per_pe'][0]}, max={topo['lat_per_pe'][1]}, diff={topo['differences'][1]}")
+            print(f"{topo}")
 
 class TestFindMpiTopologies(unittest.TestCase):
     """
@@ -126,8 +147,8 @@ class TestFindMpiTopologies(unittest.TestCase):
         for diff, topos in result.items():
             for topo in topos:
                 # Verify that npex * npey gives the total number of tasks
-                self.assertGreaterEqual(topo['npex'] * topo['npey'], 4)
-                self.assertLessEqual(topo['npex'] * topo['npey'], 16)
+                self.assertGreaterEqual(topo.npex * topo.npey, 4)
+                self.assertLessEqual(topo.npex * topo.npey, 16)
 
     def test_restrictive_diff_percent(self):
         """Test with restrictive max_diff_percent"""
@@ -135,10 +156,10 @@ class TestFindMpiTopologies(unittest.TestCase):
         for diff, topos in result.items():
             for topo in topos:
                 # Calculate distributions
-                lon_per_pe_min = 100 // topo['npex']
-                lon_per_pe_max = 100 - (topo['npex'] - 1) * lon_per_pe_min
-                lat_per_pe_min = 100 // topo['npey']
-                lat_per_pe_max = 100 - (topo['npey'] - 1) * lat_per_pe_min
+                lon_per_pe_min = 100 // topo.npex
+                lon_per_pe_max = 100 - (topo.npex - 1) * lon_per_pe_min
+                lat_per_pe_min = 100 // topo.npey
+                lat_per_pe_max = 100 - (topo.npey - 1) * lat_per_pe_min
 
                 # Verify that differences respect max_diff_percent
                 lon_diff_percent = ((lon_per_pe_max - lon_per_pe_min) / lon_per_pe_max) * 100
