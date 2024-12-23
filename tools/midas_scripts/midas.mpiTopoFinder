@@ -53,13 +53,26 @@ def check_if_all_args_are_defined(args: List[Optional[int]]) -> bool:
     not_none = [arg for arg in args_list if arg is not None]
     return len(not_none) == len(args_list)
 
+class MinMax:
+    min: int
+    max: int
+    def __init__(self, min: int, max: int) -> None:
+        self.min = min
+        self.max = max
+
+    def gap(self) -> int:
+        return self.max - self.min
+
+    def __str__(self) -> str:
+        return f"min={self.min}, max={self.max}, diff={self.gap()}"
+
 class MPITopology:
     npex: int
     npey: int
-    lat_per_pe: Tuple[int,int]
-    lon_per_pe: Tuple[int,int]
+    lat_per_pe: MinMax
+    lon_per_pe: MinMax
 
-    def __init__(self, npex: int, npey : int, lat_per_pe: Tuple[int,int], lon_per_pe: Tuple[int,int]) -> None:
+    def __init__(self, npex: int, npey : int, lat_per_pe: MinMax, lon_per_pe: MinMax) -> None:
         self.npex = npex
         self.npey = npey
         self.lat_per_pe = lat_per_pe
@@ -68,14 +81,8 @@ class MPITopology:
     def total_tasks(self) -> int:
         return self.npex*self.npey
 
-    def differences(self) -> Tuple[int,int]:
-        lat_diff = self.lat_per_pe[1] - self.lat_per_pe[0]
-        lon_diff = self.lon_per_pe[1] - self.lon_per_pe[0]
-        return (lat_diff, lon_diff)
-
     def __str__(self) -> str:
-        differences = self.differences()
-        string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  min={self.lat_per_pe[0]}, max={self.lat_per_pe[1]}, diff={differences[0]}" + "\n" + f"  Longitude: min={self.lon_per_pe[0]}, max={self.lon_per_pe[1]}, diff={differences[1]}"
+        string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  {self.lat_per_pe}" + "\n" + f"  Longitude: {self.lon_per_pe}"
         return string
 
 def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optional[int] = None, max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
@@ -127,8 +134,8 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optiona
                     topologies[total_diff] = []
 
                 topo = MPITopology(npex,npey,
-                                   (lat_per_pe_min, lat_per_pe_max),
-                                   (lon_per_pe_min, lon_per_pe_max))
+                                   MinMax(lat_per_pe_min, lat_per_pe_max),
+                                   MinMax(lon_per_pe_min, lon_per_pe_max))
 
                 topologies[total_diff].append(topo)
 
