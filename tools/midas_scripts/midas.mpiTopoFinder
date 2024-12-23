@@ -30,7 +30,7 @@
 # and `latPerPEmax` instead of an actual value.
 
 import unittest
-from typing import Tuple
+from typing import Tuple, Optional, Dict, List
 
 class MPITopology:
     npex: int
@@ -57,7 +57,7 @@ class MPITopology:
         string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  min={self.lat_per_pe[0]}, max={self.lat_per_pe[1]}, diff={differences[0]}" + "\n" + f"  Longitude: min={self.lon_per_pe[0]}, max={self.lon_per_pe[1]}, diff={differences[1]}"
         return string
 
-def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5):
+def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optional[int] = None, max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
     """
     Finds the best MPI topologies based on grid point distribution.
 
@@ -113,7 +113,7 @@ def find_mpi_topologies(ni, nj, min_tasks=2, max_tasks=None, max_diff_percent=5)
 
     return topologies
 
-def print_topologies(topologies):
+def print_topologies(topologies: Dict[int,List[MPITopology]]):
     """
     Displays found topologies in a formatted way.
     """
