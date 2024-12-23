@@ -59,7 +59,7 @@ class MPITopology:
     lat_per_pe: Tuple[int,int]
     lon_per_pe: Tuple[int,int]
 
-    def __init__(self, npex: int, npey : int, lat_per_pe: int, lon_per_pe: int) -> None:
+    def __init__(self, npex: int, npey : int, lat_per_pe: Tuple[int,int], lon_per_pe: Tuple[int,int]) -> None:
         self.npex = npex
         self.npey = npey
         self.lat_per_pe = lat_per_pe
@@ -69,8 +69,8 @@ class MPITopology:
         return self.npex*self.npey
 
     def differences(self) -> Tuple[int,int]:
-        lat_diff = self.lat_per_pe_max - self.lat_per_pe_min
-        lon_diff = self.lon_per_pe_max - self.lon_per_pe_min
+        lat_diff = self.lat_per_pe[1] - self.lat_per_pe[0]
+        lon_diff = self.lon_per_pe[1] - self.lon_per_pe[0]
         return (lat_diff, lon_diff)
 
     def __str__(self) -> str:
