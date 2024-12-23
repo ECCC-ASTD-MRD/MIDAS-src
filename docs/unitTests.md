@@ -143,7 +143,7 @@ the outputs produced by the program tested and the ones expected by the test.
 
 ## Timings
 
-The script [tools/timingTool/timingTool.py](../tools/timingTool/timingTool.py)
+The script [tools/timingTool/midas.timingTool](../tools/timingTool/midas.timingTool)
 allows to extract timing information from MIDAS task listings.  It parses a
 listing file and looks for the "`TMG:`" where timing information is printed out.
 
@@ -167,19 +167,20 @@ where the call hierarchy is made explicit.
 
 The script can be called like this to simply extract the timings:
 ```sh
-./timingTool.py ${LISTING}
+./midas.timingTool ${LISTING}
 ```
 
 ### Comparing timings
+
 It can also be useful to use it to compare two runs.  To do so, it is important
 to make sure timing lists extracted from both listings contain the same elements
 in the same order for the comparison to be useful. To achieve this, one will
-call `timingTool.py` on each listing, but using the other listing as _reference_
+call `midas.timingTool` on each listing, but using the other listing as _reference_
 and specifying the order for the timing outputs be ordered properly for the
 comparison:
 ```sh
-./timingTool.py ${LISTING_1} -r ${LISTING_2} -o 1 > timings_1.dat
-./timingTool.py ${LISTING_2} -r ${LISTING_1} -o 2 > timings_2.dat
+./midas.timingTool ${LISTING_1} -r ${LISTING_2} -o 1 > timings_1.dat
+./midas.timingTool ${LISTING_2} -r ${LISTING_1} -o 2 > timings_2.dat
 ```
 then one can use it's prefered `diff` tool to compare both run:
 ```
@@ -188,15 +189,15 @@ diff -y -W 210 timings_1.dat  timings_1.dat
 `xxdiff` is GUI alternative to this command line.
 
 ### Filtering timings
-`timingTool.py` can be called with the argument `-h` or `--help` to get some
+
+`midas.timingTool` can be called with the argument `-h` or `--help` to get some
 help on it's calling interface.
 There is the option to specify the minimal timing threshold for an element be
 retained in the list:
 ```sh
-./timingTool.py ${LISTING} -l 50.0
+./midas.timingTool ${LISTING} -l 50.0
 ```
 for instance, will only list elements that took 50 seconds or more to run.
-
 
 ---
 
