@@ -184,7 +184,7 @@ comparison:
 ```
 then one can use it's prefered `diff` tool to compare both run:
 ```
-diff -y -W 210 timings_1.dat  timings_1.dat
+diff -y -W 210 timings_1.dat timings_2.dat
 ```
 `xxdiff` is GUI alternative to this command line.
 
