@@ -34,14 +34,19 @@ from typing import Tuple, Optional, Dict, List
 import argparse
 
 # Command line interface
-parser = argparse.ArgumentParser()
-parser.add_argument("listing", help="input listing to be parsed for timings")
-parser.add_argument("--ni", help="number of grid points in the i-direction (x)", type=int, required=True)
-parser.add_argument("--nj", help="number of grid points in the j-direction (y)", type=int, required=True)
-parser.add_argument("--min-mpi-tasks", help="minimum of MPI tasks to consider", type=int, required=True)
-parser.add_argument("--max-mpi-tasks", help="maximum of MPI tasks to consider", type=int, required=True)
-parser.add_argument("--max-diff", help="maximum difference allowed", type=float, required=True)
+parser = argparse.ArgumentParser(prog='midas.mpiTopoFinder')
+parser.add_argument("--ni", help="number of grid points in the i-direction (x)", type=int)
+parser.add_argument("--nj", help="number of grid points in the j-direction (y)", type=int)
+parser.add_argument("--min-mpi-tasks", help="minimum of MPI tasks to consider", type=int)
+parser.add_argument("--max-mpi-tasks", help="maximum of MPI tasks to consider", type=int)
+parser.add_argument("--max-diff", help="maximum difference allowed", type=float)
+parser.add_argument('--unittests', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
+
+def check_if_any_arg_is_none(args: List[Optional[int]]) -> bool:
+    args_list=[args.ni, args.nj, args.min_mpi_tasks, args.max_mpi_tasks, args.max_diff]
+    not_none = [arg for arg in args_list if arg is not None]
+    return len(not_none) == 0
 
 class MPITopology:
     npex: int
@@ -188,9 +193,12 @@ class TestFindMpiTopologies(unittest.TestCase):
         result = find_mpi_topologies(100, 100, min_tasks=10, max_tasks=5)
         self.assertEqual(len(result), 0, "Should not find topologies if min_tasks > max_tasks")
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
-
 # Usage example
 if __name__ == "__main__":
-    topologies = find_mpi_topologies(ni=args.ni, nj=args.nj, min_tasks=args.min_mpi_tasks, max_tasks=args.max_mpi_tasks, max_diff_percent=args.max_diff)
+    if args.unittests:
+         unittest.main(argv=[parser.prog],verbosity=2)
+    elif not check_if_any_arg_is_none(args):
+        topologies = find_mpi_topologies(ni=args.ni, nj=args.nj, min_tasks=args.min_mpi_tasks, max_tasks=args.max_mpi_tasks, max_diff_percent=args.max_diff)
+        print_topologies(topologies)
+    else:
+        raise(Exception("You must provide all arguments '--ni', '--nj', '--min-tasks', '--max-tasks' and '--max-diff'"))
