@@ -63,6 +63,9 @@ class MinMax:
     def gap(self) -> int:
         return self.max - self.min
 
+    def gap_percent(self) -> float:
+        return (self.gap() / self.max) * 100 if self.max > 0 else 0
+
     def __str__(self) -> str:
         return f"min={self.min}, max={self.max}, diff={self.gap()}"
 
@@ -102,7 +105,7 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optiona
     if max_tasks is None:
         max_tasks = min(ni * nj, 1000)  # Reasonable default limit
 
-    topologies = {}  # {difference: [(npex, npey, diff_lon, diff_lat)]}
+    topologies = {}  # {difference: [MPITopology(npex, npey, lat_per_pe, lon_per_pe)]}
 
     for total_tasks in range(min_tasks, max_tasks + 1):
         # Find all possible factors for npex and npey
@@ -121,21 +124,16 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optiona
             lat_per_pe_max = nj - (npey - 1) * lat_per_pe_min
 
             # Calculate differences
-            lon_diff = lon_per_pe_max - lon_per_pe_min
-            lat_diff = lat_per_pe_max - lat_per_pe_min
+            lon_minmax = MinMax(min=lon_per_pe_min, max=lon_per_pe_max)
+            lat_minmax = MinMax(min=lat_per_pe_min, max=lat_per_pe_max)
 
-            # Check if differences are acceptable in percentage
-            lon_diff_percent = (lon_diff / lon_per_pe_max) * 100 if lon_per_pe_max > 0 else 0
-            lat_diff_percent = (lat_diff / lat_per_pe_max) * 100 if lat_per_pe_max > 0 else 0
-
-            if lon_diff_percent <= max_diff_percent and lat_diff_percent <= max_diff_percent:
-                total_diff = lon_diff + lat_diff
+            # Make sure differences are acceptable in percentage
+            if lon_minmax.gap_percent() <= max_diff_percent and lat_minmax.gap_percent() <= max_diff_percent:
+                total_diff = lon_minmax.gap() + lat_minmax.gap()
                 if total_diff not in topologies:
                     topologies[total_diff] = []
 
-                topo = MPITopology(npex,npey,
-                                   MinMax(lat_per_pe_min, lat_per_pe_max),
-                                   MinMax(lon_per_pe_min, lon_per_pe_max))
+                topo = MPITopology(npex,npey,lat_minmax,lon_minmax)
 
                 topologies[total_diff].append(topo)
 
