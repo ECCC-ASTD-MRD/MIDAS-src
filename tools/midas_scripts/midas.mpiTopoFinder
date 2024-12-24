@@ -35,11 +35,11 @@ import argparse
 
 # Command line interface
 parser = argparse.ArgumentParser(prog='midas.mpiTopoFinder')
-parser.add_argument("--ni", help="number of grid points in the i-direction (x)", type=int)
-parser.add_argument("--nj", help="number of grid points in the j-direction (y)", type=int)
+parser.add_argument("--ni", help="number of grid points in the latitude direction (x)", type=int)
+parser.add_argument("--nj", help="number of grid points in the longitude direction (y)", type=int)
 parser.add_argument("--min-tasks", help="minimum of MPI tasks to consider", type=int)
 parser.add_argument("--max-tasks", help="maximum of MPI tasks to consider", type=int)
-parser.add_argument("--max-diff", help="maximum difference allowed", type=float)
+parser.add_argument("--max-diff", help="maximum difference allowed (in percentage) between the regular distribution and the last bin", type=float)
 parser.add_argument('--unittest', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
 

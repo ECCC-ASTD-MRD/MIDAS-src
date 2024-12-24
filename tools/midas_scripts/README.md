@@ -112,13 +112,14 @@ usage: midas.mpiTopoFinder [-h] [--ni NI] [--nj NJ] [--min-tasks MIN_TASKS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --ni NI               number of grid points in the i-direction (x)
-  --nj NJ               number of grid points in the j-direction (y)
+  --ni NI               number of grid points in the latitude direction (x)
+  --nj NJ               number of grid points in the longitude direction (y)
   --min-tasks MIN_TASKS
                         minimum of MPI tasks to consider
   --max-tasks MAX_TASKS
                         maximum of MPI tasks to consider
-  --max-diff MAX_DIFF   maximum difference allowed
+  --max-diff MAX_DIFF   maximum difference allowed (in percentage) between the
+                        regular distribution and the last bin
   --unittest            Run the unit tests
 ```
 
