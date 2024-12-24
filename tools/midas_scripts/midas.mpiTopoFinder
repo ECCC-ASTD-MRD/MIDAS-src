@@ -30,8 +30,10 @@
 # and `latPerPEmax` instead of an actual value.
 
 import unittest
-from typing import Tuple, Optional, Dict, List
+from typing import Optional, Dict, List
 import argparse
+
+Percentage = float
 
 # Command line interface
 parser = argparse.ArgumentParser(prog='midas.mpiTopoFinder')
@@ -39,7 +41,7 @@ parser.add_argument("--ni", help="number of grid points in the latitude directio
 parser.add_argument("--nj", help="number of grid points in the longitude direction (y)", type=int)
 parser.add_argument("--min-tasks", help="minimum of MPI tasks to consider", type=int)
 parser.add_argument("--max-tasks", help="maximum of MPI tasks to consider", type=int)
-parser.add_argument("--max-diff", help="maximum difference allowed (in percentage) between the regular distribution and the last bin", type=float)
+parser.add_argument("--max-diff", help="maximum difference allowed (in percentage) between the regular distribution and the last bin", type=Percentage)
 parser.add_argument('--unittest', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
 
@@ -66,7 +68,7 @@ class PointDistribution:
         return self.last - self.regular
 
     @property
-    def gap_percent(self) -> float:
+    def relative_gap(self) -> Percentage:
         return (self.gap / self.last) * 100 if self.last > 0 else 0
 
     def __str__(self) -> str:
@@ -92,7 +94,7 @@ class MPITopology:
         string = f"{self.npex}x{self.npey} ({self.total_tasks} tasks):" + "\n" + f"  Latitude:  {self.lat_per_pe}" + "\n" + f"  Longitude: {self.lon_per_pe}"
         return string
 
-def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[int], max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
+def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[int], max_diff_percent: Percentage = 5) -> Dict[int,List[MPITopology]]:
     """
     Finds the best MPI topologies based on grid point distribution.
 
@@ -107,7 +109,9 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[in
         dict: Topologies grouped by difference
     """
 
-    topologies = {}  # {difference: [MPITopology(npex, npey, lat_per_pe, lon_per_pe)]}
+    ## The keys of the dictionnary 'topologies' are the total of the
+    ## gap differences in latitude and longitude
+    topologies: Dict[int,List[MPITopology]] = {}
 
     for total_tasks in range(min_tasks, max_tasks + 1):
         # Find all possible factors for npex and npey
@@ -126,16 +130,16 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[in
             lat_per_pe_last = nj - (npey - 1) * lat_per_pe
 
             # Calculate differences
-            lon_minmax = PointDistribution(regular=lon_per_pe, last=lon_per_pe_last)
-            lat_minmax = PointDistribution(regular=lat_per_pe, last=lat_per_pe_last)
+            pd_longitude = PointDistribution(regular=lon_per_pe, last=lon_per_pe_last)
+            pd_latitude = PointDistribution(regular=lat_per_pe, last=lat_per_pe_last)
 
             # Make sure differences are acceptable in percentage
-            if lon_minmax.gap_percent <= max_diff_percent and lat_minmax.gap_percent <= max_diff_percent:
-                total_diff = lon_minmax.gap + lat_minmax.gap
+            if pd_longitude.relative_gap <= max_diff_percent and pd_latitude.relative_gap <= max_diff_percent:
+                total_diff = pd_longitude.gap + pd_latitude.gap
                 if total_diff not in topologies:
                     topologies[total_diff] = []
 
-                topo = MPITopology(npex,npey,lat_minmax,lon_minmax)
+                topo = MPITopology(npex,npey,pd_latitude,pd_longitude)
 
                 topologies[total_diff].append(topo)
 
