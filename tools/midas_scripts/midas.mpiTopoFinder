@@ -61,14 +61,16 @@ class PointDistribution:
         self.regular = regular
         self.last = last
 
+    @property
     def gap(self) -> int:
         return self.last - self.regular
 
+    @property
     def gap_percent(self) -> float:
-        return (self.gap() / self.last) * 100 if self.last > 0 else 0
+        return (self.gap / self.last) * 100 if self.last > 0 else 0
 
     def __str__(self) -> str:
-        return f"regular={self.regular}, last={self.last}, diff={self.gap()}"
+        return f"regular={self.regular}, last={self.last}, diff={self.gap}"
 
 class MPITopology:
     npex: int
@@ -82,11 +84,12 @@ class MPITopology:
         self.lat_per_pe = lat_per_pe
         self.lon_per_pe = lon_per_pe
 
+    @property
     def total_tasks(self) -> int:
         return self.npex*self.npey
 
     def __str__(self) -> str:
-        string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  {self.lat_per_pe}" + "\n" + f"  Longitude: {self.lon_per_pe}"
+        string = f"{self.npex}x{self.npey} ({self.total_tasks} tasks):" + "\n" + f"  Latitude:  {self.lat_per_pe}" + "\n" + f"  Longitude: {self.lon_per_pe}"
         return string
 
 def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[int], max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
@@ -127,8 +130,8 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[in
             lat_minmax = PointDistribution(regular=lat_per_pe, last=lat_per_pe_last)
 
             # Make sure differences are acceptable in percentage
-            if lon_minmax.gap_percent() <= max_diff_percent and lat_minmax.gap_percent() <= max_diff_percent:
-                total_diff = lon_minmax.gap() + lat_minmax.gap()
+            if lon_minmax.gap_percent <= max_diff_percent and lat_minmax.gap_percent <= max_diff_percent:
+                total_diff = lon_minmax.gap + lat_minmax.gap
                 if total_diff not in topologies:
                     topologies[total_diff] = []
 
