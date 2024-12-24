@@ -89,7 +89,7 @@ class MPITopology:
         string = f"{self.npex}x{self.npey} ({self.total_tasks()} tasks):" + "\n" + f"  Latitude:  {self.lat_per_pe}" + "\n" + f"  Longitude: {self.lon_per_pe}"
         return string
 
-def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optional[int] = None, max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
+def find_mpi_topologies(ni: int, nj: int, min_tasks: int, max_tasks: Optional[int], max_diff_percent: int = 5) -> Dict[int,List[MPITopology]]:
     """
     Finds the best MPI topologies based on grid point distribution.
 
@@ -103,8 +103,6 @@ def find_mpi_topologies(ni: int, nj: int, min_tasks: int = 2, max_tasks: Optiona
     Returns:
         dict: Topologies grouped by difference
     """
-    if max_tasks is None:
-        max_tasks = min(ni * nj, 1000)  # Reasonable default limit
 
     topologies = {}  # {difference: [MPITopology(npex, npey, lat_per_pe, lon_per_pe)]}
 
