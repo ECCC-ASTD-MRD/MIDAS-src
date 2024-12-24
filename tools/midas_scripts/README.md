@@ -99,6 +99,29 @@ rm -f obsfiles_${fam}.updated/{obs${fam},TABLES_REUNIR} obs${fam}
 midas.reunir_obs_mpi -obsin $PWD -obsout $PWD -families2process ${fam}
 ```
 
+## Finding good MPI topologies for efficient computation distribution
+
+The tool `midas.mpiTopoFinder` is designed to help finding good MPI
+distribution for a given grid.
+
+You can use `midas.mpiTopoFinder -h` to show help:
+```text
+usage: midas.mpiTopoFinder [-h] [--ni NI] [--nj NJ] [--min-tasks MIN_TASKS]
+                           [--max-tasks MAX_TASKS] [--max-diff MAX_DIFF]
+                           [--unittest]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ni NI               number of grid points in the i-direction (x)
+  --nj NJ               number of grid points in the j-direction (y)
+  --min-tasks MIN_TASKS
+                        minimum of MPI tasks to consider
+  --max-tasks MAX_TASKS
+                        maximum of MPI tasks to consider
+  --max-diff MAX_DIFF   maximum difference allowed
+  --unittest            Run the unit tests
+```
+
 ## Running MIDAS as a stand alone program
 
 The scripts `midas.prepare_workdir` and `midas.launch_program` can be
