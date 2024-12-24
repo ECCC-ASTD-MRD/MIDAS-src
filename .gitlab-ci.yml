@@ -146,7 +146,6 @@ topoFinder_tests:
      - v_3.9
      - v_3.9-RandD
      - tags
-     - 1018-tool-to-suggest-mpi-topologies-to-run-midas-letkf
    tags:
      - hpcr-u2
 
