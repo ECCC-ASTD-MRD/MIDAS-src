@@ -40,10 +40,10 @@ parser.add_argument("--nj", help="number of grid points in the j-direction (y)",
 parser.add_argument("--min-tasks", help="minimum of MPI tasks to consider", type=int)
 parser.add_argument("--max-tasks", help="maximum of MPI tasks to consider", type=int)
 parser.add_argument("--max-diff", help="maximum difference allowed", type=float)
-parser.add_argument('--unittests', help="Run the unit tests",action="store_true", default=False)
+parser.add_argument('--unittest', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
 
-## This is the argument list other than '--unittests'
+## This is the argument list other than '--unittest'
 args_list=[args.ni, args.nj, args.min_tasks, args.max_tasks, args.max_diff]
 not_none_args = [arg for arg in args_list if arg is not None]
 
@@ -204,9 +204,9 @@ class TestFindMpiTopologies(unittest.TestCase):
 
 # Usage example
 if __name__ == "__main__":
-    if args.unittests:
+    if args.unittest:
          if check_if_any_args_is_defined():
-             print(f"{parser.prog}: Since '--unittests' was specified, ignoring any other option\n")
+             print(f"{parser.prog}: Since '--unittest' was specified, ignoring any other option\n")
          unittest.main(argv=[parser.prog],verbosity=2)
     elif check_if_all_args_are_defined():
         topologies = find_mpi_topologies(ni=args.ni, nj=args.nj, min_tasks=args.min_tasks, max_tasks=args.max_tasks, max_diff_percent=args.max_diff)
