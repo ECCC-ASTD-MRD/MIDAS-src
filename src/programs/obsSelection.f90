@@ -173,8 +173,6 @@ program midas_obsSelection
   !                                                       GPS radio-occultation observations.
   ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
   !                                                       aladin wind observations.
-  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
-  !                                                       aladin wind observations.
   ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length, 
   !                                                       temporal resolution of the background 
   !                                                       state.
@@ -234,8 +232,9 @@ program midas_obsSelection
   logical :: doBgck      !
   logical :: doBiasCorr  !
   logical :: doThinning  ! Control whether or not thinning is done
+  logical :: doPreThinning  ! Control whether or not pre-thinning is done
 
-  namelist /namObsSelection/ doBgck, doBiasCorr, doThinning
+  namelist /namObsSelection/ doBgck, doBiasCorr, doThinning, doPreThinning
 
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
@@ -255,6 +254,7 @@ program midas_obsSelection
   doBgck     = .true.
   doBiasCorr = .true.
   doThinning = .false.
+  doPreThinning = .false.
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     call utl_tmg_start(181,'low-level--readNML')
     read(utl_flnml, nml = namObsSelection, iostat = ierr)
@@ -377,8 +377,32 @@ program midas_obsSelection
   end if SETUPGRIDS
 
   !
-  !- Setup and read observations
+  !- Perform a prethinning of observations, if requested
   !
+  if (doPreThinning) then
+
+    ! Setup and read observations
+    call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', 'thinning')
+    call msg_memUsage('midas-obsSelection')
+
+    ! Flag observations rejected by the pre-thinning
+    call thn_preThinning(obsSpaceData)
+
+    ! Write obs files after the pre-thinning is done
+    call obsf_writeFiles(obsSpaceData, writeDiagFiles_opt = .false.)
+
+    ! Clean the observation files (remove rejected obs at header-level)
+    call obsf_cleanObsFiles()
+
+    ! Copy the after pre-thinning files into another directory
+    call obsf_copyObsDirectory('./obsAfterPreThinning', direction = 'TO')
+
+    ! Deallocate objects before reallocating
+    call obs_finalize(obsSpaceData)
+
+  end if
+
+  ! Read (or reread) the observation files
   call inn_setupObs(obsSpaceData, hco_anl, 'ALL', 'LIKESPLITFILES', midasMode)
   call msg_memUsage('midas-obsSelection')
 
@@ -519,7 +543,7 @@ program midas_obsSelection
 
     if (doBiasCorr .or. doBgck) then
 
-      ! Copy original obs files into another directory
+      ! Copy the before-thinning files into another directory
       call obsf_copyObsDirectory('./obsOriginal', direction = 'TO')
 
       ! 2.3 Write obs files after background check, but before thinning
