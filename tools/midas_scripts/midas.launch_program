@@ -17,7 +17,7 @@ eval $(cclargs -D "" $0 "[${description}]"                                      
   -nml         "" "" "[path to namelist file]"                                           \
   -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.create_workdir']"   \
   -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
-  -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
+  -jobname        midas  midas  "[name of the job (default: 'midas')]"                   \
   -memory           ""     ""   "[${memory_description}]"                                \
   -omp_num_threads  1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
   -wallclocktime   180    180   "[wall clock time for job in minutes (default: 180]"     \
@@ -97,12 +97,7 @@ cp -r obsfiles_split obs
 ## Erase any previous directory for 'r.run_in_parallel'
 [[ -d mpitmpdir ]] && rm -r mpitmpdir
 
-cat > launcher.sh <<EOF
-#!/bin/bash
-
-set -e
-set +x
-
+cat > load_env.dot <<EOF
 ulimit -c unlimited
 
 export CMCCONST=/home/smco502/datafiles/constants
@@ -123,8 +118,18 @@ echo loading eccc/mrd/rpn/libs/20241105-alpha
 
 echo loading eccc/mrd/rpn/utils/20241105-alpha
 . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
+EOF
+
+cat > launcher.sh <<EOF
+#!/bin/bash
+
+set -e
+set +x
 
 cd ${PWD}
+
+echo "Setting up the shell environment by loading the file 'load_env.dot'"
+source load_env.dot
 
 echo "Start of ${pgm} at \$(date +%Y%m%d:%H:%M:%S.%N)"
 
