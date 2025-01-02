@@ -182,7 +182,7 @@ comparison:
 ./midas.timingTool ${LISTING_1} -r ${LISTING_2} -o 1 > timings_1.dat
 ./midas.timingTool ${LISTING_2} -r ${LISTING_1} -o 2 > timings_2.dat
 ```
-then one can use it's prefered `diff` tool to compare both run:
+then one can use their prefered `diff` tool to compare both run:
 ```
 diff -y -W 210 timings_1.dat timings_2.dat
 ```
