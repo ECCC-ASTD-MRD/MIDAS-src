@@ -6,7 +6,7 @@ typeset -r description="This script launches the program 'midas-letkf.Abs' in th
 
 ## This is the memory, in GB, that each core, on the supercomputer can
 ## request.  There is 440 GB available on each node for 80 cores.
-## There is similar code in 'midas.energyNorm'.
+## There is similar code in 'midas.create_workdir' and 'midas.energyNorm'.
 typeset -r memory_in_gigs_per_openmp_num_thread=5.5
 
 typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
@@ -15,11 +15,11 @@ arguments=$*
 eval $(cclargs -D "" $0 "[${description}]"                                               \
   -pgm         "" "" "[path to MIDAS program]"                                           \
   -nml         "" "" "[path to namelist file]"                                           \
-  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
+  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.create_workdir']"   \
   -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
   -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
   -memory           ""     ""   "[${memory_description}]"                                \
-  -omp_num_threads  1      1    "[Number of Open MP threads per MPI rank (default: 1)]"  \
+  -omp_num_threads  1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
   -wallclocktime   180    180   "[wall clock time for job in minutes (default: 180]"     \
   ++ $arguments)
 
@@ -47,7 +47,7 @@ function die {
 for launch_arg in pgm workdir supercomputer jobname omp_num_threads wallclocktime; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [ -z "${launch_tmp_var}" ]; then
-        die "the argument '-${launch_arg}' must be defined"
+        die "The argument '-${launch_arg}' must be defined"
     fi
     unset launch_tmp_var
 done

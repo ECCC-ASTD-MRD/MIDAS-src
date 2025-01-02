@@ -1,0 +1,116 @@
+#!/bin/bash
+
+set -euo pipefail
+
+typeset -r description="This script copies a MIDAS working directory and creates a standalone working directory"
+
+arguments=$*
+eval $(cclargs -D   ""    ${0}  "[${description}]"                       \
+  -inputdir         ""     ""   "[input working directory to be copied]" \
+  -workdir          ""     ""   "[path to working directory ]"           \
+  ++ $arguments)
+
+scriptName=${0##*/}
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## Check if all mandatory arguments have been given
+## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
+## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
+for launch_arg in inputdir workdir; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [[ -z "${launch_tmp_var}" ]]; then
+        die "The argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ ! -f "${pgm}" ]]; then
+    die "The program '${pgm}' must exist."
+fi
+if [[ ! -x "${pgm}" ]]; then
+    die "The program '${pgm}' exist but is not an executable."
+fi
+
+if [[ ! -d "${inputdir}" ]]; then
+    die "The input working directory ${inputdir} should exist."
+fi
+
+if [[ -d "${workdir}" ]]; then
+    die "The directory ${workdir} should not exist"
+fi
+
+for file in ptopo_nml flnml; do
+    if [[ ! -f ${inputdir}/${file} ]]; then
+        die "The file '${file}' should exist in input workding directory '${inputdir}'."
+    fi
+done
+
+say "Copying '${inputdir}' to '${workdir}'"
+sscp -r ${inputdir} ${workdir}
+
+cd ${workdir}
+
+# get 'npex' and 'npey' values from 'ptopo_nml' namelist
+npex=$(awk -F= '/^ +npex=/ {print $2}' ptopo_nml)
+[[ -z "${npex}" ]] && die "Could not find 'npex' in the file 'ptopo_nml'"
+
+npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
+[[ -z "${npey}" ]] && die "Could not find 'npey' in the file 'ptopo_nml'"
+
+say "Split the observations files into ${npex}x${npey} parts"
+
+## Splitting the observations files according to the MPI topology ${npex}x${npey}
+[[ -d obsfiles_split_tmp ]] && rm -rf obsfiles_split_tmp
+mkdir obsfiles_split_tmp
+
+split_error_detected=false
+observations_files=$(ls -SLr obsfiles/*)
+for obsfile in ${observations_files}; do
+    obsFileName=${obsfile##*/}
+    if [[ "$((npex*npey))" -le 800 ]]; then
+        ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin \
+                    -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} > splitobs.${obsFileName}.listing || split_error_detected=true
+        if [[ "${split_error_detected}" = true ]]; then
+            die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+        fi
+    else
+        ## Due to a limitation of the number of XDF files that can be opened simultaneously
+        ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
+        ## number of MPI ranks.
+        for procX in $(seq 1 ${npex}); do
+            for procY in $(seq 1 ${npey}); do
+                ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin         \
+                            -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
+                            >> splitobs.${obsFileName}.listing || split_error_detected=true
+                if [[ "${split_error_detected}" = true ]]; then
+                    die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+                fi
+            done ## End of 'for procY in $(seq 1 ${npey})'
+        done ## End of 'for procX in $(seq 1 ${npex})'
+    fi
+done ## End of 'for obsfile in ${observations_files}'
+
+mv obsfiles_split_tmp obsfiles_split
+say "Spliting the observations files into ${npex}x${npey} parts has been completed"
+
+launch_program_path=$(which midas.launch_program 2>/dev/null || echo midas.launch_program)
+say "The working directory has been prepared in '${workdir}'."                      \
+    "You can now use '${launch_program_path}' to"                                   \
+    "launch a MIDAS program using that workding directory with"                     \
+    "${launch_program_path} -workdir ${workdir} -pgm \${path to MIDAS program} ..."
