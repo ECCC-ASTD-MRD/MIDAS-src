@@ -4692,9 +4692,9 @@ contains
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) < 0 ) then
-      if ( vco_getVcode(vco) == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r8 ) then
+    if (minval(sfcFld) < 0) then
+      if (vco_getVcode(vco) == 21001) then
+        if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r8) then
           call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -4706,18 +4706,13 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -4725,22 +4720,18 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
+
   end subroutine fetch3DLevels_r8
 
   !---------------------------------------------------------
@@ -4763,9 +4754,9 @@ contains
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) < 0 ) then
-      if ( vco_getVcode(vco) == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r4 ) then
+    if (minval(sfcFld) < 0) then
+      if (vco_getVcode(vco) == 21001) then
+        if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r4) then
           call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -4777,18 +4768,13 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -4796,22 +4782,18 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
+
   end subroutine fetch3DLevels_r4
 
   !---------------------------------------------------------

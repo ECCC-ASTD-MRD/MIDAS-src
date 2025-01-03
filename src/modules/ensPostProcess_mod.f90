@@ -1799,7 +1799,8 @@ contains
         ! compute height for a column where HeightSfc=0m
         pzSfc(1,1) = 0.0D0
         ! height levels
-        call czp_fetch3DLevels(vco, pzSfc, fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
+        call czp_fetch3DLevels(vco, sfcFld=pzSfc, sfcFldLS_opt=pzSfc, &
+                               fldM_opt=pressureOrHeight_M, fldT_opt=pressureOrHeight_T)
       else
         write(*,*) 'vCode = ', vco%vcode
         call utl_abort('epp_printRmsStats: Unknown vCode')
