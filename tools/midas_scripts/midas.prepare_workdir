@@ -5,16 +5,16 @@ set -euo pipefail
 description="This script prepares a working directory to launch 'midas-letkf.Abs'."
 
 arguments=$*
-eval $(cclargs  -D "" $0 "[${description}]"                        \
-  -ensemble     "" "" "[path to ensemble directory]"               \
-  -nml          "" "" "[path to namelist file]"                    \
-  -observations "" "" "[path to observations]"                     \
-  -constants    "" "" "[path to constants]"                        \
-  -npex         "" "" "[number of MPI ranks along the X axis]"     \
-  -npey         "" "" "[number of MPI ranks along the Y axis]"     \
-  -workdir      "" "" "[output working directory]"                 \
-  -splitobs     "" "" "[path to the 'midas.splitobs.Abs' program]" \
-  -splitobs_ndigits "4" "4" "[number of digits for the extension when splitting observations files]" \
+eval $(cclargs  -D  "" $0 "[${description}]"                                       \
+  -ensemble         "" "" "[path to ensemble directory]"                           \
+  -nml              "" "" "[path to namelist file]"                                \
+  -observations     "" "" "[path to observations]"                                 \
+  -constants        "" "" "[path to constants]"                                    \
+  -npex             "" "" "[number of MPI ranks along the X axis]"                 \
+  -npey             "" "" "[number of MPI ranks along the Y axis]"                 \
+  -workdir          "" "" "[output working directory]"                             \
+  -splitobs         "" "" "[path to the 'midas.splitobs.Abs' program (mandatory)]" \
+  -splitobs_ndigits 4  4  "[number of digits for the extension when splitting observations files (default: 4) ]" \
   ++ $arguments)
 
 scriptName=${0##*/}
