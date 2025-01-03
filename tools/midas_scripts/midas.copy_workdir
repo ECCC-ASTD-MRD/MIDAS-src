@@ -57,17 +57,17 @@ done
 
 [[ -d ${inputdir}/obsfiles_split ]] && die "The directory '${inputdir}/obsfiles_split' already exists.  This is not expected."
 
+# get 'npex' and 'npey' values from 'ptopo_nml' namelist
+npex=$(awk -F= '/^ +npex=/ {print $2}' ${inputdir}/ptopo_nml)
+[[ -z "${npex}" ]] && die "Could not find 'npex' in the file '${inputdir}/ptopo_nml'"
+
+npey=$(awk -F= '/^ +npey=/ {print $2}' ${inputdir}/ptopo_nml)
+[[ -z "${npey}" ]] && die "Could not find 'npey' in the file '${inputdir}/ptopo_nml'"
+
 say "Copying '${inputdir}' to '${workdir}'"
 sscp -r ${inputdir} ${workdir}
 
 cd ${workdir}
-
-# get 'npex' and 'npey' values from 'ptopo_nml' namelist
-npex=$(awk -F= '/^ +npex=/ {print $2}' ptopo_nml)
-[[ -z "${npex}" ]] && die "Could not find 'npex' in the file 'ptopo_nml'"
-
-npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
-[[ -z "${npey}" ]] && die "Could not find 'npey' in the file 'ptopo_nml'"
 
 say "Split the observations files into ${npex}x${npey} parts"
 
