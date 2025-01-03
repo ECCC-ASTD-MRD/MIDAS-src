@@ -482,6 +482,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="trialMeanRmsGemhSleve"/>
+    <FAMILY  name="trialMeanRmsGemhSleve">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="trialMeanRmsLAM"/>
     <FAMILY  name="trialMeanRmsLAM">
       <SUBMITS sub_name="UnitTest"/>
