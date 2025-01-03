@@ -6,9 +6,11 @@ typeset -r description="This script copies a MIDAS working directory and creates
 
 arguments=$*
 eval $(cclargs -D   ""    ${0}  "[${description}]"                                                        \
-  -inputdir         ""     ""   "[input working directory to be copied]"                                  \
-  -workdir          ""     ""   "[path to working directory ]"                                            \
+  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                      \
+  -workdir          ""     ""   "[path to working directory (mandatory)]"                                 \
   -nml              ""     ""   "[path to namelist file (mandatory if it does not exist in '-inputdir')]" \
+  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program (mandatory)]"                  \
+  -splitobs_ndigits 4      4    "[number of digits for the extension when splitting observations files (default: 4)]" \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -32,7 +34,7 @@ function die {
 ## Check if all mandatory arguments have been given
 ## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
 ## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
-for launch_arg in inputdir workdir; do
+for launch_arg in inputdir workdir splitobs; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [[ -z "${launch_tmp_var}" ]]; then
         die "The argument '-${launch_arg}' must be defined"
@@ -47,6 +49,13 @@ fi
 
 if [[ -d "${workdir}" ]]; then
     die "The directory ${workdir} should not exist"
+fi
+
+if [[ ! -f "${splitobs}" ]]; then
+    die "The program '${splitobs}' must exist."
+fi
+if [[ ! -x "${splitobs}" ]]; then
+    die "The program '${splitobs}' exist but is not an executable."
 fi
 
 say "Validating the input directory ${inputdir}"
