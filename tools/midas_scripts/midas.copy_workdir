@@ -55,11 +55,14 @@ if [[ -d "${workdir}" ]]; then
     die "The directory ${workdir} should not exist"
 fi
 
+say "Validating the input directory ${inputdir}"
 for file in ptopo_nml flnml; do
     if [[ ! -f ${inputdir}/${file} ]]; then
         die "The file '${file}' should exist in input workding directory '${inputdir}'."
     fi
 done
+
+[[ -d ${inputdir}/obsfiles_split ]] && die "The directory '${inputdir}/obsfiles_split' already exists.  This is not expected."
 
 say "Copying '${inputdir}' to '${workdir}'"
 sscp -r ${inputdir} ${workdir}
@@ -103,11 +106,11 @@ for obsfile in ${observations_files}; do
                 fi
             done ## End of 'for procY in $(seq 1 ${npey})'
         done ## End of 'for procX in $(seq 1 ${npex})'
-    fi
+    fi ## End of 'else' associated to 'if [[ "$((npex*npey))" -le 800 ]]; then'
 done ## End of 'for obsfile in ${observations_files}'
 
 mv obsfiles_split_tmp obsfiles_split
-say "Spliting the observations files into ${npex}x${npey} parts has been completed"
+say "The observations files splitting into ${npex}x${npey} parts has been completed"
 
 launch_program_path=$(which midas.launch_program 2>/dev/null || echo midas.launch_program)
 say "The working directory has been prepared in '${workdir}'."                      \
