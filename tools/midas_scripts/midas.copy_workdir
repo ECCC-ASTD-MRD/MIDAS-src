@@ -5,9 +5,10 @@ set -euo pipefail
 typeset -r description="This script copies a MIDAS working directory and creates a standalone working directory"
 
 arguments=$*
-eval $(cclargs -D   ""    ${0}  "[${description}]"                       \
-  -inputdir         ""     ""   "[input working directory to be copied]" \
-  -workdir          ""     ""   "[path to working directory ]"           \
+eval $(cclargs -D   ""    ${0}  "[${description}]"                                                        \
+  -inputdir         ""     ""   "[input working directory to be copied]"                                  \
+  -workdir          ""     ""   "[path to working directory ]"                                            \
+  -nml              ""     ""   "[path to namelist file (mandatory if it does not exist in '-inputdir')]" \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -49,12 +50,17 @@ if [[ -d "${workdir}" ]]; then
 fi
 
 say "Validating the input directory ${inputdir}"
-for file in ptopo_nml flnml; do
-    if [[ ! -f ${inputdir}/${file} ]]; then
-        die "The file '${file}' should exist in input workding directory '${inputdir}'."
+if [[ -n ${nml} ]]; then
+    if [[ ! -f ${nml} ]]; then
+        die "The file '${nml}' should exist."
     fi
-done
+else
+    if [[ ! -f ${inputdir}/flnml ]]; then
+        die "The file 'flnml' should exist in input workding directory '${inputdir}'." "You can specify your own namelist with argument '-nml'."
+    fi
+fi
 
+[[ ! -f ${inputdir}/ptopo_nml ]] && die "The file 'ptopo_nml' should exist in input workding directory '${inputdir}'."
 [[ -d ${inputdir}/obsfiles_split ]] && die "The directory '${inputdir}/obsfiles_split' already exists.  This is not expected."
 
 # get 'npex' and 'npey' values from 'ptopo_nml' namelist
@@ -65,9 +71,22 @@ npey=$(awk -F= '/^ +npey=/ {print $2}' ${inputdir}/ptopo_nml)
 [[ -z "${npey}" ]] && die "Could not find 'npey' in the file '${inputdir}/ptopo_nml'"
 
 say "Copying '${inputdir}' to '${workdir}'"
+workdir_dirname=${workdir%/*}
+if [[ ! -d "${workdir_dirname}" ]]; then
+    mkdir -p ${workdir_dirname}
+fi
 sscp -r ${inputdir} ${workdir}
 
 cd ${workdir}
+
+if [[ -n ${nml} ]]; then
+    if [[ -f flnml ]]; then
+        say "Replacing the file 'flnml' by '${nml}'"
+    else
+        say "Copying ${nml} to flnml"
+    fi
+    cp ${nml} flnml
+fi
 
 say "Split the observations files into ${npex}x${npey} parts"
 
@@ -108,5 +127,5 @@ say "The observations files splitting into ${npex}x${npey} parts has been comple
 launch_program_path=$(which midas.launch_program 2>/dev/null || echo midas.launch_program)
 say "The working directory has been prepared in '${workdir}'."                      \
     "You can now use '${launch_program_path}' to"                                   \
-    "launch a MIDAS program using that workding directory with"                     \
+    "launch a MIDAS program (again and again) using that workding directory with"   \
     "${launch_program_path} -workdir ${workdir} -pgm \${path to MIDAS program} ..."
