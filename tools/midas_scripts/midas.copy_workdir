@@ -40,13 +40,6 @@ for launch_arg in inputdir workdir; do
 done
 unset launch_arg
 
-if [[ ! -f "${pgm}" ]]; then
-    die "The program '${pgm}' must exist."
-fi
-if [[ ! -x "${pgm}" ]]; then
-    die "The program '${pgm}' exist but is not an executable."
-fi
-
 if [[ ! -d "${inputdir}" ]]; then
     die "The input working directory ${inputdir} should exist."
 fi
