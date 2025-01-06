@@ -193,13 +193,13 @@ set +x
 
 cd ${PWD}
 
+ls > localFilesNotToErase
+
 echo "Setting up the shell environment by loading the file 'load_env.dot'"
 source ./load_env.dot
 
 ${scriptDirectory}/midas.launch_program ${pgm}
 EOF
-
-ls > localFilesNotToErase
 
 ## Compute the memory to request at 'ord_soumet' call
 if [[ -z "${memory}" ]]; then
