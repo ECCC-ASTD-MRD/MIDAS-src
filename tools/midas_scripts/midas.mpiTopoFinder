@@ -37,8 +37,8 @@ Percentage = float
 
 # Command line interface
 parser = argparse.ArgumentParser(prog='midas.mpiTopoFinder')
-parser.add_argument("--ni", help="number of grid points in the latitude direction (x)", type=int)
-parser.add_argument("--nj", help="number of grid points in the longitude direction (y)", type=int)
+parser.add_argument("--ni", help="number of grid points in the longitude direction (x)", type=int)
+parser.add_argument("--nj", help="number of grid points in the latitude direction (y)", type=int)
 parser.add_argument("--min-tasks", help="minimum total number of MPI tasks to consider", type=int)
 parser.add_argument("--max-tasks", help="maximum total number of MPI tasks to consider", type=int)
 parser.add_argument("--max-diff", help="maximum difference of grid points per MPI task allowed (in percentage) between the regular distribution and the last MPI task", type=Percentage)

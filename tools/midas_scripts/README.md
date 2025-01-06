@@ -112,8 +112,8 @@ usage: midas.mpiTopoFinder [-h] [--ni NI] [--nj NJ] [--min-tasks MIN_TASKS]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --ni NI               number of grid points in the latitude direction (x)
-  --nj NJ               number of grid points in the longitude direction (y)
+  --ni NI               number of grid points in the longitude direction (x)
+  --nj NJ               number of grid points in the latitude direction (y)
   --min-tasks MIN_TASKS
                         minimum total number of MPI tasks to consider
   --max-tasks MAX_TASKS
