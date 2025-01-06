@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The program `midas-energyNorm` has been added (#986 and !894)
  * Adding `cloudScaleFactor_tl` to `NAMTOV` namelist to scale clouds in rttov TL/AD (#984 and !892)
  * Add `--opt-report` and `--codecov` options to `src/midas_build` (#982 and !890)
- * Introduction of filtering criteria to dfs program (mask for obs only on oceans and thinning) (#959 and !888)	
+ * Introduction of filtering criteria to `midas-dfs` program (mask for obs only on oceans and thinning) (#959 and !888)
  * Add `--debug` option to `src/midas_build` (#981 and !889)
  * Ability to recenter ensemble around weekly GIOPS analysis state, netCDF ensemble output (#979 and !886)
  * Introduce scripts to prepare and launch `midas-letkf.Abs` (#974 and !885)
