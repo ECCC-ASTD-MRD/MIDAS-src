@@ -12,19 +12,25 @@ typeset -r memory_in_gigs_per_openmp_num_thread=5.5
 typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
 
 arguments=$*
-eval $(cclargs -D "" $0 "[${description}]"                                               \
-  -pgm         "" "" "[path to MIDAS program]"                                           \
-  -nml         "" "" "[path to namelist file]"                                           \
-  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']"   \
-  -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
-  -jobname        midas  midas  "[name of the job (default: 'midas')]"                   \
-  -memory           ""     ""   "[${memory_description}]"                                \
-  -omp_num_threads  1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
-  -wallclocktime   180    180   "[wall clock time for job in minutes (default: 180)]"    \
-  -interactive    false   true  "[launch an interactive job (default: false)]"           \
+eval $(cclargs -D    ""     $0   "[${description}]"                                       \
+  -pgm               ""     ""   "[path to MIDAS program]"                                \
+  -nml               ""     ""   "[path to namelist file]"                                \
+  -workdir           ""     ""   "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']" \
+  -supercomputer   robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+  -jobname         midas   midas "[name of the job (default: 'midas')]"                   \
+  -memory            ""     ""   "[${memory_description}]"                                \
+  -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
+  -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
+  -interactive     false   true  "[launch an interactive job (default: false)]"           \
   ++ $arguments)
 
 scriptName=${0##*/}
+if [[ ${0} = /* ]]; then
+    scriptDirectory=$(dirname ${0})
+else
+    scriptFullPath=$(true_path ${0})
+    scriptDirectory=$(dirname ${scriptFullPath})
+fi
 
 function say {
     printf "${scriptName}: ${1}\n"
@@ -177,42 +183,10 @@ cd ${PWD}
 echo "Setting up the shell environment by loading the file 'load_env.dot'"
 source ./load_env.dot
 
-./launch_program.sh ${pgm}
+${scriptDirectory}/midas.launch_program ${pgm}
 EOF
 
-cat > launch_program.sh <<EOF
-#!/bin/bash
-
-set -e
-
-pgm=\${1:?"The script 'launch_program.sh' must be called with an argument which is the MIDAS program to launch"}
-
-echo "Erase any file generated from previous run"
-##    YYYYMMDDHH_000_${member_id}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_[0-9][0-9][0-9][0-9]
-##    YYYYMMDDHH_000_inc_${member_id}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_inc_[0-9][0-9][0-9][0-9]
-##    YYYYMMDDHH_000_anal{,pert}{mean,rms{,_ascii}}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_anal{,pert}{mean,rms{,_ascii}}
-##    YYYYMMDDHH_006_trial{mean,rms{,_ascii}}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_006_trial{mean,rms{,_ascii}}
-## Observations
-[[ -d obs ]] && rm -r obs
-
-echo "Copy the observations"
-cp -r obsfiles_split obs
-
-## Erase any previous directory for 'r.run_in_parallel'
-[[ -d mpitmpdir ]] && rm -r mpitmpdir
-
-echo "Start of \${pgm} at \$(date +%Y%m%d:%H:%M:%S.%N)"
-
-SECONDS=0
-
-r.run_in_parallel -pgm \${pgm} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir
-
-echo "End of \${pgm} in \${SECONDS} seconds at \$(date +%Y%m%d:%H:%M:%S.%N)"
-EOF
+ls > localFilesNotToErase
 
 ## Compute the memory to request at 'ord_soumet' call
 if [[ -z "${memory}" ]]; then
@@ -248,11 +222,11 @@ source ./load_env.dot
 echo
 echo You can now run your program interactively with:
 echo
-echo "   ./launch_program.sh pgm"
+echo "   ${scriptDirectory}/launch_program pgm"
 echo
 echo for the latest executable used by 'run.tsk' or
 echo
-echo "   ./launch_program.sh /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo "   ${scriptDirectory}/launch_program /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
 echo
 echo for any executable of the midas program used in this test.
 EOF

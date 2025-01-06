@@ -2,7 +2,13 @@
 
 set -euo pipefail
 
-isFileInList=$(git rev-parse --toplevel)/tools/midas_scripts/midas.isFileInList
+if [[ ${0} = /* ]]; then
+    scriptDirectory=$(dirname ${0})
+else
+    scriptFullPath=$(true_path ${0})
+    scriptDirectory=$(dirname ${scriptFullPath})
+fi
+isFileInList=${scriptDirectory}/midas.isFileInList
 
 running_mode=run
 while [ $# -ne 0 ]; do
@@ -115,7 +121,7 @@ sscp -r obsfiles_split obs
 echo "$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
 
 for file in *; do
-    if ${isFileInList} ${file} not in obs $([ -f localFilesNotToErase ] && cat localFilesNotToErase); then
+    if ${isFileInList} ${file} not in obs $(cat localFilesNotToErase); then
         rm -r ${file}
     fi
 done
