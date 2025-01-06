@@ -102,7 +102,10 @@ midas.reunir_obs_mpi -obsin $PWD -obsout $PWD -families2process ${fam}
 ## Finding good MPI topologies for efficient computation distribution
 
 The tool `midas.mpiTopoFinder` is designed to help finding good MPI
-distributions for a given grid, which is especially useful when running the program `midas-letkf.Abs`, but can also be helpful for other programs that use gridded data distributed over latitude-longitude tiles."
+distributions for a given grid, which is especially useful when
+running the program `midas-letkf.Abs`, but can also be helpful for
+other programs that use gridded data distributed over
+latitude-longitude tiles."
 
 You can use `midas.mpiTopoFinder -h` to show help:
 ```text
