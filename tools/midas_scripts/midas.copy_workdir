@@ -5,11 +5,11 @@ set -euo pipefail
 typeset -r description="This script copies a MIDAS working directory and creates a standalone working directory"
 
 arguments=$*
-eval $(cclargs -D   ""    ${0}  "[${description}]"                                                        \
-  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                      \
-  -workdir          ""     ""   "[path to working directory (mandatory)]"                                 \
-  -nml              ""     ""   "[path to namelist file (mandatory if it does not exist in '-inputdir')]" \
-  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program (mandatory)]"                  \
+eval $(cclargs -D   ""    ${0}  "[${description}]"                                                                    \
+  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                                  \
+  -workdir          ""     ""   "[path to working directory (mandatory)]"                                             \
+  -nml              ""     ""   "[path to namelist file (mandatory if it does not exist in '-inputdir')]"             \
+  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program (mandatory)]"                              \
   -splitobs_ndigits 4      4    "[number of digits for the extension when splitting observations files (default: 4)]" \
   ++ $arguments)
 
@@ -141,9 +141,9 @@ done ## End of 'for obsfile in ${observations_files}'
 mv obsfiles_split_tmp obsfiles_split
 say "The observations files splitting into ${npex}x${npey} parts has been completed"
 
-launch_program_path=${scriptDirectory}/midas.launch_program
+submit_program_path=${scriptDirectory}/midas.submit_program
 
 say "The working directory has been prepared in '${workdir}'."                      \
-    "You can now use '${launch_program_path}' to"                                   \
-    "launch a MIDAS program (again and again) using that workding directory with"   \
-    "${launch_program_path} -workdir ${workdir} -pgm \${path to MIDAS program} ..."
+    "You can now use '${submit_program_path}' to"                                   \
+    "submit a MIDAS program (again and again) using that workding directory with"   \
+    "${submit_program_path} -workdir ${workdir} -pgm \${path to MIDAS program} ..."

@@ -22,6 +22,7 @@ eval $(cclargs -D    ""     $0   "[${description}]"                             
   -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
   -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
   -interactive     false   true  "[launch an interactive job (default: false)]"           \
+  -env             main   main  "[version of the environment to load ('3.9' or 'main']"                               \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -106,6 +107,10 @@ for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; d
 done
 unset launch_arg
 
+if [[ "${env}" != main && "${env}" != 3.9 ]]; then
+    die "The argument '-env' accepts only 'main' or '3.9' as values but received '${env}'"
+fi
+
 if [[ "${interactive}" != true && "${interactive}" != false ]]; then
     die "The argument to '-interactive' must be 'true' or 'false' and not '${interactive}'."
 fi
@@ -131,7 +136,7 @@ cd ${workdir}
 
 if [[ -n "${nml}" ]]; then
     if [[ -f "${nml}" ]]; then
-        say "We will replace 'flnml' in the working directory with '${nml},."
+        say "We will replace 'flnml' in the working directory with '${nml}."
         cp ${nml} flnml
     else
         die "The namelist given with option '-nml', ${nml}, does not exist."
@@ -162,6 +167,10 @@ export OMP_NUM_THREADS=${omp_num_threads}
 ## Each core can weight O(10) Gb (times the number of processes)
 export FOR_DUMP_CORE_FILE=
 
+EOF
+
+if [[ "${env}" = main ]]; then
+    cat >> load_env.dot <<EOF
 echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2
 . r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
 
@@ -171,6 +180,20 @@ echo loading eccc/mrd/rpn/libs/20241105-alpha
 echo loading eccc/mrd/rpn/utils/20241105-alpha
 . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
 EOF
+elif [[ "${env}" = 3.9 ]]; then
+    cat >> load_env.dot <<EOF
+echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
+
+echo loading eccc/mrd/rpn/libs/20230531
+. r.load.dot eccc/mrd/rpn/libs/20230531
+
+echo loading eccc/mrd/rpn/utils/20230531
+. r.load.dot eccc/mrd/rpn/utils/20230531
+EOF
+else
+    die "The argument '-env' accepts only 'main' or '3.9' as values but received '${env}'"
+fi
 
 cat > launcher.sh <<EOF
 #!/bin/bash
