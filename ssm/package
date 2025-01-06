@@ -129,6 +129,7 @@ install_scripts() {
 
     ## install scripts to be published for 'all' platform
     for script in ${midastoplevel}/tools/findTrials/midas.findTrials \
+                  ${midastoplevel}/tools/timingTool/midas.timingTool \
                   ${midastoplevel}/tools/midas_scripts/midas.*; do
         bscript=$(basename ${script})
         cp ${script} ${__install_builddir__}/${bscript}_${version}

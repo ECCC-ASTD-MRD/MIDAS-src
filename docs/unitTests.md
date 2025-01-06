@@ -132,15 +132,11 @@ ${yourNewTest}/
 If there are multiple tests in the group, then each one of them will need that
 file tree of resource description.
 
-
 ### Providing Expected Results
 
 Similar to inputs, results provided at the same path (`${UnitTest_reference}`) as
 archives named `results*.ca`.  They will be used by the task `check` to compare
 the outputs produced by the program tested and the ones expected by the test.
-
-
----
 
 ## Interactive debugging
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The script `midas.timingTool` is added to the repository (#633 and !913)
  * Introduction of support for RTTOV built-in IR land emissivity atlases with several changes to `NAMTOV` namelist (#1001 and !916)
  * Profiling the code with `vtune` has been introduced and documented (#1011 and !917)
  * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
