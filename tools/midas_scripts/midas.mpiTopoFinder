@@ -41,7 +41,7 @@ parser.add_argument("--ni", help="number of grid points in the latitude directio
 parser.add_argument("--nj", help="number of grid points in the longitude direction (y)", type=int)
 parser.add_argument("--min-tasks", help="minimum of MPI tasks to consider", type=int)
 parser.add_argument("--max-tasks", help="maximum of MPI tasks to consider", type=int)
-parser.add_argument("--max-diff", help="maximum difference allowed (in percentage) between the regular distribution and the last bin", type=Percentage)
+parser.add_argument("--max-diff", help="maximum difference of grid points per bin allowed (in percentage) between the regular distribution and the last bin", type=Percentage)
 parser.add_argument('--unittest', help="Run the unit tests",action="store_true", default=False)
 args = parser.parse_args()
 
