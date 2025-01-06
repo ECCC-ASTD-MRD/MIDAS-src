@@ -87,43 +87,75 @@ unittests () {
     global_status=0
     status=0
     isFileInList allo in allo bonjour salut || status=1
-    [ "${status}" -eq 0 ] || echo "Test 1 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -eq 0 ]; then
+        echo "Test 1 successful"
+    else
+        echo "Test 1 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList bonjour in allo bonjour salut || status=1
-    [ "${status}" -eq 0 ] || echo "Test 2 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -eq 0 ]; then
+        echo "Test 2 successful"
+    else
+        echo "Test 2 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList salut in allo bonjour salut || status=1
-    [ "${status}" -eq 0 ] || echo "Test 3 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -eq 0 ]; then
+        echo "Test 3 successful"
+    else
+        echo "Test 3 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList hello in allo bonjour salut || status=1
-    [ "${status}" -ne 0 ] || echo "Test 4 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -ne 0 ]; then
+        echo "Test 4 successful"
+    else
+        echo "Test 4 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList allo not in allo bonjour salut || status=1
-    [ "${status}" -ne 0 ] || echo "Test 5 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -ne 0 ]; then
+        echo "Test 5 successful"
+    else
+        echo "Test 5 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList bonjour not in allo bonjour salut || status=1
-    [ "${status}" -ne 0 ] || echo "Test 6 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -ne 0 ]; then
+        echo "Test 6 successful"
+    else
+        echo "Test 6 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList salut not in allo bonjour salut || status=1
-    [ "${status}" -ne 0 ] || echo "Test 7 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -ne 0 ]; then
+        echo "Test 7 successful"
+    else
+        echo "Test 7 unsuccessful"
+        global_status=1
+    fi
 
     status=0
     isFileInList hello not in allo bonjour salut || status=1
-    [ "${status}" -eq 0 ] || echo "Test 8 unsuccessful"
-    [ "${status}" -eq 0 ] || global_status=1
+    if [ "${status}" -eq 0 ]; then
+        echo "Test 8 successful"
+    else
+        echo "Test 8 unsuccessful"
+        global_status=1
+    fi
 
     if [ "${global_status}" -eq 0 ]; then
         echo "All the tests are successfull!"
