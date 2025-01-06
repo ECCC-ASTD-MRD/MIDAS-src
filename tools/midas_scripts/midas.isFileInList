@@ -128,7 +128,7 @@ unittests () {
 } ## End of function 'unittests'
 
 
-if [ $# -eq 1 -a "${1}" = --unittests ]; then
+if [ $# -eq 1 -a "${1}" = --unittest ]; then
     unittests
 elif [ $# -eq 1 -a "${1}" = -u ]; then
     unittests

@@ -149,6 +149,20 @@ topoFinder_tests:
    tags:
      - hpcr-u2
 
+isFileInList_tests:
+   stage: test
+   script:
+     - cd tools/midas_scripts
+     - ./midas.isFileInList --unittest
+   only:
+     - main
+     - v_3.7
+     - v_3.9
+     - v_3.9-RandD
+     - tags
+   tags:
+     - hpcr-u2
+
 clean_midas_abs:
    stage: clean
    script:
