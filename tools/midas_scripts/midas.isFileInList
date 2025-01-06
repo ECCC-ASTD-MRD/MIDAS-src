@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 program_name=$0
 
@@ -8,11 +8,11 @@ print_usage () {
     set -e
 
     if [ $# -ne 0 ]; then
-        echo "isFileInList.print_usage: This function takes no argument!" >&2
+        echo "${program_name}.print_usage: This function takes no argument!" >&2
         return 1
     fi
 
-    echo "isFileInList:"
+    echo "${program_name}:"
     echo "       takes the 1 first argument and check if it is contained in the list"
     echo "         ${program_name} one in one two three"
     echo "       will return 0 since 'one' is contained in the list 'one two three'"
@@ -36,7 +36,7 @@ isFileInList () {
     set -e
 
     if [ $# -lt 3 ]; then
-        echo "isFileInList.isFileInList: need at least 3 arguments!" >&2
+        echo "${program_name}.isFileInList: need at least 3 arguments!" >&2
         echo >&2
         print_usage >&2
         return 1
@@ -49,19 +49,19 @@ isFileInList () {
     elif [ "${2}" = "not" -a "${3}" = "in" ]; then
         shift 3
         ## If call with  'not in', the we call with 'in' and inverse the result
-        __isFileInList_status__=0
-        isFileInList "${__isFileInList_file__}" in $* || __isFileInList_status__=1
+        __isFileInList_recursive_status__=0
+        isFileInList "${__isFileInList_file__}" in $* || __isFileInList_recursive_status__=1
         unset __isFileInList_file__
-        if [ "${__isFileInList_status__}" -eq 0 ]; then
-            unset __isFileInList_status__
+        if [ "${__isFileInList_recursive_status__}" -eq 0 ]; then
+            unset __isFileInList_recursive_status__
             return 1
         else
-            unset __isFileInList_status__
+            unset __isFileInList_recursive_status__
             return 0
         fi
     else
-        echo "isFileInList.isFileInList: Must be called with the form 'elem in \${list}' or 'elem not in \${list}'" >&2
-        echo "isFileInList.isFileInList: You called with ${program_name} $*" >&2
+        echo "${program_name}.isFileInList: Must be called with the form 'elem in \${list}' or 'elem not in \${list}'" >&2
+        echo "${program_name}.isFileInList: You called with ${program_name} $*" >&2
         echo >&2
         print_usage >&2
         return 1
@@ -71,7 +71,13 @@ isFileInList () {
     echo $* | grep -sq "\b${__isFileInList_file__}\b" || __isFileInList_status__=1
     unset __isFileInList_file__
 
-    return ${__isFileInList_status__}
+    if [ "${__isFileInList_status__}" -eq 0 ]; then
+        unset __isFileInList_status__
+        return 0
+    else
+        unset __isFileInList_status__
+        return 1
+    fi
 } ## End of function 'isFileInList'
 
 
