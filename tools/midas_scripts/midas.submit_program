@@ -170,30 +170,20 @@ export FOR_DUMP_CORE_FILE=
 EOF
 
 if [[ "${env}" = main ]]; then
-    cat >> load_env.dot <<EOF
-echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2
-. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
-
-echo loading eccc/mrd/rpn/libs/20241105-alpha
-. r.load.dot eccc/mrd/rpn/libs/20241105-alpha
-
-echo loading eccc/mrd/rpn/utils/20241105-alpha
-. r.load.dot eccc/mrd/rpn/utils/20241105-alpha
-EOF
+    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20241105-alpha eccc/mrd/rpn/utils/20241105-alpha"
 elif [[ "${env}" = 3.9 ]]; then
-    cat >> load_env.dot <<EOF
-echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
-
-echo loading eccc/mrd/rpn/libs/20230531
-. r.load.dot eccc/mrd/rpn/libs/20230531
-
-echo loading eccc/mrd/rpn/utils/20230531
-. r.load.dot eccc/mrd/rpn/utils/20230531
-EOF
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
 else
     die "The argument '-env' accepts only 'main' or '3.9' as values but received '${env}'"
 fi
+
+for domain in ${ssm_to_load}; do
+    cat >> load_env.dot <<EOF
+echo loading ${domain}
+. r.load.dot ${domain}
+
+EOF
+done
 
 cat > launcher.sh <<EOF
 #!/bin/bash
