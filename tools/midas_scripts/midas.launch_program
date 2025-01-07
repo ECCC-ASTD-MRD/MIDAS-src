@@ -26,6 +26,7 @@ while [ $# -ne 0 ]; do
         running_mode=${1}
         ## Load the full compiler suite
         if ! which vtune 1>/dev/null 2>&1; then
+            vtune_already_in_env=false
             if [ -n "${VTUNE_SSM}" ]; then
                 set +u
                 . ssmuse-sh -x ${VTUNE_SSM}
@@ -34,6 +35,8 @@ while [ $# -ne 0 ]; do
                 echo "${0}: aborts because it cannot find 'vtune' and 'VTUNE_SSM' environment variable does not exist"
                 exit 1
             fi
+        else
+            vtune_already_in_env=true
         fi
     elif [ "${1}" = --args ]; then
         while [ $# -gt 2 ]; do ## The last argument is the program itself
@@ -177,7 +180,7 @@ echo "End of ${run_pgm} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 if [[ "${running_mode}" = --vtune* ]]; then
     echo "You can now vizualize the profiling data using the commands"
-    if ! which vtune-gui 1>/dev/null 2>&1; then
+    if [ "${vtune_already_in_env}" = false ]; then
         echo "    . ssmuse-sh -x ${VTUNE_SSM}"
     fi
     echo "    vtune-gui ./vtune.*"
