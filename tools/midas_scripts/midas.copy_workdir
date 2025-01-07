@@ -104,7 +104,7 @@ if [[ -n ${nml} ]]; then
 fi
 
 say "Split the observations files into ${npex}x${npey} parts"
-[[ "$((npex*npey))" -gt 800 ]] && say "This may take a while..."
+[[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
 
 ## Splitting the observations files according to the MPI topology ${npex}x${npey}
 [[ -d obsfiles_split_tmp ]] && rm -rf obsfiles_split_tmp
@@ -115,7 +115,7 @@ observations_files=$(ls -SLr obsfiles/*)
 for obsfile in ${observations_files}; do
     obsFileName=${obsfile##*/}
     say "Processing the file ${obsFileName}"
-    if [[ "$((npex*npey))" -le 800 ]]; then
+    if [[ "$((npex*npey))" -lt 800 ]]; then
         ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin \
                     -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
         if [[ "${split_error_detected}" = true ]]; then
