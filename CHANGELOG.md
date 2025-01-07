@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The script `midas.copy_workdir` is added to the repository (#1025 and !928)
+   * The script `midas.launch_program` has been renamed `midas.submit_program`.
+   * The script `launch_program.sh` has been renamed to `midas.launch_program` is now used throughout the project to run a MIDAS program.
  * The script `midas.mpiTopoFinder` is added to the repository (#1018 and !926)
  * The script `midas.timingTool` is added to the repository (#633 and !913)
  * Introduction of support for RTTOV built-in IR land emissivity atlases with several changes to `NAMTOV` namelist (#1001 and !916)
