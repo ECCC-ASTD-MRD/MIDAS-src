@@ -132,14 +132,14 @@ if [[ "${interactive}" = false ]]; then
 fi
 
 if [[ ! -d "${workdir}" ]]; then
-    die "The working directory ${workdir} should have been prepared by 'midas.prepare_workdir'."
+    die "The working directory ${workdir} should have been prepared by 'midas.prepare_workdir' or 'midas.copy_workdir'."
 fi
 
 cd ${workdir}
 
 if [[ -n "${nml}" ]]; then
     if [[ -f "${nml}" ]]; then
-        say "We will replace 'flnml' in the working directory with '${nml}."
+        say "We will replace 'flnml' in the working directory with '${nml}'."
         cp ${nml} flnml
     else
         die "The namelist given with option '-nml', ${nml}, does not exist."
