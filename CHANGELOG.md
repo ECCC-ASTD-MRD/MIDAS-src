@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The script `midas.mpiTopoFinder` is added to the repository (#1018 and !926)
  * The script `midas.timingTool` is added to the repository (#633 and !913)
  * Introduction of support for RTTOV built-in IR land emissivity atlases with several changes to `NAMTOV` namelist (#1001 and !916)
  * Profiling the code with `vtune` has been introduced and documented (#1011 and !917)
@@ -60,7 +61,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * The program `midas-energyNorm` has been added (#986 and !894)
  * Adding `cloudScaleFactor_tl` to `NAMTOV` namelist to scale clouds in rttov TL/AD (#984 and !892)
  * Add `--opt-report` and `--codecov` options to `src/midas_build` (#982 and !890)
- * Introduction of filtering criteria to dfs program (mask for obs only on oceans and thinning) (#959 and !888)	
+ * Introduction of filtering criteria to `midas-dfs` program (mask for obs only on oceans and thinning) (#959 and !888)
  * Add `--debug` option to `src/midas_build` (#981 and !889)
  * Ability to recenter ensemble around weekly GIOPS analysis state, netCDF ensemble output (#979 and !886)
  * Introduce scripts to prepare and launch `midas-letkf.Abs` (#974 and !885)
