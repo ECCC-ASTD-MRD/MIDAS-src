@@ -105,7 +105,7 @@ The tool `midas.mpiTopoFinder` is designed to help finding good MPI
 distributions for a given grid, which is especially useful when
 running the program `midas-letkf.Abs`, but can also be helpful for
 other programs that use gridded data distributed over
-latitude-longitude tiles."
+latitude-longitude tiles.
 
 You can use `midas.mpiTopoFinder -h` to show help:
 ```text
@@ -144,12 +144,12 @@ Then, the script `midas.submit_program` is used run a MIDAS program as
 a stand-alone execution using the working directory prepared by
 `midas.prepare_workdir` or `midas.copy_workdir`.  It can launch a
 batch job on the supercomputer or an interactive job with the option
-'-interactive'.  The job is using the MPI topology that has been used
+`-interactive`.  The job is using the MPI topology that has been used
 to prepare the observations.
 
-There is another script, `midas.unsplitobs`, that can be used to
-recombine the observations to be in their original order before they
-were split with `midas.splitobs.Abs`.
+The script `midas.unsplitobs` can be used to recombine the
+observations to be in their original order before they were split with
+`midas.splitobs.Abs`.
 
 All scripts supports the option `-h` to have a description of the
 available options.
