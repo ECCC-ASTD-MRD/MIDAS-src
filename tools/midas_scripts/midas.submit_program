@@ -55,44 +55,36 @@ function die {
 find_resources () {
     set -e
     if [ $# -ne 0 ]; then
-        echo "The function 'find_resources' does not accept any argument" >&2
-        echo "The function 'find_resources' has been called with" >&2
-        echo "       find_resources $*" >&2
+        die "The function 'find_resources' does not accept any argument" \
+            "The function 'find_resources' has been called with"         \
+            "       find_resources $*"
         return 1
     fi
 
-    __sleep_job__=${jobname}.sleep_forever.sh
-    check_file find_resources ${__sleep_job__}
+    __find_resources_lajobtar__=lajob.tar
 
-    __lajobtar__=lajob.tar
-    check_file find_resources ${__lajobtar__}
-
-    cat > ${__sleep_job__} <<EOF
-#!/bin/bash
-
-sleep $((360*60))
-
-EOF
-    ord_soumet_cmd="ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${supercomputer} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory}"
+    __find_resources_ord_soumet_cmd__="ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -listing ${PWD} -w 10 -cpus ${cpus} -m ${memory} -nosubmit"
     echo ord_soumet command: >&2
-    echo ${ord_soumet_cmd} >&2
+    echo ${__find_resources_ord_soumet_cmd__} >&2
 
-    soumet_status=0
-    ${ord_soumet_cmd} || soumet_status=1
-    if [[ "${soumet_status}" -ne 0 ]]; then
-        echo Problem with call to ord_soumet
-        exit 1
+    __find_resources_soumet_status__=0
+    ${__find_resources_ord_soumet_cmd__} || __find_resources_soumet_status__=1
+    if [[ "${__find_resources_soumet_status__}" -ne 0 ]]; then
+        die "find_resources: Problem with call to ord_soumet"
     fi
+    unset __find_resources_soumet_status__ __find_resources_ord_soumet_cmd__
 
-    rm ${__sleep_job__}
+    if [[ ! -f "${__find_resources_lajobtar__}" ]]; then
+        die "The 'ord_soumet' command did not generate the file '${__find_resources_lajobtar__}' in the directory ${PWD}"
+    fi
 
     ## The following command will output something like
     ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
-    tar --wildcards -xOf ${__lajobtar__} "${jobname}.${supercomputer}*" | grep '^#PBS' | grep -v '^#PBS -[jo]' | grep -v '^#PBS -l walltime='
+    tar --wildcards -xOf ${__find_resources_lajobtar__} "${jobname}.${supercomputer}*" | grep '^#PBS' | grep -v '^#PBS -[jo]' | grep -v '^#PBS -l walltime='
 
-    rm ${__lajobtar__}
+    rm ${__find_resources_lajobtar__}
 
-    unset __sleep_job__ __lajobtar__
+    unset __find_resources_lajobtar__
 } ## End of function 'find_resources'
 
 ## Check if all mandatory arguments have been given
@@ -217,13 +209,13 @@ else
     ## Prepare an interactive job
     pbsdirectives=${PWD}/${jobname}.pbsdirectives
     find_resources > ${pbsdirectives}
-    echo "#PBS -l walltime=$((wallclock*60))" >> ${pbsdirectives}
+    echo "#PBS -l walltime=$((wallclocktime*60))" >> ${pbsdirectives}
 
     rcfile=${PWD}/${jobname}.rcfile
     cat > ${rcfile} <<EOF
 echo
-echo Changing directory for ${working_directory}
-cd ${working_directory}
+echo Moving to directory ${workdir}
+cd ${workdir}
 
 echo
 echo Loading execution environment in file 'load_env.dot'
@@ -243,15 +235,15 @@ EOF
 
     #TODO figure out how to launch rcfile and let interactive session open
     qsub_cmd="qsub -X -I ${pbsdirectives}"
-    echo "Launching the interactive job with"
-    echo "   ${qsub_cmd}"
+    say "Launching the interactive job with"  \
+        "   ${qsub_cmd}"
     echo
 
-    echo "When the interactive job is started, do"
-    echo
-    echo "    source ${rcfile}"
-    echo
-    echo "to load the environment and start working"
+    say "When the interactive job is started, do"    \
+        " "                                          \
+        "         source ${rcfile}"                  \
+        " "                                          \
+        "to load the environment and start working"
 
     ${qsub_cmd}
 
