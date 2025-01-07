@@ -122,4 +122,4 @@ midas_program=${splitobs%/*}/midas-letkf.Abs
 
 touch prepare_done_${npex}x${npey}
 
-say "You can now launch the MIDAS program with" "midas.launch_program -workdir ${workdir} -pgm ${midas_program}"
+say "You can now launch the MIDAS program with" "midas.submit_program -workdir ${workdir} -pgm ${midas_program}"
