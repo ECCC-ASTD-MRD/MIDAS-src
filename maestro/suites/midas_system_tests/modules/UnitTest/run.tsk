@@ -140,8 +140,14 @@ vtune_args=
 if [ -n "${UnitTest_run_vtune_mode}" ]; then
     vtune_args=--vtune=${UnitTest_run_vtune_mode}
 fi
+
+run_pgm_args=
+if [ -n "${UnitTest_run_pgm_args}" ]; then
+    run_pgm_args="--args ${UnitTest_run_pgm_args}"
+fi
+
 status=0
-./launch_program.sh ${vtune_args} ./pgm 1> listing 2>&1 || status=1
+./launch_program.sh ${vtune_args} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
