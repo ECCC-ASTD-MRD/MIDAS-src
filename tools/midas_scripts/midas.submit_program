@@ -100,7 +100,7 @@ EOF
 ## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
 for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; do
     eval launch_tmp_var="\${${launch_arg}}"
-    if [ -z "${launch_tmp_var}" ]; then
+    if [[ -z "${launch_tmp_var}" ]]; then
         die "The argument '-${launch_arg}' must be defined."
     fi
     unset launch_tmp_var
@@ -198,7 +198,7 @@ ls > localFilesNotToErase
 echo "Setting up the shell environment by loading the file 'load_env.dot'"
 source ./load_env.dot
 
-${scriptDirectory}/midas.launch_program ${pgm}
+${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}
 EOF
 
 ## Compute the memory to request at 'ord_soumet' call
@@ -235,11 +235,11 @@ source ./load_env.dot
 echo
 echo You can now run your program interactively with:
 echo
-echo "   ${scriptDirectory}/launch_program pgm"
+echo "   ${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}"
 echo
 echo for the latest executable used by 'run.tsk' or
 echo
-echo "   ${scriptDirectory}/launch_program /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo "   ${scriptDirectory}/launch_program --npex ${npex} --npey ${npey} /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
 echo
 echo for any executable of the midas program used in this test.
 EOF

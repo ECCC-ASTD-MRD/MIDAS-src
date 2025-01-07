@@ -36,6 +36,20 @@ while [ $# -ne 0 ]; do
             shift
             run_pgm_args="${run_pgm_args} ${1}"
         done
+    elif [ "${1}" = --npex -o "${1}" = --npey ]; then
+        if [ $# -lt 2 ]; then
+            echo "${0}: The argument '${1}' should have a number after"
+            exit 1
+        elif [[ "${2}" != [0-9]* ]]; then
+            echo "${0}: The argument '${1}' should have a number after"
+            exit 1
+        fi
+        if [ "${1}" = --npex ]; then
+            npex=${2}
+        elif [ "${1}" = --npey ]; then
+            npey=${2}
+        fi
+        shift
     elif [ "${1}" = -h -o "${1}" = --help ]; then
         echo "${0} [--ddt] [--gdb] [--vtune] [--args ...] \${path_to_program}"
         exit
@@ -135,7 +149,7 @@ done
 if [ "${running_mode}" = ddt ]; then
     echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm} with DDT"
     ## DDT cannot run a script, it must launch the program itself
-    ddt mpirun -n $((SEQ_NPEX*SEQ_NPEY)) ${run_pgm}
+    ddt mpirun -n $((npex*npey)) ${run_pgm}
 else
     info_mode=
     if [ "${running_mode}" = --vtune ]; then
@@ -148,7 +162,7 @@ else
     echo Using r.run_in_parallel from $(which r.run_in_parallel)
 
     SECONDS=0
-    r.run_in_parallel -pgm ${LAUNCH_CMD:-${RUN_PGM}} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir -args ${run_pgm_args}
+    r.run_in_parallel -pgm ${LAUNCH_CMD:-${RUN_PGM}} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir -args ${run_pgm_args}
     echo RUNTIME=${SECONDS}
 fi
 

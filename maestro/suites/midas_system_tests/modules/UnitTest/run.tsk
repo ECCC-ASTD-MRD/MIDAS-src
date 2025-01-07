@@ -147,7 +147,7 @@ if [ -n "${UnitTest_run_pgm_args}" ]; then
 fi
 
 status=0
-./launch_program.sh ${vtune_args} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
+./launch_program.sh ${vtune_args} --npex ${SEQ_NPEX} --npey ${SEQ_NPEY} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then

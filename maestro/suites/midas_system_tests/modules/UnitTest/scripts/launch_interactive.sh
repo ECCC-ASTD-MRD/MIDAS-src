@@ -75,6 +75,9 @@ isMPI=$(extract_from_XML mpi ${resource})
 soumet_args=$(extract_from_XML soumet_args ${resource})
 memory=$(extract_from_XML memory ${resource})
 
+npex=$(echo ${cpus} | cut -dx -f1)
+npey=$(echo ${cpus} | cut -dx -f2)
+
 if [ "${isMPI}" = 1 ]; then
     mpi='-mpi'
 else
@@ -193,11 +196,11 @@ echo Loading execution environment in file load_env.dot
 echo
 echo You can now run your program interactively with:
 echo
-echo "   ./launch_program.sh pgm"
+echo "   ./launch_program.sh --npex ${npex} --npey ${npey} pgm"
 echo
 echo for the latest executable used by 'run.tsk' or
 echo
-echo "   ./launch_program.sh /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo "   ./launch_program.sh --npex ${npex} --npey ${npey} /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
 echo
 echo for any executable of the midas program used in this test.
 EOF
