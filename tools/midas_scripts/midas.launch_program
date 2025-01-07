@@ -15,7 +15,9 @@ running_mode=run
 while [ $# -ne 0 ]; do
     if [ "${1}" = --ddt ]; then
         running_mode=ddt
+        set +u
         which ddt 1>/dev/null 2>&1 || . ssmuse-sh -x main/opt/forge/21.1.3
+        set -u
     elif [ "${1}" = --gdb ]; then
         running_mode=gdb
     elif [[ "${1}" = --vtune* ]]; then
@@ -25,7 +27,9 @@ while [ $# -ne 0 ]; do
         ## Load the full compiler suite
         if ! which vtune 1>/dev/null 2>&1; then
             if [ -n "${VTUNE_SSM}" ]; then
+                set +u
                 . ssmuse-sh -x ${VTUNE_SSM}
+                set -u
             else
                 echo "${0}: aborts because it cannot find 'vtune' and 'VTUNE_SSM' environment variable does not exist"
                 exit 1
