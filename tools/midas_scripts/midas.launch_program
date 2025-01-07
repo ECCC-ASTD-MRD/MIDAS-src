@@ -158,6 +158,9 @@ else
         info_mode=" with gdb"
     fi
 
+    ## Erase any previous directory for 'r.run_in_parallel'
+    [[ -d mpitmpdir ]] && rm -r mpitmpdir
+
     echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}${info_mode}"
     echo Using r.run_in_parallel from $(which r.run_in_parallel)
 
