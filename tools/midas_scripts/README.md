@@ -129,24 +129,25 @@ optional arguments:
 
 ## Running MIDAS as a stand alone program
 
-The scripts `midas.prepare_workdir` and `midas.launch_program` can be
+The scripts `midas.prepare_workdir` and `midas.submit_program` can be
 used to prepare a working directory and then run a MIDAS program as a
 standalone execution.
   * `midas.prepare_workdir`: This script prepares a working directory
      using inputs from `cmcarc` archives or a directory for a fixed MPI
      topology.  The last point is essential because the options will be
      prepared for that MPI topology.
-  * `midas.launch_program`: This script launches a job on the
+  * `midas.submit_program`: This script launches a job on the
      supercomputer using the working directory prepared by
      `midas.prepare_workdir`.  The job is using the MPI topology that
-     has been used to prepare the observations.
+     has been used to prepare the observations.  It can also be used
+     to launch an interactive job with the option '-interactive'.
 
 There is another script, `midas.unsplitobs`, that can be used to
 recombine the observations to be in their original order before they
 were split with `midas.splitobs.Abs`.
 
-All three scripts supports the option `-h` to have a description of
-the available options.
+All scripts supports the option `-h` to have a description of the
+available options.
 
 ### Example
 
