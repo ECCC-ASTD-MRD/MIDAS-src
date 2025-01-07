@@ -480,7 +480,7 @@ program midas_var
     call utl_printTime()
 
     ! Impose limits on ALL cloud variables
-    call qlim_rttovLimit(stateVectorUpdateHighRes, applyLimitToCloud_opt=.true.)
+    call qlim_rttovLimit(stateVectorUpdateHighRes, applyLimitToHumidity_opt=.false.)
 
     ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to
     ! height/pressure increments.

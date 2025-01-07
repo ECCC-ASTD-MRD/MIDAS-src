@@ -59,7 +59,7 @@ contains
   !--------------------------------------------------------------------------
   ! readNameList
   !--------------------------------------------------------------------------
-  subroutine readNameList
+  subroutine readNameList()
     !
     ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
     !
@@ -87,7 +87,7 @@ contains
                        minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR, &
                        qcThresh
 
-    if ( nmlAlreadyRead ) return
+    if (nmlAlreadyRead) return
 
     nmlAlreadyRead = .true.
 
@@ -97,10 +97,10 @@ contains
 
     minValueIWCR = 1.0d-9
     maxValueIWCR = 1.0d0
-    
+
     minValueRF = 0.0d0
     maxValueRF = 1.0d0
-    
+
     minValueSF = 0.0d0
     maxValueSF = 1.0d0
 
@@ -108,9 +108,9 @@ contains
     maxValueCLDR = 1.0d0
 
     qcThresh = 3.0d-8
-    
-    if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
+
+    if (.not. utl_isNamelistPresent('NAMQLIM','./flnml')) then
+      if (mmpi_myid == 0) then
         write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
       end if
 
@@ -118,11 +118,11 @@ contains
       ! Reading the namelist
       call utl_tmg_start(181,'low-level--readNML')
       read(utl_flnml, nml=namqlim, iostat=ierr)
-      if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
+      if (ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
       call utl_tmg_stop(181)
 
     end if
-    if ( mmpi_myid == 0 ) write(*,nml=namqlim)
+    if (mmpi_myid == 0) write(*,nml=namqlim)
 
     ! Transfer namelist variables to module variables.
     qlim_minValueLWCR = minValueLWCR
@@ -130,10 +130,10 @@ contains
 
     qlim_minValueIWCR = minValueIWCR
     qlim_maxValueIWCR = maxValueIWCR
-    
+
     qlim_minValueRF   = minValueRF
     qlim_maxValueRF   = maxValueRF
-    
+
     qlim_minValueSF   = minValueSF
     qlim_maxValueSF   = maxValueSF
 
@@ -154,7 +154,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv), intent(inout) :: statevector ! state vector to modify
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -170,7 +170,7 @@ contains
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
 
     if (.not. gsv_varExist(statevector,'HU')) then
-      if( mmpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
+      if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -183,12 +183,12 @@ contains
      call gsv_getField(statevector,hu_ptr_r4,'HU')
      call gsv_getField(statevector,tt_ptr_r4,'TT')
     end if
-    
+
     !
     !- Compute pressure (4D)
     !
     if (stateVector%dataKind == 8) then
-      
+
       allocate(pressure4D_T_r8(statevector%myLonBeg:statevector%myLonEnd, &
                                statevector%myLatBeg:statevector%myLatEnd, &
                                gsv_getNumLev(statevector,'TH'), statevector%numStep))
@@ -222,7 +222,7 @@ contains
       deallocate(pressure4D_M_r8)
 
     else ! real 4
- 
+
       allocate(pressure4D_T_r4(statevector%myLonBeg:statevector%myLonEnd, &
                                statevector%myLatBeg:statevector%myLatEnd, &
                                gsv_getNumLev(statevector,'TH'), statevector%numStep))
@@ -275,7 +275,7 @@ contains
               hu = hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
               tt = tt_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex) )              
+              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex))
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
@@ -291,7 +291,7 @@ contains
               hu = hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
               tt = tt_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
               ! get the saturated vapor pressure from HU
-              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex) )
+              husat = phf_foqst8(tt, pressure4D_T_r8(lonIndex,latIndex,levIndex,stepIndex))
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
               hu_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
@@ -317,7 +317,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensemble
+    type(struct_ens), intent(inout) :: ensemble ! ensemble to modify
 
     ! Locals:
     type(struct_gsv)          :: stateVector
@@ -337,8 +337,8 @@ contains
       call utl_abort('qlim_saturationLimit_ens: Not compatible with dataKind = 8')
     end if
 
-    if( .not. ens_varExist(ensemble,'HU') ) then
-      if( mmpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_ens: ensemble does not ' // &
+    if (.not. ens_varExist(ensemble,'HU')) then
+      if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -436,16 +436,15 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_rttovLimit_gsv
   !--------------------------------------------------------------------------
-  subroutine qlim_rttovLimit_gsv(statevector, varName_opt, applyLimitToCloud_opt)
+  subroutine qlim_rttovLimit_gsv(statevector, applyLimitToHumidity_opt)
     !
     !:Purpose: To impose RTTOV limits on humidity/cloud
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           intent(inout) :: statevector
-    character(len=*), optional, intent(in)    :: varName_opt
-    logical,          optional, intent(in)    :: applyLimitToCloud_opt
+    type(struct_gsv),  intent(inout) :: statevector              ! state vector to be modified
+    logical, optional, intent(in)    :: applyLimitToHumidity_opt ! apply limits to humidity variable
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -457,103 +456,57 @@ contains
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
-    real(8)              :: hu, hu_modified
-    real(8)              :: cld, cld_modified
+    real(8)              :: hu, hu_modified, cld, cld_modified
     real(8)              :: minValueCld, maxValueCld
-    integer              :: lon1, lon2, lat1, lat2, lev1, lev2, varNameIndex
+    integer              :: lon1, lon2, lat1, lat2, numStep, varNameIndex
     integer              :: lonIndex, latIndex, levIndex, stepIndex
-    integer              :: ni, nj, numLev, numLev_rttov
-    integer              :: fnom, fclos, ierr, nulfile
-    character(len=256)   :: fileName
-    character(len=4)     :: varName
-    logical, save        :: firstTime=.true.
-    logical              :: applyLimitToAllVarname
-    logical              :: applyLimitToCloud
+    integer              :: ni, nj, numLev_T, numLev_M, numLev_rttov
+    logical              :: applyLimitToHumidity, applyLimitToCloud
 
     if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
 
-    if (present(varName_opt)) then
-      applyLimitToAllVarname = .false.
-      varName = varName_opt
+    ! User can choose whether or not to apply limits to humidity variable
+    if (present(applyLimitToHumidity_opt)) then
+      applyLimitToHumidity = applyLimitToHumidity_opt
     else
-      applyLimitToAllVarname = .true.
-      varName = 'XXXX'  
+      applyLimitToHumidity = .true.
     end if
 
-    ! for cloud, limits are applied to ALL cloud variables.
-    if (present(applyLimitToCloud_opt)) then
-      applyLimitToCloud = applyLimitToCloud_opt
-      if (.not. applyLimitToCloud) call utl_abort('qlim_rttovLimit_gsv: remove applyLimitToCloud_opt argument')
-    else
-      if (vnl_isCloudVar(varName)) then
-        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: limits are applied to ALL cloud variables'
-        applyLimitToCloud = .true.
-      else
-        applyLimitToCloud = .false.
-      end if
-    end if
+    ! Always apply limits to cloud variables (if they are present)
+    applyLimitToCloud = .true.
 
-    if (applyLimitToCloud) applyLimitToAllVarname = .false.
+    ! Initialize some convenient variables
+    vco_ptr => gsv_getVco(stateVector)
+    numLev_T = gsv_getNumLev(stateVector,'TH')
+    numLev_M = gsv_getNumLev(stateVector,'MM')
+    numStep  = stateVector%numStep
+    lon1 = statevector%myLonBeg
+    lon2 = statevector%myLonEnd
+    lat1 = statevector%myLatBeg
+    lat2 = statevector%myLatEnd
 
-    if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
-         gsv_varExist(statevector,'HU')) then
+    ! Apply limits to humidity
+    if (applyLimitToHumidity .and. gsv_varExist(statevector,'HU')) then
 
       if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to HU.'
 
       ! Read in RTTOV humidity limits
-      fileName = "rttov_h2o_limits.dat"
-      nulfile = 0
-      ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
-      if( ierr /= 0 ) then
-        if ( mmpi_myid == 0 ) write(*,*) 'fileName = ', fileName
-        call utl_abort('qlim_rttovLimit_gsv: error opening the humidity limits file')
-      end if
+      call readRttovLimitsFile(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
 
-      read(nulfile,*) numLev_rttov
-      if ( mmpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_gsv: rttov number of levels = ', numLev_rttov
-      allocate(press_rttov(numLev_rttov))
-      allocate(qmin_rttov(numLev_rttov))
-      allocate(qmax_rttov(numLev_rttov))
-      do levIndex = 1, numLev_rttov
-        read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
-      end do
-      ierr = fclos(nulfile)
-      press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
-      qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
-      qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
-
-      if (firstTime) then
-        write(*,*) ' '
-        do levIndex = 1, numLev_rttov
-          if ( mmpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_gsv:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-              levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
-        end do
-        firstTime = .false.
-      end if
-
-      vco_ptr => gsv_getVco(statevector)
       if (statevector%dataKind == 8) then
         call gsv_getField(statevector,hu_ptr_r8,'HU')
       else
         call gsv_getField(statevector,hu_ptr_r4,'HU')
       end if
 
-      lon1 = statevector%myLonBeg
-      lon2 = statevector%myLonEnd
-      lat1 = statevector%myLatBeg
-      lat2 = statevector%myLatEnd
-      lev1 = 1
-      lev2 = gsv_getNumLev(statevector,'TH')
-
       ni = lon2 - lon1 + 1
       nj = lat2 - lat1 + 1
-      numLev = lev2 - lev1 + 1
-      allocate( qmin3D_rttov(ni,nj,numLev) )
-      allocate( qmax3D_rttov(ni,nj,numLev) )
-      allocate( psfc(lon2-lon1+1,lat2-lat1+1) )
-      if (vco_ptr%vcode == 5100) allocate( psfcLS(lon2-lon1+1,lat2-lat1+1) )
+      allocate(qmin3D_rttov(ni,nj,numLev_T))
+      allocate(qmax3D_rttov(ni,nj,numLev_T))
+      allocate(psfc(ni,nj))
+      if (vco_ptr%vcode == 5100) allocate(psfcLS(ni,nj))
 
-      do stepIndex = 1, statevector%numStep
+      do stepIndex = 1, numStep
         if (statevector%dataKind == 8) then
           call gsv_getField(statevector,psfc_ptr_r8,'P0')
           psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
@@ -577,10 +530,10 @@ contains
 
         ! Interpolate RTTOV limits onto model levels
         call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-            ni, nj, numLev, pressure, qmin3D_rttov, qmax3D_rttov)
+                               ni, nj, numLev_T, pressure, qmin3D_rttov, qmax3D_rttov)
 
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
-        do levIndex = lev1, lev2
+        do levIndex = 1, numLev_T
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               if (statevector%dataKind == 8) then
@@ -590,8 +543,8 @@ contains
               end if
 
               ! limit the humidity according to the rttov limits
-              hu_modified = max(hu, qmin3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex) )
-              hu_modified = min(hu_modified, qmax3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex) )
+              hu_modified = max(hu, qmin3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex))
+              hu_modified = min(hu_modified, qmax3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex))
               if (statevector%dataKind == 8) then
                 hu_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
               else
@@ -606,10 +559,10 @@ contains
         deallocate(pressure)
       end do ! stepIndex
 
-      deallocate( psfc )
-      if (allocated(psfcLS)) deallocate( psfcLS )
-      deallocate( qmin3D_rttov )
-      deallocate( qmax3D_rttov )
+      deallocate(psfc)
+      if (allocated(psfcLS)) deallocate(psfcLS)
+      deallocate(qmin3D_rttov)
+      deallocate(qmax3D_rttov)
 
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
@@ -617,8 +570,8 @@ contains
 
     end if
 
-    ! apply limits to ALL available cloud variables
-    if ((applyLimitToAllVarname .or. applyLimitToCloud) .and. cloudExistInStateVector(statevector)) then
+    ! Apply limits to ALL available cloud variables
+    if (applyLimitToCloud .and. cloudExistInStateVector(statevector)) then
 
       do varNameIndex = 1, vnl_numvarmaxCloud
         if (.not. gsv_varExist(statevector, vnl_varNameListCloud(varNameIndex))) cycle
@@ -635,17 +588,10 @@ contains
         minValueCld = qlim_getMinValueCloud(vnl_varNameListCloud(varNameIndex))
         maxValueCld = qlim_getMaxValueCloud(vnl_varNameListCloud(varNameIndex))
 
-        lon1 = statevector%myLonBeg
-        lon2 = statevector%myLonEnd
-        lat1 = statevector%myLatBeg
-        lat2 = statevector%myLatEnd
-        lev1 = 1
-        lev2 = gsv_getNumLev(statevector,'TH')
-
-        do stepIndex = 1, statevector%numStep
+        do stepIndex = 1, numStep
 
           !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, cld, cld_modified)
-          do levIndex = lev1, lev2
+          do levIndex = 1, numLev_T
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
                 if (statevector%dataKind == 8) then
@@ -677,16 +623,15 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_rttovLimit_ens
   !--------------------------------------------------------------------------
-  subroutine qlim_rttovLimit_ens(ensemble, varName_opt, applyLimitToCloud_opt)
+  subroutine qlim_rttovLimit_ens(ensemble, applyLimitToHumidity_opt)
     !
     !:Purpose: To impose RTTOV limits on humidity/cloud
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens),           intent(inout) :: ensemble
-    character(len=*), optional, intent(in)    :: varName_opt
-    logical,          optional, intent(in)    :: applyLimitToCloud_opt
+    type(struct_ens),  intent(inout) :: ensemble                 ! ensemble that will be modified
+    logical, optional, intent(in)    :: applyLimitToHumidity_opt ! apply limits to humidity variable
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -696,94 +641,49 @@ contains
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
-    real(8)              :: hu, hu_modified
-    real(8)              :: cld, cld_modified
+    real(8)              :: hu, hu_modified, cld, cld_modified
     real(8)              :: minValueCld, maxValueCld
     integer              :: lon1, lon2, lat1, lat2, varNameIndex
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
-    integer              :: numMember, numStep, numLev, numLev_rttov
-    integer              :: fnom, fclos, ierr, nulfile
-    character(len=256)   :: fileName
-    character(len=4)     :: varName
-    logical, save        :: firstTime=.true.
-    logical              :: applyLimitToAllVarname
-    logical              :: applyLimitToCloud
+    integer              :: numMember, numStep, numLev_M, numLev_T, numLev_rttov
+    logical              :: applyLimitToHumidity, applyLimitToCloud
 
     if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
-    if (present(varName_opt)) then
-      applyLimitToAllVarname = .false.
-      varName = varName_opt
-    else
-      applyLimitToAllVarname = .true.
-      varName = 'XXXX'    
+    if (ens_getDataKind(ensemble) == 8) then
+      call utl_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
     end if
 
-    ! for cloud, limits are applied to ALL cloud variables.
-    if (present(applyLimitToCloud_opt)) then
-      applyLimitToCloud = applyLimitToCloud_opt
-      if (.not. applyLimitToCloud) call utl_abort('qlim_rttovLimit_ens: remove applyLimitToCloud_opt argument')
+    ! User can choose whether or not to apply limits to humidity variable
+    if (present(applyLimitToHumidity_opt)) then
+      applyLimitToHumidity = applyLimitToHumidity_opt
     else
-      if (vnl_isCloudVar(varName)) then
-        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: limits are applied to ALL cloud variables'
-        applyLimitToCloud = .true.
-      else
-        applyLimitToCloud = .false.
-      end if
+      applyLimitToHumidity = .true.
     end if
 
-    if (applyLimitToCloud) applyLimitToAllVarname = .false.
+    ! Always apply limits to cloud variables (if they are present)
+    applyLimitToCloud = .true.
 
-    if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
-         ens_varExist(ensemble,'HU')) then
+    ! Initialize some convenient variables
+    vco_ptr => ens_getVco(ensemble)
+    numLev_T = ens_getNumLev(ensemble,'TH')
+    numLev_M = ens_getNumLev(ensemble,'MM')
+    numMember = ens_getNumMembers(ensemble)
+    numStep = ens_getNumStep(ensemble)
+    call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
-      if ( mmpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to HU.'
+    ! Apply limits to humidity
+    if (applyLimitToHumidity .and. ens_varExist(ensemble,'HU')) then
 
-      if (ens_getDataKind(ensemble) == 8) then
-        call utl_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
-      end if
+      if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens:  applying limits to HU.'
 
       ! Read in RTTOV humidity limits
-      fileName = "rttov_h2o_limits.dat"
-      nulfile = 0
-      ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
-      if( ierr /= 0 ) then
-        if ( mmpi_myid == 0 ) write(*,*) 'fileName = ', fileName
-        call utl_abort('qlim_rttovLimit_ens: error opening the humidity limits file')
-      end if
+      call readRttovLimitsFile(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
 
-      read(nulfile,*) numLev_rttov
-      if ( mmpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_ens: rttov number of levels = ', numLev_rttov
-      allocate(press_rttov(numLev_rttov))
-      allocate(qmin_rttov(numLev_rttov))
-      allocate(qmax_rttov(numLev_rttov))
-      do levIndex = 1, numLev_rttov
-        read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
-      end do
-      ierr = fclos(nulfile)
-      press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
-      qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
-      qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
-
-      if (firstTime) then
-        write(*,*) ' '
-        do levIndex = 1, numLev_rttov
-          if ( mmpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_ens:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-              levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
-        end do
-        firstTime = .false.
-      end if
-
-      vco_ptr => ens_getVco(ensemble)
-      numLev = ens_getNumLev(ensemble,'TH')
-      numMember = ens_getNumMembers(ensemble)
-      numStep = ens_getNumStep(ensemble)
-      call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
-
-      allocate( psfc(numMember,numStep) )
-      if (vco_ptr%vcode == 5100) allocate( psfcLS(numMember,numStep) )
-      allocate( qmin3D_rttov(numMember,numStep,numLev) )
-      allocate( qmax3D_rttov(numMember,numStep,numLev) )
+      allocate(psfc(numMember,numStep))
+      if (vco_ptr%vcode == 5100) allocate(psfcLS(numMember,numStep))
+      allocate(qmin3D_rttov(numMember,numStep,numLev_T))
+      allocate(qmax3D_rttov(numMember,numStep,numLev_T))
 
       do latIndex = lat1, lat2
         do lonIndex = lon1, lon2
@@ -802,10 +702,10 @@ contains
 
           ! Interpolate RTTOV limits onto model levels
           call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                                numMember, numStep, numLev, pressure,  &
-                                qmin3D_rttov, qmax3D_rttov)
+                                 numMember, numStep, numLev_T, pressure,  &
+                                 qmin3D_rttov, qmax3D_rttov)
 
-          do levIndex = 1, numLev
+          do levIndex = 1, numLev_T
 
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
             hu_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
@@ -817,8 +717,8 @@ contains
                 hu = real(hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
                 ! limit the humidity according to the rttov limits
-                hu_modified = max(hu, qmin3D_rttov(memberIndex, stepIndex, levIndex) )
-                hu_modified = min(hu_modified, qmax3D_rttov(memberIndex, stepIndex, levIndex) )
+                hu_modified = max(hu, qmin3D_rttov(memberIndex, stepIndex, levIndex))
+                hu_modified = min(hu_modified, qmax3D_rttov(memberIndex, stepIndex, levIndex))
                 hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(hu_modified,4)
 
               end do ! memberIndex
@@ -831,24 +731,18 @@ contains
         end do ! lonIndex
       end do ! latIndex
 
-      deallocate( psfc )
-      if (allocated(psfcLS)) deallocate( psfcLS )
-      deallocate( qmin3D_rttov )
-      deallocate( qmax3D_rttov )
+      deallocate(psfc)
+      if (allocated(psfcLS)) deallocate(psfcLS)
+      deallocate(qmin3D_rttov)
+      deallocate(qmax3D_rttov)
 
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
       deallocate(press_rttov)
     end if
 
-    ! apply limits to ALL available cloud variables
-    if ((applyLimitToAllVarname .or. applyLimitToCloud) .and. cloudExistInEnsemble(ensemble)) then
-
-      vco_ptr => ens_getVco(ensemble)
-      numLev = ens_getNumLev(ensemble,'TH')
-      numMember = ens_getNumMembers(ensemble)
-      numStep = ens_getNumStep(ensemble)
-      call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
+    ! Apply limits to ALL available cloud variables
+    if (applyLimitToCloud .and. cloudExistInEnsemble(ensemble)) then
 
       do varNameIndex = 1, vnl_numvarmaxCloud
         if (.not. ens_varExist(ensemble, vnl_varNameListCloud(varNameIndex))) cycle
@@ -862,7 +756,7 @@ contains
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
 
-            do levIndex = 1, numLev
+            do levIndex = 1, numLev_T
                 varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, vnl_varNameListCloud(varNameIndex))
                 cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
@@ -900,13 +794,13 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout) :: statevector ! statevector object
+    type(struct_gsv), intent(inout) :: statevector ! statevector object to be modified
 
     ! Locals:
     real(8), pointer :: qc_ptr_r8(:,:,:,:)
     real(4), pointer :: qc_ptr_r4(:,:,:,:)
     real(8)          :: qc, qc_modified
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
+    integer          :: lon1, lon2, lat1, lat2, numLev_T
     integer          :: lonIndex, latIndex, levIndex, stepIndex
     character(len=4) :: varName
 
@@ -925,13 +819,12 @@ contains
     lon2 = statevector%myLonEnd
     lat1 = statevector%myLatBeg
     lat2 = statevector%myLatEnd
-    lev1 = 1
-    lev2 = gsv_getNumLev(statevector,'TH')
+    numLev_T = gsv_getNumLev(statevector,'TH')
 
     do stepIndex = 1, statevector%numStep
 
       !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, qc, qc_modified)
-      do levIndex = lev1, lev2
+      do levIndex = 1, numLev_T
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             if (statevector%dataKind == 8) then
@@ -968,7 +861,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensemble ! ensemble object
+    type(struct_ens), intent(inout) :: ensemble ! ensemble object to modify
 
     ! Locals:
     real(4), pointer :: qc_ptr_r4(:,:,:,:)
@@ -1030,16 +923,16 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: numLev_src ! Number of input levels (source)
+    integer, intent(in)  :: numLev_src            ! Number of input levels (source)
     real(8), intent(in)  :: press_src(numLev_src) ! Vertical levels, pressure (source)
     real(8), intent(in)  :: qmin_src(numLev_src)  ! Vectors to be interpolated (source)
     real(8), intent(in)  :: qmax_src(numLev_src)  ! Vectors to be interpolated (source)
-    integer, intent(in)  :: ni_dest ! Number of profiles
-    integer, intent(in)  :: nj_dest ! Number of profiles
-    integer, intent(in)  :: numLev_dest ! Number of output levels (destination)
-    real(8), intent(in)  :: press_dest(:,:,:) ! Vertical levels, pressure (destination)
-    real(8), intent(out) :: qmin_dest(:,:,:)  ! Interpolated profiles (destination)
-    real(8), intent(out) :: qmax_dest(:,:,:)  ! Interpolated profiles (destination)
+    integer, intent(in)  :: ni_dest               ! Number of profiles in i dimension
+    integer, intent(in)  :: nj_dest               ! Number of profiles in j dimension
+    integer, intent(in)  :: numLev_dest           ! Number of output levels (destination)
+    real(8), intent(in)  :: press_dest(:,:,:)     ! Vertical levels, pressure (destination)
+    real(8), intent(out) :: qmin_dest(:,:,:)      ! Interpolated profiles (destination)
+    real(8), intent(out) :: qmax_dest(:,:,:)      ! Interpolated profiles (destination)
 
     ! Locals:
     integer :: ji, jk, jo, ii, jj, ik, iorder
@@ -1054,7 +947,7 @@ contains
 
     ! Determine if input pressure levels are in ascending or
     ! descending order.
-    if ( press_src(1) < press_src(numLev_src) ) then
+    if (press_src(1) < press_src(numLev_src)) then
       iorder = 1
     else
       iorder = -1
@@ -1116,8 +1009,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout) :: ensemble
-    real(8),          intent(in)    :: huMinValue
+    type(struct_ens), intent(inout) :: ensemble   ! ensemble to be modified
+    real(8),          intent(in)    :: huMinValue ! lower limit on HU value to impose
 
     ! Locals:
     real(4), pointer :: hu_ptr_r4(:,:,:,:)
@@ -1131,8 +1024,8 @@ contains
       call utl_abort('qlim_setMin_ens: Not compatible with dataKind = 8')
     end if
 
-    if( .not. ens_varExist(ensemble,'HU') ) then
-      if( mmpi_myid == 0 ) write(*,*) 'qlim_setMin_ens: ensemble does not ' // &
+    if (.not. ens_varExist(ensemble,'HU')) then
+      if (mmpi_myid == 0) write(*,*) 'qlim_setMin_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -1172,12 +1065,12 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName
+    character(len=*), intent(in) :: varName  ! variable name
     ! Result:
-    real(8)                      :: minValue
+    real(8)                      :: minValue ! minimum value for this variable
 
     ! readNameList runs one time during program execution
-    call readNameList
+    call readNameList()
 
     select case (trim(varName))
     case ('LWCR')
@@ -1189,7 +1082,7 @@ contains
     case ('SF')
       minValue = qlim_minValueSF
     case ('CLDR')
-      minValue = qlim_minValueCLDR      
+      minValue = qlim_minValueCLDR
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
@@ -1208,12 +1101,12 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: varName
+    character(len=*), intent(in) :: varName  ! variable name
     ! Result:
-    real(8)                      :: maxValue
+    real(8)                      :: maxValue ! maximum value for this variable
 
     ! readNameList runs one time during program execution
-    call readNameList
+    call readNameList()
 
     select case (trim(varName))
     case ('LWCR')
@@ -1225,7 +1118,7 @@ contains
     case ('SF')
       maxValue = qlim_maxValueSF
     case ('CLDR')
-      maxValue = qlim_maxValueCLDR      
+      maxValue = qlim_maxValueCLDR
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
@@ -1244,9 +1137,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(in) :: ensemble
+    type(struct_ens), intent(in) :: ensemble   ! ensemble to be examined
     ! Result:
-    logical                      :: cloudExist
+    logical                      :: cloudExist ! indicate if any cloud variable exists in ensemble
     
     ! Locals:
     integer :: varNameIndex
@@ -1271,9 +1164,9 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVector
+    type(struct_gsv), intent(in) :: stateVector ! state vector to be examined
     ! Result:
-    logical                      :: cloudExist
+    logical                      :: cloudExist  ! indicate if any clound variable exists in state
     
     ! Locals:
     integer :: varNameIndex
@@ -1298,15 +1191,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(inout) :: column  ! Column that RTTOV limits are  being imposed on.
+    type(struct_columnData), intent(inout) :: column  ! column object that will be modified
     
     ! Locals:
-    character(len=256)   :: fileName
-    integer              :: fnom, fclos, ierr, nulfile
-    integer              :: numLev, numLev_rttov, numCol, lev1, lev2
+    integer              :: numLev_rttov, numCol, numLev_T
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
     real(8), allocatable :: qmin2D_rttov(:,:), qmax2D_rttov(:,:)
-    logical, save        :: firstTime=.true.
     integer              :: levIndex, columnIndex
     real(8), pointer     :: huColPtr(:,:), pressTColPtr(:,:)
     real(8)              :: hu, hu_modified
@@ -1320,59 +1210,29 @@ contains
     end if
 
     ! Read in RTTOV humidity limits
-    fileName = "rttov_h2o_limits.dat"
-    nulfile = 0
-    ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
-    if (ierr /= 0) then
-      if (mmpi_myid == 0) write(*,*) 'fileName = ', fileName
-      call utl_abort('qlim_rttovLimit_col: error opening the humidity limits file')
-    end if
-
-    read(nulfile,*) numLev_rttov
-    if (mmpi_myid == 0 .and. firstTime) write(*,*) 'qlim_rttovLimit_col: rttov number of levels = ', numLev_rttov
-    allocate(press_rttov(numLev_rttov))
-    allocate(qmin_rttov(numLev_rttov))
-    allocate(qmax_rttov(numLev_rttov))
-    do levIndex = 1, numLev_rttov
-      read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
-    end do
-    ierr = fclos(nulfile)
-    press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
-    qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
-    qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
-
-    if (firstTime) then
-      write(*,*) ' '
-      do levIndex = 1, numLev_rttov
-        if (mmpi_myid == 0) write(*,fmt='(" qlim_rttovLimit_col:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
-             levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
-      end do
-      firstTime = .false.
-    end if
+    call readRttovLimitsFile(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
 
     huColPtr => col_getAllColumns(column,'HU')
     pressTColPtr => col_getAllColumns(column,'P_T')
-    
-    numCol = col_getNumCol(column)
-    lev1 = 1
-    lev2 = col_getNumLev(column,'TH')
-    numLev = lev2 - lev1 + 1
 
-    write(*,*) 'numLev', numLev
-    allocate( qmin2D_rttov(numCol,numLev) )
-    allocate( qmax2D_rttov(numCol,numLev) )
+    numCol = col_getNumCol(column)
+    numLev_T = col_getNumLev(column,'TH')
+
+    write(*,*) 'numLev', numLev_T
+    allocate(qmin2D_rttov(numCol,numLev_T))
+    allocate(qmax2D_rttov(numCol,numLev_T))
 
     call qlim_lintv_minmax_col(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                               numCol, numLev, pressTColPtr, qmin2D_rttov, qmax2D_rttov)
+                               numCol, numLev_T, pressTColPtr, qmin2D_rttov, qmax2D_rttov)
 
     !$OMP PARALLEL DO PRIVATE (levIndex, columnIndex, hu, hu_modified) 
     do columnIndex = 1, numCol
-      do levIndex = lev1, lev2
+      do levIndex = 1, numLev_T
         hu = huColPtr(levIndex, columnIndex)
 
         ! limit the humidity according to the rttov limits
-        hu_modified = max(hu, qmin2D_rttov(columnIndex, levIndex) )
-        hu_modified = min(hu_modified, qmax2D_rttov(columnIndex, levIndex) )
+        hu_modified = max(hu, qmin2D_rttov(columnIndex, levIndex))
+        hu_modified = min(hu_modified, qmax2D_rttov(columnIndex, levIndex))
           
         huColPtr(levIndex, columnIndex) = hu_modified
       end do ! levIndex
@@ -1386,6 +1246,62 @@ contains
     deallocate(press_rttov)
 
   end subroutine qlim_rttovLimit_col
+
+  !--------------------------------------------------------------------------
+  ! readRttovLimitsFile
+  !--------------------------------------------------------------------------
+  subroutine readRttovLimitsFile(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
+    !
+    !:Purpose: Read the contents of the file containing the RTTOV
+    !          limits on pressure levels
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), allocatable, intent(out) :: press_rttov(:) ! pressure levels for rttov limits
+    real(8), allocatable, intent(out) :: qmin_rttov(:)  ! minimum values for each level
+    real(8), allocatable, intent(out) :: qmax_rttov(:)  ! maximum values for each level
+    integer,              intent(out) :: numLev_rttov   ! number of pressure levels in the file
+
+    ! Locals:
+    character(len=*), parameter :: fileName = 'rttov_h2o_limits.dat'
+    integer :: fnom, fclos
+    integer :: nulfile, ierr, levIndex
+    logical, save :: firstTime = .true.
+    
+    ! Open the file
+    nulfile = 0
+    ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
+    if (ierr /= 0) then
+      if (mmpi_myid == 0) write(*,*) 'fileName = ', fileName
+      call utl_abort('qlim_rttovLimit_col: error opening the humidity limits file')
+    end if
+
+    ! Read the contents
+    read(nulfile,*) numLev_rttov
+    if (mmpi_myid == 0 .and. firstTime) write(*,*) 'qlim_rttovLimit_col: rttov number of levels = ', numLev_rttov
+    allocate(press_rttov(numLev_rttov))
+    allocate(qmin_rttov(numLev_rttov))
+    allocate(qmax_rttov(numLev_rttov))
+    do levIndex = 1, numLev_rttov
+      read(nulfile,*) press_rttov(levIndex), qmax_rttov(levIndex), qmin_rttov(levIndex)
+    end do
+    ierr = fclos(nulfile)
+    press_rttov(:) = press_rttov(:) * mpc_pa_per_mbar_r8
+    qmin_rttov(:) = qmin_rttov(:) / mixratio_to_ppmv
+    qmax_rttov(:) = qmax_rttov(:) / mixratio_to_ppmv
+
+    ! Print the file contents to the listing
+    if (firstTime) then
+      write(*,*) ' '
+      do levIndex = 1, numLev_rttov
+        if (mmpi_myid == 0) write(*,fmt='(" qlim_rttovLimit_col:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+             levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
+      end do
+      firstTime = .false.
+    end if
+
+  end subroutine readRttovLimitsFile
 
   !--------------------------------------------------------------------------
   ! qlim_lintv_minmax_col
