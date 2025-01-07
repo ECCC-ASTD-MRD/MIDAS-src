@@ -130,17 +130,22 @@ optional arguments:
 ## Running MIDAS as a stand alone program
 
 The scripts `midas.prepare_workdir` and `midas.submit_program` can be
-used to prepare a working directory and then run a MIDAS program as a
-standalone execution.
+used to prepare a working directory:
   * `midas.prepare_workdir`: This script prepares a working directory
      using inputs from `cmcarc` archives or a directory for a fixed MPI
      topology.  The last point is essential because the options will be
      prepared for that MPI topology.
-  * `midas.submit_program`: This script launches a job on the
-     supercomputer using the working directory prepared by
-     `midas.prepare_workdir`.  The job is using the MPI topology that
-     has been used to prepare the observations.  It can also be used
-     to launch an interactive job with the option '-interactive'.
+  * `midas.copy_workdir`: That script copies a working directory
+    already created by another execution of MIDAS.  This is very
+    useful to debug MIDAS programs reported in a maestro suite for
+    example.
+
+Then, the script `midas.submit_program` is used run a MIDAS program as
+a stand-alone execution using the working directory prepared by
+`midas.prepare_workdir` or `midas.copy_workdir`.  It can launch a
+batch job on the supercomputer or an interactive job with the option
+'-interactive'.  The job is using the MPI topology that has been used
+to prepare the observations.
 
 There is another script, `midas.unsplitobs`, that can be used to
 recombine the observations to be in their original order before they
@@ -149,19 +154,41 @@ were split with `midas.splitobs.Abs`.
 All scripts supports the option `-h` to have a description of the
 available options.
 
-### Example
+### Example of `midas.copy_workdir`
+
+Here is an example to copy the working directory of the task
+`/main/assimcycle/bgckalt/BgckAtmsAllsky` in the operational G2 suite.
+
+```bash
+toplevel=$(git rev-parse --show-toplevel)
+
+cd ${toplevel}/tools/midas_scripts
+
+program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/3.9.5/rhel-8-icelake-64/bin
+inputdir=/home/smco500/.suites/gdps/g2/hub/underhill/work/${SEQ_DATE}/main/assimcycle/bgckalt/BgckAtmsAllsky/work/midas_exec
+nml=${inputdir}/../flnml
+workdir=${HOME}/data_maestro/ppp6/tmp/midas_copy_workdir
+
+./midas.copy_workdir -inputdir $inputdir -workdir $workdir -nml $nml -splitobs ${program_directory}/midas.splitobs.Abs
+
+./midas.submit_program -workdir $workdir -pgm ${program_directory}/bin/midas-obsSelection.Abs -env 3.9.5 -omp_num_threads 2
+```
+
+### Example of `midas.prepare_workdir`
 
 Here is an example of utilization of those three scripts where we use
 the test `/Tests/letkf/glb_xc40` as a reference:
 
 ```bash
-cd $(git rev-parse --show-toplevel)/tools/midas_scripts
+toplevel=$(git rev-parse --show-toplevel)
 
-program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/4.0.2/rhel-8-icelake-64/bin
-inputs=/home/sanl000/data_maestro/ppp5/UnitTests/midas/letkf/glb_xc40/0013
-namelist=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/config/Tests/letkf/glb_xc40/nml
+cd ${toplevel}/tools/midas_scripts
 
-workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir_3
+program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/4.0.4/rhel-8-icelake-64/bin
+inputs=/home/sanl000/data_maestro/ppp5/UnitTests/midas/letkf/glb_xc40/0014
+namelist=${toplevel}/maestro/suites/midas_system_tests/config/Tests/letkf/glb_xc40/nml
+
+workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir
 observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
 
 ./midas.unsplitobs -input ${inputs}/inputs_obsfiles.ca -output ${observations}             \
@@ -177,7 +204,7 @@ observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
                         -npex 36 -npey 18                      \
                         -splitobs ${program_directory}/midas.splitobs.Abs
 
-./midas.launch_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs
+./midas.submit_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs
 ```
 
 The results have been verified with the reference for the test
