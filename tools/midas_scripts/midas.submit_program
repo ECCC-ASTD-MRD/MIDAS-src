@@ -12,18 +12,18 @@ typeset -r memory_in_gigs_per_openmp_num_thread=5.5
 typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
 
 arguments=$*
-eval $(cclargs -D    ""     $0   "[${description}]"                                       \
-  -pgm               ""     ""   "[path to MIDAS program]"                                \
-  -nml               ""     ""   "[path to namelist file]"                                \
-  -workdir           ""     ""   "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']" \
-  -supercomputer   robert robert "[supercomputer to launch the job (default: 'robert')]"  \
-  -jobname         midas   midas "[name of the job (default: 'midas')]"                   \
-  -memory            ""     ""   "[${memory_description}]"                                \
-  -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
-  -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
-  -interactive     false   true  "[launch an interactive job (default: false)]"           \
-  -env             main   main  "[version of the environment to load ('3.9' or 'main']"                               \
-  ++ $arguments)
+eval $(cclargs -D    ""     $0   "[${description}]"                                                    \
+               -pgm               ""     ""   "[path to MIDAS program]"                                \
+               -nml               ""     ""   "[path to namelist file]"                                \
+               -workdir           ""     ""   "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']" \
+               -supercomputer   robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+               -jobname         midas   midas "[name of the job (default: 'midas')]"                   \
+               -memory            ""     ""   "[${memory_description}]"                                \
+               -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
+               -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
+               -interactive     false   true  "[launch an interactive job (default: false)]"           \
+               -env             main    main  "[version of the environment to load ('3.9' or 'main']"  \
+               ++ $arguments)
 
 scriptName=${0##*/}
 if [[ ${0} = /* ]]; then
@@ -80,8 +80,8 @@ EOF
     soumet_status=0
     ${ord_soumet_cmd} || soumet_status=1
     if [[ "${soumet_status}" -ne 0 ]]; then
-      echo Problem with call to ord_soumet
-      exit 1
+        echo Problem with call to ord_soumet
+        exit 1
     fi
 
     rm ${__sleep_job__}
@@ -107,8 +107,14 @@ for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; d
 done
 unset launch_arg
 
-if [[ "${env}" != main && "${env}" != 3.9 ]]; then
-    die "The argument '-env' accepts only 'main' or '3.9' as values but received '${env}'"
+if [[ "${env}" = main ]]; then
+    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20241105-alpha eccc/mrd/rpn/utils/20241105-alpha"
+elif [[ "${env}" = 3.9.5 ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
+elif [[ "${env}" = 3.9* ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
+else
+    die "The argument '-env' accepts only '3.9.5, '3.9' or 'main' as values but received '${env}'"
 fi
 
 if [[ "${interactive}" != true && "${interactive}" != false ]]; then
@@ -166,22 +172,13 @@ export OMP_NUM_THREADS=${omp_num_threads}
 ## will be dumped in the work directory; one per process.
 ## Each core can weight O(10) Gb (times the number of processes)
 export FOR_DUMP_CORE_FILE=
-
 EOF
-
-if [[ "${env}" = main ]]; then
-    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20241105-alpha eccc/mrd/rpn/utils/20241105-alpha"
-elif [[ "${env}" = 3.9 ]]; then
-    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
-else
-    die "The argument '-env' accepts only 'main' or '3.9' as values but received '${env}'"
-fi
 
 for domain in ${ssm_to_load}; do
     cat >> load_env.dot <<EOF
+
 echo loading ${domain}
 . r.load.dot ${domain}
-
 EOF
 done
 
