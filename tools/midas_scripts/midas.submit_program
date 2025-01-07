@@ -113,6 +113,11 @@ if [[ "${interactive}" != true && "${interactive}" != false ]]; then
     die "The argument to '-interactive' must be 'true' or 'false' and not '${interactive}'."
 fi
 
+if [ "${interactive}" = true && "${TRUE_HOST}" != "${supercomputer}" ]; then
+    die "To launch on the interactive job, you must be on the same cluster as the targeted one which is ${supercomputer}"
+fi
+
+
 if [[ "${interactive}" = false ]]; then
     ## We only require that '${pgm}' exists if we are not launching an interactive job.
     if [ -z "${pgm}" ]; then

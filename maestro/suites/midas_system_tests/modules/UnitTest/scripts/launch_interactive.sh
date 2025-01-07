@@ -102,7 +102,7 @@ echo "Submitting an interactive job on ${host} with cpus=${cpus} memory=${memory
 echo
 
 if [ "${TRUE_HOST}" != "${host}" ]; then
-    echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
+    echo "To launch on the interactive job, you must be on the same cluster as the targeted one which is ${supercomputer}" >&2
     exit 1
 fi
 
