@@ -245,7 +245,7 @@ EOF
         " "                                          \
         "to load the environment and start working"
 
-    ${qsub_cmd}
+    qsub -X -I ${pbsdirectives} ## ${qsub_cmd}
 
     rm ${rcfile} ${pbsdirectives}
 fi ## End of 'else' associated to 'if [[ "${interactive}" = false ]]; then'
