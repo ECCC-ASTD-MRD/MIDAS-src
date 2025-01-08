@@ -142,9 +142,6 @@ topoFinder_tests:
      - ./midas.mpiTopoFinder --unittest
    only:
      - main
-     - v_3.7
-     - v_3.9
-     - v_3.9-RandD
      - tags
    tags:
      - hpcr-u2
@@ -156,9 +153,6 @@ isFileInList_tests:
      - ./midas.isFileInList --unittest
    only:
      - main
-     - v_3.7
-     - v_3.9
-     - v_3.9-RandD
      - tags
    tags:
      - hpcr-u2
