@@ -183,11 +183,15 @@ module oceanBackground_mod
     if (abs(numberHours) > 744.d0) then
       call utl_abort('obgd_getClimatology: number of hours between two months exceeds 744h!')
     end if
+    ! safe check: the number of hours cannot be equal to zero
+    if (numberHours == 0.d0) then
+      call utl_abort('obgd_getClimatology: number of hours between two neighbour months is zero!')
+    end if
  
     ! computing weight for linear interpolation of climatology in time
     ! The weight depends on the distance between the current day and the 15th of the month
     ! and the number of days between the 15th of the month and the neighbour month  
-    weight = abs(real(day - 15, 8) / numberHours / 24.d0)
+    weight = abs(real(day - 15, 8) * 24.d0 / numberHours)
     write(*,*) 'obgd_getClimatology: weight for the current date: ', weight
 
     ! get climatology, current month
