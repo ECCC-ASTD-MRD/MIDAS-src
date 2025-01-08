@@ -101,12 +101,16 @@ unset launch_arg
 
 if [[ "${env}" = main ]]; then
     ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20241105-alpha eccc/mrd/rpn/utils/20241105-alpha"
+elif [[ "${env}" = 4.0.0 ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
+elif [[ "${env}" = 4.0.* ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20240612-alpha eccc/mrd/rpn/utils/20240612-alpha"
 elif [[ "${env}" = 3.9.5 ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
 elif [[ "${env}" = 3.9* ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
 else
-    die "The argument '-env' accepts only '3.9.5, '3.9' or 'main' as values but received '${env}'"
+    die "The argument '-env' accepts only '3.9.5, '3.9', '4.0.*' or 'main' as values but received '${env}'"
 fi
 
 if [[ "${interactive}" != true && "${interactive}" != false ]]; then
