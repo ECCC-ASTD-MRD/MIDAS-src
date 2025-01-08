@@ -1115,7 +1115,7 @@ CONTAINS
     allocate(sortIndex(numLocalObsFoundSearch))
     allocate(lfns(numLocalObsFoundSearch))
     ! loop on searchResults
-    do localObsIndex=1, numLocalObsFoundSearch
+    do localObsIndex = 1, numLocalObsFoundSearch
       bodyIndex           = searchResults(localObsIndex)%idx
       hDistance           = sqrt(searchResults(localObsIndex)%dis)
       vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
@@ -1162,7 +1162,7 @@ CONTAINS
       spd(:)                = 0.0d0
       ! loop on all the observations inside the horizontal radius column
       ! loop on sortValue
-      do sortedIndex=1, numLocalObsFoundSearch
+      do sortedIndex = 1, numLocalObsFoundSearch
         localObsIndex = sortIndex(sortedIndex)
         bodyIndex     = searchResults(localObsIndex)%idx
         ! if the observation is inside the localization volume
@@ -1172,7 +1172,7 @@ CONTAINS
         !if (lfns(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex)==1) then
         ! instead, if lfn == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
         vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
-        if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex)==1) then
+        if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex) == 1) then
         ! ==== UnitTest Warning ====
 
           numLocalObsFound  = numLocalObsFound + 1
@@ -1211,8 +1211,8 @@ CONTAINS
       dist(:)               = 0.0d0
       err(:)                = 0.0d0
       spd(:)                = 0.0d0
-      do localObsIndex=1, numLocalObsFoundSearch
-        if (ensObs%assFlag(searchResults(localObsIndex)%idx)==1) then
+      do localObsIndex = 1, numLocalObsFoundSearch
+        if (ensObs%assFlag(searchResults(localObsIndex)%idx) == 1) then
           numLocalObsFound = numLocalObsFound + 1
           if (numLocalObs < maxNumLocalObs) then
             numLocalObs = numLocalObs + 1

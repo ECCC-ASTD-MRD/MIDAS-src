@@ -2159,15 +2159,15 @@ contains
     integer :: i,j,nsize
     integer :: ileft,iright
 
-    nsize = size(array,1)
-    ileft=nsize/2+1
-    iright=nsize
+    nsize  = size(array,1)
+    ileft  = nsize/2+1
+    iright = nsize
 
     if (nsize == 1) return                  
 
     do 
       if(ileft > 1)then
-        ileft=ileft-1
+        ileft = ileft-1
         values(:) = array(ileft,:)
       else
         values(:) = array(iright,:)
@@ -2182,7 +2182,7 @@ contains
       j = 2*ileft
       do while (j <= iright) 
         if (j < iright) then
-          if (array(j,1) < array(j+1,1)) j=j+1
+          if (array(j,1) < array(j+1,1)) j = j+1
         endif
         if (values(1) < array(j,1)) then
           array(i,:) = array(j,:)
@@ -2217,9 +2217,9 @@ contains
     if (size(rvalues) /= size(rvalues)) then
       call utl_abort('utl_heapsort1d: input arrays have different sizes.')
     endif
-    nsize = size(rvalues)
-    ileft=nsize/2+1
-    iright=nsize
+    nsize  = size(rvalues)
+    ileft  = nsize/2+1
+    iright = nsize
 
     if (nsize == 1) return
 
@@ -2244,7 +2244,7 @@ contains
       j = 2*ileft
       do while (j <= iright)
         if (j < iright) then
-          if (rvalues(j) < rvalues(j+1)) j=j+1
+          if (rvalues(j) < rvalues(j+1)) j = j+1
         endif
         if (tmpval < rvalues(j)) then
           rvalues(i) = rvalues(j)
