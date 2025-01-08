@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * SST climatology comutation bug fixed (#1027 and !930)
  * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the precision expected for a mask (#1012 and !922)
  * Correct handling of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
