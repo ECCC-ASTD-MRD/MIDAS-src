@@ -143,6 +143,7 @@ topoFinder_tests:
    only:
      - main
      - tags
+     - 1025-introduce-the-script-midas-copy_workdir
    tags:
      - hpcr-u2
 
@@ -154,6 +155,7 @@ isFileInList_tests:
    only:
      - main
      - tags
+     - 1025-introduce-the-script-midas-copy_workdir
    tags:
      - hpcr-u2
 
