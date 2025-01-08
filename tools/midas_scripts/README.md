@@ -145,7 +145,11 @@ a stand-alone execution using the working directory prepared by
 `midas.prepare_workdir` or `midas.copy_workdir`.  It can launch a
 batch job on the supercomputer or an interactive job with the option
 `-interactive`.  The job is using the MPI topology that has been used
-to prepare the observations.
+to prepare the observations.  A particularly handy feature of
+`midas.submit_program` is that you can specify the environment version
+needed to run the program.  If you need to reproduce an operational
+case running `v_3.9.̀, you can add `-env 3.9.4` and it will load the
+appropriate packages to run that MIDAS version.
 
 The script `midas.unsplitobs` can be used to recombine the
 observations to be in their original order before they were split with
@@ -204,7 +208,7 @@ observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
                         -npex 36 -npey 18                      \
                         -splitobs ${program_directory}/midas.splitobs.Abs
 
-./midas.submit_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs
+./midas.submit_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs -env 4.0.4
 ```
 
 The results have been verified with the reference for the test
