@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-typeset -r description="This script launches the program 'midas-letkf.Abs' in the working directory prepared by 'midas.prepare_workdir'."
+typeset -r description="This script submits a MIDAS program in the working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir'."
 
 ## This is the memory, in GB, that each core, on the supercomputer can
 ## request.  There is 440 GB available on each node for 80 cores.
@@ -22,7 +22,7 @@ eval $(cclargs -D    ""     $0   "[${description}]"                             
                -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
                -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
                -interactive     false   true  "[launch an interactive job (default: false)]"           \
-               -env             main    main  "[version of the environment to load ('3.9' or 'main']"  \
+               -env             main    main  "[version of the environment to load (any of '3.9*', '4.0*' or 'main']"  \
                ++ $arguments)
 
 scriptName=${0##*/}
@@ -110,7 +110,7 @@ elif [[ "${env}" = 3.9.5 ]]; then
 elif [[ "${env}" = 3.9* ]]; then
     ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
 else
-    die "The argument '-env' accepts only '3.9.5, '3.9', '4.0.*' or 'main' as values but received '${env}'"
+    die "The argument '-env' accepts only '3.9.5, '3.9*', '4.0.*' or 'main' as values but received '${env}'"
 fi
 
 if [[ "${interactive}" != true && "${interactive}" != false ]]; then
@@ -146,10 +146,10 @@ if [[ -n "${nml}" ]]; then
         say "We will replace 'flnml' in the working directory with '${nml}'."
         cp ${nml} flnml
     else
-        die "The namelist given with option '-nml', ${nml}, does not exist."
+        die "The namelist given with option '-nml', ${nml} but it does not exist."
     fi
 elif [[ ! -f flnml ]]; then
-    die "There is no 'flnml' in workding directory and to namelist was given with option '-nml'."
+    die "There is no 'flnml' in working directory and no namelist was given with option '-nml'."
 fi
 
 [[ ! -f ptopo_nml ]] && die "The file 'ptopo_nml' should exist"
@@ -187,14 +187,15 @@ cat > launcher.sh <<EOF
 #!/bin/bash
 
 set -e
-set +x
 
 cd ${PWD}
 
 ls > localFilesNotToErase
 
+set +x
 echo "Setting up the shell environment by loading the file 'load_env.dot'"
 source ./load_env.dot
+set -x
 
 ${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}
 EOF
@@ -208,7 +209,9 @@ fi
 cpus=${npex}x${npey}x${omp_num_threads}
 
 if [[ "${interactive}" = false ]]; then
-    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" "cpus=${cpus}" "memory=${memory}"
+    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" \
+        "cpus=${cpus}"                                                                \
+        "memory=${memory}"
 
     ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
                            -listing ${PWD} -w ${wallclocktime} -m ${memory}
@@ -242,7 +245,8 @@ echo
 echo for any executable of the midas program used in this test.
 EOF
 
-    #TODO figure out how to launch rcfile and let interactive session open
+    #TODO: Figure out how to load the rcfile automatically after the interactive job starts.
+    #      Now, the user needs to do it himself.
     qsub_cmd="qsub -X -I ${pbsdirectives}"
     say "Launching the interactive job with"  \
         "   ${qsub_cmd}"
@@ -254,7 +258,9 @@ EOF
         " "                                          \
         "to load the environment and start working"
 
+    ## I don't know why, but we can't just use '${qsub_cmd}' here
+    ## We must repeat the command.
     qsub -X -I ${pbsdirectives} ## ${qsub_cmd}
 
-    rm ${rcfile} ${pbsdirectives}
+    rm -f ${rcfile} ${pbsdirectives}
 fi ## End of 'else' associated to 'if [[ "${interactive}" = false ]]; then'

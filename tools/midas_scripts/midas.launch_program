@@ -100,14 +100,6 @@ EOFLAUNCH
     chmod +x launch_cmd
 
 elif [[ "${running_mode}" = --vtune* ]]; then
-     cat > launch_cmd <<EOFLAUNCH
-#!/bin/bash
-
-set -ex
-
-## this will generate directories named 'vtune.\${hostname}'
-EOFLAUNCH
-
     if [ "${running_mode}" = --vtune ]; then
         vtune_collect_mode=hotspots
     else
@@ -115,7 +107,11 @@ EOFLAUNCH
         vtune_collect_mode=$(echo ${running_mode} | sed 's/^--vtune=//')
     fi
 
-    cat >> launch_cmd <<EOFLAUNCH
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
+
+set -ex
+
 ## this will generate directories named 'vtune.\${hostname}'
 vtune -collect ${vtune_collect_mode} –r vtune -- ${run_pgm}
 

@@ -175,7 +175,7 @@ workdir=${HOME}/data_maestro/ppp6/tmp/midas_copy_workdir
 
 ./midas.copy_workdir -inputdir $inputdir -workdir $workdir -nml $nml -splitobs ${program_directory}/midas.splitobs.Abs
 
-./midas.submit_program -workdir $workdir -pgm ${program_directory}/bin/midas-obsSelection.Abs -env 3.9.5 -omp_num_threads 2
+./midas.submit_program -workdir $workdir -pgm ${program_directory}/midas-obsSelection.Abs -env 3.9.5 -omp_num_threads 2
 ```
 
 ### Example of `midas.prepare_workdir`
