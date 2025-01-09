@@ -3,9 +3,8 @@
    doBiasCorr = .false.
    doThinning = .true.
 /
- &THIN_TOVS
-   delta  = 150
-   deltrad = 75
+ &THIN_TOVS_dd
+   mindist  = 120.0
 /
  &NAMTIME
    DSTEPOBS = 0.25d0
