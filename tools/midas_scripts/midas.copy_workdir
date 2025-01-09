@@ -5,12 +5,12 @@ set -euo pipefail
 typeset -r description="This script copies a MIDAS working directory and prepares it to run a stand-alone MIDAS program."
 
 arguments=$*
-eval $(cclargs -D   ""    ${0}  "[${description}]"                                                                    \
-  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                                  \
-  -workdir          ""     ""   "[path to working directory (mandatory)]"                                             \
-  -nml              ""     ""   "[path to namelist file (mandatory if 'flnml' does not exist in '-inputdir')]"        \
-  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program]"                                          \
-  -splitobs_ndigits 4      4    "[number of digits for the extension when splitting observations files (default: 4)]" \
+eval $(cclargs -D   ""    ${0}  "[${description}]"                                                                      \
+  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                                    \
+  -workdir          ""     ""   "[path to working directory (mandatory)]"                                               \
+  -nml              ""     ""   "[path to namelist file (mandatory if 'flnml' does not exist in '-inputdir')]"          \
+  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program (mandatory if observations need splitting)]" \
+  -splitobs_ndigits 4      4    "[number of digits for the extension when splitting observations files (default: 4)]"   \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -38,8 +38,7 @@ function die {
 } ## End of 'function die'
 
 ## Check if all mandatory arguments have been given
-## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
-## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
+## Here only 'inputdir' and 'workdir' are a hard requirement.
 for launch_arg in inputdir workdir; do
     eval launch_tmp_var="\${${launch_arg}}"
     if [[ -z "${launch_tmp_var}" ]]; then
@@ -100,7 +99,7 @@ if [[ -n ${nml} ]]; then
     cp ${nml} flnml
 fi
 
-if [[ ! -d ${inputdir}/obsfiles_split ]]; then ##&& die "The directory '${inputdir}/obsfiles_split' already exists.  This is not expected."
+if [[ ! -d ${inputdir}/obsfiles_split ]]; then
     say "Split the observations files into ${npex}x${npey} parts"
     [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
 
@@ -115,9 +114,11 @@ if [[ ! -d ${inputdir}/obsfiles_split ]]; then ##&& die "The directory '${inputd
         say "Processing the file ${obsFileName}"
         if [[ "$((npex*npey))" -lt 800 ]]; then
             ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin \
-                        -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+                        -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}                 \
+                        > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
             if [[ "${split_error_detected}" = true ]]; then
-                die "Error while splitting the file '${obsfile}'" "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+                die "Error while splitting the file '${obsfile}'" \
+                    "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
             fi
         else
             ## Due to a limitation of the number of XDF files that can be opened simultaneously
@@ -129,7 +130,8 @@ if [[ ! -d ${inputdir}/obsfiles_split ]]; then ##&& die "The directory '${inputd
                                 -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
                                 >> splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
                     if [[ "${split_error_detected}" = true ]]; then
-                        die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+                        die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." \
+                            "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
                     fi
                 done ## End of 'for procY in $(seq 1 ${npey})'
             done ## End of 'for procX in $(seq 1 ${npex})'

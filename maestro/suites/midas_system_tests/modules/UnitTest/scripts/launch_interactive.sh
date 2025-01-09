@@ -17,10 +17,10 @@ which maestro 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
 
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
-  -exp   "not defined" "not defined" "[base maestro experiment" \
-  -node  "not defined" "not defined" "[test to launch interactively]" \
-  -date  "not defined" "not defined" "[date of the working directory prepared with maestro]" \
-  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: 180 for 3 hours)]" \
+  -exp        "not defined"          "not defined"          "[base maestro experiment"                              \
+  -node       "not defined"          "not defined"          "[test to launch interactively]"                        \
+  -date       "not defined"          "not defined"          "[date of the working directory prepared with maestro]" \
+  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: ${wallclock_default} for 3 hours)]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
