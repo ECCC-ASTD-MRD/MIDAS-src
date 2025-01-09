@@ -102,15 +102,16 @@ EOF
 [[ -d tmp ]] && rm -r tmp
 mkdir tmp
 
+cat > tmp/get_resume <<EOF
+ desire('>>*******')
+EOF
+
 for fam in ${families}; do
     echo processing observation family ${fam}
     [ -f obs${fam} ] && rm obs${fam}
 
-    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i <<EOF
- desire('>>*******')
-EOF
-
     mkdir tmp/${fam}
+    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i tmp/get_resume > tmp/${fam}/splitobs.${fam}.listing
 
     ## Find the maximum number of records across all files
     nb_records_max=-1
@@ -131,24 +132,35 @@ EOF
     ndigits=$(python3 -c "from math import log, ceil; nb_digits=ceil(log(${nb_records_max}, 10)); print(nb_digits)")
     indexOne=$(printf "%0${ndigits}g" 1)
 
+    split_error_detected=false
     recordIndex=0
     for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
         obsFileName=${obsfile##*/}
         obsfile_noresume=tmp/${fam}/${obsFileName}
 
-        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume
+        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume >> splitobs.${fam}.listing
 
-        if (( ${nb_records[${recordIndex}]} > 1000 )); then
+        if (( ${nb_records[${recordIndex}]} > 800 )); then
             ## Due to a limitation of the number of XDF files that can be opened simultaneously
             ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
             ## number of records in the file.
             for id_record in  $(seq 1 ${nb_records}); do
-                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
-                            -y ${id_record} -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin     \
+                            -y ${id_record} -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits} \
+                                >> tmp/${fam}/splitobs.${obsfile}.listing 2>&1 || split_error_detected=true
+                    if [[ "${split_error_detected}" = true ]]; then
+                        die "Error while splitting the file '${obsfile}' in ${nb_records[${recordIndex}]} parts for id=${id}." \
+                            "Check the listing '${PWD}/tmp/${fam}/splitobs.${obsfile}.listing'"
+                    fi
             done
         elif (( ${nb_records[${recordIndex}]} > 1 )); then
             ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
-                        -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+                        -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}             \
+                        >> tmp/${fam}/splitobs.${obsfile}.listing 2>&1 || split_error_detected=true
+            if [[ "${split_error_detected}" = true ]]; then
+                die "Error while splitting the file '${obsfile}' in ${nb_records[${recordIndex}]} parts" \
+                    "Check the listing '${PWD}/tmp/${fam}/splitobs.${obsfile}.listing'"
+            fi
         else
             cp ${obsfile_noresume} ${obsfile_noresume}_${indexOne}_${indexOne}
         fi
@@ -157,11 +169,11 @@ EOF
     done ## End of 'for obsfile in ...'
 
     for id_record in $(seq --format="%0${ndigits}g" 1 ${nb_records_max}); do
-        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
-            tr ' ' '\n' |
-            xargs -L120 editbrp -n -d obs${fam} -i 0 -s
+        ( ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
+              tr ' ' '\n'                                                                                      |
+              xargs -L120 editbrp -n -d obs${fam} -i 0 -s ) >> tmp/${fam}/splitobs.${obsfile}.listing
     done
-done
+done ## End of 'for fam in ${families}; do'
 
 rm exclure_resume
 
