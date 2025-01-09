@@ -5,13 +5,13 @@ set -eo pipefail
 description="This script regroups observations files that have been split by 'midas.splitobs.Abs' in the original order."
 
 arguments=$*
-eval $(cclargs -D "" $0 "[${description}]"                                     \
-  -input       "" "" "[path to input observations (directory or cmcarc file)]" \
-  -output      "" "" "[path to output directory (must not exist)]"             \
-  -workdir     "" "" "[temporary working directory]"                           \
+eval $(cclargs -D ""      $0         "[${description}]"                                                    \
+  -input       ""         ""         "[path to input observations (directory or cmcarc file (mandatory))]" \
+  -output      ""         ""         "[path to output directory (must not exist (mandatory))]"             \
+  -workdir     ""         ""         "[temporary working directory(mandatory)]"                            \
   -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_')]" \
-  -prefix_obs  brp brp "[prefix of the observations files (default: 'brp']"    \
-  -splitobs    "" "" "[path to the 'midas.splitobs.Abs' program]"             \
+  -prefix_obs  brp        brp        "[prefix of the observations files (default: 'brp']"                  \
+  -splitobs    ""         ""         "[path to the 'midas.splitobs.Abs' program (mandatory)]"              \
   ++ $arguments)
 
 scriptName=${0##*/}

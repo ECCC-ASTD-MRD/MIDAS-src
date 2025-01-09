@@ -148,7 +148,7 @@ batch job on the supercomputer or an interactive job with the option
 to prepare the observations.  A particularly handy feature of
 `midas.submit_program` is that you can specify the environment version
 needed to run the program.  If you need to reproduce an operational
-case running `v_3.9.̀, you can add `-env 3.9.4` and it will load the
+case running `v_3.9.4`, you can add `-env 3.9.4` and it will load the
 appropriate packages to run that MIDAS version.
 
 The script `midas.unsplitobs` can be used to recombine the
