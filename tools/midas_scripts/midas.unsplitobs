@@ -38,8 +38,22 @@ function countRecords {
     fi
 
     local countRecords_obsfile=${1}
+
+    if [[ ! -f "${countRecords_obsfile}" ]]; then
+        die "countRecords: The file '${countRecords_obsfile}' does not exist."
+    fi
+
+    filetype=-1
+    filetypeoutput=$(r.filetype ${countRecords_obsfile}) || filetype=$?
+    if [[ "${filetype}" = -1 ]]; then
+        die "countRecords: The command 'r.filetype' on the file '${countRecords_obsfile}' encountered an error"
+    fi
+    if [[ "${filetype}" != 6 ]]; then
+        die "countRecords: The file '${countRecords_obsfile}' is not a BURP file. It is a ${filetypeoutput}"
+    fi
+
     ## We avoid counting the resume records ('>>*******') using option "-nostn '>>'"
-    liburp ${countRecords_obsfile} -enrgs -nostn '>>' | grep -c stnids
+    liburp ${countRecords_obsfile} -enrgs -nostn '>>' 2> /dev/null | grep -c stnids
 } ## End of 'function countRecords'
 
 ## Check if all mandatory arguments have been given
@@ -60,12 +74,12 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    echo loading eccc/mrd/rpn/utils/20241105-alpha
+    say "loading eccc/mrd/rpn/utils/20241105-alpha"
    . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
 fi
 
 if ! which liburp >/dev/null 2>&1; then
-    echo loading eccc/cmd/cmda/utils/20240912-alpha
+    say "loading eccc/cmd/cmda/utils/20240912-alpha"
    . ssmuse-sh -d eccc/cmd/cmda/utils/20240912-alpha
 fi
 
@@ -107,7 +121,7 @@ cat > tmp/get_resume <<EOF
 EOF
 
 for fam in ${families}; do
-    echo processing observation family ${fam}
+    say "processing observation family ${fam}"
     [ -f obs${fam} ] && rm obs${fam}
 
     mkdir tmp/${fam}
@@ -184,3 +198,5 @@ done
 
 cd
 rm -rf ${workdir}
+
+say "The observation files have been prepared in the directory ${output}"
