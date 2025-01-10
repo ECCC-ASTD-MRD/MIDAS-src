@@ -523,12 +523,9 @@ contains
           end if
         end if
         if (vco_ptr%vcode == 5100) then
-          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3D)
-        else if (vco_ptr%vcode == 21001) then
-          allocate(pressure3D(lon1:lon2, lat1:lat2, numLev_T))
-          pressure3D(:,:,:) = pressure4D_T_r8(:,:,:,stepIndex)
+          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
         else
-          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3D)
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
         end if
 
         ! Interpolate RTTOV limits onto model levels
@@ -559,7 +556,7 @@ contains
         end do ! levIndex
         !$OMP END PARALLEL DO
 
-        deallocate(pressure3D)
+        deallocate(pressure)
       end do ! stepIndex
 
       deallocate(psfc)
@@ -570,10 +567,6 @@ contains
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
       deallocate(press_rttov)
-
-      if (vco_ptr%vcode == 21001) then
-        deallocate(pressure4D_T_r8)
-      end if
 
     end if
 
@@ -697,23 +690,14 @@ contains
 
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          if (.not. allocated(psfc)) allocate(psfc(numMember,numStep))
           psfc(:,:) = real(psfc_ptr_r4(:,:,lonIndex,latIndex),8)
           if (vco_ptr%vcode == 5100) then
             varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
             psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-            if (.not. allocated(psfcLS)) allocate(psfcLS(numMember,numStep))
             psfcLS(:,:) = real(psfcLS_ptr_r4(:,:,lonIndex,latIndex),8)
-            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3D)
-          else if (vco_ptr%vcode == 21001) then
-            allocate(pressure3D(numMember, numStep, numLev_T))
-            do memberIndex = 1, numMember
-              do stepIndex = 1, numStep
-                pressure3D(memberIndex,stepIndex,:) = pressure4D_T_r4(lonIndex, latIndex,:,stepIndex)
-              end do
-            end do
+            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
           else
-            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3D)
+            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
           end if
 
           ! Interpolate RTTOV limits onto model levels
@@ -742,7 +726,7 @@ contains
             !$OMP END PARALLEL DO
           end do ! levIndex
 
-          deallocate(pressure3D)
+          deallocate(pressure)
 
         end do ! lonIndex
       end do ! latIndex
@@ -1210,13 +1194,7 @@ contains
     type(struct_columnData), intent(inout) :: column  ! column object that will be modified
     
     ! Locals:
-<<<<<<< HEAD
     integer              :: numLev_rttov, numCol, numLev_T
-=======
-    character(len=256)   :: fileName
-    integer              :: fnom, fclos, ierr, nulfile
-    integer              :: numLev, numLev_rttov, numCol, numLev_T
->>>>>>> bd7e9f14e... Issue #1017: More code changes for GEM-H SLEVE
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
     real(8), allocatable :: qmin2D_rttov(:,:), qmax2D_rttov(:,:)
     integer              :: levIndex, columnIndex
