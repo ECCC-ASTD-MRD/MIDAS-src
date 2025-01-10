@@ -105,28 +105,8 @@ git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --f
 # Compiling MIDAS
 
 [`src/midas_build`](./src/README.md)
-is now the official compilation tool to build MIDAS.
-To proceed to compilation tasks, you should be in the `src/` directory.
-`midas_build` compiles by default on both platforms.
+is the official compilation tool to build MIDAS.
 
-## Compiling a single program
-To compile a single program on both platforms, do the following from the
-frontnode:
-```bash
-cd ${where_your_code_is}
-cd src
-./midas_build ${program_basename}.Abs
-```
-where `program_basename` is the **basename** of one the files with extention `.f90` in
-the sub-directory `src/programs` or [`splitobs`](./src/README.md#splitobs-an-external-program).
-If you installed the [auto-completion feature](./src/README.md#auto-completion)
-you can browse all install targets by pressing `<TAB>` following `./midas_build`.
-
-By default the binary will be installed in
-`${HOME}/data_maestro/ords/midas-bld/midas_abs/`
-(this can be [configured by environment variables](./src/README.md#configuring-the-compilation-and-linking-process)).
-
-## Compiling all programs
 To compile all programs (`src/programs/*.f90` as well as
 [`splitobs`](./src/README.md#splitobs-an-external-program)),
 simply do:
@@ -136,7 +116,7 @@ cd src
 ./midas_build
 ```
 
-## Complete documentation on using `midas_build` and `make`
+## Complete documentation on using `midas_build`, `cmake` and `make`
 If you are [contributing a new program, changing external dependencies](./src/README.md#adding-a-new-program-or-changing-external-dependencies),
 recompiling a lot or debugging the code,
 you should take the time to read the detailed instructions found in
