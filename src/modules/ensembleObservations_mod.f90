@@ -80,10 +80,21 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
     real(8), allocatable          :: obsValue(:)      ! the observed value
     integer, allocatable          :: assFlag(:)       ! assimilation flag
-    integer, allocatable          :: codTyp(:)       ! observation code type
+    integer, allocatable          :: codTyp(:)        ! observation code type
   end type struct_eob
 
   type(kdtree2), pointer :: tree => null()
+
+  type struct_eobOutput
+    real(8) :: distMax(codtyp_maxNumber)
+    real(8) :: distMean(codtyp_maxNumber)
+    real(8) :: locFun(codtyp_maxNumber)
+    real(8) :: obsErr(codtyp_maxNumber)
+    real(8) :: ensSpread(codtyp_maxNumber)
+    real(8) :: trace(codtyp_maxNumber)
+    real(8) :: vertTop(codtyp_maxNumber)
+    real(8) :: vertBottom(codtyp_maxNumber)
+  end type struct_eobOutput
 
   ! namelist variables
   character(len=2)  :: simObsFamily(ofl_numFamily) ! observation families for simulation
@@ -1023,10 +1034,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices
   !--------------------------------------------------------------------------
-  function eob_getLocalBodyIndices(ensObs,localBodyIndices,localizations,lat,lon,vertLocation,  &
+  function eob_getLocalBodyIndices(ensObs,localBodyIndices,locFunSelected,lat,lon,vertLocation,  &
                                    hLocalize,vLocalize,numLocalObsFound, &
                                    maxNumLocalObsPerType, localSelectionOutput, localObsSorting) &
-                                   result(numLocalObs)
+                                   result(numLocalObsSelected)
     !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
     !           the local volume around the specified lat/lon used for assimilation
@@ -1038,7 +1049,7 @@ CONTAINS
     ! Arguments:
     type(struct_eob), intent(in)  :: ensObs  ! input eob object
     integer         , intent(out) :: localBodyIndices(:) ! body indexes of selected local obs
-    real(8)         , intent(out) :: localizations(:)    ! values of localization function of selected local obs
+    real(8)         , intent(out) :: locFunSelected(:)   ! values of localization function of selected local obs
     real(8)         , intent(in)  :: lat                 ! reference location lat
     real(8)         , intent(in)  :: lon                 ! reference location lon
     real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
@@ -1049,28 +1060,26 @@ CONTAINS
     integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimilated locally
     character(len=*), intent(in)  :: localObsSorting       ! sort by HORIZONTAL distance (default), LOCFUN, or MINTRACE
     ! Result:
-    integer                       :: numLocalObs         ! number of local obs up to the array size
+    integer                       :: numLocalObsSelected   ! number of local obs up to the array size
 
     ! Locals:
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex,sortedIndex
-    real(8) :: distanceSelected(256)  ! horizontal distance of the furthest observation selected for each type (m)
-    real(8) :: vertpLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
-    real(8) :: vertmLocSelected(256)  ! vertical distance of the furthest observation selected for each type (ln(p))
-    real(8) :: err(256), spd(256), lfn(256), trace(256), dist(256)   ! variables for the output
+    type(struct_eobOutput)            :: eobOut ! variables for the output information
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
     real(kdkind)                      :: maxRadius
     real(kdkind)                      :: refPosition(3)
-    integer                           :: counterSelected(256)    ! counter of selected observations for each type
-    integer                           :: counterNotSelected(256) ! counter of not selected observations for each type
-    integer                           :: localCodTyp, i
+    integer                           :: counterSelected(codtyp_maxNumber)    ! counter of selected observations for each type
+    integer                           :: counterNotSelected(codtyp_maxNumber) ! counter of not selected observations for each type
+    integer                           :: localCodTyp
     real(8)                           :: hDistance, vDistance
-    real(8), allocatable              :: sortValue(:)            ! values used to sort the kdtree results, choice of values is given by localObsSorting
-    integer, allocatable              :: sortIndex(:)            ! sorted indices of the kdtree results
-    real(8), allocatable              :: lfns(:)                 ! localization function of observations inside the localization volume
-    logical, save                     :: firstcall = .true.      ! firstcall to create the ouput and its header
-    character(len=50)                 :: outfilename             ! filename for the output
+    real(8), allocatable              :: sortValue(:)         ! values used to sort the kdtree results, choice of values is given by localObsSorting
+    integer, allocatable              :: sortIndex(:)         ! sorted indices of the kdtree results
+    real(8), allocatable              :: locFun(:)            ! localization function of observations inside the localization volume
+    logical, save                     :: firstcall = .true.   ! firstcall to create the ouput and its header
+    character(len=50)                 :: outfilename          ! filename for the output
     integer                           :: fclos, funit, ierr
+
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1107,29 +1116,30 @@ CONTAINS
     ! sortValue are the values used for sorting the numLocalObsFoundSearch obs of the localization column
     ! sortIndex are the indices of the searchResults array
     !
-    ! An observation with index sortIndex(i) has sort value sortValue(i), localization function lfns(i)
+    ! An observation with index sortIndex(i) has sort value sortValue(i), localization function locFun(i)
     ! and is found in searchResults(sortIndex(i)) and in ensObs(searchResults(sortIndex(i))%idx)
 
     ! create values to sort the observations
     allocate(sortValue(numLocalObsFoundSearch))
     allocate(sortIndex(numLocalObsFoundSearch))
-    allocate(lfns(numLocalObsFoundSearch))
+    allocate(locFun(numLocalObsFoundSearch))
     ! loop on searchResults
     do localObsIndex = 1, numLocalObsFoundSearch
       bodyIndex           = searchResults(localObsIndex)%idx
       hDistance           = sqrt(searchResults(localObsIndex)%dis)
       vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
-      lfns(localObsindex) = lfn_Response(hDistance,hLocalize)
+      locFun(localObsindex) = lfn_Response(hDistance,hLocalize)
       if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
-         lfns(localObsIndex) = lfns(localObsindex) * lfn_Response(vDistance,vLocalize)
+         locFun(localObsIndex) = locFun(localObsindex) * lfn_Response(vDistance,vLocalize)
       endif
       sortIndex(localObsIndex) = localObsIndex
       if ( trim(localObsSorting) == 'HORIZONTAL' ) then
         sortValue(localObsIndex) = hDistance
       else if ( trim(localObsSorting) == 'LOCFUN' ) then
-        sortValue(localObsIndex) = lfns(localObsindex)
+        sortValue(localObsIndex) = locFun(localObsindex)
       else if ( trim(localObsSorting) == 'MINTRACE' ) then
-        sortValue(localObsIndex) = lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
+        sortValue(localObsIndex) = locFun(localObsIndex) * &
+                                   sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
       else
         call utl_abort('eob_getLocalBodyIndices: localObsSorting has unknown value:'//trim(localObsSorting))
       endif
@@ -1145,21 +1155,22 @@ CONTAINS
       endif
     endif
 
+    eobOut%distMax(:)    = 0.0d0
+    eobOut%distMean(:)   = 0.0d0
+    eobOut%vertTop(:)    = 0.0d0
+    eobOut%vertBottom(:) = 0.0d0
+    eobOut%locFun(:)     = 0.0d0
+    eobOut%trace(:)      = 0.0d0
+    eobOut%locFun(:)     = 0.0d0
+    eobOut%obsErr(:)     = 0.0d0
+    eobOut%ensSpread(:)  = 0.0d0
+
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numLocalObsFound      = 0
-      numLocalObs           = 0
+      numLocalObsSelected   = 0
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
-      distanceSelected(:)   = 0.0d0
-      vertpLocSelected(:)   = 0.0d0
-      vertmLocSelected(:)   = 0.0d0
-      localizations(:)      = 0.0d0
-      trace(:)              = 0.0d0
-      lfn(:)                = 0.0d0
-      dist(:)               = 0.0d0
-      err(:)                = 0.0d0
-      spd(:)                = 0.0d0
       ! loop on all the observations inside the horizontal radius column
       ! loop on sortValue
       do sortedIndex = 1, numLocalObsFoundSearch
@@ -1169,28 +1180,39 @@ CONTAINS
 
         ! ==== UnitTest Warning ====
         ! ideally, we would have this condition, but it does not pass the UnitTest:
-        !if (lfns(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex)==1) then
-        ! instead, if lfn == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
-        vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
+        !if (locFun(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex) == 1) then
+        ! instead, if locFun == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
+        vDistance = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
         if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex) == 1) then
         ! ==== UnitTest Warning ====
 
           numLocalObsFound  = numLocalObsFound + 1
           localCodTyp       = ensObs%codTyp(bodyIndex)
           ! select the observation if the maximum numbers have not been reached
-          if (counterSelected(localCodTyp) < maxNumLocalObsPerType .and. numLocalObs < maxNumLocalObs) then
-            numLocalObs                    = numLocalObs + 1
-            localBodyIndices(numLocalObs)  = bodyIndex
-            localizations(numLocalObs)     = lfns(localObsIndex)
-            counterSelected(localCodTyp)   = counterSelected(localCodTyp) + 1
-            distanceSelected(localCodTyp)  = max(distanceSelected(localCodTyp),sqrt(searchResults(localObsIndex)%dis))
-            vertpLocSelected(localCodTyp)  = max(vertpLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
-            vertmLocSelected(localCodTyp)  = min(vertmLocSelected(localCodTyp),vertLocation-ensObs%vertLocation(bodyIndex))
-            lfn(localCodTyp)   = lfn(localCodTyp)   + lfns(localObsIndex)
-            dist(localCodTyp)  = dist(localCodTyp)  + sqrt(searchResults(localObsIndex)%dis)
-            trace(localCodTyp) = trace(localCodTyp) + lfns(localObsIndex) * sum(ensObs%Yb_r4(:,bodyIndex)**2) * ensObs%obsErrInv(bodyIndex)
-            err(localCodTyp)   = err(localCodTyp)   + 1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
-            spd(localCodTyp)   = spd(localCodTyp)   + sum(ensObs%Yb_r4(:,bodyIndex)**2)
+          if (counterSelected(localCodTyp) < maxNumLocalObsPerType .and. &
+              numLocalObsSelected < maxNumLocalObs) then
+            numLocalObsSelected                    = numLocalObsSelected + 1
+            localBodyIndices(numLocalObsSelected)  = bodyIndex
+            locFunSelected(numLocalObsSelected)    = locFun(localObsIndex)
+            counterSelected(localCodTyp)    = counterSelected(localCodTyp) + 1
+            eobOut%distMax(localCodTyp)     = max(eobOut%distMax(localCodTyp), &
+                                              sqrt(searchResults(localObsIndex)%dis))
+            eobOut%vertBottom(localCodTyp)  = max(eobOut%vertBottom(localCodTyp), &
+                                              vertLocation-ensObs%vertLocation(bodyIndex))
+            eobOut%vertTop(localCodTyp)     = min(eobOut%vertTop(localCodTyp), &
+                                              vertLocation-ensObs%vertLocation(bodyIndex))
+            eobOut%locFun(localCodTyp)      = eobOut%locFun(localCodTyp) + &
+                                              locFun(localObsIndex)
+            eobOut%distMean(localCodTyp)    = eobOut%distMean(localCodTyp) + &
+                                              sqrt(searchResults(localObsIndex)%dis)
+            eobOut%trace(localCodTyp)       = eobOut%trace(localCodTyp) + &
+                                              locFun(localObsIndex) * &
+                                              sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
+                                              ensObs%obsErrInv(bodyIndex)
+            eobOut%obsErr(localCodTyp)      = eobOut%obsErr(localCodTyp) + &
+                                              1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
+            eobOut%ensSpread(localCodTyp)   = eobOut%ensSpread(localCodTyp) + &
+                                              sum(ensObs%Yb_r4(:,bodyIndex)**2)
           else
             counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
           end if
@@ -1199,25 +1221,16 @@ CONTAINS
     else
       ! no vertical location, so just copy results
       numLocalObsFound      = 0
-      numLocalObs           = 0
+      numLocalObsSelected   = 0
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
-      distanceSelected(:)   = 0.0d0
-      vertpLocSelected(:)   = 0.0d0
-      vertmLocSelected(:)   = 0.0d0
-      localizations(:)      = 0.0d0
-      trace(:)              = 0.0d0
-      lfn(:)                = 0.0d0
-      dist(:)               = 0.0d0
-      err(:)                = 0.0d0
-      spd(:)                = 0.0d0
       do localObsIndex = 1, numLocalObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx) == 1) then
           numLocalObsFound = numLocalObsFound + 1
-          if (numLocalObs < maxNumLocalObs) then
-            numLocalObs = numLocalObs + 1
-            localBodyIndices(numLocalObs) = searchResults(localObsIndex)%idx
-            localizations(numLocalObs)    = lfns(localObsIndex)
+          if (numLocalObsSelected < maxNumLocalObs) then
+            numLocalObsSelected = numLocalObsSelected + 1
+            localBodyIndices(numLocalObsSelected) = searchResults(localObsIndex)%idx
+            locFunSelected(numLocalObsSelected)   = locFun(localObsIndex)
           end if
         end if
       end do      
@@ -1235,8 +1248,8 @@ CONTAINS
               'lon', &
               'lnp', &
               'dist', &
-              'vdistp', &
-              'vdistm', &
+              'vbottom', &
+              'vtop', &
               'numtot', &
               'numsel', &
               'meandist', &
@@ -1247,8 +1260,8 @@ CONTAINS
               'numsel', &
               'numrej', &
               'dist', &
-              'vdistp', &
-              'vdistm', &
+              'vbottom', &
+              'vtop', &
               'meandist', &
               'meanlfn', &
               'sumtrace', &
@@ -1263,33 +1276,37 @@ CONTAINS
             lat*MPC_DEGREES_PER_RADIAN_R8, &
             lon*MPC_DEGREES_PER_RADIAN_R8, &
             vertlocation, &
-            maxval(distanceSelected), &
-            maxval(vertpLocSelected), &
-            minval(vertmLocSelected), &
+            maxval(eobOut%distMax), &
+            maxval(eobOut%vertBottom), &
+            minval(eobOut%vertTop), &
             numLocalObsFound, &
-            numLocalObs, &
-            sum(dist) / real(max(1,numLocalObs)), &
-            sum(lfn)  / real(max(1,numLocalObs)), &
-            sum(trace)
+            numLocalObsSelected, &
+            sum(eobOut%distMean) / real(max(1,numLocalObsSelected)), &
+            sum(eobOut%locFun)   / real(max(1,numLocalObsSelected)), &
+            sum(eobOut%trace)
       ! followed by more detailed information for each observation type
-      do i = 1, size(counterSelected)
-        if ((counterSelected(i) + counterNotSelected(i)) .ne. 0) then
-          dist(i) = dist(i) / real(max(1,counterSelected(i)))
-          lfn(i)  = lfn(i)  / real(max(1,counterSelected(i)))
-          err(i)  = err(i)  / real(max(1,counterSelected(i)))
-          spd(i)  = spd(i)  / real(max(1,counterSelected(i)))
+      do localCodTyp = 1, size(counterSelected)
+        if ((counterSelected(localCodTyp) + counterNotSelected(localCodTyp)) /= 0) then
+          eobOut%distMean(localCodTyp)  = eobOut%distMean(localCodTyp) /  &
+                                          real(max(1,counterSelected(localCodTyp)))
+          eobOut%locFun(localCodTyp)    = eobOut%locFun(localCodTyp) /    &
+                                          real(max(1,counterSelected(localCodTyp)))
+          eobOut%obsErr(localCodTyp)    = eobOut%obsErr(localCodTyp) /    &
+                                          real(max(1,counterSelected(localCodTyp)))
+          eobOut%ensSpread(localCodTyp) = eobOut%ensSpread(localCodTyp) / &
+                                          real(max(1,counterSelected(localCodTyp)))
           write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
-                i, &
-                counterSelected(i), &
-                counterNotSelected(i), &
-                distanceSelected(i), &
-                vertpLocSelected(i), &
-                vertmLocSelected(i), &
-                dist(i), &
-                lfn(i), &
-                trace(i), &
-                err(i), &
-                spd(i)
+                localCodTyp, &
+                counterSelected(localCodTyp), &
+                counterNotSelected(localCodTyp), &
+                eobOut%distMax(localCodTyp), &
+                eobOut%vertBottom(localCodTyp), &
+                eobOut%vertTop(localCodTyp), &
+                eobOut%distMean(localCodTyp), &
+                eobOut%locFun(localCodTyp), &
+                eobOut%trace(localCodTyp), &
+                eobOut%obsErr(localCodTyp), &
+                eobOut%ensSpread(localCodTyp)
         end if
       end do
 
@@ -1297,7 +1314,7 @@ CONTAINS
 
     end if
 
-    deallocate(lfns)
+    deallocate(locFun)
     deallocate(sortIndex)
     deallocate(sortValue)
     deallocate(searchResults)

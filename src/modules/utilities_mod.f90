@@ -2205,8 +2205,8 @@ contains
     implicit none
 
     ! Arguments:
-    real(8), intent(inout) :: rvalues(:)
-    integer, intent(inout) :: indices(:)
+    real(8), intent(inout) :: rvalues(:) ! 1D array of real values to be sorted
+    integer, intent(inout) :: indices(:) ! indexes of the 1D array
 
     ! Locals:
     real(8) :: tmpval ! temporary value

@@ -823,7 +823,7 @@ contains
     integer, allocatable, save :: memberIndexSubEnsComp(:,:)
     integer, allocatable, save :: randomMemberIndexArray(:)
 
-    real(8), allocatable, save :: localizations(:), PaSqrt_pert(:,:)
+    real(8), allocatable, save :: locFun(:), PaSqrt_pert(:,:)
     real(8), pointer, save :: PaInv_mean(:,:), Pa_mean(:,:)
     real(8), pointer, save :: YbTinvR_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvRYb_mean(:,:)
     real(8), pointer, save :: eigenValues_mean(:), eigenVectors_mean(:,:)
@@ -974,7 +974,7 @@ contains
 
     if (firstCall) then
       allocate(localBodyIndices(maxNumLocalObs))
-      allocate(localizations(maxNumLocalObs))
+      allocate(locFun(maxNumLocalObs))
       !
       ! Compute gridded 3D ensemble weights
       !
@@ -1028,12 +1028,12 @@ contains
       hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
     end if
 
-    ! Get list of nearby observations and localizations to gridpoint. With modulated-ensembles,
-    ! we get observations in entire column.
+    ! Get list of nearby observations and localization functions to gridpoint.
+    ! With modulated-ensembles, we get observations in entire column.
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                          localizations, anlLat, anlLon, anlVertLocation,  &
+                                          locFun, anlLat, anlLon, anlVertLocation,  &
                                           hLocalize(hLocIndex), vLocalize, numLocalObsFound, &
                                           maxNumLocalObsPerType, localSelectionOutput, localObsSorting)
     if (numLocalObsFound > maxNumLocalObs) then
@@ -1052,14 +1052,14 @@ contains
         ! YbTinvR for updating ensemble perturbations
         YbTinvR_pert(memberIndex,localObsIndex) =  &
              ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-             localizations(localObsIndex) * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
+             locFun(localObsIndex) * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
       end do
       if (eob_simObsAssim) then
         do memberIndex = 1, nEnsGain
           ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
           YbTinvR_mean(memberIndex,localObsIndex) =  &
                ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-               localizations(localObsIndex) * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)
+               locFun(localObsIndex) * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)
         end do
       end if
     end do ! localObsIndex
