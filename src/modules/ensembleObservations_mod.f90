@@ -1091,7 +1091,7 @@ CONTAINS
         positionArray(2,bodyIndex) = ec_ra * cos(ensObs%lon(bodyIndex)) * cos(ensObs%lat(bodyIndex))
         positionArray(3,bodyIndex) = ec_ra *                              sin(ensObs%lat(bodyIndex))
       end do
-      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+      tree => kdtree2_create(positionArray, rearrange=.true.)
       write(*,*) 'eob_getLocalBodyIndices: done creating kdtree'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -1145,10 +1145,9 @@ CONTAINS
       endif
     end do
     ! sort observations by sortValue
-    ! for the localObsSorting = HORIZONTAL case, sortValue is already sorted
     if (numLocalObsFoundSearch > 0) then
+      call utl_heapsort1d(sortValue,sortIndex)
       if ( trim(localObsSorting) == 'LOCFUN' .or. trim(localObsSorting) == 'MINTRACE' ) then
-        call utl_heapsort1d(sortValue,sortIndex)
         ! In these cases, we select observations by decreasing order of their sort value
         sortValue = sortValue(size(sortValue):1:-1)
         sortIndex = sortIndex(size(sortIndex):1:-1)
