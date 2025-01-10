@@ -1161,7 +1161,6 @@ CONTAINS
     eobOut%vertBottom(:) = 0.0d0
     eobOut%locFun(:)     = 0.0d0
     eobOut%trace(:)      = 0.0d0
-    eobOut%locFun(:)     = 0.0d0
     eobOut%obsErr(:)     = 0.0d0
     eobOut%ensSpread(:)  = 0.0d0
 
