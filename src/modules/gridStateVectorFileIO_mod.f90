@@ -828,8 +828,8 @@ module gridStateVectorFileIO_mod
     logical, optional, intent(in)    :: ignoreDate_opt
 
     ! Locals:
-    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, varLevIndex, stepIndex
-    integer :: ikey, levIndex
+    integer :: ierr, ip1, ni_file, nj_file, nk_file, varLevIndex, stepIndex
+    integer :: ikey, levIndex, nulfile, nulfile_mels, nulfileToRead, dateStampToRead 
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
     integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
     integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
@@ -839,7 +839,7 @@ module gridStateVectorFileIO_mod
     integer :: ig1_var, ig2_var, ig3_var, ig4_var
     integer :: varIndex, dateStampList(statevector%numStep)
     character(len=4 ) :: nomvar_var
-    character(len=2 ) :: typvar_var
+    character(len=2 ) :: typvar_var, typvarToRead
     character(len=1 ) :: grtyp_var
     character(len=12) :: etiket_var
     real(4), pointer :: field_r4_ptr(:,:,:,:)
@@ -852,7 +852,7 @@ module gridStateVectorFileIO_mod
     character(len=4)  :: varLevel
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
-    logical :: foundVarNameInFile, ignoreDate
+    logical :: foundVarNameInFile, ignoreDate, melsFileExists
 
     write(*,*) 'gio_readFileFst: starting'
     call msg_memUsage('gio_readFileFst')
@@ -902,6 +902,19 @@ module gridStateVectorFileIO_mod
 
     if (nulfile == 0) then
       call utl_abort('gio_readFileFst: unit number for input file not valid')
+    end if
+
+    !- Open separate file with MELS, if it exists
+    nulfile_mels = 0
+    inquire(file = trim(fileName)//'_mels', exist = melsFileExists)
+    if (melsFileExists) then
+      ierr = fnom(nulfile_mels, trim(fileName)//'_mels', 'RND+OLD+R/O', 0)
+      write(*,*) 'gio_readFileFst: opening separate file with MELS with unit = ', nulfile_mels
+      if (ierr >= 0) then
+        ierr  =  fstouv(nulfile_mels,'RND+OLD')
+      else
+        call utl_abort('gio_readFileFst: problem opening separate file with MELS')
+      end if
     end if
 
     ! Read surface height if requested
@@ -1034,9 +1047,17 @@ module gridStateVectorFileIO_mod
         if (.not. gsv_varExist(statevector, varName)) cycle k_loop
 
         ! Check that the wanted field is present in the file
-        if (vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
-          varNameToRead = varName
-        else
+        nulfileToRead = nulfile
+        dateStampToRead = dateStampList(stepIndex)
+        varNameToRead = varName
+        typvarToRead = typvar_in
+
+        if (trim(varName) == 'MELS') then
+          dateStampToRead = -1
+          typvarToRead = ' '
+        end if
+
+        if (.not. vnl_varNamePresentInFile(varName, fileName = trim(fileName))) then
           select case (trim(varName))
           case ('LVIS')
             varNameToRead = 'VIS'
@@ -1044,6 +1065,14 @@ module gridStateVectorFileIO_mod
             cycle k_loop
           case ('LPR')
             varNameToRead = 'PR'
+          case ('MELS')
+            ! Try reading MELS in separate file with suffix '_mels'
+            if (vnl_varNamePresentInFile(varName, fileName = trim(fileName)//'_mels')) then
+              nulfileToRead = nulfile_mels
+            else
+              call utl_abort('gio_readFileFst: variable '//trim(varName)//&
+                             ' was not found in '//trim(fileName)//'_mels')
+            end if
           case default
             call utl_abort('gio_readFileFst: variable '//trim(varName)//&
                            ' was not found in '//trim(fileName))
@@ -1072,24 +1101,23 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFileFst: unknown varLevel')
         end if
 
-        typvar_var = typvar_in
-
         ! Make sure that the input variable has the same grid size than hco_file
-        ikey = fstinf(nulfile, ni_var, nj_var, nk_var,     &
-                      datestamplist(stepIndex), etiket_in, &
-                      -1, -1, -1, typvar_var, varNameToRead)
+        ikey = fstinf(nulfileToRead, ni_var, nj_var, nk_var,     &
+                      dateStampToRead, etiket_in, &
+                      -1, -1, -1, typvarToRead, varNameToRead)
 
         if (ikey < 0) then
-          if (trim(typvar_in) /= '') then
-            typvar_var(2:2) = '@'
-            ikey = fstinf(nulfile, ni_var, nj_var, nk_var, &
-                          datestamplist(stepIndex), etiket_in, &
-                          -1, -1, -1, typvar_var, varNameToRead)
+          if (trim(typvarToRead) /= '') then
+            typvarToRead(2:2) = '@'
+            ikey = fstinf(nulfileToRead, ni_var, nj_var, nk_var, &
+                          dateStampToRead, etiket_in, &
+                          -1, -1, -1, typvarToRead, varNameToRead)
           end if
           if (ikey < 0) then
-            write(*,*) 'gio_readFileFst: looking for datestamp = ', datestamplist(stepIndex)
-            write(*,*) 'gio_readFileFst: etiket_in = ', etiket_in
-            write(*,*) 'gio_readFileFst: typvar_in = ', typvar_in
+            write(*,*) 'gio_readFileFst: looking for datestamp = ', dateStampToRead
+            write(*,*) 'gio_readFileFst: etiket  = ', etiket_in
+            write(*,*) 'gio_readFileFst: typvar  = ', typvarToRead
+            write(*,*) 'gio_readFileFst: nulfile = ', nulfileToRead
             call utl_abort('gio_readFileFst: cannot find field '// &
                            trim(varNameToRead)//' in file '//trim(fileName))
           end if
@@ -1112,8 +1140,8 @@ module gridStateVectorFileIO_mod
         end if
 
         if (ni_var == hco_file%ni .and. nj_var == hco_file%nj) then
-          ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                        datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+          ierr = fstlir(gd2d_file_r4(:,:), nulfileToRead, ni_file, nj_file, nk_file,  &
+                        dateStampToRead, etiket_in, ip1, -1, -1,  &
                         typvar_var, varNameToRead)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
@@ -1134,17 +1162,17 @@ module gridStateVectorFileIO_mod
             end if
           end if
 
-          if (statevector%hco%global) then
+          if (statevector%hco%global .and. trim(varNameToRead) /= 'MELS') then
             call utl_abort('gio_readFileFst: This is not allowed in global mode!')
           end if
 
-          EZscintID_var  = ezqkdef(ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile) ! IN
+          EZscintID_var  = ezqkdef(ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfileToRead) ! IN
 
           allocate(gd2d_var_r4(ni_var, nj_var))
           gd2d_var_r4(:,:) = 0.0
 
-          ierr = fstlir(gd2d_var_r4(:,:), nulfile, ni_var, nj_var, nk_var,  &
-                        datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+          ierr = fstlir(gd2d_var_r4(:,:), nulfileToRead, ni_var, nj_var, nk_var,  &
+                        dateStampToRead, etiket_in, ip1, -1, -1,  &
                         typvar_in, varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID, EZscintID_var)
@@ -1203,7 +1231,7 @@ module gridStateVectorFileIO_mod
         endif
 
         if (ierr < 0)then
-          write(*,*) varNameToRead, ip1, datestamplist(stepIndex)
+          write(*,*) varNameToRead, ip1, dateStampToRead
           call utl_abort('gio_readFileFst: Problem with reading file')
         end if
 
@@ -1212,8 +1240,8 @@ module gridStateVectorFileIO_mod
         ! then we re-read the corresponding UV component and store it
         if (statevector%extraUVallocated) then
           if (varName == 'UU') then
-            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file, &
-                          datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+            ierr = fstlir(gd2d_file_r4(:,:),nulfileToRead, ni_file, nj_file, nk_file, &
+                          dateStampToRead, etiket_in, ip1, -1, -1,  &
                           typvar_in, 'VV')
 
             if (statevector%dataKind == 4) then
@@ -1231,8 +1259,8 @@ module gridStateVectorFileIO_mod
             end if
 
           else if (varName == 'VV') then
-            ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                          datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+            ierr = fstlir(gd2d_file_r4(:,:), nulfileToRead, ni_file, nj_file, nk_file,  &
+                          dateStampToRead, etiket_in, ip1, -1, -1,  &
                           typvar_in, 'UU')
 
             if (statevector%dataKind == 4) then
@@ -1261,7 +1289,11 @@ module gridStateVectorFileIO_mod
     end if
 
     ierr = fstfrm(nulfile)
-    ierr = fclos(nulfile)        
+    ierr = fclos(nulfile)
+    if (nulfile_mels > 0) then
+      ierr = fstfrm(nulfile_mels)
+      ierr = fclos(nulfile_mels)
+    end if
     if (associated(gd2d_file_r4)) deallocate(gd2d_file_r4)
 
     ! Read in an oceanMask if it is present in the file

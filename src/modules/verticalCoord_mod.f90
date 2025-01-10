@@ -47,7 +47,7 @@ module verticalCoord_mod
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
      real(8), pointer :: depths(:) => null()
-     real(4), allocatable :: mels_file(:,:)
+     logical :: sleveCoord = .false.
   end type struct_vco
 
 contains
@@ -248,10 +248,10 @@ contains
     logical,                   intent(in)    :: beSilent
 
     ! Locals:
-    integer :: Vcode, jlev, nlevMatched, stat, nultemplate, nulmels, ierr, ikey
-    integer :: fnom, fstouv, fstfrm, fclos, fstinf, fstluk
+    integer :: Vcode, jlev, nlevMatched, stat, nultemplate, ierr, ikey
+    integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: vgd_nlev_M, vgd_nlev_T, ip1_sfc
-    integer :: ni, nj, nk, key, varListIndex, IP1kind
+    integer :: ni, nj, nk, varListIndex, IP1kind
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     logical :: ip1_found
     character(len=10) :: blk_S
@@ -261,7 +261,6 @@ contains
 
     ! Open the template file
     nultemplate = 0
-    nulmels = 0
     ierr = fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
     if (ierr == 0) then
       ierr = fstouv(nultemplate,'RND+OLD')
@@ -297,47 +296,14 @@ contains
     end if
     vco%Vcode = Vcode
 
-    ! Check if this is a SLEVE coordinate if mels_file not already initialized
-    if (.not. allocated(vco%mels_file)) then
-      stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
-      stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
-      slevePresent: if (coefR3 /= vgd_missing .and. coefR4 /= vgd_missing) then
-
-        write(*,*) 'vco_setupAtmFromFile: This is a SLEVE coordinate with R-coef(3:4) = ', &
-                   coefR3, coefR4
-
-        ! Now read the large scale reference field (i.e. height or pressure)
-        if (vco%Vcode == 21001) then
-          ! Check if MELS is in the supplied template file
-          key = fstinf(nultemplate, ni, nj, nk, -1, ' ', &
-                       -1, -1, -1, ' ', 'MELS')
-
-          if(key < 0) then
-            ! Try looking in separate file with suffix '_mels' that only contain MELS
-            ierr = fnom(nulmels,trim(templatefile)//'_mels','RND+OLD+R/O',0)
-            if (ierr == 0) then
-              ierr = fstouv(nulmels,'RND+OLD')
-            else
-              call utl_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE WITH MELS!')
-            end if
-            key = fstinf(nulmels, ni, nj, nk, -1, ' ', &
-                         -1, -1, -1, ' ', 'MELS')
-            if(key < 0) then
-              call utl_abort('vco_setupAtmFromFile: CANNOT FIND MELS IN TEMPLATE FILE!')
-            end if
-          end if
-          write(*,*) 'vco_setupAtmFromFile: Found MELS with size ', ni, nj
-          allocate(vco%mels_file(ni,nj))
-          ! Read field
-          ierr = fstluk(vco%mels_file, key, ni, nj, nk)
-          write(*,*) 'vco_setupAtmFromFile: Found MELS with min/maxval ', &
-                     minval(vco%mels_file), maxval(vco%mels_file)
-        else
-          write(*,*) 'vco_setupAtmFromFile: SLEVE for GEM-P is still implemented in a different way'
-        end if
-
-      end if slevePresent
-    end if
+    ! Check if this is a SLEVE coordinate
+    stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
+    stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
+    slevePresent: if (coefR3 > 0.0 .and. coefR4 > 0.0) then
+      vco%sleveCoord = .true.
+      write(*,*) 'vco_setupAtmFromFile: This is a SLEVE coordinate with R-coef(3:4) = ', &
+                 coefR3, coefR4
+    end if slevePresent
 
     ! Get vgrid values for ip1
     stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
@@ -503,10 +469,6 @@ contains
 
     ierr = fstfrm(nultemplate)
     ierr = fclos (nultemplate)
-    if (nulmels /= 0) then
-      ierr = fstfrm(nulmels)
-      ierr = fclos (nulmels)
-    end if
 
   end subroutine vco_setupAtmFromFile
 
@@ -809,10 +771,6 @@ contains
     if ( vco%nLev_depth > 0 ) then
       deallocate(vco%depths)
       deallocate(vco%ip1_depth)
-    end if
-
-    if ( allocated(vco%mels_file) ) then
-      deallocate(vco%mels_file)
     end if
 
     nullify(vco)

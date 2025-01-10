@@ -792,6 +792,11 @@ module gridStateVector_mod
       if (statevector%vco%vcode == 5100) then
         statevector%varExistList(vnl_varListIndex('P0LS')) = .true.
       end if
+
+      ! add MELS to the varExistList if vcode=21001 and SLEVE is active
+      if (statevector%vco%vcode == 21001 .and. statevector%vco%sleveCoord) then
+        statevector%varExistList(vnl_varListIndex('MELS')) = .true.
+      end if
     end if
 
     if (statevector%vco%vcode == 5100 .and. &

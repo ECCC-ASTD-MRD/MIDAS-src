@@ -801,7 +801,7 @@ CONTAINS
            bEns(instanceIndex)%vco_anl%Vcode == 21001) then
         if (bEns(instanceIndex)%vco_anl%Vcode == 21001) then
           hSurfRef = 0.D0
-          call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, hSurfRef, &
+          call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, &
                                  profM_opt=vertLocationInc)
           call czp_calcPressureProfileUsingStdAtm(vertLocationInc,               & ! INOUT
                                                   bEns(instanceIndex)%nLevEns_M)   ! IN
