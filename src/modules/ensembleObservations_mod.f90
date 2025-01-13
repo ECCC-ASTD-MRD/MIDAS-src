@@ -1076,9 +1076,6 @@ CONTAINS
     real(8), allocatable              :: sortValue(:)         ! values used to sort the kdtree results, choice of values is given by localObsSorting
     integer, allocatable              :: sortIndex(:)         ! sorted indices of the kdtree results
     real(8), allocatable              :: locFun(:)            ! localization function of observations inside the localization volume
-    logical, save                     :: firstcall = .true.   ! firstcall to create the ouput and its header
-    character(len=50)                 :: outfilename          ! filename for the output
-    integer                           :: fclos, funit, ierr
 
 
     ! create the kdtree on the first call
@@ -1154,14 +1151,9 @@ CONTAINS
       endif
     endif
 
-    eobOut%distMax(:)    = 0.0d0
-    eobOut%distMean(:)   = 0.0d0
-    eobOut%vertTop(:)    = 0.0d0
-    eobOut%vertBottom(:) = 0.0d0
-    eobOut%locFun(:)     = 0.0d0
-    eobOut%trace(:)      = 0.0d0
-    eobOut%obsErr(:)     = 0.0d0
-    eobOut%ensSpread(:)  = 0.0d0
+    if(localSelectionOutput) then
+      call eob_zeroOutput(eobOut)
+    endif
 
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
@@ -1170,7 +1162,6 @@ CONTAINS
       counterSelected(:)    = 0
       counterNotSelected(:) = 0
       ! loop on all the observations inside the horizontal radius column
-      ! loop on sortValue
       do sortedIndex = 1, numLocalObsFoundSearch
         localObsIndex = sortIndex(sortedIndex)
         bodyIndex     = searchResults(localObsIndex)%idx
@@ -1193,24 +1184,10 @@ CONTAINS
             localBodyIndices(numLocalObsSelected)  = bodyIndex
             locFunSelected(numLocalObsSelected)    = locFun(localObsIndex)
             counterSelected(localCodTyp)    = counterSelected(localCodTyp) + 1
-            eobOut%distMax(localCodTyp)     = max(eobOut%distMax(localCodTyp), &
-                                              sqrt(searchResults(localObsIndex)%dis))
-            eobOut%vertBottom(localCodTyp)  = max(eobOut%vertBottom(localCodTyp), &
-                                              vertLocation-ensObs%vertLocation(bodyIndex))
-            eobOut%vertTop(localCodTyp)     = min(eobOut%vertTop(localCodTyp), &
-                                              vertLocation-ensObs%vertLocation(bodyIndex))
-            eobOut%locFun(localCodTyp)      = eobOut%locFun(localCodTyp) + &
-                                              locFun(localObsIndex)
-            eobOut%distMean(localCodTyp)    = eobOut%distMean(localCodTyp) + &
-                                              sqrt(searchResults(localObsIndex)%dis)
-            eobOut%trace(localCodTyp)       = eobOut%trace(localCodTyp) + &
-                                              locFun(localObsIndex) * &
-                                              sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
-                                              ensObs%obsErrInv(bodyIndex)
-            eobOut%obsErr(localCodTyp)      = eobOut%obsErr(localCodTyp) + &
-                                              1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
-            eobOut%ensSpread(localCodTyp)   = eobOut%ensSpread(localCodTyp) + &
-                                              sum(ensObs%Yb_r4(:,bodyIndex)**2)
+            if(localSelectionOutput) then
+              call eob_updateOutput(eobOut, ensObs, searchResults, localCodTyp, &
+                                    localObsIndex, bodyIndex, vertLocation, locFun)
+            end if
           else
             counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
           end if
@@ -1236,80 +1213,9 @@ CONTAINS
 
     ! send information about this grid point to an output text file
     if(localSelectionOutput) then
-      write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
-      outfilename = './eob_glbi_'//trim(adjustl(outfilename))
-      if (firstcall) then
-        firstcall = .false.
-        call utl_open_asciifile(outfilename,funit)
-        write(funit,'(12(A,X))') 'gdp', &
-              'lat', &
-              'lon', &
-              'lnp', &
-              'dist', &
-              'vbottom', &
-              'vtop', &
-              'numtot', &
-              'numsel', &
-              'meandist', &
-              'meanlfn', &
-              'sumtrace'
-        write(99,'(12(A,X))') 'typ', &
-              'codtyp', &
-              'numsel', &
-              'numrej', &
-              'dist', &
-              'vbottom', &
-              'vtop', &
-              'meandist', &
-              'meanlfn', &
-              'sumtrace', &
-              'meanerr', &
-              'meanspd'
-      else
-        call utl_open_asciifile(outfilename,funit)
-      endif
-
-      ! generic information about the gridpoint
-      write(funit,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
-            lat*MPC_DEGREES_PER_RADIAN_R8, &
-            lon*MPC_DEGREES_PER_RADIAN_R8, &
-            vertlocation, &
-            maxval(eobOut%distMax), &
-            maxval(eobOut%vertBottom), &
-            minval(eobOut%vertTop), &
-            numLocalObsFound, &
-            numLocalObsSelected, &
-            sum(eobOut%distMean) / real(max(1,numLocalObsSelected)), &
-            sum(eobOut%locFun)   / real(max(1,numLocalObsSelected)), &
-            sum(eobOut%trace)
-      ! followed by more detailed information for each observation type
-      do localCodTyp = 1, size(counterSelected)
-        if ((counterSelected(localCodTyp) + counterNotSelected(localCodTyp)) /= 0) then
-          eobOut%distMean(localCodTyp)  = eobOut%distMean(localCodTyp) /  &
-                                          real(max(1,counterSelected(localCodTyp)))
-          eobOut%locFun(localCodTyp)    = eobOut%locFun(localCodTyp) /    &
-                                          real(max(1,counterSelected(localCodTyp)))
-          eobOut%obsErr(localCodTyp)    = eobOut%obsErr(localCodTyp) /    &
-                                          real(max(1,counterSelected(localCodTyp)))
-          eobOut%ensSpread(localCodTyp) = eobOut%ensSpread(localCodTyp) / &
-                                          real(max(1,counterSelected(localCodTyp)))
-          write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
-                localCodTyp, &
-                counterSelected(localCodTyp), &
-                counterNotSelected(localCodTyp), &
-                eobOut%distMax(localCodTyp), &
-                eobOut%vertBottom(localCodTyp), &
-                eobOut%vertTop(localCodTyp), &
-                eobOut%distMean(localCodTyp), &
-                eobOut%locFun(localCodTyp), &
-                eobOut%trace(localCodTyp), &
-                eobOut%obsErr(localCodTyp), &
-                eobOut%ensSpread(localCodTyp)
-        end if
-      end do
-
-     ierr = fclos(funit)
-
+      call eob_writeOutput(eobOut, lat, lon, vertlocation, &
+                           counterSelected, counterNotSelected, &
+                           numLocalObsFound, numLocalObsSelected)
     end if
 
     deallocate(locFun)
@@ -1318,6 +1224,160 @@ CONTAINS
     deallocate(searchResults)
 
   end function eob_getLocalBodyIndices
+
+  !--------------------------------------------------------------------------
+  ! eob_zeroOutput
+  !--------------------------------------------------------------------------
+  subroutine eob_zeroOutput(eobOut)
+    implicit none
+
+    ! Arguments:
+    type(struct_eobOutput), intent(inout) :: eobOut ! eobOutput object
+
+    eobOut%distMax(:)    = 0.0d0
+    eobOut%distMean(:)   = 0.0d0
+    eobOut%vertTop(:)    = 0.0d0
+    eobOut%vertBottom(:) = 0.0d0
+    eobOut%locFun(:)     = 0.0d0
+    eobOut%trace(:)      = 0.0d0
+    eobOut%obsErr(:)     = 0.0d0
+    eobOut%ensSpread(:)  = 0.0d0
+
+  end subroutine eob_zeroOutput
+
+  !--------------------------------------------------------------------------
+  ! eob_updateOutput
+  !--------------------------------------------------------------------------
+  subroutine eob_updateOutput(eobOut, ensObs, searchResults, localCodTyp, &
+                              localObsIndex, bodyIndex, vertLocation, locFun)
+    implicit none
+
+    ! Arguments:
+    type(struct_eobOutput), intent(inout) :: eobOut           ! eobOutputObject
+    type(struct_eob),       intent(in)    :: ensObs           ! eob object
+    type(kdtree2_result),   intent(in)    :: searchResults(:) ! kdtree results
+    integer,                intent(in)    :: localCodTyp      ! eobOut index
+    integer,                intent(in)    :: localObsIndex    ! searchResults index
+    integer,                intent(in)    :: bodyIndex        ! ensObs index
+    real(8),                intent(in)    :: vertLocation     ! grid point vert location
+    real(8),                intent(in)    :: locFun(:)        ! Localization function
+
+    eobOut%distMax(localCodTyp)     = max(eobOut%distMax(localCodTyp), &
+                                      sqrt(searchResults(localObsIndex)%dis))
+    eobOut%vertBottom(localCodTyp)  = max(eobOut%vertBottom(localCodTyp), &
+                                      vertLocation-ensObs%vertLocation(bodyIndex))
+    eobOut%vertTop(localCodTyp)     = min(eobOut%vertTop(localCodTyp), &
+                                      vertLocation-ensObs%vertLocation(bodyIndex))
+    eobOut%locFun(localCodTyp)      = eobOut%locFun(localCodTyp) + &
+                                      locFun(localObsIndex)
+    eobOut%distMean(localCodTyp)    = eobOut%distMean(localCodTyp) + &
+                                      sqrt(searchResults(localObsIndex)%dis)
+    eobOut%trace(localCodTyp)       = eobOut%trace(localCodTyp) + &
+                                      locFun(localObsIndex) * &
+                                      sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
+                                      ensObs%obsErrInv(bodyIndex)
+    eobOut%obsErr(localCodTyp)      = eobOut%obsErr(localCodTyp) + &
+                                      1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
+    eobOut%ensSpread(localCodTyp)   = eobOut%ensSpread(localCodTyp) + &
+                                      sum(ensObs%Yb_r4(:,bodyIndex)**2)
+
+  end subroutine eob_updateOutput
+
+  !--------------------------------------------------------------------------
+  ! eob_writeOutput
+  !--------------------------------------------------------------------------
+  subroutine eob_writeOutput(eobOut, lat, lon, vertlocation, &
+                             counterSelected, counterNotSelected, &
+                             numLocalObsFound, numLocalObsSelected)
+    implicit none
+
+    ! Arguments:
+    type(struct_eobOutput), intent(inout) :: eobOut    ! eobOutput object to write
+    real(8), intent(in) :: lat, lon, vertlocation
+    integer, intent(in) :: counterSelected(:), counterNotSelected(:)
+    integer, intent(in) :: numLocalObsFound, numLocalObsSelected
+
+    ! Locals:
+    character(len=50)                  :: outfilename          ! filename for the output
+    integer                            :: fclos, funit, ierr
+    integer                            :: localCodTyp
+    logical, save                      :: firstcall = .true.   ! firstcall to create the ouput and its header
+
+    write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
+    outfilename = './eob_glbi_'//trim(adjustl(outfilename))
+    if (firstcall) then
+      firstcall = .false.
+      call utl_open_asciifile(outfilename,funit)
+      write(funit,'(12(A,X))') 'gdp', &
+            'lat', &
+            'lon', &
+            'lnp', &
+            'dist', &
+            'vbottom', &
+            'vtop', &
+            'numtot', &
+            'numsel', &
+            'meandist', &
+            'meanlfn', &
+            'sumtrace'
+      write(99,'(12(A,X))') 'typ', &
+            'codtyp', &
+            'numsel', &
+            'numrej', &
+            'dist', &
+            'vbottom', &
+            'vtop', &
+            'meandist', &
+            'meanlfn', &
+            'sumtrace', &
+            'meanerr', &
+            'meanspd'
+    else
+      call utl_open_asciifile(outfilename,funit)
+    endif
+
+    ! generic information about the gridpoint
+    write(funit,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
+          lat*MPC_DEGREES_PER_RADIAN_R8, &
+          lon*MPC_DEGREES_PER_RADIAN_R8, &
+          vertlocation, &
+          maxval(eobOut%distMax), &
+          maxval(eobOut%vertBottom), &
+          minval(eobOut%vertTop), &
+          numLocalObsFound, &
+          numLocalObsSelected, &
+          sum(eobOut%distMean) / real(max(1,numLocalObsSelected)), &
+          sum(eobOut%locFun)   / real(max(1,numLocalObsSelected)), &
+          sum(eobOut%trace)
+    ! followed by more detailed information for each observation type
+    do localCodTyp = 1, size(counterSelected)
+      if ((counterSelected(localCodTyp) + counterNotSelected(localCodTyp)) /= 0) then
+        eobOut%distMean(localCodTyp)  = eobOut%distMean(localCodTyp) /  &
+                                        real(max(1,counterSelected(localCodTyp)))
+        eobOut%locFun(localCodTyp)    = eobOut%locFun(localCodTyp) /    &
+                                        real(max(1,counterSelected(localCodTyp)))
+        eobOut%obsErr(localCodTyp)    = eobOut%obsErr(localCodTyp) /    &
+                                        real(max(1,counterSelected(localCodTyp)))
+        eobOut%ensSpread(localCodTyp) = eobOut%ensSpread(localCodTyp) / &
+                                        real(max(1,counterSelected(localCodTyp)))
+        write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
+              localCodTyp, &
+              counterSelected(localCodTyp), &
+              counterNotSelected(localCodTyp), &
+              eobOut%distMax(localCodTyp), &
+              eobOut%vertBottom(localCodTyp), &
+              eobOut%vertTop(localCodTyp), &
+              eobOut%distMean(localCodTyp), &
+              eobOut%locFun(localCodTyp), &
+              eobOut%trace(localCodTyp), &
+              eobOut%obsErr(localCodTyp), &
+              eobOut%ensSpread(localCodTyp)
+      end if
+    end do
+
+    ierr = fclos(funit)
+
+  end subroutine eob_writeOutput
 
   !--------------------------------------------------------------------------
   ! eob_setLatLonObsCod
