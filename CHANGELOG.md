@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
  * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
    * Small impacts on results when using `gsv_smoothHorizontal`
  * Added ability to horizontally smooth control member analysis increment (#999 and !905)
