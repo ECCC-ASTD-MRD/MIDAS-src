@@ -1035,9 +1035,9 @@ CONTAINS
   ! eob_getLocalBodyIndices
   !--------------------------------------------------------------------------
   function eob_getLocalBodyIndices(ensObs,localBodyIndices,locFunSelected,lat,lon,vertLocation,  &
-                                   hLocalize,vLocalize,numLocalObsFound, &
+                                   hLocalize,vLocalize,numObsFound, &
                                    maxNumLocalObsPerType, localSelectionOutput, localObsSorting) &
-                                   result(numLocalObsSelected)
+                                   result(numObsSelected)
     !
     ! :Purpose: Return a list of values of bodyIndex for all observations within 
     !           the local volume around the specified lat/lon used for assimilation
@@ -1047,36 +1047,35 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_eob), intent(in)  :: ensObs  ! input eob object
-    integer         , intent(out) :: localBodyIndices(:) ! body indexes of selected local obs
-    real(8)         , intent(out) :: locFunSelected(:)   ! values of localization function of selected local obs
-    real(8)         , intent(in)  :: lat                 ! reference location lat
-    real(8)         , intent(in)  :: lon                 ! reference location lon
-    real(8)         , intent(in)  :: vertLocation        ! reference location vertical position
-    real(8)         , intent(in)  :: hLocalize           ! horizontal localization distance
-    real(8)         , intent(in)  :: vLocalize           ! vertical localization distance
-    integer         , intent(out) :: numLocalObsFound    ! total number of local obs within the local volume
+    type(struct_eob), intent(in)  :: ensObs                ! input eob object
+    integer         , intent(out) :: localBodyIndices(:)   ! body indexes of selected local obs
+    real(8)         , intent(out) :: locFunSelected(:)     ! values of localization function of selected local obs
+    real(8)         , intent(in)  :: lat                   ! reference location lat
+    real(8)         , intent(in)  :: lon                   ! reference location lon
+    real(8)         , intent(in)  :: vertLocation          ! reference location vertical position
+    real(8)         , intent(in)  :: hLocalize             ! horizontal localization distance
+    real(8)         , intent(in)  :: vLocalize             ! vertical localization distance
+    integer         , intent(out) :: numObsFound           ! total number of local obs within the local volume
     logical         , intent(in)  :: localSelectionOutput  ! output information about the selection of observations
     integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimilated locally
-    character(len=*), intent(in)  :: localObsSorting       ! sort by HORIZONTAL distance (default), LOCFUN, or MINTRACE
+    character(len=*), intent(in)  :: localObsSorting       ! sort method: HORIZONTAL distance (default), LOCFUN, or MINTRACE
     ! Result:
-    integer                       :: numLocalObsSelected   ! number of local obs up to the array size
+    integer                       :: numObsSelected        ! number of local obs up to the array size
 
     ! Locals:
-    integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex,sortedIndex
+    integer :: bodyIndex, numObsFoundSearch, maxNumLocalObs, localObsIndex, sortedIndex
     type(struct_eobOutput)            :: eobOut ! variables for the output information
     real(kdkind), allocatable         :: positionArray(:,:)
     type(kdtree2_result), allocatable :: searchResults(:)        ! kdtree results
     real(kdkind)                      :: maxRadius
     real(kdkind)                      :: refPosition(3)
-    integer                           :: counterSelected(codtyp_maxNumber)    ! counter of selected observations for each type
-    integer                           :: counterNotSelected(codtyp_maxNumber) ! counter of not selected observations for each type
-    integer                           :: localCodTyp
+    integer                           :: numObsSelectedByCodtyp(codtyp_maxNumber)    ! number of selected observations for each type
+    integer                           :: numObsNotSelectedByCodtyp(codtyp_maxNumber) ! number of not selected observations for each type
+    integer                           :: codTyp
     real(8)                           :: hDistance, vDistance
     real(8), allocatable              :: sortValue(:)         ! values used to sort the kdtree results, choice of values is given by localObsSorting
     integer, allocatable              :: sortIndex(:)         ! sorted indices of the kdtree results
     real(8), allocatable              :: locFun(:)            ! localization function of observations inside the localization volume
-
 
     ! create the kdtree on the first call
     if (.not. associated(tree)) then
@@ -1100,28 +1099,28 @@ CONTAINS
     refPosition(2) = ec_ra * cos(lon) * cos(lat)
     refPosition(3) = ec_ra *            sin(lat)
     allocate(searchResults(maxNumLocalObsSearch))
-    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numLocalObsFoundSearch,&
+    call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadius, nfound=numObsFoundSearch,&
                            nalloc=maxNumLocalObsSearch, results=searchResults)
-    if (numLocalObsFoundSearch > maxNumLocalObsSearch) then
+    if (numObsFoundSearch > maxNumLocalObsSearch) then
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
-    ! searchResults is an array of maxNumLocalObsSearch observations
-    ! Its first numLocalObsFoundSearch observations are all the ones inside the localization column
-    ! and are sorted by horizontal distance
+    ! searchResults is an array of maxNumLocalObsSearch observations.
+    ! Its first numObsFoundSearch observations are all the ones inside the localization column
+    ! and are sorted by horizontal distance.
 
-    ! sortValue are the values used for sorting the numLocalObsFoundSearch obs of the localization column
-    ! sortIndex are the indices of the searchResults array
+    ! sortValue are the values used for sorting the numObsFoundSearch obs of the localization column.
+    ! sortIndex are the indices of the searchResults array.
     !
     ! An observation with index sortIndex(i) has sort value sortValue(i), localization function locFun(i)
-    ! and is found in searchResults(sortIndex(i)) and in ensObs(searchResults(sortIndex(i))%idx)
+    ! and is found in searchResults(sortIndex(i)) and in ensObs(searchResults(sortIndex(i))%idx).
 
     ! create values to sort the observations
-    allocate(sortValue(numLocalObsFoundSearch))
-    allocate(sortIndex(numLocalObsFoundSearch))
-    allocate(locFun(numLocalObsFoundSearch))
+    allocate(sortValue(numObsFoundSearch))
+    allocate(sortIndex(numObsFoundSearch))
+    allocate(locFun(numObsFoundSearch))
     ! loop on searchResults
-    do localObsIndex = 1, numLocalObsFoundSearch
+    do localObsIndex = 1, numObsFoundSearch
       bodyIndex           = searchResults(localObsIndex)%idx
       hDistance           = sqrt(searchResults(localObsIndex)%dis)
       vDistance           = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
@@ -1142,7 +1141,7 @@ CONTAINS
       endif
     end do
     ! sort observations by sortValue
-    if (numLocalObsFoundSearch > 0) then
+    if (numObsFoundSearch > 0) then
       call utl_heapsort1d(sortValue,sortIndex)
       if ( trim(localObsSorting) == 'LOCFUN' .or. trim(localObsSorting) == 'MINTRACE' ) then
         ! In these cases, we select observations by decreasing order of their sort value
@@ -1157,12 +1156,12 @@ CONTAINS
 
     if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
-      numLocalObsFound      = 0
-      numLocalObsSelected   = 0
-      counterSelected(:)    = 0
-      counterNotSelected(:) = 0
+      numObsFound      = 0
+      numObsSelected   = 0
+      numObsSelectedByCodtyp(:)    = 0
+      numObsNotSelectedByCodtyp(:) = 0
       ! loop on all the observations inside the horizontal radius column
-      do sortedIndex = 1, numLocalObsFoundSearch
+      do sortedIndex = 1, numObsFoundSearch
         localObsIndex = sortIndex(sortedIndex)
         bodyIndex     = searchResults(localObsIndex)%idx
         ! if the observation is inside the localization volume
@@ -1175,37 +1174,37 @@ CONTAINS
         if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex) == 1) then
         ! ==== UnitTest Warning ====
 
-          numLocalObsFound  = numLocalObsFound + 1
-          localCodTyp       = ensObs%codTyp(bodyIndex)
+          numObsFound  = numObsFound + 1
+          codTyp       = ensObs%codTyp(bodyIndex)
           ! select the observation if the maximum numbers have not been reached
-          if (counterSelected(localCodTyp) < maxNumLocalObsPerType .and. &
-              numLocalObsSelected < maxNumLocalObs) then
-            numLocalObsSelected                    = numLocalObsSelected + 1
-            localBodyIndices(numLocalObsSelected)  = bodyIndex
-            locFunSelected(numLocalObsSelected)    = locFun(localObsIndex)
-            counterSelected(localCodTyp)    = counterSelected(localCodTyp) + 1
+          if (numObsSelectedByCodtyp(codTyp) < maxNumLocalObsPerType .and. &
+              numObsSelected < maxNumLocalObs) then
+            numObsSelected                    = numObsSelected + 1
+            localBodyIndices(numObsSelected)  = bodyIndex
+            locFunSelected(numObsSelected)    = locFun(localObsIndex)
+            numObsSelectedByCodtyp(codTyp)    = numObsSelectedByCodtyp(codTyp) + 1
             if(localSelectionOutput) then
-              call eob_updateOutput(eobOut, ensObs, searchResults, localCodTyp, &
+              call eob_updateOutput(eobOut, ensObs, searchResults, codTyp, &
                                     localObsIndex, bodyIndex, vertLocation, locFun)
             end if
           else
-            counterNotSelected(localCodTyp) = counterNotSelected(localCodTyp) + 1
+            numObsNotSelectedByCodtyp(codTyp) = numObsNotSelectedByCodtyp(codTyp) + 1
           end if
         end if
       end do
     else
       ! no vertical location, so just copy results
-      numLocalObsFound      = 0
-      numLocalObsSelected   = 0
-      counterSelected(:)    = 0
-      counterNotSelected(:) = 0
-      do localObsIndex = 1, numLocalObsFoundSearch
+      numObsFound      = 0
+      numObsSelected   = 0
+      numObsSelectedByCodtyp(:)    = 0
+      numObsNotSelectedByCodtyp(:) = 0
+      do localObsIndex = 1, numObsFoundSearch
         if (ensObs%assFlag(searchResults(localObsIndex)%idx) == 1) then
-          numLocalObsFound = numLocalObsFound + 1
-          if (numLocalObsSelected < maxNumLocalObs) then
-            numLocalObsSelected = numLocalObsSelected + 1
-            localBodyIndices(numLocalObsSelected) = searchResults(localObsIndex)%idx
-            locFunSelected(numLocalObsSelected)   = locFun(localObsIndex)
+          numObsFound = numObsFound + 1
+          if (numObsSelected < maxNumLocalObs) then
+            numObsSelected = numObsSelected + 1
+            localBodyIndices(numObsSelected) = searchResults(localObsIndex)%idx
+            locFunSelected(numObsSelected)   = locFun(localObsIndex)
           end if
         end if
       end do      
@@ -1214,8 +1213,8 @@ CONTAINS
     ! send information about this grid point to an output text file
     if(localSelectionOutput) then
       call eob_writeOutput(eobOut, lat, lon, vertlocation, &
-                           counterSelected, counterNotSelected, &
-                           numLocalObsFound, numLocalObsSelected)
+                           numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
+                           numObsFound, numObsSelected)
     end if
 
     deallocate(locFun)
@@ -1229,6 +1228,9 @@ CONTAINS
   ! eob_zeroOutput
   !--------------------------------------------------------------------------
   subroutine eob_zeroOutput(eobOut)
+    !
+    !:Purpose:  Initialize the members of a struct_eobOutput variable to zero
+    !
     implicit none
 
     ! Arguments:
@@ -1248,38 +1250,41 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_updateOutput
   !--------------------------------------------------------------------------
-  subroutine eob_updateOutput(eobOut, ensObs, searchResults, localCodTyp, &
+  subroutine eob_updateOutput(eobOut, ensObs, searchResults, codTyp, &
                               localObsIndex, bodyIndex, vertLocation, locFun)
+    !
+    !:Purpose:  Update the values of a struct_eobOutput variable
+    !
     implicit none
 
     ! Arguments:
-    type(struct_eobOutput), intent(inout) :: eobOut           ! eobOutputObject
+    type(struct_eobOutput), intent(inout) :: eobOut           ! eobOutput object
     type(struct_eob),       intent(in)    :: ensObs           ! eob object
     type(kdtree2_result),   intent(in)    :: searchResults(:) ! kdtree results
-    integer,                intent(in)    :: localCodTyp      ! eobOut index
+    integer,                intent(in)    :: codTyp           ! eobOut index
     integer,                intent(in)    :: localObsIndex    ! searchResults index
     integer,                intent(in)    :: bodyIndex        ! ensObs index
     real(8),                intent(in)    :: vertLocation     ! grid point vert location
     real(8),                intent(in)    :: locFun(:)        ! Localization function
 
-    eobOut%distMax(localCodTyp)     = max(eobOut%distMax(localCodTyp), &
-                                      sqrt(searchResults(localObsIndex)%dis))
-    eobOut%vertBottom(localCodTyp)  = max(eobOut%vertBottom(localCodTyp), &
-                                      vertLocation-ensObs%vertLocation(bodyIndex))
-    eobOut%vertTop(localCodTyp)     = min(eobOut%vertTop(localCodTyp), &
-                                      vertLocation-ensObs%vertLocation(bodyIndex))
-    eobOut%locFun(localCodTyp)      = eobOut%locFun(localCodTyp) + &
-                                      locFun(localObsIndex)
-    eobOut%distMean(localCodTyp)    = eobOut%distMean(localCodTyp) + &
-                                      sqrt(searchResults(localObsIndex)%dis)
-    eobOut%trace(localCodTyp)       = eobOut%trace(localCodTyp) + &
-                                      locFun(localObsIndex) * &
-                                      sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
-                                      ensObs%obsErrInv(bodyIndex)
-    eobOut%obsErr(localCodTyp)      = eobOut%obsErr(localCodTyp) + &
-                                      1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
-    eobOut%ensSpread(localCodTyp)   = eobOut%ensSpread(localCodTyp) + &
-                                      sum(ensObs%Yb_r4(:,bodyIndex)**2)
+    eobOut%distMax(codTyp)    = max(eobOut%distMax(codTyp), &
+                                     sqrt(searchResults(localObsIndex)%dis))
+    eobOut%vertBottom(codTyp) = max(eobOut%vertBottom(codTyp), &
+                                     vertLocation-ensObs%vertLocation(bodyIndex))
+    eobOut%vertTop(codTyp)    = min(eobOut%vertTop(codTyp), &
+                                     vertLocation-ensObs%vertLocation(bodyIndex))
+    eobOut%locFun(codTyp)     = eobOut%locFun(codTyp) + &
+                                locFun(localObsIndex)
+    eobOut%distMean(codTyp)   = eobOut%distMean(codTyp) + &
+                                sqrt(searchResults(localObsIndex)%dis)
+    eobOut%trace(codTyp)      = eobOut%trace(codTyp) + &
+                                locFun(localObsIndex) * &
+                                sum(ensObs%Yb_r4(:,bodyIndex)**2) * &
+                                ensObs%obsErrInv(bodyIndex)
+    eobOut%obsErr(codTyp)     = eobOut%obsErr(codTyp) + &
+                                1.0d0 / max(ensObs%obsErrInv(bodyIndex),1.0d-30)
+    eobOut%ensSpread(codTyp)  = eobOut%ensSpread(codTyp) + &
+                                sum(ensObs%Yb_r4(:,bodyIndex)**2)
 
   end subroutine eob_updateOutput
 
@@ -1287,20 +1292,26 @@ CONTAINS
   ! eob_writeOutput
   !--------------------------------------------------------------------------
   subroutine eob_writeOutput(eobOut, lat, lon, vertlocation, &
-                             counterSelected, counterNotSelected, &
-                             numLocalObsFound, numLocalObsSelected)
+                             numObsSelectedByCodtyp, numObsNotSelectedByCodtyp, &
+                             numObsFound, numObsSelected)
+    !
+    !:Purpose:  Create a text file eob_glbi_XXXXX with XXXX the mpi task
+    !           and append the variable struct_eobOutput to the text file.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_eobOutput), intent(inout) :: eobOut    ! eobOutput object to write
-    real(8), intent(in) :: lat, lon, vertlocation
-    integer, intent(in) :: counterSelected(:), counterNotSelected(:)
-    integer, intent(in) :: numLocalObsFound, numLocalObsSelected
+    type(struct_eobOutput), intent(inout) :: eobOut                       ! eobOutput object to write
+    real(8),                intent(in)    :: lat, lon, vertlocation       ! LETKF gridpoint location
+    integer,                intent(in)    :: numObsSelectedByCodtyp(:)    ! number of selected observations for each type
+    integer,                intent(in)    :: numObsNotSelectedByCodtyp(:) ! number of not selected observations for each type
+    integer,                intent(in)    :: numObsFound                  ! number of obs within the local volume
+    integer,                intent(in)    :: numObsSelected               ! number of obs selected
 
     ! Locals:
     character(len=50)                  :: outfilename          ! filename for the output
     integer                            :: fclos, funit, ierr
-    integer                            :: localCodTyp
+    integer                            :: codTyp
     logical, save                      :: firstcall = .true.   ! firstcall to create the ouput and its header
 
     write(outfilename, '(I5.5)') mmpi_myid ! we assume there are less than 100 000 mpi tasks...
@@ -1344,34 +1355,34 @@ CONTAINS
           maxval(eobOut%distMax), &
           maxval(eobOut%vertBottom), &
           minval(eobOut%vertTop), &
-          numLocalObsFound, &
-          numLocalObsSelected, &
-          sum(eobOut%distMean) / real(max(1,numLocalObsSelected)), &
-          sum(eobOut%locFun)   / real(max(1,numLocalObsSelected)), &
+          numObsFound, &
+          numObsSelected, &
+          sum(eobOut%distMean) / real(max(1,numObsSelected)), &
+          sum(eobOut%locFun)   / real(max(1,numObsSelected)), &
           sum(eobOut%trace)
     ! followed by more detailed information for each observation type
-    do localCodTyp = 1, size(counterSelected)
-      if ((counterSelected(localCodTyp) + counterNotSelected(localCodTyp)) /= 0) then
-        eobOut%distMean(localCodTyp)  = eobOut%distMean(localCodTyp) /  &
-                                        real(max(1,counterSelected(localCodTyp)))
-        eobOut%locFun(localCodTyp)    = eobOut%locFun(localCodTyp) /    &
-                                        real(max(1,counterSelected(localCodTyp)))
-        eobOut%obsErr(localCodTyp)    = eobOut%obsErr(localCodTyp) /    &
-                                        real(max(1,counterSelected(localCodTyp)))
-        eobOut%ensSpread(localCodTyp) = eobOut%ensSpread(localCodTyp) / &
-                                        real(max(1,counterSelected(localCodTyp)))
+    do codTyp = 1, size(numObsSelectedByCodtyp)
+      if ((numObsSelectedByCodtyp(codTyp) + numObsNotSelectedByCodtyp(codTyp)) /= 0) then
+        eobOut%distMean(codTyp)  = eobOut%distMean(codTyp) /  &
+                                   real(max(1,numObsSelectedByCodtyp(codTyp)))
+        eobOut%locFun(codTyp)    = eobOut%locFun(codTyp) /    &
+                                   real(max(1,numObsSelectedByCodtyp(codTyp)))
+        eobOut%obsErr(codTyp)    = eobOut%obsErr(codTyp) /    &
+                                   real(max(1,numObsSelectedByCodtyp(codTyp)))
+        eobOut%ensSpread(codTyp) = eobOut%ensSpread(codTyp) / &
+                                   real(max(1,numObsSelectedByCodtyp(codTyp)))
         write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
-              localCodTyp, &
-              counterSelected(localCodTyp), &
-              counterNotSelected(localCodTyp), &
-              eobOut%distMax(localCodTyp), &
-              eobOut%vertBottom(localCodTyp), &
-              eobOut%vertTop(localCodTyp), &
-              eobOut%distMean(localCodTyp), &
-              eobOut%locFun(localCodTyp), &
-              eobOut%trace(localCodTyp), &
-              eobOut%obsErr(localCodTyp), &
-              eobOut%ensSpread(localCodTyp)
+              codTyp, &
+              numObsSelectedByCodtyp(codTyp), &
+              numObsNotSelectedByCodtyp(codTyp), &
+              eobOut%distMax(codTyp), &
+              eobOut%vertBottom(codTyp), &
+              eobOut%vertTop(codTyp), &
+              eobOut%distMean(codTyp), &
+              eobOut%locFun(codTyp), &
+              eobOut%trace(codTyp), &
+              eobOut%obsErr(codTyp), &
+              eobOut%ensSpread(codTyp)
       end if
     end do
 
