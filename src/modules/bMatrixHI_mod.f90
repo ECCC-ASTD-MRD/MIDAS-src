@@ -9,6 +9,7 @@ MODULE bMatrixHI_mod
   !
   use midasMpi_mod
   use message_mod
+  use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod
@@ -39,6 +40,8 @@ MODULE bMatrixHI_mod
   integer             :: gstID, gstID2
   integer             :: nlev_bdl
   type(struct_vco),pointer :: vco_anl
+
+  logical           :: vertCoordPress
 
   real(8),allocatable :: tantheta(:,:)
   real(8),allocatable :: PtoT(:,:,:)
@@ -87,7 +90,7 @@ MODULE bMatrixHI_mod
   integer             :: nspositPS 
   integer             :: nspositTG
 
-  real(8), pointer    :: pressureProfile_M(:),pressureProfile_T(:)
+  real(8), pointer    :: vCoordProfile_M(:),vCoordProfile_T(:)
 
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
@@ -113,7 +116,7 @@ CONTAINS
     integer :: jlev, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
-    real(8) :: zps
+    real(8) :: zzs, zps
     type(struct_vco),pointer :: vco_file => null()
     character(len=8) :: bFileName = './bgcov'
 
@@ -171,6 +174,11 @@ CONTAINS
     end if
 
     vco_anl => vco_in
+    if (vco_getVcode(vco_anl)== 21001) then
+      vertCoordPress = .false.
+    else
+      vertCoordPress = .true.
+    end if 
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
     ! need an even number of levels for spectral transform (gstID2)
@@ -301,14 +309,20 @@ CONTAINS
 
     call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
-    zps = 101000.D0
-    call czp_fetch1DLevels(vco_anl, zps, &
-                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
-
+    if (vertCoordPress) then
+      zps = 101000.D0
+      call czp_fetch1DLevels(vco_anl, zps, &
+                           profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+    else
+      zzs = 0.D0
+      call czp_fetch1DLevels(vco_anl, zzs, &
+                           profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+    end if
+    
     llfound = .false.
     nlev_bdl = 0
     do jlev = 1, nlev_M
-      if(.not.llfound .and. (pressureProfile_M(jlev) .ge. rlimlv_bdl  )) then
+      if(.not.llfound .and. (vCoordProfile_M(jlev) .ge. rlimlv_bdl  )) then
         nlev_bdl = jlev
         llfound = .true.
       endif
@@ -440,6 +454,7 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: fstprm,fstinf
     integer :: fnom,fstouv,fstfrm,fclos
+    real(8), parameter :: refTemp = 288.0D0  ! Reference temperature
 
     lldebug = .false.
 
@@ -525,13 +540,19 @@ CONTAINS
 
     ! unbalanced temperature
     ztlen = rvlocunbalt
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_T
-        zpres1 = log(pressureProfile_T(jk1))
+        if (vertCoordPress) zpres1 = log(vCoordProfile_T(jk1))
         do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_T(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_T(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1+2*nlev_M,jk2+2*nlev_M,jn)  =   &
@@ -543,13 +564,19 @@ CONTAINS
 
     ! balanced temperature
     ztlen = rvlocbalt
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_T
-        zpres1 = log(pressureProfile_T(jk1))
+        if (vertCoordPress) zpres1 = log(vCoordProfile_T(jk1))
         do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_T(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_T(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1+numVarLev,jk2+numVarLev,jn)  =        &
@@ -561,13 +588,19 @@ CONTAINS
 
     ! streamfunction 
     ztlen = rvlocpsi    ! specify length scale (in units of ln(Pressure))
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
-        zpres1 = log(pressureProfile_M(jk1))
+        zpres1 = log(vCoordProfile_M(jk1))
         do jk2 = 1, nlev_M
-          zpres2 = log(pressureProfile_M(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_M(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1,jk2,jn) = corns(jk1,jk2,jn)*zcorr
@@ -578,13 +611,19 @@ CONTAINS
 
     ! temp-psi cross-correlations
     ztlen = rvlocpsitt    ! specify length scale (in units of ln(Pressure))
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
-        zpres1 = log(pressureProfile_M(jk1))
+        if (vertCoordPress) zpres1 = log(vCoordProfile_M(jk1))
         do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_T(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_T(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1,jk2+numVarLev,jn) = corns(jk1,jk2+numVarLev,jn)*zcorr
@@ -596,13 +635,19 @@ CONTAINS
 
     ! velocity potential (unbalanced)
     ztlen = rvlocchi    ! specify length scale (in units of ln(Pressure))
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
-        zpres1 = log(pressureProfile_M(jk1))
+        if (vertCoordPress) zpres1 = log(vCoordProfile_M(jk1))
         do jk2 = 1, nlev_M
-          zpres2 = log(pressureProfile_M(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_M(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1+nlev_M,jk2+nlev_M,jn) = corns(jk1+nlev_M,jk2+nlev_M,jn)*zcorr
@@ -614,12 +659,18 @@ CONTAINS
     ! cross-correlation t'-ps'
     if(.true.) then
     ztlen = rvlocunbalt    ! specify length scale (in units of ln(Pressure))
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
-      zpres1 = log(pressureProfile_T(nlev_T))
+      if (vertCoordPress) zpres1 = log(vCoordProfile_T(nlev_T))
       do jk2 = 1, nlev_T
-        zpres2 = log(pressureProfile_T(jk2))
-        zr = abs(zpres2 - zpres1)
+        if (vertCoordPress) then
+          zpres2 = log(vCoordProfile_T(jk2))
+          zr = abs(zpres2 - zpres1)
+        else
+          zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(nlev_T))
+        end if
         zcorr = gasparicohn(ztlen,zr)
         do jn = 0, ntrunc
           corns(1+2*nlev_M+2*nlev_T,jk2+2*nlev_M,jn)  =       &
@@ -633,13 +684,19 @@ CONTAINS
 
     ! humidity
     ztlen = rvloclq    ! specify length scale (in units of ln(Pressure))
+    if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                     * refTemp / ec_rg  ! units in meters
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_T
-        zpres1 = log(pressureProfile_T(jk1))
+        if (vertCoordPress) zpres1 = log(vCoordProfile_T(jk1))
         do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_T(jk2))
-          zr = abs(zpres2 - zpres1)
+          if (vertCoordPress) then
+            zpres2 = log(vCoordProfile_T(jk2))
+            zr = abs(zpres2 - zpres1)
+          else
+            zr = abs(vCoordProfile_T(jk2)-vCoordProfile_T(jk1))
+          end if
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
             corns(jk1+2*nlev_M+nlev_T,jk2+2*nlev_M+nlev_T,jn)  =       &
@@ -3476,8 +3533,8 @@ CONTAINS
     implicit none
 
     if (initialized) then
-       deallocate(pressureProfile_M)
-       deallocate(pressureProfile_T)
+       deallocate(vCoordProfile_M)
+       deallocate(vCoordProfile_T)
        deallocate(PtoT)
        deallocate(tantheta)
        deallocate(rgsig)

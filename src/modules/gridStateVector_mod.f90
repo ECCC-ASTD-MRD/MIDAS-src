@@ -5405,7 +5405,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_field3d_hbilin(field,nlong,nlat,nlev,xlong,xlat,vlev, &
                                 fieldout,nlongout,nlatout,nlevout,xlongout, &
-                                xlatout,vlevout)
+                                xlatout,vlevout,vertCoordType_opt)
     !
     ! :Purpose: Horizontal bilinear interpolation from a 3D regular gridded field
     !           to another 3D regular gridded field.
@@ -5415,6 +5415,8 @@ module gridStateVector_mod
     !
     !           This version does not depend on gridstatevector data
     !           types/structures.
+    !
+    ! :Comment: Vertical levels are assumed to be ordered from top to surface.
     !
     implicit none
 
@@ -5433,12 +5435,14 @@ module gridStateVector_mod
     real(8), intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
     real(8), intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
     real(8), intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
+    character(len=*), optional, intent(in) :: vertCoordType_opt
 
     ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
     integer :: ilev,ilon,ilat,ilatp1,i,j,ilongout,ilatout
     logical :: same_vlev
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+    character(len=8) :: vertCoordType
 
     ! Check if vertical interpolation needed
     if (nlev /= nlevout) then
@@ -5448,20 +5452,25 @@ module gridStateVector_mod
         same_vlev = .false.
       else
         same_vlev = .true.
+        if (present(vertCoordType_opt)) then
+          vertCoordType=vertCoordType_opt
+        else  
+          vertCoordType = 'Pressure'
+        end if 
       end if
-    end if 
-    
+    end if
+
     ! Find near lat/long grid points
-    
+
     do ilongout = 1, nlongout
 
-      if (nlongout > 1) then    
+      if (nlongout > 1) then
         plong2 = xlongout(ilongout)
         if (plong2 < 0.0) plong2 = 2.D0*mpc_pi_r8 + plong2
         do ilon = 2,nlong
           if  (xlong(ilon-1) < xlong(ilon)) then
             if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
-          else 
+          else
             ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
           end if
         end do
@@ -5469,17 +5478,17 @@ module gridStateVector_mod
       else
         ilon = 1
       end if
-      
+
       do ilatout = 1, nlatout
-         
+
         do ilat = 2, nlat
           if (xlatout(ilatout) <= xlat(ilat)) exit
         end do
         ilat = min(ilat-1,nlat)
         ilatp1 = min(ilat+1,nlat)
-    
+
         ! Set lat/long interpolation weights
-    
+
         if (nlongout > 1) then
           DLDX = (xlongout(ilongout) - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
           if (ilat < nlat) then
@@ -5500,55 +5509,81 @@ module gridStateVector_mod
           end if
 
           DLW1 = (1.d0-DLDY)
-          DLW3 = DLDY        
+          DLW3 = DLDY
         end if
-        
-        ! Set vertical interpolation weights (assumes pressure vertical coordinate)
-    
+
+        ! Set vertical interpolation weights
+
         if (.not.same_vlev) then
-          lnvlevout(:) = log(vlevout(:))    
-          lnvlev(:) = log(vlev(:))    
-          
           ilev = 1
-          do i = 1, nlevout
-            do j = ilev, nlev          
-               if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+          if (trim(vertCoordType) == 'Pressure') then
+            lnvlevout(:) = log(vlevout(:))
+            lnvlev(:) = log(vlev(:))
+
+            do i = 1, nlevout
+              do j = ilev, nlev
+                if (lnvlevout(i) < lnvlev(j)) exit
+              end do
+              ilev = j-1
+              if (ilev < 1) then
+                ilev = 1
+              else if (ilev >= nlev) then
+                ilev = nlev-1
+              end if
+
+              DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+
+              fieldout(ilongout,ilatout,i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+                             + DLW2 * field(ilon+1,ilat,ilev) &
+                             + DLW3 * field(ilon,ilatp1,ilev) &
+                             + DLW4 * field(ilon+1,ilatp1,ilev)) &
+                + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
+                             + DLW2 * field(ilon+1,ilat,ilev+1) &
+                             + DLW3 * field(ilon,ilatp1,ilev+1) &
+                             + DLW4 * field(ilon+1,ilatp1,ilev+1))
+            end do                             
+          else
+            do i = 1, nlevout
+              do j = ilev, nlev
+                if (vlevout(i) > vlev(j)) exit
+              end do
+              ilev = j-1
+              if (ilev < 1) then
+                ilev = 1
+              else if (ilev >= nlev) then
+                ilev = nlev-1
+              end if
+
+              DLDP = (vlevout(i)-vlev(ilev+1))/(vlev(ilev)-vlev(ilev+1))
+
+              fieldout(ilongout,ilatout,i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+                               + DLW2 * field(ilon+1,ilat,ilev) &
+                               + DLW3 * field(ilon,ilatp1,ilev) &
+                               + DLW4 * field(ilon+1,ilatp1,ilev)) &
+                + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
+                               + DLW2 * field(ilon+1,ilat,ilev+1) &
+                               + DLW3 * field(ilon,ilatp1,ilev+1) &
+                               + DLW4 * field(ilon+1,ilatp1,ilev+1))
+
             end do
-            ilev = j-1
-            if (ilev < 1) then
-               ilev = 1
-            else if (ilev >= nlev) then
-               ilev = nlev-1
-            end if
-       
-            DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
-            
-            fieldout(ilongout,ilatout,i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
-                           + DLW2 * field(ilon+1,ilat,ilev) &
-                           + DLW3 * field(ilon,ilatp1,ilev) &
-                           + DLW4 * field(ilon+1,ilatp1,ilev)) &
-             + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
-                           + DLW2 * field(ilon+1,ilat,ilev+1) &
-                           + DLW3 * field(ilon,ilatp1,ilev+1) &
-                           + DLW4 * field(ilon+1,ilatp1,ilev+1))                               
-          end do
+          end if
         else if (nlongout > 1) then
-          do ilev = 1, nlevout           
+          do ilev = 1, nlevout
             fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
                            + DLW2 * field(ilon+1,ilat,ilev) &
                            + DLW3 * field(ilon,ilatp1,ilev) &
                            + DLW4 * field(ilon+1,ilatp1,ilev)
           end do
-        else 
-          do ilev = 1, nlevout           
+        else
+          do ilev = 1, nlevout
             fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
-                           + DLW3 * field(ilon,ilatp1,ilev) 
+                           + DLW3 * field(ilon,ilatp1,ilev)
           end do
-        end if 
+        end if
       end do
     end do
-        
-  end subroutine gsv_field3d_hbilin   
+
+  end subroutine gsv_field3d_hbilin
 
   !--------------------------------------------------------------------------
   ! gsv_smoothHorizontal
