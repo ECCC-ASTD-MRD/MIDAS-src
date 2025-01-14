@@ -70,7 +70,8 @@ module bCovarSetupChem_mod
   type(struct_vco),pointer :: vco_anl
   
   character(len=15) :: bcsc_mode
-                            
+  logical           :: vertCoordPress
+                     
   ! Background error covariance files
   character(len=11) :: bFileName = './bgchemcov'                  ! Input
   character(len=25) :: bFileNameOut = './bCovarSetupChem_out.fst' ! Optional output
@@ -102,7 +103,8 @@ module bCovarSetupChem_mod
   ! Square root of scaleFactor   
   real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
       
-  real(8), parameter :: zps = 101000.D0 ! Reference surface pressure
+  real(8), parameter :: zps = 101000.D0 ! Reference surface pressure (hPa)
+  real(8), parameter :: zzs = 0.D0      ! Reference surface height (meters)
 
   ! module structures
   ! -----------------
@@ -174,7 +176,7 @@ module bCovarSetupChem_mod
     integer :: ierr
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
-    real(8), pointer    :: pressureProfile_T(:)
+    real(8), pointer    :: vCoordProfile_T(:)
        
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt, &
                       stddevMode,IncludeAnlVarKindCH,getPhysSpaceHCorrel, &
@@ -279,9 +281,14 @@ module bCovarSetupChem_mod
       return
     end if
     
-    ! Set vertical dimensions
+    ! Set vertical dimensions and coordinate type
 
     vco_anl => vco_in
+    if (vco_getVcode(vco_anl)== 21001) then
+      vertCoordPress = .false.
+    else
+      vertCoordPress = .true.
+    end if 
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
 
@@ -413,8 +420,12 @@ module bCovarSetupChem_mod
     ! Get vertical levels
     
     if (bgStats%nlev > 1) then
-      call czp_fetch1DLevels(vco_anl, zps, profT_opt=pressureProfile_T)
-      bgStats%vlev(1:bgStats%nlev) = pressureProfile_T(1:bgStats%nlev) 
+      if (vertCoordPress) then
+        call czp_fetch1DLevels(vco_anl, zps, profT_opt=vCoordProfile_T)
+      else
+        call czp_fetch1DLevels(vco_anl, zzs, profT_opt=vCoordProfile_T)
+      end if
+      bgStats%vlev(1:bgStats%nlev) = vCoordProfile_T(1:bgStats%nlev) 
     else if (bgStats%nlev == 1) then
       bgStats%vlev(1)=zps     
     end if
@@ -511,8 +522,13 @@ module bCovarSetupChem_mod
       nulsig = 0
       ierr = fnom(nulsig,bFileNameOut,'STD+RND',0)
       ierr = fstouv(nulsig,'RND')
-      ierr = utl_fstecr(bgStats%vlev,-32,nulsig,0,0,0,1,1,bgStats%nlev, &
-                        0,0,0,'X','PX','Pressure','X',0,0,0,0,5,.true.)
+      if (vertCoordPress) then
+        ierr = utl_fstecr(bgStats%vlev,-32,nulsig,0,0,0,1,1,bgStats%nlev, &
+                          0,0,0,'X','PX','Pressure','X',0,0,0,0,5,.true.)
+      else
+        ierr = utl_fstecr(bgStats%vlev,-32,nulsig,0,0,0,1,1,bgStats%nlev, &
+                          0,0,0,'X','GZ','Height','X',0,0,0,0,5,.true.)
+      end if
       ierr = utl_fstecr(bgStats%lat,-32,nulsig,0,0,0,1,bgStats%nj,1, &
                         0,0,0,'X','^^','latitude','X',0,0,0,0,5,.true.)
       ierr = utl_fstecr(bgStats%lon,-32,nulsig,0,0,0,bgStats%ni+1,1,1, &
@@ -1445,31 +1461,36 @@ module bCovarSetupChem_mod
     integer :: jn,jk1,jk2,varIndex,ierr
     integer :: ilwork,info,jnum,jstart,nsize
     real(8) :: zwork(2*4*bgStats%numVarLev)
-    real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
+    real(8) :: ztlen,zcorr,zr,vlev1,vlev2,eigenvalmax
     real(8), allocatable :: corns_temp(:,:,:)
     logical, allocatable :: lfound_sqrt(:)
-
+    real(8), parameter :: refTemp = 222.0D0  ! Reference temperature
+    
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
   
     if ( bgStats%numvar3d > 0 ) then   
       do varIndex = 1, bgStats%numvar3d
         ztlen = rvloc(varIndex) ! specify length scale (in units of ln(Pressure))
-        
+        if (.not.vertCoordPress) ztlen = ztlen * MPC_RGAS_DRY_AIR_R8 &
+                                          * refTemp / ec_rg  ! units in meters
         jstart = bgStats%nsposit(varIndex)
         jnum = bgStats%nsposit(varIndex+1)-bgStats%nsposit(varIndex)
        
         if(ztlen > 0.0d0) then
           ! calculate 5'th order function (from Gaspari and Cohn)
           do jk1 = 1, jnum
-            zpres1 = log(bgStats%vlev(jk1))
+            if (vertCoordPress) vlev1 = log(bgStats%vlev(jk1))
             do jk2 = 1, jnum
-              zpres2 = log(bgStats%vlev(jk2))
-              zr = abs(zpres2 - zpres1)
+              if (.not.vertCoordPress) then
+                zr = abs(bgStats%vlev(jk2)-bgStats%vlev(jk1))
+              else
+                vlev2 = log(bgStats%vlev(jk2))
+                zr = abs(vlev2 - vlev1)
+              end if
               zcorr = gasparicohn(ztlen,zr)
               bgStats%corns(jstart-1+jk1,jstart-1+jk2,0:bgStats%ntrunc) = &
-                bgStats%corns(jstart-1+jk1,jstart-1+jk2, &
-                0:bgStats%ntrunc)*zcorr
+                bgStats%corns(jstart-1+jk1,jstart-1+jk2,0:bgStats%ntrunc)*zcorr
             end do
           end do
         end if
@@ -2009,7 +2030,7 @@ module bCovarSetupChem_mod
     !           definite for this approximation.
     !
     implicit none
-    
+
     ! Arguments:
     integer,          intent(in) :: nlev_T    ! Number of vertical levels for trial fields
     real(8), pointer, intent(in) :: vlev_T(:) ! Trial field vertical levels
@@ -2018,39 +2039,52 @@ module bCovarSetupChem_mod
     integer :: ilev1,ilev2,j,d1,d2
     real(8) :: dz
     real(8), allocatable :: wtemp(:,:,:)
-        
+
     d2=0 
     d1=nlev_T-bgStats%nlev
     if (d1 < 0) then
       d1=0
       d2=d1
     end if
-    
+
     allocate(wtemp(nlev_T, nlev_T,bgStats%numvar3d))
     wtemp(:,:,:)=0.0d0
-    
+
     ! Apply interpolation
 
     do ilev1 = 1, nlev_T
-      if (bgStats%vlev(1) >= vlev_T(ilev1)) then
+      if ((vertCoordPress .and. bgStats%vlev(1) >= vlev_T(ilev1)) .or. &
+          (.not.vertCoordPress .and. bgStats%vlev(1) <= vlev_T(ilev1))) then
         wtemp(ilev1,1:bgStats%nlev+d2,1:bgStats%numvar3d)= &
              bgStats%corvert(1,1:bgStats%nlev+d2,1:bgStats%numvar3d)
         wtemp(1:bgStats%nlev+d2,ilev1,1:bgStats%numvar3d)= &
              bgStats%corvert(1:bgStats%nlev+d2,1,1:bgStats%numvar3d)
-      else if (bgStats%vlev(bgStats%nlev) <= vlev_T(ilev1)) then
+      else if ((vertCoordPress .and. bgStats%vlev(bgStats%nlev) <= vlev_T(ilev1)) .or. &
+               (.not.vertCoordPress .and. bgStats%vlev(bgStats%nlev) >= vlev_T(ilev1))) then
         wtemp(ilev1,1+ilev1-bgStats%nlev-d2:ilev1,1:bgStats%numvar3d)= &
              bgStats%corvert(bgStats%nlev,1-d2:bgStats%nlev,1:bgStats%numvar3d)
         wtemp(1+ilev1-bgStats%nlev-d2:ilev1,ilev1,1:bgStats%numvar3d)= &
              bgStats%corvert(1-d2:bgStats%nlev,bgStats%nlev, 1:bgStats%numvar3d)
-      else 
-        do ilev2=1,bgStats%nlev-1
-          if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
-              vlev_T(ilev1) < bgStats%vlev(ilev2+1)) exit
-        end do
+      else
 
-        dz=log(vlev_T(ilev1)/bgStats%vlev(ilev2)) &
-            /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2)) 
-                  
+        if (vertCoordPress) then
+          do ilev2=1,bgStats%nlev-1
+            if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
+                vlev_T(ilev1) < bgStats%vlev(ilev2+1)) exit
+          end do
+
+          dz=log(vlev_T(ilev1)/bgStats%vlev(ilev2)) &
+              /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2))
+        else
+          do ilev2=1,bgStats%nlev-1
+            if (vlev_T(ilev1) <= bgStats%vlev(ilev2) .and. &
+                vlev_T(ilev1) > bgStats%vlev(ilev2+1)) exit
+          end do
+
+          dz=(vlev_T(ilev1)-bgStats%vlev(ilev2+1)) &
+              /(bgStats%vlev(ilev2)-bgStats%vlev(ilev2+1))
+        end if
+
         do j=1-max(ilev1-d1,1),nlev_T-min(d1+ilev1,nlev_T)
           wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)= &
                (bgStats%corvert(ilev2,ilev2+j,1:bgStats%numvar3d) &
@@ -2058,10 +2092,10 @@ module bCovarSetupChem_mod
                                             1:bgStats%numvar3d)*dz)
           wtemp(ilev1+j,ilev1,1:bgStats%numvar3d)= &
                wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)
-        end do               
+        end do
       end if
     end do
-    
+
     bgStats%corvert(1:nlev_T,1:nlev_T,:) = wtemp(:,:,:)
     
     deallocate(wtemp)
@@ -2088,21 +2122,34 @@ module bCovarSetupChem_mod
     real(8) :: dz
 
     nlev = bgStats%nlev
-    
+
     ! Apply interpolation
 
     do ilev1=1, nlev_T
-      if (bgStats%vlev(1) >= vlev_T(ilev1)) then
+      if ((vertCoordPress .and. bgStats%vlev(1) >= vlev_T(ilev1)) .or. &
+          (.not.vertCoordPress .and. bgStats%vlev(1) <= vlev_T(ilev1))) then
         hcorrlen(ilev1,:)=bgStats%hcorrlen(1,1:bgStats%numvar3d)
-      else if (bgStats%vlev(nlev) <= vlev_T(ilev1)) then
+      else if ((vertCoordPress .and. bgStats%vlev(bgStats%nlev) <= vlev_T(ilev1)) .or. &
+               (.not.vertCoordPress .and. bgStats%vlev(bgStats%nlev) >= vlev_T(ilev1))) then
         hcorrlen(ilev1,:)=bgStats%hcorrlen(nlev,1:bgStats%numvar3d)
       else  
-        do ilev2=1,nlev-1
-          if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
+        if (vertCoordPress) then
+          do ilev2=1,nlev-1
+            if (vlev_T(ilev1) >= bgStats%vlev(ilev2) .and. &
               vlev_T(ilev1) <  bgStats%vlev(ilev2+1)) exit
-        end do
-        dz=log(vlev_T(ilev1)/ bgStats%vlev(ilev2)) &
-          /log( bgStats%vlev(ilev2+1)/ bgStats%vlev(ilev2))
+          end do
+          dz=log(vlev_T(ilev1)/ bgStats%vlev(ilev2)) &
+            /log( bgStats%vlev(ilev2+1)/ bgStats%vlev(ilev2))
+        else
+          do ilev2=1,nlev-1
+            if (vlev_T(ilev1) <= bgStats%vlev(ilev2) .and. &
+                vlev_T(ilev1) > bgStats%vlev(ilev2+1)) exit
+          end do
+
+          dz=(vlev_T(ilev1)-bgStats%vlev(ilev2+1)) &
+              /(bgStats%vlev(ilev2)-bgStats%vlev(ilev2+1))
+        end if
+
         hcorrlen(ilev1,:)=bgStats%hcorrlen(ilev2,1:bgStats%numvar3d)* &
                           (1.0-dz)+bgStats%hcorrlen(ilev2+1, &
                           1:bgStats%numvar3d)*dz
@@ -2154,7 +2201,7 @@ module bCovarSetupChem_mod
     real(8),           intent(in)  :: xlong    ! Target longitude
     real(8),           intent(out) :: stddevOut(:) ! Error std. dev.
     real(8), optional, intent(in)  :: vlev_opt(:) ! Target vertical levels
-    
+
     ! Locals:
     integer :: varIndex,latIndex,lonIndex,levIndex,nlev,startPosition
     real(8) :: work(maxsize,2),zc1,zc2,rlat1,rlat2,rlong1,rlong2,zd1,zd2
@@ -2164,7 +2211,7 @@ module bCovarSetupChem_mod
     integer, parameter :: itype=0
 
     if (.not.bgStats%initialized) return
-    
+
     ! Determine location and size of background error std. dev.
 
     do varIndex = 1, bgStats%numvar3d+bgStats%numvar2d
@@ -2180,16 +2227,16 @@ module bCovarSetupChem_mod
     end do
     if  (varIndex > bgStats%numvar3d+bgStats%numvar2d) &
       call utl_abort('bcsc_getbgStddev: Variable not found')
-    
+
     if (.not.present(vlev_opt) .and. nlev /= maxsize ) then
       write(*,*) 'nlev, maxsize: ',nlev,maxsize
       call utl_abort('bcsc_getbgStddev: Inconsistent size')
     end if
- 
-    ! Determine reference longitude index 
 
-    lonIndex = 2    
-    do while (xlong > bgStats%lon(lonIndex) .and. lonIndex < bgStats%ni+1) 
+    ! Determine reference longitude index
+
+    lonIndex = 2
+    do while (xlong > bgStats%lon(lonIndex) .and. lonIndex < bgStats%ni+1)
       lonIndex = lonIndex+1
     end do
 
@@ -2197,14 +2244,14 @@ module bCovarSetupChem_mod
 
     rlong2 = bgStats%lon(lonIndex)
     rlong1 = bgStats%lon(lonIndex-1)
-    
+
     zd2 = (xlong-rlong1)/(rlong2-rlong1)
     zd1 = 1.0-zd2
-     
+
     ! Determine reference latitude index
 
-    latIndex = 2 
-    do while (xlat > bgStats%lat(latIndex) .and. latIndex < bgStats%nj) 
+    latIndex = 2
+    do while (xlat > bgStats%lat(latIndex) .and. latIndex < bgStats%nj)
       latIndex = latIndex+1
     end do
 
@@ -2212,7 +2259,7 @@ module bCovarSetupChem_mod
 
     rlat2 = bgStats%lat(latIndex)
     rlat1 = bgStats%lat(latIndex-1)
-    
+
     zc2 = (xlat-rlat1)/(rlat2-rlat1)
     zc1 = 1.0-zc2
 
@@ -2223,53 +2270,65 @@ module bCovarSetupChem_mod
       zc1 = 0.0
       zc2 = 1.0
     end if
-        
+
     ! Apply interpolation
 
     if (itype == 0) then
-    
+
       ! Interpolation of variances and take square root
 
       work(1:nlev,1) = zc1*bgStats%stddev(lonIndex-1,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
                        zc2*bgStats%stddev(lonIndex-1,latIndex, &
                                      startPosition:startPosition-1+nlev)**2
-    
+
       work(1:nlev,2) = zc1*bgStats%stddev(lonIndex,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
                       zc2*bgStats%stddev(lonIndex,latIndex, &
-                                    startPosition:startPosition-1+nlev)**2 
-       
+                                    startPosition:startPosition-1+nlev)**2
+
       work(1:nlev,1) = zd1*work(1:nlev,1) + zd2*work(1:nlev,2)
-      
+
       if (nlev /= maxsize) then
         do ilev1=1, maxsize
-          if (bgStats%vlev(1) >= vlev_opt(ilev1)) then
+          if ((vertCoordPress .and. bgStats%vlev(1) >= vlev_opt(ilev1)) .or. &
+              (.not.vertCoordPress .and. bgStats%vlev(1) <= vlev_opt(ilev1))) then
             stddevOut(ilev1)=sqrt(work(1,1))
-          else if (bgStats%vlev(nlev) <= vlev_opt(ilev1)) then
+          else if ((vertCoordPress .and. bgStats%vlev(bgStats%nlev) <= vlev_opt(ilev1)) .or. &
+                   (.not.vertCoordPress .and. bgStats%vlev(bgStats%nlev) >= vlev_opt(ilev1))) then
             stddevOut(ilev1)=sqrt(work(nlev,1))
           else  
-            do ilev2=1,nlev-1
-              if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
+            if (vertCoordPress) then
+              do ilev2=1,nlev-1
+                if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
                   vlev_opt(ilev1) <  bgStats%vlev(ilev2+1)) exit
-            end do
-            dz=log(vlev_opt(ilev1)/ bgStats%vlev(ilev2)) &
+              end do
+              dz=log(vlev_opt(ilev1)/ bgStats%vlev(ilev2)) &
                /log( bgStats%vlev(ilev2+1)/ bgStats%vlev(ilev2))
+            else
+              do ilev2=1,nlev-1
+                if (vlev_opt(ilev1) <= bgStats%vlev(ilev2) .and. &
+                    vlev_opt(ilev1) > bgStats%vlev(ilev2+1)) exit
+              end do
+              dz=(vlev_opt(ilev1)-bgStats%vlev(ilev2+1)) &
+                 /(bgStats%vlev(ilev2)-bgStats%vlev(ilev2+1))
+            end if
+
             stddevOut(ilev1)=sqrt(work(ilev2,1)*(1.0-dz)+work(ilev2+1,1)*dz)
           end if
         end do
       else
         stddevOut(1:nlev) = sqrt(work(1:nlev,1))
       end if 
-    
-    else 
+
+    else
 
       ! Interpolation of std. dev. (to reduce execution time)
 
       work(1:nlev,1) = zc1*bgStats%stddev(lonIndex-1,latIndex-1, &
-                                     startPosition:startPosition-1+nlev)**2 + &      
+                                     startPosition:startPosition-1+nlev)**2 + &
                        zc2*bgStats%stddev(lonIndex-1,latIndex, &
-                                     startPosition:startPosition-1+nlev)**2 
+                                     startPosition:startPosition-1+nlev)**2
 
       work(1:nlev,2) = zc1*bgStats%stddev(lonIndex,latIndex-1, &
                                      startPosition:startPosition-1+nlev)**2 + &
@@ -2277,31 +2336,43 @@ module bCovarSetupChem_mod
                                      startPosition:startPosition-1+nlev)**2
 
       work(1:nlev,1) = zd1*work(1:nlev,1) + zd2*work(1:nlev,2)
-    
+
       if (nlev /= maxsize) then
         do ilev1=1, maxsize
-          if (bgStats%vlev(1) >= vlev_opt(ilev1)) then
+          if ((vertCoordPress .and. bgStats%vlev(1) >= vlev_opt(ilev1)) .or. &
+              (.not.vertCoordPress .and. bgStats%vlev(1) <= vlev_opt(ilev1))) then
             stddevOut(ilev1)=work(1,1)
-          else if (bgStats%vlev(nlev) <= vlev_opt(ilev1)) then
+          else if ((vertCoordPress .and. bgStats%vlev(bgStats%nlev) <= vlev_opt(ilev1)) .or. &
+                   (.not.vertCoordPress .and. bgStats%vlev(bgStats%nlev) >= vlev_opt(ilev1))) then
             stddevOut(ilev1)=work(nlev,1)
-          else  
-            do ilev2=1,nlev-1
-              if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
-                  vlev_opt(ilev1) < bgStats%vlev(ilev2+1)) exit
-            end do
-            dz=log(vlev_opt(ilev1)/bgStats%vlev(ilev2)) &
-               /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2))
+          else
+            if (vertCoordPress) then
+              do ilev2=1,nlev-1
+                if (vlev_opt(ilev1) >= bgStats%vlev(ilev2) .and. &
+                    vlev_opt(ilev1) < bgStats%vlev(ilev2+1)) exit
+              end do
+              dz=log(vlev_opt(ilev1)/bgStats%vlev(ilev2)) &
+                 /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2))
+            else
+              do ilev2=1,nlev-1
+                if (vlev_opt(ilev1) <= bgStats%vlev(ilev2) .and. &
+                    vlev_opt(ilev1) > bgStats%vlev(ilev2+1)) exit
+              end do
+              dz=(vlev_opt(ilev1)-bgStats%vlev(ilev2+1)) &
+                 /(bgStats%vlev(ilev2)-bgStats%vlev(ilev2+1))
+            end if
+
             stddevOut(ilev1)=work(ilev2,1)*(1.0-dz)+work(ilev2+1,1)*dz
           end if
         end do
       else
         stddevOut(1:nlev) = work(1:nlev,1)
-      end if 
-      
+      end if
+
     end if
-    
+
     stddev_max = maxval(bgStats%stddev(lonIndex-1:lonIndex, &
-                        latIndex-1:latIndex,  &                 
+                        latIndex-1:latIndex,  &
                         startPosition:startPosition-1+nlev))
     do levIndex = 1, nlev
       if (stddevOut(levIndex) < 0.0 .or. stddevOut(levIndex) > 1.1*stddev_max) then
