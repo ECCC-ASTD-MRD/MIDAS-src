@@ -455,7 +455,11 @@ contains
     real(8), pointer     :: cld_ptr_r8(:,:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
-    real(8), pointer     :: pressure(:,:,:)
+    real(8), pointer     :: height4D_T_r8(:,:,:,:), height4D_M_r8(:,:,:,:)
+    real(4), pointer     :: height4D_T_r4(:,:,:,:), height4D_M_r4(:,:,:,:)
+    real(8), pointer     :: pressure3D(:,:,:)
+    real(8), pointer     :: pressure4D_T_r8(:,:,:,:), pressure4D_M_r8(:,:,:,:)
+    real(4), pointer     :: pressure4D_T_r4(:,:,:,:), pressure4D_M_r4(:,:,:,:)
     real(8)              :: hu, hu_modified, cld, cld_modified
     real(8)              :: minValueCld, maxValueCld
     integer              :: lon1, lon2, lat1, lat2, numStep, varNameIndex
@@ -484,6 +488,8 @@ contains
     lon2 = statevector%myLonEnd
     lat1 = statevector%myLatBeg
     lat2 = statevector%myLatEnd
+    ni = lon2 - lon1 + 1
+    nj = lat2 - lat1 + 1
 
     ! Apply limits to humidity
     if (applyLimitToHumidity .and. gsv_varExist(statevector,'HU')) then
@@ -499,38 +505,105 @@ contains
         call gsv_getField(statevector,hu_ptr_r4,'HU')
       end if
 
-      ni = lon2 - lon1 + 1
-      nj = lat2 - lat1 + 1
       allocate(qmin3D_rttov(ni,nj,numLev_T))
       allocate(qmax3D_rttov(ni,nj,numLev_T))
-      allocate(psfc(ni,nj))
-      if (vco_ptr%vcode == 5100) allocate(psfcLS(ni,nj))
 
-      do stepIndex = 1, numStep
+      !
+      !- Compute pressure (4D)
+      !
+      allocate(pressure4D_T_r8(lon1:lon2,lat1:lat2,numLev_T,numStep))
+      
+      if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005 .or. vco_ptr%vcode == 5100) then
+        !
+        !- For GEM-P coordinate
+        !
+        allocate(psfc(ni,nj))
+        if (vco_ptr%vcode == 5100) allocate(psfcLS(ni,nj))
+
+        do stepIndex = 1, numStep
+
+          if (statevector%dataKind == 8) then
+            call gsv_getField(statevector,psfc_ptr_r8,'P0')
+            psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
+            if (vco_ptr%vcode == 5100) then
+              call gsv_getField(statevector,psfcLS_ptr_r8,'P0')
+              psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
+            end if
+          else
+            call gsv_getField(statevector,psfc_ptr_r4,'P0')
+            psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
+            if (vco_ptr%vcode == 5100) then
+              call gsv_getField(statevector,psfcLS_ptr_r4,'P0')
+              psfcLS(:,:) = real(psfcLS_ptr_r4(:,:,1,stepIndex),8)
+            end if
+          end if
+          if (vco_ptr%vcode == 5100) then
+            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3d)
+          else
+            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3d)
+          end if
+
+          pressure4D_T_r8(:,:,:,stepIndex) = pressure3d(:,:,:)
+          deallocate(pressure3d)
+
+        end do ! stepIndex
+
+        deallocate(psfc)
+        if (allocated(psfcLS)) deallocate(psfcLS)
+
+      else if (vco_ptr%vcode == 21001) then
+        !
+        !- For GEM-H coordinate
+        !
         if (statevector%dataKind == 8) then
-          call gsv_getField(statevector,psfc_ptr_r8,'P0')
-          psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
-          if (vco_ptr%vcode == 5100) then
-            call gsv_getField(statevector,psfcLS_ptr_r8,'P0')
-            psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
-          end if
+          allocate(height4D_T_r8(lon1:lon2, lat1:lat2, numLev_T, numStep))
+          allocate(height4D_M_r8(lon1:lon2, lat1:lat2, numLev_M, numStep))
+          allocate(pressure4D_M_r8(lon1:lon2, lat1:lat2, numLev_M, numStep))
+          call czp_calcReturnHeight_gsv_nl(statevector,                &
+                                           ZTout_r8_opt=height4D_T_r8, &
+                                           ZMout_r8_opt=height4D_M_r8)
+          call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                             ZTin_r8_opt=height4D_T_r8,    &
+                                             ZMin_r8_opt=height4D_M_r8,    &
+                                             PTout_r8_opt=pressure4D_T_r8, &
+                                             PMout_r8_opt=pressure4D_M_r8)
+          deallocate(height4D_M_r8)
+          deallocate(height4D_T_r8)
+          deallocate(pressure4D_M_r8)
         else
-          call gsv_getField(statevector,psfc_ptr_r4,'P0')
-          psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
-          if (vco_ptr%vcode == 5100) then
-            call gsv_getField(statevector,psfcLS_ptr_r4,'P0')
-            psfcLS(:,:) = psfcLS_ptr_r4(:,:,1,stepIndex)
-          end if
+          allocate(height4D_T_r4(lon1:lon2, lat1:lat2, numLev_T, numStep))
+          allocate(height4D_M_r4(lon1:lon2, lat1:lat2, numLev_M, numStep))
+          allocate(pressure4D_T_r4(lon1:lon2, lat1:lat2, numLev_M, numStep))
+          allocate(pressure4D_M_r4(lon1:lon2, lat1:lat2, numLev_M, numStep))
+          call czp_calcReturnHeight_gsv_nl(statevector,                &
+                                           ZTout_r4_opt=height4D_T_r4, &
+                                           ZMout_r4_opt=height4D_M_r4)
+          call czp_calcReturnPressure_gsv_nl(statevector,                  &
+                                             ZTin_r4_opt=height4D_T_r4,    &
+                                             ZMin_r4_opt=height4D_M_r4,    &
+                                             PTout_r4_opt=pressure4D_T_r4, &
+                                             PMout_r4_opt=pressure4D_M_r4)
+          pressure4D_T_r8(:,:,:,:) = real(pressure4D_T_r4(:,:,:,:),8)
+          deallocate(height4D_M_r4)
+          deallocate(height4D_T_r4)
+          deallocate(pressure4D_M_r4)
+          deallocate(pressure4D_T_r4)
         end if
-        if (vco_ptr%vcode == 5100) then
-          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
-        else
-          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
-        end if
+
+      else
+
+        write(*,*) 'vcode = ', vco_ptr%vcode
+        call utl_abort('qlim_rttovLimit_gsv: unknown vcode')
+
+      end if
+
+      ! Apply limits
+      do stepIndex = 1, numStep
 
         ! Interpolate RTTOV limits onto model levels
         call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                               ni, nj, numLev_T, pressure, qmin3D_rttov, qmax3D_rttov)
+                               ni, nj, numLev_T, pressure4D_T_r8(:,:,:,stepIndex), &
+                               qmin3D_rttov, qmax3D_rttov)
 
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, hu_modified)
         do levIndex = 1, numLev_T
@@ -556,17 +629,16 @@ contains
         end do ! levIndex
         !$OMP END PARALLEL DO
 
-        deallocate(pressure)
       end do ! stepIndex
 
-      deallocate(psfc)
-      if (allocated(psfcLS)) deallocate(psfcLS)
       deallocate(qmin3D_rttov)
       deallocate(qmax3D_rttov)
 
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
       deallocate(press_rttov)
+      
+      deallocate(pressure4D_T_r8)
 
     end if
 
@@ -618,6 +690,8 @@ contains
 
     end if
 
+    if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: FINISHED'
+
   end subroutine qlim_rttovLimit_gsv
 
   !--------------------------------------------------------------------------
@@ -634,16 +708,20 @@ contains
     logical, optional, intent(in)    :: applyLimitToHumidity_opt ! apply limits to humidity variable
 
     ! Locals:
+    type(struct_gsv)          :: stateVector
     type(struct_vco), pointer :: vco_ptr
+    type(struct_hco), pointer :: hco_ptr
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
     real(8), allocatable :: psfc(:,:),psfcLS(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
+    real(4), pointer     :: pressure4D_ptr_r4(:,:,:,:)
+    real(8), pointer     :: pressure3D_ptr_r8(:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
-    real(8), pointer     :: pressure(:,:,:)
+    real(8), allocatable :: pressure4D_r8(:,:,:,:)
     real(8)              :: hu, hu_modified, cld, cld_modified
     real(8)              :: minValueCld, maxValueCld
-    integer              :: lon1, lon2, lat1, lat2, varNameIndex
+    integer              :: lon1, lon2, lat1, lat2, ni, nj, varNameIndex
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev_M, numLev_T, numLev_rttov
     logical              :: applyLimitToHumidity, applyLimitToCloud
@@ -666,11 +744,15 @@ contains
 
     ! Initialize some convenient variables
     vco_ptr => ens_getVco(ensemble)
+    hco_ptr => ens_getHco(ensemble)
+
     numLev_T = ens_getNumLev(ensemble,'TH')
     numLev_M = ens_getNumLev(ensemble,'MM')
     numMember = ens_getNumMembers(ensemble)
     numStep = ens_getNumStep(ensemble)
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
+    ni = lon2 - lon1 + 1
+    nj = lat2 - lat1 + 1
 
     ! Apply limits to humidity
     if (applyLimitToHumidity .and. ens_varExist(ensemble,'HU')) then
@@ -680,29 +762,65 @@ contains
       ! Read in RTTOV humidity limits
       call readRttovLimitsFile(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov)
 
-      allocate(psfc(numMember,numStep))
-      if (vco_ptr%vcode == 5100) allocate(psfcLS(numMember,numStep))
-      allocate(qmin3D_rttov(numMember,numStep,numLev_T))
-      allocate(qmax3D_rttov(numMember,numStep,numLev_T))
+      call gsv_allocate(stateVector, numStep,  &
+                        hco_ptr, vco_ptr,  &
+                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                        dataKind_opt=4, allocHeightSfc_opt=.true.,  &
+                        varNames_opt=(/'P0 ','P_M','P_T','Z_M','Z_T','TT ','HU '/))
+      call gsv_zero(stateVector)
 
-      do latIndex = lat1, lat2
-        do lonIndex = lon1, lon2
+      allocate(qmin3D_rttov(ni,nj,numLev_T))
+      allocate(qmax3D_rttov(ni,nj,numLev_T))
+      allocate(pressure4D_r8(lon1:lon2,lat1:lat2,numLev_T,numStep))
 
+      do memberIndex = 1, numMember
+
+        if (vco_ptr%vcode == 21001) then
+          !
+          !- GEM-H
+          !
+          call ens_copyMember(ensemble, stateVector, memberIndex)
+          call czp_calcZandP_nl(stateVector)
+          call gsv_getField(stateVector,pressure4D_ptr_r4,'P_T')
+          pressure4D_r8(:,:,:,:) = real(pressure4D_ptr_r4(:,:,:,:), 8)
+
+        else
+          !
+          !- GEM-P
+          !
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-          psfc(:,:) = real(psfc_ptr_r4(:,:,lonIndex,latIndex),8)
           if (vco_ptr%vcode == 5100) then
             varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
             psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-            psfcLS(:,:) = real(psfcLS_ptr_r4(:,:,lonIndex,latIndex),8)
-            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
-          else
-            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
           end if
+
+          do stepIndex = 1, numStep
+            nullify(pressure3D_ptr_r8)
+            if (.not. allocated(psfc)) allocate(psfc(ni,nj))
+            psfc(:,:) = psfc_ptr_r4(memberIndex,stepIndex,:,:)
+            write(*,*) 'psfc min/max = ', minval(psfc), maxval(psfc)
+            if (vco_ptr%vcode == 5002 .or. vco_ptr%vcode == 5005) then
+              call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure3D_ptr_r8)
+            else if (vco_ptr%vcode == 5100) then
+              if (.not. allocated(psfcLS)) allocate(psfcLS(ni,nj))
+              psfcLS(:,:) = psfcLS_ptr_r4(memberIndex,stepIndex,:,:)
+              call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure3D_ptr_r8)
+            else
+              write(*,*) 'vcode = ', vco_ptr%vcode
+              call utl_abort('qlim_rttovLimit_ens: Unknown vcode value')
+            end if
+            pressure4D_r8(:,:,:,stepIndex) = pressure3D_ptr_r8(:,:,:)
+            deallocate(pressure3D_ptr_r8)
+          end do ! stepIndex
+
+        end if
+
+        do stepIndex = 1, numStep
 
           ! Interpolate RTTOV limits onto model levels
           call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
-                                 numMember, numStep, numLev_T, pressure,  &
+                                 ni, nj, numLev_T, pressure4D_r8(:,:,:,stepIndex),  &
                                  qmin3D_rttov, qmax3D_rttov)
 
           do levIndex = 1, numLev_T
@@ -710,35 +828,37 @@ contains
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
             hu_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-            !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, hu, hu_modified)
-            do stepIndex = 1, numStep
-              do memberIndex = 1, numMember
+            !$OMP PARALLEL DO PRIVATE (latIndex, lonIndex, hu, hu_modified)
+            do latIndex = lat1, lat2
+              do lonIndex = lon1, lon2
 
                 hu = real(hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
                 ! limit the humidity according to the rttov limits
-                hu_modified = max(hu, qmin3D_rttov(memberIndex, stepIndex, levIndex))
-                hu_modified = min(hu_modified, qmax3D_rttov(memberIndex, stepIndex, levIndex))
+                hu_modified = max(hu, qmin3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex))
+                hu_modified = min(hu_modified, qmax3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex))
                 hu_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(hu_modified,4)
 
-              end do ! memberIndex
-            end do ! stepIndex
+              end do ! lonIndex
+            end do ! latIndex
             !$OMP END PARALLEL DO
+
           end do ! levIndex
 
-          deallocate(pressure)
+        end do ! stepIndex
 
-        end do ! lonIndex
-      end do ! latIndex
+      end do ! memberIndex
 
-      deallocate(psfc)
+      if (allocated(psfc)) deallocate(psfc)
       if (allocated(psfcLS)) deallocate(psfcLS)
       deallocate(qmin3D_rttov)
       deallocate(qmax3D_rttov)
+      deallocate(pressure4D_r8)
 
       deallocate(qmax_rttov)
       deallocate(qmin_rttov)
       deallocate(press_rttov)
+
     end if
 
     ! Apply limits to ALL available cloud variables
@@ -1182,7 +1302,7 @@ contains
   end function cloudExistInStateVector
 
   !--------------------------------------------------------------------------
-  ! qlim_rttovLimit_gsv
+  ! qlim_rttovLimit_col
   !--------------------------------------------------------------------------
   subroutine qlim_rttovLimit_col(column)
     !

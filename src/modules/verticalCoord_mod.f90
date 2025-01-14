@@ -875,7 +875,8 @@ contains
     call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%sleveCoord  , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_LOGICAL', 0, 'GRID', ierr)
     if (vco%nLev_depth > 0) then
       if (mmpi_myid > 0) then
         allocate(vco%ip1_depth(vco%nlev_depth))
