@@ -129,16 +129,17 @@ optional arguments:
 
 ## Running MIDAS as a stand alone program
 
-The scripts `midas.prepare_workdir` and `midas.submit_program` can be
+The scripts `midas.prepare_workdir` and `midas.copy_workdir` can be
 used to prepare a working directory:
   * `midas.prepare_workdir`: This script prepares a working directory
      using inputs from `cmcarc` archives or a directory for a fixed MPI
      topology.  The last point is essential because the options will be
      prepared for that MPI topology.
   * `midas.copy_workdir`: That script copies a working directory
-    already created by another execution of MIDAS.  This is very
-    useful to debug MIDAS programs reported in a maestro suite for
-    example.
+    already created by another execution of MIDAS with the goal of
+    reproducing the execution in a stand-alone execution.  This is
+    very useful to debug MIDAS programs reported in a maestro suite
+    for example.
 
 Then, the script `midas.submit_program` is used run a MIDAS program as
 a stand-alone execution using the working directory prepared by
