@@ -56,7 +56,6 @@ if [[ -d "${workdir}" ]]; then
     die "The directory ${workdir} should not exist"
 fi
 
-say "Validating the input directory ${inputdir}"
 if [[ -n ${nml} ]]; then
     if [[ ! -f ${nml} ]]; then
         die "The file '${nml}' should exist."
