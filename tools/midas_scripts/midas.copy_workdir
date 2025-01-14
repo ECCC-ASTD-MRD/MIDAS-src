@@ -101,7 +101,7 @@ fi
 if [[ ! -d obsfiles && ! -d obsfiles_split ]]; then
     say "There are no observations to process"
 elif [[ -d obsfiles_split ]]; then
-    say "The observations files are already split in ${npex}x${npey} parts"
+    say "The observations files seem to be split and we will assume that it is in ${npex}x${npey} parts"
 else
     say "Split the observations files in ${npex}x${npey} parts"
     [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
