@@ -99,8 +99,12 @@ if [[ -n ${nml} ]]; then
     cp ${nml} flnml
 fi
 
-if [[ ! -d ${inputdir}/obsfiles_split ]]; then
-    say "Split the observations files into ${npex}x${npey} parts"
+if [[ ! -d obsfiles && ! -d obsfiles_split ]]; then
+    say "There are no observations to process"
+elif [[ -d obsfiles_split ]]; then
+    say "The observations files are already split in ${npex}x${npey} parts"
+else
+    say "Split the observations files in ${npex}x${npey} parts"
     [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
 
     ## Splitting the observations files according to the MPI topology ${npex}x${npey}
@@ -139,8 +143,8 @@ if [[ ! -d ${inputdir}/obsfiles_split ]]; then
     done ## End of 'for obsfile in ${observations_files}'
 
     mv obsfiles_split_tmp obsfiles_split
-    say "The observations files splitting into ${npex}x${npey} parts has been completed"
-fi ## End of 'if [[ ! -d ${inputdir}/obsfiles_split ]]; then'
+    say "The observations files have been split in ${npex}x${npey} parts has been completed"
+fi ## End of 'else'
 
 submit_program_path=${scriptDirectory}/midas.submit_program
 
