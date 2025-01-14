@@ -6,7 +6,7 @@ typeset -r description="This script submits a MIDAS program in the working direc
 
 ## This is the memory, in GB, that each core, on the supercomputer can
 ## request.  There is 440 GB available on each node for 80 cores.
-## There is similar code in 'midas.copy_workdir' and 'midas.energyNorm'.
+## There is similar code in 'midas.energyNorm'.
 typeset -r memory_in_gigs_per_openmp_num_thread=5.5
 
 typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
