@@ -19,15 +19,15 @@ cat > localFilesNotToErase <<EOF
 localFilesNotToErase
 flnml
 pgm
-obs.original
+obsfiles_split
 EOF
 for target in ${TASK_INPUT}/inputs/*; do
     echo $(basename ${target}) >> localFilesNotToErase
 done
 
-mkdir obs.original
+mkdir obsfiles_split
 if [ -L obs -o -d obs ]; then
-    sscp obs/* obs.original
+    sscp obs/* obsfiles_split
     if [ -L obs ]; then
         rm obs
     else
@@ -36,7 +36,7 @@ if [ -L obs -o -d obs ]; then
 else
     obsfiles=$(ls obsfiles_*/obs*_*_* burpfiles_*/brp*_*_* sqlfiles_*/obs*_*_* 2>/dev/null || true)
     if [ -n "${obsfiles}" ]; then
-        sscp ${obsfiles} obs.original
+        sscp ${obsfiles} obsfiles_split
     fi
 fi
 
@@ -140,8 +140,14 @@ vtune_args=
 if [ -n "${UnitTest_run_vtune_mode}" ]; then
     vtune_args=--vtune=${UnitTest_run_vtune_mode}
 fi
+
+run_pgm_args=
+if [ -n "${UnitTest_run_pgm_args}" ]; then
+    run_pgm_args="--args ${UnitTest_run_pgm_args}"
+fi
+
 status=0
-./launch_program.sh ${vtune_args} ./pgm 1> listing 2>&1 || status=1
+./launch_program.sh ${vtune_args} --npex ${SEQ_NPEX} --npey ${SEQ_NPEY} ${run_pgm_args} ./pgm 1> listing 2>&1 || status=1
 cat listing
 
 if [ "${UnitTest_stop_for_interactive_work}" = yes ]; then
@@ -196,7 +202,7 @@ else
     rm -f load_env.dot launch_program.sh launch_cmd listing localFilesNotToErase
     rm -r mpitmpdir
     [ -d obs ] && rm -r obs
-    [ -d obs.original ] && rm -r obs.original
+    [ -d obsfiles_split ] && rm -r obsfiles_split
     [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
 
     ## put all the rest in 'output'

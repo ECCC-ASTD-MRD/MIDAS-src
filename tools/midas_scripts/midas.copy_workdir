@@ -1,0 +1,153 @@
+#!/bin/bash
+
+set -euo pipefail
+
+typeset -r description="This script copies a MIDAS working directory and prepares it to run a stand-alone MIDAS program."
+
+arguments=$*
+eval $(cclargs -D   ""    ${0}  "[${description}]"                                                                      \
+  -inputdir         ""     ""   "[input working directory to be copied (mandatory)]"                                    \
+  -workdir          ""     ""   "[path to working directory (mandatory)]"                                               \
+  -nml              ""     ""   "[path to namelist file (mandatory if 'flnml' does not exist in '-inputdir')]"          \
+  -splitobs         ""     ""   "[path to the 'midas.splitobs.Abs' program (mandatory if observations need splitting)]" \
+  -splitobs_ndigits 4      4    "[number of digits for the extension when splitting observations files (default: 4)]"   \
+  ++ $arguments)
+
+scriptName=${0##*/}
+if [[ ${0} = /* ]]; then
+    scriptDirectory=$(dirname ${0})
+else
+    scriptFullPath=$(true_path ${0})
+    scriptDirectory=$(dirname ${scriptFullPath})
+fi
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## Check if all mandatory arguments have been given
+## Here only 'inputdir' and 'workdir' are a hard requirement.
+for launch_arg in inputdir workdir; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [[ -z "${launch_tmp_var}" ]]; then
+        die "The argument '-${launch_arg}' must be defined"
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ ! -d "${inputdir}" ]]; then
+    die "The input working directory ${inputdir} should exist."
+fi
+
+if [[ -d "${workdir}" ]]; then
+    die "The directory ${workdir} should not exist"
+fi
+
+if [[ -n ${nml} ]]; then
+    if [[ ! -f ${nml} ]]; then
+        die "The file '${nml}' should exist."
+    fi
+else
+    if [[ ! -f ${inputdir}/flnml ]]; then
+        die "The file 'flnml' should exist in input workding directory '${inputdir}'." "You can specify your own namelist with argument '-nml'."
+    fi
+fi
+
+[[ ! -f ${inputdir}/ptopo_nml ]] && die "The file 'ptopo_nml' should exist in input workding directory '${inputdir}'."
+if [[ ! -d ${inputdir}/obsfiles_split ]]; then
+    [[   -z "${splitobs}" ]] && die "You must provide a path to 'midas.splitobs.Abs' if the observations are not already split."
+    [[ ! -f "${splitobs}" ]] && die "The path to 'midas.splitobs.Abs' must exists.  The path '${splitobs}' does not exist."
+    [[ ! -x "${splitobs}" ]] && die "The path to 'midas.splitobs.Abs' must my be an executable.  The path '${splitobs}' is not."
+fi
+
+# get 'npex' and 'npey' values from 'ptopo_nml' namelist
+npex=$(awk -F= '/^ +npex=/ {print $2}' ${inputdir}/ptopo_nml)
+[[ -z "${npex}" ]] && die "Could not find 'npex' in the file '${inputdir}/ptopo_nml'"
+
+npey=$(awk -F= '/^ +npey=/ {print $2}' ${inputdir}/ptopo_nml)
+[[ -z "${npey}" ]] && die "Could not find 'npey' in the file '${inputdir}/ptopo_nml'"
+
+say "Copying '${inputdir}' to '${workdir}'"
+workdir_dirname=${workdir%/*}
+if [[ ! -d "${workdir_dirname}" ]]; then
+    mkdir -p ${workdir_dirname}
+fi
+sscp -r ${inputdir} ${workdir}
+
+cd ${workdir}
+
+if [[ -n ${nml} ]]; then
+    if [[ -f flnml ]]; then
+        say "Replacing the file 'flnml' by '${nml}'"
+    else
+        say "Copying ${nml} to flnml"
+    fi
+    cp ${nml} flnml
+fi
+
+if [[ ! -d obsfiles && ! -d obsfiles_split ]]; then
+    say "There are no observations to process"
+elif [[ -d obsfiles_split ]]; then
+    say "The observations files seem to be split and we will assume that it is in ${npex}x${npey} parts"
+else
+    say "Split the observations files in ${npex}x${npey} parts"
+    [[ "$((npex*npey))" -ge 800 ]] && say "This may take a while..."
+
+    ## Splitting the observations files according to the MPI topology ${npex}x${npey}
+    [[ -d obsfiles_split_tmp ]] && rm -rf obsfiles_split_tmp
+    mkdir obsfiles_split_tmp
+
+    split_error_detected=false
+    observations_files=$(ls -SLr obsfiles/*)
+    for obsfile in ${observations_files}; do
+        obsFileName=${obsfile##*/}
+        say "Processing the file ${obsFileName}"
+        if [[ "$((npex*npey))" -lt 800 ]]; then
+            ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin \
+                        -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits}                 \
+                        > splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+            if [[ "${split_error_detected}" = true ]]; then
+                die "Error while splitting the file '${obsfile}'" \
+                    "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+            fi
+        else
+            ## Due to a limitation of the number of XDF files that can be opened simultaneously
+            ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
+            ## number of MPI ranks.
+            for procX in $(seq 1 ${npex}); do
+                for procY in $(seq 1 ${npey}); do
+                    ${splitobs} -obsin ${obsfile} -obsout obsfiles_split_tmp/${obsFileName} -round-robin         \
+                                -x ${procX} -y ${procY} -npex ${npex} -npey ${npey} -ndigits ${splitobs_ndigits} \
+                                >> splitobs.${obsFileName}.listing 2>&1 || split_error_detected=true
+                    if [[ "${split_error_detected}" = true ]]; then
+                        die "Error while splitting the file '${obsfile}' for tile x=${procX} and y=${procY}." \
+                            "Check the listing '${PWD}/splitobs.${obsFileName}.listing'"
+                    fi
+                done ## End of 'for procY in $(seq 1 ${npey})'
+            done ## End of 'for procX in $(seq 1 ${npex})'
+        fi ## End of 'else' associated to 'if [[ "$((npex*npey))" -le 800 ]]; then'
+    done ## End of 'for obsfile in ${observations_files}'
+
+    mv obsfiles_split_tmp obsfiles_split
+    say "The observations files have been split in ${npex}x${npey} parts has been completed"
+fi ## End of 'else'
+
+submit_program_path=${scriptDirectory}/midas.submit_program
+
+say "The working directory has been prepared in '${workdir}'."                      \
+    "You can now use '${submit_program_path}' to"                                   \
+    "submit a MIDAS program (again and again) using that workding directory with"   \
+    "${submit_program_path} -workdir ${workdir} -pgm \${path to MIDAS program} ..."

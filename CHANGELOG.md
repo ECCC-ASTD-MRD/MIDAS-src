@@ -8,15 +8,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * The script `midas.copy_workdir` is added to the repository (#1025 and !928)
+   * The script `midas.launch_program` has been renamed `midas.submit_program`.
+   * The script `launch_program.sh` has been renamed to
+     `midas.launch_program` is now used throughout the project to run
+     MIDAS programs.
  * The script `midas.mpiTopoFinder` is added to the repository (#1018 and !926)
  * The script `midas.timingTool` is added to the repository (#633 and !913)
- * Introduction of support for RTTOV built-in IR land emissivity atlases with several changes to `NAMTOV` namelist (#1001 and !916)
+ * Introduction of support for RTTOV built-in IR land emissivity
+   atlases with several changes to `NAMTOV` namelist (#1001 and !916)
  * Profiling the code with `vtune` has been introduced and documented (#1011 and !917)
  * Added Gaussian-like smoothing function for ensemble control member increment (#1004 and !918)
    * Small impacts on results when using `gsv_smoothHorizontal`
  * Ability to compute EnVar analysis increments on GEM-H levels (#905 and !915)
    * WARNING: minor impact on results when vertically interpolating columns
- * Added namelist variable `NNInterpForCloudVars` to `NAMS2C` to use nearest-neighbour interpolation instead of bilinear for cloud variables (#996 and !909)
+ * Added namelist variable `NNInterpForCloudVars` to `NAMS2C` to use
+   nearest-neighbour interpolation instead of bilinear for cloud
+   variables (#996 and !909)
  * Added ability to horizontally smooth control member analysis increment (#999 and !905)
 
 ### Changed
@@ -27,8 +35,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * SST climatology comutation bug fixed (#1027 and !930)
- * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the precision expected for a mask (#1012 and !922)
+ * SST climatology computation bug fixed (#1027 and !930)
+ * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the
+   precision expected for a mask (#1012 and !922)
  * Correct handling of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
 
 ### Removed
@@ -39,7 +48,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Added new way to compute hyperspectral IR ocean emissivity activated by `oldFashionIRSeaEmiss=.false.` in `NAMTOV` (#997 and !904)
+ * Added new way to compute hyperspectral IR ocean emissivity
+   activated by `oldFashionIRSeaEmiss=.false.` in `NAMTOV` (#997 and !904)
 
 ### Changed
 

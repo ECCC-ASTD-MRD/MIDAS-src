@@ -1,0 +1,266 @@
+#!/bin/bash
+
+set -euo pipefail
+
+typeset -r description="This script submits a MIDAS program in the working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir'."
+
+## This is the memory, in GB, that each core, on the supercomputer can
+## request.  There is 440 GB available on each node for 80 cores.
+## There is similar code in 'midas.energyNorm'.
+typeset -r memory_in_gigs_per_openmp_num_thread=5.5
+
+typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
+
+arguments=$*
+eval $(cclargs -D    ""     $0   "[${description}]"                                                    \
+               -pgm               ""     ""   "[path to MIDAS program]"                                \
+               -nml               ""     ""   "[path to namelist file]"                                \
+               -workdir           ""     ""   "[path to working directory prepared by 'midas.prepare_workdir' or 'midas.copy_workdir']" \
+               -supercomputer   robert robert "[supercomputer to launch the job (default: 'robert')]"  \
+               -jobname         midas   midas "[name of the job (default: 'midas')]"                   \
+               -memory            ""     ""   "[${memory_description}]"                                \
+               -omp_num_threads   1      1    "[number of Open MP threads per MPI rank (default: 1)]"  \
+               -wallclocktime    180    180   "[wall clock time for job in minutes (default: 180)]"    \
+               -interactive     false   true  "[launch an interactive job (default: false)]"           \
+               -env             main    main  "[version of the environment to load (any of '3.9*', '4.0*' or 'main']"  \
+               ++ $arguments)
+
+scriptName=${0##*/}
+if [[ ${0} = /* ]]; then
+    scriptDirectory=$(dirname ${0})
+else
+    scriptFullPath=$(true_path ${0})
+    scriptDirectory=$(dirname ${scriptFullPath})
+fi
+
+function say {
+    printf "${scriptName}: ${1}\n"
+    shift
+    local say_message
+    IFS=$'\n\t'
+    for say_message in ${@}; do
+        printf "\t${say_message}\n"
+    done
+} ## End of 'function say'
+
+function die {
+    IFS=$'\n\t'
+    say $@ >&2
+    exit 1
+} ## End of 'function die'
+
+## This function is using 'ord_soumet' called with '-nosubmit' to
+## extract the ressources computed by 'ord_soumet'.  We can then use
+## those resources when calling 'qsub'.
+find_resources () {
+    set -e
+    if [ $# -ne 0 ]; then
+        die "The function 'find_resources' does not accept any argument" \
+            "The function 'find_resources' has been called with"         \
+            "       find_resources $*"
+        return 1
+    fi
+
+    __find_resources_lajobtar__=lajob.tar
+
+    __find_resources_ord_soumet_cmd__="ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -listing ${PWD} -w 10 -cpus ${cpus} -m ${memory} -nosubmit"
+    echo ord_soumet command: >&2
+    echo ${__find_resources_ord_soumet_cmd__} >&2
+
+    __find_resources_soumet_status__=0
+    ${__find_resources_ord_soumet_cmd__} || __find_resources_soumet_status__=1
+    if [[ "${__find_resources_soumet_status__}" -ne 0 ]]; then
+        die "find_resources: Problem with call to ord_soumet"
+    fi
+    unset __find_resources_soumet_status__ __find_resources_ord_soumet_cmd__
+
+    if [[ ! -f "${__find_resources_lajobtar__}" ]]; then
+        die "The 'ord_soumet' command did not generate the file '${__find_resources_lajobtar__}' in the directory ${PWD}"
+    fi
+
+    ## The following command will output something like
+    ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
+    tar --wildcards -xOf ${__find_resources_lajobtar__} "${jobname}.${supercomputer}*" | grep '^#PBS' | grep -v '^#PBS -[jo]' | grep -v '^#PBS -l walltime='
+
+    rm ${__find_resources_lajobtar__}
+
+    unset __find_resources_lajobtar__
+} ## End of function 'find_resources'
+
+## Check if all mandatory arguments have been given
+## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
+## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
+for launch_arg in workdir supercomputer jobname omp_num_threads wallclocktime; do
+    eval launch_tmp_var="\${${launch_arg}}"
+    if [[ -z "${launch_tmp_var}" ]]; then
+        die "The argument '-${launch_arg}' must be defined."
+    fi
+    unset launch_tmp_var
+done
+unset launch_arg
+
+if [[ "${env}" = main ]]; then
+    ssm_to_load="rpn/code-tools/20240719/env/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20241105-alpha eccc/mrd/rpn/utils/20241105-alpha"
+elif [[ "${env}" = 4.0.0 ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
+elif [[ "${env}" = 4.0.* ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20240612-alpha eccc/mrd/rpn/utils/20240612-alpha"
+elif [[ "${env}" = 3.9.5 ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20231219 eccc/mrd/rpn/utils/20231219"
+elif [[ "${env}" = 3.9* ]]; then
+    ssm_to_load="eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2 eccc/mrd/rpn/libs/20230531 eccc/mrd/rpn/utils/20230531"
+else
+    die "The argument '-env' accepts only '3.9.5, '3.9*', '4.0.*' or 'main' as values but received '${env}'"
+fi
+
+if [[ "${interactive}" != true && "${interactive}" != false ]]; then
+    die "The argument to '-interactive' must be 'true' or 'false' and not '${interactive}'."
+fi
+
+if [[ "${interactive}" = true && "${TRUE_HOST}" != "${supercomputer}" ]]; then
+    die "To launch on the interactive job, you must be on the same cluster as the targeted one which is ${supercomputer}"
+fi
+
+
+if [[ "${interactive}" = false ]]; then
+    ## We only require that '${pgm}' exists if we are not launching an interactive job.
+    if [ -z "${pgm}" ]; then
+        die "The argument '-pgm' must be defined."
+    fi
+    if [[ ! -f "${pgm}" ]]; then
+        die "The program '${pgm}' must exist."
+    fi
+    if [[ ! -x "${pgm}" ]]; then
+        die "The program '${pgm}' exists but is not executable."
+    fi
+fi
+
+if [[ ! -d "${workdir}" ]]; then
+    die "The working directory ${workdir} should have been prepared by 'midas.prepare_workdir' or 'midas.copy_workdir'."
+fi
+
+cd ${workdir}
+
+if [[ -n "${nml}" ]]; then
+    if [[ -f "${nml}" ]]; then
+        say "We will replace 'flnml' in the working directory with '${nml}'."
+        cp ${nml} flnml
+    else
+        die "The namelist given with option '-nml', ${nml} but it does not exist."
+    fi
+elif [[ ! -f flnml ]]; then
+    die "There is no 'flnml' in working directory and no namelist was given with option '-nml'."
+fi
+
+[[ ! -f ptopo_nml ]] && die "The file 'ptopo_nml' should exist"
+
+# get 'npex' and 'npey' values from 'ptopo_nml' namelist
+npex=$(awk -F= '/^ +npex=/ {print $2}' ptopo_nml)
+[[ -z "${npex}" ]] && die "Could not find 'npex' in the file 'ptopo_nml'."
+
+npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
+[[ -z "${npey}" ]] && die "Could not find 'npey' in the file 'ptopo_nml'."
+
+cat > load_env.dot <<EOF
+ulimit -c unlimited
+
+export CMCCONST=/home/smco502/datafiles/constants
+export TMG_ON=YES
+export OMP_STACKSIZE=4G
+export OMP_NUM_THREADS=${omp_num_threads}
+
+## When FOR_DUMP_CORE_FILE=1 and the code abort on runtime error, cores
+## will be dumped in the work directory; one per process.
+## Each core can weight O(10) Gb (times the number of processes)
+export FOR_DUMP_CORE_FILE=
+EOF
+
+for domain in ${ssm_to_load}; do
+    cat >> load_env.dot <<EOF
+
+echo loading ${domain}
+. r.load.dot ${domain}
+EOF
+done
+
+cat > launcher.sh <<EOF
+#!/bin/bash
+
+set -e
+
+cd ${PWD}
+
+ls > localFilesNotToErase
+
+set +x
+echo "Setting up the shell environment by loading the file 'load_env.dot'"
+source ./load_env.dot
+set -x
+
+${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}
+EOF
+
+## Compute the memory to request at 'ord_soumet' call
+if [[ -z "${memory}" ]]; then
+    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
+    memory=${computed_memory}G
+fi
+
+cpus=${npex}x${npey}x${omp_num_threads}
+
+if [[ "${interactive}" = false ]]; then
+    say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" \
+        "cpus=${cpus}"                                                                \
+        "memory=${memory}"
+
+    ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
+                           -listing ${PWD} -w ${wallclocktime} -m ${memory}
+
+    say "You can follow the execution in the working directory ${workdir}"
+else
+    ## Prepare an interactive job
+    pbsdirectives=${PWD}/${jobname}.pbsdirectives
+    find_resources > ${pbsdirectives}
+    echo "#PBS -l walltime=$((wallclocktime*60))" >> ${pbsdirectives}
+
+    rcfile=${PWD}/${jobname}.rcfile
+    cat > ${rcfile} <<EOF
+echo
+echo Moving to directory ${workdir}
+cd ${workdir}
+
+echo
+echo Loading execution environment in file 'load_env.dot'
+source ./load_env.dot
+
+echo
+echo You can now run your program interactively with:
+echo
+echo "   ${scriptDirectory}/midas.launch_program --npex ${npex} --npey ${npey} ${pgm}"
+echo
+echo for the latest executable used by 'run.tsk' or
+echo
+echo "   ${scriptDirectory}/launch_program --npex ${npex} --npey ${npey} /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo
+echo for any executable of the midas program used in this test.
+EOF
+
+    #TODO: Figure out how to load the rcfile automatically after the interactive job starts.
+    #      Now, the user needs to do it himself.
+    qsub_cmd="qsub -X -I ${pbsdirectives}"
+    say "Launching the interactive job with"  \
+        "   ${qsub_cmd}"
+    echo
+
+    say "When the interactive job is started, do"    \
+        " "                                          \
+        "         source ${rcfile}"                  \
+        " "                                          \
+        "to load the environment and start working"
+
+    ## I don't know why, but we can't just use '${qsub_cmd}' here
+    ## We must repeat the command.
+    qsub -X -I ${pbsdirectives} ## ${qsub_cmd}
+
+    rm -f ${rcfile} ${pbsdirectives}
+fi ## End of 'else' associated to 'if [[ "${interactive}" = false ]]; then'

@@ -6,7 +6,7 @@ typeset -r description="This script launches the program 'midas-energyNorm.Abs'"
 
 ## This is the memory, in GB, that each core, on the supercomputer can
 ## request.  There is 180 GB available on each node for 80 cores.
-## There is similar code in 'midas.launch_program'.
+## There is similar code in 'midas.submit_program'
 typeset -r memory_in_gigs_per_openmp_num_thread=2.25
 
 typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"

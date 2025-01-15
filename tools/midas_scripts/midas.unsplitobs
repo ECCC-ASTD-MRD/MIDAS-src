@@ -5,13 +5,13 @@ set -eo pipefail
 description="This script regroups observations files that have been split by 'midas.splitobs.Abs' in the original order."
 
 arguments=$*
-eval $(cclargs -D "" $0 "[${description}]"                                     \
-  -input       "" "" "[path to input observations (directory or cmcarc file)]" \
-  -output      "" "" "[path to output directory (must not exist)]"             \
-  -workdir     "" "" "[temporary working directory]"                           \
+eval $(cclargs -D ""      $0         "[${description}]"                                                    \
+  -input       ""         ""         "[path to input observations (directory or cmcarc file (mandatory))]" \
+  -output      ""         ""         "[path to output directory (must not exist (mandatory))]"             \
+  -workdir     ""         ""         "[temporary working directory(mandatory)]"                            \
   -prefix_dir  burpfiles_ burpfiles_ "[prefix of the directory containing the observations files (default: 'burpfiles_')]" \
-  -prefix_obs  brp brp "[prefix of the observations files (default: 'brp']"    \
-  -splitobs    "" "" "[path to the 'midas.splitobs.Abs' program]"             \
+  -prefix_obs  brp        brp        "[prefix of the observations files (default: 'brp']"                  \
+  -splitobs    ""         ""         "[path to the 'midas.splitobs.Abs' program (mandatory)]"              \
   ++ $arguments)
 
 scriptName=${0##*/}
@@ -38,8 +38,22 @@ function countRecords {
     fi
 
     local countRecords_obsfile=${1}
+
+    if [[ ! -f "${countRecords_obsfile}" ]]; then
+        die "countRecords: The file '${countRecords_obsfile}' does not exist."
+    fi
+
+    filetype=-1
+    filetypeoutput=$(r.filetype ${countRecords_obsfile}) || filetype=$?
+    if [[ "${filetype}" = -1 ]]; then
+        die "countRecords: The command 'r.filetype' on the file '${countRecords_obsfile}' encountered an error"
+    fi
+    if [[ "${filetype}" != 6 ]]; then
+        die "countRecords: The file '${countRecords_obsfile}' is not a BURP file. It is a ${filetypeoutput}"
+    fi
+
     ## We avoid counting the resume records ('>>*******') using option "-nostn '>>'"
-    liburp ${countRecords_obsfile} -enrgs -nostn '>>' | grep -c stnids
+    liburp ${countRecords_obsfile} -enrgs -nostn '>>' 2> /dev/null | grep -c stnids
 } ## End of 'function countRecords'
 
 ## Check if all mandatory arguments have been given
@@ -60,12 +74,12 @@ if [[ -d "${output}" ]]; then
 fi
 
 if ! which editfst >/dev/null 2>&1; then
-    echo loading eccc/mrd/rpn/utils/20241105-alpha
+    say "loading eccc/mrd/rpn/utils/20241105-alpha"
    . r.load.dot eccc/mrd/rpn/utils/20241105-alpha
 fi
 
 if ! which liburp >/dev/null 2>&1; then
-    echo loading eccc/cmd/cmda/utils/20240912-alpha
+    say "loading eccc/cmd/cmda/utils/20240912-alpha"
    . ssmuse-sh -d eccc/cmd/cmda/utils/20240912-alpha
 fi
 
@@ -102,15 +116,16 @@ EOF
 [[ -d tmp ]] && rm -r tmp
 mkdir tmp
 
-for fam in ${families}; do
-    echo processing observation family ${fam}
-    [ -f obs${fam} ] && rm obs${fam}
-
-    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i <<EOF
+cat > tmp/get_resume <<EOF
  desire('>>*******')
 EOF
 
+for fam in ${families}; do
+    say "processing observation family ${fam}"
+    [ -f obs${fam} ] && rm obs${fam}
+
     mkdir tmp/${fam}
+    editbrp -n -s ${prefix_dir}${fam}/${prefix_obs}${fam}_0001_0001 -d obs${fam} -c 1 -i tmp/get_resume > tmp/${fam}/splitobs.${fam}.listing
 
     ## Find the maximum number of records across all files
     nb_records_max=-1
@@ -131,24 +146,35 @@ EOF
     ndigits=$(python3 -c "from math import log, ceil; nb_digits=ceil(log(${nb_records_max}, 10)); print(nb_digits)")
     indexOne=$(printf "%0${ndigits}g" 1)
 
+    split_error_detected=false
     recordIndex=0
     for obsfile in ${prefix_dir}${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]; do
         obsFileName=${obsfile##*/}
         obsfile_noresume=tmp/${fam}/${obsFileName}
 
-        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume
+        editbrp -n -s ${obsfile} -d ${obsfile_noresume} -i exclure_resume >> tmp/${fam}/splitobs.${obsFileName}.listing
 
-        if (( ${nb_records[${recordIndex}]} > 1000 )); then
+        if (( ${nb_records[${recordIndex}]} > 800 )); then
             ## Due to a limitation of the number of XDF files that can be opened simultaneously
             ## by the LibRMN library, we have to call 'midas.splitobs.Abs' as many times as the
             ## number of records in the file.
-            for id_record in  $(seq 1 ${nb_records}); do
-                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
-                            -y ${id_record} -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+            for id_record in $(seq 1 ${nb_records}); do
+                ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin     \
+                            -y ${id_record} -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits} \
+                             >> tmp/${fam}/splitobs.${fam}.listing 2>&1 || split_error_detected=true
+                    if [[ "${split_error_detected}" = true ]]; then
+                        die "Error while splitting the file '${obsfile}' in ${nb_records[${recordIndex}]} parts for id=${id}." \
+                            "Check the listing '${PWD}/tmp/${fam}/splitobs.${fam}.listing'"
+                    fi
             done
         elif (( ${nb_records[${recordIndex}]} > 1 )); then
             ${splitobs} -obsin ${obsfile_noresume} -obsout ${obsfile_noresume} -round-robin \
-                        -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}
+                        -npey ${nb_records[${recordIndex}]} -ndigits ${ndigits}             \
+                        >> tmp/${fam}/splitobs.${fam}.listing 2>&1 || split_error_detected=true
+            if [[ "${split_error_detected}" = true ]]; then
+                die "Error while splitting the file '${obsfile}' in ${nb_records[${recordIndex}]} parts" \
+                    "Check the listing '${PWD}/tmp/${fam}/splitobs.${fam}.listing'"
+            fi
         else
             cp ${obsfile_noresume} ${obsfile_noresume}_${indexOne}_${indexOne}
         fi
@@ -157,11 +183,11 @@ EOF
     done ## End of 'for obsfile in ...'
 
     for id_record in $(seq --format="%0${ndigits}g" 1 ${nb_records_max}); do
-        ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
-            tr ' ' '\n' |
-            xargs -L120 editbrp -n -d obs${fam} -i 0 -s
+        ( ls tmp/${fam}/${prefix_obs}${fam}_[0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9]_${indexOne}_${id_record} |
+              tr ' ' '\n'                                                                                      |
+              xargs -L120 editbrp -n -d obs${fam} -i 0 -s ) >> tmp/${fam}/splitobs.${fam}.listing
     done
-done
+done ## End of 'for fam in ${families}; do'
 
 rm exclure_resume
 
@@ -172,3 +198,5 @@ done
 
 cd
 rm -rf ${workdir}
+
+say "The observation files have been prepared in the directory ${output}"

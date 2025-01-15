@@ -17,10 +17,10 @@ which maestro 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
 
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
-  -exp   "not defined" "not defined" "[base maestro experiment" \
-  -node  "not defined" "not defined" "[test to launch interactively]" \
-  -date  "not defined" "not defined" "[date of the working directory prepared with maestro]" \
-  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: 180 for 3 hours)]" \
+  -exp        "not defined"          "not defined"          "[base maestro experiment"                              \
+  -node       "not defined"          "not defined"          "[test to launch interactively]"                        \
+  -date       "not defined"          "not defined"          "[date of the working directory prepared with maestro]" \
+  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: ${wallclock_default} for 3 hours)]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
@@ -75,6 +75,9 @@ isMPI=$(extract_from_XML mpi ${resource})
 soumet_args=$(extract_from_XML soumet_args ${resource})
 memory=$(extract_from_XML memory ${resource})
 
+npex=$(echo ${cpus} | cut -dx -f1)
+npey=$(echo ${cpus} | cut -dx -f2)
+
 if [ "${isMPI}" = 1 ]; then
     mpi='-mpi'
 else
@@ -99,7 +102,7 @@ echo "Submitting an interactive job on ${host} with cpus=${cpus} memory=${memory
 echo
 
 if [ "${TRUE_HOST}" != "${host}" ]; then
-    echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
+    echo "To launch on the interactive job, you must be on the same cluster as the targeted one which is ${supercomputer}" >&2
     exit 1
 fi
 
@@ -193,11 +196,11 @@ echo Loading execution environment in file load_env.dot
 echo
 echo You can now run your program interactively with:
 echo
-echo "   ./launch_program.sh pgm"
+echo "   ./launch_program.sh --npex ${npex} --npey ${npey} pgm"
 echo
 echo for the latest executable used by 'run.tsk' or
 echo
-echo "   ./launch_program.sh /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo "   ./launch_program.sh --npex ${npex} --npey ${npey} /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
 echo
 echo for any executable of the midas program used in this test.
 EOF

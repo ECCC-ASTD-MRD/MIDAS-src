@@ -105,7 +105,7 @@ The tool `midas.mpiTopoFinder` is designed to help finding good MPI
 distributions for a given grid, which is especially useful when
 running the program `midas-letkf.Abs`, but can also be helpful for
 other programs that use gridded data distributed over
-latitude-longitude tiles."
+latitude-longitude tiles.
 
 You can use `midas.mpiTopoFinder -h` to show help:
 ```text
@@ -129,38 +129,71 @@ optional arguments:
 
 ## Running MIDAS as a stand alone program
 
-The scripts `midas.prepare_workdir` and `midas.launch_program` can be
-used to prepare a working directory and then run a MIDAS program as a
-standalone execution.
+The scripts `midas.prepare_workdir` and `midas.copy_workdir` can be
+used to prepare a working directory:
   * `midas.prepare_workdir`: This script prepares a working directory
      using inputs from `cmcarc` archives or a directory for a fixed MPI
      topology.  The last point is essential because the options will be
      prepared for that MPI topology.
-  * `midas.launch_program`: This script launches a job on the
-     supercomputer using the working directory prepared by
-     `midas.prepare_workdir`.  The job is using the MPI topology that
-     has been used to prepare the observations.
+  * `midas.copy_workdir`: That script copies a working directory
+    already created by another execution of MIDAS with the goal of
+    reproducing the execution in a stand-alone execution.  This is
+    very useful to debug MIDAS programs reported in a maestro suite
+    for example.
 
-There is another script, `midas.unsplitobs`, that can be used to
-recombine the observations to be in their original order before they
-were split with `midas.splitobs.Abs`.
+Then, the script `midas.submit_program` is used run a MIDAS program as
+a stand-alone execution using the working directory prepared by
+`midas.prepare_workdir` or `midas.copy_workdir`.  It can launch a
+batch job on the supercomputer or an interactive job with the option
+`-interactive`.  The job is using the MPI topology that has been used
+to prepare the observations.  A particularly handy feature of
+`midas.submit_program` is that you can specify the environment version
+needed to run the program.  If you need to reproduce an operational
+case running `v_3.9.4`, you can add `-env 3.9.4` and it will load the
+appropriate packages to run that MIDAS version.
 
-All three scripts supports the option `-h` to have a description of
-the available options.
+The script `midas.unsplitobs` can be used to recombine the
+observations to be in their original order before they were split with
+`midas.splitobs.Abs`.
 
-### Example
+All scripts supports the option `-h` to have a description of the
+available options.
+
+### Example of `midas.copy_workdir`
+
+Here is an example to copy the working directory of the task
+`/main/assimcycle/bgckalt/BgckAtmsAllsky` in the operational G2 suite.
+
+```bash
+toplevel=$(git rev-parse --show-toplevel)
+
+cd ${toplevel}/tools/midas_scripts
+
+program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/3.9.5/rhel-8-icelake-64/bin
+inputdir=/home/smco500/.suites/gdps/g2/hub/underhill/work/${SEQ_DATE}/main/assimcycle/bgckalt/BgckAtmsAllsky/work/midas_exec
+nml=${inputdir}/../flnml
+workdir=${HOME}/data_maestro/ppp6/tmp/midas_copy_workdir
+
+./midas.copy_workdir -inputdir $inputdir -workdir $workdir -nml $nml -splitobs ${program_directory}/midas.splitobs.Abs
+
+./midas.submit_program -workdir $workdir -pgm ${program_directory}/midas-obsSelection.Abs -env 3.9.5 -omp_num_threads 2
+```
+
+### Example of `midas.prepare_workdir`
 
 Here is an example of utilization of those three scripts where we use
 the test `/Tests/letkf/glb_xc40` as a reference:
 
 ```bash
-cd $(git rev-parse --show-toplevel)/tools/midas_scripts
+toplevel=$(git rev-parse --show-toplevel)
 
-program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/4.0.2/rhel-8-icelake-64/bin
-inputs=/home/sanl000/data_maestro/ppp5/UnitTests/midas/letkf/glb_xc40/0013
-namelist=$(git rev-parse --show-toplevel)/maestro/suites/midas_system_tests/config/Tests/letkf/glb_xc40/nml
+cd ${toplevel}/tools/midas_scripts
 
-workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir_3
+program_directory=/fs/ssm/eccc/mrd/rpn/anl/midas/4.0.4/rhel-8-icelake-64/bin
+inputs=/home/sanl000/data_maestro/ppp5/UnitTests/midas/letkf/glb_xc40/0014
+namelist=${toplevel}/maestro/suites/midas_system_tests/config/Tests/letkf/glb_xc40/nml
+
+workdir=${HOME}/data_maestro/ppp6/tmp/midas_letkf_workdir
 observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
 
 ./midas.unsplitobs -input ${inputs}/inputs_obsfiles.ca -output ${observations}             \
@@ -176,7 +209,7 @@ observations=${HOME}/data_maestro/ppp6/tmp/midas_letkf_observations
                         -npex 36 -npey 18                      \
                         -splitobs ${program_directory}/midas.splitobs.Abs
 
-./midas.launch_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs
+./midas.submit_program -workdir ${workdir} -pgm ${program_directory}/midas-letkf.Abs -env 4.0.4
 ```
 
 The results have been verified with the reference for the test

@@ -2,150 +2,183 @@
 
 set -euo pipefail
 
-typeset -r description="This script launches the program 'midas-letkf.Abs' in the working directory prepared by 'midas.prepare_workdir'."
-
-## This is the memory, in GB, that each core, on the supercomputer can
-## request.  There is 440 GB available on each node for 80 cores.
-## There is similar code in 'midas.energyNorm'.
-typeset -r memory_in_gigs_per_openmp_num_thread=5.5
-
-typeset -r memory_description="memory request per MPI rank (default: ${memory_in_gigs_per_openmp_num_thread}G*\${omp_num_threads})"
-
-arguments=$*
-eval $(cclargs -D "" $0 "[${description}]"                                               \
-  -pgm         "" "" "[path to MIDAS program]"                                           \
-  -nml         "" "" "[path to namelist file]"                                           \
-  -workdir     "" "" "[path to working directory prepared by 'midas.prepare_workdir']"   \
-  -supercomputer  robert robert "[supercomputer to launch the job (default: 'robert')]"  \
-  -jobname        letkf  letkf  "[name of the job (default: 'letkf')]"                   \
-  -memory           ""     ""   "[${memory_description}]"                                \
-  -omp_num_threads  1      1    "[Number of Open MP threads per MPI rank (default: 1)]"  \
-  -wallclocktime   180    180   "[wall clock time for job in minutes (default: 180]"     \
-  ++ $arguments)
-
-scriptName=${0##*/}
-
-function say {
-    printf "${scriptName}: ${1}\n"
-    shift
-    local say_message
-    IFS=$'\n\t'
-    for say_message in ${@}; do
-        printf "\t${say_message}\n"
-    done
-} ## End of 'function say'
-
-function die {
-    IFS=$'\n\t'
-    say $@ >&2
-    exit 1
-} ## End of 'function die'
-
-## Check if all mandatory arguments have been given
-## We avoid checking for 'memory' since it can be computed from 'omp_num_threads'.
-## The 'nml' parameter is also optional as it can use the 'flnml' already in directory.
-for launch_arg in pgm workdir supercomputer jobname omp_num_threads wallclocktime; do
-    eval launch_tmp_var="\${${launch_arg}}"
-    if [ -z "${launch_tmp_var}" ]; then
-        die "the argument '-${launch_arg}' must be defined"
-    fi
-    unset launch_tmp_var
-done
-unset launch_arg
-
-if [[ ! -d "${workdir}" ]]; then
-    die "The working directory ${workdir} should have been prepared by 'midas.prepare_workdir'"
+if [[ ${0} = /* ]]; then
+    scriptDirectory=$(dirname ${0})
+else
+    scriptFullPath=$(true_path ${0})
+    scriptDirectory=$(dirname ${scriptFullPath})
 fi
+isFileInList=${scriptDirectory}/midas.isFileInList
 
-cd ${workdir}
-
-if [[ -n "${nml}" ]]; then
-    if [[ -f "${nml}" ]]; then
-        say "We will replace 'flnml' in the working directory with ${nml}"
-        cp ${nml} flnml
+run_pgm_args=
+running_mode=run
+while [ $# -ne 0 ]; do
+    if [ "${1}" = --ddt ]; then
+        running_mode=ddt
+        set +u
+        which ddt 1>/dev/null 2>&1 || . ssmuse-sh -x main/opt/forge/21.1.3
+        set -u
+    elif [ "${1}" = --gdb ]; then
+        running_mode=gdb
+    elif [[ "${1}" = --vtune* ]]; then
+        ## Can be '--vtune', '--vtune=${vtune options}'
+        ## See https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2024-0/collect.html
+        running_mode=${1}
+        ## Load the full compiler suite
+        if ! which vtune 1>/dev/null 2>&1; then
+            vtune_already_in_env=false
+            if [ -n "${VTUNE_SSM}" ]; then
+                set +u
+                . ssmuse-sh -x ${VTUNE_SSM}
+                set -u
+            else
+                echo "${0}: aborts because it cannot find 'vtune' and 'VTUNE_SSM' environment variable does not exist"
+                exit 1
+            fi
+        else
+            vtune_already_in_env=true
+        fi
+    elif [ "${1}" = --args ]; then
+        while [ $# -gt 2 ]; do ## The last argument is the program itself
+            shift
+            run_pgm_args="${run_pgm_args} ${1}"
+        done
+    elif [ "${1}" = --npex -o "${1}" = --npey ]; then
+        if [ $# -lt 2 ]; then
+            echo "${0}: The argument '${1}' should have a number after"
+            exit 1
+        elif [[ "${2}" != [0-9]* ]]; then
+            echo "${0}: The argument '${1}' should have a number after"
+            exit 1
+        fi
+        if [ "${1}" = --npex ]; then
+            npex=${2}
+        elif [ "${1}" = --npey ]; then
+            npey=${2}
+        fi
+        shift
+    elif [ "${1}" = -h -o "${1}" = --help ]; then
+        echo "${0} [--ddt] [--gdb] [--vtune] [--args ...] \${path_to_program}"
+        exit
     else
-        die "The namelist given with option '-nml', ${nml}, does not exist."
+        run_pgm=${1}
     fi
-elif [[ ! -f flnml ]]; then
-    die "There is no 'flnml' in workding directory and to namelist was given with option '-nml'."
+    shift
+done
+
+if [ -z "${run_pgm}" ]; then
+    echo 'You must provide a program to launch' >&2
+    exit 1
 fi
 
-[[ ! -f ptopo_nml ]] && die "The file 'ptopo_nml' should exist"
+if [[ ${run_pgm} != */* ]]; then
+    status=0
+    which ${run_pgm} 1> /dev/null 2>&1 || status=1
+    if [ "${status}" -ne 0 ]; then
+        if [ -x ${run_pgm} ]; then
+            run_pgm=./${run_pgm}
+        fi
+    fi
+fi
 
-# get 'npex' and 'npey' values from 'ptopo_nml' namelist
-npex=$(awk -F= '/^ +npex=/ {print $2}' ptopo_nml)
-[[ -z "${npex}" ]] && die "Could not find 'npex' in the file 'ptopo_nml'"
+if [ ! -f "${run_pgm}" ]; then
+    echo "The program specified '${run_pgm}' does not exist!" >&2
+    exit 1
+fi
 
-npey=$(awk -F= '/^ +npey=/ {print $2}' ptopo_nml)
-[[ -z "${npey}" ]] && die "Could not find 'npey' in the file 'ptopo_nml'"
-
-## Erase any file that would have been generated by a previous run
-##    YYYYMMDDHH_000_${member_id}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_[0-9][0-9][0-9][0-9]
-##    YYYYMMDDHH_000_inc_${member_id}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_inc_[0-9][0-9][0-9][0-9]
-##    YYYYMMDDHH_000_anal{,pert}{mean,rms{,_ascii}}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_000_anal{,pert}{mean,rms{,_ascii}}
-##    YYYYMMDDHH_006_trial{mean,rms{,_ascii}}
-rm -f [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_006_trial{mean,rms{,_ascii}}
-## Observations
-[[ -d obs ]] && rm -r obs
-
-say "Copy the observations"
-cp -r obsfiles_split obs
-
-## Erase any previous directory for 'r.run_in_parallel'
-[[ -d mpitmpdir ]] && rm -r mpitmpdir
-
-cat > launcher.sh <<EOF
+if [ "${running_mode}" = ddt ]; then
+    true ## no script to prepare when running in DDT mode
+elif [ "${running_mode}" = gdb ]; then
+    cat > launch_cmd <<EOFLAUNCH
 #!/bin/bash
 
-set -e
-set +x
+set -ex
 
-ulimit -c unlimited
+gdb -ex run -ex where -ex quit ${run_pgm}
 
-export CMCCONST=/home/smco502/datafiles/constants
-export TMG_ON=YES
-export OMP_STACKSIZE=4G
-export OMP_NUM_THREADS=${omp_num_threads}
+EOFLAUNCH
+    chmod +x launch_cmd
 
-## When FOR_DUMP_CORE_FILE=1 and the code abort on runtime error, cores
-## will be dumped in the work directory; one per process.
-## Each core can weight O(10) Gb (times the number of processes)
-export FOR_DUMP_CORE_FILE=
+elif [[ "${running_mode}" = --vtune* ]]; then
+    if [ "${running_mode}" = --vtune ]; then
+        vtune_collect_mode=hotspots
+    else
+        ## The script 'launch_program.sh' can be called with '--vtune=hotspots' or '--vtune=hpc-performance'
+        vtune_collect_mode=$(echo ${running_mode} | sed 's/^--vtune=//')
+    fi
 
-echo loading rpn/code-tools/20240719/env/inteloneapi-2022.1.2
-. r.load.dot rpn/code-tools/20240719/env/inteloneapi-2022.1.2
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
 
-echo loading eccc/mrd/rpn/libs/20241105-alpha
-. r.load.dot eccc/mrd/rpn/libs/20241105-alpha
+set -ex
 
-echo loading eccc/mrd/rpn/utils/20241105-alpha
-. r.load.dot eccc/mrd/rpn/utils/20241105-alpha
+## this will generate directories named 'vtune.\${hostname}'
+vtune -collect ${vtune_collect_mode} –r vtune -- ${run_pgm}
 
-cd ${PWD}
+EOFLAUNCH
+    chmod +x launch_cmd
 
-echo "Start of ${pgm} at \$(date +%Y%m%d:%H:%M:%S.%N)"
+elif [ "${running_mode}" = run ]; then
+    cat > launch_cmd <<EOFLAUNCH
+#!/bin/bash
 
-SECONDS=0
+set -ex
 
-r.run_in_parallel -pgm ${pgm} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir
+/usr/bin/time --format="Total Memory %M Kb" ${run_pgm}
 
-echo "End of ${pgm} in \${SECONDS} seconds at \$(date +%Y%m%d:%H:%M:%S.%N)"
-EOF
+EOFLAUNCH
+    chmod +x launch_cmd
 
-## Compute the memory to request at 'ord_soumet' call
-if [[ -z "${memory}" ]]; then
-    computed_memory=$(python -c "from math import floor; print(floor(${memory_in_gigs_per_openmp_num_thread}*${omp_num_threads}))")
-    memory=${computed_memory}G
+else
+    echo "The 'running_mode' can only be 'run', 'ddt', 'gdb', 'vtune' and not '${running_mode}'!" >&2
+    exit 1
 fi
 
-cpus=${npex}x${npey}x${omp_num_threads}
+## This may be needed for 'mpiscript'
+export RUN_PGM=${PWD}/launch_cmd
 
-say "Submit the program '${pgm}' in the job '${jobname}' to the ${supercomputer}" "cpus=${cpus}" "memory=${memory}"
+echo "$(date +%Y%m%d:%H:%M:%S.%N): Copy of observations starts"
+[ -d obs ] && rm -rf obs
+[ -d obsfiles_split ] && sscp -r obsfiles_split obs
 
-ord_soumet launcher.sh -jn ${jobname} -mach ${supercomputer} -cpus ${cpus} \
-                       -listing ${PWD} -w ${wallclocktime} -m ${memory}
+echo "$(date +%Y%m%d:%H:%M:%S.%N): Cleaning working directory"
 
-say "You can follow the execution in the working directory ${workdir}"
+for file in *; do
+    if ${isFileInList} ${file} not in obs launch_cmd $(cat localFilesNotToErase); then
+        rm -r ${file}
+    fi
+done
+
+if [ "${running_mode}" = ddt ]; then
+    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm} with DDT"
+    ## DDT cannot run a script, it must launch the program itself
+    ddt mpirun -n $((npex*npey)) ${run_pgm}
+else
+    info_mode=
+    if [ "${running_mode}" = --vtune ]; then
+        info_mode=" with vtune"
+    elif [ "${running_mode}" = gdb ]; then
+        info_mode=" with gdb"
+    fi
+
+    ## Erase any previous directory for 'r.run_in_parallel'
+    [[ -d mpitmpdir ]] && rm -r mpitmpdir
+
+    echo "$(date +%Y%m%d:%H:%M:%S.%N): Launching ${run_pgm}${info_mode}"
+    echo Using r.run_in_parallel from $(which r.run_in_parallel)
+
+    SECONDS=0
+    r.run_in_parallel -pgm ${LAUNCH_CMD:-${RUN_PGM}} -npex ${npex} -npey ${npey} -processorder -verbose -tag -nocleanup -tmpdir ${PWD}/mpitmpdir -args ${run_pgm_args}
+    echo RUNTIME=${SECONDS}
+fi
+
+echo "End of ${run_pgm} at $(date +%Y%m%d:%H:%M:%S.%N)"
+
+if [[ "${running_mode}" = --vtune* ]]; then
+    echo "You can now vizualize the profiling data using the commands"
+    if [ "${vtune_already_in_env}" = false ]; then
+        echo "    . ssmuse-sh -x ${VTUNE_SSM}"
+    fi
+    echo "    vtune-gui ./vtune.*"
+    echo "Select only one of the 'vtune.*' directories"
+fi
