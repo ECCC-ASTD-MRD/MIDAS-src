@@ -1198,7 +1198,8 @@ CONTAINS
       numObsSelected   = 0
       numObsSelectedByCodtyp(:)    = 0
       numObsNotSelectedByCodtyp(:) = 0
-      do localObsIndex = 1, numObsFoundSearch
+      do sortedIndex = 1, numObsFoundSearch
+        localObsIndex = sortIndex(sortedIndex)
         if (ensObs%assFlag(searchResults(localObsIndex)%idx) == 1) then
           numObsFound = numObsFound + 1
           if (numObsSelected < maxNumLocalObs) then
