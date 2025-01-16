@@ -2309,10 +2309,10 @@ contains
       write(*,*) 'nEns1 = ', nEns1
       write(*,*) 'numLocalObs = ', numLocalObs
       write(*,*) 'maxNumLocalObs = ', maxNumLocalObs
-      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert)
-      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4)
-      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert)
-     ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert,1), size(YbTinvRCopy_pert,2)
+      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4,1), size(YbCopy_r4,2)
+      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert,1), size(YbTinvRYb_pert,2)
+      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm('T', 'N',                          &
                   nEns1, nEns1, numLocalObs,        & ! M, N, K
                   1.0d0,                            & ! alpha
