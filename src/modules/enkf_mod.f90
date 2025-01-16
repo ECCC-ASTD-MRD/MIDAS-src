@@ -2305,21 +2305,12 @@ contains
 
     if (nEns1 == nEns2) then
       ! When nEns1 equals nEns2 we assume matrix is symmetric
-
-      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
-      threadIndex = 1 + omp_get_thread_num()
-      !$OMP DO
-      do memberIndex2 = 1, nEns2
-        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
-        do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
-          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
-          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))             
-        end do
-      end do
-      !$OMP END DO
-      !$OMP END PARALLEL
+      write(*,*) 'Calling dgemm'
+      call dgemm('T','N', nEns1, nEns2, numLocalObs, 1.0d0, &
+                  YbTinvRCopy_pert, nEns1, &
+                  YbCopy2_r4, numLocalObs, 0.0d0, &
+                  YbTinvRYb_pert, nEns1)
+      write(*,*) 'Called dgemm'
 
       ! copy upper triangle to lower triangle (symmetric matrix)
 
