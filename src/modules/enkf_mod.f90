@@ -2305,10 +2305,11 @@ contains
 
     if (nEns1 == nEns2) then
       ! When nEns1 equals nEns2 we assume matrix is symmetric
-      write(*,*) 'Calling dgemm'
-      call dgemm('T','N', nEns1, nEns2, numLocalObs, 1.0d0, &
-                  YbTinvRCopy_pert, nEns1, &
-                  YbCopy2_r4, numLocalObs, 0.0d0, &
+      write(*,*) 'Calling dgemm in the symmetric case'
+      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      call dgemm('T','N', nEns1, nEns1, numLocalObs, 1.0d0, &
+                  YbTinvRCopy_pert, maxNumLocalObs, &
+                  YbCopy_r4, maxNumLocalObs, 0.0d0, &
                   YbTinvRYb_pert, nEns1)
       write(*,*) 'Called dgemm'
 
@@ -2323,7 +2324,8 @@ contains
       end do
       !$OMP END PARALLEL DO
 
-      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then     
+      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
+        write(*,*) 'Processing eob_simObsAssim'
         YbTinvRYb_mean(:,:) = 0.0D0
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEns2
@@ -2345,6 +2347,7 @@ contains
 
     else
       ! When nEns1 different from nEns2 we cannot assume matrix is symmetric
+      write(*,*) 'In the non-symmetric case'
 
       !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
       threadIndex = 1 + omp_get_thread_num()
