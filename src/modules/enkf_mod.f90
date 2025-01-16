@@ -2306,11 +2306,20 @@ contains
     if (nEns1 == nEns2) then
       ! When nEns1 equals nEns2 we assume matrix is symmetric
       write(*,*) 'Calling dgemm in the symmetric case'
-      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
-      call dgemm('T','N', nEns1, nEns1, numLocalObs, 1.0d0, &
-                  YbTinvRCopy_pert, maxNumLocalObs, &
-                  YbCopy_r4, maxNumLocalObs, 0.0d0, &
-                  YbTinvRYb_pert, nEns1)
+      write(*,*) 'nEns1 = ', nEns1
+      write(*,*) 'numLocalObs = ', numLocalObs
+      write(*,*) 'maxNumLocalObs = ', maxNumLocalObs
+      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert)
+      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4)
+      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert)
+     ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      call dgemm('T', 'N',                          &
+                  nEns1, nEns1, numLocalObs,        & ! M, N, K
+                  1.0d0,                            & ! alpha
+                  YbTinvRCopy_pert, maxNumLocalObs, & ! A
+                  YbCopy_r4,        maxNumLocalObs, & ! B
+                  0.0d0,                            & ! beta
+                  YbTinvRYb_pert,   nEns1)            ! C
       write(*,*) 'Called dgemm'
 
       ! copy upper triangle to lower triangle (symmetric matrix)
