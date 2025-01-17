@@ -238,7 +238,7 @@ contains
     real(8), pointer :: vertLocation_MM(:)
     real(8), pointer :: vertLocation_TH(:)
     real(8), pointer :: vertLocation(:)
-    real(8) :: pSurfRef, distance, correl
+    real(8) :: pSurfRef, hSurfRef, distance, correl
     real(8) :: lengthScaleGradient
     real(8) :: lengthScaleLev1, lengthScaleLev2, lengthScaleAvg
     integer :: levIndex, levIndex1, levIndex2
@@ -261,11 +261,27 @@ contains
     !
     !- Compute the vertical auto-covariance matrices
     !
-    pSurfRef = 101000.D0
-    call czp_fetch1DLevels(vco, pSurfRef,            & ! IN
-                           profM_opt=vertLocation_MM)  ! OUT
-    call czp_fetch1DLevels(vco, pSurfRef,            & ! IN
-                           profT_opt=vertLocation_TH)  ! OUT
+    nullify(vertLocation_MM)
+    nullify(vertLocation_TH)
+    if (vco%Vcode == 21001) then
+      hSurfRef = 0.D0
+      call czp_fetch1DLevels(vco, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, & ! IN
+                             profM_opt=vertLocation_MM)                         ! OUT
+      call czp_calcPressureProfileUsingStdAtm(vertLocation_MM, & ! INOUT
+                                              vco%nLev_M)        ! IN
+      call czp_fetch1DLevels(vco, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, & ! IN
+                             profT_opt=vertLocation_TH)                         ! OUT
+      call czp_calcPressureProfileUsingStdAtm(vertLocation_TH, & ! INOUT
+                                              vco%nLev_T)        ! IN
+    else if(vco%Vcode == 5002 .or. vco%Vcode == 5005 .or. vco%Vcode == 5100) then
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, & ! IN
+                             profM_opt=vertLocation_MM)                ! OUT
+      call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, & ! IN
+                             profT_opt=vertLocation_TH)                ! OUT
+    else
+      call utl_abort('vms_computeModes: Unknown value of vcode')
+    end if
       
     do levIndex = 1, vco%nLev_M
       vertLocation_MM(levIndex) = log(vertLocation_MM(levIndex))
