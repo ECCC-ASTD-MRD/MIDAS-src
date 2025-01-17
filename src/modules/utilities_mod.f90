@@ -384,15 +384,17 @@ contains
     integer :: dimA, dimB, dimC
     character :: transposeA
 
-    if (present(isATransposed_opt) .and. isATransposed_opt ) then
-      transposeA = 'T'
-      dimA = size(A,1)
-    else
-      transposeA = 'N'
-      dimA = size(A,2)
-    end if
+    dimA = size(A,1)
     dimB = size(B,1)
     dimC = size(C,1)
+
+    ! default value
+    transposeA = 'N'
+    if ( present(isATransposed_opt) ) then
+      if ( isATransposed_opt ) then
+        transposeA = 'T'
+      end if
+    end if
 
     call utl_tmg_start(184,'low-level--utl_fastMatMul')
 
