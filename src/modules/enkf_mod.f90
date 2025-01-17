@@ -2284,10 +2284,8 @@ contains
     real(8),          intent(in),  optional :: YbTinvRCopy_mean(maxNumLocalObs,nEns1) ! Input product of Yb and inv(R) for mean
 
     ! Locals:
-    integer :: threadIndex, omp_get_thread_num
-    integer :: memberIndex1, memberIndex2, localObsIndex, bodyIndex
-    real(8), allocatable :: YbCopy2_r4(:,:)
-    real(8), allocatable :: YbCopy_r4(:,:)
+    integer :: memberIndex, localObsIndex, bodyIndex
+    real(8), allocatable :: YbCopy_r8(:,:)
 
     if ( numLocalObs == 0 ) then
       write(*,*) 'enkf_calcYbTinvRYb called with numLocalObs = 0'
@@ -2298,98 +2296,28 @@ contains
       return
     end if
 
-    allocate(YbCopy_r4(numLocalObs,nEns2))
-    allocate(YbCopy2_r4(numLocalObs,mmpi_numThread))
+    allocate(YbCopy_r8(numLocalObs,nEns2))
 
     call utl_tmg_start(137,'--------YbArraysCopy')
-    !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex2)
+    !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
-      do memberIndex2 = 1, nEns2
-        YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+      do memberIndex = 1, nEns2
+        YbCopy_r8(localObsIndex,memberIndex) = dble(ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex))
       end do
     end do
     !$OMP END PARALLEL DO
     call utl_tmg_stop(137)
 
-    if (nEns1 == nEns2) then
-      write(*,*) 'Calling dgemm in the symmetric case'
-      write(*,*) 'nEns1 = ', nEns1
-      write(*,*) 'numLocalObs = ', numLocalObs
-      write(*,*) 'maxNumLocalObs = ', maxNumLocalObs
-      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert,1), size(YbTinvRCopy_pert,2)
-      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4,1), size(YbCopy_r4,2)
-      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert,1), size(YbTinvRYb_pert,2)
-      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
-      YbTinvRYb_pert(:,:) = 0.0d0
-      call dgemm('T', 'N',                          &
-                  nEns1, nEns1, numLocalObs,        & ! M, N, K
-                  1.0d0,                            & ! alpha
-                  YbTinvRCopy_pert, maxNumLocalObs, & ! A
-                  YbCopy_r4,        numLocalObs,    & ! B
-                  0.0d0,                            & ! beta
-                  YbTinvRYb_pert,   nEns1)            ! C
-      write(*,*) 'Called dgemm'
+    call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_pert, &
+                        YbCopy_r8, YbTinvRYb_pert, isATransposed_opt = .true.)
 
-      write(*,*) 'YbTinvRYb_pert dgemm = ', YbTinvRYb_pert(:,1)
-
-      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-        write(*,*) 'Processing eob_simObsAssim'
-        YbTinvRYb_mean(:,:) = 0.0D0
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-        do memberIndex2 = 1, nEns2
-          do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
-            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-                 YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
-                 sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))              
-          end do
-        end do
-        !$OMP END PARALLEL DO
-        ! copy upper triangle to lower triangle (symmetric matrix)
-        do memberIndex2 = 1, nEns2
-          do memberIndex1 = memberIndex2+1, nEns1
-            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-                 YbTinvRYb_mean(memberIndex2,memberIndex1)
-          end do
-        end do
-      end if
-
-    else
-      ! When nEns1 different from nEns2 we cannot assume matrix is symmetric
-      write(*,*) 'In the non-symmetric case'
-
-      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
-      threadIndex = 1 + omp_get_thread_num()
-      !$OMP DO
-      do memberIndex2 = 1, nEns2
-        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
-        do memberIndex1 = 1, nEns1
-          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
-          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))             
-        end do
-      end do
-      !$OMP END DO
-      !$OMP END PARALLEL
-
-      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then     
-        YbTinvRYb_mean(:,:) = 0.0D0
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-        do memberIndex2 = 1, nEns2
-          do memberIndex1 = 1, nEns1
-            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-                 YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
-                 sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))              
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end if
-
+    if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
+      call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_mean, &
+                          YbCopy_r8, YbTinvRYb_mean, isATransposed_opt = .true.)
     end if
 
-    deallocate(YbCopy_r4)
-    deallocate(YbCopy2_r4)
+    deallocate(YbCopy_r8)
 
   end subroutine enkf_calcYbTinvRYb
 

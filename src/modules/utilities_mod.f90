@@ -17,7 +17,7 @@ module utilities_mod
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse
-  public :: utl_pseudo_inverse
+  public :: utl_pseudo_inverse, utl_fastMatMul
   public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_printTime
   public :: utl_stopAndWait4Debug
@@ -364,6 +364,50 @@ contains
     vfstecr=ikey
 
   end function utl_fstecr
+
+  subroutine utl_fastMatMul(M, N, K, A, B, C, isATransposed_opt)
+    !
+    !:Purpose: Calculate matrix multiplication C=A*B
+    !             A is a matrix MxK
+    !             B is a matrix KxN
+    !             C is a matrix MxN
+    !          The arrays 'A', 'B' and 'C' can be allocated arrays larger than 'M', 'N' and 'K'.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in) :: M, N, K
+    real(8),           intent(in) :: A(:,:), B(:,:), C(:,:)
+    logical, optional, intent(in) :: isATransposed_opt
+
+    ! Locals:
+    integer :: dimA, dimB, dimC
+    character :: transposeA
+
+    if (present(isATransposed_opt) .and. isATransposed_opt ) then
+      transposeA = 'T'
+      dimA = size(A,1)
+    else
+      transposeA = 'N'
+      dimA = size(A,2)
+    end if
+    dimB = size(B,1)
+    dimC = size(C,1)
+
+    call utl_tmg_start(184,'low-level--utl_fastMatMul')
+
+    ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+     call dgemm(transposeA, 'N', &
+                M, N, K,         & ! M, N, K
+                1.0d0,           & ! alpha
+                A, dimA,         & ! A
+                B, dimB,         & ! B
+                0.0d0,           & ! beta
+                C, dimC)           ! C
+
+     call utl_tmg_stop(184)
+
+   end subroutine utl_fastMatMul
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
