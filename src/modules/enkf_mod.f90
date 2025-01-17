@@ -1,4 +1,3 @@
-
 module enkf_mod
   ! MODULE enkf_mod (prefix='enkf' category='1. High-level functionality')
   !
@@ -62,9 +61,10 @@ contains
                                 ensembleAnl, ensembleTrl, &
                                 ensObs_mpiglobal, ensObsGain_mpiglobal, &
                                 stateVectorMeanAnl, &
-                                wInterpInfo, maxNumLocalObs,  &
+                                wInterpInfo, maxNumLocalObs, maxNumLocalObsPerType, &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor)
+                                mpiDistribution, numRetainedEigen, myNumLatLonSendFactor, &
+                                localSelectionOutput, localObsSorting)
     !
     !:Purpose: Local subroutine containing the code for computing
     !          the LETKF analyses for all ensemble members, ensemble
@@ -96,12 +96,15 @@ contains
     type(struct_gsv),            intent(in)    :: stateVectorMeanAnl
     type(struct_enkfInterpInfo), intent(in)    :: wInterpInfo
     integer,                     intent(in)    :: maxNumLocalObs
+    integer,                     intent(in)    :: maxNumLocalObsPerType
     real(8),                     intent(in)    :: hLocalize(:)
     real(8),                     intent(in)    :: hLocalizePressure(:)
     real(8),                     intent(in)    :: vLocalize
     character(len=*),            intent(in)    :: mpiDistribution
     integer,                     intent(in)    :: numRetainedEigen
     integer,                     intent(in)    :: myNumLatLonSendFactor
+    logical,                     intent(in)    :: localSelectionOutput
+    character(len=*),            intent(in)    :: localObsSorting
 
     ! Locals:
     character :: readySignal
@@ -483,9 +486,11 @@ contains
                                         algorithm, numSubEns, randomShuffleSubEns, &
                                         ensembleAnl, levIndex, latIndex, lonIndex, &
                                         hLocalize, hLocalizePressure, vLocalize, &
-                                        vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
+                                        vertLocation_r4, numRetainedEigen, &
+                                        maxNumLocalObs, maxNumLocalObsPerType, &
                                         countMaxExceeded, maxCountMaxExceeded, &
-                                        ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                        ensObs_mpiglobal, ensObsGain_mpiglobal, &
+                                        localSelectionOutput,localObsSorting)
 
           !
           ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -760,9 +765,11 @@ contains
                                       algorithm, numSubEns, randomShuffleSubEns, &
                                       ensembleAnl, levIndex, latIndex, lonIndex, &
                                       hLocalize, hLocalizePressure, vLocalize, &
-                                      vertLocation_r4, numRetainedEigen, maxNumLocalObs, &
+                                      vertLocation_r4, numRetainedEigen, &
+                                      maxNumLocalObs, maxNumLocalObsPerType, &
                                       countMaxExceeded, maxCountMaxExceeded, &
-                                      ensObs_mpiglobal, ensObsGain_mpiglobal)
+                                      ensObs_mpiglobal, ensObsGain_mpiglobal, &
+                                      localSelectionOutput, localObsSorting)
     !
     !:Purpose:
     !
@@ -784,10 +791,13 @@ contains
     real(4),                  intent(in)    :: vertLocation_r4(:,:,:)
     integer,                  intent(in)    :: numRetainedEigen
     integer,                  intent(in)    :: maxNumLocalObs
+    integer,                  intent(in)    :: maxNumLocalObsPerType
     integer,                  intent(inout) :: countMaxExceeded
     integer,                  intent(inout) :: maxCountMaxExceeded
     type(struct_eob), target, intent(in)    :: ensObs_mpiglobal
     type(struct_eob),         intent(in)    :: ensObsGain_mpiglobal
+    logical,                  intent(in)    :: localSelectionOutput
+    character(len=*),         intent(in)    :: localObsSorting
 
     ! Locals:
     type(struct_hco), pointer :: hco_ens
@@ -803,7 +813,7 @@ contains
     logical :: hLocalizeIsConstant, useModulatedEns
 
     real(8) :: anlLat, anlLon, anlVertLocation
-    real(8) :: distance, tolerance, localization
+    real(8) :: tolerance
 
     real(8), allocatable, target, save :: YbTinvRYb_pert(:,:)
     real(8), allocatable, target, save :: YbTinvRCopy_pert(:,:)
@@ -813,7 +823,7 @@ contains
     integer, allocatable, save :: memberIndexSubEnsComp(:,:)
     integer, allocatable, save :: randomMemberIndexArray(:)
 
-    real(8), allocatable, save :: distances(:), PaSqrt_pert(:,:)
+    real(8), allocatable, save :: locFun(:), PaSqrt_pert(:,:)
     real(8), pointer, save :: PaInv_mean(:,:), Pa_mean(:,:)
     real(8), pointer, save :: YbTinvR_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvRYb_mean(:,:)
     real(8), pointer, save :: eigenValues_mean(:), eigenVectors_mean(:,:)
@@ -964,7 +974,7 @@ contains
 
     if (firstCall) then
       allocate(localBodyIndices(maxNumLocalObs))
-      allocate(distances(maxNumLocalObs))
+      allocate(locFun(maxNumLocalObs))
       !
       ! Compute gridded 3D ensemble weights
       !
@@ -1018,13 +1028,14 @@ contains
       hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
     end if
 
-    ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
-    ! we get observations in entire column.
+    ! Get list of nearby observations and localization functions to gridpoint.
+    ! With modulated-ensembles, we get observations in entire column.
     call utl_tmg_start(133,'----GetLocalBodyIndices')
     if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
     numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                          distances, anlLat, anlLon, anlVertLocation,  &
-                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound)
+                                          locFun, anlLat, anlLon, anlVertLocation,  &
+                                          hLocalize(hLocIndex), vLocalize, numLocalObsFound, &
+                                          maxNumLocalObsPerType, localSelectionOutput, localObsSorting)
     if (numLocalObsFound > maxNumLocalObs) then
       countMaxExceeded = countMaxExceeded + 1
       maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
@@ -1037,26 +1048,18 @@ contains
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
 
-      ! Compute value of localization function
-      ! Horizontal
-      localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
-      ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
-      if (vLocalize > 0.0d0 .and. .not. useModulatedEns) then
-        distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
-        localization = localization * lfn_Response(distance,vLocalize)
-      end if
       do memberIndex = 1, nEnsGain
         ! YbTinvR for updating ensemble perturbations
         YbTinvR_pert(memberIndex,localObsIndex) =  &
              ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-             localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
+             locFun(localObsIndex) * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
       end do
       if (eob_simObsAssim) then
         do memberIndex = 1, nEnsGain
           ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
           YbTinvR_mean(memberIndex,localObsIndex) =  &
                ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-               localization * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)             
+               locFun(localObsIndex) * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)
         end do
       end if
     end do ! localObsIndex

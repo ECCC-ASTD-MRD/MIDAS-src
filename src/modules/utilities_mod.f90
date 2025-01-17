@@ -25,6 +25,7 @@ module utilities_mod
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d
+  public :: utl_heapsort1d
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
   public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
@@ -2158,15 +2159,15 @@ contains
     integer :: i,j,nsize
     integer :: ileft,iright
 
-    nsize = size(array,1)
-    ileft=nsize/2+1
-    iright=nsize
+    nsize  = size(array,1)
+    ileft  = nsize/2+1
+    iright = nsize
 
     if (nsize == 1) return                  
 
     do 
       if(ileft > 1)then
-        ileft=ileft-1
+        ileft = ileft-1
         values(:) = array(ileft,:)
       else
         values(:) = array(iright,:)
@@ -2181,7 +2182,7 @@ contains
       j = 2*ileft
       do while (j <= iright) 
         if (j < iright) then
-          if (array(j,1) < array(j+1,1)) j=j+1
+          if (array(j,1) < array(j+1,1)) j = j+1
         endif
         if (values(1) < array(j,1)) then
           array(i,:) = array(j,:)
@@ -2195,6 +2196,70 @@ contains
     end do
 
   end subroutine utl_heapsort2d
+
+
+  subroutine utl_heapsort1d(rvalues,indices)
+    !
+    !:Purpose: Sort a real 1D array in ascending order and give its indexes
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout) :: rvalues(:) ! 1D array of real values to be sorted
+    integer, intent(inout) :: indices(:) ! indexes of the 1D array
+
+    ! Locals:
+    real(8) :: tmpval ! temporary value
+    integer :: tmpind ! temporary value
+    integer :: i,j,nsize
+    integer :: ileft,iright
+
+    if (size(rvalues) /= size(rvalues)) then
+      call utl_abort('utl_heapsort1d: input arrays have different sizes.')
+    endif
+    nsize  = size(rvalues)
+    ileft  = nsize/2+1
+    iright = nsize
+
+    if (nsize == 1) return
+
+    do
+      if(ileft > 1)then
+        ileft=ileft-1
+        tmpval = rvalues(ileft)
+        tmpind = indices(ileft)
+      else
+        tmpval = rvalues(iright)
+        tmpind = indices(iright)
+        rvalues(iright) = rvalues(1)
+        indices(iright) = indices(1)
+        iright = iright-1
+        if (iright == 1) then
+          rvalues(1) = tmpval
+          indices(1) = tmpind
+          return
+        end if
+      end if
+      i = ileft
+      j = 2*ileft
+      do while (j <= iright)
+        if (j < iright) then
+          if (rvalues(j) < rvalues(j+1)) j = j+1
+        endif
+        if (tmpval < rvalues(j)) then
+          rvalues(i) = rvalues(j)
+          indices(i) = indices(j)
+          i = j
+          j = j+j
+        else
+          j = iright+1
+        end if
+      end do
+      rvalues(i) = tmpval
+      indices(i) = tmpind
+    end do
+
+  end subroutine utl_heapsort1d
 
 
   subroutine utl_splitString(string,separator,stringArray)
