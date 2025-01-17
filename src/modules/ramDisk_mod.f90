@@ -13,6 +13,7 @@ module ramDisk_mod
 
   ! Public procedures
   public :: ram_setup, ram_fullWorkingPath, ram_remove, ram_getRamDiskDir
+  public :: ram_removeRamDiskFromName, ram_fileIsOnRamDisk
 
   character(len=256) :: ram_disk_dir
 
@@ -212,13 +213,89 @@ contains
 
   end function ram_remove
 
+  !--------------------------------------------------------------------------
+  ! ram_fileIsOnRamDisk
+  !--------------------------------------------------------------------------
+  function ram_fileIsOnRamDisk(fileName) result(fileIsOnRamDisk)
+    !
+    !:Purpose:  Given the full path+filename, determine if this file is on
+    !           the ram disk by simply checking if its path contains the ram Disk path
+    !
+    implicit none
 
+    ! Arguments:
+    character(len=*), intent(in) :: fileName
+    ! Result:
+    logical                      :: fileIsOnRamDisk
+
+    if ( .not. initialized ) then
+      call ram_setup()
+    end if
+
+    ! treat case when no ramdisk exists
+    if (.not. ram_disk_dir_exists) then
+      fileIsOnRamDisk = .false.
+      return
+    end if
+
+    ! check if path contains ram disk path
+    if (index(trim(fileName), trim(ram_disk_dir)) == 1) then
+      write(*,*) 'ram_fileIsOnRamDisk: file path contains ram disk path'
+      fileIsOnRamDisk = .true.
+    else
+      fileIsOnRamDisk = .false.
+    end if
+
+  end function ram_fileIsOnRamDisk
+
+  !--------------------------------------------------------------------------
+  ! ram_removeRamDiskFromName
+  !--------------------------------------------------------------------------
+  function ram_removeRamDiskFromName(fileName) result(fileNameWithoutRamDisk)
+    !
+    !:Purpose:  Given the full path+filename, remove the ram disk path from the name.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: fileName
+    ! Result:
+    character(len=256)           :: fileNameWithoutRamDisk
+
+    if ( .not. initialized ) then
+      call ram_setup()
+    end if
+
+    ! treat case when no ramdisk exists
+    if (.not. ram_disk_dir_exists) then
+      fileNameWithoutRamDisk = trim(fileName)
+      return
+    end if
+
+    ! check if path contains ram disk path
+    if (index(trim(fileName), trim(ram_disk_dir)) == 1) then
+      write(*,*) 'ram_removeRamDiskFromName: file path contains ram disk path'
+      fileNameWithoutRamDisk = fileName(len_trim(ram_disk_dir)+2 : len_trim(fileName))
+      write(*,*) 'ram_removeRamDiskFromName: Name with and without ram disk path = '
+      write(*,*) '                           With:    ', trim(fileName)
+      write(*,*) '                           Without: ', trim(fileNameWithoutRamDisk)
+    else
+      fileNameWithoutRamDisk = trim(fileName)
+    end if
+
+  end function ram_removeRamDiskFromName
+
+  !--------------------------------------------------------------------------
+  ! ram_getRamDiskDir
+  !--------------------------------------------------------------------------
   function ram_getRamDiskDir() result(fullWorkingPath)
-
+    !
+    !:Purpose:  Return the ram disk path.
+    !
     implicit none
 
     ! Result:
-    character(len=512) :: fullWorkingPath
+    character(len=512) :: fullWorkingPath ! Ram disk path returned
 
     if ( initialized ) then
       if ( ram_disk_dir_exists ) then

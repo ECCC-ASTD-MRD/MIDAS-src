@@ -848,8 +848,9 @@ module gridStateVectorFileIO_mod
     real(8), pointer :: gd2d_r8_UV_ptr(:,:,:)
     real(8), pointer :: heightSfc_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
-    character(len=4)  :: varName, varNameToRead
-    character(len=4)  :: varLevel
+    character(len=4)   :: varName, varNameToRead
+    character(len=4)   :: varLevel
+    character(len=256) :: fileNameMels
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
     logical :: foundVarNameInFile, ignoreDate, melsFileExists
@@ -904,11 +905,17 @@ module gridStateVectorFileIO_mod
       call utl_abort('gio_readFileFst: unit number for input file not valid')
     end if
 
-    !- Open separate file with MELS, if it exists
+    !- Open separate file with MELS, if it exists (special treatment if ram disk used)
     nulfile_mels = 0
-    inquire(file = trim(fileName)//'_mels', exist = melsFileExists)
+    if (ram_fileIsOnRamDisk(fileName)) then
+      fileNameMels = ram_removeRamDiskFromName(fileName)
+      fileNameMels = trim(fileNameMels)//'_mels'
+    else
+      fileNameMels = trim(fileName)//'_mels'
+    end if
+    inquire(file = trim(fileNameMels), exist = melsFileExists)
     if (melsFileExists) then
-      ierr = fnom(nulfile_mels, trim(fileName)//'_mels', 'RND+OLD+R/O', 0)
+      ierr = fnom(nulfile_mels, trim(fileNameMels), 'RND+OLD+R/O', 0)
       write(*,*) 'gio_readFileFst: opening separate file with MELS with unit = ', nulfile_mels
       if (ierr >= 0) then
         ierr  =  fstouv(nulfile_mels,'RND+OLD')
@@ -1067,11 +1074,16 @@ module gridStateVectorFileIO_mod
             varNameToRead = 'PR'
           case ('MELS')
             ! Try reading MELS in separate file with suffix '_mels'
-            if (vnl_varNamePresentInFile(varName, fileName = trim(fileName)//'_mels')) then
-              nulfileToRead = nulfile_mels
+            if (melsFileExists) then
+              if (vnl_varNamePresentInFile(varName, fileName = trim(fileNameMels))) then
+                nulfileToRead = nulfile_mels
+              else
+                call utl_abort('gio_readFileFst: variable MELS'// &
+                               ' was not found in '//trim(fileNameMels))
+              end if
             else
-              call utl_abort('gio_readFileFst: variable '//trim(varName)//&
-                             ' was not found in '//trim(fileName)//'_mels')
+              call utl_abort('gio_readFileFst: variable MELS'// &
+                             ' was not found in '//trim(fileName))
             end if
           case default
             call utl_abort('gio_readFileFst: variable '//trim(varName)//&
