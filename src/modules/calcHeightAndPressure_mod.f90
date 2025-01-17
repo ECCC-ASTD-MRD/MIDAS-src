@@ -3228,8 +3228,14 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     !
-    ! :Purpose: Compute heights for GEM-P columns, return height values 
+    ! :Purpose: Compute heights for GEM-P columns, return height values
     !           in pointer arguments.
+    !
+    ! :Comment:
+    !          -Based on calcHeight_gsv_nl_vcode5xxx
+    !          -See related development notes in calcPressure_col_nl_vcode2100x
+    !
+    !          - Missing handling for HeightSfcOffset (see lines with !??)
     !
     implicit none
 
@@ -3238,21 +3244,173 @@ contains
     real(8), pointer,         intent(inout) :: Z_T(:,:) ! computed column height values on thermodynamic levels
     real(8), pointer,         intent(inout) :: Z_M(:,:) ! computed column height values on momentum levels
 
-    ! Developement notes (@mad001)
-    !   Null subroutine, no computation needed at time of writing.
-    !   The code is traversed because of `calcZandP_nl` call in `cvt` (agnostic if
-    !   dealing with GEM-P or GEM-H), but the results for heights are not used 
-    !   at this time.
-    !   We keep that stub however for future functionalities.
-    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'END (nothing done)', verb_opt=4)
-    return
+    ! Locals:
+    real(8), allocatable :: tv(:), height_T(:), height_M(:)
+    real(8), allocatable :: P_T(:), P_M(:)
+    integer :: numCol, nLev_T, nLev_M, Vcode
+    integer :: colIndex, lev_T, lev_M
+    real(8) :: lat, sLat, heightSfcOffset_T, heightSfcOffset_M
+    real(8) :: P0, rMT, h0, hu, tt, cmp, dh, Rgh, delThick
+    real(8) :: scaleFactorBottom, scaleFactorTop, ratioP, P_M1, P_Mm1
 
-    ! to prevent 'variable not used' remark
-    if (.false.) then
-      write(*,*) col_getNumVarLev(column)
-      Z_T = 0.0
-      Z_M = 0.0
+    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'START', verb_opt=4)
+
+    numCol = col_getNumCol(column)
+    nLev_M = col_getNumLev(column, 'MM')
+    nLev_T = col_getNumLev(column, 'TH')
+    Vcode = vco_getVcode(col_getVco(column))
+
+    if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
+      call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
     end if
+    if ((Vcode == 5005 .or. Vcode == 5100) .and. nlev_T /= nlev_M) then
+      call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
+    end if
+
+    heightSfcOffset_T = 0.0d0 !??
+    heightSfcOffset_M = 0.0d0 !??
+
+    allocate(height_T(nlev_T))
+    allocate(height_M(nlev_M))
+    allocate(P_T(nlev_T),P_M(nlev_M))
+    allocate(tv(nLev_T))
+
+    do_onAllcolumns: do colIndex = 1, col_getNumCol(column)
+
+      height_T(:) = 0.0D0
+      height_M(:) = 0.0D0
+ 
+      ! column%lat populated in innovation_mod from obsSpaceData latitudes
+      lat = col_getLat(column, colIndex)
+      sLat = sin(lat)
+
+      ! surface values
+      P0  = col_getElem(  column, 1, colIndex, 'P0') ! surface pressure
+      rMT = col_getHeight(column, 1, colIndex, 'SF') ! surface height
+
+      do lev_T = 1, nlev_T
+        hu = col_getElem(column, lev_T, colIndex, 'HU')
+        tt = col_getElem(column, lev_T, colIndex, 'TT')
+        P_T(lev_T) = col_getPressure(column, lev_T, colIndex, 'TH')
+        cmp = gpscompressibility(P_T(lev_T),tt,hu)
+        tv(lev_T) = phf_fotvt8(tt,hu)*cmp
+      end do
+
+      ! compute altitude on bottom momentum level
+      if (Vcode == 5002) then
+        height_M(nlev_M) = rMT
+      else if (Vcode == 5005 .or. Vcode == 5100) then
+        height_M(nlev_M) = rMT + heightSfcOffset_M
+      end if
+
+      P_M(nlev_M) = col_getPressure(column, nlev_M, colIndex, 'MM')
+
+      ! compute altitude on 2nd momentum level
+      if (nlev_M > 1) then
+        P_M(nlev_M-1) = col_getPressure(column, nlev_M-1, colIndex, 'MM')
+        ratioP  = log( P_M(nlev_M-1) / P0 )
+
+        ! Gravity acceleration
+        h0 = rMT
+        Rgh = phf_gravityalt(sLat,h0)
+        dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+
+        delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+        height_M(nlev_M-1) = rMT + delThick
+
+        ! compute altitude on rest of momentum levels
+        do lev_M = nlev_M-2, 1, -1
+          P_M(lev_M) = col_getPressure(column, lev_M, colIndex, 'MM')
+          P_M1 = col_getPressure(column, lev_M+1, colIndex, 'MM')
+          ratioP  = log( P_M(lev_M) / P_M1 )
+
+          if (Vcode == 5002) then
+            lev_T = lev_M + 1
+          else if (Vcode == 5005 .or. Vcode == 5100) then
+           lev_T = lev_M
+          end if
+
+          ! Gravity acceleration
+          h0  = height_M(lev_M+1)
+          Rgh = phf_gravityalt(sLat,h0)
+          dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
+          Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+
+          delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
+          height_M(lev_M) = height_M(lev_M+1) + delThick
+        end do
+
+        ! compute Altitude on thermo levels
+        if_computeHeight_col_nl_vcodes : if (Vcode == 5002) then
+          height_T(nlev_T) = height_M(nlev_M)
+
+          do lev_T = 2, nlev_T-1
+            lev_M = lev_T ! momentum level just below thermo level being computed
+            P_Mm1 = col_getPressure(column, lev_M-1, colIndex, 'MM')
+
+            ScaleFactorBottom = log( P_T(lev_T) / P_Mm1 ) / log( P_M(lev_M) / P_Mm1 )
+            ScaleFactorTop    = 1 - ScaleFactorBottom
+            height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
+                             + ScaleFactorTop * height_M(lev_M-1)
+          end do
+
+          ! compute altitude on top thermo level
+          ratioP = log( P_T(1) / P_M(1) )
+
+          ! Gravity acceleration
+          h0  = height_M(1)
+          Rgh = phf_gravityalt(sLat, h0)
+          dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
+          Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+
+          delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
+          height_T(1) = height_M(1) + delThick
+
+        else if (Vcode == 5005 .or. Vcode == 5100) then if_computeHeight_col_nl_vcodes
+          height_T(nlev_T) = rMT + heightSfcOffset_T
+
+          do lev_T = 1, nlev_T-2
+            lev_M = lev_T + 1  ! momentum level just below thermo level being computed
+            P_Mm1 = col_getPressure(column, lev_M-1, colIndex, 'MM')
+
+            ScaleFactorBottom = log( P_T(lev_T) / P_Mm1 ) / log( P_M(lev_M) / P_Mm1 )
+            ScaleFactorTop    = 1 - ScaleFactorBottom
+            height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
+                             + ScaleFactorTop * height_M(lev_M-1)
+          end do
+
+          ! compute altitude on next to bottom thermo level
+          if (nlev_T > 1) then
+            ratioP = log( P_T(nlev_T-1) / P0 )
+
+            h0  = rMT
+            Rgh = phf_gravityalt(sLat,h0)
+            dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+            Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+
+            delThick =  (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+            height_T(nlev_T-1) = rMT + delThick
+          end if
+        end if if_computeHeight_col_nl_vcodes
+      end if
+
+      ! remove the height offset for the diagnostic levels for backward compatibility only
+      !if (.not. addHeightSfcOffset) then !??
+      !  height_T(nlev_T) = rMT
+      !  height_M(nlev_M) = rMT
+      !end if
+
+      Z_T(1:nlev_T, colIndex) = height_T(:)
+      Z_M(1:nlev_M, colIndex) = height_M(:)
+
+    end do do_onAllColumns
+
+    deallocate(height_M)
+    deallocate(height_T)
+    deallocate(tv,P_M,P_T)
+
+    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'END', verb_opt=4)
 
   end subroutine calcHeight_col_nl_vcode5xxx
 
