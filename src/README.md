@@ -60,13 +60,12 @@ Their default values (in parentheses), **should be good for most users**.
   information about compiler code optimization.  You can activate this
   option by using `--opt-report` when calling `midas_build`.
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
-* `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
+* `MIDAS_COMPILE_CLEAN (true)` : if `true`, clean the build directory after a
   successful installation of the absolutes (if applicable)
 * `MIDAS_COMPILE_KEEP_LISTING (false)` : if `false`, remove listings on
   successful compilation (and linking if applicable)
 * `MIDAS_COMPILE_HEADNODE_FRONTEND (false)` : if `true`, frontend multicore
-  compilation is done directly on headnode, this should only be used on a
-  dedicated node obtained through `jobsubi`
+  compilation is done directly on headnode
   (see [this section](#calling-make-in-parallel) for instructions.)
 * `MIDAS_COMPILE_COMPF_GLOBAL ()` : additional user-specified compilation options
 * `MIDAS_COMPILE_JOBNAME (midasCompilation)` : name for the job submission
@@ -75,12 +74,8 @@ Their default values (in parentheses), **should be good for most users**.
   compile (more than 8 provide no significant improvement).
 * `MIDAS_COMPILE_VERBOSE (2)` : verbosity level
 
-Notice that we are **uniformizing the MIDAS compilation environment variable
-naming convention**, please consult
-[this section](#new-environment-variable-convention) if you used to define
-compilation variable in your profile.
 
-Note also that the values of `CHECK_RESULTS_CATCHUP` and
+Note that the values of `CHECK_RESULTS_CATCHUP` and
 `CLEAN_UNITTEST_CATCHUP` in
 `maestro/suites/midas_system_tests/resources/resources.def` are set
 according to the values of `MIDAS_COMPILE_ADD_DEBUG_OPTIONS` and
@@ -90,12 +85,24 @@ expected that activating any of these features will change the results
 of the programs.  We also increase the memory request for the task
 `/Tests/letkf/glb_15km/UnitTest/run`.
 
+#### Environment variable convention
+
+In the spirit of uniformizing environment variable convention across our
+different tools, all environment variables **start** with the prefix `MIDAS_`.
+
+These former variables have been renamed:
+* `COMPILEDIR_MIDAS_MAIN` is now `MIDAS_COMPILE_DIR_MAIN`
+* `COMPILE_MIDAS_ADD_DEBUG_OPTIONS` is now `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`
+
+If any of those are still defined in your profile, they won't be taken into account
+and you should remove them.
+
+
 ### Building all
 
 Simply execute **`./midas_build`** from a frontend machine.
 
-Successful compilation, linking and installing will be confirmed with the
-display
+Successful compilation, linking and installing will be confirmed with the display
 ```
 +------------------------------+
 |                              |
@@ -110,8 +117,8 @@ It will
 2. install (copy) the absolutes in the directory
    `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` using the format
    `midas-${program}_${ORDENV_PLAT}-${VERSION}.Abs`
-3. if `MIDAS_COMPILE_CLEAN=true`, will delete the build directory if the
-   compilation was successful
+3. if `MIDAS_COMPILE_CLEAN=true`, will clean the build directory if the
+   compilation was successful (but keep installes binaries)
    (directory `midas_bld-${VERSION}`)
 4. if `MIDAS_COMPILE_KEEP_LISTING=false`, will delete the listings if the
    compilation was successful
@@ -129,19 +136,6 @@ to `yes`, the debug options will be enabled at compilation.
 The `midas_build` options `--debug`, `-debug` or `-d` will also enable
 the debug options avoiding to set the environment variable prior to
 compilation.
-
-### New environment variable convention
-In the spirit of uniformizing environment variable convention across our
-different tools, we decided to change some variable names used in the previous
-compilation strategy.
-All environment variables now **start** with the prefix `MIDAS_`.
-These former variables have been renamed:
-
-* `COMPILEDIR_MIDAS_MAIN` is now `MIDAS_COMPILE_DIR_MAIN`
-* `COMPILE_MIDAS_ADD_DEBUG_OPTIONS` is now `MIDAS_COMPILE_ADD_DEBUG_OPTIONS`
-
-If any of those are defined in your profile, they won't be taken into account
-and you should remove them.
 
 ## `splitobs` an *external* program
 
@@ -172,17 +166,17 @@ ${SQLITE_Libraries} ${rttov_LIBRARIES} ${HDF5_Libraries} burp_module irc random 
 ```
 
 ### New external dependencies in a module
+
 When new external dependencies are added in a module, it will potentially impact
 multiple programs (for which the dependencies will have to be added as described
-above).  One can `grep` the files `depend.make` in the `programs/CMakeFiles/`
-sub-directories of the build directory after a build
-(or an attempt at building) the code.  These files are part of
-[the `cmake` build directory strcuture](#what-does-cmake-do).
-
-
+above).  One can analyze the `use` statements in the source code or `grep` the
+files `depend.make` in the `programs/CMakeFiles/` sub-directories of the build
+directory after a build (or an attempt at building) the code.  These files are
+part of [the `cmake` build directory strcuture](#what-does-cmake-do).
 
 
 ### Addressing circular dependency issues
+
 A circular dependency happens when a module uses another module
 which also uses the first one (or use a module that use the first one and so
 forth).
@@ -227,14 +221,13 @@ their number is necessary to evolve toward this goal.
 
 If you want to have a more fine grained control, you can call `cmake` and `make`
 directly, but for **most users,** `midas_build` **should do just fine**. I invite
-you to read `make` man pages (short and straight to the point). `cmake` documentation
-is considerably more involved and not necessary for development purpose.
+you to read `make` man pages (short and straight to the point).
 
-In this section, we'll note the root of your git project `${topLevel}` and your build
-directory `${buildDir}` (note that `${topLevel}/src/config.dot.sh`, configuring
+Onward, we'll note the root of your git project `${topLevel}` and your build
+directory `${buildDir}`.  Note that `${topLevel}/src/config.dot.sh`, configuring
 the compilation environment, will create a build directory at `${MIDAS_COMPILE_DIR_MAIN}`
 and link it to `${topLevel}/compildir`. You could in fact launch `cmake` from any
-directory of your choice to define it as a build directory).
+directory of your choice to define it as a build directory.
 
 The development workflow will be:
 1. export some specific [`MIDAS_` environment variables](#configuring-the-compilation-and-linking-process)
@@ -246,7 +239,7 @@ The development workflow will be:
 5. `make -j [${MIDAS_COMPILE_NCORES}]` : build everything using [multiple cores](#calling-make-in-parallel)
 6. iterative development loop which we cover in detail in the [section on incremental builds](#incremental-builds)
 
-### What does `cmake`do?
+### What does `cmake` do?
 To better understand the process, it is relevant to understand some elements of
 the `cmake` compilation strategy.  **`cmake` does not do the build**, it
 prepares and organises the build _recipes_,  a bunch of `Makefile` for each
@@ -278,8 +271,8 @@ recipes in `.make` files.  Let's look at `${buildDir}/src/` directory structure
     ├── CTestTestfile.cmake
     └── Makefile
 ```
-As can be seen, every programs got his own directory in `CMakeFiles/` each containing
-various files and in particular a `build.make` file containing the `cmake`-generated
+As can be seen, every programs got his own directory in `programs/CMakeFiles/` each containing
+various files and in particular a `build.make` file containing the main `cmake`-generated
 recipes (not meant to be modified).  One can see all the prerequisites needed to
 build the absolute binary.  One can appreciate that no MIDAS module object is
 present as a prerequisite.  That is because they are archived in a static
@@ -296,14 +289,14 @@ builds section](#incremental-builds), it has somewhat important consequences.
 So in summary, calling `cmake` configure the different `Makefile` and calling
 `make` from `${buildDir}` will:
 1. build all module objects
-2. archive them together in `libmidas.a`
+2. link them together in `libmidas.a`
 3. build program objects
 4. link each program with `libmidas.a`
 
 Worth mentionning, for each program and for the static library, there is a
 `depend.make` file generated at compile time and located in
 `${buildDir}/src/programs/CMakeFiles/${programBaseName}.dir/depend.make` for
-each program and `${buildDir}/src/modules/CMakeFiles/midas.dir/depend.make` for
+each program and at `${buildDir}/src/modules/CMakeFiles/midas.dir/depend.make` for
 the static library and containing the dependency tree for all modules in a
 single file.  Analyzing these files is another way to determine the dependency
 structure.
@@ -322,16 +315,16 @@ a modification, build, test, make adjustments and iterate many times like this
 and you are comfortable with `make`, this section is for you.
 
 The compromise you do to gain these seconds, is to do `cmake` dependancy
-analysis on your own and evaluate what need to be recompile; error in this
-analysis **could result in unexpected behavior, faulty results or silent errors**.
-Also, when the iterative incremental development is completed, make sure to
-**do a final build using `midas_build`**.  This is a requirement before any merge
-request, but also a good practice to ensure you did not oversee some dependancy
+analysis on your own and evaluate what need to be recompiled; error in this
+analysis **could result in compilation error, unexpected behavior, faulty results
+or silent errors**.  Also, when the iterative incremental development is completed,
+make sure to **do a final build using `midas_build`**.  This is a requirement before
+any merge request, but also a good practice to ensure you did not oversee some dependancy
 during the incremental process.
 
 Now that warnings have been stated - here we go!
 In any case, you first have to go through the first build steps
-[described previously](#using-make--advanced-use-cases).
+[described previously](#using-make-advanced-use-cases).
 
 #### Incremental build for programs
 If your modifications are exclusively done in programs, then the process is really
@@ -339,7 +332,7 @@ simple since you are modifying only the leaves of the dependancy tree.  You can
 then simply follow these steps:
 1. modify the program(s)
 2. adjust, if necessary, the [external dependancies](#adding-a-new-program-or-changing-external-dependencies)
-3. `make [ ${programBaseName} ]` : rebuild and link all modified programs.  Alternatively,
+3. `make [-j] [ ${programBaseName} [ ${anotherProgram} ...]]` : rebuild and link all modified programs.  Alternatively,
    you can specify which program(s) to build by passing them as arguments to `make`.
    In such case, `${programBaseName}` is a program source file name without the
    extension. Note that autocompletion will suggest you available targets by pressing `<TAB>`.
@@ -355,43 +348,45 @@ to a module will trigger the reconstruction of the static library, which in turn
 will inform `make` that all programs will have to be recompiled and linked since
 it is a prerequisite of each of them and it has been modified.
 
-When a module is modified, this module has to be recompiled and the static
-library relinked.  This means that every module that `use` the modified module
-will have to be recompiled as well as all modules down the dependency tree.  One
-can consult the `${buildDir}/src/modules/CMakeFiles/midas.dir/depend.make` (see
- [the `cmake` build directory strcuture](#what-does-cmake-do)) or analyze the
+When a module is modified, every module that `use` it will have to be recompiled
+as well as all modules down the dependency tree.  One can consult the
+`${buildDir}/src/modules/CMakeFiles/midas.dir/depend.make`
+(see [the `cmake` build directory strcuture](#what-does-cmake-do)) or analyze the
  `use` statements in the module source files to determine which are those
- modules.  Thus, if you simple call `make -j midas`, all those modules will be
+ modules.  Thus, if you simply call `make -j midas`, all those modules will be
  recompiled.
 
-If your modification __does not impact any subroutine interfaces__, then you know
-depending modules do not need to be recompiled.  Yet `make` does not know this,
-because it uses the last modification timestamp to determine what needs to be
-recompiled, and not an actual analysis of the change made.
-In such circumstances and to save a few seconds, you could trick `make` in not
-recompiling the depending modules.  To do so you'll need to call a somewhat
-lengthy `make` incantation from `${buildDir}`:
+If your modification __does not impact any subroutine interface__, then you know
+depending modules need not be recompiled.  Yet `make` does not know this,
+because it uses the last modification timestamp and some very shallow code analysis
+of the change made; if you actually only `touch` a source file, it will recompile
+it, but not its dependent modules.  If, however, you make an actual modification
+**in a subroutine** (not only in the module header for instance), then it will recompile
+all dependent modules even if no interface have been modified.  In such circumstances
+and to save a few seconds, you could trick `make` in not recompiling the depending
+modules.  To do so you'll need to call a somewhat lengthy `make` incantation from
+`${buildDir}`:
 ```sh
 make -f src/modules/CMakeFiles/midas.dir/build.make src/modules/CMakeFiles/midas.dir/${modifiedModule}_mod.f90.o
 make -f src/modules/CMakeFiles/midas.dir/build.make --touch src/modules/CMakeFiles/midas.dir/*.o
 make -j midas
 ```
 What is going on here?
-First let's observe the similitude between the two first line; in each case
-`make` is told to use a specific makefile through the argument of `-f`, `src/modules/CMakeFiles/midas.dir/build.make`,
-which contains the recipes for `libmidas.a`, including all module objects.  The
-first line tells `make` to build `${modifiedModule}_mod.f90.o` given the recipes
-for the library.
+First let's observe the similitude between the first two lines; in each case
+`make` is told to use a specific makefile through the argument `-f`,
+`src/modules/CMakeFiles/midas.dir/build.make`, which contains the recipes for
+`libmidas.a`, including all module objects.  The first line tells `make` to build
+`${modifiedModule}_mod.f90.o` given the recipes for the library.
 The second line is the trick _per se_, it tells `make` to `touch` all the
-elements in the library, in effect bringning their timestamp newer than the
+elements in the library, in effect brigning their timestamp newer than the
 recompiled module such that when, in the third command, the library is rebuilt,
 only linking will be done.
 
 
 The static library is also rerequisite to all programs, a simple call to `make` will
-recompile all the programs.  It may or may not what you need depending on the tests you
+recompile all the programs.  It may or may not be what you need depending on the tests you
 will be conducting.  If you intend to test only a single program, then you should
-simply relink the static library and compile only the specific program.  Such workflow
+relink the static library and compile only the specific program.  Such workflow
 will then be:
 1. modify module(s) and possibly program(s)
 2. adjust, if necessary, the [external dependancies](#adding-a-new-program-or-changing-external-dependencies)
@@ -400,19 +395,24 @@ will then be:
 
 
 #### Is this worth your time?
-Building and linking the library is less than a second if a single module has
-been modified.  Building a single program is around 2 seconds.  Building all
-carelessly but in parallel on the headnode using `make -j` is around 12 seconds.
+
+* Building all carelessly from scratch but in parallel on the headnode using `make -j`
+  is around 120 seconds.
+* Building and linking the library is less than a second if a single module has
+  been modified.
+* Building a single program is around 2 seconds.
+* If only a couple of modules need to be recompiled, building only the shared library
+  is less than 20 seconds in most cases (depending on how deep is the modification).
+
 So if you make a modification, build and test once or twice, a simple
 `make -j [ ${programBaseName} ]` is what you need.  If you intend on doing this
 development iteratively many times with short tests in between, then maybe the
 seconds saving is worth the more complex incantation.
 
-In any case, doing the build in parallel on the frontend using `make`instead of
+In any case, doing the build in parallel on the frontend using `make` instead of
 `midas_build` is a certainly a gain in time.  Don't forget however to do a
 proper `make install` afterward for the binaries to be copied to the `midas_abs`
 directory, see comments on this [in the following section](#the-install-target)
-
 
 
 ### The install target
@@ -424,9 +424,13 @@ with the naming convention `midas-_${ORDENV_PLAT}-${VERSION}.Abs` where `${VERSI
 is obtained by the `${topLelev}/midas.version.sh` script.
 
 
-A complete install is then
-```
-(source ./config.dot.sh && make [-j] && make install)
+A complete install from `${topLevel}` is then
+```sh
+. ./src/config.dot.sh
+cd compiledir
+cmake ${MIDAS_SOURCE_DIR}
+make -j
+make install
 ```
 
 Note that, at time of writing, `midas.version.sh` is evaluated by `cmake`, such
@@ -440,7 +444,7 @@ Then when you make a modification, the suffix `_M` will be appended:
 and the binaries won't be properly named.  Such that when you recompile a program
 after a modification it will keep the former name and a `make install` would
 overwrite the other binary in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs`.  This could
-in turn confuse maestro who will be looking for the programmed properly
+in turn confuse maestro who will be looking for the program properly
 suffixed.  This is a pending issue for the incremental build approach that you
 have to be careful with.
 
