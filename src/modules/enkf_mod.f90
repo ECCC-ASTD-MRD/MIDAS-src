@@ -2331,6 +2331,23 @@ contains
                   YbTinvRYb_pert,   nEns1)            ! C
       write(*,*) 'Called dgemm'
 
+      write(*,*) 'YbTinvRYb_pert dgemm = ', YbTinvRYb_pert(:,1)
+
+      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
+      threadIndex = 1 + omp_get_thread_num()
+      !$OMP DO
+      do memberIndex2 = 1, nEns2
+        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
+        do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
+          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
+          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))
+        end do
+      end do
+      !$OMP END DO
+      !$OMP END PARALLEL
+
       ! copy upper triangle to lower triangle (symmetric matrix)
 
       !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
@@ -2341,6 +2358,7 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
+      write(*,*) 'YbTinvRYb_pert = ', YbTinvRYb_pert(:,1)
 
       if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
         write(*,*) 'Processing eob_simObsAssim'
