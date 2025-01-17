@@ -148,7 +148,7 @@ contains
                  tim_nstepobs, tim_nstepobsinc
       call utl_abort('epp_postProcess')
     end if
-  
+
     if (present(outputOnlyEnsMean_opt)) then
       outputOnlyEnsMean = outputOnlyEnsMean_opt
     else
@@ -273,7 +273,6 @@ contains
       call gsv_zero(stateVectorMeanTrl)
       call ens_computeMean(ensembleTrl)
       call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
-      
       !- Allocate and compute ensemble spread stddev Trl
       call gsv_allocate(stateVectorStdDevTrl, tim_nstepobsinc, hco_ens, vco_ens, &
                         dateStamp_opt = tim_getDateStamp(),  &
@@ -573,7 +572,7 @@ contains
                         dateStampListInc, varNames_opt=varNames)
       call ens_copy(ensembleTrl,ensembleAnlInc)
       deallocate(varNames)
-      
+
       ! Compute the ensemble increments
       call ens_add(ensembleAnl, ensembleAnlInc, scaleFactorInOut_opt=-1.0D0)
       
@@ -655,7 +654,7 @@ contains
                           tim_nstepobsinc, hco_ens, vco_ens, dateStampListInc, varNames_opt = varNames)
         call ens_copy(ensembleTrlSubSample, ensembleAnlIncSubSample)
         deallocate(varNames)
-        
+
         call ens_add(ensembleAnlSubSample, ensembleAnlIncSubSample, scaleFactorInOut_opt = -1.0D0)
 
         !- Mask the ensemble increment for LAM grid and recompute the mean analysis
@@ -751,7 +750,7 @@ contains
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorMeanAnlSfcPres)
         call gsv_transposeTilesToMpiGlobal(stateVectorMeanAnlSfcPresMpiGlb, stateVectorMeanAnlSfcPres)
       end if
-      
+
       ! output analmean, analrms
       call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())

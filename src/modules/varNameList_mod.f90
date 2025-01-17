@@ -784,29 +784,74 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     ! vnl_addToVarNames
     !--------------------------------------------------------------------------
-    function vnl_addToVarNames(varNamesIn, varNameToAdd) result(varNamesOut)
+    subroutine vnl_addToVarNames(varNamesInOut, varNameToAdd, imposeVnlOrder_opt)
       !
-      ! :Purpose: Add an additional varName to an existing list of varNames
+      ! :Purpose: Add an additional varName to an existing list of varNames.
+      !           But only add if it is not already in the list.
       !
       implicit none
 
       ! Arguments:
-      character(len=*),  intent(in) :: varNamesIn(:) ! input variable names
-      character(len=*),  intent(in) :: varNameToAdd  ! variable name to add to the list of existing variables
-
-      ! Result:
-      character(len=4), pointer     :: varNamesOut(:)
+      character(len=*), pointer, intent(inout) :: varNamesInOut(:) ! input/output variable names
+      character(len=*),          intent(in)    :: varNameToAdd     ! variable name to add to the list of existing variables
+      logical,         optional, intent(in)    :: imposeVnlOrder_opt ! choose to sort output list by order in vnl list
 
       ! Locals:
-      integer :: lenVarNames
+      integer :: lenVarNames, nameIndex, varIndex
+      logical :: alreadyInList, imposeVnlOrder
+      character(len=4), pointer :: varNamesOut(:)
+      character(len=4), pointer :: varNamesSorted(:)
+      character(len=4)          :: varName
 
-      lenVarNames = size(varNamesIn)
+      lenVarNames = size(varNamesInOut)
+
+      if (present(imposeVnlOrder_opt)) then
+        imposeVnlOrder = imposeVnlOrder_opt
+      else
+        imposeVnlOrder = .false.
+      end if
+
+      ! Check if the name is already in the list
+      alreadyInList = .false.
+      CheckLoop: do nameIndex = 1, lenVarNames
+        if (trim(varNamesInOut(nameIndex)) == trim(varNameToAdd)) then
+          alreadyInList = .true.
+          exit CheckLoop
+        end if
+      end do CheckLoop
+
+      if (alreadyInList) then
+        ! If already in list, just return leaving InOut list unchanged
+        return
+      end if
+
+      ! Create output list 1 element longer than input list
       allocate(varNamesOut(lenVarNames+1))
+      varNamesOut(1:lenVarNames) = varNamesInOut(:)
+      varNamesOut(lenVarNames+1) = trim(varNameToAdd)
 
-      varNamesOut(1:lenVarNames) = varNamesIn(:)
-      varNamesOut(lenVarNames+1) = varNameToAdd
+      lenVarNames = size(varNamesOut)
 
-    end function vnl_addToVarNames
+      if (imposeVnlOrder) then
+        ! Ensure order follows that in varNameList_mod
+        allocate(varNamesSorted(lenVarNames))
+        nameIndex = 0
+        do varIndex = 1, vnl_numvarmax
+          varName = vnl_varNameList(varIndex)
+          if (ANY(varNamesOut(:) == varName)) then
+            nameIndex = nameIndex + 1
+            varNamesSorted(nameIndex) = varName
+          end if
+        end do
+        varNamesOut(:) = varNamesSorted(:)
+        deallocate(varNamesSorted)
+      end if
+
+      ! Replace the input list with output list
+      deallocate(varNamesInOut)
+      varNamesInOut => varNamesOut
+
+    end subroutine vnl_addToVarNames
 
     !-----------------------------------------------------------------------
     ! vnl_varNamePresentInFile

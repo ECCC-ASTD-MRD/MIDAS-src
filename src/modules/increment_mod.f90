@@ -841,7 +841,7 @@ CONTAINS
     type(struct_gsv), target  :: statevector_in_withP0LS
     type(struct_gsv), pointer :: statevector_in_ptr
 
-    character(len=4), pointer :: varNamesToInterpolate(:), varNamesToInterpolate_withP0LS(:)
+    character(len=4), pointer :: varNamesToInterpolate(:)
 
     call msg('inc_interpolateAndAdd', 'START', verb_opt=2)
 
@@ -864,21 +864,19 @@ CONTAINS
     ! Check if P0LS needs to be added to the increment
     if (statevector_inout%vco%vcode == 5100 .and. &
          .not.gsv_varExist(statevector_in, 'P0LS')) then
-      varNamesToInterpolate_withP0LS => vnl_addToVarNames(varNamesToInterpolate,'P0LS')
+      call vnl_addToVarNames(varNamesToInterpolate,'P0LS',imposeVnlOrder_opt=.true.)
       call gsv_allocate(statevector_in_withP0LS, statevector_in%numstep,                       &
                         statevector_in%hco, statevector_in%vco,                                &
                         dateStamp_opt=tim_getDateStamp(),                                      &
                         mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='Tiles',  &
                         dataKind_opt=statevector_in%dataKind,                                  &
                         allocHeightSfc_opt=statevector_in%heightSfcPresent,                    &
-                        varNames_opt=varNamesToInterpolate_withP0LS,                           &
+                        varNames_opt=varNamesToInterpolate,                                    &
                         hInterpolateDegree_opt=statevector_in%hInterpolateDegree)
       call gsv_zero(statevector_in_withP0LS)
       call gsv_copy(statevector_in, statevector_in_withP0LS, &
                     allowVarMismatch_opt=.true.)
       statevector_in_ptr => statevector_in_withP0LS
-      deallocate(varNamesToInterpolate)
-      varNamesToInterpolate => varNamesToInterpolate_withP0LS
     else
       statevector_in_ptr => statevector_in
     end if

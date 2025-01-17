@@ -187,6 +187,11 @@ CONTAINS
       varNames(:) = varNames_opt(:)
     else
       call gsv_varNamesList(varNames)
+      ! Ensure MELS is part of ensemble
+      if (vco_ens%vCode == 21001 .and. vco_ens%sleveCoord) then
+        write(*,*) 'ens_allocate: Ensuring MELS is part of varNames'
+        call vnl_addToVarNames(varNames, 'MELS', imposeVnlOrder_opt=.true.)
+      end if
     end if
 
     if (present(allocHeightSfc_opt)) then
@@ -955,8 +960,39 @@ CONTAINS
     ! Locals:
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
-    integer          :: k1, k2, varLevIndex, stepIndex, numStep, subEnsIndex
-    character(len=4), pointer :: varNamesInEns(:)
+    integer          :: k1, k2, varIndex, varLevIndex, stepIndex, numStep, subEnsIndex
+    logical          :: sameVariableOrder
+    character(len=4), pointer :: varNamesInEns(:), varNamesInGsv(:)
+
+    nullify(varNamesInEns)
+    call gsv_varNamesList(varNamesInEns, ens%statevector_work)
+    if (gsv_isAllocated(statevector)) then
+      nullify(varNamesInGsv)
+      call gsv_varNamesList(varNamesInGsv, statevector)
+    end if
+
+    ! Check compatibility of stateVector and ensemble
+    if (gsv_isAllocated(statevector)) then
+
+      if (ens%statevector_work%numVarLev /= statevector%numVarLev) then
+        write(*,*) 'ens_copyEnsMean: numVarLev in ensemble    = ', ens%statevector_work%numVarLev
+        write(*,*) 'ens_copyEnsMean: numVarLev in statevector = ', statevector%numVarLev
+        call utl_abort('ens_copyEnsMean: numVarLev not equal in ensemble and statevector')
+      end if
+
+      sameVariableOrder = .true.
+      VarIndexLoop: do varIndex = 1, size(varNamesInEns)
+        if (varNamesInEns(varIndex) /= varNamesInGsv(varIndex)) then
+          sameVariableOrder = .false.
+          exit VarIndexLoop
+        end if
+      end do VarIndexLoop
+      deallocate(varNamesInGsv)
+      if (.not. sameVariableOrder) then
+        call utl_abort('ens_copyEnsMean: variables not the same in ensemble and statevector')
+      end if
+
+    end if
 
     if( present(subEnsIndex_opt) ) then
       subEnsIndex = subEnsIndex_opt
@@ -969,14 +1005,12 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     if (.not. gsv_isAllocated(statevector)) then
-      nullify(varNamesInEns)
-      call gsv_varNamesList(varNamesInEns,ens%statevector_work)
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
                         varNames_opt=varNamesInEns, datestamp_opt=tim_getDatestamp(), &
                         mpi_local_opt=.true., dataKind_opt=8 )
-      deallocate(varNamesInEns)
     end if
+    deallocate(varNamesInEns)
 
     statevector%onPhysicsGrid(:) = ens%statevector_work%onPhysicsGrid
     statevector%hco_physics => ens%statevector_work%hco_physics
@@ -1448,25 +1482,21 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_varNamesList
   !--------------------------------------------------------------------------
-  subroutine ens_varNamesList(varNames,ens_opt)
+  subroutine ens_varNamesList(varNames,ens)
     !
     !:Purpose: Return a list of the variable names that exist in the ensemble.
     !
     implicit none
-    
+
     ! Arguments:
-    type(struct_ens), optional, intent(in)    :: ens_opt
+    type(struct_ens),           intent(in)    :: ens
     character(len=4), pointer,  intent(inout) :: varNames(:)
 
     if (associated(varNames)) then
       call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
     end if
 
-    if (present(ens_opt)) then
-      call gsv_varNamesList(varNames, ens_opt%statevector_work)
-    else
-      call gsv_varNamesList(varNames)
-    end if
+    call gsv_varNamesList(varNames, ens%statevector_work)
 
   end subroutine ens_varNamesList
 
@@ -2480,7 +2510,7 @@ CONTAINS
                          fileMemberIndex1_opt=ens%fileMemberIndex1)
 
     nullify(anlVar)
-    call gsv_varNamesList(anlVar)
+    call ens_varNamesList(anlVar,ens)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID', varName_opt=anlVar(1))
     if ( present(vco_file_opt) ) then
@@ -2564,7 +2594,7 @@ CONTAINS
       allocate(varNames(size(varNames_opt)))
       varNames(:) = varNames_opt(:)
     else
-      call gsv_varNamesList(varNames)
+      call ens_varNamesList(varNames,ens)
     end if
 
     !- 2.1 Loop on time, ensemble member, variable, level
@@ -2885,7 +2915,7 @@ CONTAINS
       allocate(varNamesInEns(size(varNames_opt)))
       varNamesInEns(:) = varNames_opt(:)
     else
-      call gsv_varNamesList(varNamesInEns, ens%statevector_work)
+      call ens_varNamesList(varNamesInEns, ens)
     end if
 
     if (present(ip3_opt)) then
