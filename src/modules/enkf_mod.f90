@@ -2286,8 +2286,8 @@ contains
     ! Locals:
     integer :: threadIndex, omp_get_thread_num
     integer :: memberIndex1, memberIndex2, localObsIndex, bodyIndex
-    real(4), allocatable :: YbCopy2_r4(:,:)
-    real(4), allocatable :: YbCopy_r4(:,:)
+    real(8), allocatable :: YbCopy2_r4(:,:)
+    real(8), allocatable :: YbCopy_r4(:,:)
 
     if ( numLocalObs == 0 ) then
       write(*,*) 'enkf_calcYbTinvRYb called with numLocalObs = 0'
@@ -2313,34 +2313,6 @@ contains
     call utl_tmg_stop(137)
 
     if (nEns1 == nEns2) then
-      ! When nEns1 equals nEns2 we assume matrix is symmetric
-      !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
-      threadIndex = 1 + omp_get_thread_num()
-      !$OMP DO
-      do memberIndex2 = 1, nEns2
-        YbCopy2_r4(:,threadIndex) = YbCopy_r4(1:numLocalObs,memberIndex2)
-        do memberIndex1 = 1, memberIndex2 ! compute only upper triangle
-          YbTinvRYb_pert(memberIndex1,memberIndex2) = 0.0d0
-          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-               sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy2_r4(1:numLocalObs,threadIndex))
-        end do
-      end do
-      !$OMP END DO
-      !$OMP END PARALLEL
-
-      ! copy upper triangle to lower triangle (symmetric matrix)
-
-      !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-      do memberIndex2 = 1, nEns2
-        do memberIndex1 = memberIndex2+1, nEns1
-          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-               YbTinvRYb_pert(memberIndex2,memberIndex1)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-      write(*,*) 'YbTinvRYb_pert = ', YbTinvRYb_pert(:,1)
-
       write(*,*) 'Calling dgemm in the symmetric case'
       write(*,*) 'nEns1 = ', nEns1
       write(*,*) 'numLocalObs = ', numLocalObs
