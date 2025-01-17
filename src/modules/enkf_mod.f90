@@ -2314,25 +2314,6 @@ contains
 
     if (nEns1 == nEns2) then
       ! When nEns1 equals nEns2 we assume matrix is symmetric
-      write(*,*) 'Calling dgemm in the symmetric case'
-      write(*,*) 'nEns1 = ', nEns1
-      write(*,*) 'numLocalObs = ', numLocalObs
-      write(*,*) 'maxNumLocalObs = ', maxNumLocalObs
-      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert,1), size(YbTinvRCopy_pert,2)
-      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4,1), size(YbCopy_r4,2)
-      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert,1), size(YbTinvRYb_pert,2)
-      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
-      call dgemm('T', 'N',                          &
-                  nEns1, nEns1, numLocalObs,        & ! M, N, K
-                  1.0d0,                            & ! alpha
-                  YbTinvRCopy_pert, maxNumLocalObs, & ! A
-                  YbCopy_r4,        numLocalObs,    & ! B
-                  0.0d0,                            & ! beta
-                  YbTinvRYb_pert,   nEns1)            ! C
-      write(*,*) 'Called dgemm'
-
-      write(*,*) 'YbTinvRYb_pert dgemm = ', YbTinvRYb_pert(:,1)
-
       !$OMP PARALLEL PRIVATE (memberIndex1, memberIndex2, threadIndex)
       threadIndex = 1 + omp_get_thread_num()
       !$OMP DO
@@ -2359,6 +2340,26 @@ contains
       end do
       !$OMP END PARALLEL DO
       write(*,*) 'YbTinvRYb_pert = ', YbTinvRYb_pert(:,1)
+
+      write(*,*) 'Calling dgemm in the symmetric case'
+      write(*,*) 'nEns1 = ', nEns1
+      write(*,*) 'numLocalObs = ', numLocalObs
+      write(*,*) 'maxNumLocalObs = ', maxNumLocalObs
+      write(*,*) 'YbTinvRCopy_pert = ', size(YbTinvRCopy_pert,1), size(YbTinvRCopy_pert,2)
+      write(*,*) 'YbCopy_r4 = ', size(YbCopy_r4,1), size(YbCopy_r4,2)
+      write(*,*) 'YbTinvRYb_pert = ', size(YbTinvRYb_pert,1), size(YbTinvRYb_pert,2)
+      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      YbTinvRYb_pert(:,:) = 0.0d0
+      call dgemm('T', 'N',                          &
+                  nEns1, nEns1, numLocalObs,        & ! M, N, K
+                  1.0d0,                            & ! alpha
+                  YbTinvRCopy_pert, maxNumLocalObs, & ! A
+                  YbCopy_r4,        numLocalObs,    & ! B
+                  0.0d0,                            & ! beta
+                  YbTinvRYb_pert,   nEns1)            ! C
+      write(*,*) 'Called dgemm'
+
+      write(*,*) 'YbTinvRYb_pert dgemm = ', YbTinvRYb_pert(:,1)
 
       if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
         write(*,*) 'Processing eob_simObsAssim'
