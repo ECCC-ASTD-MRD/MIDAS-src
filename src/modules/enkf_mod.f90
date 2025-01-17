@@ -2289,7 +2289,16 @@ contains
     real(4), allocatable :: YbCopy2_r4(:,:)
     real(4), allocatable :: YbCopy_r4(:,:)
 
-    allocate(YbCopy_r4(maxNumLocalObs,nEns2))
+    if ( numLocalObs == 0 ) then
+      write(*,*) 'enkf_calcYbTinvRYb called with numLocalObs = 0'
+      YbTinvRYb_pert(:,:) = 0.0d0
+      if (present(YbTinvRYb_mean)) then
+        YbTinvRYb_mean(:,:) = 0.0d0
+      end if
+      return
+    end if
+
+    allocate(YbCopy_r4(numLocalObs,nEns2))
     allocate(YbCopy2_r4(numLocalObs,mmpi_numThread))
 
     call utl_tmg_start(137,'--------YbArraysCopy')
@@ -2317,7 +2326,7 @@ contains
                   nEns1, nEns1, numLocalObs,        & ! M, N, K
                   1.0d0,                            & ! alpha
                   YbTinvRCopy_pert, maxNumLocalObs, & ! A
-                  YbCopy_r4,        maxNumLocalObs, & ! B
+                  YbCopy_r4,        numLocalObs,    & ! B
                   0.0d0,                            & ! beta
                   YbTinvRYb_pert,   nEns1)            ! C
       write(*,*) 'Called dgemm'
