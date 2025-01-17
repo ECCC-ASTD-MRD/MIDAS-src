@@ -1,4 +1,14 @@
 #! /bin/sh
+##
+## DO NOT MODIFY THIS FILE 
+##
+## as it is part of the versioned repository and contains the default configuration
+## for the build environment.
+##
+## If you need to change the default configuration provided by this file, either
+## export the desired variables in your environment before sourcing it or define
+## them in your profile.
+##
 
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version)
