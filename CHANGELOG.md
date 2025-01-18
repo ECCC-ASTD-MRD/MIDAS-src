@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Implement SLEVE for GEM-H, also fixes `qlim_rttovLimit` for GEM-H (#1017 and !932)
  * The script `midas.copy_workdir` is added to the repository (#1025 and !928)
    * The script `midas.launch_program` has been renamed `midas.submit_program`.
    * The script `launch_program.sh` has been renamed to
@@ -35,6 +36,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Bug fixes in `qlim_rttovLimit` for GEM-H (#1017 and !932)
+   * Minor impact on results for humidity
  * SST climatology computation bug fixed (#1027 and !930)
  * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the
    precision expected for a mask (#1012 and !922)
