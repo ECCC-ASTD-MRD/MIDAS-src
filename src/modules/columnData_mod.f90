@@ -284,6 +284,11 @@ contains
       column%varExistList(vnl_varListIndex('P0LS')) = .true.
     end if
 
+    ! add MELS to the varExistList if vcode=21001 and SLEVE is active
+    if (column%vco%vcode == 21001 .and. column%vco%sleveCoord) then
+      column%varExistList(vnl_varListIndex('MELS')) = .true.
+    end if
+
     column%numCol = numCol
 
     if(.not.column%vco%initialized) then

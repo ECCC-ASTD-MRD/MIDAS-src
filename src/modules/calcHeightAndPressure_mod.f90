@@ -592,9 +592,14 @@ contains
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
-
-      call fetch3DLevels_r8(gsv_getVco(statevector), Hsfc, &
-                            fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      if (gsv_getVco(statevector)%sleveCoord) then
+        ! Need to get MELS!
+        call fetch3DLevels_r8(gsv_getVco(statevector), sfcFld=Hsfc, sfcFldLS_opt=Hsfc, &
+                              fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      else
+        call fetch3DLevels_r8(gsv_getVco(statevector), sfcFld=Hsfc, &
+                              fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      end if
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out, skipDiagLevel=.true.)
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out, skipDiagLevel=.true.)
       deallocate(GZHeightM_out, GZHeightT_out)
@@ -3202,7 +3207,14 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    call fetch3DLevels_r8(col_getVco(column), hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
+    if (col_getVco(column)%sleveCoord) then
+      ! Need to get MELS
+      call fetch3DLevels_r8(col_getVco(column), sfcFld=hSfc, sfcFldLS_opt=hSfc, &
+                            fldM_opt=hPtrM, fldT_opt=hPtrT)
+    else
+      call fetch3DLevels_r8(col_getVco(column), sfcFld=hSfc, &
+                            fldM_opt=hPtrM, fldT_opt=hPtrT)
+    end if
     Z_M(:,:) = transpose(hPtrM(1,:,:))
     Z_T(:,:) = transpose(hPtrT(1,:,:))
     deallocate(hPtrM, hPtrT)
@@ -4685,16 +4697,16 @@ contains
     ! Arguments:
     type(struct_vco), pointer,  intent(in)    :: vco              ! Vertical descriptor
     real(8),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(8), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(8), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for SLEVE
     real(8), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
     real(8), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) < 0 ) then
-      if ( vco_getVcode(vco) == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r8 ) then
+    if (minval(sfcFld) < 0) then
+      if (vco_getVcode(vco) == 21001) then
+        if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r8) then
           call msg('fetch3DLevels_r8','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r8: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -4706,18 +4718,13 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -4725,22 +4732,18 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
+
   end subroutine fetch3DLevels_r8
 
   !---------------------------------------------------------
@@ -4756,16 +4759,16 @@ contains
     ! Arguments:
     type(struct_vco), pointer,  intent(in)    :: vco              ! Vertical descriptor
     real(4),                    intent(in)    :: sfcFld(:,:)      ! Surface field reference for coordinate
-    real(4), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
+    real(4), optional,          intent(in)    :: sfcFldLS_opt(:,:)! Large scale surface field reference for SLEVE
     real(4), optional, pointer, intent(inout) :: fldM_opt(:,:,:)  ! Momemtum levels field
     real(4), optional, pointer, intent(inout) :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
     ! Locals:
     integer :: status
 
-    if ( minval(sfcFld) < 0 ) then
-      if ( vco_getVcode(vco) == 21001 ) then
-        if ( minval(sfcFld) >= lowestLandAltitudeOnEarth_r4 ) then
+    if (minval(sfcFld) < 0) then
+      if (vco_getVcode(vco) == 21001) then
+        if (minval(sfcFld) >= lowestLandAltitudeOnEarth_r4) then
           call msg('fetch3DLevels_r4','WARNING negative surface height referencem, minval = '//str(minval(sfcFld)))
         else
           call utl_abort('fetch3DLevels_r4: unrealistic negative surface height reference, minval = '//str(minval(sfcFld)))
@@ -4777,18 +4780,13 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -4796,28 +4794,24 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      if (vco_getVcode(vco) == 5100) then
-        if (.not. present(sfcFldLS_opt) ) then
-          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
-        end if
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, &
-                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
-                            in_log=.false.)
-      else
-        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco_getVcode(vco) == 5100 .and. .not.present(sfcFldLS_opt) ) then
+        call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
       end if
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, &
+                          sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
+
   end subroutine fetch3DLevels_r4
 
   !---------------------------------------------------------
   ! fetch1DLevels_r8
   !---------------------------------------------------------
-  subroutine fetch1DLevels_r8(vco, sfcValue, profM_opt, profT_opt)
+  subroutine fetch1DLevels_r8(vco, sfcValue, sfcValueLS_opt, profM_opt, profT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for profile query. Return vertical coordinate
     !           profile for both momentum and thermodynamic levels; real(8) flavor.
@@ -4825,10 +4819,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vco), pointer,  intent(in)    :: vco          ! Vertical descriptor
-    real(8),                    intent(in)    :: sfcValue     ! Surface field reference for coordinate
-    real(8), pointer, optional, intent(inout) :: profM_opt(:) ! Momemtum levels profile
-    real(8), pointer, optional, intent(inout) :: profT_opt(:) ! Thermodynamic levels profile
+    type(struct_vco), pointer,  intent(in)    :: vco            ! Vertical descriptor
+    real(8),                    intent(in)    :: sfcValue       ! Surface field reference for coordinate
+    real(8), optional,          intent(in)    :: sfcValueLS_opt ! Large scale surface field reference for SLEVE
+    real(8), pointer, optional, intent(inout) :: profM_opt(:)   ! Momemtum levels profile
+    real(8), pointer, optional, intent(inout) :: profT_opt(:)   ! Thermodynamic levels profile
 
     ! Locals:
     integer :: status
@@ -4848,7 +4843,9 @@ contains
     if (present(profM_opt)) then
       nullify(profM_opt)
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                          levels=profM_opt, sfc_field=sfcValue, in_log=.false.)
+                          levels=profM_opt, &
+                          sfc_field=sfcValue, sfc_field_ls=sfcValueLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -4857,7 +4854,9 @@ contains
     if (present(profT_opt)) then
       nullify(profT_opt)
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                          levels=profT_opt, sfc_field=sfcValue, in_log=.false.)
+                          levels=profT_opt, &
+                          sfc_field=sfcValue, sfc_field_ls=sfcValueLS_opt, &
+                          in_log=.false.)
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
@@ -4956,13 +4955,24 @@ contains
 
       ! dummy height value
       refSfc(1,1) = 0.D0
-      
-      ! height on momentum levels of source grid
-      call fetch3DLevels_r8(vco_sourceGrid, refSfc, &
-                            fldM_opt=sourceLevels)
-      ! height on momentum levels of destination grid
-      call fetch3DLevels_r8(vco_destGrid, refSfc, &
-                            fldM_opt=destLevels)
+
+      if (vco_sourceGrid%sleveCoord) then
+        ! Need to get MELS?
+        
+        ! height on momentum levels of source grid
+        call fetch3DLevels_r8(vco_sourceGrid, refSfc, sfcFldLS_opt=refSfc, &
+                              fldM_opt=sourceLevels)
+        ! height on momentum levels of destination grid
+        call fetch3DLevels_r8(vco_destGrid, refSfc, sfcFldLS_opt=refSfc, &
+                              fldM_opt=destLevels)
+      else
+        ! height on momentum levels of source grid
+        call fetch3DLevels_r8(vco_sourceGrid, refSfc, &
+                              fldM_opt=sourceLevels)
+        ! height on momentum levels of destination grid
+        call fetch3DLevels_r8(vco_destGrid, refSfc, &
+                              fldM_opt=destLevels)
+      end if
 
       ! count number of levels where output grid is higher than input grid
       sourceModelTop = sourceLevels(1,1,1)

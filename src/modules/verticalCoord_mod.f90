@@ -47,6 +47,7 @@ module verticalCoord_mod
      type(vgrid_descriptor) :: vgrid
      logical :: vgridPresent
      real(8), pointer :: depths(:) => null()
+     logical :: sleveCoord = .false.
   end type struct_vco
 
 contains
@@ -256,7 +257,7 @@ contains
     character(len=10) :: blk_S
     character(len=4) :: nomvar_T, nomvar_M, nomvar_Other
     character(len=10) :: IP1string
-    real :: otherVertCoordValue
+    real(4) :: otherVertCoordValue, coefR3, coefR4
 
     ! Open the template file
     nultemplate = 0
@@ -294,6 +295,15 @@ contains
       call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002, 5005, 5100 and 21001 supported.')
     end if
     vco%Vcode = Vcode
+
+    ! Check if this is a SLEVE coordinate
+    stat = vgd_get(vco%vgrid,key='RC_3 - third R-coef value',value=coefR3)
+    stat = vgd_get(vco%vgrid,key='RC_4 - fourth R-coef value',value=coefR4)
+    slevePresent: if (coefR3 > 0.0 .and. coefR4 > 0.0) then
+      vco%sleveCoord = .true.
+      write(*,*) 'vco_setupAtmFromFile: This is a SLEVE coordinate with R-coef(3:4) = ', &
+                 coefR3, coefR4
+    end if slevePresent
 
     ! Get vgrid values for ip1
     stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
@@ -457,8 +467,8 @@ contains
 
     vco%initialized = .true.
 
-    ierr =  fstfrm(nultemplate)
-    ierr =  fclos (nultemplate)
+    ierr = fstfrm(nultemplate)
+    ierr = fclos (nultemplate)
 
   end subroutine vco_setupAtmFromFile
 
@@ -762,6 +772,7 @@ contains
       deallocate(vco%depths)
       deallocate(vco%ip1_depth)
     end if
+
     nullify(vco)
 
   end subroutine vco_deallocate
@@ -864,7 +875,8 @@ contains
     call rpn_comm_bcast(vco%ip1_M_10m   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_depth  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%sleveCoord  , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_LOGICAL', 0, 'GRID', ierr)
     if (vco%nLev_depth > 0) then
       if (mmpi_myid > 0) then
         allocate(vco%ip1_depth(vco%nlev_depth))
@@ -1254,7 +1266,7 @@ contains
     if      (vco%Vcode == 5002) then
       vco%ip1_T_2m  = vco%ip1_sfc 
       vco%ip1_M_10m = vco%ip1_sfc
-    else if (vco%Vcode == 5005 .or. vco%Vcode == 5100) then
+    else if (vco%Vcode == 5005 .or. vco%Vcode == 5100 .or. vco%Vcode == 21001) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
       call convip(vco%ip1_M_10m, 10.0, 4, 2, blk_s, .false.)
     else

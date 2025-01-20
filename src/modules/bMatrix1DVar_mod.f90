@@ -520,7 +520,7 @@ contains
     real(8) :: scaleFactor_SF, zr
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
     real(8), pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
-    real(8) :: pSurfRef
+    real(8) :: pSurfRef, hSurfRef
     integer :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: nLevEns_M, nLevEns_T
@@ -583,10 +583,29 @@ contains
       write(*,*)
       write(*,*) 'bmat1D_setupBEns: all the vertical levels will be read in the ensemble '
       if ( vco_in%nLev_M > 0 .and. vco_in%vgridPresent ) then
-        pSurfRef = 101000.D0
-        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
-        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileFile_M)
-      
+
+        nullify(pressureProfileInc_M)
+        nullify(pressureProfileFile_M)
+        if (vco_in%Vcode == 21001) then
+          hSurfRef = 0.D0
+          call czp_fetch1DLevels(vco_in, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, &
+                                 profM_opt=pressureProfileInc_M)
+          call czp_calcPressureProfileUsingStdAtm(pressureProfileInc_M,           & ! INOUT
+                                                  vco_in%nLev_M)   ! IN
+          call czp_fetch1DLevels(vco_in, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, &
+                                 profM_opt=pressureProfileFile_M)
+          call czp_calcPressureProfileUsingStdAtm(pressureProfileFile_M,          & ! INOUT
+                                                  vco_in%nLev_M)   ! IN
+        else if(vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 .or. vco_in%Vcode == 5100) then
+          pSurfRef = 101000.D0
+          call czp_fetch1DLevels(vco_in, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                                 profM_opt=pressureProfileInc_M)
+          call czp_fetch1DLevels(vco_in, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                                 profM_opt=pressureProfileFile_M)
+        else
+          call utl_abort('bmat1D_setupBEns: Unknown value of vcode')
+        end if
+
         EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
         write(*,*) 'bmat1D_setupBEns: EnsTopMatchesAnlTop, presEns, presInc = ', &
              EnsTopMatchesAnlTop, pressureProfileFile_M(1), pressureProfileInc_M(1)

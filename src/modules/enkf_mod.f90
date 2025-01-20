@@ -3252,7 +3252,7 @@ contains
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex
     integer             :: nLev, nLev_M, nLev_depth, matrixRank
-    real(8)             :: zr, zcorr, pSurfRef
+    real(8)             :: zr, zcorr, pSurfRef, hSurfRef
     real(8)             :: tolerance
     real(8), pointer    :: pressureProfile(:)
     real(8), allocatable, save :: eigenValues(:)
@@ -3288,8 +3288,20 @@ contains
       allocate(modulationFactorArray_r4(enkfNML%numRetainedEigen,nLev))
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
-      pSurfRef = 101000.D0
-      call czp_fetch1DLevels(vco, pSurfRef, profM_opt=pressureProfile)
+      nullify(pressureProfile)
+      if (vco%Vcode == 21001) then
+        hSurfRef = 0.D0
+        call czp_fetch1DLevels(vco, sfcValue=hSurfRef, sfcValueLS_opt=hSurfRef, &
+                               profM_opt=pressureProfile)
+        call czp_calcPressureProfileUsingStdAtm(pressureProfile,               & ! INOUT
+                                                nLev_M)   ! IN
+      else if(vco%Vcode == 5002 .or. vco%Vcode == 5005 .or. vco%Vcode == 5100) then
+        pSurfRef = 101000.D0
+        call czp_fetch1DLevels(vco, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                               profM_opt=pressureProfile)
+      else
+        call utl_abort('getModulationFactor: Unknown value of vcode')
+      end if
 
       call lfn_Setup(LocFunctionWanted='FifthOrder')
 
