@@ -1321,7 +1321,7 @@ CONTAINS
     if (firstcall) then
       firstcall = .false.
       call utl_open_asciifile(outfilename,funit)
-      write(funit,'(12(A,X))') 'gdp', &
+      write(funit,'(12(A,1X))') 'gdp', &
             'lat', &
             'lon', &
             'lnp', &
@@ -1333,7 +1333,7 @@ CONTAINS
             'meandist', &
             'meanlfn', &
             'sumtrace'
-      write(99,'(12(A,X))') 'typ', &
+      write(99,'(12(A,1X))') 'typ', &
             'codtyp', &
             'numsel', &
             'numrej', &
@@ -1350,7 +1350,7 @@ CONTAINS
     endif
 
     ! generic information about the gridpoint
-    write(funit,'(A3,X,2(F7.3,X),4(F12.4,X),I7,X,I7,3(X,ES10.2))') 'gdp', &
+    write(funit,'(A3,1X,2(F7.3,1X),4(F12.4,1X),I7,1X,I7,3(1X,ES10.2))') 'gdp', &
           lat*MPC_DEGREES_PER_RADIAN_R8, &
           lon*MPC_DEGREES_PER_RADIAN_R8, &
           vertlocation, &
@@ -1373,7 +1373,7 @@ CONTAINS
                                    real(max(1,numObsSelectedByCodtyp(codTyp)))
         eobOut%ensSpread(codTyp) = eobOut%ensSpread(codTyp) / &
                                    real(max(1,numObsSelectedByCodtyp(codTyp)))
-        write(funit,'(*(A3,X,I3,2(X,I7),X,F12.2,2(X,F7.2),X,F12.2,4(X,ES9.2)))') 'typ', &
+        write(funit,'(*(A3,1X,I3,2(1X,I7),1X,F12.2,2(1X,F7.2),1X,F12.2,4(1X,ES9.2)))') 'typ', &
               codTyp, &
               numObsSelectedByCodtyp(codTyp), &
               numObsNotSelectedByCodtyp(codTyp), &
