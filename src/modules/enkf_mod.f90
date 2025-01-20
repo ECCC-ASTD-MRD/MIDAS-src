@@ -816,7 +816,7 @@ contains
     integer :: nEnsIndependentPerSubEns, nEnsPerSubEns, nEnsPerSubEns_mod
     integer :: eigenVectorColumnIndex, memberIndexInModEns
     logical :: hLocalizeIsConstant, useModulatedEns
-    real(8) :: anlLat, anlLon, anlVertLocation, tolerance
+    real(8) :: anlLat, anlLon, anlVertLocation
     integer, allocatable,         save :: localBodyIndices(:)
     integer, allocatable,         save :: memberIndexSubEns(:,:), memberIndexSubEns_mod(:,:)
     integer, allocatable,         save :: memberIndexSubEnsComp(:,:)
