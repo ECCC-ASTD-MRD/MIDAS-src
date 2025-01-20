@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Implement SLEVE for GEM-H, also fixes `qlim_rttovLimit` for GEM-H (#1017 and !932)
+ * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
  * The script `midas.copy_workdir` is added to the repository (#1025 and !928)
    * The script `midas.launch_program` has been renamed `midas.submit_program`.
    * The script `launch_program.sh` has been renamed to

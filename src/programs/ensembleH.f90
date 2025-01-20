@@ -259,8 +259,8 @@ program midas_ensembleH
   end if
   
   ! Set lat, lon, obs values in ensObs
-  call eob_setLatLonObs(ensObs)
-  if (useModulatedEns) call eob_setLatLonObs(ensObsGain)
+  call eob_setLatLonObsCod(ensObs)
+  if (useModulatedEns) call eob_setLatLonObsCod(ensObsGain)
 
 
   ! Read the sfc height from ensemble member 1

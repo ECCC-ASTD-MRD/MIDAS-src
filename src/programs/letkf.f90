@@ -361,9 +361,9 @@ program midas_letkf
     ensObsGain => ensObs
   end if
 
-  ! Set lat, lon, obs values in ensObs
-  call eob_setLatLonObs(ensObs)
-  if (useModulatedEns) call eob_setLatLonObs(ensObsGain)
+  ! Set lat, lon, obs, codType values in ensObs
+  call eob_setLatLonObsCod(ensObs)
+  if ( useModulatedEns ) call eob_setLatLonObsCod(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
   call msg_memUsage('midas-letkf')
