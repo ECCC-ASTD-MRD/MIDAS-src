@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [4.1.0-b1]
+
+### Added
+
  * Implement SLEVE for GEM-H, also fixes `qlim_rttovLimit` for GEM-H (#1017 and !932)
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
    * very minor impact on results
@@ -44,10 +62,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * SST mask precision encoding (`typvar=@@`) is now `I 1` which is the
    precision expected for a mask (#1012 and !922)
  * Correct handling of yin-yang overlap region in `gsv_smoothHorizontal` (#1014 and !920)
-
-### Removed
-
- * (Nothing yet)
 
 ## [4.0.4]
 
@@ -1414,7 +1428,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.1.0-b1...HEAD
+[4.1.0-b1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.4...v_4.1.0-b1
 [4.0.4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.3...v_4.0.4
 [4.0.3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.2...v_4.0.3
 [4.0.2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_4.0.1...v_4.0.2
