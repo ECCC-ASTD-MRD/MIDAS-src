@@ -309,7 +309,7 @@ module oMinusF_mod
       !- 1.14 Allocate and initialize eob object for storing y-HX values
       call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
       call eob_zero(ensObs)
-      call eob_setLatLonObs(ensObs)
+      call eob_setLatLonObsCod(ensObs)
 
       !- 1.15 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
       call gsv_allocate(stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
