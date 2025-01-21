@@ -319,8 +319,10 @@ contains
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) ) cycle
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameList2D(jvar))
-        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
-        columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
+        if ( col_varExist(columnTrlOnTrlLev,vnl_varNameList2D(jvar)) ) then
+          columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
+          columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
+        end if
       end do
     end do
 

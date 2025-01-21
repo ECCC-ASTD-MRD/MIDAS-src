@@ -116,7 +116,7 @@ CONTAINS
     integer :: jlev, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
-    real(8) :: zzs, zps
+    real(8) :: hSurfRef, pSurfRef
     type(struct_vco),pointer :: vco_file => null()
     character(len=8) :: bFileName = './bgcov'
 
@@ -310,13 +310,13 @@ CONTAINS
     call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
     if (vertCoordPress) then
-      zps = 101000.D0
-      call czp_fetch1DLevels(vco_anl, zps, &
-                           profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco_anl, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                             profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
     else
-      zzs = 0.D0
-      call czp_fetch1DLevels(vco_anl, zzs, &
-                           profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+      hSurfRef = 0.D0
+      call czp_fetch1DLevels(vco_anl, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                             profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
     end if
     
     llfound = .false.

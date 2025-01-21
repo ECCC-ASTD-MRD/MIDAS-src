@@ -103,8 +103,8 @@ module bCovarSetupChem_mod
   ! Square root of scaleFactor   
   real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
       
-  real(8), parameter :: zps = 101000.D0 ! Reference surface pressure (hPa)
-  real(8), parameter :: zzs = 0.D0      ! Reference surface height (meters)
+  real(8), parameter :: pSurfRef = 101000.D0 ! Reference surface pressure (hPa)
+  real(8), parameter :: hSurfRef = 0.D0      ! Reference surface height (meters)
 
   ! module structures
   ! -----------------
@@ -421,13 +421,19 @@ module bCovarSetupChem_mod
     
     if (bgStats%nlev > 1) then
       if (vertCoordPress) then
-        call czp_fetch1DLevels(vco_anl, zps, profT_opt=vCoordProfile_T)
+        call czp_fetch1DLevels(vco_anl, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                               profT_opt=vCoordProfile_T)
       else
-        call czp_fetch1DLevels(vco_anl, zzs, profT_opt=vCoordProfile_T)
+        call czp_fetch1DLevels(vco_anl, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                               profT_opt=vCoordProfile_T)
       end if
       bgStats%vlev(1:bgStats%nlev) = vCoordProfile_T(1:bgStats%nlev) 
     else if (bgStats%nlev == 1) then
-      bgStats%vlev(1)=zps     
+      if (vertCoordPress) then
+        bgStats%vlev(1)=pSurfRef 
+      else
+        bgStats%vlev(1)=hSurfRef 
+      end if    
     end if
       
     ! Read covar stats, scale standard deviations,  and apply localization 

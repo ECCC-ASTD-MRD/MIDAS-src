@@ -838,10 +838,13 @@ CONTAINS
     ! Locals:
     type(struct_gsv)          :: statevector_in_hvInterp
     type(struct_gsv)          :: statevector_in_hvtInterp
+    type(struct_gsv)          :: statevector_inout_hvInterp
     type(struct_gsv), target  :: statevector_in_withP0LS
     type(struct_gsv), pointer :: statevector_in_ptr
 
     character(len=4), pointer :: varNamesToInterpolate(:)
+    character(len=4), pointer :: varNamesList_inout(:)
+    logical                   :: varMismatch
 
     call msg('inc_interpolateAndAdd', 'START', verb_opt=2)
 
@@ -895,17 +898,51 @@ CONTAINS
                         statevectorRef_opt=statevectorRef_opt)
 
     ! Do the time interpolation
+
+    nullify(varNamesList_inout)
+    call vnl_varNamesFromExistList(varNamesList_inout, statevector_inout%varExistlist(:))
+
     call gsv_allocate(statevector_in_hvtInterp, statevector_inout%numstep,                      &
                       statevector_inout%hco, statevector_inout%vco,                             &
                       dateStamp_opt=tim_getDateStamp(),                                         &
                       mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                       dataKind_opt=statevector_inout%dataKind,                                  &
                       allocHeightSfc_opt=statevector_inout%heightSfcPresent,                    &
-                      varNames_opt=varNamesToInterpolate,                                       &
+                      varNames_opt=varNamesList_inout,                                       &
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
                       hExtrapolateDegree_opt='VALUE' )
-    call int_tInterp_gsv(statevector_in_hvInterp, statevector_in_hvtInterp)
-    call gsv_deallocate(statevector_in_hvInterp)
+
+    if (size(varNamesToInterpolate(:)) /= size(varNamesList_inout(:))) then
+      varMismatch = .true.
+    else
+      if (all(varNamesList_inout(:) == varNamesToInterpolate(:))) then
+        varMismatch = .false.
+      else
+        varMismatch = .true.
+      end if
+    end if
+
+    if (varMismatch) then
+      call gsv_allocate(statevector_inout_hvInterp, statevector_in%numstep,                       &
+                        statevector_inout%hco, statevector_inout%vco,                             &
+                        dateStamp_opt=tim_getDateStamp(),                                         &
+                        mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
+                        dataKind_opt=statevector_inout%dataKind,                                  &
+                        allocHeightSfc_opt=statevector_inout%heightSfcPresent,                    &
+                        varNames_opt=varNamesList_inout,                                          &
+                        hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
+                        hExtrapolateDegree_opt='VALUE' )
+!      call gsv_zero(statevector_inout_hvInterp)
+      call gsv_copy(statevector_in_hvInterp, statevector_inout_hvInterp, &
+                    allowVarMismatch_opt=.true.)
+      call gsv_deallocate(statevector_in_hvInterp)
+
+      call int_tInterp_gsv(statevector_inout_hvInterp, statevector_in_hvtInterp)
+      call gsv_deallocate(statevector_inout_hvInterp)
+    else
+      call int_tInterp_gsv(statevector_in_hvInterp, statevector_in_hvtInterp)
+      call gsv_deallocate(statevector_in_hvInterp)
+    end if
 
     ! Masking
     if (present(statevectorMaskLAM_opt)) then

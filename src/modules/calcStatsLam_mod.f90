@@ -386,11 +386,11 @@ contains
     if (vco_bhi%vgridPresent) then
       if (vertCoordPress) then
         SurfacePressure = 101000.D0
-        call czp_fetch1DLevels(vco_bhi, SurfacePressure, &
+        call czp_fetch1DLevels(vco_bhi, SurfacePressure, sfcValueLS_opt=SurfacePressure, &
                                profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
       else
         SurfaceHeight = 0.D0
-        call czp_fetch1DLevels(vco_bhi, SurfaceHeight, &
+        call czp_fetch1DLevels(vco_bhi, SurfaceHeight, sfcValueLS_opt=SurfaceHeight, &
                                profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
       end if
 
