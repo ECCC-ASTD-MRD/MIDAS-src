@@ -3428,8 +3428,6 @@ module obsOperatorsChem_mod
         else
            ixtr(obslevIndex)=2
         end if
-        write(*,*) 'oopc_vertObsLayersWgts: WARNING. Layer top/bot value problem.', &
-             obsoper%vlayertop(obslevIndex), obsoper%vlayerbottom(obslevIndex)
         cycle
       end if
       if (obsoper%vlayerbottom(obslevIndex) > &

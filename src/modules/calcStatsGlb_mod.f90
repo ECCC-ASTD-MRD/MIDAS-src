@@ -93,7 +93,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     integer :: ierr, memberIndex
-    real(8) :: zzs, zps
+    real(8) :: hSurfRef, pSurfRef
 
     ! Namelist variables (local):
     integer :: horizWaveBandIndex, vertWaveBandIndex
@@ -180,12 +180,12 @@ module calcStatsGlb_mod
 
     !- Estimate the vertical coord profile for each vertical grid
     if (vertCoordPress) then
-      zps = 101000.D0
-      call czp_fetch1DLevels(vco_in, zps, &
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco_in, pSurfRef, sfcValueLS_opt=pSurfRef, &
                              profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
     else
-      zzs = 0.D0
-      call czp_fetch1DLevels(vco_in, zzs, &
+      hSurfRef = 0.D0
+      call czp_fetch1DLevels(vco_in, hSurfRef, sfcValueLS_opt=hSurfRef, &
                              profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
     end if
     !

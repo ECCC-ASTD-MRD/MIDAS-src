@@ -3235,7 +3235,9 @@ contains
     !          -Based on calcHeight_gsv_nl_vcode5xxx
     !          -See related development notes in calcPressure_col_nl_vcode2100x
     !
-    !          - Missing handling for HeightSfcOffset (see lines with !??)
+    !          -Standin settings of "heightSfcOffset_*" (see lines with "! Standin")
+    !           with an accompanying warning message. This routine is not expected
+    !           to be needed in practical situations.
     !
     implicit none
 
@@ -3267,8 +3269,12 @@ contains
       call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
     end if
 
-    heightSfcOffset_T = 0.0d0 !??
-    heightSfcOffset_M = 0.0d0 !??
+    heightSfcOffset_T = 0.0d0 ! Standin
+    heightSfcOffset_M = 0.0d0 ! Standin
+
+    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'WARNING: Standin settings' &
+             //' of zero for heightSfcOffset_*', verb_opt=msg_ALWAYS, &
+             mpiAll_opt=.false.)
 
     allocate(height_T(nlev_T))
     allocate(height_M(nlev_M))
@@ -3395,11 +3401,11 @@ contains
         end if if_computeHeight_col_nl_vcodes
       end if
 
-      ! remove the height offset for the diagnostic levels for backward compatibility only
-      !if (.not. addHeightSfcOffset) then !??
-      !  height_T(nlev_T) = rMT
-      !  height_M(nlev_M) = rMT
-      !end if
+      ! remove the height offset for the diagnostic levels for backward compatibility. only
+      if (.not. col_addHeightSfcOffset(column) ) then
+        height_T(nlev_T) = rMT
+        height_M(nlev_M) = rMT
+      end if
 
       Z_T(1:nlev_T, colIndex) = height_T(:)
       Z_M(1:nlev_M, colIndex) = height_M(:)
