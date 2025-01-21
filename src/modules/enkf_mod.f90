@@ -146,7 +146,7 @@ contains
     character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
     character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
     character(len=12) :: etiket_anl  ! etiket for output files
-    character(len=20) :: localObsSorting   ! method to sort observations in eob_getLocalBodyIndices() ('HORIZONTAL','LOCFUNCTION')
+    character(len=20) :: localObsSorting   ! method to sort observations in eob_getLocalBodyIndices() ('HORIZONTAL' (default), 'LOCFUN' or 'MINTRACE')
     integer  :: fileMemberIndex1     ! first member index in ensemble set to be read
     logical  :: readEnsMeanFromFile  ! choose to read ens mean from file (when reading subset of members)
     integer  :: numFullEns           ! number of full ensemble set (needed only for modulated ensemble)

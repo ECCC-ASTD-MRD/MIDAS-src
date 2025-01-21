@@ -1059,7 +1059,7 @@ CONTAINS
     integer         , intent(out) :: numObsFound           ! total number of local obs within the local volume
     logical         , intent(in)  :: localSelectionOutput  ! output information about the selection of observations
     integer         , intent(in)  :: maxNumLocalObsPerType ! maximum number of each obs type assimilated locally
-    character(len=*), intent(in)  :: localObsSorting       ! sort method: HORIZONTAL distance (default), LOCFUN, or MINTRACE
+    character(len=*), intent(in)  :: localObsSorting       ! sort method: HORIZONTAL distance, LOCFUN, or MINTRACE
     ! Result:
     integer                       :: numObsSelected        ! number of local obs up to the array size
 
