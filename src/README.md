@@ -465,38 +465,6 @@ will not start new jobs unless the load average on the node is a below 10.
 Also, 8 cores is enough to build and exploit parallelization to its maximum.
 You can also leave `-j` without a value to use as many cores as needed.
 
-
-
-## SSM packaging
-
-**TO BE UPDATED**
-
-To publish the absolutes in a SSM domain, one have to
-1. make sure to keep the build directory by exporting
-   `MIDAS_COMPILE_CLEAN=false` in your shell and build:
-   ```
-   (export MIDAS_COMPILE_CLEAN=false ; ./midas_build)
-   ```
-2. update `MIDAS_SSM_*` variables in `./config.dot.sh` or export them in the
-   shell (making sure you have write privilege to `${MIDAS_SSM_TARGET}`)
-3. for **each architecture**
-   ```
-   (source ./config.dot.sh && make ssm)
-   ```
-4. protect the domain
-   ```
-   (source ./config.dot.sh && make ssm_protect)
-   ```
-
-
-## What is left to do
-
-
-* [ ] automated `doc` building
-* [ ] dependancy diagrams
-
-But most of all... taking into account your input.
-Don't hesitate to contact-me for your input or for some guidance: @mad001
-
+--------
 
 Many thanks to @cpi001 and @phb001 for their contributions!
