@@ -1480,7 +1480,7 @@ module obsSpaceErrorStdDev_mod
             ! Apply the observation operator:
 
             IF (varNum == bufr_nebd) THEN
-              CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
+              CALL GPS_BNDOPV2(H, AZMV, NH, PRF, RSTV)
             ELSE
               CALL GPS_REFOPV (H,       NH, PRF, RSTV)
             ENDIF
