@@ -504,20 +504,23 @@ contains
     integer :: ierr
 
     ! Namelist variables:
-    integer :: delta    ! thinning (dimension of box sides) (in km)
-    integer :: deltrad  ! radius around box center for chosen obs (in km)
-
-    namelist /thin_tovs/delta, deltrad
+    character(len=18) ::  thinning_technique
+    integer :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
+    integer :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
+    real(8) :: mindist  ! For distance-based thinning, no observations can be closer to each other than this distance.
+    
+    namelist /thin_tovs/ thinning_technique, delta, deltrad, mindist
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
 
-    write(*,*) '\n\tVIKRAM : thn_thinTovs'
-    write(*,*) 'VIKKKK : thn_thinTovs: Starting'
+    write(*,*) 'thn_thinTovs: Starting'
     
     ! Default namelist values
+    thinning_technique='grid-based' ! Should be 'grid-based' or 'distance-dependent'
     delta   = 100
     deltrad = 75
+    mindist = -1.0
 
     ! Read the namelist for TOVS observations (if it exists)
     if (utl_isNamelistPresent('thin_tovs','./flnml')) then
@@ -533,7 +536,25 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
-    write(*,*) '\n\tVIK : delta, deltarad = ',delta,deltrad
+    write(*,*) '\nthinning_technique = ',thinning_technique
+    write(*,*) 'delta, deltrad = ',delta, deltrad
+    write(*,*) 'mindist = ',mindist
+
+    if (trim(thinning_technique) == 'grid-based') then
+      write(*,*) '\n\tUsing grid-based thinning : delta, deltarad = ',delta,deltrad
+      if (delta < 0.0 .or. deltrad < 0.0) then
+         call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS/nml')
+      endif        
+    else
+     if (trim(thinning_technique) == 'distance-dependent') then     
+       write(*,*) '\n\tUsing distance-dependent thinning : mindist = ',mindist
+       if (mindist < 0.0) then
+         call utl_abort('thn_thinTovs : Set a positive value for mindist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
+       endif  
+     else
+       call utl_abort('thn_thinTovs: Set thinning_technique to either grid-based or distance-dependent in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS/nml or maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
+     endif  
+    endif  
 
     call utl_tmg_start(114,'--ObsThinning')
     call msg_memUsage('thn_thinTovs')
@@ -547,9 +568,12 @@ contains
 
     write(*,*)
     write(*,*) 'Calling thn_tovsFilt (Grid box based thinning) from thn_thinTovs for atms'
-    call utl_tmg_start(115,'--timing of thn_tovsFilt')
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
-    call utl_tmg_stop(115)
+    if (trim(thinning_technique) == 'grid-based') then
+      call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
+    else  
+      ! 1 = Regions based MPI parallelization, 2 = Time bin based MPI  parallelization
+      call thn_tovsfilt_dd(obsdat, 2, mindist, codtyp_get_codtyp('atms'))
+    end if
     call msg_memUsage('thn_thinTovs')
     write(*,*)
 
@@ -3693,9 +3717,6 @@ contains
     logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
     write(*,*)
-    write(*,*) 'VIKKKK : thn_satWindsByDistance: Starting'
-    write(*,*) 'VIKKKK : deltemps, deldist = ',deltemps, deldist    
-    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -3774,12 +3795,7 @@ contains
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
-      !write(*,*) ''
-      !write(*,*) 'headerIndex  = ',headerIndex
-      !write(*,*) 'obsDate, obsTime =  ',obsDate,obsTime
-      !write(*,*) 'obsStepIndex_r8 = ',obsStepIndex_r8,obsStepIndex(headerIndex) 
-      !write(*,*) 'tim_nstepobs = ',tim_nstepobs
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)      
       
       ! find layer (assumes 1 level only per headerIndex)
       obsPressure = -1.0
@@ -3797,15 +3813,13 @@ contains
       !write(*,*) 'obsPressure/100.0 = ',obsPressure/100.0      
       obsPressure = 100.0*nint(obsPressure/100.0)
       deltaPressMin = abs( log(obsPressure) - log(layer(1)) )
-      ! write(*,*) ''
-      !write(*,*) 'obsPressure, deltaPressMin,layer(1) = ',obsPressure/100.0,deltaPressMin,layer(1)/100.0
+
       obsLayerIndex(headerIndex) = 1
       do layerIndex = 2, numLayers
         deltaPress = abs( log(obsPressure) - log(layer(layerIndex)) )
         if ( deltaPress < deltaPressMin ) then
           deltaPressMin = deltaPress
           obsLayerIndex(headerIndex) = layerIndex
-          !write(*,*) 'headerIndex = ',headerIndex,layerIndex,layer(layerIndex)/100.0,deltaPress,deltaPressMin
         end if
       end do
 
@@ -3915,10 +3929,8 @@ contains
 
       LAYERLOOP: do layerIndex = 1, numLayers
 
-        write(*,*) 'VIK : layerIndex = ',layerIndex,layer(layerIndex) 
         ! do selection of obs for 1 satellite and layer at a time, on separate mpi tasks
         mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mmpi_nprocs)
-        write(*,*) 'VIK : mpiTaskId = ',mpiTaskId
         if (mmpi_myid /= mpiTaskId) cycle LAYERLOOP
 
         numSelected       = 0
@@ -5167,8 +5179,6 @@ contains
                             'mpi_max','grid',ierr)
 
     write(*,*)
-    write(*,*) 'VIK : numHeader, numHeaderMaxMpi = ',numHeader, numHeaderMaxMpi
-    write(*,*)
     
     ! Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
@@ -5188,8 +5198,6 @@ contains
          'mpi_sum','grid',ierr)
 
     write(*,*)
-    write(*,*) 'VIK : countObs, countObsMpi = ',countObs, countObsMpi
-    write(*,*)
     
     if (countObsMpi == 0) then
       write(*,*) 'thn_tovsFilt: no observations for this instrument'
@@ -5197,7 +5205,6 @@ contains
       return
     end if
 
-    write(*,*) '\nVIK'
     write(*,*) 'thn_tovsFilt: countObs initial                        = ', &
                countObs, countObsMpi
 
@@ -5615,7 +5622,7 @@ contains
 
 
   
-subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
+subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs based on DISTANCE-DEPENDENT thinning satwind algo.
     !           flg_mpi is used to choose between region based and time bin based MPI.
@@ -5626,6 +5633,7 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     ! Arguments:
     type(struct_obs),  intent(inout) :: obsdat
     integer,           intent(in)    :: codtyp, flg_mpi
+    real(8), intent(in) :: mindist 
     integer, optional, intent(in)    :: codtyp2_opt
 
   ! Locals:
@@ -5645,10 +5653,9 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     integer, allocatable :: numObsAssim(:)
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2, numSelected,numHeaderMpi
     character(len=codtyp_name_length) :: instrumName
-!    real(4) :: thinDistance
     logical :: rejectThisObs
     logical, allocatable :: valid(:),validMpi(:),validMpi2(:),validMpi_lor(:)
-    integer :: headerIndexBeg, headerIndexEnd, reg_id,totselected  !cnt
+    integer :: headerIndexBeg, headerIndexEnd, totselected  !cnt
     integer, parameter :: mxscanamsua=30
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
@@ -5656,23 +5663,16 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     integer, parameter :: mxscanssmis=90    
 
     ! Locals:
-    integer :: nulnam
-    integer :: fnom, fclos, ierr
-    
-    ! Namelist variable
-    real(8) :: mindist 
-    
+    integer :: ierr !fnom, fclos, 
+        
     !temp vars
     integer :: timbin
     real(8) :: distance
 
-    !integer :: i,j,itemp
     integer :: nreg
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
     
-    namelist /thin_tovs_dd/mindist
-
     if ( mmpi_nprocs /= 25) call utl_abort('thn_tovsfilt_dd: Number of processors are not equal to 25.')
     
     nreg = mmpi_nprocs
@@ -5684,28 +5684,11 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     write(*,*) '******************************************flg_mpi = ',flg_mpi
 
     write(*,*)      
-    write(*,*) 'VIK : mmpi_nprocs = ',mmpi_nprocs
-    write(*,*) 'VIK : mmpi_myid = ', mmpi_myid
+    write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
+    write(*,*) 'mmpi_myid = ', mmpi_myid
     write(*,*)
 
-    ! Read the namelist for TOVS thinning observations (if it exists)
-    if (utl_isNamelistPresent('thin_tovs_dd','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_tovsfilt_dd: Error opening file flnml')
-      read(nulnam,nml=thin_tovs_dd,iostat=ierr)
-      if (ierr /= 0) call utl_abort('thn_tovsfilt_dd: Error reading thin_tovs namelist')
-      if (mmpi_myid == 0) write(*,nml=thin_tovs_dd)
-      ierr = fclos(nulnam)
-    else
-      write(*,*)
-      write(*,*) 'thn_thinTovs: Namelist block thin_tovs_dd is missing in the namelist.'
-      write(*,*) '              The default value will be taken.'
-      if (mmpi_myid == 0) write(*,nml=thin_tovs_dd)
-      mindist = 150.0  !Minimum imposed distance on the thinning.
-    end if
-
-    write(*,*) 'VIK : mindist = ',mindist
+    write(*,*) 'mindist = ',mindist
 
     write(*,*) ''
 
@@ -5727,22 +5710,17 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
     
     write(*,*)
-    write(*,*) 'VIK : numHeader = ',numHeader
-    write(*,*) 'VIK : numHeaderMpi = ',numHeaderMpi
-    write(*,*) 'VIK : numHeaderMaxMpi = ',numHeaderMaxMpi
-    write(*,*) 'VIK : tim_nstepobs = ',tim_nstepobs
+    write(*,*) 'numHeader = ',numHeader
+    write(*,*) 'numHeaderMpi = ',numHeaderMpi
+    write(*,*) 'numHeaderMaxMpi = ',numHeaderMaxMpi
+    write(*,*) 'tim_nstepobs = ',tim_nstepobs
  
     write(*,*)
 
     !Only for region based MPI
     if (flg_mpi == 1) then
-      write(*,*) 'VIK : nreg = ',nreg      
-      call make_regions(nreg,latup,latdown,lonleft,lonright,regid)
-      !do i=1,nreg
-      ! write(*,*) '--i = ',i,regid(i)
-      !  write(*,*) 'latup,latdown = ',latup(i),latdown(i)
-      !  write(*,*) 'lonleft,lonright = ',lonleft(i),lonright(i)      
-      !end do      
+      write(*,*) 'nreg = ',nreg      
+      call make_regions(nreg,latup,latdown,lonleft,lonright,regid)    
     end if
     
 
@@ -5769,7 +5747,7 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
          'mpi_sum','grid',ierr)
 
     write(*,*)
-    write(*,*) 'VIK : countObs, countObsMpi = ',countObs, countObsMpi
+    write(*,*) 'countObs, countObsMpi = ',countObs, countObsMpi
     write(*,*)    
     
     if (countObsMpi == 0) then
@@ -5778,7 +5756,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
       return
     end if
 
-    !write(*,*) 'VIK'    
     write(*,*) 'thn_tovsfilt_dd: countObs initial                        = ', &
                countObs, countObsMpi
     ! local
@@ -5856,7 +5833,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
         end if
         !itemp = itemp + 1
       end do BODY
-      !write(*,*) '            itemp = ',itemp
       
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
       if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
@@ -5900,9 +5876,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
       call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
            obsDate, obsTime, tim_nstepobs)
       stepObsIndexint(headerIndex) = nint(stepObsIndex(headerIndex))
-      !if (nint(stepObsIndex(headerIndex))==13 .and. valid(headerIndex) ) then
-      !     write(*,*) '!! obsDate, obsTime = ',obsDate, obsTime,stepObsIndex(headerIndex),nint(stepObsIndex(headerIndex))
-                                !endif      
 
       ! Reject obs if it is close to the region border (only for region based)
       if (flg_mpi == 1) then     
@@ -5936,13 +5909,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
     totselected = 0
     
     TIMELOOP: do timbin = 1,tim_nstepobs
-
-       write(*,*) '---Doing timbin = ',timbin
-       if (flg_mpi == 1) then
-           write(*,*) '---Doing region based MPI parallelization : timbin = ',timbin
-       else
-           write(*,*) '---Doing time bin based MPI parallelization : timbin = ',timbin           
-       end if  
       
       ! global : Loop over all observation locations in all files (i.e. MPI task)
       numSelected  = 0
@@ -5956,18 +5922,7 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
         if ( .not. validMpi(headerIndex1) ) cycle
 
         ! Only consider observations in the current time bin 
-        if (stepObsIndexMpi(headerIndex1) /= timbin) cycle OBSLOOP
-        
-        ! Parallelize by time bin
-        !! if (stepObsIndexMpi(headerIndex1) /= mmpi_myid+1 .and.  stepObsIndexMpi(headerIndex1) /= mmpi_myid+1+mmpi_nprocs ) cycle OBSLOOP
-    
-
-        !if (headerIndex1<=100) then
-        ! write(*,*) '**doing ',stepObsIndexMpi(headerIndex1),timbin,mmpi_myid+1,headerIndex1
-        !endif
-      
-        !write(*,*) ''
-        !write(*,*) '----headerindex1, numSelected = ',headerindex1,numSelected
+        if (stepObsIndexMpi(headerIndex1) /= timbin) cycle OBSLOOP        
 
         obsLon1 =  obsLonMpi(headerIndex1)
         obsLat1 =  obsLatMpi(headerIndex1)   
@@ -5991,13 +5946,9 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
 
           ! Divide by 1000.0 is required to obtain distance in kilometers.
           distance = phf_calcDistance(obsLat2, obsLon2, obsLat1, obsLon1)/1000.0
-          if ( distance > 20000.0 ) then
-            write(*,*) '!! distance = ',obsLon2, obsLon1,distance/1000.0
-          end if  
 
           if ( distance < mindist ) then          
             rejectThisObs = .true.
-            !write(*,*) 'REJECTING OBS =  ',distance,obsLatInDegrees,stepObsIndexMpi(headerIndex1),stepObsIndexMpi(headerIndex2)
             exit OBSSELCTLOOP
           end if
          
@@ -6007,14 +5958,10 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
         if ( .not. rejectThisObs ) then
           numSelected = numSelected + 1
           headerIndexSelected(numSelected) = headerIndex1
-          !write(*,*) 'Accepted : numSelected = ',numSelected
         end if
 
-        !write(*,*) '^^numSelected = ',numSelected
       end do OBSLOOP ! headerIndex1
 
-      !write(*,*) '^^timbin, numSelected = ',timbin, numSelected
-      
       ! All the selected observations belong to the current time bin.
       do obsIndex1 = 1, numSelected
         validMpi2(headerIndexSelected(obsIndex1)) = .true.
@@ -6067,14 +6014,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, codtyp, codtyp2_opt)
       else
         obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
         obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-        !obsLonInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LON, headerIndex)
-        !obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)        
-        !call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
-        !     obsDate, obsTime, tim_nstepobs)
-        !if (nint(stepObsIndex(headerIndex))==25) then
-        !  write(*,*) '!! obsDate, obsTime = ',obsDate, obsTime,stepObsIndex(headerIndex),obsLonInDegrees,obsLatInDegrees
-        !  cnt = cnt+1
-        !endif
       end if
     end do
     
@@ -6105,7 +6044,7 @@ subroutine make_regions(nreg,latup,latdown,lonleft,lonright,regid)
   real(8), intent(out) :: latup(nreg),latdown(nreg),lonleft(nreg),lonright(nreg)
   integer, intent(out)  :: regid(nreg)
   real(8) :: lonstart, lonwidth
-  integer :: nreg2,i,j
+  integer :: nreg2,i !,j
 
   if (nreg<2) then
     write(*,*) 'ERROR : nreg should be atleast 2 : nreg = ',nreg
