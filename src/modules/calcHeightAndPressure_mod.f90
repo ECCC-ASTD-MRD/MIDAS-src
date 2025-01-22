@@ -3235,10 +3235,6 @@ contains
     !          -Based on calcHeight_gsv_nl_vcode5xxx
     !          -See related development notes in calcPressure_col_nl_vcode2100x
     !
-    !          -Standin settings of "heightSfcOffset_*" (see lines with "! Standin")
-    !           with an accompanying warning message. This routine is not expected
-    !           to be needed in practical situations.
-    !
     implicit none
 
     ! Arguments:
@@ -3249,11 +3245,12 @@ contains
     ! Locals:
     real(8), allocatable :: tv(:), height_T(:), height_M(:)
     real(8), allocatable :: P_T(:), P_M(:)
-    integer :: numCol, nLev_T, nLev_M, Vcode
+    integer :: numCol, nLev_T, nLev_M, Vcode, status
     integer :: colIndex, lev_T, lev_M
-    real(8) :: lat, sLat, heightSfcOffset_T, heightSfcOffset_M
+    real(8) :: lat, sLat
     real(8) :: P0, rMT, h0, hu, tt, cmp, dh, Rgh, delThick
     real(8) :: scaleFactorBottom, scaleFactorTop, ratioP, P_M1, P_Mm1
+    real(4) :: heightSfcOffset_T_r4, heightSfcOffset_M_r4
 
     call msg('calcHeight_col_nl_vcode5xxx (czp)', 'START', verb_opt=4)
 
@@ -3269,12 +3266,25 @@ contains
       call utl_abort('calcHeight_col_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
     end if
 
-    heightSfcOffset_T = 0.0d0 ! Standin
-    heightSfcOffset_M = 0.0d0 ! Standin
-
-    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'WARNING: Standin settings' &
-             //' of zero for heightSfcOffset_*', verb_opt=msg_ALWAYS, &
-             mpiAll_opt=.false.)
+    if (Vcode == 5005 .or. Vcode == 5100) then
+      status = vgd_get( col_getVco(column)%vgrid, &
+                        key='DHM - height of the diagnostic level (m)', &
+                        value=heightSfcOffset_M_r4)
+      status = vgd_get( col_getVco(column)%vgrid, &
+                        key='DHT - height of the diagnostic level (t)', &
+                        value=heightSfcOffset_T_r4)
+      call msg('calcHeight_col_nl_vcode5xxx (czp)', &
+           'height offset for near-sfc momentum level is:'//str(heightSfcOffset_M_r4)//' meters'&
+           //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
+           verb_opt=2, mpiAll_opt=.false.)
+      if ( .not. col_addHeightSfcOffset(column) ) then
+        call msg('calcHeight_col_nl_vcode5xxx (czp)', new_line('') &
+             //'--------------------------------------------------------------------------'//new_line('')&
+             //'BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'//new_line('')&
+             //'--------------------------------------------------------------------------', &
+             verb_opt=2, mpiAll_opt=.false.)
+      end if
+    end if
 
     allocate(height_T(nlev_T))
     allocate(height_M(nlev_M))
@@ -3306,7 +3316,7 @@ contains
       if (Vcode == 5002) then
         height_M(nlev_M) = rMT
       else if (Vcode == 5005 .or. Vcode == 5100) then
-        height_M(nlev_M) = rMT + heightSfcOffset_M
+        height_M(nlev_M) = rMT + heightSfcOffset_M_r4
       end if
 
       P_M(nlev_M) = col_getPressure(column, nlev_M, colIndex, 'MM')
@@ -3374,7 +3384,7 @@ contains
           height_T(1) = height_M(1) + delThick
 
         else if (Vcode == 5005 .or. Vcode == 5100) then if_computeHeight_col_nl_vcodes
-          height_T(nlev_T) = rMT + heightSfcOffset_T
+          height_T(nlev_T) = rMT + heightSfcOffset_T_r4
 
           do lev_T = 1, nlev_T-2
             lev_M = lev_T + 1  ! momentum level just below thermo level being computed

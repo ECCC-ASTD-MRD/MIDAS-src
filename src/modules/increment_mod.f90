@@ -932,7 +932,7 @@ CONTAINS
                         varNames_opt=varNamesList_inout,                                          &
                         hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
                         hExtrapolateDegree_opt='VALUE' )
-!      call gsv_zero(statevector_inout_hvInterp)
+      call gsv_zero(statevector_inout_hvInterp)
       call gsv_copy(statevector_in_hvInterp, statevector_inout_hvInterp, &
                     allowVarMismatch_opt=.true.)
       call gsv_deallocate(statevector_in_hvInterp)

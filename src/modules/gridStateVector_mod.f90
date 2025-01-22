@@ -5452,11 +5452,14 @@ module gridStateVector_mod
         same_vlev = .false.
       else
         same_vlev = .true.
-        if (present(vertCoordType_opt)) then
-          vertCoordType=vertCoordType_opt
-        else  
-          vertCoordType = 'Pressure'
-        end if 
+      end if
+    end if
+
+    if (.not. same_vlev) then
+      if (present(vertCoordType_opt)) then
+        vertCoordType=vertCoordType_opt
+      else
+        vertCoordType = 'Pressure'
       end if
     end if
 
