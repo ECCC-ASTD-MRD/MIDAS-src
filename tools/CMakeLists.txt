@@ -12,9 +12,15 @@ target_link_libraries(splitobs PRIVATE
   burp_c
   rmn::rmn-ompi
 )
-set_target_properties(splitobs PROPERTIES 
+set_target_properties(splitobs PROPERTIES
    OUTPUT_NAME midas.splitobs_${AddToProgName}.Abs)
 install(TARGETS splitobs DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+add_executable(monitor monitor/monitor.c)
+# monitor is not associated to a specific platform, thus the shorter suffix
+set_target_properties(monitor PROPERTIES
+   OUTPUT_NAME midas.monitor_${PROJECT_VERSION}.Abs)
+install(TARGETS monitor DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 if(BUILD_TESTING)
    find_program(BASH_COMMAND bash)
