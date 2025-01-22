@@ -2296,25 +2296,27 @@ contains
       return
     end if
 
-    allocate(YbCopy_r8(numLocalObs,nEns2))
+    allocate(YbCopy_r8(nEns2,numLocalObs))
 
     call utl_tmg_start(137,'--------YbArraysCopy')
     !$OMP PARALLEL DO PRIVATE (localObsIndex, bodyIndex, memberIndex)
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
       do memberIndex = 1, nEns2
-        YbCopy_r8(localObsIndex,memberIndex) = dble(ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex))
+        YbCopy_r8(memberIndex,localObsIndex) = dble(ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex))
       end do
     end do
     !$OMP END PARALLEL DO
     call utl_tmg_stop(137)
 
     call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_pert, &
-                        YbCopy_r8, YbTinvRYb_pert, isATransposed_opt = .true.)
+                        YbCopy_r8, YbTinvRYb_pert,                   &
+                        isATransposed_opt = .true., isBTransposed_opt = .true.)
 
     if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
       call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_mean, &
-                          YbCopy_r8, YbTinvRYb_mean, isATransposed_opt = .true.)
+                          YbCopy_r8, YbTinvRYb_mean,                   &
+                          isATransposed_opt = .true., isBTransposed_opt = .true.)
     end if
 
     deallocate(YbCopy_r8)

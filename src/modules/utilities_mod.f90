@@ -365,7 +365,7 @@ contains
 
   end function utl_fstecr
 
-  subroutine utl_fastMatMul(M, N, K, A, B, C, isATransposed_opt)
+  subroutine utl_fastMatMul(M, N, K, A, B, C, isATransposed_opt, isBTransposed_opt)
     !
     !:Purpose: Calculate matrix multiplication C=A*B
     !             A is a matrix MxK
@@ -378,11 +378,11 @@ contains
     ! Arguments:
     integer,           intent(in) :: M, N, K
     real(8),           intent(in) :: A(:,:), B(:,:), C(:,:)
-    logical, optional, intent(in) :: isATransposed_opt
+    logical, optional, intent(in) :: isATransposed_opt, isBTransposed_opt
 
     ! Locals:
     integer :: dimA, dimB, dimC
-    character :: transposeA
+    character :: transposeA, transposeB
 
     dimA = size(A,1)
     dimB = size(B,1)
@@ -395,11 +395,17 @@ contains
         transposeA = 'T'
       end if
     end if
+    transposeB = 'N'
+    if ( present(isBTransposed_opt) ) then
+      if ( isBTransposed_opt ) then
+        transposeB = 'T'
+      end if
+    end if
 
     call utl_tmg_start(184,'low-level--utl_fastMatMul')
 
     ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
-     call dgemm(transposeA, 'N', &
+     call dgemm(transposeA, transposeB, &
                 M, N, K,         & ! M, N, K
                 1.0d0,           & ! alpha
                 A, dimA,         & ! A
