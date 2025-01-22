@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Do not select observations exactly at the edge of the LETKF localization volume (#1032 and !934)
+   * very minor impact on results
  * Implement SLEVE for GEM-H, also fixes `qlim_rttovLimit` for GEM-H (#1017 and !932)
  * Added `LOCALSELECTIONOUTPUT`, `MAXNUMLOCALOBSPERTYPE`, and `LOCALOBSSORTING` to `&NAMLETKF` (#998 and !921)
    * very minor impact on results
