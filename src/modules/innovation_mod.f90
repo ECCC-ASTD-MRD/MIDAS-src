@@ -316,13 +316,12 @@ contains
     
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
-      if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) ) cycle
+      if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) .or. &
+           .not. col_varExist(columnTrlOnTrlLev,vnl_varNameList2D(jvar))) cycle
       do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
         columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameList2D(jvar))
-        if ( col_varExist(columnTrlOnTrlLev,vnl_varNameList2D(jvar)) ) then
-          columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
-          columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
-        end if
+        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
+        columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
       end do
     end do
 

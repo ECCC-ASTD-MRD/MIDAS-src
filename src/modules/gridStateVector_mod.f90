@@ -5421,27 +5421,27 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)  :: nlong ! number of latitudes
-    integer, intent(in)  :: nlat  ! number of longitudes
-    integer, intent(in)  :: nlev  ! number of vertical levels
-    real(8), intent(in)  :: field(nlong,nlat,nlev) ! 3D field
-    real(8), intent(in)  :: xlong(nlong) ! longitudes (radians)
-    real(8), intent(in)  :: xlat(nlat)   ! latitudes (radians)
-    real(8), intent(in)  :: vlev(nlev)   ! vertical levels of input field (in pressure)
-    integer, intent(in)  :: nlongout ! number or latitudes
-    integer, intent(in)  :: nlatout  ! number of target longitudes
-    integer, intent(in)  :: nlevout  ! Number of target vertical levels
-    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
-    real(8), intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
-    real(8), intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
-    real(8), intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
-    character(len=*), optional, intent(in) :: vertCoordType_opt
+    integer,                    intent(in)  :: nlong ! number of latitudes
+    integer,                    intent(in)  :: nlat  ! number of longitudes
+    integer,                    intent(in)  :: nlev  ! number of vertical levels
+    real(8),                    intent(in)  :: field(nlong,nlat,nlev) ! 3D field
+    real(8),                    intent(in)  :: xlong(nlong) ! longitudes (radians)
+    real(8),                    intent(in)  :: xlat(nlat)   ! latitudes (radians)
+    real(8),                    intent(in)  :: vlev(nlev)   ! vertical levels of input field (in pressure)
+    integer,                    intent(in)  :: nlongout ! number or latitudes
+    integer,                    intent(in)  :: nlatout  ! number of target longitudes
+    integer,                    intent(in)  :: nlevout  ! Number of target vertical levels
+    real(8),                    intent(out) :: fieldout(nlongout,nlatout,nlevout) ! 3D field
+    real(8),                    intent(in)  :: xlongout(nlongout) ! target longitudes (radians) 
+    real(8),                    intent(in)  :: xlatout(nlatout)   ! target of target latitudes (radians)
+    real(8),                    intent(in)  :: vlevout(nlevout)   ! Target vertical levels (in pressure)
+    character(len=*), optional, intent(in)  :: vertCoordType_opt ! Vertical coordinate type (default: 'Pressure')
 
     ! Locals:
-    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
-    integer :: ilev,ilon,ilat,ilatp1,i,j,ilongout,ilatout
-    logical :: same_vlev
-    real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+    real(8)          :: lnvlev(nlev),lnvlevout(nlevout),plong2
+    integer          :: ilev,ilon,ilat,ilatp1,i,j,ilongout,ilatout
+    logical          :: same_vlev
+    real(8)          :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
     character(len=8) :: vertCoordType
 
     ! Check if vertical interpolation needed
