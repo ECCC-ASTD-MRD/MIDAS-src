@@ -71,8 +71,7 @@ module calcStatsLam_mod
 
   type(struct_ens)  :: ensPerts
 
-  real(8), pointer  :: vCoordProfile_M(:), vCoordProfile_T(:)
-  logical :: vertCoordPress
+  real(8), pointer  :: pressureProfile_M(:), pressureProfile_T(:)
 
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
   real(8)             :: scaleFactor_SF
@@ -93,7 +92,6 @@ module calcStatsLam_mod
   real(8) :: hlocalize_humidity ! horizontal length scale (in km)
   real(8) :: hlocalize_other    ! horizontal length scale (in km)
   character(len=4)  :: correlatedVariables(vnl_numvarmax)
-  real(8) :: dZdP ! rough Pa to m conversion for vLocalize_*
 
 contains
   
@@ -113,13 +111,14 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     ! Locals:
-    integer :: ier
-    integer :: varIndex, levIndex, k
-    integer :: numStep
-    integer, allocatable :: dateStampList(:)
-    real(8) :: SurfacePressure, SurfaceHeight
-    character(len=256)  :: enspathname
-    logical :: makeBiPeriodic
+    integer                   :: ier
+    integer                   :: varIndex, levIndex, k
+    integer                   :: numStep
+    integer, allocatable      :: dateStampList(:)
+    real(8)                   :: pSurfRef, hSurfRef
+    real(8), pointer          :: vertCoordProfile_M(:), vertCoordProfile_T(:)
+    character(len=256)        :: enspathname
+    logical                   :: makeBiPeriodic
     character(len=4), pointer :: controlVarNames(:)
 
     ! Namelist variables (local)
@@ -138,6 +137,9 @@ contains
     write(*,*) 'csl_setup: Starting...'
     call msg_memUsage('csl_setup')
 
+    nullify(vertCoordProfile_T)
+    nullify(vertCoordProfile_M)
+
     !
     !- 1. Initialized the info on the ensemble
     !
@@ -145,11 +147,6 @@ contains
 
     hco_ens => hco_ens_in
     vco_bhi => vco_ens_in
-    if (vco_getVcode(vco_bhi)== 21001) then
-      vertCoordPress = .false.
-    else
-      vertCoordPress = .true.
-    end if
 
     if ( vco_bhi%nlev_T == 1 .and. vco_bhi%nlev_T == 1 ) then
       write(*,*)
@@ -381,41 +378,38 @@ contains
     end if
 
     !
-    !- 9.  Setup vertical coordinate profile for vertical localization
+    !- 9.  Setup pressure profile for vertical localization
     !
     if (vco_bhi%vgridPresent) then
-      if (vertCoordPress) then
-        SurfacePressure = 101000.D0
-        call czp_fetch1DLevels(vco_bhi, SurfacePressure, sfcValueLS_opt=SurfacePressure, &
-                               profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+      if (vco_getVcode(vco_bhi)== 21001) then
+        hSurfRef = 0.D0
+        call czp_fetch1DLevels(vco_bhi, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                               profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
+        call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_M,vco_bhi%nlev_M)
+        call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,vco_bhi%nlev_T)
+        allocate(pressureProfile_M(1:vco_bhi%nlev_M))
+        allocate(pressureProfile_T(1:vco_bhi%nlev_T))
+        pressureProfile_M(1:vco_bhi%nlev_M) = vertCoordProfile_M(1:vco_bhi%nlev_M)
+        pressureProfile_T(1:vco_bhi%nlev_T) = vertCoordProfile_T(1:vco_bhi%nlev_T)
+        if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
+        if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
       else
-        SurfaceHeight = 0.D0
-        call czp_fetch1DLevels(vco_bhi, SurfaceHeight, sfcValueLS_opt=SurfaceHeight, &
-                               profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+        pSurfRef = 101000.D0
+        call czp_fetch1DLevels(vco_bhi, pSurfRef, &
+                               profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
       end if
 
       write(*,*)
-      if (vertCoordPress) then
-        write(*,*) 'Pressure MM profile...'
-        do k = 1, vco_bhi%nlev_M
-          write(*,*) k, vCoordProfile_M(k) / 100.d0, ' hPa'
-        end do
-        write(*,*)
-        write(*,*) 'Pressure TH profile...'
-        do k = 1, vco_bhi%nlev_T
-          write(*,*) k, vCoordProfile_T(k) / 100.d0, ' hPa'
-        end do
-      else
-        write(*,*) 'Height MM profile...'
-        do k = 1, vco_bhi%nlev_M
-          write(*,*) k, vCoordProfile_M(k)/1.0d3, ' km'
-        end do
-        write(*,*)
-        write(*,*) 'Height TH profile...'
-        do k = 1, vco_bhi%nlev_T
-          write(*,*) k, vCoordProfile_T(k)/1.0d3, ' km'
-        end do
-      end if
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_M
+        write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
+      end do
+      
+      write(*,*)
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_T
+        write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
+      end do
 
     end if
 
@@ -423,19 +417,19 @@ contains
     !- 10.  Setup the scaling
     !
     if ( all(scaleFactor(:) == 1.d0) ) then
-      write(*,*)
+      write(*,*) 
       write(*,*) 'csl_setup: NO scaling of the StdDev will be performed'
       stdDevScaling=.false.
 
     else
-      write(*,*)
+      write(*,*) 
       write(*,*) 'csl_setup: scaling of the StdDev WILL BE performed'
       stdDevScaling=.true.
 
       allocate(scaleFactor_M(vco_bhi%nlev_M))
       allocate(scaleFactor_T(vco_bhi%nlev_T))
       do levIndex = 1, vco_bhi%nlev_T
-        if (scaleFactor(levIndex) > 0.0d0) then
+        if (scaleFactor(levIndex) > 0.0d0) then 
           scaleFactor_T(levIndex) = sqrt(scaleFactor(levIndex))
         else
           scaleFactor_T(levIndex) = 0.0d0
@@ -672,7 +666,7 @@ contains
 
        call ens_copyEnsStdDev(ensPerts, statevector_template)
 
-       call bmd_setup(statevector_template, hco_ens, nEns, vCoordProfile_M, vCoordProfile_T, 1)
+       call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, pressureProfile_T, 1)
 
        call bmd_localizationRadii(ensPerts, waveBandIndex_opt=1) ! IN
 
@@ -681,10 +675,10 @@ contains
     end select
 
     !
-    !- 2.  Write the estimated vertical coordinate profiles
+    !- 2.  Write the estimated pressure profiles
     !
     if (mmpi_myid == 0 .and. vco_bhi%vgridPresent) then
-      call writeVertCoordProfiles
+      call writePressureProfiles
     end if
 
     !
@@ -1075,7 +1069,7 @@ contains
       write(*,*)
       write(*,*) bhi%controlVariable(var)%nomvar(cv_bhi)
       do k = bhi%controlVariable(var)%varLevIndexStart, bhi%controlVariable(var)%varLevIndexEnd
-        write(*,'(i3,2X,f9.2,2X,a2)') k, HorizScale(k)/1.0d3, 'km'
+        write(*,'(i3,2X,f9.2,2X,a2)') k, HorizScale(k)/1000.d0, 'km'
       end do
     end do
 
@@ -1603,7 +1597,7 @@ contains
 
     ! Locals:
     integer :: totwvnb, var1, var2, k1, k2, lev1, lev2
-    real(8)  :: dist, fact, vLocalize, vlev1, vlev2, vLocalize1, vLocalize2
+    real(8)  :: dist, fact, vLocalize, pres1, pres2, vLocalize1, vLocalize2
 
     write(*,*)
     write(*,*) 'applyVertLoc: Starting...'
@@ -1616,8 +1610,6 @@ contains
     !
     !- 2.  Apply localization to the spectral vertical correlations
     !
-
-    if (.not.vertCoordPress) dZdP = MPC_RGAS_DRY_AIR_R8*222.0d0/ec_rg/1.0D3 ! rough Pa to km conversion
 
     !- 2.1 Loop on control variables
     do var2 = 1, bhi%nControlVariable
@@ -1659,44 +1651,39 @@ contains
 
         !- 2.2.3 Length scale to be use for var1-var2 correlation
         vLocalize = (vLocalize1+vLocalize2)/2.d0
-        if (.not.vertCoordPress) vLocalize = vLocalize*dZdP
-        
+
         !- 2.3 Loop on vertical levels
         do k2 = bhi%controlVariable(var2)%varLevIndexStart, bhi%controlVariable(var2)%varLevIndexEnd
           do k1 = bhi%controlVariable(var1)%varLevIndexStart, bhi%controlVariable(var1)%varLevIndexEnd
 
-            !- 2.4 Set the vertical coordinate values
+            !- 2.4 Set the pressure values
 
-            !- 2.4.1 Vert coordinate for control-variable-1 level
+            !- 2.4.1 Pressure for control-variable-1 level
             if (bhi%controlVariable(var1)%nlev /= 1) then ! variable 3D
               lev1 = k1 - bhi%controlVariable(var1)%varLevIndexStart + 1
               if (bhi%controlVariable(var1)%GridType == 'TH') then
-                vlev1 = vCoordProfile_T(lev1)
+                pres1 = pressureProfile_T(lev1)
               else
-                vlev1 = vCoordProfile_M(lev1)
+                pres1 = pressureProfile_M(lev1)
               end if
             else
-              vlev1 = vCoordProfile_M(vco_bhi%nlev_M) ! variable 2D
+              pres1 = pressureProfile_M(vco_bhi%nlev_M) ! variable 2D
             end if
 
-            !- 2.4.2 Vert coordinate for control-variable-2 level
+            !- 2.4.2 Pressure for control-variable-2 level
             if (bhi%controlVariable(var2)%nlev /= 1) then ! variable 3D
               lev2 = k2 - bhi%controlVariable(var2)%varLevIndexStart + 1
               if (bhi%controlVariable(var2)%GridType == 'TH') then
-                 vlev2 = vCoordProfile_T(lev2)
+                pres2 = pressureProfile_T(lev2)
               else
-                vlev2 = vCoordProfile_M(lev2)
+                pres2 = pressureProfile_M(lev2)
               end if
             else
-              vlev2 = vCoordProfile_M(vco_bhi%nlev_M) ! variable 2D
+              pres2 = pressureProfile_M(vco_bhi%nlev_M) ! variable 2D
             end if
 
             !- 2.5 Compute the localization factor
-            if (vertCoordPress) then
-              dist = abs(log(vlev2) - log(vlev1))
-            else
-              dist = abs(vlev2 - vlev1)/1.0D3
-            end if
+            dist = abs(log(pres2) - log(pres1))
             fact = lfn_response(dist,vLocalize)
 
             !- 2.6 Localize each total wavenumber (not scale-dependent!)
@@ -1710,8 +1697,8 @@ contains
       end do
     end do
 
-    deallocate(vCoordProfile_M)
-    deallocate(vCoordProfile_T)
+    deallocate(pressureProfile_M)
+    deallocate(pressureProfile_T)
 
     write(*,*)
     write(*,*) 'applyVertLoc: Done!'
@@ -2239,11 +2226,11 @@ contains
   end subroutine writeControlVarInfo
 
   !--------------------------------------------------------------------------
-  ! writeVertCoordProfiles
+  ! writePressureProfiles
   !--------------------------------------------------------------------------
-  subroutine writeVertCoordProfiles
+  subroutine writePressureProfiles
     !
-    ! :Purpose: To write the MM and TH vertical coordinate profiles used for vertical localization
+    ! :Purpose: To write the MM and TH pressure profiles used for vertical localization
     !
     implicit none
 
@@ -2251,36 +2238,24 @@ contains
     character(len=128) :: outfilename
     integer :: jk
 
-    outfilename = "./vCoordProfile_M.txt"
+    outfilename = "./pressureProfile_M.txt"
     open (unit=99,file=outfilename,action="write",status="new")
-    if (vertCoordPress) then
-      do jk = 1, vco_bhi%nlev_M
-        write(99,'(I3,2X,F6.1)') jk, vCoordProfile_M(jk)/100.d0
-      end do
-    else
-      do jk = 1, vco_bhi%nlev_M
-        write(99,'(I3,2X,F7.1)') jk, vCoordProfile_M(jk)
-      end do
-    end if
+    do jk = 1, vco_bhi%nlev_M
+      write(99,'(I3,2X,F6.1)') jk, pressureProfile_M(jk)/100.d0
+    end do
     close(unit=99)
 
-    outfilename = "./vCoordProfile_T.txt"
+    outfilename = "./pressureProfile_T.txt"
     open (unit=99,file=outfilename,action="write",status="new")
-    if (vertCoordPress) then
-      do jk = 1, vco_bhi%nlev_T
-        write(99,'(I3,2X,F6.1)') jk, vCoordProfile_T(jk)/100.d0
-      end do
-    else
-      do jk = 1, vco_bhi%nlev_T
-        write(99,'(I3,2X,F7.1)') jk, vCoordProfile_T(jk)
-      end do
-    end if
+    do jk = 1, vco_bhi%nlev_T
+      write(99,'(I3,2X,F6.1)') jk, pressureProfile_T(jk)/100.d0
+    end do
     close(unit=99)
 
-    write(6,*) 'finished writing vertical coord profiles...'
+    write(6,*) 'finished writing pressure profiles...'
     flush(6)
 
-  end subroutine writeVertCoordProfiles
+  end subroutine writePressureProfiles
 
   !--------------------------------------------------------------------------
   ! calcLocalCorrelations

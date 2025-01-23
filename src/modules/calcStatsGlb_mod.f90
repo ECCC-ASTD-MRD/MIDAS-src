@@ -51,8 +51,7 @@ module calcStatsGlb_mod
   character(len=256), allocatable :: cflensin(:)
   integer :: gstID_numVarLevEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
   integer, allocatable :: nip1_M(:),nip1_T(:)
-  real(8), pointer :: vCoordProfile_M(:), vCoordProfile_T(:)
-  logical :: vertCoordPress
+  real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
 
   integer :: nvar3d, nvar2d, nvar
   integer, allocatable :: varLevOffset(:)
@@ -92,8 +91,9 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: ierr, memberIndex
-    real(8) :: hSurfRef, pSurfRef
+    integer          :: ierr, memberIndex
+    real(8)          :: pSurfRef, hSurfRef
+    real(8), pointer :: vertCoordProfile_M(:), vertCoordProfile_T(:)
 
     ! Namelist variables (local):
     integer :: horizWaveBandIndex, vertWaveBandIndex
@@ -102,6 +102,9 @@ module calcStatsGlb_mod
 
     write(*,*)
     write(*,*) 'csg_setup: Starting...'
+
+    nullify(vertCoordProfile_T)
+    nullify(vertCoordProfile_M)
 
     nens=nens_in
     allocate(cflensin(nens))
@@ -140,11 +143,6 @@ module calcStatsGlb_mod
     
     !- Setup vertical levels
     vco_ens => vco_in
-    if (vco_getVcode(vco_ens) == 21001) then
-      vertCoordPress = .false.
-    else
-      vertCoordPress = .true.
-    end if
     nLevEns_M = vco_in%nlev_M
     nLevEns_T = vco_in%nlev_T
     nLevPtot = nLevEns_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
@@ -178,16 +176,25 @@ module calcStatsGlb_mod
     allocate(nip1_T(nLevEns_T))
     nip1_T(:) = vco_in%ip1_T(:)
 
-    !- Estimate the vertical coord profile for each vertical grid
-    if (vertCoordPress) then
-      pSurfRef = 101000.D0
-      call czp_fetch1DLevels(vco_in, pSurfRef, sfcValueLS_opt=pSurfRef, &
-                             profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
-    else
+    !- Estimate the pressure profile for each vertical grid
+    if (vco_getVcode(vco_in)== 21001) then
       hSurfRef = 0.D0
       call czp_fetch1DLevels(vco_in, hSurfRef, sfcValueLS_opt=hSurfRef, &
-                             profM_opt=vCoordProfile_M, profT_opt=vCoordProfile_T)
+                             profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_M,nLevEns_M)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,nLevEns_T)
+      allocate(pressureProfile_M(1:nLevEns_M))
+      allocate(pressureProfile_T(1:nLevEns_T))
+      pressureProfile_M(1:nLevEns_M) = vertCoordProfile_M(1:nLevEns_M)
+      pressureProfile_T(1:nLevEns_T) = vertCoordProfile_T(1:nLevEns_T)
+      if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
+      if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
+    else
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco_in, pSurfRef, &
+                             profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
     end if
+
     !
     !- Horizontal wave band decomposition option
     !
@@ -201,7 +208,7 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Horizontal waveBand decomposition is ACTIVATED'
     end if
-
+    
     ! Make sure that the wavenumbers are in the correct (decreasing) order
     do horizWaveBandIndex = 1, nHorizWaveBand-1
       if (horizWaveBandPeaks(horizWaveBandIndex)-horizWaveBandPeaks(horizWaveBandIndex+1) <= 0) then
@@ -921,8 +928,8 @@ module calcStatsGlb_mod
        
         if (waveBandIndex == 1) then
           call ens_copyEnsStdDev(ensPertsScaleDecomp(1), statevector_template) ! IN
-          call bmd_setup(statevector_template, hco_ens, nEns, vCoordProfile_M, & ! IN
-                         vCoordProfile_T, max(nHorizWaveBand,nVertWaveBand))     ! IN
+          call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
+                         pressureProfile_T, max(nHorizWaveBand,nVertWaveBand))     ! IN
         end if
 
         call bmd_localizationRadii(ensPertsScaleDecomp(1), waveBandIndex_opt=waveBandIndex) ! IN
@@ -1058,10 +1065,10 @@ module calcStatsGlb_mod
     end select
 
     !
-    !- Write the estimated vetical coordinate profiles
+    !- Write the estimated pressure profiles
     !
     if (vco_ens%vgridPresent) then
-      call writeVertCoordProfiles
+      call writePressureProfiles
     end if
 
     !
@@ -1826,11 +1833,11 @@ module calcStatsGlb_mod
   end subroutine calcCorvert
 
   !--------------------------------------------------------------------------
-  ! writeVertCoordProfiles
+  ! WRITEPRESSUREPROFILES
   !--------------------------------------------------------------------------
-  subroutine writeVertCoordProfiles
+  subroutine writePressureProfiles
     !
-    !:Purpose: Write the profiles of vertical coordinate to ascii files
+    !:Purpose: Write the profiles of pressure to ascii files
     !
     implicit none
 
@@ -1840,39 +1847,23 @@ module calcStatsGlb_mod
 
     if (mmpi_myid /= 0) return
 
-    if (vertCoordPress) then
-      outfilename = "./pressureProfile_M.txt"
-      open (unit=99,file=outfilename,action="write",status="new")
-      do jk = 1, nLevEns_M
-         write(99,'(I3,2X,F7.2)') jk, vCoordProfile_M(jk)/100.d0
-      end do
-    else
-      outfilename = "./heightProfile_M.txt"
-      open (unit=99,file=outfilename,action="write",status="new")
-      do jk = 1, nLevEns_M
-        write(99,'(I3,2X,F7.1)') jk, vCoordProfile_M(jk)
-      end do
-    end if
+    outfilename = "./pressureProfile_M.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, nLevEns_M
+       write(99,'(I3,2X,F7.2)') jk, pressureProfile_M(jk)/100.d0
+    end do
+    close(unit=99)
+       
+    outfilename = "./pressureProfile_T.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, nLevEns_T
+       write(99,'(I3,2X,F7.2)') jk, pressureProfile_T(jk)/100.d0
+    end do
     close(unit=99)
 
-    if (vertCoordPress) then
-      outfilename = "./pressureProfile_T.txt"
-      open (unit=99,file=outfilename,action="write",status="new")
-      do jk = 1, nLevEns_T
-        write(99,'(I3,2X,F7.2)') jk, vCoordProfile_T(jk)/100.d0
-     end do
-    else
-      outfilename = "./heightProfile_T.txt"
-      open (unit=99,file=outfilename,action="write",status="new")
-      do jk = 1, nLevEns_T
-        write(99,'(I3,2X,F7.1)') jk, vCoordProfile_T(jk)
-      end do
-    end if
-    close(unit=99)
+    write(*,*) 'finished writing pressure profiles...'
 
-    write(*,*) 'finished writing vertical coord profiles...'
-
-  end subroutine writeVertCoordProfiles
+  end subroutine writePressureProfiles
 
   !--------------------------------------------------------------------------
   ! WRITESTDDEV
@@ -3320,7 +3311,7 @@ module calcStatsGlb_mod
 
     ! Locals:
     real(8) :: HorizScale(numVarLevEns)
-    real(8), pointer :: vertCoordProfile(:)
+    real(8), pointer :: PressureProfile(:)
     integer :: jk, jn, nLevEns, varIndex
     real(8) :: rjn, fact, temp, a, b
     character(len=128) :: outfilename
@@ -3377,22 +3368,15 @@ module calcStatsGlb_mod
 
        if(vnl_varLevelFromVarName(nomvar3d(varIndex,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
-          vertCoordProfile => vCoordProfile_M
+          PressureProfile => pressureProfile_M
        else
           nLevEns = nLevEns_T
-          vertCoordProfile => vCoordProfile_T
+          PressureProfile => pressureProfile_T
        end if
-       if (vertCoordPress) then
-         do jk=1,nlevEns
-           write(* ,'(I3,2X,F6.1,2X,F6.1)')  jk, vertCoordProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
-           write(99,'(I3,2X,F6.1,2X,F6.1)')  jk, vertCoordProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
-         end do
-       else
-         do jk=1,nlevEns
-           write(* ,'(I3,2X,F6.0,2X,F6.1)')  jk, vertCoordProfile(jk), HorizScale(varLevOffset(varIndex)+jk)/1000.d0
-           write(99,'(I3,2X,F6.0,2X,F6.1)')  jk, vertCoordProfile(jk), HorizScale(varLevOffset(varIndex)+jk)/1000.d0
-         end do
-       end if
+       do jk=1,nlevEns
+          write(* ,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
+          write(99,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(varIndex)+jk)/1000.d0
+       end do
 
        close(unit=99)
     end do
@@ -3408,14 +3392,9 @@ module calcStatsGlb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if (vertCoordPress) then 
-         write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
-         write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
-       else
-         write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 0.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
-         write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 0.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
-       end if
-       
+       write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
+       write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+varIndex)/1000.d0
+
        close(unit=99)
     end do
 
@@ -3871,7 +3850,7 @@ module calcStatsGlb_mod
     integer :: waveIndex, varIndex, levelIndex, offset, ndim
     real(8) :: corvert(numVarLevEns,numVarLevEns)    ! Total vertical correlation matrix
     real(8) :: fitParam(nvar3d,nLevEns_T)      ! Fit parameters
-    real(8) :: vlev(nLevEns_T)
+    real(8) :: press(nLevEns_T)
     real(8), parameter :: scaleFactor = 10.0d0 ! Length scale scaling factor
     real(8), parameter :: relativeTol = 1.0d-4
 
@@ -3909,9 +3888,9 @@ module calcStatsGlb_mod
           offset = varLevOffset(varIndex)
           ndim = varLevOffset(varIndex+1) - offset           
           if (ndim == nLevEns_M) then
-            vlev(1:ndim) = vCoordProfile_M(1:ndim)
+            press(1:ndim) = pressureProfile_M(1:ndim)
           else
-            vlev(1:ndim) = vCoordProfile_T(1:ndim)
+            press(1:ndim) = pressureProfile_T(1:ndim)
           end if
 
           call lfn_setup(trim(vfitType(varIndex)))
@@ -3920,7 +3899,7 @@ module calcStatsGlb_mod
           do waveIndex = ntrunc, 0, -1
             do levelIndex = 1, ndim
               call vCorrelFilter(ndim, corns(offset+1:offset+ndim,offset+1:offset+ndim,waveIndex), &
-                                 vlev, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
+                                 press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
             end do
             ! Ensure positive definiteness
             call posDefCorrel(ndim, corns(offset+1:offset+ndim,offset+1:offset+ndim,waveIndex), &
@@ -4075,7 +4054,7 @@ module calcStatsGlb_mod
     real(8) :: weight(nLevEns_T)
     real(8) :: distance(nLevEns_T)
     real(8) :: rmse(nvar3d,nLevEns_T)
-    real(8) :: vlev(nLevEns_T), hwhm(nvar3d,nLevEns_T)
+    real(8) :: press(nLevEns_T), hwhm(nvar3d,nLevEns_T)
     real(8) :: dZdP
     real(8), parameter :: relativeTol = 1.0d-4
     real(8), parameter :: scaleFactor = 10.0d0   ! Length scale scaling factor
@@ -4094,9 +4073,9 @@ module calcStatsGlb_mod
       offset = varLevOffset(varIndex)
       ndim = varLevOffset(varIndex+1) - offset
       if (ndim == nLevEns_M) then
-        vlev(1:ndim) = vCoordProfile_M(1:ndim)
+        press(1:ndim) = pressureProfile_M(1:ndim)
       else
-        vlev(1:ndim) = vCoordProfile_T(1:ndim)
+        press(1:ndim) = pressureProfile_T(1:ndim)
       end if
 
       ! Set correlation fit type        
@@ -4106,34 +4085,18 @@ module calcStatsGlb_mod
         ndim2 = 0
         ! Set fit input
         ! Mix bottom top and half depending on levelIndex
-        if (vertCoordPress) then
-          if (levelIndex > ndim/2) then
-            do levelIndex2 = levelIndex,1, -1
-              ndim2 = ndim2 + 1
-              distance(ndim2) = -log(vlev(levelIndex2)/vlev(levelIndex))*dZdP
-              correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-            end do
-          else
-            do levelIndex2 = levelIndex, ndim
-              ndim2 = ndim2 + 1
-              distance(ndim2) = log(vlev(levelIndex2)/vlev(levelIndex))*dZdP
-              correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-            end do
-          end if
+        if (levelIndex > ndim/2) then
+          do levelIndex2 = levelIndex,1, -1
+            ndim2 = ndim2 + 1
+            distance(ndim2) = -log(press(levelIndex2)/press(levelIndex))*dZdP
+            correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
+          end do
         else
-          if (levelIndex > ndim/2) then
-            do levelIndex2 = levelIndex,1, -1
-              ndim2 = ndim2 + 1
-              distance(ndim2) = (vlev(levelIndex) - vlev(levelIndex2))*1.0D-3
-              correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-            end do
-          else
-            do levelIndex2 = levelIndex, ndim
-              ndim2 = ndim2 + 1
-              distance(ndim2) = (vlev(levelIndex2) - vlev(levelIndex))*1.0D-3
-              correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
-            end do
-          end if
+          do levelIndex2 = levelIndex, ndim
+            ndim2 = ndim2 + 1
+            distance(ndim2) = log(press(levelIndex2)/press(levelIndex))*dZdP
+            correlValue(ndim2) = correl(offset+levelIndex,offset+levelIndex2)
+          end do
         end if
         ! Apply fitting
         call lfn_lengthscale(fitParam(varIndex,levelIndex), &
@@ -4155,14 +4118,14 @@ module calcStatsGlb_mod
         correl(offset+1:offset+ndim,offset+1:offset+ndim) = 1.0d0
         do levelIndex = 1, ndim
           call vCorrelFilter(ndim, correl(offset+1:offset+ndim,offset+1:offset+ndim), &
-                             vlev, levelIndex, fitParam(varIndex,levelIndex))
+                             press, levelIndex, fitParam(varIndex,levelIndex))
         end do
       else
         ! Reduce/remove correlations at far distance
         ! Off-diagonal blocks untouched
         do levelIndex = 1, ndim
           call vCorrelFilter(ndim, correl(offset+1:offset+ndim,offset+1:offset+ndim), &
-                             vlev, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
+                             press, levelIndex, scaleFactor*fitParam(varIndex,levelIndex))
         end do
       end if
       
@@ -4272,7 +4235,7 @@ module calcStatsGlb_mod
   !--------------------------------------------------------------------------
   ! vCorrelFilter
   !--------------------------------------------------------------------------
-  subroutine vCorrelFilter(ndim, correl, vlev, levelIndex, fitParam)
+  subroutine vCorrelFilter(ndim, correl, press, levelIndex, fitParam)
     !
     !:Purpose: Apply fit or far distance filter to vertical correlation matrix row/column.
     !          To be called in a loop over the different correlation matrix rows.
@@ -4283,7 +4246,7 @@ module calcStatsGlb_mod
     integer,    intent(in) :: ndim              ! Size of correl
     integer,    intent(in) :: levelIndex        ! Row/colummn to filter/set
     real(8), intent(inout) :: correl(ndim,ndim) ! Correlation matrix
-    real(8),    intent(in) :: vlev(ndim)        ! Reference vertical levels
+    real(8),    intent(in) :: press(ndim)       ! Reference pressure levels
     real(8),    intent(in) :: fitParam          ! Fit parameter
         
     ! Locals:
@@ -4295,11 +4258,7 @@ module calcStatsGlb_mod
 
     if (levelIndex < ndim) then
       do levelIndex2 = levelIndex+1, ndim
-        if (vertCoordPress) then
-          distance = log(vlev(levelIndex2)/vlev(levelIndex))*dZdP
-        else
-          distance =  (vlev(levelIndex2) - vlev(levelIndex))*1.0D-3
-        end if 
+        distance = log(press(levelIndex2)/press(levelIndex))*dZdP
         correl(levelIndex,levelIndex2) = correl(levelIndex,levelIndex2) * &
                                                lfn_response(distance, fitParam)
         if (abs(correl(levelIndex,levelIndex2)) < 0.01)  correl(levelIndex,levelIndex2) = 0.0d0
@@ -4452,7 +4411,7 @@ module calcStatsGlb_mod
           
     ! Locals:
     integer :: varIndex, levelIndex, nvars, ndim, iun
-    real(8) :: vlev(nLevEns_T)   
+    real(8) :: press(nLevEns_T)   
 
     if (mmpi_myid /= 0) return
 
@@ -4467,22 +4426,18 @@ module calcStatsGlb_mod
       
       ndim = varLevOffset(varIndex+1) - varLevOffset(varIndex)
       if (ndim == nLevEns_M) then
-        vlev(1:ndim) = vCoordProfile_M(1:ndim)
+        press(1:ndim) = pressureProfile_M(1:ndim)
       else if (ndim == nLevEns_T) then
-        vlev(1:ndim) = vCoordProfile_T(1:ndim)
+        press(1:ndim) = pressureProfile_T(1:ndim)
       else
-        vlev(1) = vCoordProfile_T(nLevEns_T)
+        press(1) = pressureProfile_T(nLevEns_T)
       end if
      
       write(iun,*) ndim,' ',nomvar(varIndex,2),' ',waveIndex,' ',fitType(varIndex), &
         ' ',fitSmoothingTimes, ' ',setFittedCorrel(varIndex)
-      if (vertCoordPress) then
-        write(iun,'(A)') ' Pressure Fit-Parameter  HWHM    fit RMSE'
-      else
-        write(iun,'(A)') ' Height   Fit-Parameter  HWHM    fit RMSE'
-      end if
+      write(iun,'(A)') ' Pressure Fit-Parameter  HWHM    fit RMSE'
       do levelIndex = 1, ndim
-        write(iun,'(f9.4,2x,f8.2,3x,f8.2,3x,g9.2)') vlev(levelIndex)/100.0d0, &
+        write(iun,'(f9.4,2x,f8.2,3x,f8.2,3x,g9.2)') press(levelIndex)/100.0d0, &
           fitParam(varIndex,levelIndex), hwhm(varIndex,levelIndex), &
           rmse(varIndex,levelIndex)
       end do
@@ -4495,7 +4450,7 @@ module calcStatsGlb_mod
         end if
         if (present(distance_opt)) write(iun,'(f9.3,31(f8.2))') 0.0d0, 0.0d0, distance_opt(1:min(30,nj))
         do levelIndex = 1, ndim
-          write(iun,'(f9.3,31(f8.2))') vlev(levelIndex)/100.0d0, &
+          write(iun,'(f9.3,31(f8.2))') press(levelIndex)/100.0d0, &
             1.0d0, physCorrel_opt(varIndex,levelIndex,1:min(30,nj))
         end do
       end if
