@@ -119,8 +119,8 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="chem_only-IncH"/>
-      <FAMILY  name="chem_only-IncH">
+      <SUBMITS sub_name="chem_only-incH"/>
+      <FAMILY  name="chem_only-incH">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
