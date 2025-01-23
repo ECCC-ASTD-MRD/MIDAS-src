@@ -365,7 +365,8 @@ contains
 
   end function utl_fstecr
 
-  subroutine utl_fastMatMul(M, N, K, A, B, C, isATransposed_opt, isBTransposed_opt)
+  subroutine utl_fastMatMul(A, B, C, isATransposed_opt, isBTransposed_opt, &
+                            M_opt, N_opt, K_opt)
     !
     !:Purpose: Calculate matrix multiplication C=A*B
     !             A is a matrix MxK
@@ -376,28 +377,52 @@ contains
     implicit none
 
     ! Arguments:
-    integer,           intent(in) :: M, N, K
-    real(8),           intent(in) :: A(:,:), B(:,:), C(:,:)
-    logical, optional, intent(in) :: isATransposed_opt, isBTransposed_opt
+    real(8),           intent(in)  :: A(:,:), B(:,:)
+    real(8),           intent(out) :: C(:,:)
+    logical, optional, intent(in)  :: isATransposed_opt, isBTransposed_opt
+    integer, optional, intent(in)  :: M_opt, N_opt, K_opt
 
     ! Locals:
-    integer :: dimA, dimB, dimC
+    integer :: M, N, K, dimA, dimB, dimC
     character :: transposeA, transposeB
 
     dimA = size(A,1)
     dimB = size(B,1)
     dimC = size(C,1)
 
+    if (present(M_opt)) then
+      M = M_opt
+    else
+      M = dimC
+    end if
+
+    if (present(N_opt)) then
+      N = N_opt
+    else
+      N = size(C,2)
+    end if
+
+    if (present(K_opt)) then
+      K = K_opt
+    else
+      K = size(A,2)
+    end if
+
     ! default value
     transposeA = 'N'
-    if ( present(isATransposed_opt) ) then
-      if ( isATransposed_opt ) then
+    if (present(isATransposed_opt)) then
+      if (isATransposed_opt) then
         transposeA = 'T'
+        ! Update 'K' only if it is not given as argument
+        if (.not.present(K_opt)) then
+          K = size(A,1)
+        end if
       end if
     end if
+
     transposeB = 'N'
-    if ( present(isBTransposed_opt) ) then
-      if ( isBTransposed_opt ) then
+    if (present(isBTransposed_opt)) then
+      if (isBTransposed_opt) then
         transposeB = 'T'
       end if
     end if

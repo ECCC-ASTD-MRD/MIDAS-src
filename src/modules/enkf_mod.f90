@@ -2309,14 +2309,12 @@ contains
     !$OMP END PARALLEL DO
     call utl_tmg_stop(137)
 
-    call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_pert, &
-                        YbCopy_r8, YbTinvRYb_pert,                   &
-                        isATransposed_opt = .true., isBTransposed_opt = .true.)
+    call utl_fastMatMul(YbTinvRCopy_pert, YbCopy_r8, YbTinvRYb_pert, &
+                        isATransposed_opt = .true., isBTransposed_opt = .true., K_opt = numLocalObs)
 
     if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-      call utl_fastMatMul(nEns1, nEns2, numLocalObs, YbTinvRCopy_mean, &
-                          YbCopy_r8, YbTinvRYb_mean,                   &
-                          isATransposed_opt = .true., isBTransposed_opt = .true.)
+      call utl_fastMatMul(YbTinvRCopy_mean, YbCopy_r8, YbTinvRYb_mean, &
+                          isATransposed_opt = .true., isBTransposed_opt = .true., K_opt = numLocalObs)
     end if
 
     deallocate(YbCopy_r8)
