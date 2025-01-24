@@ -284,14 +284,14 @@ module varNameList_mod
       character(len=*), optional, intent(in) :: modelName_opt
       ! Result:
       character(len=4)    :: varName
-      character(len=3)    :: modelName
+      character(len=8)    :: modelName
 
       if (present(modelName_opt)) then
         modelName = trim(modelName_opt)
       else
         modelName = 'GEM'
       end if
-      
+
       varName = '    '
       select case (varNumber)
         case ( BUFR_NEUU, BUFR_NEUS, BUFR_NEAL )
@@ -332,42 +332,43 @@ module varNameList_mod
           !
           ! Search for constituents. Identification depends on value and presence of second parameter.
           !
-          if (present(varNumberChm_opt)) then 
-            select case (varNumberChm_opt)
-              case(BUFR_NECH_O3)
-                varname='TO3' 
-              case(BUFR_NECH_H2O)
-                varname='HU'
-              case(BUFR_NECH_CH4)
-                varname='TCH4'
-              case(BUFR_NECH_CO2)
-                varname='TCO2'
-              case(BUFR_NECH_CO)
-                varname='TCO'
-              case(BUFR_NECH_NO2)
-                varname='TNO2'
-              case(BUFR_NECH_N2O)
-                varname='TN2O' 
-              case(BUFR_NECH_NO)
-                varname='TNO'
-              case(BUFR_NECH_HCHO)
-                varname='THCH'
-              case(BUFR_NECH_SO2)
-                varname='TSO2'
-              case(BUFR_NECH_NH3)
-                varname='TNH3'
-              case(BUFR_NECH_PM25)
-                varname='AF'
-              case(BUFR_NECH_PM10)
-                varname='AC'
-              case default
-                call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
-                    utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
-            end select
-            if (trim(modelName) == 'GEM') then
+          if (present(varNumberChm_opt)) then
+            if (trim(modelName) == 'GEM-MACH') then
               select case (varNumberChm_opt)
                 case(BUFR_NECH_O3)
-                  varname='O3L'  
+                  varname='TO3'
+                case(BUFR_NECH_H2O)
+                  varname='HU'
+                case(BUFR_NECH_CH4)
+                  varname='TCH4'
+                case(BUFR_NECH_CO2)
+                  varname='TCO2'
+                case(BUFR_NECH_CO)
+                  varname='TCO'
+                case(BUFR_NECH_NO2)
+                  varname='TNO2'
+                case(BUFR_NECH_N2O)
+                  varname='TN2O'
+                case(BUFR_NECH_NO)
+                  varname='TNO'
+                case(BUFR_NECH_HCHO)
+                  varname='THCH'
+                case(BUFR_NECH_SO2)
+                  varname='TSO2'
+                case(BUFR_NECH_NH3)
+                  varname='TNH3'
+                case(BUFR_NECH_PM25)
+                  varname='AF'
+                case(BUFR_NECH_PM10)
+                  varname='AC'
+                case default
+                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                                  utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+              end select
+            else if (trim(modelName) == 'GEM') then
+              select case (varNumberChm_opt)
+                case(BUFR_NECH_O3)
+                  varname='O3L'
                 case(BUFR_NECH_CH4)
                   varname='CH4L'
                 case(BUFR_NECH_N2O)
@@ -376,7 +377,7 @@ module varNameList_mod
                   call utl_abort('vnl_varnameFromVarnum: Unknown variable number ! ' // &
                       utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
               end select
-            else
+            else 
               call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
             end if
           else
