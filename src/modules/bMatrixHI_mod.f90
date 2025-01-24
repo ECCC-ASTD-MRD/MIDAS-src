@@ -109,18 +109,22 @@ CONTAINS
     character(len=*), optional, intent(in)  :: mode_opt
 
     ! Locals:
-    character(len=15) :: bhi_mode
-    integer :: jlev, ierr, fnom, fclos, fstouv, fstfrm
-    integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
-    logical :: llfound, lExists
-    real(8) :: zps
+    character(len=15)        :: bhi_mode
+    integer                  :: jlev, ierr, fnom, fclos, fstouv, fstfrm
+    integer                  :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
+    logical                  :: llfound, lExists
+    real(8)                  :: pSurfRef, hSurfRef
+    real(8), pointer         :: vertCoordProfile_M(:),vertCoordProfile_T(:)
     type(struct_vco),pointer :: vco_file => null()
-    character(len=8) :: bFileName = './bgcov'
+    character(len=8)         :: bFileName = './bgcov'
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
     if(mmpi_myid == 0) write(*,*) 'bhi_setup: starting'
     call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
+
+    nullify(vertCoordProfile_T)
+    nullify(vertCoordProfile_M)
 
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
@@ -301,9 +305,25 @@ CONTAINS
 
     call msg_memUsage('bhi_setup', mpiAll_opt=.false.)
 
-    zps = 101000.D0
-    call czp_fetch1DLevels(vco_anl, zps, &
-                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+      nullify(vertCoordProfile_T)
+
+    if (vco_getVcode(vco_anl)== 21001) then
+      hSurfRef = 0.D0
+      call czp_fetch1DLevels(vco_anl, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                             profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_M,nLev_M)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,nLev_T)
+      allocate(pressureProfile_M(1:nLev_M))
+      allocate(pressureProfile_T(1:nLev_T))
+      pressureProfile_M(1:nLev_M) = vertCoordProfile_M(1:nLev_M)
+      pressureProfile_T(1:nLev_T) = vertCoordProfile_T(1:nLev_T)
+      if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
+      if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
+    else
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco_anl, pSurfRef, &
+                             profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+    end if
 
     llfound = .false.
     nlev_bdl = 0

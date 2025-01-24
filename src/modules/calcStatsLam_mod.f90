@@ -73,7 +73,6 @@ module calcStatsLam_mod
 
   real(8), pointer  :: pressureProfile_M(:), pressureProfile_T(:)
 
-
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
   real(8)             :: scaleFactor_SF
 
@@ -112,13 +111,14 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     ! Locals:
-    integer :: ier
-    integer :: varIndex, levIndex, k
-    integer :: numStep
-    integer, allocatable :: dateStampList(:)
-    real(8) :: SurfacePressure
-    character(len=256)  :: enspathname
-    logical :: makeBiPeriodic
+    integer                   :: ier
+    integer                   :: varIndex, levIndex, k
+    integer                   :: numStep
+    integer, allocatable      :: dateStampList(:)
+    real(8)                   :: pSurfRef, hSurfRef
+    real(8), pointer          :: vertCoordProfile_M(:), vertCoordProfile_T(:)
+    character(len=256)        :: enspathname
+    logical                   :: makeBiPeriodic
     character(len=4), pointer :: controlVarNames(:)
 
     ! Namelist variables (local)
@@ -136,6 +136,9 @@ contains
     write(*,*)
     write(*,*) 'csl_setup: Starting...'
     call msg_memUsage('csl_setup')
+
+    nullify(vertCoordProfile_T)
+    nullify(vertCoordProfile_M)
 
     !
     !- 1. Initialized the info on the ensemble
@@ -378,9 +381,23 @@ contains
     !- 9.  Setup pressure profile for vertical localization
     !
     if (vco_bhi%vgridPresent) then
-      SurfacePressure = 101000.D0
-      call czp_fetch1DLevels(vco_bhi, SurfacePressure, &
-                             profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+      if (vco_getVcode(vco_bhi)== 21001) then
+        hSurfRef = 0.D0
+        call czp_fetch1DLevels(vco_bhi, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                               profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
+        call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_M,vco_bhi%nlev_M)
+        call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,vco_bhi%nlev_T)
+        allocate(pressureProfile_M(1:vco_bhi%nlev_M))
+        allocate(pressureProfile_T(1:vco_bhi%nlev_T))
+        pressureProfile_M(1:vco_bhi%nlev_M) = vertCoordProfile_M(1:vco_bhi%nlev_M)
+        pressureProfile_T(1:vco_bhi%nlev_T) = vertCoordProfile_T(1:vco_bhi%nlev_T)
+        if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
+        if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
+      else
+        pSurfRef = 101000.D0
+        call czp_fetch1DLevels(vco_bhi, pSurfRef, &
+                               profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+      end if
 
       write(*,*)
       write(*,*) 'Pressure profile...'

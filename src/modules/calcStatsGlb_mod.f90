@@ -91,8 +91,9 @@ module calcStatsGlb_mod
     type(struct_hco), pointer, intent(in) :: hco_in
 
     ! Locals:
-    integer :: ierr, memberIndex
-    real(8) :: zps
+    integer          :: ierr, memberIndex
+    real(8)          :: pSurfRef, hSurfRef
+    real(8), pointer :: vertCoordProfile_M(:), vertCoordProfile_T(:)
 
     ! Namelist variables (local):
     integer :: horizWaveBandIndex, vertWaveBandIndex
@@ -101,6 +102,9 @@ module calcStatsGlb_mod
 
     write(*,*)
     write(*,*) 'csg_setup: Starting...'
+
+    nullify(vertCoordProfile_T)
+    nullify(vertCoordProfile_M)
 
     nens=nens_in
     allocate(cflensin(nens))
@@ -172,10 +176,24 @@ module calcStatsGlb_mod
     allocate(nip1_T(nLevEns_T))
     nip1_T(:) = vco_in%ip1_T(:)
 
-    !- Estimate the pressure profile for each vertical grid    
-    zps = 101000.D0
-    call czp_fetch1DLevels(vco_in, zps, &
-                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+    !- Estimate the pressure profile for each vertical grid
+    if (vco_getVcode(vco_in)== 21001) then
+      hSurfRef = 0.D0
+      call czp_fetch1DLevels(vco_in, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                             profM_opt=vertCoordProfile_M, profT_opt=vertCoordProfile_T)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_M,nLevEns_M)
+      call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,nLevEns_T)
+      allocate(pressureProfile_M(1:nLevEns_M))
+      allocate(pressureProfile_T(1:nLevEns_T))
+      pressureProfile_M(1:nLevEns_M) = vertCoordProfile_M(1:nLevEns_M)
+      pressureProfile_T(1:nLevEns_T) = vertCoordProfile_T(1:nLevEns_T)
+      if (associated(vertCoordProfile_M)) deallocate(vertCoordProfile_M)
+      if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
+    else
+      pSurfRef = 101000.D0
+      call czp_fetch1DLevels(vco_in, pSurfRef, &
+                             profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+    end if
 
     !
     !- Horizontal wave band decomposition option

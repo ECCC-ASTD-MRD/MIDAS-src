@@ -1,0 +1,120 @@
+ &NAMBHI
+/
+ &NAMBEN
+/
+ &NAMBCHM
+   NTRUNC  = 270
+   SCALEFACTOR(1,1:100) = 100*1.0D0
+   getPhysSpaceStats=.true.
+   getPhysSpaceHCorrel=.true.
+/
+ &NAMRMAT
+   rmat_lnonDiagR=.true.
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 50     ! 70,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .TRUE.,
+   LVARQC=.TRUE.,
+   NWOQCV=5
+/
+ &NAMINC
+   hInterpolationDegree = 'CUBIC'
+   etiket_rehm ='XXXXXX'
+   etiket_rebm ='XXXXXX'
+   etiket_anlm ='XXXXXX'
+   imposerttovhulimits = .FALSE.
+/
+ &NAMDIMO
+   NMXOBS=200000,
+   NDATAMX=2000000,
+/
+ &NAMTIME
+  DSTEPOBS = 0.25d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMFILT
+  NLIST(1)=15198,
+  NLIST(2)=15199,
+  NLIST(3)=15208,
+  NLIST(4)=15008,
+  NLIST(5)=15208,
+  NLIST(6)=15230,
+  NLIST(7)=12001,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=11,
+  RLIMLVHU=70.D0,
+/
+ &NAMSTATE
+   RHUMIN    = 1.0D-07
+   ANLVAR(1) = 'TT'
+   ANLVAR(2) = 'HU'
+   ANLVAR(3) = 'P0'
+   ANLVAR(4) = 'O3L'
+   abortOnMpiImbalance = .false.
+   addHeightSfcOffset = .true.
+/
+ &NAMCODTYP
+   cnames(1)='CHEMREMOTE',
+   icod(1)=195, 
+   cnames(2)='CHEMINSITU',
+   icod(2)=196,
+/
+ &NAMBURP_FILTER_CHM_SFC
+  BLISTELEMENTS_SFC=15198,15208,8090 
+/
+ &NAMBURP_FILTER_CHM
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
+/
+ &NAMBURP_UPDATE
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  TYPE_RESUME='POSTALT'
+/
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
+ &NAMOSD
+   NRANDSEED=999
+   LRANDOM=.true.
+   DELTALAT=30.0D0
+   DELTALON=360.0D0
+   DELTAPRESSURE=20000.0D0
+   DELTAHEIGHT=5000.0D0
+   FAMILYLIST(1)='CH'
+   ELEMENTLIST(1)=15198
+   ELEMENTLIST(2)=15208
+   diagn_all(1)=.FALSE.
+   diagn_save(1)=.true.
+   diagn_nset(1)=1
+   diagn_num(1)=3
+   diagn_stnid(1,1)='AUROMI00'
+   diagn_stnid(1,2)='R2362400'
+   diagn_stnid(1,3)='78538700'   
+/
+ &NAMCLIMATOLOGY
+   climatSourceFiles(1)='climatFile'
+   nearNeighbourInterp(1)=.false.
+   timeInterpolation=.true.
+   fieldDimension(1)=3
+   inputClimVarNames(1)='O3CE'
+/
+ &NAMCHEM
+  MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
+  assim_all(1)=.false.
+  assim_num(1)=3
+  assim_stnid(1,1)='AUROMI00'  ! OMI on AURA (Removed TROPOMI and OMPS-NM for this test)
+  assim_stnid(1,2)='R2362400'  ! SBUV2 with 6 layers (Removed OMPS-NP for this test)
+  assim_stnid(1,3)='78538700'  ! MLS on AURA
+  operatorSubType(1,1)='78538700'
+  operatorSubType(2,1)='genOperInterp'
+  operatorSubType(1,2)='AUROMI00'
+  operatorSubType(2,2)='genOper'
+  genOperConstraintType(0)='Diff'
+/

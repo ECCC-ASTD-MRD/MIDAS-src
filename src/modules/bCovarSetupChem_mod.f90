@@ -102,7 +102,8 @@ module bCovarSetupChem_mod
   ! Square root of scaleFactor   
   real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
       
-  real(8), parameter :: zps = 101000.D0 ! Reference surface pressure
+  real(8), parameter :: pSurfRef = 101000.D0 ! Reference surface pressure (hPa)
+  real(8), parameter :: hSurfRef = 0.D0      ! Reference surface height (meters)
 
   ! module structures
   ! -----------------
@@ -174,7 +175,7 @@ module bCovarSetupChem_mod
     integer :: ierr
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
-    real(8), pointer    :: pressureProfile_T(:)
+    real(8), pointer    :: vertCoordProfile_T(:)
        
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt, &
                       stddevMode,IncludeAnlVarKindCH,getPhysSpaceHCorrel, &
@@ -182,9 +183,11 @@ module bCovarSetupChem_mod
                       TransformVarKindCH,getPhysSpaceStats
 
     write(*,*) 'Started bcsc_setupCH'  
-     
-    ! First check if there are any CH fields 
-    
+
+    nullify(vertCoordProfile_T)
+
+    ! First check if there are any CH fields
+
     covarNeeded = .true.
     varIndex2=0
     do varIndex = 1, vnl_numvarmax
@@ -411,14 +414,22 @@ module bCovarSetupChem_mod
     end if
     
     ! Get vertical levels
-    
+
     if (bgStats%nlev > 1) then
-      call czp_fetch1DLevels(vco_anl, zps, profT_opt=pressureProfile_T)
-      bgStats%vlev(1:bgStats%nlev) = pressureProfile_T(1:bgStats%nlev) 
+      if (vco_getVcode(vco_anl)== 21001) then
+        call czp_fetch1DLevels(vco_anl, hSurfRef, sfcValueLS_opt=hSurfRef, &
+                               profT_opt=vertCoordProfile_T)
+        call czp_calcPressureProfileUsingStdAtm(vertCoordProfile_T,bgStats%nlev)
+      else
+        call czp_fetch1DLevels(vco_anl, pSurfRef, sfcValueLS_opt=pSurfRef, &
+                               profT_opt=vertCoordProfile_T)
+      end if
+      bgStats%vlev(1:bgStats%nlev) = vertCoordProfile_T(1:bgStats%nlev)
+      if (associated(vertCoordProfile_T)) deallocate(vertCoordProfile_T)
     else if (bgStats%nlev == 1) then
-      bgStats%vlev(1)=zps     
+      bgStats%vlev(1) = pSurfRef
     end if
-      
+
     ! Read covar stats, scale standard deviations,  and apply localization 
     ! to vertical correlation matrices in horizontal spectral space
     

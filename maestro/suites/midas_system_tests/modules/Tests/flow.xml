@@ -119,6 +119,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="chem_only-incH"/>
+      <FAMILY  name="chem_only-incH">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="sea_ice"/>
       <FAMILY  name="sea_ice">
         <SUBMITS sub_name="UnitTest"/>
