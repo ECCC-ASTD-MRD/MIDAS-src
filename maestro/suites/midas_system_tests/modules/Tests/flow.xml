@@ -124,6 +124,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="gem-mach"/>
+      <FAMILY  name="gem-mach">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="sea_ice"/>
       <FAMILY  name="sea_ice">
         <SUBMITS sub_name="UnitTest"/>

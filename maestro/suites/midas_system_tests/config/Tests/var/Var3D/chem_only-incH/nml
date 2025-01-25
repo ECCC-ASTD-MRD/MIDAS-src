@@ -18,15 +18,15 @@
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
    LWRTHESS = .TRUE.,
-   LVARQC=.TRUE.,
-   NWOQCV=5
+   LVARQC   = .TRUE.,
+   NWOQCV   = 5
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
    etiket_rehm ='XXXXXX'
    etiket_rebm ='XXXXXX'
    etiket_anlm ='XXXXXX'
-   imposerttovhulimits = .FALSE.
+   imposeRttovHuLimits = .false.
 /
  &NAMDIMO
    NMXOBS=200000,
@@ -39,11 +39,9 @@
  &NAMFILT
   NLIST(1)=15198,
   NLIST(2)=15199,
-  NLIST(3)=15208,
-  NLIST(4)=15008,
-  NLIST(5)=15208,
-  NLIST(6)=15230,
-  NLIST(7)=12001,
+  NLIST(3)=15008,
+  NLIST(4)=15208,
+  NLIST(5)=15230,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
