@@ -798,7 +798,7 @@ module obsOperatorsChem_mod
        ! If integrated layer information not found, if a total column measurement
        ! set to defaults, else do nothing
 
-       if (bufr_IsIntegral(obsoper%varno) .and. nlev == 1) then          
+       if (bufr_isIntegral(obsoper%varno) .and. nlev == 1) then          
           obsoper%layerIdentified=.true.
           obsoper%vlayertop(1) = obsoper%pp(1)
           obsoper%vlayerbottom(1) = obsoper%pp(obsoper%nmodlev)
@@ -2540,7 +2540,7 @@ module obsOperatorsChem_mod
     ! Identify observation operator based on observation units and presence or
     ! not of layer boundaries
 
-    if (bufr_IsIntegral(obsoper%varno)) then
+    if (bufr_isIntegral(obsoper%varno)) then
       if (.not.obsoper%layerIdentified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ', &

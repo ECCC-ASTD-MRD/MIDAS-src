@@ -249,7 +249,7 @@ module varQC_mod
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAZD*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
-             else if (bufr_IsAtmosConstituent(ityp)) then
+             else if (bufr_isAtmosConstituent(ityp)) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
                 !

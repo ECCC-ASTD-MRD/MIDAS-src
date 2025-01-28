@@ -326,7 +326,7 @@ module varNameList_mod
           varname='WGE'
         case ( bufr_riverFlow )
           varname='QO1'
-        case ( BUFR_NEFS, bufr_radvel) 
+        case ( BUFR_NEFS, bufr_radvel)
           varname='UV'
         case default
           !
@@ -363,7 +363,7 @@ module varNameList_mod
                   varname='AC'
                 case default
                   call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
-                                  utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+                    utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
               end select
             else if (trim(modelName) == 'GEM') then
               select case (varNumberChm_opt)
@@ -374,10 +374,10 @@ module varNameList_mod
                 case(BUFR_NECH_N2O)
                   varname='N2OL'
                 case default
-                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number ! ' // &
-                      utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
+                  call utl_abort('vnl_varnameFromVarnum: Unknown variable number! ' // &
+                    utl_str(varNumber) // ', ' // utl_str(varNumberChm_opt))
               end select
-            else 
+            else
               call utl_abort('vnl_varnameFromVarnum: Unknown model! ' // trim(modelName))
             end if
           else
@@ -400,7 +400,7 @@ module varNameList_mod
       !           BUFR code.
       !           As such, weather variable varNames may not necessarily be a
       !           member of the vnl_varNameList for this routine only.
-      !   
+      !
       !           For constituents, the varNumber refers only to the field/
       !           variable and not units. As consequence, there is a unique
       !           pairing of varNumbers with the varNames from vnl_VarNameList.
@@ -412,10 +412,10 @@ module varNameList_mod
       character(len=*), optional,  intent(in) :: varKind_opt
       ! Result:
       integer    :: varNumber
-      
+
       varNumber=0
       select case (varName)
-      
+
       ! Weather variables. Must provide name directly associated to a single
       ! BUFR code. As such, the varName may not necessarily be a member of the
       ! vnl_varNameList for this routine only.
@@ -432,7 +432,7 @@ module varNameList_mod
         varNumber=BUFR_NETT
       case('TS')
         varNumber=BUFR_NETS
-      case('RF')            
+      case('RF')
         varNumber=BUFR_NERF
       case('BD')
         varNumber=BUFR_NEBD
@@ -498,11 +498,11 @@ module varNameList_mod
         varNumber=BUFR_NECH_PM25
       case('AC')
         varNumber=BUFR_NECH_PM10
-        
+
       case default
          call utl_abort('vnl_varnumFromVarName: Unknown variable name ' // trim(varName) )
       end select
-      
+
     end function vnl_varnumFromVarname
 
    !--------------------------------------------------------------------------
@@ -561,7 +561,7 @@ module varNameList_mod
    !--------------------------------------------------------------------------
    ! vnl_varLevelFromVarnum
    !--------------------------------------------------------------------------
-    function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt,modelName_opt) result(varLevel)
+    function vnl_varLevelFromVarnum(varNumber) result(varLevel)
       !
       ! :Purpose: To get variable level list from the variable number 
       !
@@ -569,16 +569,18 @@ module varNameList_mod
 
       ! Arguments:
       integer,                    intent(in) :: varNumber
-      integer,          optional, intent(in) :: varNumberChm_opt
-      character(len=*), optional, intent(in) :: modelName_opt
       ! Result:
       character(len=4)              :: varLevel
 
       ! Locals:
       character(len=4)              :: varName
 
-      varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)
-      varLevel = varLevelList(vnl_varListIndex(varName))
+      if (bufr_isAtmosConstituent(varNumber)) then
+        varLevel = 'TH'
+      else
+        varName = vnl_varnameFromVarnum(varNumber)
+        varLevel = varLevelList(vnl_varListIndex(varName))
+      end if
 
     end function vnl_varLevelFromVarnum
 

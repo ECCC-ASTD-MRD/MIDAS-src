@@ -98,12 +98,7 @@ contains
           end if
           IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
           bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
-          if (bufr_IsAtmosConstituent(bufrCode)) then
-             varLevel = vnl_varLevelFromVarnum(bufrCode, &
-                        obs_headElem_i(obsSpaceData,OBS_CHM,IOBS))
-          else
-             varLevel = vnl_varLevelFromVarnum(bufrCode)
-          end if
+          varLevel = vnl_varLevelFromVarnum(bufrCode)
           ZPT= col_getPressure(columnTrl,1,IOBS,varLevel)
           ZPB= col_getPressure(columnTrl,COL_GETNUMLEV(columnTrl,varLevel),IOBS,varLevel)
           if ( ZLEV < ZPT ) THEN
@@ -141,12 +136,7 @@ contains
         else
           call utl_abort('oop_vobslyr: ZLEV cannot be set, bufr_nedz not supported!')
         end if
-        if (bufr_IsAtmosConstituent(bufrCode)) then
-          varLevel = vnl_varLevelFromVarnum(bufrCode, &
-                     obs_headElem_i(obsSpaceData,OBS_CHM,IOBS))
-        else
-          varLevel = vnl_varLevelFromVarnum(bufrCode)
-        end if
+        varLevel = vnl_varLevelFromVarnum(bufrCode)
         if (varLevel == 'SF') then
           ZPT= col_getHeight(columnTrl,1,IOBS,'TH')
           ZPB= col_getHeight(columnTrl,0,IOBS,'SF')
@@ -183,12 +173,7 @@ contains
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
-        if (bufr_IsAtmosConstituent(bufrCode)) then
-           varLevel = vnl_varLevelFromVarnum(bufrCode, &
-                      obs_headElem_i(obsSpaceData,OBS_CHM,IOBS))
-        else
-           varLevel = vnl_varLevelFromVarnum(bufrCode)
-        end if
+        varLevel = vnl_varLevelFromVarnum(bufrCode)
         layerIndex = 1
         nlev=COL_GETNUMLEV(columnTrl,varLevel)
         do levIndex = 2,NLEV - 1
@@ -211,12 +196,7 @@ contains
         IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
         ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
         bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
-        if (bufr_IsAtmosConstituent(bufrCode)) then
-          varLevel = vnl_varLevelFromVarnum(bufrCode, &
-                     obs_headElem_i(obsSpaceData,OBS_CHM,IOBS))
-        else
-          varLevel = vnl_varLevelFromVarnum(bufrCode)
-        end if
+        varLevel = vnl_varLevelFromVarnum(bufrCode)
         layerIndex = 1
         nlev=COL_GETNUMLEV(columnTrl,varLevel)
         do levIndex = 2, NLEV - 1
