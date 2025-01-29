@@ -306,6 +306,10 @@ contains
         column%varOffset(varIndex) = iloc
         column%varNumLev(varIndex) = col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
         iloc = iloc + column%varNumLev(varIndex)
+        if (column%varNumLev(varIndex) <= 0) then
+          call utl_abort('col_allocate: Number of levels is invalid for varName = ' // &
+                         trim(vnl_varNameList(varIndex)))
+        end if
       end if
     end do
     do varIndex2 = 1, vnl_numvarmax2d
@@ -322,6 +326,10 @@ contains
         column%varOffset(varIndex) = iloc
         column%varNumLev(varIndex) = col_getNumLev(column,'OT',vnl_varNameListOther(varIndex2))
         iloc = iloc + column%varNumLev(varIndex)
+        if (column%varNumLev(varIndex) <= 0) then
+          call utl_abort('col_allocate: Number of levels is invalid for varName = ' // &
+                         trim(vnl_varNameListOther(varIndex2)))
+        end if
       end if
     end do
 

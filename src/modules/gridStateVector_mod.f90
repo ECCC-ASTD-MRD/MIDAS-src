@@ -493,8 +493,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: statevector
-    character(len=*), intent(in)  :: varName
+    type(struct_gsv),  intent(in) :: statevector
+    character(len=*),  intent(in) :: varName
     ! Result:
     integer                       :: nlev
 
@@ -902,6 +902,10 @@ module gridStateVector_mod
                            vnl_varLevelFromVarname(vnl_varNameList(varIndex)),  &
                            vnl_varNameList(varIndex))
         iloc = iloc + statevector%varNumLev(varIndex)
+        if (statevector%varNumLev(varIndex) <= 0) then
+          call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+                         trim(vnl_varNameList(varIndex)))
+        end if
       end do
 
     else
@@ -913,6 +917,10 @@ module gridStateVector_mod
                gsv_getNumLev(statevector,  &
                              vnl_varLevelFromVarname(vnl_varNameList(varIndex)))
           iloc = iloc + statevector%varNumLev(varIndex)
+          if (statevector%varNumLev(varIndex) <= 0) then
+            call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+                           trim(vnl_varNameList(varIndex)))
+          end if
         end if
       end do
       do varIndex2 = 1, vnl_numvarmax2d
@@ -932,6 +940,10 @@ module gridStateVector_mod
                               vnl_varLevelFromVarname(vnl_varNameList(varIndex)), &
                               vnl_varNameList(varIndex))
           iloc = iloc + statevector%varNumLev(varIndex)
+          if (statevector%varNumLev(varIndex) <= 0) then
+            call utl_abort('gsv_allocate: Number of levels is invalid for varName = ' // &
+                           trim(vnl_varNameList(varIndex)))
+          end if
         end if
       end do
 

@@ -577,7 +577,9 @@ contains
         call utl_abort('vco_setupOceanFromFile: some depth levels not in ascending order')
       end if
     end if
-    
+
+    write(*,*) 'vco_setupOceanFromFile: Finished'
+
   end subroutine vco_setupOceanFromFile
 
   !--------------------------------------------------------------------------

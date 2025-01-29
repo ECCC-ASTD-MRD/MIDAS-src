@@ -1140,11 +1140,13 @@ module gridStateVectorFileIO_mod
                       datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
                       etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
                       lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
-        statevector%deet                      = deet_var
-        statevector%ip2List(stepIndex)        = ip2_var
-        statevector%npasList(stepIndex)       = npas_var
-        statevector%dateOriginList(stepIndex) = dateo_var
-        statevector%etiket                    = etiket_var
+        if (trim(nomvar_var) /= 'MELS') then
+          statevector%deet                      = deet_var
+          statevector%ip2List(stepIndex)        = ip2_var
+          statevector%npasList(stepIndex)       = npas_var
+          statevector%dateOriginList(stepIndex) = dateo_var
+          statevector%etiket                    = etiket_var
+        end if
 
         ! Check if we found a mask field by mistake - if yes, need to fix the code!
         if (typvar_var == '@@') then
@@ -1816,7 +1818,8 @@ module gridStateVectorFileIO_mod
       end do
 
       !- Write TicTacToc in the final output file
-      if (doWriteTicTacToc .and. ((mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local)) then
+      if (doWriteTicTacToc .and. ((mmpi_myid == 0 .and. statevector%mpi_local) .or. &
+          .not.statevector%mpi_local)) then
         call writeTicTacToc(statevector, fstFiles(0), fstRecords(0)%etiket)
       endif
 
@@ -1887,7 +1890,8 @@ module gridStateVectorFileIO_mod
           !- Writing to file
           success = fstFiles(0) % write(fstRecords(0))
           if (.not. success) then
-            call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
+            call utl_abort('gio_writeToFile: problem writing ' // nomvar // ' at level ' // &
+                           str(fstRecords(0)%ip1) // ' in output file ' // fstFiles(0)%get_name())
           end if
         end if ! iDoWriting
 
@@ -1901,7 +1905,8 @@ module gridStateVectorFileIO_mod
 
       threadId = mod(varLevIndex-varLevIndexBeg, numThreadsForWriting)
       levIndices(threadId) = levIndex
-      interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
+      interpolationToPhysicsGrid(threadId) = interpToPhysicsGrid .and. &
+                                             statevector%onPhysicsGrid(vnl_varListIndex(nomvar))
 
       if (statevector%dataKind == 8) then
         call gsv_getField(statevector,field_r8,nomvar)
