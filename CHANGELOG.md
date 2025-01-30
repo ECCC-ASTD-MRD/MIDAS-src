@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
 
 ### Removed
 
