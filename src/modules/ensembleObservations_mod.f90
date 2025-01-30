@@ -1325,7 +1325,7 @@ CONTAINS
             'meandist', &
             'meanlfn', &
             'sumtrace'
-      write(99,'(12(A,1X))') 'typ', &
+      write(funit,'(12(A,1X))') 'typ', &
             'codtyp', &
             'numsel', &
             'numrej', &
