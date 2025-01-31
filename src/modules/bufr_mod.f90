@@ -9,10 +9,10 @@ module bufr_mod
   !
   !:Routines:
   !
-  !       - bufr_IsAtmosConstituent: determines if observation is
+  !       - bufr_isAtmosConstituent: determines if observation is
   !         constituent/chemistry data
   !
-  !       - bufr_IsIntegral: determines if vertical integral measurement
+  !       - bufr_isIntegral: determines if vertical integral measurement
   !
   !       - bufr_isWindComponent: determines if a wind component variable
   !
@@ -162,7 +162,7 @@ module bufr_mod
   
 contains
 
-  function bufr_IsAtmosConstituent(varNumber) result(var_chm)
+  function bufr_isAtmosConstituent(varNumber) result(var_chm)
     !
     !:Purpose: To determine whether 'varNumber' refers to constituent data from
     !          the CH family with recognized data units.
@@ -189,10 +189,10 @@ contains
        var_chm=.false.
     end if
       
-  end function bufr_IsAtmosConstituent
+  end function bufr_isAtmosConstituent
 
 
-  logical function bufr_IsIntegral(varNumber)
+  logical function bufr_isIntegral(varNumber)
     !
     !:Purpose: To identify whether obs is a vertically integrated constituent
     !          measurement.
@@ -205,12 +205,12 @@ contains
     if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                               BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &
                               BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3, BUFR_UNIT_IntegMolarDens /) )) then      
-      bufr_IsIntegral=.true.     
+      bufr_isIntegral=.true.     
     else
-      bufr_IsIntegral=.false.
+      bufr_isIntegral=.false.
     end if
   
-  end function bufr_IsIntegral
+  end function bufr_isIntegral
 
 
   logical function bufr_isWindComponent(varNumber)

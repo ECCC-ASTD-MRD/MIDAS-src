@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * GEM-H and SLEVE support for monthly static B-matrices (#1028 and !935)
 
 ### Changed
 
@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
+ * Remediation of accidentally removed functionality as of about v_4.0.0 for recognizing GEM-MACH constituent variable names (#1034 and !937)
 
 ### Removed
 
