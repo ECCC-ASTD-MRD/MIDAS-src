@@ -30,7 +30,8 @@ module obsFilter_mod
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration, filt_radvel
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
-
+  public :: filt_getSfcBufferZoneCHheight
+  
   integer, parameter :: nelemsMax = 30
   integer, parameter :: nflagsMax = 15
   integer :: filt_nelems, filt_nflags
@@ -56,11 +57,13 @@ module obsFilter_mod
   logical :: initialized = .false.
 
   ! Namelist variables:
-  logical :: discardlandsfcwind       ! choose to reject surface wind obs over land
-  real(8) :: surfaceBufferZone_Pres   ! height of buffer zone (in Pa) for rejecting obs near sfc
-  real(8) :: surfaceBufferZone_Height ! height of buffer zone (in m) for rejecting obs near sfc
-  logical :: useEnkfTopoFilt          ! choose to use simpler approach (originally in EnKF) for rejecting obs near sfc
-  logical :: rejectGZforAnalysis      ! whether to reject geopotential height for analysis update
+  logical :: discardlandsfcwind          ! choose to reject surface wind obs over land
+  real(8) :: surfaceBufferZone_Pres      ! height of buffer zone (in Pa) for rejecting obs near sfc
+  real(8) :: surfaceBufferZone_Height    ! height of buffer zone (in m) for rejecting obs near sfc
+  real(8) :: surfaceBufferZoneCH_Pres    ! height buffer zone (in Pa) for rejecting CH family obs near sfc
+  real(8) :: surfaceBufferZoneCH_Height  ! height buffer zone (in m) for rejecting CH family obs near sfc
+  logical :: useEnkfTopoFilt             ! choose to use simpler approach (originally in EnKF) for rejecting obs near sfc
+  logical :: rejectGZforAnalysis         ! whether to reject geopotential height for analysis update
 
 contains
 
@@ -143,7 +146,8 @@ contains
 
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, rejectGZforAnalysis
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, rejectGZforAnalysis, &
+         surfaceBufferZoneCH_Pres,surfaceBufferZoneCH_Height
 
     filterMode = filterMode_in
 
@@ -161,9 +165,11 @@ contains
     rlimlvhu = 300.d0
     discardlandsfcwind = .true.
 
-    surfaceBufferZone_Pres   = 5000.0d0 ! default value in Pascals
-    surfaceBufferZone_Height =  400.0d0 ! default value in Metres
-
+    surfaceBufferZone_Pres   = 5000.0d0   ! default value in Pascals
+    surfaceBufferZone_Height =  400.0d0   ! default value in Metres
+    surfaceBufferZoneCH_Pres = 5000.0d0   ! default value in Pascals
+    surfaceBufferZoneCH_Height = 400.0d0  ! default value in Metres
+    
     useEnkfTopoFilt = .false.
     rejectGZforAnalysis = .true.
 
@@ -256,6 +262,19 @@ contains
     initialized = .true.
 
   end subroutine filt_setup
+
+  !--------------------------------------------------------------------------
+  ! filt_getSfcBufferZoneCHheight  
+  !--------------------------------------------------------------------------
+  function filt_getSfcBufferZoneCHheight()   result(sfcBufferZoneCHheight)
+    implicit none
+
+    ! Result
+    real(8) :: sfcBufferZoneCHheight  ! height buffer zone (in m) for rejecting CH family obs near sfc
+
+    sfcBufferZoneCHheight = surfaceBufferZoneCH_Height
+
+  end function filt_getSfcBufferZoneCHheight
 
   !--------------------------------------------------------------------------
   ! filt_suprep
@@ -370,7 +389,7 @@ contains
 
     ! abort if there is no data to be assimilated
     if (iknt_mpiglobal == 0 ) then
-       call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
+       call utl_abort('filt_suprep: No data to be assimilated')
     end if
 
     call utl_tmg_stop(22)
@@ -1788,8 +1807,20 @@ end subroutine filt_topoAISW
     !           or above the model top.
     !
     ! :Comments:
-    !    Flagging of bit 4 in OBS_FLG done in filt_topoChemistry instead of set_scale_chm
-    !    since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
+    !    Flagging of bit 4 in OBS_FLG done in filt_topoChemistry instead of
+    !    set_scale_chm since this subroutine is called after chm_setup,
+    !    allowing use of utl_open_asciifile
+    !
+    !    Assumes/requires obs profiles ordered from top to bottom for
+    !    application of highestLvlBelowSfc
+    !
+    !    The vertical boundary criteria in this routine are applied only to
+    !    observations as a function of altitude and pressure.
+    !
+    !    If the thickness of the buffer zone below the surface, i.e. values of
+    !    surfaceBufferZoneCH_Pres and surfaceBufferZoneCH_Height, is set to
+    !    zero, then only the obs levels at or above the model topography
+    !    (and below the model top) will be accepted.
     !
     implicit none
 
@@ -1802,14 +1833,17 @@ end subroutine filt_topoAISW
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
     integer :: ivnm, countAssim, jl, icount
     real(8) :: obsAltitude, obsPressure, colTopPressure, colSfcPressure
-    real(8) :: colAltitudeBelow, colAltitudeAbove
-    logical :: list_is_empty
+    real(8) :: colSfcAltitude, colTopAltitude,sfcAltitude
+    real(8) :: previousAltitude, previousPressure
+    real(8) :: stationAltitude
+    logical :: list_is_empty, highestLvlBelowSfc,stationBelowSurface
     integer, parameter :: Nmax=100
     integer :: Num_stnid_chm,nobslev,Num_chm
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
     integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)
+    integer :: nlev_TH
 
     if (.not.obs_famExist(obsSpaceData,'CH')) return
 
@@ -1824,6 +1858,8 @@ end subroutine filt_topoAISW
     countRejflg(:)=0
     Num_chm=0
 
+    ! Identify index of TH surface/bottom level
+    nlev_TH = col_getNumLev(columnTrlOnTrlLev,'TH')
     ! Loop over all header indices of the 'CH' family
     call obs_set_current_header_list(obsSpaceData, 'CH')
     HEADER: do
@@ -1835,29 +1871,29 @@ end subroutine filt_topoAISW
 
       if (list_is_empty) cycle HEADER ! Proceed to next HEADER
 
-      ! Set geopotential height and pressure boundaries.
-
-      colAltitudeBelow = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
-      colAltitudeAbove = col_getHeight(columnTrlOnTrlLev,1,headerIndex,'MM')
-      colSfcPressure = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
-      colTopPressure = col_getPressure(columnTrlOnTrlLev,1,headerIndex,'MM')
-
       ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
-
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
       bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl) == BUFR_SCALE_EXPONENT) &
-             nobslev = nobslev-1
+        if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl) == BUFR_SCALE_EXPONENT) &
+          nobslev = nobslev-1
       end do
 
-      ! Identify element index of stnid list for the CH family.
-
+      ! Identify element index of stnid list for the CH family
       call utl_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
+ 
+      ! Set pressure and geopotential height vertical boundaries.
+      call filt_topoChemSetBounds
 
-      ! Loop over all body indices (still in the 'CH' family)
-      icount=0
+      ! Initialize reference values used in the following loop
+      highestLvlBelowSfc = .false. ! Where required, to identify 
+                                   ! if highest accepted level below surface was found.
+      previousAltitude = 1.0D10 ! Set to large value in meters
+      previousPressure = 0.0d0
+
+      ! Loop over all body indices (still in the 'CH' family) to apply rejection criteria
+      icount = 0
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
@@ -1874,51 +1910,29 @@ end subroutine filt_topoAISW
         if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) &
            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
 
+        ! Apply conditions for acceptability/rejection of the observation height
+
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_notAssimilated) then
 
-            ! Already rejected from input marker/flag.
-
-            countRej(listIndex)=countRej(listIndex)+1
-            countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
-            countRejflg(listIndex)=countRejflg(listIndex)+1
-            countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
+          ! Already rejected from input marker/flag.
+          countRej(listIndex)=countRej(listIndex)+1
+          countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+          countRejflg(listIndex)=countRejflg(listIndex)+1
+          countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
 
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) then
 
-           ! Check as a function of altitude.
-
-           obsAltitude = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-           !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),obsAltitude,colSfcPressure,colTopPressure
-           if( obsAltitude < colAltitudeBelow .or. obsAltitude > colAltitudeAbove ) then
-               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-               countRej(listIndex)=countRej(listIndex)+1
-               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
-           else
-               countAcc(listIndex)=countAcc(listIndex)+1
-               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
-           end if 
+          ! Check as a function of altitude.
+          call filt_topoChemAltitudeCheck
 
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2) then
 
-           ! Check as a function of pressure.
+          ! Check as a function of pressure.
+          call filt_topoChemPressureCheck
 
-           obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-
-           if ( obsPressure > colSfcPressure .or. obsPressure < colTopPressure) then
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
-               countRej(listIndex)=countRej(listIndex)+1
-               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
-           else
-               countAcc(listIndex)=countAcc(listIndex)+1
-               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
-           end if
         else
-           countAcc(listIndex)=countAcc(listIndex)+1
-           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+          countAcc(listIndex)=countAcc(listIndex)+1
+          countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
         end if
 
       end do BODY
@@ -1926,32 +1940,273 @@ end subroutine filt_topoAISW
     end do HEADER
 
     if (Num_stnid_chm > 0 .and. .not.beSilent) then
-       write(*,*) ' '
-       write(*,*) '*****************************************************************'
-       write(*,*) ' filt_topoChemistry: '
-       write(*,*) ' FAMILY = CH'
-       write(*,222) 'ELEMENTS for CH stnids',(CstnidList_chm(elemIndex),elemIndex=1,Num_stnid_chm)
-       write(*,223) 'ACCEPTED for CH stnids',(countAcc_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
-       write(*,223) 'REJECTED for CH stnids',(countRej_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
-       write(*,223) 'REJECTED due to marker',(countRejflg_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
-       write(*,*) ' '
-       write(*,224) 'ELEMENTS for CH       ',(iConstituentList(elemIndex),elemIndex=1,Num_chm)
-       write(*,224) 'ACCEPTED for CH       ',(countAcc(elemIndex),elemIndex=1,Num_chm)
-       write(*,224) 'REJECTED for CH       ',(countRej(elemIndex),elemIndex=1,Num_chm)
-       write(*,223) 'REJECTED due to marker',(countRejflg(elemIndex),elemIndex=1,Num_stnid_chm)
-       write(*,*) '*****************************************************************'
-       write(*,*) ' '
+      write(*,*) ' '
+      write(*,*) '*****************************************************************'
+      write(*,*) ' filt_topoChemistry: '
+      write(*,*) ' FAMILY = CH'
+      write(*,221) ' REJECTION SFC BUFFER ZONE (metres)  ',surfaceBufferZoneCH_Height
+      write(*,221) ' REJECTION SFC BUFFER ZONE (Pascals) ',surfaceBufferZoneCH_Pres
+      write(*,*) ' '
+      write(*,222) 'ELEMENTS for CH stnids',(CstnidList_chm(elemIndex),elemIndex=1,Num_stnid_chm)
+      write(*,223) 'ACCEPTED for CH stnids',(countAcc_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+      write(*,223) 'REJECTED for CH stnids',(countRej_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+      write(*,223) 'REJECTED due to marker',(countRejflg_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+      write(*,*) ' '
+      write(*,224) 'ELEMENTS for CH       ',(iConstituentList(elemIndex),elemIndex=1,Num_chm)
+      write(*,224) 'ACCEPTED for CH       ',(countAcc(elemIndex),elemIndex=1,Num_chm)
+      write(*,224) 'REJECTED for CH       ',(countRej(elemIndex),elemIndex=1,Num_chm)
+      write(*,223) 'REJECTED due to marker',(countRejflg(elemIndex),elemIndex=1,Num_stnid_chm)
+      write(*,*) '*****************************************************************'
+      write(*,*) ' '
 
-       countAssim=0
-       do bodyIndex=1,obs_numbody(obsSpaceData)
-          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
-       end do
-       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChemistry):",i10)') countAssim
-       write(*,*) ' '
+      countAssim=0
+      do bodyIndex=1,obs_numbody(obsSpaceData)
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) countAssim=countAssim+1
+      end do
+      write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChemistry):",i10)') countAssim
+      write(*,*) ' '
     end if
+221 format(2x,a36,2x,f6.0)
 222 format(2x,a29,100(2x,a10))
 223 format(2x,a29,100(2x,i8,2x))
 224 format(2x,a29,100(2x,i6))
+
+  contains
+  
+    !--------------------------------------------------------------------------
+    ! filt_topoChemSetBounds
+    !--------------------------------------------------------------------------
+      subroutine filt_topoChemSetBounds()
+      !
+      ! :Purpose: Set pressure and geopotential height vertical boundaries.
+      !
+
+      if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) then
+
+        ! Set  surface and lid height vertical boundaries from the trial field
+        colSfcAltitude = col_getHeight(columnTrlOnTrlLev,nlev_TH,headerIndex,'TH')
+        colTopAltitude = col_getHeight(columnTrlOnTrlLev,1,headerIndex,'TH')
+
+        ! Check acceptability of surface station elevation when relevant
+
+        ! To identify if the station elevation is below the surface where relevant.
+        stationBelowSurface = .false.  
+        ! Identify station altitude (not provided when value = 0.0)
+        stationAltitude = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)        
+        ! Check if station height is far below column sfc altitude
+        sfcAltitude = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
+        if (stationAltitude /= 0.0d0) then
+          if (stationAltitude <  sfcAltitude - surfaceBufferZoneCH_Height) then
+            ! Station elevation is much lower than the surface. Provides a
+            ! warning in the event the station info needs to be checked or
+            ! the acceptability threshold value (surfaceBufferZoneCH_Height)
+            ! would need to be revised.
+            stationBelowSurface = .true.
+            write(*,*) 'WARNING from filt_topoChemistry: Obs rejected as ', &
+                       'station height ',int(stationAltitude) , &
+                       ' m is severely below the surface at ',int(sfcAltitude), &
+                       ' m for station ', obs_elem_c(obsSpaceData,'STID',headerIndex)
+
+          else if (stationAltitude >  sfcAltitude + surfaceBufferZoneCH_Height) then
+            ! Station elevation is much higher than the surface. Provides a
+            ! warning in the event the station info needs to be checked.
+            write(*,*) 'WARNING from filt_topoChemistry: Station height ', &
+                       int(stationAltitude) , &
+                       ' m is severely above the surface at ',int(sfcAltitude), &
+                       ' m for station ',obs_elem_c(obsSpaceData,'STID',headerIndex)
+          end if
+        end if
+
+      else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 2) then
+
+        ! Set  surface and lid pressure vertical boundaries from the trial field
+        colSfcPressure = col_getPressure(columnTrlOnTrlLev,nlev_TH,headerIndex,'TH')
+        colTopPressure = col_getPressure(columnTrlOnTrlLev,1,headerIndex,'TH')
+      end if
+
+    end subroutine filt_topoChemSetBounds
+
+    !--------------------------------------------------------------------------
+    ! filt_topoChemAltitudeCheck
+    !--------------------------------------------------------------------------
+      subroutine filt_topoChemAltitudeCheck()
+      !
+      ! :Purpose: Set for rejection or acceptance of altitude relative to
+      !           vertical boundaries. This includes checking for rejection
+      !           or acceptance of the station elevation, when present
+      !           (when /= 0.0), relative to the column surface. When the
+      !           station elevation is present and accepted, also re-adjust
+      !           obs altitude relative to the column surface (when within 
+      !           the difference threshold for checking the obs altitude.
+      !
+
+      obsAltitude = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+
+      if (nobslev > 1 .and. obsAltitude > previousAltitude) then
+        ! Requires obs profiles ordered from top to bottom.
+        call utl_abort('filt_topoChemistry: Profile not ordered from top ' // &
+                       'to bottom for ' // &
+                       obs_elem_c(obsSpaceData,'STID',headerIndex))
+      end if
+
+      if (obsAltitude > colTopAltitude) then
+
+        ! The observation altitude is beyond the accepted vertical range.
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 9 ))
+        countRej(listIndex)=countRej(listIndex)+1
+        countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+
+      else if (stationBelowSurface) then
+
+        ! Accept only obs levels above the surface and the highest below (or at)
+        ! the surface within the buffer zone. The latter is done to allow at
+        ! least one accepted observation at each location, this being more
+        ! relevant for cases with small datasets. Here, the obs levels are not
+        ! adjusted relative to the difference between the station and surface
+        ! elevations.
+        if (.not.highestLvlBelowSfc) then
+          if (obsAltitude < colSfcAltitude - surfaceBufferZoneCH_Height) then
+            ! Reject observation level below the buffer zone
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            countRej(listIndex)=countRej(listIndex)+1
+            countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+            highestLvlBelowSfc = .true.
+          else if (obsAltitude <= colSfcAltitude) then
+            ! Accept topmost observation level below the surface and within
+            ! the buffer zone.
+            countAcc(listIndex)=countAcc(listIndex)+1
+            countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+            ! Identify as first (topmost) accepted level below the surface.
+            highestLvlBelowSfc = .true.
+          end if
+        else
+          ! Reject obs levels below the surface (except for the topmost level
+          ! below the surface withing the buffer zone)
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          countRej(listIndex)=countRej(listIndex)+1
+          countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+        end if
+
+      else
+
+        ! Where relevant, if the station elevation is provided reset the obs
+        ! altitude as if the station elevation was at the surface before
+        ! proceeding with the remaining criteria application.  This is most
+        ! relevant for observations on towers or profile measurements taken
+        ! above any specified station elevation. This local resetting of the
+        ! obs altitude via re-assigning of the station elevation is currently
+        ! only done in this routine for accepting or rejecting the obs.
+        ! This is also done separately in the obs operator for the local
+        ! resetting of the obs levels.
+        if (stationAltitude /= 0.0d0 .and. stationAltitude < sfcAltitude) then
+          obsAltitude = obsAltitude - stationAltitude + sfcAltitude
+        end if
+        if (stationAltitude > 0.0d0 .and. obsAltitude < colSfcAltitude) then
+          ! The station altitude was provided.
+          ! The observation altitude is below the acceptable vertical range.
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          countRej(listIndex)=countRej(listIndex)+1
+          countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+        else if (stationAltitude == 0.0d0 .and. &
+                 (obsAltitude < colSfcAltitude - surfaceBufferZoneCH_Height .or. &
+                 (highestLvlBelowSfc .and. obsAltitude < colSfcAltitude))) then
+          ! The station altitude was not provided.
+          ! The observation altitude is below the acceptable vertical range.
+          ! Reject level below the topmost first accepted level within
+          ! buffer zone
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          countRej(listIndex)=countRej(listIndex)+1
+          countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+        else
+          ! Accept the obs above the surface (and below the lid)
+          countAcc(listIndex)=countAcc(listIndex)+1
+          countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+          if (stationAltitude == 0.0d0 .and. obsAltitude < colSfcAltitude) then
+            ! Identify as first (topmost) accepted level below the surface.
+            ! (not relevant when the station height is provided)
+            highestLvlBelowSfc = .true.
+          end if
+        end if
+
+      end if
+
+      ! Updated to check if obs profiles are ordered from top to bottom.
+      previousAltitude = obsAltitude
+
+    end subroutine filt_topoChemAltitudeCheck
+
+    !--------------------------------------------------------------------------
+    ! filt_topoChemPressureCheck
+    !--------------------------------------------------------------------------
+      subroutine filt_topoChemPressureCheck()
+      !
+      ! :Purpose: Set for rejection or acceptance of pressure relative to
+      !           vertical boundaries.
+      !
+
+      obsPressure = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      if (nobslev > 1 .and.  obsPressure < previousPressure) then
+        ! Requires obs profiles ordered from top to bottom.
+        call utl_abort('filt_topoChemistry: Profile not ordered from top ' // &
+                       'to bottom for ' // &
+                       obs_elem_c(obsSpaceData,'STID',headerIndex))
+      end if
+
+      if (obsPressure < colTopPressure) then
+        ! The observation pressure is above the accepted vertical range.
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+        countRej(listIndex)=countRej(listIndex)+1
+        countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+      else if (obsPressure > colSfcPressure + surfaceBufferZoneCH_Pres) then
+        ! The observation pressure is below the accepted vertical range.
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+        countRej(listIndex)=countRej(listIndex)+1
+        countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+      else if (highestLvlBelowSfc .and. obsPressure > colSfcPressure) then
+        ! Reject obs level (below the first accepted obs level) within buffer zone
+        call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+             ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+        countRej(listIndex)=countRej(listIndex)+1
+        countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+      else
+        ! Accept the obs above the surface and below the lid
+        ! Also accept the topmost level below the surface and within the buffer zone.
+        countAcc(listIndex)=countAcc(listIndex)+1
+        countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+        highestLvlBelowSfc = .true.
+      end if
+
+      ! Updated to check if obs profiles are ordered from top to bottom.
+      previousPressure = obsPressure
+
+    end subroutine filt_topoChemPressureCheck
 
   end subroutine filt_topoChemistry
 

@@ -1,0 +1,84 @@
+ &NAMBEN
+/
+ &NAMBHI
+/
+ &NAMBCHM
+   NTRUNC  = 199
+   numModeZero=20
+   SCALEFACTOR(1,1:100) = 100*1.0D0
+   getPhysSpaceStats=.true.
+   getPhysSpaceHCorrel=.true.
+/
+ &NAMSTATE
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='TT'
+   ANLVAR(2)   ='HU'
+   ANLVAR(3)   ='P0'
+   ANLVAR(4) = 'TCO2'
+   addHeightSfcOffset = .false.
+/
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
+ &NAMFILT
+  NLIST(1)=15026,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=11,
+  RLIMLVHU=70.D0,
+  surfaceBufferZoneCH_Height=400.0
+/
+ &NAMMIN
+   NVAMAJ   = 25,
+   NITERMAX = 50   ! 70,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .TRUE.,
+   LVARQC   = .TRUE.,
+   NWOQCV   = 5
+/
+ &NAMINC
+   hInterpolationDegree = 'CUBIC'
+   etiket_rehm ='XXXXXX'
+   etiket_rebm ='XXXXXX'
+   etiket_anlm ='XXXXXX'
+   imposeRttovHuLimits = .FALSE.
+/
+ &NAMDIMO
+   NMXOBS=50000,
+   NDATAMX=30000,
+/
+ &NAMTIME
+  DSTEPOBS = 1.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMRMAT
+  rmat_lnonDiagR=.true.
+/
+ &NAMCODTYP
+   cnames(1)='CHEMREMOTE',
+   icod(1)=195, 
+   cnames(2)='CHEMINSITU',
+   icod(2)=196,
+/
+ &NAMBURP_FILTER_CHM_SFC
+  BLISTELEMENTS_SFC=15026,8090 
+/
+ &NAMBURP_FILTER_CHM
+  BLISTELEMENTS=15026,8090 
+/
+ &NAMBURP_UPDATE
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  TYPE_RESUME='POSTALT'
+/
+ &NAMCHEM
+  assim_all=.false.
+  assim_num=3
+  assim_stnid(1)='AICON003'  ! Aircraft CO2 obs
+  assim_stnid(2)='SI***003'  ! Sfc CO2 obs
+  assim_stnid(3)='TI***003'  ! Tower CO2 obs
+/
