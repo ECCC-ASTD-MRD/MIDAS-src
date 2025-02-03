@@ -365,7 +365,7 @@ contains
 
   end function utl_fstecr
 
-  subroutine utl_fastMatMul(A, B, C, isATransposed_opt, isBTransposed_opt, &
+  subroutine utl_fastMatMul(A, B, C, isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
                             M_opt, N_opt, K_opt)
     !
     !:Purpose: Calculate matrix multiplication C=A*B
@@ -379,12 +379,13 @@ contains
     ! Arguments:
     real(8),           intent(in)  :: A(:,:), B(:,:)
     real(8),           intent(out) :: C(:,:)
-    logical, optional, intent(in)  :: isATransposed_opt, isBTransposed_opt
+    logical, optional, intent(in)  :: isATransposed_opt, isBTransposed_opt, isCSymmeric_opt
     integer, optional, intent(in)  :: M_opt, N_opt, K_opt
 
     ! Locals:
-    integer :: M, N, K, dimA, dimB, dimC
+    integer :: M, N, K, dimA, dimB, dimC, iIndex, jIndex
     character :: transposeA, transposeB
+    logical :: isCSymmeric
 
     dimA = size(A,1)
     dimB = size(B,1)
@@ -427,18 +428,45 @@ contains
       end if
     end if
 
+    if (present(isCSymmeric_opt)) then
+      isCSymmeric = isCSymmeric_opt
+    else
+      isCSymmeric = .false.
+    end if
+
     call utl_tmg_start(184,'low-level--utl_fastMatMul')
 
-    ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
-     call dgemm(transposeA, transposeB, &
-                M, N, K,         & ! M, N, K
-                1.0d0,           & ! alpha
-                A, dimA,         & ! A
-                B, dimB,         & ! B
-                0.0d0,           & ! beta
-                C, dimC)           ! C
+    if (isCSymmeric) then
+      ! https://www.netlib.org/lapack/explore-html/d0/d27/group__gemmtr_ga443bc0e025f31532457a1b6ef17bffed.html#ga443bc0e025f31532457a1b6ef17bffed
+      call dgemmtr('U', transposeA, transposeB, &
+                   N, K,            & ! N, K
+                   1.0d0,           & ! alpha
+                   A, dimA,         & ! A
+                   B, dimB,         & ! B
+                   0.0d0,           & ! beta
+                   C, dimC)           ! C
 
-     call utl_tmg_stop(184)
+      ! copy upper triangle to lower triangle (symmetric matrix)
+      !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
+      do jIndex = 1, N
+        do iIndex = jIndex+1, N
+          C(iIndex,jIndex) = C(jIndex,iIndex)
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    else
+      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      call dgemm(transposeA, transposeB, &
+                 M, N, K,         & ! M, N, K
+                 1.0d0,           & ! alpha
+                 A, dimA,         & ! A
+                 B, dimB,         & ! B
+                 0.0d0,           & ! beta
+                 C, dimC)           ! C
+    end if
+
+    call utl_tmg_stop(184)
 
    end subroutine utl_fastMatMul
 

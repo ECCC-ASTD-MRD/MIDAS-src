@@ -2284,12 +2284,26 @@ contains
     !$OMP END PARALLEL DO
     call utl_tmg_stop(137)
 
-    call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert, &
-                        isATransposed_opt = .false., isBTransposed_opt = .true., K_opt = numLocalObs)
+    if (nEns1 == nEns2) then
+      ! When nEns1 equals nEns2 we assume matrix is symmetric
+      call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert, &
+                          isATransposed_opt = .false., isBTransposed_opt = .true., isCSymmeric_opt = .true., &
+                          K_opt = numLocalObs)
 
-    if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-      call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean, &
+      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
+        call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean, &
+                            isATransposed_opt = .false., isBTransposed_opt = .true., isCSymmeric_opt = .true., &
+                            K_opt = numLocalObs)
+      end if
+
+    else
+      call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert, &
                           isATransposed_opt = .false., isBTransposed_opt = .true., K_opt = numLocalObs)
+
+      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
+        call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean, &
+                            isATransposed_opt = .false., isBTransposed_opt = .true., K_opt = numLocalObs)
+      end if
     end if
 
     deallocate(YbCopy_r8)
