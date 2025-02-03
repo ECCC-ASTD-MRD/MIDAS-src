@@ -437,14 +437,14 @@ contains
     call utl_tmg_start(184,'low-level--utl_fastMatMul')
 
     if (isCSymmeric) then
-      ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2023-0/gemmt.html
+      ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
       call dgemmt('U', transposeA, transposeB, &
-                  N, K,            & ! N, K
-                  1.0d0,           & ! alpha
-                  A, dimA,         & ! A
-                  B, dimB,         & ! B
-                  0.0d0,           & ! beta
-                  C, dimC)           ! C
+                   N, K,            & ! N, K
+                   1.0d0,           & ! alpha
+                   A, dimA,         & ! A
+                   B, dimB,         & ! B
+                   0.0d0,           & ! beta
+                   C, dimC)           ! C
 
       ! copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)

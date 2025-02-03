@@ -2260,6 +2260,7 @@ contains
 
     ! Locals:
     integer :: memberIndex, localObsIndex, bodyIndex
+    logical :: isSymmetric
     real(8), allocatable :: YbCopy_r8(:,:)
 
     if ( numLocalObs == 0 ) then
@@ -2284,26 +2285,17 @@ contains
     !$OMP END PARALLEL DO
     call utl_tmg_stop(137)
 
-    if (nEns1 == nEns2) then
-      ! When nEns1 equals nEns2 we assume matrix is symmetric
-      call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert, &
-                          isATransposed_opt = .false., isBTransposed_opt = .true., isCSymmeric_opt = .true., &
-                          K_opt = numLocalObs)
+    ! When nEns1 equals nEns2 we can assume the output matrix will be symmetric
+    isSymmetric = nEns1 == nEns2
 
-      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-        call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean, &
-                            isATransposed_opt = .false., isBTransposed_opt = .true., isCSymmeric_opt = .true., &
-                            K_opt = numLocalObs)
-      end if
+    call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert,                 &
+                        isATransposed_opt = .false., isBTransposed_opt = .true., &
+                        isCSymmeric_opt = isSymmetric, K_opt = numLocalObs)
 
-    else
-      call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert, &
-                          isATransposed_opt = .false., isBTransposed_opt = .true., K_opt = numLocalObs)
-
-      if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
-        call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean, &
-                            isATransposed_opt = .false., isBTransposed_opt = .true., K_opt = numLocalObs)
-      end if
+    if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
+      call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean,                 &
+                          isATransposed_opt = .false., isBTransposed_opt = .true., &
+                          isCSymmeric_opt = isSymmetric, K_opt = numLocalObs)
     end if
 
     deallocate(YbCopy_r8)
