@@ -134,8 +134,8 @@ HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20241105-alpha"
-. r.load.dot eccc/mrd/rpn/libs/20241105-alpha
+echo "... loading eccc/mrd/rpn/libs/20250129-alpha"
+. r.load.dot eccc/mrd/rpn/libs/20250129-alpha
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
