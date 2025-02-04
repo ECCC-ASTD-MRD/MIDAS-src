@@ -226,7 +226,7 @@ as prerequisite of the absolute target, such as:
 ```
 var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
          rttov_parallel rttov_main rttov_emis_atlas rttov_other\
-         $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+         $(HDF5_LIBS) burpmodule $(VGRID_LIBNAME) irc $(MPILIB) random
 ```
 
 ### New external dependencies in a module

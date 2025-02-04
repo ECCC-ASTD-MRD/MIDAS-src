@@ -139,8 +139,13 @@ echo "... loading eccc/mrd/rpn/libs/20250129-alpha"
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}"
+. r.load.dot eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5-${COMP_ARCH}_${ORDENV_PLAT}
+
+echo "... loading eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}/libf90sqlite_1.5_${ORDENV_PLAT}"
+. ssmuse-sh -x eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}/libf90sqlite_1.5_${ORDENV_PLAT}
+echo "... loading eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}/libudfsqlite_1.18_${ORDENV_PLAT}"
+. ssmuse-sh -x eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}/libudfsqlite_1.18_${ORDENV_PLAT}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
