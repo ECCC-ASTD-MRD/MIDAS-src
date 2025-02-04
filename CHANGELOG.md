@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Do not select observations exactly at the edge of the LETKF localization volume (#1032 and !934)
+   * very minor impact on results
  * GEM-H and SLEVE support for monthly static B-matrices (#1028 and !935)
 
 ### Changed

@@ -1166,15 +1166,7 @@ CONTAINS
         localObsIndex = sortIndex(sortedIndex)
         bodyIndex     = searchResults(localObsIndex)%idx
         ! if the observation is inside the localization volume
-
-        ! ==== UnitTest Warning ====
-        ! ideally, we would have this condition, but it does not pass the UnitTest:
-        !if (locFun(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex) == 1) then
-        ! instead, if locFun == 0, but vDistance == vLocalize, we still select the obs to pass the UnitTest check:
-        vDistance = abs( vertLocation - ensObs%vertLocation(bodyIndex) )
-        if (vdistance <= vLocalize .and. ensObs%assFlag(bodyIndex) == 1) then
-        ! ==== UnitTest Warning ====
-
+        if (locFun(localObsIndex) > 0.0d0 .and. ensObs%assFlag(bodyIndex) == 1) then
           numObsFound  = numObsFound + 1
           codTyp       = ensObs%codTyp(bodyIndex)
           ! select the observation if the maximum numbers have not been reached
@@ -1333,7 +1325,7 @@ CONTAINS
             'meandist', &
             'meanlfn', &
             'sumtrace'
-      write(99,'(12(A,1X))') 'typ', &
+      write(funit,'(12(A,1X))') 'typ', &
             'codtyp', &
             'numsel', &
             'numrej', &
