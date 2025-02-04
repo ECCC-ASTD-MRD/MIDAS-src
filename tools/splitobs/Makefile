@@ -31,7 +31,7 @@ splitobs_rhel-8-icelake-64: version.h $(SRC)
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20241105-alpha;  \
+	. r.load.dot eccc/mrd/rpn/libs/20250129-alpha;  \
 	. ssmuse-sh -d eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}; \
 	make splitobs
 

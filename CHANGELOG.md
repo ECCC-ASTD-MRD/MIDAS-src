@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Update LibRMN to 20.1.0-a9 (#1013 and !941)
 
 ### Fixed
 
