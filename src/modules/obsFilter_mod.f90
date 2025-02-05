@@ -1976,7 +1976,7 @@ end subroutine filt_topoAISW
     !--------------------------------------------------------------------------
     ! filt_topoChemSetBounds
     !--------------------------------------------------------------------------
-      subroutine filt_topoChemSetBounds()
+    subroutine filt_topoChemSetBounds()
       !
       ! :Purpose: Set pressure and geopotential height vertical boundaries.
       !
@@ -2029,7 +2029,7 @@ end subroutine filt_topoAISW
     !--------------------------------------------------------------------------
     ! filt_topoChemAltitudeCheck
     !--------------------------------------------------------------------------
-      subroutine filt_topoChemAltitudeCheck()
+    subroutine filt_topoChemAltitudeCheck()
       !
       ! :Purpose: Set for rejection or acceptance of altitude relative to
       !           vertical boundaries. This includes checking for rejection
@@ -2156,7 +2156,7 @@ end subroutine filt_topoAISW
     !--------------------------------------------------------------------------
     ! filt_topoChemPressureCheck
     !--------------------------------------------------------------------------
-      subroutine filt_topoChemPressureCheck()
+    subroutine filt_topoChemPressureCheck()
       !
       ! :Purpose: Set for rejection or acceptance of pressure relative to
       !           vertical boundaries.

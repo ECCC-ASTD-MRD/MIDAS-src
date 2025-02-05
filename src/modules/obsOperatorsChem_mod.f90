@@ -1267,7 +1267,7 @@ module obsOperatorsChem_mod
     integer,          intent(in) :: nobslev  ! Number of levels
 
     ! Locals:
-    integer :: i,elemId
+    integer :: obsSetIndex,elemId
    
     if (assim_all) then
       ! assimilate all observations
@@ -1278,13 +1278,13 @@ module obsOperatorsChem_mod
     else if (assim_num > 0) then
       ! check if this observation is listed in the assim_* arrays
       elemId=0
-      do i=1,assim_num
-        if (utl_stnid_equal(trim(assim_stnid(i)),trim(cstnid))) then
-          if (assim_varno(i) == 0 .or. assim_varno(i) == varno) then
-            if (assim_nlev(i) == 0 .or. (nobslev == 1 .and. &
-                 assim_nlev(i) == 1) .or.  &
-                (nobslev > 1 .and. assim_nlev(i) > 1)) then
-              elemId=i
+      do obsSetIndex=1,assim_num
+        if (utl_stnid_equal(trim(assim_stnid(obsSetIndex)),trim(cstnid))) then
+          if (assim_varno(obsSetIndex) == 0 .or. assim_varno(obsSetIndex) == varno) then
+            if (assim_nlev(obsSetIndex) == 0 .or. (nobslev == 1 .and. &
+                 assim_nlev(obsSetIndex) == 1) .or.  &
+                (nobslev > 1 .and. assim_nlev(obsSetIndex) > 1)) then
+              elemId=obsSetIndex
               exit
             end if
           end if
@@ -2639,7 +2639,8 @@ module obsOperatorsChem_mod
         ! phf_convertZtoPressure
         if (stationAltitude /= 0.0d0) then
           ! Ground station altitude is available.
-          if (stationAltitude >= sfcAltitude - surfaceBufferZoneCH_Height) then
+          if (stationAltitude >= sfcAltitude - surfaceBufferZoneCH_Height .and. &
+              stationAltitude < sfcAltitude) then
             ! Station below surface and within buffer zone.
             ! Reset level relative to model surface.
             obsoper%obslev(:) = &
