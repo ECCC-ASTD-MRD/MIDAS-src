@@ -25,7 +25,7 @@ contains
     character(len=*), intent(in) :: progDescription
 
     ! Locals:
-    character(len=100), parameter :: ver_version = "GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE"
+    character(len=100), parameter :: ver_version = "@GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE@"
 
     write(*,*) " --------------------------------------------"
     write(*,*) " ---  START OF MAIN PROGRAM midas-", trim(progName), " ---"
