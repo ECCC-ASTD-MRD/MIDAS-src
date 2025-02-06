@@ -365,37 +365,42 @@ contains
 
   end function utl_fstecr
 
-  subroutine utl_fastMatMul(A, B, C, isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
+  subroutine utl_fastMatMul(AmatrixIn, BmatrixIn, CmatrixOut, &
+                            isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
                             M_opt, N_opt, K_opt)
     !
-    !:Purpose: Calculate matrix multiplication C=A*B
-    !             A is a matrix MxK
-    !             B is a matrix KxN
-    !             C is a matrix MxN
-    !          The arrays 'A', 'B' and 'C' can be allocated arrays larger than 'M', 'N' and 'K'.
+    !:Purpose: Calculate matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
+    !             AmatrixIn  is a matrix MxK
+    !             BmatrixIn  is a matrix KxN
+    !             CmatrixOut is a matrix MxN
+    !          The arrays 'AmatrixIn', 'BmatrixIn' and 'CmatrixOut'
+    !          can be allocated arrays larger than 'M', 'N' and 'K'.
     !
-    !          If the result matrix is expected to be symmetric
+    !          If the result matrix is expected to be symmetric, you
+    !          can avoid to do the full matrix multiplication with
+    !          'isCSymmeric_opt = .true.'.  The lower half will be
+    !          populated with the upper computed half.
     implicit none
 
     ! Arguments:
-    real(8),           intent(in)  :: A(:,:) ! Input  matrix
-    real(8),           intent(in)  :: B(:,:) ! Input  matrix
-    real(8),           intent(out) :: C(:,:) ! Output matrix
-    logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix A be transposed before multiplication?
-    logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix B be transposed before multiplication?
-    logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix C expected to be symmetric?
-    integer, optional, intent(in)  :: M_opt ! First  dimension of A or C (defaults to first  dimension of C)
-    integer, optional, intent(in)  :: N_opt ! Second dimension of B or C (defaults to second dimension of C)
-    integer, optional, intent(in)  :: K_opt ! Second dimension of A or first dimension of B (defaults to second dimension of A)
+    real(8),           intent(in)  :: AmatrixIn(:,:)  ! Input  matrix
+    real(8),           intent(in)  :: BmatrixIn(:,:)  ! Input  matrix
+    real(8),           intent(out) :: CmatrixOut(:,:) ! Output matrix
+    logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix 'AmatrixIn' be transposed before multiplication?
+    logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix 'BmatrixIn' be transposed before multiplication?
+    logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix 'CmatrixOut' expected to be symmetric?
+    integer, optional, intent(in)  :: M_opt ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: N_opt ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: K_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
 
     ! Locals:
     integer :: M, N, K, dimA, dimB, dimC, iIndex, jIndex
     character :: transposeA, transposeB
     logical :: isCSymmeric
 
-    dimA = size(A,1)
-    dimB = size(B,1)
-    dimC = size(C,1)
+    dimA = size(AmatrixIn,1)
+    dimB = size(BmatrixIn,1)
+    dimC = size(CmatrixOut,1)
 
     if (present(M_opt)) then
       M = M_opt
@@ -406,13 +411,13 @@ contains
     if (present(N_opt)) then
       N = N_opt
     else
-      N = size(C,2)
+      N = size(CmatrixOut,2)
     end if
 
     if (present(K_opt)) then
       K = K_opt
     else
-      K = size(A,2)
+      K = size(AmatrixIn,2)
     end if
 
     ! default value
@@ -422,7 +427,7 @@ contains
         transposeA = 'T'
         ! Update 'K' only if it is not given as argument
         if (.not.present(K_opt)) then
-          K = size(A,1)
+          K = size(AmatrixIn,1)
         end if
       end if
     end if
@@ -447,16 +452,16 @@ contains
       call dgemmt('U', transposeA, transposeB, &
                    N, K,            & ! N, K
                    1.0d0,           & ! alpha
-                   A, dimA,         & ! A
-                   B, dimB,         & ! B
+                   AmatrixIn, dimA, & ! A
+                   BmatrixIn, dimB, & ! B
                    0.0d0,           & ! beta
-                   C, dimC)           ! C
+                   CmatrixOut, dimC)  ! C
 
       ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
       do jIndex = 1, N
         do iIndex = jIndex+1, N
-          C(iIndex,jIndex) = C(jIndex,iIndex)
+          CmatrixOut(iIndex,jIndex) = CmatrixOut(jIndex,iIndex)
         end do
       end do
       !$OMP END PARALLEL DO
@@ -466,10 +471,10 @@ contains
       call dgemm(transposeA, transposeB, &
                  M, N, K,         & ! M, N, K
                  1.0d0,           & ! alpha
-                 A, dimA,         & ! A
-                 B, dimB,         & ! B
+                 AmatrixIn, dimA, & ! A
+                 BmatrixIn, dimB, & ! B
                  0.0d0,           & ! beta
-                 C, dimC)           ! C
+                 CmatrixOut, dimC)  ! C
     end if
 
     call utl_tmg_stop(184)
