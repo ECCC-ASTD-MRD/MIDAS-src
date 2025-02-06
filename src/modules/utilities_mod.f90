@@ -424,28 +424,29 @@ contains
       lastDim = size(CmatrixOut,2)
     end if
 
-    if (present(summationDim_opt)) then
-      summationDim = summationDim_opt
-    else
-      summationDim = size(AmatrixIn,2)
-    end if
-
     ! default value
     transposeA = 'N'
     if (present(isATransposed_opt)) then
       if (isATransposed_opt) then
         transposeA = 'T'
-        ! Update 'secondDimA' only if it is not given as argument
-        if (.not.present(summationDim_opt)) then
-          summationDim = size(AmatrixIn,1)
-        end if
       end if
     end if
 
+    ! default value
     transposeB = 'N'
     if (present(isBTransposed_opt)) then
       if (isBTransposed_opt) then
         transposeB = 'T'
+      end if
+    end if
+
+    if (present(summationDim_opt)) then
+      summationDim = summationDim_opt
+    else
+      if (transposeA == 'N') then
+         summationDim = size(AmatrixIn,2)
+      else
+         summationDim = size(AmatrixIn,1)
       end if
     end if
 
@@ -475,7 +476,6 @@ contains
         end do
       end do
       !$OMP END PARALLEL DO
-
     else
       ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm(transposeA, transposeB, &
@@ -489,7 +489,7 @@ contains
 
     call utl_tmg_stop(184)
 
-   end subroutine utl_fastMatMul
+  end subroutine utl_fastMatMul
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
