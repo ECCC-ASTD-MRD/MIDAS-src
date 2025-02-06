@@ -366,7 +366,7 @@ contains
   end function utl_fstecr
 
   subroutine utl_fastMatMul(AmatrixIn, BmatrixIn, CmatrixOut, &
-                            isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
+                            isATransposed_opt, isBTransposed_opt, isCSymmetric_opt, &
                             firstDim_opt, lastDim_opt, summationDim_opt)
     !
     !:Purpose: Compute matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
@@ -374,14 +374,14 @@ contains
     !             BmatrixIn  is a matrix KxN
     !             CmatrixOut is a matrix MxN
     !
-    !          The matrix dimensions are usually inferred from
-    !          argument array allocated dimensions but the arrays
-    !          'AmatrixIn', 'BmatrixIn' and 'CmatrixOut' can be
-    !          allocated arrays larger than 'M', 'N' and 'K' in which
-    !          case you have to specify those numbers with variables:
-    !               firstDimC_opt  for M
-    !               secondDimC_opt for N
-    !               secondDimA_opt for K
+    !          The matrix dimensions (M, N and K) are usually inferred
+    !          from argument array allocated dimensions but the arrays
+    !          'AmatrixIn', 'BmatrixIn' and 'CmatrixOut' can be larger
+    !          allocated arrays than 'M', 'N' and 'K' in which case
+    !          you have to specify those numbers with arguments:
+    !               firstDim_opt     for M
+    !               lastDim_opt      for N
+    !               summationDim_opt for K
     !
     !          If the result matrix is expected to be symmetric, you
     !          can avoid to do the full matrix multiplication with
@@ -396,7 +396,7 @@ contains
     real(8),           intent(out) :: CmatrixOut(:,:) ! Output matrix
     logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix 'AmatrixIn' be transposed before multiplication?
     logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix 'BmatrixIn' be transposed before multiplication?
-    logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix 'CmatrixOut' expected to be symmetric?
+    logical, optional, intent(in)  :: isCSymmetric_opt  ! Is the result matrix 'CmatrixOut' expected to be symmetric?
     integer, optional, intent(in)  :: firstDim_opt     ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
     integer, optional, intent(in)  :: lastDim_opt      ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
     integer, optional, intent(in)  :: summationDim_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
@@ -406,7 +406,7 @@ contains
     integer :: firstDimA, firstDimB, firstDimC
     integer :: iIndex, jIndex
     character :: transposeA, transposeB
-    logical :: isCSymmeric
+    logical :: isCSymmetric
 
     firstDimA = size(AmatrixIn, 1)
     firstDimB = size(BmatrixIn, 1)
@@ -449,15 +449,15 @@ contains
       end if
     end if
 
-    if (present(isCSymmeric_opt)) then
-      isCSymmeric = isCSymmeric_opt
+    if (present(isCSymmetric_opt)) then
+      isCSymmetric = isCSymmetric_opt
     else
-      isCSymmeric = .false.
+      isCSymmetric = .false.
     end if
 
     call utl_tmg_start(184,'low-level--utl_fastMatMul')
 
-    if (isCSymmeric) then
+    if (isCSymmetric) then
       ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
       call dgemmt('U', transposeA, transposeB, &
                    lastDim, summationDim,      & ! N, K
