@@ -378,8 +378,9 @@ contains
     implicit none
 
     ! Arguments:
-    real(8),           intent(in)  :: A(:,:), B(:,:) ! Input matrices
-    real(8),           intent(out) :: C(:,:)         ! Output matrix
+    real(8),           intent(in)  :: A(:,:) ! Input  matrix
+    real(8),           intent(in)  :: B(:,:) ! Input  matrix
+    real(8),           intent(out) :: C(:,:) ! Output matrix
     logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix A be transposed before multiplication?
     logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix B be transposed before multiplication?
     logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix C expected to be symmetric?
