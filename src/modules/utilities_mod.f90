@@ -450,12 +450,12 @@ contains
     if (isCSymmeric) then
       ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
       call dgemmt('U', transposeA, transposeB, &
-                   secondDimC, secondDimA,            & ! N, K
-                   1.0d0,           & ! alpha
-                   AmatrixIn, dimA, & ! A
-                   BmatrixIn, dimB, & ! B
-                   0.0d0,           & ! beta
-                   CmatrixOut, dimC)  ! C
+                   secondDimC, secondDimA,     & ! N, K
+                   1.0d0,                      & ! alpha
+                   AmatrixIn, dimA,            & ! A
+                   BmatrixIn, dimB,            & ! B
+                   0.0d0,                      & ! beta
+                   CmatrixOut, dimC)             ! C
 
       ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
@@ -469,12 +469,12 @@ contains
     else
       ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm(transposeA, transposeB, &
-                 firstDimC, secondDimC, secondDimA,         & ! M, N, K
-                 1.0d0,           & ! alpha
-                 AmatrixIn, dimA, & ! A
-                 BmatrixIn, dimB, & ! B
-                 0.0d0,           & ! beta
-                 CmatrixOut, dimC)  ! C
+                 firstDimC, secondDimC, secondDimA, & ! M, N, K
+                 1.0d0,            & ! alpha
+                 AmatrixIn, dimA,  & ! A
+                 BmatrixIn, dimB,  & ! B
+                 0.0d0,            & ! beta
+                 CmatrixOut, dimC)   ! C
     end if
 
     call utl_tmg_stop(184)
