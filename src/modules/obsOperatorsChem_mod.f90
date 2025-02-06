@@ -16,6 +16,7 @@ module obsOperatorsChem_mod
   use varNameList_mod
   use obsSubSpaceData_mod
   use obsFiles_mod
+  use obsFilter_mod
   use codtyp_mod
   use climatologies_mod
   use presProfileOperators_mod
@@ -94,7 +95,6 @@ module obsOperatorsChem_mod
     !                         indicates index in oopc_avgkern%obsSubSpace arrays.
     !  applyGenOper           Indicates if the generalized observation operator should be applied
     !  columnBound            Boundary imposed on a column measurement
-    !  ixtr                   Indicates when outside model vertical range (when >0)
     !  success                Indicates if the observation is to be assimilated
     !                         or was successfully assimilated 
     
@@ -106,7 +106,6 @@ module obsOperatorsChem_mod
     character(len=4)  :: varName
     real(8), allocatable :: vlayertop(:),vlayerbottom(:),tt(:),height(:),pp(:)
     real(8), allocatable :: zh(:,:),zhp(:,:),obslev(:),hu(:)
-    integer, allocatable :: ixtr(:)
     logical, allocatable :: success(:)
     real(8), pointer     :: trial(:)
     integer, allocatable :: modlevindexTop(:),modlevindexBot(:)
@@ -135,7 +134,6 @@ module obsOperatorsChem_mod
     !                         of zero indicates no averaging kernel to be applied. Non-zero value
     !                         indicates index in oopc_avgkern%obsSubSpace arrays.
     !  applyGenOper           Indicates if the generalized observation operator should be applied
-    !  ixtr                   Indicates when outside model vertical range (when >0)
     !  success                Indicates if the observation is to be assimilated
     !                         or was successfully assimilated 
     
@@ -143,7 +141,6 @@ module obsOperatorsChem_mod
     logical :: applyGenOper
     real(8), allocatable :: vlayertop(:),vlayerbottom(:)
     real(8), allocatable :: zh(:,:),zhp(:,:)
-    integer, allocatable :: ixtr(:)
     logical, allocatable :: success(:)
     real(8), pointer     :: trial(:)
     integer, allocatable :: modlevindexTop(:),modlevindexBot(:)
@@ -266,20 +263,17 @@ module obsOperatorsChem_mod
   real(8) :: oopc_tropo_column_top(0:oopc_constituentsSize)
   logical :: oopc_storeOperators
   
-  integer, parameter :: assim_maxfamnum=1           ! Could be used for other families as well with >1
   integer, parameter :: assim_maxsize=100           ! max size of assim_* arrays  
 
-  integer :: assim_famNum
-  character(len=2) :: assim_fam(assim_maxfamnum) ! List of families to which filt_diagnOnly is to apply
-  logical :: assim_all(assim_maxfamnum) ! Choose to assimilate all obs of specified family
-  integer :: assim_num(assim_maxfamnum) ! Number of combinations identified for assimilation
-  integer :: assim_varno(assim_maxfamnum,assim_maxsize) ! List of bufr elements to assimilate (0 means all)
-  integer :: assim_nlev(assim_maxfamnum,assim_maxsize) ! 0: multi- and uni-lev; 1: uni-lev; >1 multi-lev
-  integer :: assim_exclude_nflag(assim_maxfamnum) ! List of bits for excluding obs from assimilation
-  integer :: assim_exclude_flag(assim_maxfamnum,assim_maxsize) ! Number of bits for excluding obs
-  character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize) ! List of stnid to assimilation '*' for wild card
+  logical :: assim_all                  ! Choose to assimilate all obs of CH family
+  integer :: assim_num                  ! Number of combinations identified for assimilation
+  integer :: assim_varno(assim_maxsize) ! List of bufr elements to assimilate (0 means all)
+  integer :: assim_nlev(assim_maxsize)  ! 0: multi- and uni-lev; 1: uni-lev; >1 multi-lev
+  character(len=9) :: assim_stnid(assim_maxsize) ! List of stnid to assimilation '*' for wild card
   character(len=20) :: operatorSubType(2,assim_maxsize) ! Operator sub-type name
   character(len=10) :: modelName = 'GEM-MACH' ! Identification of the model
+
+  real(8) :: surfaceBufferZoneCH_Height  ! height buffer zone (in m) for rejecting CH family obs near sfc
 
   !**************************************************************************
   
@@ -307,6 +301,11 @@ module obsOperatorsChem_mod
     call oopc_readNamchem
     write(*,*) 'oopc_setupCH: Completed oopc_readNamchem'
       
+    ! Get surfaceBufferZoneCH_Height in the event it is needed
+    ! to evaluate re-assignment of observation elevation below surface.
+
+    surfaceBufferZoneCH_Height = filt_getSfcBufferZoneCHheight()   
+    
     ! Read reference vertical levels (where needed) or 
     ! top and bottom layer boundaries of partial (or total) column meausurements
   
@@ -358,6 +357,7 @@ module obsOperatorsChem_mod
   ! oopc_readNamchem
   !--------------------------------------------------------------------------
   subroutine oopc_readNamchem
+    !
     !:Purpose: Read and store miscellaneous flags and constants.
     !
     !:Comment: assim_* arrays could instead be made available to all families
@@ -372,7 +372,7 @@ module obsOperatorsChem_mod
     !                           Relevant for operatorSubType(2,i)='genOper*'.
     !                           ================================================
     !                           'Trial'  use trial field xb for mass weighted
-    !                                    increment distribution
+    !                                    increment distribution (default)
     !                           'Climat' use climatology (or other reference) field 
     !                                    xc for mass weighted increment distribution
     !                           'Diff'   For column integrations and averaging
@@ -394,24 +394,13 @@ module obsOperatorsChem_mod
     !                           operatorSubType(2,i) ='genOper'.
     !
     !
-    !     :assim_fam:           List of families to which filt_diagnOnly is to
-    !                           apply.
-    ! 
-    !     :assim_exclude_flag:  Array specifying bits for identifying
-    !                           diagnostic-only observations for observations
-    !                           that would otherwise be assimilated according to
-    !                           the other assim_* arrays
-    !
-    !     :assim_exclude_nflag: Number of bit flags to specify in
-    !                           assim_exclude_flag array
-    ! 
     !     :assim_all:           Logical indicating if all assimilatable obs of
     !                           the specified family will be assimilated
     !                           (default is .true.)
     !                           When assim_all is .false., account for the setttings 
     !                           of assim_num, assim_varno, assim_stnid, assim_nlev.
     !
-    !     :assim_num:           Relevant when assim_all = ,false.
+    !     :assim_num:           Relevant when assim_all = .false.
     !                           Number combinations (stnid, bufr element,
     !                           multi/uni-level) identified for assimilation.
     !                           All others will not be assimilated. OmP and OmA
@@ -520,7 +509,7 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Locals:
-    integer :: ios, i
+    integer :: ios
 
     ! Namelist variables (local):
     integer :: tropo_mode(0:oopc_constituentsSize) ! Special treatment for troposphere of total column obs
@@ -534,8 +523,7 @@ module obsOperatorsChem_mod
 
     external fnom,fclos
 
-    namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,    &
-                       assim_nlev, assim_exclude_nflag,assim_exclude_flag,       &
+    namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev,   &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
                        modelName,operatorSubType,storeOperators, &
                        genOperConstraintType,genOperHCorrlenExpnt,genOperOmAStatsFactor
@@ -549,19 +537,12 @@ module obsOperatorsChem_mod
     obsdata_maxsize=90000
     
     storeOperators=.false.
-    assim_fam(:)=''
-    assim_fam(1)='CH'
-    assim_famNum=1
-    assim_all(:)=.true.
-    assim_num(:)=0  
-    assim_stnid(:,:)='*********'
-    assim_varno(:,:)=0
-    assim_nlev(:,:)=0
+    assim_all = .true.
+    assim_num = 0  
+    assim_stnid(:) = '*********'
+    assim_varno(:) = 0
+    assim_nlev(:) = 0
  
-    assim_exclude_nflag(:)=1
-    assim_exclude_flag(:,1)=6  ! this is for the 'in reserve' bit for a BURP marker
-    assim_exclude_flag(:,2:)=0
-
     tropo_mode(:) = 0
     tropo_bound(:) = 0
     tropo_column_top(:) = 0.0
@@ -579,11 +560,6 @@ module obsOperatorsChem_mod
       write(*,nml=namchem)   
     end if
     call utl_tmg_stop(181)
-  
-    do i=size(assim_fam),1,-1
-      if (assim_fam(i) /= '') exit
-    end do
-    assim_famnum=i
 
     oopc_genOperConstraintType(:) = genOperConstraintType(:)
     oopc_genOperHCorrlenExpnt(:) =  genOperHCorrlenExpnt(:)
@@ -1276,75 +1252,45 @@ module obsOperatorsChem_mod
   !--------------------------------------------------------------------------
   ! oopc_diagnOnly
   !--------------------------------------------------------------------------
-  logical function oopc_diagnOnly(cfamName,cstnid,varno,nobslev,flag)
+  logical function oopc_diagnOnly(cstnid,varno,nobslev)
     ! 
     !:Purpose: To identify whether or not the obs set identified by the
-    !          combination of (cstnid,varno,nobslev) will be assimilated or
-    !          else used for independent verifications after
+    !          combination of (cstnid,varno,nobslev) will be (or was) 
+    !          assimilated or else used for independent verifications after
     !          assimilation/minimization
     ! 
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in) :: cfamName ! Family name
     character(len=*), intent(in) :: cstnid   ! Input station id
     integer,          intent(in) :: varno    ! Obs BUFR number
     integer,          intent(in) :: nobslev  ! Number of levels
-    integer,          intent(in) :: flag     ! observation integer flag
 
     ! Locals:
-    integer :: i,elemId,ifam
-    
-    ifam=0
-    if (assim_famNum > 0) then
-      do i=1,assim_famNum
-        if (assim_fam(i) == cfamName) then
-          ifam=i
-          exit
-        end if
-      end do
-    end if
-
-    if (ifam == 0) then
+    integer :: obsSetIndex,elemId
+   
+    if (assim_all) then
       ! assimilate all observations
       oopc_diagnOnly = .false.
-      return    
-    end if
-    
-    if (assim_all(ifam)) then
-      ! assimilate all observations
-      oopc_diagnOnly = .false.
-    else if (assim_num(ifam) <= 0) then
+    else if (assim_num <= 0) then
       ! assimilate no observations
       oopc_diagnOnly = .true.
-    else if (assim_num(ifam) > 0) then
+    else if (assim_num > 0) then
       ! check if this observation is listed in the assim_* arrays
       elemId=0
-      do i=1,assim_num(ifam)
-        if (utl_stnid_equal(trim(assim_stnid(ifam,i)),trim(cstnid))) then
-          if (assim_varno(ifam,i) == 0 .or. assim_varno(ifam,i) == varno) then
-            if (assim_nlev(ifam,i) == 0 .or. (nobslev == 1 .and. &
-                 assim_nlev(ifam,i) == 1) .or.  &
-                (nobslev > 1 .and. assim_nlev(ifam,i) > 1)) then
-              elemId=i
+      do obsSetIndex=1,assim_num
+        if (utl_stnid_equal(trim(assim_stnid(obsSetIndex)),trim(cstnid))) then
+          if (assim_varno(obsSetIndex) == 0 .or. assim_varno(obsSetIndex) == varno) then
+            if (assim_nlev(obsSetIndex) == 0 .or. (nobslev == 1 .and. &
+                 assim_nlev(obsSetIndex) == 1) .or.  &
+                (nobslev > 1 .and. assim_nlev(obsSetIndex) > 1)) then
+              elemId=obsSetIndex
               exit
             end if
           end if
         end if
       end do
       oopc_diagnOnly = elemId == 0
-    end if
-    
-    if (oopc_diagnOnly) return
-
-    ! check if the observation integer flag has a bit marked by assim_exclude_flag (same flagging as in filt_suprep)
-    if (assim_exclude_nflag(ifam) > 0) then
-      do i=1,assim_exclude_nflag(ifam)
-        if (btest(flag, 13 - assim_exclude_flag(ifam,i) )) then
-          oopc_diagnOnly = .true.
-          return
-        end if
-      end do
     end if
 
   end function oopc_diagnOnly
@@ -1576,7 +1522,7 @@ module obsOperatorsChem_mod
     integer :: icodtyp,obslevIndex,nobslev,varno,maxnumHeaders,headerCount
     integer :: destObsColumn
     character(len=12) :: stnid
-    integer, allocatable :: iass(:),flag(:)
+    integer, allocatable :: iass(:)
     logical, allocatable :: process_obs(:)
     real(8), allocatable :: obs_col(:)
     real(8), pointer :: col(:),model_col(:)
@@ -1684,10 +1630,10 @@ module obsOperatorsChem_mod
       end do
 
       ! Allocate memory for remaining profile data not in obsoper
-      allocate(obs_col(nobslev),iass(nobslev),process_obs(nobslev),flag(nobslev))
+      allocate(obs_col(nobslev),iass(nobslev),process_obs(nobslev))
 
-      if (allocated(obsoper%success)) deallocate(obsoper%success,obsoper%ixtr)
-      allocate(obsoper%success(nobslev),obsoper%ixtr(nobslev))
+      if (allocated(obsoper%success)) deallocate(obsoper%success)
+      allocate(obsoper%success(nobslev))
 
       ! Check to see if background error variances available
       if (kmode == 1) then
@@ -1705,19 +1651,25 @@ module obsOperatorsChem_mod
 
           obslevIndex=obslevIndex+1
 
-          obsoper%ixtr(obslevIndex) = &
-               obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! indicates if obs extends outside model profile vertical range
-          iass(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! indicates if obs is to be assimilated
-          flag(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
-               
+          ! Local flag indicating if obs is to be assimilated
+          iass(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+
+          if (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 1 .and. &
+              .not.btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9)) then
+            ! Update flags for consistency with xtr for levels above model top.
+            ! Relevant only if trial and incremental analysis grid top not the same.
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+            iass(obslevIndex) = obs_notAssimilated
+            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                              ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 9 ))
+          end if
+
           ! Indicates if this obs should be processed by oopc_obsoperators
           if (kmode == 1) then
-            process_obs(obslevIndex) = obsoper%ixtr(obslevIndex) == 0 &
-                 .and. iass(obslevIndex) == obs_assimilated .and. &
+            process_obs(obslevIndex) = iass(obslevIndex) == obs_assimilated .and. &
                  process_obs(obslevIndex)
           else
-            process_obs(obslevIndex) = obsoper%ixtr(obslevIndex) == 0 &
-                 .and. iass(obslevIndex) == obs_assimilated
+            process_obs(obslevIndex) = iass(obslevIndex) == obs_assimilated
           end if
 
         end if
@@ -1767,7 +1719,7 @@ module obsOperatorsChem_mod
                        0.5d0*obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
                 end if
      
-                deallocate(process_obs,obsoper%success,obsoper%ixtr,iass,obs_col,flag)
+                deallocate(process_obs,obsoper%success,iass,obs_col)
                   
                 cycle HEADER
               else
@@ -1817,14 +1769,15 @@ module obsOperatorsChem_mod
           end if
 
           ! Get vertical coordinate data. Valid for point data values in profiles.
-          ! For layer data values, vertical coordinate data will instead be assigned within oopc_obsoperators.
+          ! For layer data values, vertical coordinate data will instead be assigned 
+          ! within oopc_obsoperators.
 
           obsoper%obslev(obslevIndex) = &
-               obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+            obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
           ! Get normalized increment
           if (kmode == 3) then
-            if (iass(obslevIndex) == 1) then
+            if (iass(obslevIndex) == obs_assimilated) then
               obs_col(obslevIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
             else
               obs_col(obslevIndex) = 0.0D0
@@ -1855,8 +1808,9 @@ module obsOperatorsChem_mod
         !      2           in            out
         !      3           out           in
 
-        call oopc_obsoperators(model_col,obs_col,maxnumHeaders,headerCount,kmode)
-
+        call oopc_obsoperators(model_col,obs_col,maxnumHeaders,headerCount,kmode, &
+                               obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex), &
+                               col_getHeight(columnTrl,0,headerIndex,'SF'))
       end if
 
       ! Output results
@@ -1895,16 +1849,14 @@ module obsOperatorsChem_mod
             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9) )
             cycle BODY2
-          else if (iass(obslevIndex) == 0) then
+          else if (iass(obslevIndex) == obs_notAssimilated .or. .not.process_obs(obslevIndex)) then
             ! Observation was flagged previous to this call of oopc_CHobsoperators
+            ! Ensure appropriate value settings.
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
-            cycle BODY2
-          else if (.not.process_obs(obslevIndex) .and. kmode == 1) then
-            call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             cycle BODY2
           end if
 
@@ -1917,10 +1869,10 @@ module obsOperatorsChem_mod
             zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(obslevIndex)
             call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex,zomp)
 
-            if (oopc_diagnOnly('CH',stnid,varno,nobslev,flag(obslevIndex))) then
+            if (oopc_diagnOnly(stnid,varno,nobslev)) then
               ! Observation is for diagnostics and is not to be assimilated
               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-            else if (present(jobs_opt) .and. iass(obslevIndex) == 1) then
+            else if (present(jobs_opt) .and. iass(obslevIndex) == obs_assimilated) then
               ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
               zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
               jobs_opt = jobs_opt + zinc**2
@@ -1950,7 +1902,7 @@ module obsOperatorsChem_mod
       end if
 
       ! Deallocate profile data
-      deallocate(process_obs,iass,obs_col,flag)
+      deallocate(process_obs,iass,obs_col)
       call oopc_obsoper_dealloc
   
     end do HEADER
@@ -2149,7 +2101,6 @@ module obsOperatorsChem_mod
     if (allocated(obsoper%obsSpaceTrial))  deallocate(obsoper%obsSpaceTrial)
     if (allocated(obsoper%obs))          deallocate(obsoper%obs)
     if (allocated(obsoper%success))      deallocate(obsoper%success)
-    if (allocated(obsoper%ixtr))         deallocate(obsoper%ixtr)
 
   end subroutine oopc_obsoper_dealloc
     
@@ -2159,7 +2110,8 @@ module obsOperatorsChem_mod
   !--------------------------------------------------------------------------
   ! oopc_obsoperators
   !--------------------------------------------------------------------------
-  subroutine oopc_obsoperators(model_col,obs_col,maxnumHeaders,headerCount,kmode)
+  subroutine oopc_obsoperators(model_col,obs_col,maxnumHeaders,headerCount, &
+                               kmode,stationAltitude,sfcAltitude)
     !
     !:Purpose: To apply observation operator for indicated observation data and
     !          condition.
@@ -2224,12 +2176,14 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)    :: kmode
-    integer, intent(in)    :: maxnumHeaders
-    integer, intent(in)    :: headerCount
-    real(8), intent(inout) :: model_col(obsoper%nmodlev)
-    real(8), intent(inout) :: obs_col(obsoper%nobslev)
-
+    integer, intent(in)    :: kmode                      ! Operation type indicator
+    integer, intent(in)    :: maxnumHeaders              ! Max number of headers
+    integer, intent(in)    :: headerCount                ! Header count
+    real(8), intent(inout) :: model_col(obsoper%nmodlev) ! Model-space profile
+    real(8), intent(inout) :: obs_col(obsoper%nobslev)   ! Observation
+    real(8), intent(in)    :: stationAltitude            ! Ground-station altitutde (m)
+    real(8), intent(in)    :: sfcAltitude                ! Model topography altitude (m)
+ 
     ! Locals: 
     logical :: successLocal(obsoper%nobslev) 
     real(8) :: zwork(obsoper%nmodlev),unit_conversion(obsoper%nmodlev)
@@ -2261,7 +2215,8 @@ module obsOperatorsChem_mod
     ! Prepare observation operator
   
     call oopc_prepareOperator(model_col,avg_kern,nobslevOriginal,maxnumHeaders, &
-                              headerCount,kmode,unit_conversion,successLocal)
+                              headerCount,kmode,unit_conversion,successLocal, &
+                              stationAltitude,sfcAltitude)
 
     ! Finalize required quantities depending on kmode
    
@@ -2502,7 +2457,9 @@ module obsOperatorsChem_mod
   ! oopc_prepareOperator
   !--------------------------------------------------------------------------
   subroutine oopc_prepareOperator(model_col,avg_kern,nobslevOriginal, &
-                                  maxnumHeaders,headerCount,kmode,unit_conversion,successLocal)
+                                  maxnumHeaders,headerCount,kmode, &
+                                  unit_conversion,successLocal, &
+                                  stationAltitude,sfcAltitude)
     !
     !:Purpose: To prepare observation operator
     !
@@ -2513,10 +2470,12 @@ module obsOperatorsChem_mod
     integer,              intent(in)    :: nobslevOriginal ! Number of actual obs elements in measurement
     integer,              intent(in)    :: maxnumHeaders   ! Total number of CH obs for this CPU
     integer,              intent(in)    :: headerCount     ! Obs counter/index
-    real(8),              intent(inout) :: model_col(obsoper%nmodlev)
-    real(8),              intent(out)   :: unit_conversion(obsoper%nmodlev)
-    logical,              intent(out)   :: successLocal(obsoper%nobslev)
-    real(8), allocatable, intent(out)   :: avg_kern(:,:)
+    real(8),              intent(inout) :: model_col(obsoper%nmodlev)       ! Model-space profile
+    real(8),              intent(out)   :: unit_conversion(obsoper%nmodlev) ! Unit conversion factor
+    real(8),              intent(in)    :: stationAltitude ! Ground-station altitutde (m)
+    real(8),              intent(in)    :: sfcAltitude     ! Model topography altitude (m)
+    logical,              intent(out)   :: successLocal(obsoper%nobslev) ! Success logical
+    real(8), allocatable, intent(out)   :: avg_kern(:,:)   ! Averaging kernel matrix
 
     ! Locals:  
     real(8), allocatable :: press_obs(:)
@@ -2655,15 +2614,10 @@ module obsOperatorsChem_mod
 
     if (allocated(press_obs)) deallocate(press_obs,ixtrLocal)
     allocate(press_obs(obsoper%nobslev),ixtrLocal(obsoper%nobslev))
+    ixtrLocal(:) = 0
     if (nobslevOriginal == obsoper%nobslev) then
-      ixtrLocal(:) = obsoper%ixtr(:)
       successLocal(:) = obsoper%success(:)
     else
-      if (any(obsoper%ixtr(:) == 0)) then
-        ixtrLocal(:)=0
-      else
-        ixtrLocal(:)=1
-      end if
       if (any(obsoper%success)) then
         successLocal(:) = .true.
       else
@@ -2672,18 +2626,65 @@ module obsOperatorsChem_mod
     end if 
 
     ! Convert observation vertical coordinate value(s) to pressure if needed
-    
+
     select case(obsoper%vco)
     case(1)
       ! Convert altitude to pressure
       if (trim(obsoper%operatorCategory) == 'Interp') then
+      
+        ! Adjust level if needed based on difference between trial/model surface
+        ! and station altitude. Must be consistent with corresponding tests in
+        ! filt_topoChemistry. For cases with accepted levels below the surface,
+        ! levels can also be reset to the surface as needed after the call to 
+        ! phf_convertZtoPressure
+        if (stationAltitude /= 0.0d0) then
+          ! Ground station altitude is available.
+          if (stationAltitude >= sfcAltitude - surfaceBufferZoneCH_Height .and. &
+              stationAltitude < sfcAltitude) then
+            ! Station below surface and within buffer zone.
+            ! Reset level relative to model surface.
+            obsoper%obslev(:) = &
+              obsoper%obslev(:) - stationAltitude + sfcAltitude
+          else 
+            do obslevIndex = obsoper%nobslev, 1, -1
+              if (obsoper%obslev(obslevIndex) >= sfcAltitude) then
+                exit
+              else if (obsoper%obslev(obslevIndex) >= sfcAltitude - &
+                     surfaceBufferZoneCH_Height) then
+                ! Station below buffer zone - not usable. 
+                ! Set below surface obs level at the surface.
+                obsoper%obslev(obslevIndex) = sfcAltitude
+              end if
+            end do
+          end if
+        else 
+          do obslevIndex = obsoper%nobslev, 1, -1
+            if (obsoper%obslev(obslevIndex) >= sfcAltitude) then
+              exit
+            else if (obsoper%obslev(obslevIndex) >= sfcAltitude - &
+                   surfaceBufferZoneCH_Height) then
+              ! Set below surface obs level at the surface.
+              obsoper%obslev(obslevIndex) = sfcAltitude
+            end if
+          end do
+        end if
+
         press_obs = phf_convertZtoPressure(obsoper%obslev,obsoper%height, &
                     obsoper%pp, &
                     obsoper%nobslev,obsoper%nmodlev,obsoper%lat,successLocal)
-        ! Allows for obs levels below the lowest TH level and above the surface
-        where (obsoper%obslev(1:obsoper%nobslev) < &
-          obsoper%height(obsoper%nmodlev)) &
-          press_obs(1:obsoper%nobslev)= obsoper%pp(obsoper%nmodlev)
+        ! Allows for an obs level below the lowest TH level 
+        do obslevIndex = 1, obsoper%nobslev
+          if (press_obs(obslevIndex) >= obsoper%pp(obsoper%nmodlev)) then
+            write(*,*) 'oopc_prepareOperator: Near surface level ',press_obs(obslevIndex), &
+                       'Pa has been temporarily moved to the surface at ', &
+                       obsoper%pp(obsoper%nmodlev), 'Pa for station ',obsoper%stnid
+            press_obs(obslevIndex) = obsoper%pp(obsoper%nmodlev)
+            exit
+          end if
+        end do
+        if (obslevIndex < obsoper%nobslev) then
+          ixtrLocal(obslevIndex+1:obsoper%nobslev) = 2
+        end if
 
       else if (trim(obsoper%operatorCategory) == 'Integ' .or. &
                trim(obsoper%operatorCategory) == 'LayerAvg') then
@@ -2698,13 +2699,28 @@ module obsOperatorsChem_mod
       end if
     case(2)
       ! Pressure, no conversion needed
-      if (trim(obsoper%operatorCategory) == 'Interp') press_obs = obsoper%obslev
+      if (trim(obsoper%operatorCategory) == 'Interp') then
+        press_obs = obsoper%obslev
+        ! Allows for an obs level below the lowest TH level 
+        do obslevIndex = 1, obsoper%nobslev
+          if (press_obs(obslevIndex) >= obsoper%pp(obsoper%nmodlev)) then
+            write(*,*) 'oopc_prepareOperator: Near surface level ',press_obs(obslevIndex), &
+                       'Pa has been temporarily moved to the surface at ', &
+                       obsoper%pp(obsoper%nmodlev), 'Pa for station ',obsoper%stnid
+            press_obs(obslevIndex) = obsoper%pp(obsoper%nmodlev)
+            exit
+          end if
+        end do
+        if (obslevIndex < obsoper%nobslev) then
+          ixtrLocal(obslevIndex+1:obsoper%nobslev) = 2
+        end if
+      end if
     case(4,5)
       ! No actions taken
     case default
       call utl_abort("oopc_obsoperators: vertical coordinate type vco = " &
-                      // trim(utl_str(obsoper%vco)) //  &
-                      " not available for this operator.")
+                     // trim(utl_str(obsoper%vco)) //  &
+                     " not available for this operator.")
     end select
 
     ! Determine if averaging kernel is to be applied
@@ -2780,14 +2796,8 @@ module obsOperatorsChem_mod
     end select
 
     if (nobslevOriginal == obsoper%nobslev) then
-      obsoper%ixtr(:) = ixtrLocal(:)
       obsoper%success(:) = successLocal(:)
     else
-      if (all(ixtrLocal(:) == 0)) then
-        obsoper%ixtr(:)=0
-      else
-        obsoper%ixtr(:)=1
-      end if
       if (all(successLocal)) then
         obsoper%success(:) = .true.
       else
@@ -2963,7 +2973,6 @@ module obsOperatorsChem_mod
         obsoper%modlevindexTop(:) = operators(headerCount)%modlevindexTop(:)
         obsoper%modlevindexBot(:) = operators(headerCount)%modlevindexBot(:)
         obsoper%zh(:,:) = operators(headerCount)%zh(:,:)
-        obsoper%ixtr(:) = operators(headerCount)%ixtr(:)
         obsoper%success(:) = operators(headerCount)%success(:)
         obsoper%iavgkern = operators(headerCount)%iavgkern
         obsoper%applyGenOper = operators(headerCount)%applyGenOper
@@ -3002,7 +3011,6 @@ module obsOperatorsChem_mod
         deallocate(operators(headerCount)%modlevindexTop)
         deallocate(operators(headerCount)%modlevindexBot)
         deallocate(operators(headerCount)%zh)
-        deallocate(operators(headerCount)%ixtr)
         deallocate(operators(headerCount)%success)
         if ( obsoper%applyGenOper ) deallocate(operators(headerCount)%zhp)
       end if
@@ -3014,7 +3022,6 @@ module obsOperatorsChem_mod
       allocate(operators(headerCount)%modlevindexBot(obsoper%nobslev)) 
       allocate(operators(headerCount)%zh(obsoper%nobslev,obsoper%nmodlev)) 
       allocate(operators(headerCount)%success(obsoper%nobslev))    
-      allocate(operators(headerCount)%ixtr(obsoper%nobslev))    
       
       operators(headerCount)%nobslev=obsoper%nobslev
       operators(headerCount)%iavgkern=obsoper%iavgkern
@@ -3025,7 +3032,6 @@ module obsOperatorsChem_mod
       operators(headerCount)%modlevindexTop(:) = obsoper%modlevindexTop(:)
       operators(headerCount)%modlevindexBot(:) = obsoper%modlevindexBot(:)
       operators(headerCount)%zh(:,:) = obsoper%zh(:,:)
-      operators(headerCount)%ixtr(:) = obsoper%ixtr(:)
       operators(headerCount)%success(:) = obsoper%success(:)
  
       if ( obsoper%applyGenOper ) then

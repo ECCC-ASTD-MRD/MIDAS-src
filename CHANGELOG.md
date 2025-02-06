@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
+   * Impacts some CH-family flag values in output obs files.
  * Update LibRMN to 20.1.0-a9 (#1013 and !941)
 
 ### Fixed
