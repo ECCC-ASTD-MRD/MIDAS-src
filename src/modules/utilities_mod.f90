@@ -374,13 +374,18 @@ contains
     !             C is a matrix MxN
     !          The arrays 'A', 'B' and 'C' can be allocated arrays larger than 'M', 'N' and 'K'.
     !
+    !          If the result matrix is expected to be symmetric
     implicit none
 
     ! Arguments:
-    real(8),           intent(in)  :: A(:,:), B(:,:)
-    real(8),           intent(out) :: C(:,:)
-    logical, optional, intent(in)  :: isATransposed_opt, isBTransposed_opt, isCSymmeric_opt
-    integer, optional, intent(in)  :: M_opt, N_opt, K_opt
+    real(8),           intent(in)  :: A(:,:), B(:,:) ! Input matrices
+    real(8),           intent(out) :: C(:,:)         ! Output matrix
+    logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix A be transposed before multiplication?
+    logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix B be transposed before multiplication?
+    logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix C expected to be symmetric?
+    integer, optional, intent(in)  :: M_opt ! First  dimension of A or C (defaults to first  dimension of C)
+    integer, optional, intent(in)  :: N_opt ! Second dimension of B or C (defaults to second dimension of C)
+    integer, optional, intent(in)  :: K_opt ! Second dimension of A or first dimension of B (defaults to second dimension of A)
 
     ! Locals:
     integer :: M, N, K, dimA, dimB, dimC, iIndex, jIndex
@@ -446,7 +451,7 @@ contains
                    0.0d0,           & ! beta
                    C, dimC)           ! C
 
-      ! copy upper triangle to lower triangle (symmetric matrix)
+      ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
       do jIndex = 1, N
         do iIndex = jIndex+1, N
