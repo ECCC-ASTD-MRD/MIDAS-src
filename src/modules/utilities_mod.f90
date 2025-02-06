@@ -367,7 +367,7 @@ contains
 
   subroutine utl_fastMatMul(AmatrixIn, BmatrixIn, CmatrixOut, &
                             isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
-                            firstDimC_opt, secondDimC_opt, secondDimA_opt)
+                            firstDim_opt, lastDim_opt, summationDim_opt)
     !
     !:Purpose: Compute matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
     !             AmatrixIn  is a matrix MxK
@@ -397,37 +397,37 @@ contains
     logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix 'AmatrixIn' be transposed before multiplication?
     logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix 'BmatrixIn' be transposed before multiplication?
     logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix 'CmatrixOut' expected to be symmetric?
-    integer, optional, intent(in)  :: firstDimC_opt  ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
-    integer, optional, intent(in)  :: secondDimC_opt ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
-    integer, optional, intent(in)  :: secondDimA_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
+    integer, optional, intent(in)  :: firstDim_opt     ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: lastDim_opt      ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: summationDim_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
 
     ! Locals:
+    integer :: firstDim, lastDim, summationDim
     integer :: firstDimA, firstDimB, firstDimC
-    integer :: secondDimC, secondDimA
     integer :: iIndex, jIndex
     character :: transposeA, transposeB
     logical :: isCSymmeric
 
-    firstDimA = size(AmatrixIn,1)
-    firstDimB = size(BmatrixIn,1)
+    firstDimA = size(AmatrixIn, 1)
+    firstDimB = size(BmatrixIn, 1)
     firstDimC = size(CmatrixOut,1)
 
-    if (present(firstDimC_opt)) then
-      firstDimC = firstDimC_opt
+    if (present(firstDim_opt)) then
+      firstDim = firstDim_opt
     else
-      firstDimC = firstDimC
+      firstDim = size(CmatrixOut,1)
     end if
 
-    if (present(secondDimC_opt)) then
-      secondDimC = secondDimC_opt
+    if (present(lastDim_opt)) then
+      lastDim = lastDim_opt
     else
-      secondDimC = size(CmatrixOut,2)
+      lastDim = size(CmatrixOut,2)
     end if
 
-    if (present(secondDimA_opt)) then
-      secondDimA = secondDimA_opt
+    if (present(summationDim_opt)) then
+      summationDim = summationDim_opt
     else
-      secondDimA = size(AmatrixIn,2)
+      summationDim = size(AmatrixIn,2)
     end if
 
     ! default value
@@ -436,8 +436,8 @@ contains
       if (isATransposed_opt) then
         transposeA = 'T'
         ! Update 'secondDimA' only if it is not given as argument
-        if (.not.present(secondDimA_opt)) then
-          secondDimA = size(AmatrixIn,1)
+        if (.not.present(summationDim_opt)) then
+          summationDim = size(AmatrixIn,1)
         end if
       end if
     end if
@@ -460,7 +460,7 @@ contains
     if (isCSymmeric) then
       ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
       call dgemmt('U', transposeA, transposeB, &
-                   secondDimC, secondDimA,     & ! N, K
+                   lastDim, summationDim,      & ! N, K
                    1.0d0,                      & ! alpha
                    AmatrixIn,  firstDimA,      & ! A
                    BmatrixIn,  firstDimB,      & ! B
@@ -469,8 +469,8 @@ contains
 
       ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
-      do jIndex = 1, secondDimC
-        do iIndex = jIndex+1, secondDimC
+      do jIndex = 1, lastDim
+        do iIndex = jIndex+1, lastDim
           CmatrixOut(iIndex,jIndex) = CmatrixOut(jIndex,iIndex)
         end do
       end do
@@ -479,7 +479,7 @@ contains
     else
       ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm(transposeA, transposeB, &
-                 firstDimC, secondDimC, secondDimA, & ! M, N, K
+                 firstDim, lastDim, summationDim, & ! M, N, K
                  1.0d0,                  & ! alpha
                  AmatrixIn,  firstDimA,  & ! A
                  BmatrixIn,  firstDimB,  & ! B

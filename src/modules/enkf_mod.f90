@@ -2290,12 +2290,12 @@ contains
 
     call utl_fastMatMul(YbTinvR_pert, YbCopy_r8, YbTinvRYb_pert,                 &
                         isATransposed_opt = .false., isBTransposed_opt = .true., &
-                        isCSymmeric_opt = isSymmetric, secondDimA_opt = numLocalObs)
+                        isCSymmeric_opt = isSymmetric, summationDim_opt = numLocalObs)
 
     if (eob_simObsAssim .and. present(YbTinvRYb_mean)) then
       call utl_fastMatMul(YbTinvR_mean, YbCopy_r8, YbTinvRYb_mean,                 &
                           isATransposed_opt = .false., isBTransposed_opt = .true., &
-                          isCSymmeric_opt = isSymmetric, secondDimA_opt = numLocalObs)
+                          isCSymmeric_opt = isSymmetric, summationDim_opt = numLocalObs)
     end if
 
     deallocate(YbCopy_r8)
