@@ -369,17 +369,25 @@ contains
                             isATransposed_opt, isBTransposed_opt, isCSymmeric_opt, &
                             firstDimC_opt, secondDimC_opt, secondDimA_opt)
     !
-    !:Purpose: Calculate matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
+    !:Purpose: Compute matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
     !             AmatrixIn  is a matrix MxK
     !             BmatrixIn  is a matrix KxN
     !             CmatrixOut is a matrix MxN
-    !          The arrays 'AmatrixIn', 'BmatrixIn' and 'CmatrixOut'
-    !          can be allocated arrays larger than 'M', 'N' and 'K'.
+    !
+    !          The matrix dimensions are usually inferred from
+    !          argument array allocated dimensions but the arrays
+    !          'AmatrixIn', 'BmatrixIn' and 'CmatrixOut' can be
+    !          allocated arrays larger than 'M', 'N' and 'K' in which
+    !          case you have to specify those numbers with variables:
+    !               firstDimC_opt  for M
+    !               secondDimC_opt for N
+    !               secondDimA_opt for K
     !
     !          If the result matrix is expected to be symmetric, you
     !          can avoid to do the full matrix multiplication with
-    !          'isCSymmeric_opt = .true.'.  The lower half will be
-    !          populated with the upper computed half.
+    !          'isCSymmeric_opt = .true.' and compute only the upper
+    !          half of the result matrix.  The lower half will be
+    !          copied from the just computed upper half.
     implicit none
 
     ! Arguments:
@@ -389,23 +397,25 @@ contains
     logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix 'AmatrixIn' be transposed before multiplication?
     logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix 'BmatrixIn' be transposed before multiplication?
     logical, optional, intent(in)  :: isCSymmeric_opt   ! Is the result matrix 'CmatrixOut' expected to be symmetric?
-    integer, optional, intent(in)  :: firstDimC_opt ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: firstDimC_opt  ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
     integer, optional, intent(in)  :: secondDimC_opt ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
     integer, optional, intent(in)  :: secondDimA_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
 
     ! Locals:
-    integer :: firstDimC, secondDimC, secondDimA, dimA, dimB, dimC, iIndex, jIndex
+    integer :: firstDimA, firstDimB, firstDimC
+    integer :: secondDimC, secondDimA
+    integer :: iIndex, jIndex
     character :: transposeA, transposeB
     logical :: isCSymmeric
 
-    dimA = size(AmatrixIn,1)
-    dimB = size(BmatrixIn,1)
-    dimC = size(CmatrixOut,1)
+    firstDimA = size(AmatrixIn,1)
+    firstDimB = size(BmatrixIn,1)
+    firstDimC = size(CmatrixOut,1)
 
     if (present(firstDimC_opt)) then
       firstDimC = firstDimC_opt
     else
-      firstDimC = dimC
+      firstDimC = firstDimC
     end if
 
     if (present(secondDimC_opt)) then
@@ -452,10 +462,10 @@ contains
       call dgemmt('U', transposeA, transposeB, &
                    secondDimC, secondDimA,     & ! N, K
                    1.0d0,                      & ! alpha
-                   AmatrixIn, dimA,            & ! A
-                   BmatrixIn, dimB,            & ! B
+                   AmatrixIn,  firstDimA,      & ! A
+                   BmatrixIn,  firstDimB,      & ! B
                    0.0d0,                      & ! beta
-                   CmatrixOut, dimC)             ! C
+                   CmatrixOut, firstDimC)        ! C
 
       ! Copy upper triangle to lower triangle (symmetric matrix)
       !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
@@ -470,11 +480,11 @@ contains
       ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
       call dgemm(transposeA, transposeB, &
                  firstDimC, secondDimC, secondDimA, & ! M, N, K
-                 1.0d0,            & ! alpha
-                 AmatrixIn, dimA,  & ! A
-                 BmatrixIn, dimB,  & ! B
-                 0.0d0,            & ! beta
-                 CmatrixOut, dimC)   ! C
+                 1.0d0,                  & ! alpha
+                 AmatrixIn,  firstDimA,  & ! A
+                 BmatrixIn,  firstDimB,  & ! B
+                 0.0d0,                  & ! beta
+                 CmatrixOut, firstDimC)    ! C
     end if
 
     call utl_tmg_stop(184)
