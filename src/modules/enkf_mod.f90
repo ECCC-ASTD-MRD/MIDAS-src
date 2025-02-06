@@ -2279,7 +2279,7 @@ contains
     do localObsIndex = 1, numLocalObs
       bodyIndex = localBodyIndices(localObsIndex)
       do memberIndex = 1, nEns2
-        YbCopy_r8(memberIndex,localObsIndex) = dble(ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex))
+        YbCopy_r8(memberIndex,localObsIndex) = real(ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex), 8)
       end do
     end do
     !$OMP END PARALLEL DO
