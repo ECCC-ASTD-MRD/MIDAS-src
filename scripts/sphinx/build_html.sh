@@ -101,7 +101,7 @@ mkdir modules
 # GENERATE THE RST FILES FOR THE MAIN PROGRAMS
 for filenum in `seq 1 $numPrograms` ; do
 
-cat > ./programs/${program_names[$filenum]}_src.rst <<EOF
+cat > ./programs/${program_names_lc[$filenum]}_src.rst <<EOF
 ==========================================
 ${program_names[$filenum]} source
 ==========================================
@@ -113,21 +113,21 @@ ${program_names[$filenum]} source
 EOF
 
 
-cat > ./programs/${program_names[$filenum]}.rst <<EOF
+cat > ./programs/${program_names_lc[$filenum]}.rst <<EOF
 ==========================================
 ${program_names[$filenum]}
 ==========================================
 
-    :doc:\`link to source code <${program_names[$filenum]}_src>\`
+    :doc:\`link to source code <${program_names_lc[$filenum]}_src>\`
 
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-cat >> ./programs/${program_names[$filenum]}.rst <<EOF
+cat >> ./programs/${program_names_lc[$filenum]}.rst <<EOF
 
     **Dependency Diagrams:**
 
-    .. figure:: /${program_names[$filenum]}.svg
+    .. figure:: /${program_names_lc[$filenum]}.svg
         :height: 100px
 
         Direct Dependency Diagram
@@ -135,9 +135,9 @@ cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 EOF
 fi
 
-cat >> ./programs/${program_names[$filenum]}.rst <<EOF
+cat >> ./programs/${program_names_lc[$filenum]}.rst <<EOF
 
-    .. f:autoprogram:: ${program_names[$filenum]}
+    .. f:autoprogram:: ${program_names_lc[$filenum]}
 
 EOF
 
@@ -184,7 +184,7 @@ EOF
 EOF
   else
     cat >> ./modules/${module_name_lc}.rst <<EOF
-    .. figure:: /${module_name}.svg
+    .. figure:: /${module_name_lc}.svg
         :height: 100px
 
         Direct Dependency Diagram
@@ -192,7 +192,7 @@ EOF
 EOF
   fi
   cat >> ./modules/${module_name_lc}.rst <<EOF
-    .. figure:: /${module_name}_rev.svg
+    .. figure:: /${module_name_lc}_rev.svg
         :height: 100px
 
         Reverse Dependency Diagram
@@ -257,7 +257,7 @@ Programs
 EOF
 
 for filenum in `seq 1 $numPrograms` ; do
-  echo "   programs/${program_names[filenum]}" >> index.rst
+  echo "   programs/${program_names_lc[filenum]}" >> index.rst
 done
 
 
