@@ -437,7 +437,7 @@ contains
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
                                     beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
-                                    analysisMode_opt, fillOmpColumn_opt)
+                                    analysisMode_opt)
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     !
@@ -453,13 +453,11 @@ contains
     logical, optional      , intent(in)    :: callFiltTopo_opt ! whether to make call to FiltTopo
     logical, optional      , intent(in)    :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
     logical, optional      , intent(in)    :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
-    logical, optional      , intent(in)    :: fillOmpColumn_opt ! copy destObsColumn to OBS_OMP
     
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode
-    logical :: fillOmpColumn
 
     logical, save :: lgpdata = .false.
 
@@ -493,16 +491,6 @@ contains
       destObsColumn = destObsColumn_opt
     else
       destObsColumn = obs_omp
-    end if
-    
-    if (present(fillOmpColumn_opt)) then
-      fillOmpColumn = fillOmpColumn_opt
-    else
-      fillOmpColumn = .false.   
-    end if  
-
-    if (fillOmpColumn .and. destObsColumn == obs_omp) then
-      call utl_abort('inn_computeInnovation: destObsColumn should not be OBS_OMP')
     end if
     
     if (present(callFiltTopo_opt)) then
@@ -642,12 +630,6 @@ contains
       end if
       if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                      destObsColumn, analysisMode_opt=analysisMode)   
-    end if
-
-    ! copy destObsColumn to OBS_OMP
-    if (fillOmpColumn) then
-      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'inn_computeInnovation: copy destObsColumn -> OBS_OMP'
-      call obs_copyRealColumnBodyToBody(obsSpaceData,destObsColumn,OBS_OMP)
     end if
 
     call utl_tmg_stop(17)
