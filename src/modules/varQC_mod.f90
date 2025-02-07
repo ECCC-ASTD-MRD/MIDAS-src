@@ -104,7 +104,7 @@ module varQC_mod
           ZOER  = obs_bodyElem_r( obsSpaceData, OBS_OER, JDATA )
           ZVAL  = obs_bodyElem_r( obsSpaceData, OBS_VAR, JDATA )
 
-          ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMHX,JDATA)
+          ZFCST = ZVAL - obs_bodyElem_r( obsSpaceData, OBS_OMP,JDATA)
 
           if (ityp == BUFR_NETS .or. ityp == BUFR_NEPS .or.  &
               ityp == BUFR_NEPN .or. ityp == BUFR_NESS .or.  &
@@ -146,7 +146,7 @@ module varQC_mod
                 if (IOTHER /= -1) then
                   ZOER = obs_bodyElem_r(obsSpaceData,OBS_OER,JDATA)
                   ZOVAL = obs_bodyElem_r(obsSpaceData,OBS_VAR,IOTHER)
-                  ZOFCST = ZOVAL-obs_bodyElem_r(obsSpaceData,OBS_OMHX,IOTHER)
+                  ZOFCST = ZOVAL-obs_bodyElem_r(obsSpaceData,OBS_OMP,IOTHER)
                   ZSPDO = SQRT(ZOVAL*ZOVAL + ZVAL*ZVAL)
                   ZSPDF = SQRT(ZOFCST*ZOFCST + ZFCST*ZFCST)
                   ZDIFF = ZSPDO - ZSPDF
