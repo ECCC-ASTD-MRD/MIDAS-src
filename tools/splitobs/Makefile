@@ -24,6 +24,8 @@ DEBUG_OPTIONS =
 
 OPT_LEVEL = 2
 
+BURPTOOLS = /fs/ssm/eccc/mrd/rpn/utils/20250129-alpha/burp-tools_20.0.5
+
 install : # defining default target
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
@@ -31,12 +33,13 @@ splitobs_rhel-8-icelake-64: version.h $(SRC)
 	make splitobs_libs
 
 splitobs_libs: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20250129-alpha;  \
-	. ssmuse-sh -d eccc/cmd/cmda/libs/20240912-alpha/${COMP_ARCH}; \
+	. r.load.dot eccc/mrd/rpn/libs/20250129-alpha; \
+	. r.load.dot $(BURPTOOLS)-${COMP_ARCH}_${ORDENV_PLAT}; \
+	. ssmuse-sh -d eccc/cmd/cmda/libs/20250129-alpha/${COMP_ARCH}; \
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburp_c -lrmn -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/,-rpath=${App_DIR}/lib $(SRC); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburpc -lrmn -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/,-rpath=${App_DIR}/lib,-rpath=$(BURPTOOLS)-${COMP_ARCH}_${ORDENV_PLAT}/lib $(SRC); rm version.h
 
 
 version.h:

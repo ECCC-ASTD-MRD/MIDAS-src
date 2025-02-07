@@ -14,16 +14,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Update `cmda/libs` to version `20250129-alpha` (#1043 and !943)
  * Use BLAS routines to multiply matrices in `enkf_calcYbTinvRYb` (#1040 and !942)
    * minor impact on results for program `midas-letkf`
  * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
    * Impacts some CH-family flag values in output obs files.
- * Update LibRMN to 20.1.0-a9 (#1013 and !941)
+ * Update LibRMN to `20.1.0-a9` (#1013 and !941)
 
 ### Fixed
 
  * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
- * Remediation of accidentally removed functionality as of about v_4.0.0 for recognizing GEM-MACH constituent variable names (#1034 and !937)
+ * Remediation of accidentally removed functionality as of about `v_4.0.0` for recognizing GEM-MACH constituent variable names (#1034 and !937)
 
 ### Removed
 
