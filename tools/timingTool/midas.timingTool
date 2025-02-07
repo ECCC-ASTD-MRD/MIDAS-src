@@ -8,7 +8,7 @@ import unittest
 # Command line interface
 parser = argparse.ArgumentParser()
 parser.add_argument("listing", nargs='?', type=argparse.FileType('r'), default=sys.stdin,
-                    help="input listing to be parsed for timings")
+                    help="input listing to be parsed for timings, omitting this argument, the script will read directly from stdin")
 parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
 parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
 parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)

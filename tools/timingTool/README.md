@@ -22,10 +22,27 @@ low-level--gio_writeToFile-gather.......     3.61    55.97    12.02       2053  
 ```
 where the call hierarchy is made explicit.
 
+
+## Calling synopsis
+`./midas.timingTool -h` will list all calling options.
 The script can be called like this to simply extract the timings:
 ```sh
 ./midas.timingTool ${LISTING}
 ```
+
+One can feed a listing directly from standard input:
+```sh
+cat ${LISTING} | ./midas.timingTool
+```
+Note that this allow to use it in conjunction with `nodelister` to get the timings directly from a suite:
+```sh
+SEQ_EXP_HOME=${path_to_suite} nodelister -n ${maestro_node} -d ${datetime} | ./midas.timingTool
+```
+It also allows to process a gunzipped listing directly with
+```sh
+zcat ${LISTING} | ./midas.timingTool
+```
+
 
 ### Comparing timings
 
@@ -55,3 +72,9 @@ retained in the list:
 ./midas.timingTool ${LISTING} -l 50.0
 ```
 for instance, will only list elements that took 50 seconds or more to run.
+
+### Unit Tests
+The script contains a self testing feature; simply call it with `-u`:
+```sh
+./midas.timingTool -u
+```

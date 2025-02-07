@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Improve timingTool and option to process from stdin (#1038 and !944)
  * Introduce distance-based thinning for ATMS (#867 and !936)
  * Do not select observations exactly at the edge of the LETKF localization volume (#1032 and !934)
    * very minor impact on results
