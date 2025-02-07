@@ -3036,12 +3036,9 @@ contains
       end if
 
       deallocate(pressure)
-      deallocate(ozone)
+      if (allocated(ozone)) deallocate(ozone)
       deallocate(latitudes)
       deallocate(sensorHeaderIndexes)
-      if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. .not.tvs_useO3Climatology) then
-        deallocate(ozone)
-      end if
       if (allocated(clw)) then
         deallocate(clw)
       end if
