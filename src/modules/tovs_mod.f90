@@ -159,7 +159,8 @@ module tovs_mod
   real(8), parameter :: microg2kg   = 1.0d-9 ! units conversion from micrograms/kg to kg/kg
 
   ! Private module variables
-  logical :: tvs_useO3Climatology ! Determine if ozone model field or climatology is used
+  logical :: tvs_useO3FromTrials ! Determine if ozone model field (.true.) or climatology (.false.) is used
+  logical :: tvs_useO3FromTrials_tl ! Determine if ozone if part of assimilation controal variable 
   integer :: tvs_maxNumberOfRadiances ! Max no of computed radiances for one sensor
   integer :: tvs_numMWInstrumUsingCLW
   integer :: tvs_numMWInstrumUsingHydrometeors
@@ -796,7 +797,8 @@ contains
     character(len=15) :: csatid(tvs_maxNumberOfSensors)        ! List of satellite names
     character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors) ! List of incstrument names
     logical :: ldbgtov  ! Choose to print simulated and observed Tb to listing
-    logical :: useO3Climatology ! Choose to use ozone climatology (otherwise model field)
+    logical :: useO3FromTrials ! Choose to use ozone model fields (otherwise climatology)
+    logical :: useO3FromTrials_tl ! Choose to get contributions of radiance to the ozone analysis
     logical :: regLimitExtrap ! Choose to use RTTOV reg_limit_extrap option
     logical :: doAzimuthCorrection(tvs_maxNumberOfSensors) ! Choose to apply correction to azimuth angle
     logical :: isAzimuthValid(tvs_maxNumberOfSensors) ! Indicate if azimuth angle is valid
@@ -819,7 +821,7 @@ contains
     logical :: useWaterFraction ! use of water fraction to compute hyperspectral IR surface emissivity when using RTTOV built-in land emissivity atlas
     
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
-    namelist /NAMTOV/ ldbgtov,useO3Climatology
+    namelist /NAMTOV/ ldbgtov,useO3FromTrials, useO3FromTrials_tl
     namelist /NAMTOV/ crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
@@ -851,7 +853,8 @@ contains
     doAzimuthCorrection(:) = .false.
     isAzimuthValid(:) = .false.
     ldbgtov = .false.
-    useO3Climatology = .true.
+    useO3FromTrials = .false.
+    useO3FromTrials_tl = .false.
     userDefinedDoAzimuthCorrection = .false.
     userDefinedIsAzimuthValid = .false.
     crtmodl = 'RTTOV'
@@ -900,7 +903,8 @@ contains
     
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
-    tvs_useO3Climatology = useO3Climatology
+    tvs_useO3FromTrials = useO3FromTrials
+    tvs_useO3FromTrials_tl = useO3FromTrials_tl
     tvs_instrumentName(:) = cinstrumentid(:)
     tvs_satelliteName(:) = csatid(:)
     tvs_mwInstrumUsingCLW_tl = mwInstrumUsingCLW_tl
@@ -2666,11 +2670,11 @@ contains
                      'all-sky namelist variable.')
     end if
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrl,'TO3') .and. &
+    if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrl,'TO3') .and. &
         .not. col_varExist(columnTrl,'O3L') ) then
-      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable ' // &
+      call utl_abort('tvs_fillProfiles: if tvs_useO3FromTrials is set to .true. the ozone variable ' // &
                      'must be included as an analysis variable in NAMSTATE. ')
-    else if (.not.tvs_useO3Climatology) then 
+    else if (tvs_useO3FromTrials) then 
       if (col_varExist(columnTrl,'TO3') ) then
         ozoneVarName = 'TO3'
       else
@@ -2732,7 +2736,7 @@ contains
 
     !  1.2   Read ozone climatology
 
-    if (tvs_useO3Climatology) call clm_readFields()
+    if (.not. tvs_useO3FromTrials) call clm_readFields()
    
     !     2.  Fill profiles structure
     
@@ -2911,11 +2915,11 @@ contains
         end do ! levelIndex
         
         ! Constituents assumed to be in micrograms/kg
-        if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
+        if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. tvs_useO3FromTrials) then
           ! Get ozone from trial field
           column_ptr => col_getColumn(columnTrl, headerIndex, trim(ozoneVarName) )
           ozone(:,profileCount) = column_ptr(:)
-        else if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
+        else if (tvs_coefs(sensorIndex) % coef % nozone > 0 .and. .not. tvs_useO3FromTrials) then
           ! Get ozone profiles (ug/kg) from climatology
           column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
           column_ptrHU => col_getColumn(columnTrl, headerIndex,'HU' )
@@ -2988,10 +2992,11 @@ contains
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(headerIndex) % t(:)   = column_ptr(:)
-        call validateRttovProfile(profiles(headerIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
-        if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
+        call validateRttovProfile(profiles(headerIndex) % t, 'temperature', tmin, tmax, obsSpaceData, headerIndex) 
+        if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           profiles(headerIndex) % o3(:) = ozone(:,profileIndex) * microg2kg ! micrograms/kg to kg/kg
-          if (.not. tvs_useO3Climatology)  then
+          if (tvs_useO3FromTrials)  then
+            !could be removed as profiles(headerIndex) % s2m % o is not really used by RTTOV
             profiles(headerIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * microg2kg 
           end if
           call validateRttovProfile(profiles(headerIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
@@ -3145,7 +3150,7 @@ contains
     max_nthreads = mmpi_numThread
 
     !   1.1   Read surface information
-    if (bgckMode) call TVS_EMIS_READ_CLIMATOLOGY
+    if (bgckMode) call tvs_emis_read_climatology
 
     !   2.  Computation of hx for tovs data only
 
@@ -5591,9 +5596,9 @@ contains
 
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
-      call utl_abort('tvs_rttov_tl: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
-    else if (.not.tvs_useO3Climatology) then 
+    if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
+      call utl_abort('tvs_rttov_tl: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+    else if (tvs_useO3FromTrials) then 
       if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
       else
@@ -5685,12 +5690,12 @@ contains
         profilesdata_tl(profileIndex) % nlevels   =  nlv_T
         profilesdata_tl(profileIndex) % nlayers   =  nlv_T - 1
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
-          if (tvs_useO3Climatology) then
-            profilesdata_tl(profileIndex) % o3(:) =  0.0d0
-          else
+          if (tvs_useO3FromTrials_tl) then
             delO3 => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
             profilesdata_tl(profileIndex) % o3(1:nlv_T) =  delO3(1:nlv_T) * 1.0d-9 ! Assumes model ozone in ug/kg
             profilesdata_tl(profileIndex) % s2m % o  = col_getElem(columnAnlInc,ilowlvl_T,sensorHeaderIndexes(profileIndex),trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
+          else
+            profilesdata_tl(profileIndex) % o3(:) =  0.0d0
           end if
         end if
 
@@ -6091,14 +6096,14 @@ contains
 
     call tvs_getProfile(profiles, 'tlad', cld_profiles)
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
-      call utl_abort('tvs_rttov_ad: if tvs_useO3Climatology is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
-    else if (.not.tvs_useO3Climatology) then 
+    if (tvs_useO3FromTrials .and. .not. col_varExist(columnTrlOnAnlIncLev,'TO3') .and. .not.  col_varExist(columnTrlOnAnlIncLev,'O3L') ) then
+      call utl_abort('tvs_rttov_ad: if tvs_useO3FromTrials is set to .true. the ozone variable must be included as an analysis variable in NAMSTATE.')
+    else if (tvs_useO3FromTrials) then 
       if (col_varExist(columnTrlOnAnlIncLev,'TO3')) then
         ozoneVarName = 'TO3'
       else
         ozoneVarName = 'O3L'
-      end if 
+      end if
     end if
 
     !     1.    Set index for model's lowest level and model top
@@ -6149,7 +6154,7 @@ contains
       allocate(tt_ad(nlv_T,profileCount))
       allocate(hu_ad(nlv_T,profileCount))
       allocate(pressure_ad(nlv_T,profileCount))
-      if (.not. tvs_useO3Climatology) then
+      if (tvs_useO3FromTrials_tl) then
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           allocate(ozone_ad(nlv_T,profileCount))
         end if
@@ -6381,7 +6386,7 @@ contains
       tt_ad(:,:) = 0.d0
       hu_ad(:,:) = 0.d0
       pressure_ad(:,:) = 0.d0
-      if (.not. tvs_useO3Climatology) then
+      if (tvs_useO3FromTrials_tl) then
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) ozone_ad(:,:) = 0.d0
       end if
       if (runObsOperatorWithClw_ad) clw_ad(:,:) = 0.d0
@@ -6411,8 +6416,9 @@ contains
         hu_column(ilowlvl_T) = 0.d0 
         uu_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % u
         vv_column(ilowlvl_M) = profilesdata_ad(profileIndex) % s2m % v
- 
-        if (.not. tvs_useO3Climatology) then
+
+        !This block of code could be removed as profilesdata_ad(profileIndex) % s2m % o is not really used by RTTOV
+        if (tvs_useO3FromTrials_tl) then
           if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
             ! This step is just to transfer the value for ilowlvl_T to the memory space defined by 'col_getColumn(...trim(ozoneVarName))  
             o3_column => col_getColumn(columnAnlInc, headerIndex, trim(ozoneVarName))
@@ -6420,7 +6426,8 @@ contains
             ozone_ad(:,profileIndex) = profilesdata_ad(profileIndex) % o3(:)
           end if
         end if
-      
+        !end of the block of code to be removed later
+        
         if (runObsOperatorWithClw_ad) then
           clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
         end if
@@ -6495,7 +6502,7 @@ contains
         end do
       end do
 
-      if (.not. tvs_useO3Climatology) then
+      if (tvs_useO3FromTrials_tl) then
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           do  profileIndex = 1, profileCount 
             o3_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),trim(ozoneVarName))
@@ -6557,7 +6564,7 @@ contains
       deallocate(tt_ad)
       deallocate(hu_ad)
       deallocate(pressure_ad)
-      if (.not. tvs_useO3Climatology) then
+      if (tvs_useO3FromTrials_tl) then
         if (tvs_coefs(sensorIndex) % coef % nozone > 0) then
           deallocate(ozone_ad)
         end if
