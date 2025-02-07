@@ -53,9 +53,6 @@ cd ${WORKDIR}
 
 echo "Working directory is ${WORKDIR}"
 
-echo "Loading ${RPN_UTILS_SSM_DOMAIN}"
-. r.load.dot ${RPN_UTILS_SSM_DOMAIN}
-
 liburp=${liburp:-$(which liburp 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which liburp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 reflex=${reflex:-$(which reflex 2>/dev/null || (. r.load.dot ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which reflex))}
