@@ -7,7 +7,8 @@ import argparse
 
 # Command line interface
 parser = argparse.ArgumentParser()
-parser.add_argument("listing", help="input listing to be parsed for timings")
+parser.add_argument("listing", nargs='?', type=argparse.FileType('r'), default=sys.stdin,
+                    help="input listing to be parsed for timings")
 parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
 parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
 parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)
@@ -17,10 +18,9 @@ args = parser.parse_args()
 minimumTimingLimit=args.limit
 exptOrder=args.order
 
-filename = args.listing
-if not os.path.exists(filename):
-    print(f"The listing file '{filename}' does not exist!")
-    exit(1)
+# argparse will either open the file passed or feed in stdin
+# note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
+inputUnit = args.listing
 
 # this allows the user to specify a reference listing - timing information
 # will not be generated from this file, but it will be used to ensure a 
@@ -28,7 +28,7 @@ if not os.path.exists(filename):
 # from running the script twice, once for each listing file
 filename2 = args.reference
 
-print(f"Processing the file: {filename}")
+print(f"Processing {inputUnit.name}")
 if filename2:
     print(f"Reference file supplied: {filename2}")
     if exptOrder == "2":
@@ -41,12 +41,12 @@ if filename2:
         exit(1)
 
 allLines = []
-with open(filename, "r") as ins:
-    for line in ins:
-        strIndex = line.find(" TMG:")
-        if line.find(" TMG:") == -1 or line.find("oe-") == -1: 
-            continue
-        allLines.append(line.rstrip('\n'))
+for line in inputUnit:
+    line=str(line)
+    strIndex = line.find(" TMG:")
+    if line.find(" TMG:") == -1 or line.find("oe-") == -1: 
+        continue
+    allLines.append(line.rstrip('\n'))
 
 allLines2 = []
 if filename2:
