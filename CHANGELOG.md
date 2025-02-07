@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Update `cmda/libs` to version `20250129-alpha` (#1043 and !943)
  * Use BLAS routines to multiply matrices in `enkf_calcYbTinvRYb` (#1040 and !942)
    * minor impact on results for program `midas-letkf`
  * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
