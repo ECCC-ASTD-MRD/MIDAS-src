@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Use BLAS routines to multiply matrices in `enkf_calcYbTinvRYb` (#1040 and !942)
+   * minor impact on results for program `midas-letkf`
  * Modified handling of constituent observations beyond the model and analysis vertical range. (#1035 and !940)
    * Impacts some CH-family flag values in output obs files.
  * Update LibRMN to 20.1.0-a9 (#1013 and !941)

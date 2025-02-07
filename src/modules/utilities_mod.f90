@@ -17,7 +17,7 @@ module utilities_mod
   public :: utl_readNml, utl_flnml, utl_flnml_static
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
   public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp, utl_fastInverse
-  public :: utl_pseudo_inverse
+  public :: utl_pseudo_inverse, utl_fastMatMul
   public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_printTime
   public :: utl_stopAndWait4Debug
@@ -364,6 +364,132 @@ contains
     vfstecr=ikey
 
   end function utl_fstecr
+
+  subroutine utl_fastMatMul(AmatrixIn, BmatrixIn, CmatrixOut, &
+                            isATransposed_opt, isBTransposed_opt, isCSymmetric_opt, &
+                            firstDim_opt, lastDim_opt, summationDim_opt)
+    !
+    !:Purpose: Compute matrix multiplication CmatrixOut=AmatrixIn*BmatrixIn
+    !             AmatrixIn  is a matrix MxK
+    !             BmatrixIn  is a matrix KxN
+    !             CmatrixOut is a matrix MxN
+    !
+    !          The matrix dimensions (M, N and K) are usually inferred
+    !          from argument array allocated dimensions but the arrays
+    !          'AmatrixIn', 'BmatrixIn' and 'CmatrixOut' can be larger
+    !          allocated arrays than 'M', 'N' and 'K' in which case
+    !          you have to specify those numbers with arguments:
+    !               firstDim_opt     for M
+    !               lastDim_opt      for N
+    !               summationDim_opt for K
+    !
+    !          If the result matrix is expected to be symmetric, you
+    !          can avoid to do the full matrix multiplication with
+    !          'isCSymmeric_opt = .true.' and compute only the upper
+    !          half of the result matrix.  The lower half will be
+    !          copied from the just computed upper half.
+    implicit none
+
+    ! Arguments:
+    real(8),           intent(in)  :: AmatrixIn(:,:)  ! Input  matrix
+    real(8),           intent(in)  :: BmatrixIn(:,:)  ! Input  matrix
+    real(8),           intent(out) :: CmatrixOut(:,:) ! Output matrix
+    logical, optional, intent(in)  :: isATransposed_opt ! Should the matrix 'AmatrixIn' be transposed before multiplication?
+    logical, optional, intent(in)  :: isBTransposed_opt ! Should the matrix 'BmatrixIn' be transposed before multiplication?
+    logical, optional, intent(in)  :: isCSymmetric_opt  ! Is the result matrix 'CmatrixOut' expected to be symmetric?
+    integer, optional, intent(in)  :: firstDim_opt     ! First  dimension of 'AmatrixIn' or 'CmatrixOut' (defaults to first  dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: lastDim_opt      ! Second dimension of 'BmatrixIn' or 'CmatrixOut' (defaults to second dimension of 'CmatrixOut')
+    integer, optional, intent(in)  :: summationDim_opt ! Second dimension of 'AmatrixIn' or first dimension of 'BmatrixIn' (defaults to second dimension of 'AmatrixIn')
+
+    ! Locals:
+    integer :: firstDim, lastDim, summationDim
+    integer :: firstDimA, firstDimB, firstDimC
+    integer :: iIndex, jIndex
+    character :: transposeA, transposeB
+    logical :: isCSymmetric
+
+    firstDimA = size(AmatrixIn, 1)
+    firstDimB = size(BmatrixIn, 1)
+    firstDimC = size(CmatrixOut,1)
+
+    if (present(firstDim_opt)) then
+      firstDim = firstDim_opt
+    else
+      firstDim = size(CmatrixOut,1)
+    end if
+
+    if (present(lastDim_opt)) then
+      lastDim = lastDim_opt
+    else
+      lastDim = size(CmatrixOut,2)
+    end if
+
+    ! default value
+    transposeA = 'N'
+    if (present(isATransposed_opt)) then
+      if (isATransposed_opt) then
+        transposeA = 'T'
+      end if
+    end if
+
+    ! default value
+    transposeB = 'N'
+    if (present(isBTransposed_opt)) then
+      if (isBTransposed_opt) then
+        transposeB = 'T'
+      end if
+    end if
+
+    if (present(summationDim_opt)) then
+      summationDim = summationDim_opt
+    else
+      if (transposeA == 'N') then
+         summationDim = size(AmatrixIn,2)
+      else
+         summationDim = size(AmatrixIn,1)
+      end if
+    end if
+
+    if (present(isCSymmetric_opt)) then
+      isCSymmetric = isCSymmetric_opt
+    else
+      isCSymmetric = .false.
+    end if
+
+    call utl_tmg_start(184,'low-level--utl_fastMatMul')
+
+    if (isCSymmetric) then
+      ! https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-fortran/2025-0/gemmt.html
+      call dgemmt('U', transposeA, transposeB, &
+                   lastDim, summationDim,      & ! N, K
+                   1.0d0,                      & ! alpha
+                   AmatrixIn,  firstDimA,      & ! A
+                   BmatrixIn,  firstDimB,      & ! B
+                   0.0d0,                      & ! beta
+                   CmatrixOut, firstDimC)        ! C
+
+      ! Copy upper triangle to lower triangle (symmetric matrix)
+      !$OMP PARALLEL DO PRIVATE (iIndex,jIndex)
+      do jIndex = 1, lastDim
+        do iIndex = jIndex+1, lastDim
+          CmatrixOut(iIndex,jIndex) = CmatrixOut(jIndex,iIndex)
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    else
+      ! https://www.netlib.org/lapack/explore-html/dd/d09/group__gemm_ga1e899f8453bcbfde78e91a86a2dab984.html#ga1e899f8453bcbfde78e91a86a2dab984
+      call dgemm(transposeA, transposeB, &
+                 firstDim, lastDim, summationDim, & ! M, N, K
+                 1.0d0,                  & ! alpha
+                 AmatrixIn,  firstDimA,  & ! A
+                 BmatrixIn,  firstDimB,  & ! B
+                 0.0d0,                  & ! beta
+                 CmatrixOut, firstDimC)    ! C
+    end if
+
+    call utl_tmg_stop(184)
+
+  end subroutine utl_fastMatMul
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
