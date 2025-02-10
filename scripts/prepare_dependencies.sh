@@ -21,14 +21,12 @@ numModules=0
 
 # initialize zero'th element as blank (used for modules external to MIDAS)
 filenames[$numModules]=""
-fullfilenames[$numModules]=""
 modulenames[$numModules]="UNKNOWN"
 modulenames_lc[$numModules]="UNKNOWN"
 useslist[$numModules]=""
 revmodlist[$numModules]=""
 revpgmlist[$numModules]=""
 numberuses[$numModules]=0
-revnumberuses[$numModules]=0
 categories[$numModules]=0
 prefixes[$numModules]=""
 
@@ -45,7 +43,7 @@ for fullfilename in modules/*_mod.f*90; do
     uses=`grep -A 10000000 -iE "^ *module *${modulename_lc}" $fullfilename \
       | grep -B 10000000 -iE "^ *end *module *${modulename_lc}" \
       | grep -i "^ *use *.*_mod\>" | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' \
-      | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
+      | sed 's/use //Ig' | sort -u`
 
     #-- gather all reverse dependencies (all modules and programs using the module)
     usedbymod_files=`grep -il "^ *use *${modulename_lc}" modules/*_mod.f*90`
@@ -55,7 +53,7 @@ for fullfilename in modules/*_mod.f*90; do
         for line in ${lines}; do
           # find which module use it
           usedbymod="${usedbymod} `cat ${modfile} | head -n ${line} \
-            | tr '[:upper:]' '[:lower:]' | grep -v 'module *procedure' \
+            | grep -v 'module *procedure' \
             | grep '^ *module ' | tail -n 1 | sed -n 's/^ *module *\([^!]*\).*/\1/p'`"
         done
       done
@@ -64,7 +62,7 @@ for fullfilename in modules/*_mod.f*90; do
     if [ ! -z "${usedbypgm_files}" ]; then
       for pgmfile in ${usedbypgm_files}; do
         usedbypgm="${usedbypgm} `grep -i '^ *program .*$' ${pgmfile} \
-          | tr '[:upper:]' '[:lower:]' | grep -v 'end program' \
+          | grep -v 'end program' \
           | sed -n 's/^ *program *\([^!]*\).*/\1/p'`"
       done
     fi
@@ -82,18 +80,16 @@ for fullfilename in modules/*_mod.f*90; do
     fi
 
     filenames[$numModules]=$filename
-    fullfilenames[$numModules]=$fullfilename
     modulenames[$numModules]=$modulename
     modulenames_lc[$numModules]=$modulename_lc
     useslist[$numModules]=$uses
     revmodlist[$numModules]=${usedbymod}
     revpgmlist[$numModules]=${usedbypgm}
     numberuses[$numModules]=`echo "${useslist[$numModules]}" |wc -w`
-    revnumberuses[$numModules]=$(( $(echo ${revmodlist[$numModules]} | wc -w)+ $(echo ${revpgmlist[$numModules]} | wc -w)))
     categories[$numModules]=$category
     prefixes[$numModules]=$prefix
 
-    [ "${verbose}" = "yes" ] && echo "$numModules $fullfilename $filename $modulename_lc ${revnumberuses[$numModules]} ($(echo ${revmodlist[$numModules]} | wc -w)+$(echo ${revpgmlist[$numModules]} | wc -w))"
+    [ "${verbose}" = "yes" ] && echo "$numModules $fullfilename $filename $modulename_lc ($(echo ${revmodlist[$numModules]} | wc -w)+$(echo ${revpgmlist[$numModules]} | wc -w))"
     [ "${verbose}" = "yes" ] && echo
   done
   
