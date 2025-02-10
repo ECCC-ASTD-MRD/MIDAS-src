@@ -536,23 +536,19 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
-    write(*,*) '\nthinning_technique = ',thinning_technique
-    write(*,*) 'delta, deltrad = ',delta, deltrad
-    write(*,*) 'mindist = ',mindist
-
     if (trim(thinning_technique) == 'grid-based') then
-      write(*,*) '\n\tUsing grid-based thinning : delta, deltarad = ',delta,deltrad
+      write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
-         call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS/nml')
+         call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
       endif        
     else
      if (trim(thinning_technique) == 'distance-dependent') then     
-       write(*,*) '\n\tUsing distance-dependent thinning : mindist = ',mindist
+       write(*,*) 'Using distance-dependent thinning : mindist = ',mindist
        if (mindist < 0.0) then
          call utl_abort('thn_thinTovs : Set a positive value for mindist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
        endif  
      else
-       call utl_abort('thn_thinTovs: Set thinning_technique to either grid-based or distance-dependent in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS/nml or maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
+       call utl_abort('thn_thinTovs: Set thinning_technique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
      endif  
     endif  
 
@@ -563,20 +559,17 @@ contains
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsub'), &
                       codtyp2_opt=codtyp_get_codtyp('mhs'))
     call msg_memUsage('thn_thinTovs')
-    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
-    call msg_memUsage('thn_thinTovs')
 
     write(*,*)
     write(*,*) 'Calling thn_tovsFilt (Grid box based thinning) from thn_thinTovs for atms'
     if (trim(thinning_technique) == 'grid-based') then
       call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
     else  
-      ! 1 = Regions based MPI parallelization, 2 = Time bin based MPI  parallelization
-      call thn_tovsfilt_dd(obsdat, 2, mindist, codtyp_get_codtyp('atms'))
-    end if
-    call msg_memUsage('thn_thinTovs')
+      call thn_tovsfilt_dd(obsdat, mindist, codtyp_get_codtyp('atms'))
+    end if  
     write(*,*)
 
+    call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     call msg_memUsage('thn_thinTovs')
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
@@ -3717,6 +3710,7 @@ contains
     logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
     write(*,*)
+    write(*,*) 'thn_satWindsByDistance: Starting'
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -3810,7 +3804,7 @@ contains
         end if
       end do BODY1
       ! modify obsPressure to be consistent with operational pgm
-      !write(*,*) 'obsPressure/100.0 = ',obsPressure/100.0      
+
       obsPressure = 100.0*nint(obsPressure/100.0)
       deltaPressMin = abs( log(obsPressure) - log(layer(1)) )
 
@@ -3949,9 +3943,6 @@ contains
           end do
           if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
 
-          ! On compte le nombre d'observations qui sont deja
-          ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
-          ! que l'observation consideree ici.
           ! We count the number of observations that are already
           ! selected with the same parameters 'obsStepIndex' and 'obsLayerIndex'
           ! than the observation considered here.
@@ -5167,8 +5158,6 @@ contains
 
     instrumName = codtyp_get_name(codtyp)
     write(*,*)
-    write(*,*) '************thn_tovsFilt (Grid box based) : Starting, instrumName = ', trim(instrumName)
-    write(*,*) 'delta,deltrad = ',delta,deltrad
     write(*,*)
 
     write(*,*) 'mmpi_nprocs  = ',mmpi_nprocs
@@ -5220,8 +5209,6 @@ contains
     numLat = 2*latLength/delta
     numLon = lonLength/delta
 
-    !write(*,*) '\nnumLat, numLon = ',numLat,numLon
-    
     
     ! Allocations
     allocate(gridLats(numLat))
@@ -5619,24 +5606,21 @@ contains
     write(*,*)
 
   end subroutine thn_tovsFilt
-
-
   
-subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
+  subroutine thn_tovsfilt_dd(obsdat, mindist, codtyp, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs based on DISTANCE-DEPENDENT thinning satwind algo.
-    !           flg_mpi is used to choose between region based and time bin based MPI.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
     !
     implicit none
 
     ! Arguments:
     type(struct_obs),  intent(inout) :: obsdat
-    integer,           intent(in)    :: codtyp, flg_mpi
-    real(8), intent(in) :: mindist 
+    integer,           intent(in)    :: codtyp
+    real(8),           intent(in)    :: mindist           ! The minimum distance between observations which will be imposed.
     integer, optional, intent(in)    :: codtyp2_opt
 
-  ! Locals:
+    ! Locals:
     integer :: headerIndex
     integer :: numHeader, numHeaderMaxMpi
     integer :: bodyIndex,  obsTime, obsDate !stepIndex
@@ -5645,12 +5629,12 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     integer :: countQc
     real(8) :: obsLat1, obsLat2, obsLon1, obsLon2
     real(4) :: rejectRate
+    integer :: numObsAssim
     real(8), allocatable :: stepObsIndex(:)
     integer, allocatable :: stepObsIndexint(:),stepObsIndexMpi(:)
     real(4), allocatable :: obsLoninRad(:), obsLatinRad(:),obsLonMpi(:), obsLatMpi(:)
-!    integer, allocatable :: headerIndexList(:), headerIndexList2(:)
+    ! integer, allocatable :: headerIndexList(:), headerIndexList2(:)
     integer, allocatable :: headerIndexSelected(:) !, headerIndexSorted(:)
-    integer, allocatable :: numObsAssim(:)
     integer :: obsIndex1, obsIndex2, headerIndex1, headerIndex2, numSelected,numHeaderMpi
     character(len=codtyp_name_length) :: instrumName
     logical :: rejectThisObs
@@ -5661,7 +5645,9 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
     integer, parameter :: mxscanssmis=90    
-
+    integer, parameter :: flg_mpi=2  ! time bin based parallelization.
+                                     ! Setting to one chooses region based parallelization.
+    
     ! Locals:
     integer :: ierr !fnom, fclos, 
         
@@ -5673,7 +5659,7 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
     
-    if ( mmpi_nprocs /= 25) call utl_abort('thn_tovsfilt_dd: Number of processors are not equal to 25.')
+    if ( mmpi_nprocs < 25) call utl_abort('thn_tovsfilt_dd: Number of processors are less than 25.')
     
     nreg = mmpi_nprocs
     
@@ -5717,18 +5703,19 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
  
     write(*,*)
 
-    !Only for region based MPI
+    ! Only for region based MPI
     if (flg_mpi == 1) then
       write(*,*) 'nreg = ',nreg      
       call make_regions(nreg,latup,latdown,lonleft,lonright,regid)    
     end if
     
-
     allocate(validMpi(numHeaderMpi))
  
-!   local : Check if we have any observations to process
+    ! local : Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
+    ! valid flag is set to false for observations which do not belong to the family or which occupy
+    ! over-allocated elements in array.
     
     do headerIndex = 1, numHeader
       if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) == codtyp) then
@@ -5739,16 +5726,11 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
         end if
       end if
     end do
-    ! valid flag is set to false for observations which do not belong to the family or which occupy
-    ! over-allocated elements in array.
+
 
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-         'mpi_sum','grid',ierr)
-
-    write(*,*)
-    write(*,*) 'countObs, countObsMpi = ',countObs, countObsMpi
-    write(*,*)    
+         'mpi_sum','grid',ierr)  
     
     if (countObsMpi == 0) then
       write(*,*) 'thn_tovsfilt_dd: no observations for this instrument'
@@ -5801,22 +5783,16 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     write(*,*) ''    
     write(*,*) 'codtyp = ',codtyp
     write(*,*) 'loscan,hiscan = ',loscan,hiscan
-    write(*,*) ''     
-    
-    allocate(numObsAssim(numHeader))
-    numObsAssim(:) = 0
+    write(*,*) ''         
     
     countQc = 0
-    numObsAssim(:) = 0
     do headerIndex = 1, numHeader
-
+      numObsAssim = 0
       if ( .not. valid(headerIndex) ) cycle
-      !write(*,*) '!! headerIndex = ',headerIndex
 
       ! Look at the obs flags
       rejectRate = 0.
 
-      !itemp = 0
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsdat)
@@ -5826,19 +5802,18 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
         ! satqc_amsu*.f for blacklisted channels)
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if ( .not. btest(obsFlag,11) ) then
-          numObsAssim(headerIndex) = numObsAssim(headerIndex) + 1
+          numObsAssim = numObsAssim + 1
           if ( btest(obsFlag,9) ) then
             rejectRate = rejectRate + 1.0
           end if
         end if
-        !itemp = itemp + 1
       end do BODY
-      
+
       ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
-      if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
+      if ( rejectRate == 0. .and. numObsAssim == 0 ) then
         rejectRate = 1.
       else
-        rejectRate = rejectRate / max(numObsAssim(headerIndex),1)  
+        rejectRate = rejectRate / max(numObsAssim,1) 
       end if
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -5852,8 +5827,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
       end if
 
     end do
-
-    deallocate(numObsAssim)
 
     write(*,*)
     write(*,*) 'countQc = ',countQc
@@ -5915,11 +5888,11 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
       headerIndexSelected(:) = 0
       
       OBSLOOP: do headerIndex1 = 1, numHeaderMpi       
-        !headerIndex1 = headerIndexSorted(numHeaderMpi-obsIndex1+1)
-        !headerIndex1 = headerIndex(numHeaderMpi-obsIndex1+1)
+        ! headerIndex1 = headerIndexSorted(numHeaderMpi-obsIndex1+1)
+        ! headerIndex1 = headerIndex(numHeaderMpi-obsIndex1+1)
 
         ! ignore observations which do not belong to the family or occupy over-allocated elements in array. 
-        if ( .not. validMpi(headerIndex1) ) cycle
+        if ( .not. validMpi(headerIndex1) ) cycle OBSLOOP
 
         ! Only consider observations in the current time bin 
         if (stepObsIndexMpi(headerIndex1) /= timbin) cycle OBSLOOP        
@@ -5929,7 +5902,9 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
         
         if (flg_mpi == 1) then
           ! Only for region-based MPI parallelization
-          if(.not. is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon1,MPC_DEGREES_PER_RADIAN_R8*obsLat1,latup(mmpi_myid+1),latdown(mmpi_myid+1),lonleft(mmpi_myid+1),lonright(mmpi_myid+1))) cycle OBSLOOP
+          if(.not. is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon1,&
+               MPC_DEGREES_PER_RADIAN_R8*obsLat1,latup(mmpi_myid+1),&
+               latdown(mmpi_myid+1),lonleft(mmpi_myid+1),lonright(mmpi_myid+1))) cycle OBSLOOP
         else
           ! Only for time bin based parallelization
           if (stepObsIndexMpi(headerIndex1) /= mmpi_myid+1) cycle OBSLOOP    
@@ -5998,7 +5973,6 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
 
     write(*,*) ''
     
-    !cnt=0
     ! Local
     do headerIndex = 1, numHeader
       if (.not. valid(headerIndex)) then
@@ -6026,168 +6000,129 @@ subroutine thn_tovsfilt_dd(obsdat, flg_mpi, mindist, codtyp, codtyp2_opt)
     deallocate(valid)
     deallocate(validMpi2)    
     deallocate(validMpi_lor)
-    !deallocate(headerIndexSorted)
     deallocate(headerIndexSelected)
     
     write(*,*)
     write(*,*) '*********************************************thn_tovsfilt_dd : Finished',instrumName
     write(*,*)
     
-end subroutine thn_tovsfilt_dd
+  end subroutine thn_tovsfilt_dd
 
-
-! Makes equal number (nreg/2) regions in the NH and SH. Returns the region boundaries in degrees.
-subroutine make_regions(nreg,latup,latdown,lonleft,lonright,regid)
-  
-  implicit none
-  integer, intent(in)  :: nreg
-  real(8), intent(out) :: latup(nreg),latdown(nreg),lonleft(nreg),lonright(nreg)
-  integer, intent(out)  :: regid(nreg)
-  real(8) :: lonstart, lonwidth
-  integer :: nreg2,i !,j
-
-  if (nreg<2) then
-    write(*,*) 'ERROR : nreg should be atleast 2 : nreg = ',nreg
-    stop
-  end if  
-  
-  if (mod(nreg,2)>0) then
-    write(*,*) 'ERROR : nreg should be even : nreg = ',nreg
-    stop
-  else
-    nreg2 = nreg/2
-  end if
-
-  lonwidth = 360.0/nreg2
-
-  !write(*,*) 'nreg2 = ',nreg2
-  !write(*,*) 'lonwidth = ',lonwidth
-
-  ! NH
-  lonstart = 0.0
-  do i=1,nreg2
-    regid(i) = i-1
-    lonleft(i) = lonstart
-    lonright(i) = lonstart+lonwidth    
-    lonstart = lonstart + lonwidth
-    latdown(i) = 0.0d0
-    latup(i) = 90.0d0
-    !write(*,*) '!! ',i,regid(i),lonleft(i),lonright(i)
-  end do
-
-  !write(*,*) ''
-  
-  ! SH
-  lonstart = 0.0
-  do i=nreg2+1,nreg
-    regid(i) = i-1
-    lonleft(i) = lonstart
-    lonright(i) = lonstart+lonwidth    
-    lonstart = lonstart + lonwidth
-    latup(i) = 0.0d0
-    latdown(i) = -90.0d0
-    !write(*,*) '^^ ',i,regid(i),lonleft(i),lonright(i)
-  end do
+  subroutine make_regions(nreg,latup,latdown,lonleft,lonright,regid)
+    !
+    ! :Purpose: Makes equal number (nreg/2) regions in the NH and SH.
+    !           Returns the region boundaries in degrees. This subroutine is used in the
+    !            thn_tovsfilt_dd() for the region based MPI parallelization.
     
-end subroutine make_regions
-  
+    implicit none
 
-! Return true if obs location is within 75 km of either of the region borders.
+    ! Arguments:
+    integer, intent(in)  :: nreg  ! Number of regions desired.
+    real(8), intent(out) :: latup(nreg),latdown(nreg),lonleft(nreg),lonright(nreg) ! Each is an array which define the boundary
+                                                                                   !  of each region. 
+    integer, intent(out)  :: regid(nreg) ! Array of region ids.
+
+    ! Locals:
+    real(8) :: lonstart, lonwidth
+    integer :: nreg2,i !,j
+
+    if (nreg<2) then
+      write(*,*) 'ERROR : nreg should be atleast 2 : nreg = ',nreg
+      stop
+    end if  
+  
+    if (mod(nreg,2)>0) then
+      write(*,*) 'ERROR : nreg should be even : nreg = ',nreg
+      stop
+    else
+      nreg2 = nreg/2
+    end if
+
+    lonwidth = 360.0/nreg2
+
+    ! NH
+    lonstart = 0.0
+    do i=1,nreg2
+      regid(i) = i-1
+      lonleft(i) = lonstart
+      lonright(i) = lonstart+lonwidth    
+      lonstart = lonstart + lonwidth
+      latdown(i) = 0.0d0
+      latup(i) = 90.0d0
+    end do
+
+    ! SH
+    lonstart = 0.0
+    do i=nreg2+1,nreg
+      regid(i) = i-1
+      lonleft(i) = lonstart
+      lonright(i) = lonstart+lonwidth    
+      lonstart = lonstart + lonwidth
+      latup(i) = 0.0d0
+      latdown(i) = -90.0d0
+    end do
+    
+  end subroutine make_regions
+  
 function is_close_border(obsLoninRad,obsLatinRad,latup,latdown,lonleft,lonright,nreg)
 
+  !
+  ! :Purpose: Return true if obs location is within 75 km of either of the region borders.
+  !           Used only in the region-based MPI parallelization in thn_tovsfilt_dd().
+  
   implicit none
   real(4), intent(in) :: obsLoninRad,obsLatinRad
   integer, intent(in) :: nreg
-  !real(8), intent(in) :: latup(2),latdown(2),lonleft(2),lonright(2)
   real(8), intent(in) :: latup(:),latdown(:),lonleft(:),lonright(:)  
   real(8) :: obsLon,obsLat,mindist
   real(8) :: distanceborder(4) 
   integer :: i,ireg
   logical :: is_close_border
-  
-  !obsLon = double(obsLoninRad)
-  !obsLat = double(obsLatinRad)
 
   obsLon = obsLoninRad
   obsLat = obsLatinRad
-
-  !write(*,*)
-  !write(*,*) '-----------------nreg = ',nreg
   
   ! Determine the region in which the observation lies.
   REGLOOP: do i=1,nreg
-      !write(*,*) '--i = ',i,MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat
-      !write(*,*) '--flag = ',is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat,latup(i),latdown(i),lonleft(i),lonright(i))    
       if (is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat,latup(i),latdown(i),lonleft(i),lonright(i))) then
-        ireg = i
-        !write(*,*) '--i = ',i
-        !write(*,*) '--ireg = ',ireg        
+        ireg = i       
         exit REGLOOP
       end if  
-      !write(*,*) 'latup,latdown = ',latup(i),latdown(i)
-      !write(*,*) 'lonleft,lonright = ',lonleft(i),lonright(i)      
   end do REGLOOP
 
-  !safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
+  ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
   if (i>nreg) then
     write(*,*) 'ERROR i>nreg : i, ireg = ',i,ireg
     call utl_abort('ERROR i>nreg in is_close_border()')
   end if
   
-  !write(*,*) 'i = ',i
-  !write(*,*) 'ireg = ',ireg
   ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
   distanceborder(1) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latdown(ireg), obsLon)/1000.0  
   distanceborder(2) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latup(ireg), obsLon)/1000.0
   distanceborder(3) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonleft(ireg))/1000.0
   distanceborder(4) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonright(ireg))/1000.0
 
-  !write(*,*) '!! size = ',size(distanceborder)
-  
   mindist = minval(distanceborder)
   
   if (mindist < 75.0d0) then
     is_close_border = .true.
-    !write(*,*) 'distanceborder = ',distanceborder
-    !write(*,*) 'mindist = ',mindist  
-    !write(*,*) 'is_close_border = ',is_close_border
   else
     is_close_border = .false.
   end if
 
 end function is_close_border
 
-
-! Return true if obs location is outside the particular region
-function is_outside_region(obsLonindeg,obsLatindeg,latup,latdown,lonleft,lonright)
-
-  implicit none
-  real(8), intent(in) :: obsLonindeg,obsLatindeg
-  real(8), intent(in) :: latup,latdown,lonleft,lonright
-  logical :: is_outside_region
-  !integer, intent(in) :: iproc
-
-  !write(*,*) '!!iproc = ',iproc,obsLonindeg,obsLatindeg
-
-  if (obsLonindeg>=lonleft .and. obsLonindeg<lonright .and. obsLatindeg>=latdown .and. obsLatindeg<latup  ) then
-    is_outside_region = .false.
-  else
-    is_outside_region = .true.
-  end if  
-
-end function is_outside_region
-
-
-! Return true if obs location is within the particular region
 function is_inside_region(obsLonindeg,obsLatindeg,latup,latdown,lonleft,lonright)
 
+  !
+  ! :Purpose: Return true if obs location is within the particular region.
+  !           Used only in the region-based MPI parallelization to apportion observations
+  !           to different MPI processes which do the thinning in different regions..
+  
   implicit none
   real(8), intent(in) :: obsLonindeg,obsLatindeg
   real(8), intent(in) :: latup,latdown,lonleft,lonright
   logical :: is_inside_region
-  !integer, intent(in) :: iproc
-
-  !write(*,*) '!!iproc = ',iproc,obsLonindeg,obsLatindeg
 
   if (obsLonindeg>=lonleft .and. obsLonindeg<lonright .and. obsLatindeg>=latdown .and. obsLatindeg<latup  ) then
     is_inside_region = .true.
@@ -6196,8 +6131,6 @@ function is_inside_region(obsLonindeg,obsLatindeg,latup,latdown,lonleft,lonright
   end if  
 
 end function is_inside_region
-
-
   
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
