@@ -231,7 +231,6 @@ class test_timingTool(unittest.TestCase):
         self.output = output(labelList, timings[0], timings[1])
 
     def test_labelPresence(self):
-        print("Looking for expected labels:")
         for label in self.labels:
             labelPosition=self.output.find('-'+label+'.')
             self.assertTrue(labelPosition != -1)
