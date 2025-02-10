@@ -18,6 +18,7 @@ module obsFilter_mod
   use physicsFunctions_mod
   use codtyp_mod
   use radialVelocity_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -291,7 +292,7 @@ contains
     ! Locals:
     integer :: bodyIndex, headerIndex
     integer :: ipres, ivco, loopIndex
-    integer :: idburp, ivnm, iflg, ibad, iknt, iknt_mpiglobal, ilansea
+    integer :: idburp, ivnm, refValue, iknt, iknt_mpiglobal, ilansea
     logical :: llok, llrej, llbogus
 
     call utl_tmg_start(22,'----ObsFiltSuprep')
@@ -347,11 +348,10 @@ contains
       !
       ! Bad data with quality control flags via bit list specified in NLISTFLG
       !
-      iflg = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
       llrej = .false.
       do loopIndex = 1, filt_nflags
-        ibad = 13 - filt_nlistflg( loopIndex )
-        llrej=( btest(iflg,ibad) ) .or. llrej
+        refValue = filt_nlistflg(loopIndex)
+        llrej= flg_flagIsOn(obsSpaceData, bodyIndex, refValue_opt=refValue) .or. llrej
       end do
       !
       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
