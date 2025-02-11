@@ -15,6 +15,7 @@ module varQC_mod
   use rmatrix_mod ,only : rmat_lnondiagr
   use varNameList_mod
   use obsFamilyList_mod
+  use obsFlags_mod
   
   implicit none
   save
@@ -650,14 +651,8 @@ module varQC_mod
                  ILEV = NINT(ZLEV)
                  if (ZPOST > ZCUT) then
                    LLELREJ = .TRUE.
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),9))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
-                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,IOTHER,  &
-                     IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,IOTHER),17))
+                   call flg_setFlag(lobsSpaceData, bodyIndex, [9,17])
+                   call flg_setFlag(lobsSpaceData, iother,    [9,17])
                    if (ityp == BUFR_NEUU .or.  &
                        ityp == BUFR_NEVV) then
                      ICOUNT(1,JFAM) = ICOUNT(1,JFAM) + 1
@@ -779,11 +774,7 @@ module varQC_mod
                    CLDESC = CLITM(16)
                    ICOUNT(16,JFAM) = ICOUNT(16,JFAM) + 1
                  end if
-
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),9))
-                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,bodyIndex,  &
-                   IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,bodyIndex),17))
+                 call flg_setFlag(lobsSpaceData, bodyIndex, [9,17])
                  codtypname=codtyp_get_name(IDBURP)
                  stnId = obs_elem_c(lobsSpaceData,'STID',headerIndex)
                  obsONM = obs_headElem_i(lobsSpaceData,OBS_ONM,headerIndex)

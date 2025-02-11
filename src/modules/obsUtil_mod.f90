@@ -10,6 +10,7 @@ module obsUtil_mod
   use codePrecision_mod
   use codtyp_mod
   use obsVariableTransforms_mod
+  use obsFlags_mod
   use utilities_mod
 
   implicit none
@@ -125,10 +126,9 @@ contains
 
     ! Process all data
     BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
-
-      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) &
-        call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex, &
-                            ibset( obs_bodyElem_i(obsSpaceData, OBS_FLG,bodyIndex), 12 ))
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
+        call flg_setFlag(obsSpaceData, bodyIndex, 12)
+      end if
     end do BODY
 
   end subroutine obsu_setassflg

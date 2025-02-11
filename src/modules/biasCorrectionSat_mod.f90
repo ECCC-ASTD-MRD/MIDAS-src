@@ -32,6 +32,7 @@ module biasCorrectionSat_mod
   use obserrors_mod
   use fSQLite
   use obsfiles_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -914,7 +915,7 @@ contains
         if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY
         if (obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex) == MPC_missingValue_R8) cycle BODY
         if (obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex) == MPC_missingValue_R8) cycle BODY
-        if (btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 11)) cycle BODY
+        if (flg_flagIsOn(obsSpaceData, bodyIndex, 11)) cycle BODY
 
         call bcs_getChannelIndex(obsSpaceData, sensorIndex, chanIndx, bodyIndex)
         if (chanindx > 0) then
@@ -1196,7 +1197,7 @@ contains
           if (bodyIndex < 0) exit BODY1
 
           if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
-               .not. btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 6)) then
+               .not. flg_flagIsOn(obsSpaceData, bodyIndex, 6)) then
             call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
             if (chanindx > 0) then
               OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
@@ -1253,7 +1254,7 @@ contains
             if (bodyIndex < 0) exit BODY2
 
             if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
-                 .not. btest(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex), 6)) then
+                 .not. flg_flagIsOn(obsSpaceData, bodyIndex, 6)) then
 
               call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
 
@@ -2552,20 +2553,20 @@ contains
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeSsmis) then
                 !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
-                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+                condition1 = .not. flg_flagIsOn(flag, 9) !' AND (FLAG & 512 = 0)'
                 !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
-                condition2 = .not. btest(flag, 6) .and. btest(flag, 16) .and. .not. btest(flag, 18) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
+                condition2 = .not. flg_flagIsOn(flag, 6) .and. flg_flagIsOn(flag, 16) .and. .not. flg_flagIsOn(flag, 18) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0)'
                 condition = condition1 .or. condition2
               else
                 !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
-                condition = .not. btest(flag, 9) .and. .not. btest(flag, 11)       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
+                condition = .not. flg_flagIsOn('OR', flag, [9,11])       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
               end if
             else
               ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
-              condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+              condition1 = .not. flg_flagIsOn(flag, 9) !' AND (FLAG & 512 = 0)'
               ! all good data that passed all QC
               ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
-              condition2 = btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+              condition2 = flg_flagIsOn(flag, 9) .and. .not. flg_flagIsOn('OR', flag, [7,18]) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
               condition = condition1 .or. condition2
             end if
           else if(lTovs) then
@@ -2578,32 +2579,32 @@ contains
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeTovs) then
                 !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
-                condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+                condition1 = .not. flg_flagIsOn(flag, 9) !' AND (FLAG & 512 = 0)'
                 !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
                 !             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing
-                condition2 = btest(flag, 16) .and. .not. btest(flag, 6) .and. .not. btest(flag, 18) .and. .not. btest(flag, 7)!' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
+                condition2 = flg_flagIsOn(flag, 16) .and. .not. flg_flagIsOn('OR', flag, [6,18,7]) !' AND (FLAG & 64 = 0) AND (FLAG &  65536 = 65536) AND (FLAG & 262144 = 0) AND (FLAG & 128 = 0)'
                 condition = condition1 .or. condition2
               else
                 !  FLAG test: selected data (bit 11 OFF) that have passed QC (bit 9 OFF)
-                condition = .not. btest(flag, 9) .and. .not. btest(flag, 11) !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
+                condition = .not. flg_flagIsOn('OR', flag, [9,11]) !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
               end if
             else    ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue check
-              condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
+              condition1 = .not. flg_flagIsOn(flag, 9) !' AND (FLAG & 512 = 0)'
               ! all good data that passed all QC
               ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
-              condition2 =  btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 18)  !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+              condition2 =  flg_flagIsOn(flag, 9) .and. .not. flg_flagIsOn('OR', flag, [7,18]) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
               condition = condition1 .or. condition2
             end if
 
             ! remove cloud-affected obs from the pool of "non-assimilated" obs before computing bias correction
-            if (channelIsAllsky) condition = condition .and. .not. btest(flag, 23)
+            if (channelIsAllsky) condition = condition .and. .not. flg_flagIsOn(flag, 23)
           else if(lGeo) then  ! CSR case
             !    No flag check        =                all data that have passed QC/filtering
             !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
             if (allModeCsr .or. offlineMode .or. channelIsPassive) then
               condition = .true.
             else
-              condition = .not. btest(flag, 18) ! ' AND (FLAG & 2048 = 0)'
+              condition = .not. flg_flagIsOn(flag, 18) ! ' AND (FLAG & 2048 = 0)'
             endif
           else if (lHyperIr) then ! AIRS, IASI and CRIS
             !  (FLAG & 2560 = 0)     = bits 9, 11 OFF       --> data that passed QC (rogue and other)
@@ -2624,23 +2625,23 @@ contains
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeHyperIr) then
                 ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
-                condition1  = .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
+                condition1  = .not. flg_flagIsOn('OR', flag, [9,7,19,21,23]) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
                 ! uncorrected (6 OFF, [11 ON]) good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON), selected or not
-                condition2  = .not. btest(flag, 6) .and. btest(flag, 11) .and.  .not. btest(flag, 17) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23)
+                condition2  = .not. flg_flagIsOn(flag, 6) .and. flg_flagIsOn(flag, 11) .and.  .not. flg_flagIsOn('OR', flag, [17,19,21,23])
                 !' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
                 condition = condition1 .or. condition2
               else
                 ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
-                condition =  .not. btest(flag, 9) .and. .not. btest(flag, 11) .and.  .not. btest(flag, 8) .and. .not. btest(flag, 23) .and. .not. btest(flag, 19)
+                condition =  .not. flg_flagIsOn('OR', flag, [9,11,8,23,19])
                 !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
               end if
             else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
               !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
               ! data that passed all QC
-              condition1 =  .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23)
+              condition1 =  .not. flg_flagIsOn('OR', flag, [9,7,19,21,23])
               !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
               ! good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON)
-              condition2 = btest(flag, 9) .and. btest(flag, 16) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
+              condition2 = flg_flagIsOn(flag, 9) .and. flg_flagIsOn(flag, 16) .and. .not. flg_flagIsOn('OR', flag, [7,19,21,23]) !' AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
               condition = condition1 .or. condition2
             end if
           end if
@@ -2676,7 +2677,6 @@ contains
     integer :: nbcor
     integer :: bodyIndex
     real(8) :: biascor, Obs
-    integer :: flag
 
     if (.not. biasActive) return
     if (trim(biasMode) /= "apply") return
@@ -2695,9 +2695,7 @@ contains
         Obs = obs_bodyElem_r(obsSpaceData, column, bodyIndex)
         if (Obs /= MPC_missingValue_R8) then
           call obs_bodySet_r(obsSpaceData, column, bodyIndex, real(Obs + biasCor, pre_obsReal))
-          flag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
-          flag = ibset(flag, 6)
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, flag)
+          call flg_setFlag(obsSpaceData, bodyIndex, 6)
           nbcor = nbcor + 1
         end if
       end if

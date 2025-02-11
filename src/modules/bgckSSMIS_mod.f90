@@ -10,6 +10,7 @@ module bgckSSMIS_mod
   use obsSpaceData_mod
   use tovs_mod
   use obsErrors_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -2462,9 +2463,9 @@ contains
       channelNumber = obsChannels(obsChanIndex)
       productRogueSTD = rogueFac(channelNumber) * oer_toverrst(channelNumber,sensorIndex)
 
-      if ( .not. btest(obsFlags(obsChanIndex),7) ) then
+      if ( .not. flg_flagIsOn(obsFlags(obsChanIndex),7) ) then
 
-        if ( oer_tovutil(channelNumber,sensorIndex) == 0 .or. (.not. btest(obsFlags(obsChanIndex),6)) ) then
+        if ( oer_tovutil(channelNumber,sensorIndex) == 0 .or. (.not. flg_flagIsOn(obsFlags(obsChanIndex),6)) ) then
 
           ! systematic rejection of this channel
           flagsInovQc(obsChanIndex) = 2
@@ -2755,32 +2756,21 @@ contains
 
         select case (flagsInovQc(dataIndex))
         case(1)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
+          call flg_setFlag(obsFlags(dataIndex),9)
         case(2)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
+          call flg_setFlag(obsFlags(dataIndex),11)
         case(3)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+          call flg_setFlag(obsFlags(dataIndex),[9,16])
         case(4)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
+          call flg_setFlag(obsFlags(dataIndex),[9,11,16])
         case(5)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+          call flg_setFlag(obsFlags(dataIndex),[9,18])
         case(6)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+          call flg_setFlag(obsFlags(dataIndex),[9,11,18])
         case(7)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+          call flg_setFlag(obsFlags(dataIndex),[9,16,18])
         case(8)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),9)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),11)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),16)
-          obsFlags(dataIndex) = ibset(obsFlags(dataIndex),18)
+          call flg_setFlag(obsFlags(dataIndex),[9,11,16,18])
         end select
 
       end do

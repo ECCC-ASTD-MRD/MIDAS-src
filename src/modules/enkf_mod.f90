@@ -24,6 +24,7 @@ module enkf_mod
   use codePrecision_mod
   use codTyp_mod
   use calcHeightAndPressure_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -2989,8 +2990,7 @@ contains
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           call obs_bodySet_i(obsSpaceData, obs_ass, bodyIndex, obs_notAssimilated)
           ! also set the 'rejected by selection process' flag (bit 11)
-          call obs_bodySet_i( obsSpaceData, obs_flg, bodyIndex,  &
-                              ibset( obs_bodyElem_i( obsSpaceData, obs_flg, bodyIndex ), 11) )
+          call flg_setFlag(obsSpaceData, bodyIndex, 11)
         end do
       end if
     end do

@@ -27,6 +27,7 @@ module stateToColumn_mod
   use kdTree2_mod
   use calcHeightAndPressure_mod
   use humidityLimits_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -180,8 +181,7 @@ contains
             if (bodyIndex < 0) exit BODY
             if (rejectObsNonMonotonicPressure) then
               call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, &
-                   ibset(obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex),9))
+              call flg_setFlag(obsSpaceData, bodyIndex, 9)
             end if
           end do BODY
         end if

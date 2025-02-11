@@ -21,6 +21,7 @@ module obsOperatorsChem_mod
   use climatologies_mod
   use presProfileOperators_mod
   use bCovarSetupChem_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -1679,13 +1680,12 @@ module obsOperatorsChem_mod
           iass(obslevIndex) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
           if (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 1 .and. &
-              .not.btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9)) then
+              .not.flg_flagIsOn(obsSpaceData, bodyIndex, 9)) then
             ! Update flags for consistency with xtr for levels above model top.
             ! Relevant only if trial and incremental analysis grid top not the same.
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
             iass(obslevIndex) = obs_notAssimilated
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                              ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 9 ))
+            call flg_setFlag(obsSpaceData, bodyIndex, 9)
           end if
 
           ! Indicates if this obs should be processed by oopc_obsoperators
@@ -1872,8 +1872,7 @@ module obsOperatorsChem_mod
             call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
             call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
-                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9) )
+            call flg_setFlag(obsSpaceData, bodyIndex, 9)
             cycle BODY2
           else if (iass(obslevIndex) == obs_notAssimilated .or. .not.process_obs(obslevIndex)) then
             ! Observation was flagged previous to this call of oopc_CHobsoperators

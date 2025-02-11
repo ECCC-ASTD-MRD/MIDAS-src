@@ -10,6 +10,7 @@ module bgckCSR_mod
   use obsSpaceData_mod
   use tovs_mod
   use obsErrors_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -317,13 +318,13 @@ contains
           cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
         isClearSky(channelIndex) = .true.
       end if 
-      if (.not. btest(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = .true.
+      if (.not. flg_flagIsOn(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = .true.
     end do
 
     topographicData(:) = .false.
     maxAngleReached(:) = .false.
     do dataIndex=1, numObsToProcess
-      if (btest(obsFlags(dataIndex), 18)) topographicData(dataIndex) = .true.
+      if (flg_flagIsOn(obsFlags(dataIndex), 18)) topographicData(dataIndex) = .true.
       if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = .true.
     end do
 
@@ -405,48 +406,43 @@ contains
         if (maxAngleReached(dataIndex) .or. &
             strayLight(dataIndex)      .or. &
             goesMidi(dataIndex) ) then
-          obsFlags(numData) = ibset(obsFlags(numData),7) 
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
+          call flg_setFlag(obsFlags(numData),[7,9])
           categorieRejet(1) =  categorieRejet(1) + 1
         end if
 
         !Topo : bit 9 et 18 sont déjà là provenant du EnVar
         if (topographicData(dataIndex)) then
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
-          obsFlags(numData) = ibset(obsFlags(numData),18) 
+          call flg_setFlag(obsFlags(numData),[9,18])
           categorieRejet(2) =  categorieRejet(2) + 1
         end if 
 
         !Pas corrige : bit 11
         if (nonCorrectedData(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),11) 
+          call flg_setFlag(obsFlags(numData),11)
           categorieRejet(3) =  categorieRejet(3) + 1
         end if 
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
         if (.not. isTbPresent(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),7) 
-          obsFlags(numData) = ibset(obsFlags(numData),9) 
+          call flg_setFlag(obsFlags(numData),[7,9])
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
         !omp Out of range: Bit 9 et 16 pour les canaux concernés
         if (ompOutOfRange(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),9)
-          obsFlags(numData) = ibset(obsFlags(numData),16)
+          call flg_setFlag(obsFlags(numData),[9,16])
           categorieRejet(5) =  categorieRejet(5) + 1
         end if
 
         !Assim: Bit 11 pour les canaux concernés
         if (.not. isToAssim(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),11)
+          call flg_setFlag(obsFlags(numData),11)
           categorieRejet(6) =  categorieRejet(6) + 1
         end if 
 
         !Clearsky : Bit 7 & Bit 9
         if (.not.isClearSky(numData)) then
-          obsFlags(numData) = ibset(obsFlags(numData),7)
-          obsFlags(numData) = ibset(obsFlags(numData),9)
+          call flg_setFlag(obsFlags(numData),[7,9])
           categorieRejet(7) =  categorieRejet(7) + 1
         end if  
       end do

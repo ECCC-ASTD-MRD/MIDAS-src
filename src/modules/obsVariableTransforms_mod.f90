@@ -13,6 +13,7 @@ module obsVariableTransforms_mod
   use codtyp_mod
   use utilities_mod
   use obsFilter_mod
+  use obsFlags_mod
 
   implicit none
   save
@@ -134,7 +135,7 @@ contains
       ! Check if a transform is neeeded
       if (filt_bufrCodeAssimilated(bufrCodeRead(readBufrCodeIndex)) .or. &
           bufrCodeRead(readBufrCodeIndex) == bufr_neff              .or. &
-          bufrCodeRead(readBufrCodeIndex) == bufr_nefs ) then
+          bufrCodeRead(readBufrCodeIndex) == bufr_nefs) then
         cycle ! No transformation needed. Move on.
               ! Note that this is where we decide that wind speed will be ignored, 
               ! because we do all the appropriate wind manipulations when we encounter direction.
@@ -147,7 +148,7 @@ contains
       transformLoop : do transformIndex = 1, nTransformSupported
         assimBufrCodeLoop : do assimBufrCodeIndex = 1, nBufrCodeAssimilated
           if (any(transform(transformIndex)%sourceBufrCode(:) == bufrCodeRead(readBufrCodeIndex))        .and. &
-              any(transform(transformIndex)%destinationBufrCode(:) == bufrCodeAssimilated(assimBufrCodeIndex)) )  then
+              any(transform(transformIndex)%destinationBufrCode(:) == bufrCodeAssimilated(assimBufrCodeIndex)))  then
             if (.not. transform(transformIndex)%active) then
               write(*,*) 'ovt_setup: transform activated : ', trim(transform(transformIndex)%name)
               transform(transformIndex)%active = .true.
@@ -159,7 +160,7 @@ contains
       end do transformLoop
 
       if (.not. foundTransformation) then
-        if ( .not. any( skippedBufrCodes(:) == bufrCodeRead(readBufrCodeIndex) ) ) then
+        if (.not. any(skippedBufrCodes(:) == bufrCodeRead(readBufrCodeIndex))) then
           write(*,*)
           write(*,*) 'ovt_setup: !WARNING! No transform found for the read bufr code = ', bufrCodeRead(readBufrCodeIndex)
           write(*,*) '           We are assuming that this observation is read but not assimilated.'
@@ -498,8 +499,8 @@ contains
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
       
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
       
       ! Find the wind direction report
       body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
@@ -509,9 +510,9 @@ contains
         bufrCode  = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
         direction_missing = .true.
       
-        if ( bufrCode /= bufr_nedd .and. bufrCode /= bufr_neds ) cycle body
+        if (bufrCode /= bufr_nedd .and. bufrCode /= bufr_neds) cycle body
 
-        if( bufrCode == bufr_neds) then
+        if (bufrCode == bufr_neds) then
           ! Surface obs
           speedBufrCode = bufr_nefs
           uWindBufrCode = bufr_neus
@@ -523,24 +524,24 @@ contains
           vWindBufrCode = bufr_nevv
         end if
       
-        direction       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-        directionFlag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-        level_direction = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+        direction       = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+        directionFlag   = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
+        level_direction = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
         uWind_present = .false.
         vWind_present = .false.
 
         ! Check if u and v are present in obsSpaceData
         do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
-          level3 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level3 = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
           if (level3 == level_direction) then
-            bufrCode3 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+            bufrCode3 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
             
-            if ( bufrCode3 == uWindBufrCode ) then
+            if (bufrCode3 == uWindBufrCode) then
               uWind_present = .true.
               uWindbodyIndex = bodyIndex2
-            else if ( bufrCode3 == vWindBufrCode) then
+            else if (bufrCode3 == vWindBufrCode) then
               vWind_present = .true.
               vWindBodyIndex = bodyIndex2
             end if
@@ -557,21 +558,21 @@ contains
         calcuv: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
           speed_missing     = .true.
           direction_missing = .true.
-          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if ( level /= level_direction) cycle calcuv
+          if (level /= level_direction) cycle calcuv
 
-          bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 )
+          bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
 
-          if ( bufrCode2 == speedBufrCode ) then
+          if (bufrCode2 == speedBufrCode) then
 
-            speed     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
-            speedFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 )
+            speed     = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
+            speedFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2)
 
-            if ( direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0. ) then
+            if (direction == 0.d0 .and. speed > 0. .or. direction > 360. .or. direction < 0.) then
               direction_missing = .true.
               speed_missing     = .true.
-            else if ( direction == obs_missingValue_R .or. speed == obs_missingValue_R ) then
+            else if (direction == obs_missingValue_R .or. speed == obs_missingValue_R) then
               direction_missing = .true.
               speed_missing     = .true.
             else
@@ -579,28 +580,28 @@ contains
               speed_missing     = .false.
             end if
 
-            if ( direction_missing .or. speed_missing ) then
+            if (direction_missing .or. speed_missing) then
 
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1 )
-              call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1 )
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
+              call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1)
 
             else
 
               if (speed == 0.d0) direction = 0.d0
               direction = direction + 180.
-              if ( direction > 360.) direction = direction - 360.
+              if (direction > 360.) direction = direction - 360.
               direction = direction * mpc_radians_per_degree_r8
             
               ! (speed,direction) -> (u,v)
               uWind = speed * sin(direction)
               vWind = speed * cos(direction)
           
-              combinedFlag = ior(directionFlag, speedFlag )
+              combinedFlag = ior(directionFlag, speedFlag)
 
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, uWindbodyIndex, uWind )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag )
-              call obs_bodySet_r(obsSpaceData, OBS_VAR, vWindBodyIndex, vWind )
-              call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag )
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, uWindbodyIndex, uWind)
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag)
+              call obs_bodySet_r(obsSpaceData, OBS_VAR, vWindBodyIndex, vWind)
+              call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag)
 
             end if
 
@@ -638,7 +639,7 @@ contains
 
         ! Eleminate entries where uWind is missing
         uWind = obs_bodyElem_r(obsSpaceData, OBS_VAR, uWindbodyIndex)
-        if ( uWind == obs_missingValue_R ) then
+        if (uWind == obs_missingValue_R) then
           call obs_bodySet_i(obsSpaceData, OBS_VNM, uWindbodyIndex, -1)
         end if
 
@@ -648,16 +649,16 @@ contains
           bufrCode2 = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2)
           level2    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if ( bufrCode2 /= bufrCodeAssociated .or. level2 /= level ) cycle
+          if (bufrCode2 /= bufrCodeAssociated .or. level2 /= level) cycle
 
           vWindBodyIndex = bodyIndex2
 
-          if ( uWind == obs_missingValue_R ) then
+          if (uWind == obs_missingValue_R) then
             call obs_bodySet_i(obsSpaceData, OBS_VNM, vWindBodyIndex, -1)
           else
             uWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, uWindbodyIndex)
             vWindFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, vWindBodyIndex)
-            combinedFlag = ior( uWindFlag, vWindFlag )
+            combinedFlag = ior(uWindFlag, vWindFlag)
             call obs_bodySet_i(obsSpaceData, OBS_FLG, uWindbodyIndex, combinedFlag)
             call obs_bodySet_i(obsSpaceData, OBS_FLG, vWindBodyIndex, combinedFlag)
           end if
@@ -711,21 +712,21 @@ contains
       ! Process all data within the domain of the model
       body: do bodyIndex = 1, obs_numBody(obsSpaceData)
 
-        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
-             obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == uWindBufrCode ) then
+        if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+            obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == uWindBufrCode) then
 
-          headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
-          headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
-          headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + headerIndexStart - 1
-          uWindLevel            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
-          uWind = - obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+          headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+          headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex)
+          headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex) + headerIndexStart - 1
+          uWindLevel            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex)
+          uWind = - obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
          
            body2: do bodyIndex2 = headerIndexStart, headerIndexEnd
      
-             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == vWindBufrCode .and. &
-                   obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel ) then
+             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == vWindBufrCode .and. &
+                 obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
                
-              vWind = -obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+              vWind = -obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
 
               ! Calculate angle
               speed = sqrt((uWind**2)+(vWind**2))
@@ -734,10 +735,10 @@ contains
                 direction = 0.0d0
               else
                 direction = atan2(vWind,uWind)
-                direction = (270.0d0 - direction  * MPC_DEGREES_PER_RADIAN_R8 )
+                direction = (270.0d0 - direction  * MPC_DEGREES_PER_RADIAN_R8)
                 ! Change to meteorological definition of wind direction.
-                if (direction > 360.0d0 ) direction = direction - 360.0d0
-                if (direction <= 0.0d0  ) direction = direction + 360.0d0
+                if (direction > 360.0d0) direction = direction - 360.0d0
+                if (direction <= 0.0d0) direction = direction + 360.0d0
               end if
 
             end if
@@ -747,30 +748,30 @@ contains
           ! insert resduals into obsSpaceData
           body2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
 
-            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2) == directionBufrCode .and. &
-                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel ) then
-              call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - direction )
+            if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == directionBufrCode .and. &
+                obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
+              call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
+                                 obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) - direction)
               
-              if ( obs_bodyElem_r( obsSpaceData,residualTypeID,bodyIndex2) >  180.0d0)  &
-                call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) - real(360.0d0,pre_obsReal) )
-              if ( obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) <= -180.0d0)  &
-                call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                    obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2 ) + real(360.0d0,pre_obsReal) )
-              call obs_bodySet_r( obsSpaceData, residualTypeID, bodyIndex2, &
-                                  - real(1.0d0,pre_obsReal) * obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2 ) )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal) )
-              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated )
-              call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0 )
+              if (obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) >  180.0d0)  &
+                call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
+                                   obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) - real(360.0d0,pre_obsReal))
+              if (obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2) <= -180.0d0)  &
+                call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
+                                   obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex2) + real(360.0d0,pre_obsReal))
+              call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, &
+                                  - real(1.0d0,pre_obsReal) * obs_bodyElem_r(obsSpaceData,residualTypeID,bodyIndex2))
+              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal))
+              call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
+              call flg_resetFlag(obsSpaceData, bodyIndex2)
             end if
-            if  ( obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex2 ) == speedBufrCode .and. &
-                  obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex2 ) == uWindLevel ) then
-              call obs_bodySet_r( obsSpaceData, residualTypeID,  bodyIndex2, &
-                                  obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - speed )
-              call obs_bodySet_r( obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal) )
-              call obs_bodySet_i( obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
-              call obs_bodySet_i( obsSpaceData, OBS_FLG, bodyIndex2, 0)
+            if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == speedBufrCode .and. &
+                obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2) == uWindLevel) then
+              call obs_bodySet_r(obsSpaceData, residualTypeID,  bodyIndex2, &
+                                 obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) - speed)
+              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex2, real(1.0d0,pre_obsReal))
+              call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
+              call flg_resetFlag(obsSpaceData, bodyIndex2)
             end if
 
           end do body2_2
@@ -806,27 +807,27 @@ contains
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
       
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
       
       ! Find each visibily report
       body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_vis) cycle body
 
-        visObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-        visFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-        visLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+        visObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+        visFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
+        visLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
         ! Find the associated logVis body created earlier in the proper reading routine
         logVisFound = .false.
         body2: do bodyIndex2 = bodyIndex, bodyIndexEnd
 
-          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if ( level /= visLevel ) cycle body2
+          if (level /= visLevel) cycle body2
 
-          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_logVis) cycle body2
+          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_logVis) cycle body2
 
           if (visObs == obs_missingValue_R) then
             logVisObs = visObs
@@ -837,7 +838,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex2, logVisObs)
 
           logVisFlag  = visFlag
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logVisFlag )
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logVisFlag)
 
           logVisFound = .true.
           exit body2
@@ -876,28 +877,28 @@ contains
     ! Find each log of visibily assimilated observations
     body: do bodyIndex = 1, obs_numBody(obsSpaceData)
       
-      if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
-           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logVis ) cycle
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
+          obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logVis) cycle
 
-      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
-      logVisLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
+      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex) + bodyIndexStart - 1
+      logVisLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex)
 
-      logVisObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-      logVisResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex )
+      logVisObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+      logVisResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex)
 
       ! Find the associated vis body
       visFound = .false.
       body2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
-        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
         if (level /= logVisLevel) cycle body2
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_vis) cycle body2
 
         ! log(vis) -> vis
-        visObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+        visObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
         visResidual = visObs - exp(logVisObs-logVisResidual) ! o-p or o-a
         call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, visResidual)
 
@@ -906,7 +907,7 @@ contains
 
         ! Set flags
         call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
-        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, 0)
+        call flg_resetFlag(obsSpaceData, bodyIndex2)
 
         visFound = .true.
         exit body2
@@ -944,27 +945,27 @@ contains
     ! Loop through headers
     header: do headerIndex = headerIndexStart, headerIndexEnd
       
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
       
       ! Find each precipitation report
       body: do bodyIndex = bodyIndexStart, bodyIndexEnd 
 
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_radarPrecip) cycle body
 
-        precipObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-        precipFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-        precipLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
+        precipObs   = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+        precipFlag  = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
+        precipLevel = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
         ! Find the associated logPrecip body created earlier in the proper reading routine
         logPrecipFound = .false.
         body2: do bodyIndex2 = bodyIndex, bodyIndexEnd
 
-          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+          level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
-          if ( level /= precipLevel ) cycle body2
+          if (level /= precipLevel) cycle body2
 
-          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) /= bufr_logRadarPrecip) cycle body2
+          if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_logRadarPrecip) cycle body2
 
           if (precipObs == obs_missingValue_R) then
             logPrecipObs = precipObs
@@ -975,7 +976,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex2, logPrecipObs)
 
           logPrecipFlag  = precipFlag
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logPrecipFlag )
+          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, logPrecipFlag)
 
           logPrecipFound = .true.
           exit body2
@@ -1014,28 +1015,28 @@ contains
     ! Find each log of precipitation assimilated observations
     body: do bodyIndex = 1, obs_numBody(obsSpaceData)
       
-      if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
-           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logRadarPrecip ) cycle
+      if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated .or. &
+           obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_logRadarPrecip) cycle
 
-      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + bodyIndexStart - 1
-      logPrecipLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
+      headerIndex    = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex) + bodyIndexStart - 1
+      logPrecipLevel    = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex)
 
-      logPrecipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-      logPrecipResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex )
+      logPrecipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+      logPrecipResidual = obs_bodyElem_r(obsSpaceData, residualTypeID, bodyIndex)
 
       ! Find the associated precip body
       precipFound = .false.
       body2: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
 
-        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 )
+        level = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2)
 
         if (level /= logPrecipLevel) cycle body2
         if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) /= bufr_radarPrecip) cycle body2
 
         ! log(precip) -> precip
-        precipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+        precipObs      = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2)
         precipResidual = precipObs - max(0.0D0,  &               ! o-p or o-a
                          exp(logPrecipObs - logPrecipResidual - MPC_MINIMUM_PR_R8))
         call obs_bodySet_r(obsSpaceData, residualTypeID, bodyIndex2, precipResidual)
@@ -1045,7 +1046,7 @@ contains
 
         ! Set flags
         call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex2, obs_assimilated)
-        call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex2, 0)
+        call flg_resetFlag(obsSpaceData, bodyIndex2)
 
         precipFound = .true.
         exit body2
@@ -1063,7 +1064,7 @@ contains
   !--------------------------------------------------------------------------
   ! ovt_adjustHumGZ
   !--------------------------------------------------------------------------
-  subroutine  ovt_adjustHumGZ(obsSpaceData, headerIndexStart, headerIndexEnd )
+  subroutine  ovt_adjustHumGZ(obsSpaceData, headerIndexStart, headerIndexEnd)
     !
     ! :Purpose: To apply a threshold on dew-point departure values and to 
     !           transform geopotential height values to geopotential
@@ -1083,22 +1084,22 @@ contains
 
     do headerIndex = headerIndexStart, headerIndexEnd 
 
-      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+      bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + bodyIndexStart - 1
       
       do bodyIndex = bodyIndexStart, bodyIndexEnd
 
-        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex )
+        bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
 
         select case(bufrCode)
         case(bufr_nees, bufr_ness)
-          obsValue = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-          if ( obsValue > ESmax ) obsValue = ESmax
-          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsValue )
+          obsValue = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+          if (obsValue > ESmax) obsValue = ESmax
+          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsValue)
         case(bufr_negz)
-          obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR, bodyIndex )
+          obsValue = obs_bodyElem_r(obsSpaceData,OBS_VAR, bodyIndex)
           gz = obsValue * ec_rg
-          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, gz )
+          call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, gz)
         end select
 
       end do

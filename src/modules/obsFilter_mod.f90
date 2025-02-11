@@ -351,7 +351,7 @@ contains
       llrej = .false.
       do loopIndex = 1, filt_nflags
         refValue = filt_nlistflg(loopIndex)
-        llrej= flg_flagIsOn(obsSpaceData, bodyIndex, refValue_opt=refValue) .or. llrej
+        llrej= flg_flagIsOnFromRefValue(obsSpaceData, bodyIndex, refValue) .or. llrej
       end do
       !
       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
@@ -523,8 +523,7 @@ contains
                 countAcc(elemIndex) = countAcc(elemIndex)+1
              else
                 ! obs does not pass the acceptance criteria, reject it
-                call obs_bodySet_i( obsSpaceData,OBS_FLG,bodyIndex,  &
-                     ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
+                call flg_setFlag(obsSpaceData, bodyIndex, 18)
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                 countRej(elemIndex) = countRej(elemIndex)+1
              end if
@@ -647,8 +646,7 @@ contains
           igzacc(listIndex) = igzacc(listIndex)+1
         else
           ! too far below surface, reject
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call flg_setFlag(obsSpaceData, bodyIndex, 18)
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
           itotrej(listIndex) = itotrej(listIndex)+1
           igzrej(listIndex) = igzrej(listIndex)+1
@@ -699,8 +697,7 @@ contains
           ! Simpler rules used in the EnKF
           if(obsPressure >= colPressureAbove ) then
             if(abs(altitudeDiff) >= 50.0D0 .or. obsPressure >= colPressureBelow) then
-              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+              call flg_setFlag(obsSpaceData, bodyIndex, 18)
               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
               itotrej(listIndex) = itotrej(listIndex) + 1
               ibndrej(listIndex) = ibndrej(listIndex) + 1
@@ -720,14 +717,12 @@ contains
             colPressureAbove = col_getPressure(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM')-1,headerIndex,'MM')
           end if
           if(obsPressure > colPressureBelow ) then
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            call flg_setFlag(obsSpaceData, bodyIndex, 18)
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
             itotrej(listIndex) = itotrej(listIndex) + 1
             ibndrej(listIndex) = ibndrej(listIndex) + 1
           else if(obsPressure <= colPressureBelow .and. obsPressure > colPressureAbove ) then
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                 ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            call flg_setFlag(obsSpaceData, bodyIndex, 18)
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
             itotrej(listIndex) = itotrej(listIndex) + 1
             isblrej(listIndex) = isblrej(listIndex) + 1
@@ -824,8 +819,7 @@ contains
         if(listIndex == -1) cycle BODY
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
         countRej(listIndex)=countRej(listIndex)+1
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+        call flg_setFlag(obsSpaceData, bodyIndex, 18)
       end if
     end do BODY
 
@@ -941,14 +935,12 @@ end subroutine filt_topoAISW
              colAltitudeAbove = col_getHeight(columnTrlOnTrlLev,col_getNumLev(columnTrlOnTrlLev,'MM')-1,headerIndex,'MM')
           end if
           if(obsAltitude < colAltitudeBelow ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+             call flg_setFlag(obsSpaceData, bodyIndex, 18)
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex)=itotrej(listIndex)+1
              ibndrej(listIndex)=ibndrej(listIndex)+1
           else if(obsAltitude >= colAltitudeBelow .and. obsAltitude < colAltitudeAbove ) then
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+             call flg_setFlag(obsSpaceData, bodyIndex, 18)
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              itotrej(listIndex)=itotrej(listIndex)+1
              isblrej(listIndex)=isblrej(listIndex)+1
@@ -1068,8 +1060,7 @@ end subroutine filt_topoAISW
 
           else
              ! Flag rejection due to orography
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                  ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+             call flg_setFlag(obsSpaceData, bodyIndex, 18)
 
              ! Do not assimilate the observation
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
@@ -1157,10 +1148,8 @@ end subroutine filt_topoAISW
           if (col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0') < minSfcPressure) then
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
              countRej=countRej+1
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-             call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
-                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18))
+             call flg_setFlag(obsSpaceData, bodyIndex, 9)
+             call flg_setFlag(obsSpaceData, bodyIndex, 18)
           end if
 
        end do BODY
@@ -1208,7 +1197,7 @@ end subroutine filt_topoAISW
     INTEGER :: ILISTEL(JPINEL), IDLND(JPIDLND)
     INTEGER :: IKOUNTREJ(JPINEL), IKOUNTT
     character(len=2), dimension(2) :: list_family
-    integer :: index_family, index_header, index_body
+    integer :: index_family, headerIndex, bodyIndex
     character(len=12) :: stnid
     real(pre_obsReal) :: obsLAT, obsLON, obsPPP
 
@@ -1253,40 +1242,39 @@ end subroutine filt_topoAISW
        call obs_set_current_header_list(obsSpaceData, &
             list_family(index_family))
        HEADER: do
-          index_header = obs_getHeaderIndex(obsSpaceData)
-          if (index_header < 0) exit HEADER
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER
 
           !
           ! loop over all body indices (still in the same family)
           !
           ! Set the body list
           ! (& start at the beginning of the list)
-          call obs_set_current_body_list(obsSpaceData, index_header)
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
-             index_body = obs_getBodyIndex(obsSpaceData)
-             if (index_body < 0) exit BODY
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit BODY
 
              !             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
-             ITYP=obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
-             IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
+             ITYP=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             IDBURP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
              IF ( ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
                 DO JID = 1, JPIDLND
                    IF(IDBURP == IDLND(JID) .AND. &
-                        obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) THEN
-                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, &
-                           ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY), 19))
-                      call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY,obs_notAssimilated)
+                        obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) THEN
+                      call flg_setFlag(obsSpaceData, bodyIndex, 19)
+                      call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
                       DO J = 1, JPINEL
                          IF(ITYP ==ILISTEL(J)) THEN
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
                          END IF
                       END DO
                       IF(LLPRINT .and. .not.beSilent ) THEN
-                        stnid = obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
-                        obsLAT = obs_headElem_r(obsSpaceData,OBS_LAT,INDEX_HEADER)
-                        obsLON = obs_headElem_r(obsSpaceData,OBS_LON,INDEX_HEADER)
-                        obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-                        WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP,stnid, &
+                        stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+                        obsLAT = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+                        obsLON = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
+                        obsPPP = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                        WRITE(*,225) 'Rej sfc wind lnd',headerIndex,ITYP,stnid, &
                              IDBURP, obsLAT, obsLON, obsPPP
                       END IF
                    END IF
@@ -1338,7 +1326,7 @@ end subroutine filt_topoAISW
     logical                , intent(in)    :: beSilent
 
     ! Locals:
-    integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
+    integer :: bodyIndex, headerIndex, numLevels, bufrCode
     integer :: ierr, levelIndex
     real(8) :: obsAltitude, radarAltitude, beamElevation
     real(8) :: levelAltLow, levelAltHigh
@@ -1407,8 +1395,7 @@ end subroutine filt_topoAISW
         levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex,'MM')
         if ( obsAltitude < levelAltLow ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
-          obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+          call flg_setFlag(obsSpaceData, bodyIndex, 11)
           cycle BODY
         end if
 
@@ -1416,8 +1403,7 @@ end subroutine filt_topoAISW
         levelAltHigh = col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
         if ( obsAltitude > levelAltHigh ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
-          obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+          call flg_setFlag(obsSpaceData, bodyIndex, 11)
           cycle BODY
         end if
 
@@ -1434,8 +1420,7 @@ end subroutine filt_topoAISW
 
           if ( abs(levelRangeFar-levelRangeNear) > maxRangeInterp ) then
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
-            obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
-            call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
+            call flg_setFlag(obsSpaceData, bodyIndex, 11)
             cycle BODY
           end if
         end if
@@ -1467,8 +1452,8 @@ end subroutine filt_topoAISW
     logical                , intent(in)    :: beSilent
 
     ! Locals:
-    INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY, numROProfiles
-    INTEGER :: JL, ISAT, IQLF, iProfile, IFLG, varNum, IDSC, IBD
+    INTEGER :: headerIndex, IDATYP, bodyIndex, numROProfiles
+    INTEGER :: JL, ISAT, IQLF, iProfile, varNum, IDSC, IBD
     REAL(8) :: ZMT, Rad, Geo, LAT, LON, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
     LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL, LDSC, LEDR
@@ -1485,22 +1470,22 @@ end subroutine filt_topoAISW
     call obs_set_current_header_list(obsSpaceData,'RO')
     numROProfiles=0
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if (index_header < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
       !
       ! Process only refractivity data (codtyp 169):
       !
-      IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
+      IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if ( IDATYP == 169 ) then
         numROProfiles=numROProfiles+1
         !
         ! Basic variables of the profile:
         !
-        AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,INDEX_HEADER)
-        ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
-        IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
-        Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,INDEX_HEADER)
-        Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,INDEX_HEADER)
+        AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,headerIndex)
+        ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,headerIndex)
+        IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,headerIndex)
+        Rad  = obs_headElem_r(obsSpaceData,OBS_TRAD,headerIndex)
+        Geo  = obs_headElem_r(obsSpaceData,OBS_GEOI,headerIndex)
         LNOM = .NOT.BTEST(IQLF,16-1)
         LAZM = .TRUE.
         !
@@ -1509,30 +1494,30 @@ end subroutine filt_topoAISW
         ZSAT = ABS(gps_WGPS(ISAT,1))+ABS(gps_WGPS(ISAT,2))+ABS(gps_WGPS(ISAT,3))+ABS(gps_WGPS(ISAT,4))
         LSAT = ( ZSAT > 0.d0 )
         !
-        ZMT = col_getHeight(columnTrlOnTrlLev,0,index_header,'SF')
+        ZMT = col_getHeight(columnTrlOnTrlLev,0,headerIndex,'SF')
         !
         ! Acceptable height limits:
         !
         JL = 1
-        HTP = col_getHeight(columnTrlOnTrlLev,JL,INDEX_HEADER,'TH')
+        HTP = col_getHeight(columnTrlOnTrlLev,JL,headerIndex,'TH')
         HSF = ZMT+gps_SurfMin
         IF (HSF < gps_HsfMin) HSF=gps_HsfMin
         IF (HTP > gps_HtpMax) HTP=gps_HtpMax
         HMIN=Geo+HSF
         HMAX=Geo+HTP
         !
-        ! Loop over all body indices for this index_header:
+        ! Loop over all body indices for this headerIndex:
         ! (start at the beginning of the list)
         !
-        call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
         BODY: do
-          index_body = obs_getBodyIndex(obsSpaceData)
-          if (index_body < 0) exit BODY
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY
           !
           ! Altitude and reference order of magnitude value:
           !
-          HNH1= obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-          varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+          HNH1= obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+          varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           if (varNum == bufr_nebd) then
             HNH1=HNH1-Rad
             ZREF = 0.025d0*exp(-HNH1/6500.d0)
@@ -1544,7 +1529,7 @@ end subroutine filt_topoAISW
           !
           ! Observation:
           !
-          ZOBS= obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
+          ZOBS= obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
           !
           ! Positively verify that the altitude is within bounds:
           !
@@ -1558,17 +1543,16 @@ end subroutine filt_topoAISW
           !
           LALL = LLEV .AND. LOBS .AND. LAZM .AND. LNOM .AND. LSAT
           if ( .NOT.LALL ) then
-            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
-            IFLG = obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, obs_notAssimilated)
+            call flg_setFlag(obsSpaceData, bodyIndex, 11)
           end if
           ! Do not assimilate bending in mode gps_Level_RO = gps_Level_RO_Ref:
           if (varNum == bufr_nebd .and. gps_Level_RO == gps_Level_RO_Ref) then
-            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, obs_notAssimilated)
           endif
           ! Do not assimilate refractivity in mode gps_Level_RO = gps_Level_RO_Bnd:
           if (varNum == bufr_nerf .and. gps_Level_RO == gps_Level_RO_Bnd) then
-            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, obs_notAssimilated)
           endif
         end do BODY
       end if
@@ -1585,19 +1569,19 @@ end subroutine filt_topoAISW
       !
       call obs_set_current_header_list(obsSpaceData,'RO')
       HEADER2: do
-        index_header = obs_getHeaderIndex(obsSpaceData)
-        if (index_header < 0) exit HEADER2
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER2
         !
         ! Process only refractivity data (codtyp 169):
         !
-        IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
+        IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
-          LAT  = obs_headElem_r(obsSpaceData,OBS_LAT ,INDEX_HEADER)
-          LON  = obs_headElem_r(obsSpaceData,OBS_LON ,INDEX_HEADER)
-          AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,INDEX_HEADER)*MPC_RADIANS_PER_DEGREE_R8
-          ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
-          IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
+          LAT  = obs_headElem_r(obsSpaceData,OBS_LAT ,headerIndex)
+          LON  = obs_headElem_r(obsSpaceData,OBS_LON ,headerIndex)
+          AZM  = obs_headElem_r(obsSpaceData,OBS_AZA ,headerIndex)*MPC_RADIANS_PER_DEGREE_R8
+          ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,headerIndex)
+          IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,headerIndex)
           LDSC = .not.btest(IQLF,16-3)
           if (LDSC) then
             IDSC = 0
@@ -1605,7 +1589,7 @@ end subroutine filt_topoAISW
             IDSC = 1
           end if
           varNum = -1
-          call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
           !
           ! Loop over all body indices
           ! For storing varNum of each profile for the 'RO' family
@@ -1620,12 +1604,12 @@ end subroutine filt_topoAISW
           dR(:) = 0.d0
           ibd = 1
           BODY2: do
-            index_body = obs_getBodyIndex(obsSpaceData)
-            if (index_body < 0) exit BODY2
-            varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if (bodyIndex < 0) exit BODY2
+            varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             if (LEDR) then
-              latrd = obs_bodyElem_r(obsSpaceData,OBS_LATD,INDEX_BODY)
-              lonrd = obs_bodyElem_r(obsSpaceData,OBS_LOND,INDEX_BODY)
+              latrd = obs_bodyElem_r(obsSpaceData,OBS_LATD,bodyIndex)
+              lonrd = obs_bodyElem_r(obsSpaceData,OBS_LOND,bodyIndex)
               if (-1.58d0 < latrd .and. latrd < 1.58d0 .and. -3.15d0 < lonrd .and. lonrd < 6.29d0) then
                 ! Evaluate the offset of the ellipsoid from the reference sphere
                 call phf_delR(latrd, lonrd, CCoC, PRad, dR(ibd))
@@ -1639,7 +1623,7 @@ end subroutine filt_topoAISW
           ! no curvature anisotropy correction in it.
           if ( any(abs(dR) > 60.d0)) dR=0.d0
           ! Store profile info, including dR, in a table.
-          call gps_setROIndexPrf(iProfile, INDEX_HEADER, varNum, ISAT, IDSC, dR)
+          call gps_setROIndexPrf(iProfile, headerIndex, varNum, ISAT, IDSC, dR)
           if (.not.beSilent) write(*,*)'RO Prf', gps_numROProfiles, iProfile, varNum, ISAT, IDSC, LEDR
         end if
       end do HEADER2
@@ -1695,7 +1679,7 @@ end subroutine filt_topoAISW
 
         if ( modelWindSpeed < 4.0 ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyIndex, IBSET(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),13))
+          call flg_setFlag(obsSpaceData, bodyIndex, 13)
         end if
 
       else
@@ -1934,8 +1918,9 @@ end subroutine filt_topoAISW
         icount=icount+1
 
         ! Check for bit 4 of OBS_FLG, indicating a 'Suspicious element'
-        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) &
-           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        if (flg_flagIsOn(obsSpaceData, bodyIndex, 4)) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
+        end if
 
         ! Apply conditions for acceptability/rejection of the observation height
 
@@ -2080,8 +2065,7 @@ end subroutine filt_topoAISW
 
         ! The observation altitude is beyond the accepted vertical range.
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 9 ))
+        call flg_setFlag(obsSpaceData, bodyIndex, 9)
         countRej(listIndex)=countRej(listIndex)+1
         countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
 
@@ -2097,10 +2081,8 @@ end subroutine filt_topoAISW
           if (obsAltitude < colSfcAltitude - surfaceBufferZoneCH_Height) then
             ! Reject observation level below the buffer zone
             call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-            call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-                 ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+            call flg_setFlag(obsSpaceData, bodyIndex, 9)
+            call flg_setFlag(obsSpaceData, bodyIndex, 18)
             countRej(listIndex)=countRej(listIndex)+1
             countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
             highestLvlBelowSfc = .true.
@@ -2116,10 +2098,8 @@ end subroutine filt_topoAISW
           ! Reject obs levels below the surface (except for the topmost level
           ! below the surface withing the buffer zone)
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call flg_setFlag(obsSpaceData, bodyIndex, 9)
+          call flg_setFlag(obsSpaceData, bodyIndex, 18)
           countRej(listIndex)=countRej(listIndex)+1
           countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
         end if
@@ -2142,10 +2122,8 @@ end subroutine filt_topoAISW
           ! The station altitude was provided.
           ! The observation altitude is below the acceptable vertical range.
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call flg_setFlag(obsSpaceData, bodyIndex, 9)
+          call flg_setFlag(obsSpaceData, bodyIndex, 18)
           countRej(listIndex)=countRej(listIndex)+1
           countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
         else if (stationAltitude == 0.0d0 .and. &
@@ -2156,10 +2134,8 @@ end subroutine filt_topoAISW
           ! Reject level below the topmost first accepted level within
           ! buffer zone
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-          call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-               ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+          call flg_setFlag(obsSpaceData, bodyIndex, 9)
+          call flg_setFlag(obsSpaceData, bodyIndex, 18)
           countRej(listIndex)=countRej(listIndex)+1
           countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
         else
@@ -2200,26 +2176,21 @@ end subroutine filt_topoAISW
       if (obsPressure < colTopPressure) then
         ! The observation pressure is above the accepted vertical range.
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
+        call flg_setFlag(obsSpaceData, bodyIndex, 9)
         countRej(listIndex)=countRej(listIndex)+1
         countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
       else if (obsPressure > colSfcPressure + surfaceBufferZoneCH_Pres) then
         ! The observation pressure is below the accepted vertical range.
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+        call flg_setFlag(obsSpaceData, bodyIndex, 9)
+        call flg_setFlag(obsSpaceData, bodyIndex, 18)
         countRej(listIndex)=countRej(listIndex)+1
         countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
       else if (highestLvlBelowSfc .and. obsPressure > colSfcPressure) then
         ! Reject obs level (below the first accepted obs level) within buffer zone
         call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,obs_notAssimilated)
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
-        call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
-             ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+        call flg_setFlag(obsSpaceData, bodyIndex, 9)
+        call flg_setFlag(obsSpaceData, bodyIndex, 18)
         countRej(listIndex)=countRej(listIndex)+1
         countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
       else
