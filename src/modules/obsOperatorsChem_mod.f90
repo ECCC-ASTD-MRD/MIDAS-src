@@ -2833,12 +2833,12 @@ module obsOperatorsChem_mod
 
             ! Apply averaging kernels to observation operator(s)
 
-            zhwork(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-                                    1:obsoper%nobslev),obsoper%zh(:,:))
+            call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             if (obsoper%applyGenOper .and.  &
                 trim(obsoper%operatorCategory) /= 'Interp') then
-              zhpwork(obslevIndex,:) = &
-                matmul(avg_kern(obslevIndex,1:obsoper%nobslev),obsoper%zhp(:,:))
+              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                  obsoper%zhp(:,:),zhpwork(obslevIndex:obslevIndex,:))
             end if
 
             ! Extend vertical range of obs operator according to the influence of
@@ -2902,10 +2902,9 @@ module obsOperatorsChem_mod
                 1:obsoper%nobslev)
 
               ! Merge the averaging kernel matrix (avgkern) and the
-              ! vertical interpolator (initial zh) 
-              zhwork(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
-                                      1:obsoper%nobslev),obsoper%zh(:,:))
-
+              ! vertical interpolator (initial zh)
+              call utl_fastMatMul(avg_kern(obslevIndex:obslevIndex,1:obsoper%nobslev), &
+                                  obsoper%zh(:,:),zhwork(obslevIndex:obslevIndex,:))
             end if
           end do
           obsoper%zh(1:oopc_avgkern%n_lvl(obsoper%iavgkern),:) = zhwork(:,:)
