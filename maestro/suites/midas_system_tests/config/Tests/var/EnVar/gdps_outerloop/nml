@@ -5,10 +5,10 @@
 /
  &NAMBEN
    NTRUNC  = 80,
-   NENS = 64
+   NENS = 32
    SCALEFACTOR=0.01D0,0.04D0,0.09D0,0.16D0,0.50D0,100*1.0D0
    ENSPATHNAME='./ensemble/'
-   HORIZLOCALIZATIONTYPE = 'ScaleDependent'
+   HORIZLOCALIZATIONTYPE = 'LevelDependent'
    HORIZWAVEBANDPEAKS = 80,20,4
    HLOCALIZE = 1000.0,2400.0,3800.0
    VLOCALIZE = 2.0d0,2.0d0,2.0d0
@@ -31,7 +31,7 @@
 /
  &NAMVAR
   numOuterLoopIterations = 3,
-  numIterMaxInnerLoop = 25,25,20,
+  numIterMaxInnerLoop = 10,10,10,
   computeFinalNlJo = .true.
   limitHuInOuterLoop = .true.
 /
@@ -55,7 +55,7 @@
    NDATAMX=8000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
+  DSTEPOBS = 1.0d0
   DSTEPOBSINC = 3.0d0
 /
  &NAMFILT
