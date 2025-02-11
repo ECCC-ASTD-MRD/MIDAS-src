@@ -251,14 +251,23 @@ contains
     onlyAssimObs = .false.
     addFSOdiag = .false.
     writeObsDb = .false.
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml,nml=namwritediag,iostat=ierr)
-    if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
+
+    if ( .not. utl_isNamelistPresent('namwritediag','./flnml') ) then
+      if (mmpi_myid == 0) then
+        write(*,*) 'namwritediag is missing in the namelist. The default values will be taken'
+      end if
+    else
+      ! read in the namelist namwritediag
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml,nml=namwritediag,iostat=ierr)
+      if (ierr /= 0) call utl_abort('obsf_writeFiles: Error reading namelist')
+      call utl_tmg_stop(181)
+    end if
+
     if (mmpi_myid == 0) write(*,nml = namwritediag)
     if (present(writeDiagFiles_opt)) then
       lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
     end if
-    call utl_tmg_stop(181)
 
     if ( obsFileType == 'BURP' .or. obsFileType == 'OBSDB' .or. &
          obsFileType == 'SQLITE' ) then
