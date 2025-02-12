@@ -50,8 +50,21 @@ It can also be useful to use it to compare two runs.  To do so, it is important
 to make sure timing lists extracted from both listings contain the same elements
 in the same order for the comparison to be useful. To achieve this, one will
 call `midas.timingTool` on each listing, but using the other listing as _reference_
-and specifying the order for the timing outputs be ordered properly for the
-comparison:
+for the timing outputs be ordered properly for the comparison:
+```sh
+./midas.timingTool ${LISTING_1} -d -r ${LISTING_2}
+```
+Note, that it is also possible to use `nodelister` for the référence using process
+substitution (`<( ${command} )`), for example to compare two listings directly from two suites, you
+could use either of these commands:
+```sh
+SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1} | ./midas.timingTool -d -r <(SEQ_EXP_HOME=${path_to_suite2} nodelister -n ${maestro_node2} -d ${datetime2})
+```
+```sh
+./midas.timingTool <(SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1}) -d -r <(SEQ_EXP_HOME=${path_to_suite2} nodelister -n ${maestro_node2} -d ${datetime2})
+```
+
+To maintain retro-compatibility, it is also possible to do it manually:
 ```sh
 ./midas.timingTool ${LISTING_1} -r ${LISTING_2} -o 1 > timings_1.dat
 ./midas.timingTool ${LISTING_2} -r ${LISTING_1} -o 2 > timings_2.dat

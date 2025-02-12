@@ -10,6 +10,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("listing", nargs='?', type=argparse.FileType('r'), default=sys.stdin,
                     help="input listing to be parsed for timings, omitting this argument, the script will read directly from stdin")
 parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
+parser.add_argument("-d", "--diff", help="compare input listing with the reference",action="store_true", default=False)
+parser.add_argument("-n", "--nocount", help="Do not show call count",action="store_false", default=True)
 parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
 parser.add_argument("-l", "--limit", help="minimum timing threshold", type=float, default=3.0)
 parser.add_argument("-u", "--unittest", help="Run the unit tests",action="store_true", default=False)
@@ -18,6 +20,7 @@ args = parser.parse_args()
 
 minimumTimingLimit=args.limit
 exptOrder=args.order
+showCount=args.nocount
 
 # argparse will either open the file passed or feed in stdin
 # note that it's not the filename that is passed, but the open file object _io.TextIOWrapper
@@ -30,7 +33,7 @@ inputUnit = args.listing
 filename2 = args.reference
 
 
-def main(fileObj, fileObjRef = None):
+def printTMG(fileObj, fileObjRef = None):
     allLines = extractLines(fileObj)
     if fileObjRef != None:
         allLinesRef = extractLines(fileObjRef)
@@ -42,33 +45,107 @@ def main(fileObj, fileObjRef = None):
     timings = getMeanMaxMin(allLines, labelList)
 
     print()
-    print(output(labelList, timings))
+    print(outputTMG(labelList, timings, showCount=showCount))
+
+def compareTMG(fileObj1, fileObj2):
+    fileObjList = (fileObj1, fileObj2)
+
+    allLines = list()
+    for i in range(2):
+        allLines.append(extractLines(fileObjList[i]))
+
+    labels = listLabels(allLines[0], allLinesRef=allLines[1], order=1,
+                        minTMG=minimumTimingLimit)
+    timings = list()
+    for i in range(2):
+        timings.append(getMeanMaxMin(allLines[i], labels))
+
+    diffTMG = computeDiffTMG(labels, timings)
+
+    print()
+    print(outputDiffTMG(labels, diffTMG, timings, showCount=showCount))
 
 
-def output( labelList, timings):
+def outputTMG( labelList, timings, showCount=False):
     (meanTimingList, maxTimingList, minTimingList) = timings[0]
     (meanCountList, maxCountList, minCountList) = timings[1]
     string = ''
     string +=   '{:40}'.format('LABEL') +'{:>8}'.format('meanTime') + '{:>8}'.format('maxTime') + \
-                '{:>8}'.format('minTime') + '{:>10}'.format('meanCount') + '{:>10}'.format('maxCount') + \
+                '{:>9}'.format('minTime')
+    if showCount:
+        string+='{:>10}'.format('meanCount') + '{:>10}'.format('maxCount') + \
                 '{:>10}'.format('minCount') + '\n'
-    string +=   '{:40}'.format('=====') + '{:>8}'.format('=======') + '{:>8}'.format('=======') + \
-                '{:>8}'.format('========') + '{:>10}'.format('========') + '{:>10}'.format('========') + \
+    else:
+        string+='\n'
+
+    string +=   '{:40}'.format('=====') + '{:>8}'.format('=======') + '{:>8}'.format('=======') +\
+                '{:>9}'.format('========')
+    if showCount:
+        string+='{:>10}'.format('========') + '{:>10}'.format('========') + \
                 '{:>10}'.format('=========') + '\n'
+    else:
+        string+='\n'
+
     for listIndex in range(0,len(labelList)):
         string +=   '{:40}'.format(labelList[listIndex]) + \
                     '{:8.2f}'.format(meanTimingList[listIndex]) + \
                     '{:8.2f}'.format(maxTimingList[listIndex]) + \
-                    '{:8.2f}'.format(minTimingList[listIndex]) + \
-                    '{:10d}'.format(round(meanCountList[listIndex])) + \
-                    '{:10d}'.format(maxCountList[listIndex]) + \
-                    '{:10d}'.format(minCountList[listIndex]) + '\n'
+                    '{:9.2f}'.format(minTimingList[listIndex])
+        if showCount:
+            string +=   '{:10d}'.format(round(meanCountList[listIndex])) + \
+                        '{:10d}'.format(maxCountList[listIndex]) + \
+                        '{:10d}'.format(minCountList[listIndex]) + '\n'
+        else:
+            string+='\n'
+
+    return string
+
+def outputDiffTMG(labelList, diff, timings, showCount=False):
+    (meanDiffTimingList, maxDiffTimingList, minDiffTimingList) = diff[0]
+    (meanDiffCountList, maxDiffCountList, minDiffCountList) = diff[1]
+    (meanTimingList, maxTimingList, minTimingList) = timings[0][0]
+    (meanCountList, maxCountList, minCountList) = timings[0][1]
+    (meanTimingListRef, maxTimingListRef, minTimingListRef) = timings[1][0]
+    (meanCountListRef, maxCountListRef, minCountListRef) = timings[1][1]
+    string = ''
+    string +=   '{:40}'.format('LABEL') +'{:^31}'.format('meanTimeDiff') + \
+                '{:^31}'.format('maxTimeDiff') + '{:^31}'.format('minTimeDiff')
+    if showCount:
+        string+='{:^36}'.format('meanCountDiff') + '{:^36}'.format('maxCountDiff') + \
+                '{:^36}'.format('minCountDiff') + '\n'
+    else:
+        string+='\n'
+
+    string +=   '{:40}'.format('='*4) + '{:^31}'.format('='*29) + \
+                '{:^31}'.format('='*29) + '{:^31}'.format('='*29)
+    if showCount:
+        string+='{:^36}'.format('='*34) + '{:^36}'.format('='*34) + \
+                '{:^36}'.format('='*34) + '\n'
+    else:
+        string+='\n'
+
+    for listIndex in range(0,len(labelList)):
+        string +=   '{:40}'.format(labelList[listIndex]) + \
+                    '{:8.2f}'.format(meanDiffTimingList[listIndex]) + \
+                    ' ({:8.2f} | {:8.2f})'.format(meanTimingList[listIndex], meanTimingListRef[listIndex]) +\
+                    '{:8.2f}'.format(maxDiffTimingList[listIndex]) + \
+                    ' ({:8.2f} | {:8.2f})'.format(maxTimingList[listIndex], maxTimingListRef[listIndex]) +\
+                    '{:8.2f}'.format(minDiffTimingList[listIndex]) + \
+                    ' ({:8.2f} | {:8.2f})'.format(minTimingList[listIndex], minTimingListRef[listIndex])
+        if showCount:
+            string+='{:10d}'.format(round(meanDiffCountList[listIndex])) + \
+                    ' ({:10d} | {:10d})'.format(round(meanCountList[listIndex]), round(meanCountListRef[listIndex])) +\
+                    '{:10d}'.format(maxDiffCountList[listIndex]) + \
+                    ' ({:10d} | {:10d})'.format(maxCountList[listIndex], maxCountListRef[listIndex]) + \
+                    '{:10d}'.format(minDiffCountList[listIndex]) + \
+                    ' ({:10d} | {:10d})'.format(minCountList[listIndex], minCountListRef[listIndex]) + '\n'
+        else:
+            string+='\n'
     return string
 
 
-
 def extractLines(fileObj):
-    allLines = []
+    allLines = list()
     for line in fileObj:
         line=str(line)
         strIndex = line.find(" TMG:")
@@ -80,7 +157,7 @@ def extractLines(fileObj):
 
 def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
     '''get unique and complete list of labels'''
-    labelListOrig = []
+    labelListOrig = list()
     if order == 1:
         # get all labels from main file, first
         for line in allLines:
@@ -109,9 +186,9 @@ def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
                 labelListOrig.append(label)
 
     # remove labels from the list if the max timing is less that a minimum threshold
-    labelList = []
+    labelList = list()
     for label in labelListOrig:
-        timingList = []
+        timingList = list()
         for line in allLines:
             if label == line.partition("LABEL=")[2].partition(",")[0].strip():
                 timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
@@ -128,17 +205,17 @@ def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
 
 def getMeanMaxMin(allLines, labelList):
     '''get min/max/mean timing and counts for each label in labelList'''
-    minTimingList = []
-    maxTimingList = []
-    meanTimingList = []
-    minCountList = []
-    maxCountList = []
-    meanCountList = []
-    timingLists = []
-    countLists = []
+    minTimingList = list()
+    maxTimingList = list()
+    meanTimingList = list()
+    minCountList = list()
+    maxCountList = list()
+    meanCountList = list()
+    timingLists = list()
+    countLists = list()
     for label in labelList:
-        timingList = []
-        countList = []
+        timingList = list()
+        countList = list()
         for line in allLines:
             if label == line.partition("LABEL=")[2].partition(",")[0].strip():
                 timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
@@ -173,6 +250,30 @@ def getMeanMaxMin(allLines, labelList):
             (meanCountList, maxCountList, minCountList),
             timingLists, countLists)
 
+def computeDiffTMG(labelList, timings):
+    minDiffTimingList = list()
+    maxDiffTimingList = list()
+    meanDiffTimingList = list()
+    minDiffCountList = list()
+    maxDiffCountList = list()
+    meanDiffCountList = list()
+    (meanTimingList, maxTimingList, minTimingList) = timings[0][0]
+    (meanCountList, maxCountList, minCountList) = timings[0][1]
+    (meanTimingListRef, maxTimingListRef, minTimingListRef) = timings[1][0]
+    (meanCountListRef, maxCountListRef, minCountListRef) = timings[1][1]
+    for listIndex in range(0,len(labelList)):
+        meanDiffTimingList.append(meanTimingList[listIndex]-meanTimingListRef[listIndex])
+        maxDiffTimingList.append(maxTimingList[listIndex]-maxTimingListRef[listIndex])
+        minDiffTimingList.append(minTimingList[listIndex]-minTimingListRef[listIndex])
+        meanDiffCountList.append(meanCountList[listIndex]-meanCountListRef[listIndex])
+        maxDiffCountList.append(maxCountList[listIndex]-maxCountListRef[listIndex])
+        minDiffCountList.append(minCountList[listIndex]-minCountListRef[listIndex])
+
+    return ((meanDiffTimingList, maxDiffTimingList, minDiffTimingList),
+            (meanDiffCountList, maxDiffCountList, minDiffCountList))
+
+
+
 
 class test_labelExtraction(unittest.TestCase):
 
@@ -202,7 +303,7 @@ class test_labelExtraction(unittest.TestCase):
         oe-00000-00001: TMG: PE=   1 ,LABEL=----ApplyWeights........................ ,COUNT=85 ,TIME=           13.299899 seconds, AVG=            0.156469 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=------ApplyWeightsMember................ ,COUNT=52954 ,TIME=           12.826459 seconds, AVG=            0.000242 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-signals................. ,COUNT=741 ,TIME=            4.492428 seconds, AVG=            0.006063 seconds
-        oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitSend................ ,COUNT=85 ,TIME=            0.007523 seconds, AVG=            0.000089 seconds
+        oe-0000'{:>9}'.format('========') 0-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitSend................ ,COUNT=85 ,TIME=            0.007523 seconds, AVG=            0.000089 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitRecv................ ,COUNT=85 ,TIME=            0.033655 seconds, AVG=            0.000396 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-irecv................... ,COUNT=170 ,TIME=            0.195063 seconds, AVG=            0.001147 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-isend................... ,COUNT=656 ,TIME=            0.322189 seconds, AVG=            0.000491 seconds'''
@@ -214,7 +315,7 @@ class test_labelExtraction(unittest.TestCase):
         allLines = self.listingContent.splitlines()
         labelList = listLabels(allLines)
         timings = getMeanMaxMin(allLines, labelList)
-        self.output = output(labelList, timings)
+        self.output = outputTMG(labelList, timings)
 
     def test_labelPresence(self):
         for label in self.labels:
@@ -256,10 +357,10 @@ class test_order(unittest.TestCase):
         timings.append(getMeanMaxMin(allLines[1], labels['2']))
 
         self.output = dict()
-        self.output['1'] = output(labels['1'], timings[0])
-        self.output['2'] = output(labels['2'], timings[1])
-        self.output['1r2o1'] = output(labels['1r2o1'], timings[1])
-        self.output['2r1o2'] = output(labels['2r1o2'], timings[1])
+        self.output['1'] = outputTMG(labels['1'], timings[0])
+        self.output['2'] = outputTMG(labels['2'], timings[1])
+        self.output['1r2o1'] = outputTMG(labels['1r2o1'], timings[1])
+        self.output['2r1o2'] = outputTMG(labels['2r1o2'], timings[1])
 
         self.expected = dict()
         self.expected['1']=('Main', 'A', 'B', 'C')
@@ -280,6 +381,41 @@ class test_order(unittest.TestCase):
             for i, line in enumerate(lines[2:]):
                 elem = line[:40].rstrip('.').lstrip('-')
                 self.assertTrue(elem == self.expected['12ref1'][i])
+
+class test_compare(unittest.TestCase):
+
+    def setUp(self):
+        listing = list()
+        listing.append('''oe-00000-00000: TMG: PE=   0 ,LABEL=--Main.................................. ,COUNT=1 ,TIME=           48.300000 seconds, AVG=           48.300000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Big................................. ,COUNT=340 ,TIME=           30.000000 seconds, AVG=            0.087000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Small............................... ,COUNT=85 ,TIME=            2.800000 seconds, AVG=            0.046000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.500000 seconds, AVG=            0.160000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----InBetween........................... ,COUNT=85 ,TIME=           15.000000 seconds, AVG=            0.160000 seconds''')
+        listing.append('''oe-00000-00000: TMG: PE=   0 ,LABEL=--Main.................................. ,COUNT=1 ,TIME=           47.250000 seconds, AVG=           47.250000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Big................................. ,COUNT=340 ,TIME=           29.300000 seconds, AVG=            0.085000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Small............................... ,COUNT=85 ,TIME=            3.100000 seconds, AVG=            0.057000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.450000 seconds, AVG=            0.155000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----InBetween........................... ,COUNT=85 ,TIME=           14.400000 seconds, AVG=            0.143000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----OnlyInThisOne....................... ,COUNT=3  ,TIME=            6.000000 seconds, AVG=            6.000000 seconds''')
+        allLines = list()
+        allLines.append(listing[0].splitlines())
+        allLines.append(listing[1].splitlines())
+
+        self.labels = listLabels(allLines[0], allLinesRef=allLines[1], order=1)
+        self.timings = list()
+        for i in range(2):
+            j = 1 if i == 0 else 0
+            self.timings.append(getMeanMaxMin(allLines[i], self.labels))
+
+        self.diff = computeDiffTMG(self.labels, self.timings)
+
+    def test_checkDifference(self):
+        differences= self.diff[0]
+        for i, listOfDiff in enumerate(differences):
+            for j, value in enumerate(listOfDiff):
+                self.assertAlmostEqual(value, self.timings[0][0][i][j]-self.timings[1][0][i][j], 5)
+
+
 
 if __name__ == "__main__":
     if args.unittest:
@@ -302,4 +438,9 @@ if __name__ == "__main__":
         else:
             refUnit = None
 
-        main(inputUnit, refUnit)
+        if args.diff:
+            if refUnit == None:
+                raise ValueError(f"Reference listing must be provided with `-r|--diff`")
+            compareTMG(inputUnit, refUnit)
+        else:
+            printTMG(inputUnit, refUnit)
