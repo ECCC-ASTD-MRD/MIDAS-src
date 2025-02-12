@@ -37,16 +37,17 @@ def main(fileObj, fileObjRef = None):
     else:
         allLinesRef = None
 
-    labelList = listLabels(allLines, allLinesRef)
+    labelList = listLabels( allLines, allLinesRef=allLinesRef, order=exptOrder,
+                            minTMG=minimumTimingLimit)
     timings = getMeanMaxMin(allLines, labelList)
 
     print()
-    print(output(labelList, timings[0], timings[1]))
+    print(output(labelList, timings))
 
 
-def output( labelList, timingList, countList):
-    (meanTimingList, maxTimingList, minTimingList) = timingList
-    (meanCountList, maxCountList, minCountList) = countList
+def output( labelList, timings):
+    (meanTimingList, maxTimingList, minTimingList) = timings[0]
+    (meanCountList, maxCountList, minCountList) = timings[1]
     string = ''
     string +=   '{:40}'.format('LABEL') +'{:>8}'.format('meanTime') + '{:>8}'.format('maxTime') + \
                 '{:>8}'.format('minTime') + '{:>10}'.format('meanCount') + '{:>10}'.format('maxCount') + \
@@ -77,10 +78,10 @@ def extractLines(fileObj):
     return allLines
 
 
-def listLabels(allLines, allLinesRef=None):
+def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
     '''get unique and complete list of labels'''
     labelListOrig = []
-    if exptOrder == "1":
+    if order == 1:
         # get all labels from main file, first
         for line in allLines:
             label = line.partition("LABEL=")[2].partition(",")[0].strip()
@@ -88,14 +89,14 @@ def listLabels(allLines, allLinesRef=None):
                 labelListOrig.append(label)
 
         # add new labels from reference file, if supplied
-        if filename2:
+        if allLinesRef != None:
             for line in allLinesRef:
                 label = line.partition("LABEL=")[2].partition(",")[0].strip()
                 if label not in labelListOrig:
                     labelListOrig.append(label)
     else:
         # start with reference file
-        if filename2:
+        if allLinesRef != None:
             for line in allLinesRef:
                 label = line.partition("LABEL=")[2].partition(",")[0].strip()
                 if label not in labelListOrig:
@@ -121,7 +122,7 @@ def listLabels(allLines, allLinesRef=None):
                     timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
                     timingList.append(timing)
         # check maximum timing
-        if max(timingList) > minimumTimingLimit:
+        if max(timingList) > minTMG:
             labelList.append(label)
     return labelList
 
@@ -173,7 +174,7 @@ def getMeanMaxMin(allLines, labelList):
             timingLists, countLists)
 
 
-class test_timingTool(unittest.TestCase):
+class test_labelExtraction(unittest.TestCase):
 
     def setUp(self):
         self.listingContent='''oe-00000-00000: TMG: PE=   0 ,LABEL=--LETKFanalysis......................... ,COUNT=1 ,TIME=           47.268173 seconds, AVG=           47.268173 seconds
@@ -205,22 +206,7 @@ class test_timingTool(unittest.TestCase):
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitRecv................ ,COUNT=85 ,TIME=            0.033655 seconds, AVG=            0.000396 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-irecv................... ,COUNT=170 ,TIME=            0.195063 seconds, AVG=            0.001147 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-isend................... ,COUNT=656 ,TIME=            0.322189 seconds, AVG=            0.000491 seconds'''
-        self.outExpected ='''
-        LABEL                                    meanTime  maxTime  minTime  meanCount   maxCount   minCount
-        =====                                     =======  ======= ========   ========   ========  =========
-        --LETKFanalysis.........................    47.27    47.27    47.27          1          1          1
-        ----CommWeights.........................    17.14    29.24     5.05        996       1652        340
-        ----InterpolateWeights..................     2.66     3.11     2.22         85         85         85
-        ----ApplyWeights........................    13.33    13.35    13.30         85         85         85
-        ------ApplyWeightsMember................    12.86    12.89    12.83      52954      52954      52954
-        ----CommWeights-signals.................    16.76    29.04     4.49        413        741         85
-        ----GetLocalBodyIndices.................     3.14     3.14     3.14        656        656        656
-        ----CalculateWeights....................    20.13    20.13    20.13        656        656        656
-        ------EigenDecomp.......................     6.97     6.97     6.97       5850       5850       5850
-        ------CalcYbTinvRYb.....................     7.07     7.07     7.07        656        656        656
-        --------YbTinvRYb1......................     7.07     7.07     7.07        656        656        656
 
-        '''
         self.labels=(   'LETKFanalysis', 'CommWeights', 'ApplyWeights', 'ApplyWeightsMember',
                         'CommWeights-signals', 'GetLocalBodyIndices', 'CalculateWeights',
                         'EigenDecomp', 'CalcYbTinvRYb', 'YbTinvRYb1', 'InterpolateWeights',
@@ -228,7 +214,7 @@ class test_timingTool(unittest.TestCase):
         allLines = self.listingContent.splitlines()
         labelList = listLabels(allLines)
         timings = getMeanMaxMin(allLines, labelList)
-        self.output = output(labelList, timings[0], timings[1])
+        self.output = output(labelList, timings)
 
     def test_labelPresence(self):
         for label in self.labels:
@@ -240,6 +226,60 @@ class test_timingTool(unittest.TestCase):
         for line in lines[2:]:
             elem = line[:40].rstrip('.').lstrip('-')
             self.assertTrue(elem in self.labels)
+
+class test_order(unittest.TestCase):
+
+    def setUp(self):
+        listing = list()
+        listing.append('''oe-00000-00000: TMG: PE=   0 ,LABEL=--Main.................................. ,COUNT=1 ,TIME=           47.268173 seconds, AVG=           47.268173 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----A................................... ,COUNT=340 ,TIME=           29.237750 seconds, AVG=            0.085993 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----B................................... ,COUNT=85 ,TIME=            3.216157 seconds, AVG=            0.026072 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----C................................... ,COUNT=85 ,TIME=           13.351298 seconds, AVG=            0.157074 seconds''')
+        listing.append('''oe-00000-00000: TMG: PE=   0 ,LABEL=--Main.................................. ,COUNT=1 ,TIME=           47.268173 seconds, AVG=           47.268173 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----B................................... ,COUNT=85 ,TIME=            3.216157 seconds, AVG=            0.026072 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----C................................... ,COUNT=85 ,TIME=           13.351298 seconds, AVG=            0.157074 seconds
+        oe-00000-00001: TMG: PE=   1 ,LABEL=----D................................... ,COUNT=741 ,TIME=            4.492428 seconds, AVG=            0.006063 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----A................................... ,COUNT=340 ,TIME=           29.237750 seconds, AVG=            0.085993 seconds''')
+
+        allLines = list()
+        allLines.append(listing[0].splitlines())
+        allLines.append(listing[1].splitlines())
+
+        labels = dict()
+        labels['1'] = listLabels(allLines[0])
+        labels['2'] = listLabels(allLines[1])
+        labels['1r2o1'] = listLabels(allLines[0], allLinesRef=allLines[1], order=1)
+        labels['2r1o2'] = listLabels(allLines[1], allLinesRef=allLines[0], order=2)
+
+        timings = list()
+        timings.append(getMeanMaxMin(allLines[0], labels['1']))
+        timings.append(getMeanMaxMin(allLines[1], labels['2']))
+
+        self.output = dict()
+        self.output['1'] = output(labels['1'], timings[0])
+        self.output['2'] = output(labels['2'], timings[1])
+        self.output['1r2o1'] = output(labels['1r2o1'], timings[1])
+        self.output['2r1o2'] = output(labels['2r1o2'], timings[1])
+
+        self.expected = dict()
+        self.expected['1']=('Main', 'A', 'B', 'C')
+        self.expected['2']=('Main', 'B', 'C', 'D', 'A')
+        self.expected['12ref1']=('Main', 'A', 'B', 'C', 'D')
+
+
+    def test_labelOrder_single(self):
+        for key in ('1', '2'):
+            lines = self.output[key].splitlines()
+            for i, line in enumerate(lines[2:]):
+                elem = line[:40].rstrip('.').lstrip('-')
+                self.assertTrue(elem == self.expected[key][i])
+
+    def test_labelOrder_withRef1(self):
+        for key in ('1r2o1', '2r1o2'):
+            lines = self.output[key].splitlines()
+            for i, line in enumerate(lines[2:]):
+                elem = line[:40].rstrip('.').lstrip('-')
+                self.assertTrue(elem == self.expected['12ref1'][i])
 
 if __name__ == "__main__":
     if args.unittest:
