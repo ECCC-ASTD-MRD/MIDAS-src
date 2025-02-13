@@ -2460,7 +2460,7 @@ contains
     ! Locals:
     integer :: bodyIndex, headerIndex, instrumentIndex, sensorIndex
     integer, allocatable :: instrumentList(:)
-    integer :: assim, flag, codtyp, channelNumber
+    integer :: flag, codtyp, channelNumber
     integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, chanIndx
     logical :: lHyperIr, lGeo, lSsmis, lTovs
     logical :: condition, condition1, condition2, channelIsAllsky
@@ -2553,7 +2553,7 @@ contains
           ! assimilated obs
           if (lTovs) then
             ! remove cloud-affected obs from the pool of "assimilated" obs before computing bias correction
-            if (channelIsAllsky and btest(flag, 23)) then
+            if (channelIsAllsky .and. btest(flag, 23)) then
               call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
             end if
           end if
