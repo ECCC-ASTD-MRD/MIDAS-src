@@ -319,7 +319,8 @@ contains
       call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
     else
       if (tvs_mwAllskyAssim) then
-        call oer_readAndSetObsErrors(obsSpaceData, varMode, setObsOer_opt=.false.) ! IN
+        call oer_readAndSetObsErrors(obsSpaceData, varMode, setObsOer_opt=.false., &
+                                      readObsErrFamNameList_opt=(/'TO'/)) ! IN
       end if
     end if
 
