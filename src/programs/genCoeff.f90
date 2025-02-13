@@ -313,9 +313,16 @@ contains
     call msg_memUsage('midas-genCoeff')
 
     !
-    !- Initialize the observation error covariances
+    !- Initialize the observation error covariances or just read obs err ascii files.
     !
-    if (.not. bcs_mimicSatbcor) call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
+    if (.not. bcs_mimicSatbcor) then
+      call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
+    else
+      if (tvs_mwAllskyAssim) then
+        call oer_readAndSetObsErrors(obsSpaceData, varMode, setObsOer_opt=.false.) ! IN
+      end if
+    end if
+
     call msg_memUsage('midas-genCoeff')
 
   end subroutine gencoeff_setup
