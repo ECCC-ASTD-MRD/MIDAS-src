@@ -1351,6 +1351,10 @@ CONTAINS
                           varNames_opt = bEns(instanceIndex)%includeAnlVar(1:bEns(instanceIndex)%numIncludeAnlVar), & 
                           containsFullField_opt=bEns(instanceIndex)%ensContainsFullField)
 
+    if (any(bEns(instanceIndex)%includeAnlVar(:) == 'P_M') .and. any(bEns(instanceIndex)%includeAnlVar(:) == 'P_T')) then
+      call gvt_transform(bEns(instanceIndex)%ensPerts(1,1),'ZandP_nl') ! Only P will be added since Z cannot be an analysis variable
+    end if
+
     if ( bEns(instanceIndex)%ctrlVarHumidity == 'LQ' .and. ens_varExist(bEns(instanceIndex)%ensPerts(1,1),'HU') .and. &
          bEns(instanceIndex)%ensContainsFullField ) then
       call gvt_transform(bEns(instanceIndex)%ensPerts(1,1),'HUtoLQ',huMinValue_opt=bEns(instanceIndex)%huMinValue)

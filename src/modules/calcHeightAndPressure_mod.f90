@@ -141,6 +141,10 @@ contains
 
     call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
+    if (statevector%mpi_distribution == 'VarsLevs') then
+      call utl_abort('calcZandP_gsv_nl (czp): Pressure and height computation is not compatible with a VarsLevs mpi distribution')
+    end if
+    
     Vcode = vco_getVcode(gsv_getVco(statevector))
 
     if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
@@ -348,8 +352,6 @@ contains
       end if
 
     else if (Vcode == 21001) then
-      ! Development notes (@mad001) 
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -1707,8 +1709,6 @@ contains
                                               ptr_PT_r8, ptr_PM_r8)
       end if
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')

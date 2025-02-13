@@ -416,10 +416,10 @@ program midas_diagBmatrix
       do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
         loc => ben_getLoc(locIndex,instanceIndex_opt=instanceIndex)
 
-        if (loc%vco%Vcode == 5002 .or. loc%vco%Vcode == 5005) then
-          varNameALFA(:) = varNameALFAatm(:)
-        else ! vco_anl%Vcode == -1
+        if (loc%vco%Vcode == -1) then
           varNameALFA(:) = varNameALFAsfc(:)
+        else
+          varNameALFA(:) = varNameALFAatm(:)
         end if
 
         call mmpi_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)

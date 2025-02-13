@@ -549,7 +549,10 @@ module gridStateVector_mod
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
 
     if (varneed('Z_T') .or. varneed('Z_M')) call utl_abort('gsv_setup: height can not be specified as analysis variable in namelist!')
-    if (varneed('P_T') .or. varneed('P_M')) call utl_abort('gsv_setup: pressure can not be specified as analysis variable in namelist!')
+    if (varneed('P_T') .or. varneed('P_M')) then
+      write(*,*)
+      write(*,*) 'gsv_setup: WARNING: Pressure as an analysis variable is not fully supported. Be careful!'
+    end if
 
     do varIndex = 1, vnl_numvarmax3D
       if (varneed(vnl_varNameList3D(varIndex))) then
