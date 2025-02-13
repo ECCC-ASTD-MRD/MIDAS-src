@@ -1474,7 +1474,7 @@ CONTAINS
           psvFlag = .true.
         end if
         ! set OBS_FLG to indicate passive observation
-        if (psvFlag) call flg_setFlag(ensObs%obsSpaceData, obsIndex, 25)
+        if (psvFlag) call flg_setFlag(ensObs%obsSpaceData, obsIndex, flg_25passiveObs)
       end if
     end do
 
@@ -1548,7 +1548,7 @@ CONTAINS
           simFlag = .true.
         end if
         ! set OBS_FLG to indicate simulated observation
-        if (simFlag) call flg_setFlag(ensObs%obsSpaceData, obsIndex, 24)
+        if (simFlag) call flg_setFlag(ensObs%obsSpaceData, obsIndex, flg_24simulatObs)
       end if
     end do
 
@@ -2003,7 +2003,7 @@ CONTAINS
         omp = abs(obs_bodyElem_r(ensObs%obsSpaceData, OBS_OMP, bodyIndex))
         if (omp > sig) then
           call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          call flg_setFlag(ensObs%obsSpaceData, bodyIndex, 9)
+          call flg_setFlag(ensObs%obsSpaceData, bodyIndex, flg_09rejBgck)
           ivar = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, bodyIndex)
           reject_wind = bufr_isWindComponent(ivar)
           write(*,*) 'eob_backgroundCheck: headerIndex, omp, sig, ivar, reject_wind', &
@@ -2035,7 +2035,7 @@ CONTAINS
             if (bufr_isWindComponent(ivar) .and.  &
                 obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-              call flg_setFlag(ensObs%obsSpaceData, bodyIndex, 9)
+              call flg_setFlag(ensObs%obsSpaceData, bodyIndex, flg_09rejBgck)
               write(*,*) 'eob_backgroundCheck: other wind component headerIndex, ivar', &
                                                headerIndex, ivar
               numRejected = numRejected + 1
@@ -2096,7 +2096,7 @@ CONTAINS
         if (obs_bodyElem_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex) == obs_notAssimilated) cycle BODY_LOOP
 
         call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-        call flg_setFlag(ensObs%obsSpaceData, bodyIndex, 9)
+        call flg_setFlag(ensObs%obsSpaceData, bodyIndex, flg_09rejBgck)
         numRejected = numRejected + 1
       end do BODY_LOOP
     end do HEADER_LOOP
@@ -2258,7 +2258,7 @@ CONTAINS
         else
           rejectCount = rejectCount + 1
           call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-          call flg_setFlag(ensObs%obsSpaceData, bodyIndex, 9)
+          call flg_setFlag(ensObs%obsSpaceData, bodyIndex, flg_09rejBgck)
         end if
       end if
     end do

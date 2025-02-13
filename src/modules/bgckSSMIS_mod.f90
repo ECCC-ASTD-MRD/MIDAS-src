@@ -2463,9 +2463,10 @@ contains
       channelNumber = obsChannels(obsChanIndex)
       productRogueSTD = rogueFac(channelNumber) * oer_toverrst(channelNumber,sensorIndex)
 
-      if ( .not. flg_flagIsOn(obsFlags(obsChanIndex),7) ) then
+      if ( .not. flg_flagIsOn(obsFlags(obsChanIndex),flg_07rejVarious) ) then
 
-        if ( oer_tovutil(channelNumber,sensorIndex) == 0 .or. (.not. flg_flagIsOn(obsFlags(obsChanIndex),6)) ) then
+        if ( oer_tovutil(channelNumber,sensorIndex) == 0 .or. &
+             .not. flg_flagIsOn(obsFlags(obsChanIndex),flg_06biasCorr) ) then
 
           ! systematic rejection of this channel
           flagsInovQc(obsChanIndex) = 2
@@ -2756,21 +2757,22 @@ contains
 
         select case (flagsInovQc(dataIndex))
         case(1)
-          call flg_setFlag(obsFlags(dataIndex),9)
+          call flg_setFlag(obsFlags(dataIndex),flg_09rejBgck)
         case(2)
-          call flg_setFlag(obsFlags(dataIndex),11)
+          call flg_setFlag(obsFlags(dataIndex),flg_11rejSelect)
         case(3)
-          call flg_setFlag(obsFlags(dataIndex),[9,16])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_16rejOmP])
         case(4)
-          call flg_setFlag(obsFlags(dataIndex),[9,11,16])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_11rejSelect,flg_16rejOmP])
         case(5)
-          call flg_setFlag(obsFlags(dataIndex),[9,18])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_18rejOro])
         case(6)
-          call flg_setFlag(obsFlags(dataIndex),[9,11,18])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_11rejSelect,flg_18rejOro])
         case(7)
-          call flg_setFlag(obsFlags(dataIndex),[9,16,18])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_16rejOmP,flg_18rejOro])
         case(8)
-          call flg_setFlag(obsFlags(dataIndex),[9,11,16,18])
+          call flg_setFlag(obsFlags(dataIndex),[flg_09rejBgck,flg_11rejSelect, &
+                                                flg_16rejOmP,flg_18rejOro])
         end select
 
       end do

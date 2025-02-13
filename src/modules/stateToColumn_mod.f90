@@ -174,14 +174,14 @@ contains
         ! if requested reject the corrected profile
         if (.not. monotonicProfile .and. rejectObsNonMonotonicPressure) then
           call obs_headSet_i(obsSpaceData,OBS_ST1,headerIndex, &
-               ibset( obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex), 05))
+               ibset(obs_headElem_i(obsSpaceData,OBS_ST1,headerIndex), 05))
           call obs_set_current_body_list(obsSpaceData, headerIndex)
           BODY: do
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY
             if (rejectObsNonMonotonicPressure) then
               call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-              call flg_setFlag(obsSpaceData, bodyIndex, 9)
+              call flg_setFlag(obsSpaceData, bodyIndex, flg_09rejBgck)
             end if
           end do BODY
         end if

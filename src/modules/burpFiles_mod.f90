@@ -321,7 +321,7 @@ contains
 
       do bodyIndex = RLN, NLV + RLN -1
         call obs_bodySet_r(obsdat, OBS_VAR, bodyIndex, 0.0D0)
-        call flg_setFlag(obsdat, bodyIndex, [2,4,9])
+        call flg_setFlag(obsdat, bodyIndex, [flg_02erroneous,flg_04doubtful,flg_09rejBgck])
       end do
 
       deallocate(expnt)

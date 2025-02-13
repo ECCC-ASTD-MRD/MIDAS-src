@@ -574,7 +574,9 @@ contains
             btObs(channelIndex) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
 
             !  Flag check on observed BTs ***
-            if (.not.liasi .and. flg_flagIsOn(obsSpaceData,bodyIndex,2)) rejflag(channelIndex,9) = 1
+            if (.not.liasi .and. flg_flagIsOn(obsSpaceData,bodyIndex,flg_02erroneous)) then
+              rejflag(channelIndex,9) = 1
+            end if
             if (bad) rejflag(channelIndex,9) = 1
 
             !  Gross check on observed BTs ***
@@ -1113,7 +1115,7 @@ contains
         do bodyIndex= bodyStart, bodyEnd
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
             nchannels =  nchannels + 1
-            if (flg_flagIsOn(obsSpaceData,bodyIndex,8)) rejflag(channelIndexes(nchannels),8) = 1
+            if (flg_flagIsOn(obsSpaceData,bodyIndex,flg_08rejBlackL)) rejflag(channelIndexes(nchannels),8) = 1
           end if
         end do
 
@@ -1158,7 +1160,7 @@ contains
           call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emi_sfc(channelIndex))
           do bitIndex = 0, bitflag
             if ( rejflag(channelIndex,bitIndex) == 1 ) then
-              call flg_setFlag(obsSpaceData, bodyIndex, bitIndex)
+              call flg_setFlag(obsSpaceData, bodyIndex, bitIndex + flg_offset)
             end if
           end do
         end do

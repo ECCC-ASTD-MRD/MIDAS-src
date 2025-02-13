@@ -831,14 +831,14 @@ CONTAINS
 
           if ( tt /= MPC_missingValue_R8 ) then
 
-            if (flg_flagIsOn(obsSpaceData, bodyIndex, 6) &
+            if (flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
                 .and. oldCorr /= MPC_missingValue_R8) then
               if ( btest(headerFlag, 15) ) then
                 tt = tt - oldCorr
               else
                 tt = tt + oldCorr
               end if
-              call flg_clearFlag(obsSpaceData, bodyIndex, 6)
+              call flg_clearFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
 
             end if
             if ( aiRevOnly ) corr = 0.0D0
@@ -922,7 +922,7 @@ CONTAINS
 
               ! Apply the bias correction (bulk or new) and set the "bias corrected" bit in TT data flag ON
               tt = tt + corr
-              call flg_setFlag(obsSpaceData, bodyIndex, 6)
+              call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
 
             end if
 
@@ -1063,10 +1063,10 @@ CONTAINS
           if ( ztd /= MPC_missingValue_R8 ) then
 
             ! Remove any previous bias correction
-            if ( flg_flagIsOn(obsSpaceData, bodyIndex, 6) &
+            if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
                  .and. oldCorr /= MPC_missingValue_R8 ) then
               ztd = ztd - oldCorr
-              call flg_setFlag(obsSpaceData, bodyIndex, 6)
+              call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
             end if
 
             if ( .not. gpRevOnly ) then
@@ -1090,7 +1090,7 @@ CONTAINS
               if ( corr /= MPC_missingValue_R8 ) then
                 ztd = ztd + corr
                 nbCorrected = nbCorrected + 1
-                call flg_setFlag(obsSpaceData, bodyIndex, 6)
+                call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
               else
                 corr = 0.0D0
               end if
@@ -1540,10 +1540,10 @@ CONTAINS
         corr        = MPC_missingValue_R8
         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTin',ttBodyIndex,pressure,tt
         if ( tt /= MPC_missingValue_R8 ) then
-          if ( flg_flagIsOn(obsSpaceData, bodyIndex, 6) &
+          if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
                .and. oldCorr /= MPC_missingValue_R8 ) then
             tt = tt - oldCorr
-            call flg_setFlag(obsSpaceData, bodyIndex, 6)
+            call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
           end if
           if ( uaRevOnly ) corr = 0.0d0
           if ( .not.uaRevOnly ) then
@@ -1566,11 +1566,11 @@ CONTAINS
             end if
             if ( corr /= MPC_missingValue_R8 ) then
               tt = tt + corr
-              call flg_setFlag(obsSpaceData, bodyIndex, 6)
+              call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
               countTTCorrections = countTTCorrections + 1
             else
               if ( .not.realRS41 .and. uaRejUnBcor ) then
-                call flg_setFlag(obsSpaceData, bodyIndex, 11)
+                call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
               end if
             end if
           end if
@@ -1592,10 +1592,10 @@ CONTAINS
         corr        = MPC_missingValue_R8
         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESin',esBodyIndex,pressure,es
         if ( es /= MPC_missingValue_R8 ) then
-          if ( flg_flagIsOn(obsSpaceData, bodyIndex, 6) &
+          if ( flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr) &
                .and. oldCorr /= MPC_missingValue_R8 ) then
             es = es - oldCorr
-            call flg_setFlag(obsSpaceData, bodyIndex, 6)
+            call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
           end if
           if ( uaRevOnly ) corr = 0.0d0
           if ( .not.uaRevOnly ) then
@@ -1612,11 +1612,11 @@ CONTAINS
               if ( es > 30.0) es = 30.0d0
               corr =  es - esOriginal
               if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ES corr =',corr
-              call flg_setFlag(obsSpaceData, bodyIndex, 6)
+              call flg_setFlag(obsSpaceData, bodyIndex, flg_06biasCorr)
               countESCorrections = countESCorrections + 1
             else
               if ( .not.realRS41 .and. uaRejUnBcor ) then
-                call flg_setFlag(obsSpaceData, bodyIndex, 11)
+                call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
               end if
             end if
           end if

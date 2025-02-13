@@ -2990,7 +2990,7 @@ contains
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           call obs_bodySet_i(obsSpaceData, obs_ass, bodyIndex, obs_notAssimilated)
           ! also set the 'rejected by selection process' flag (bit 11)
-          call flg_setFlag(obsSpaceData, bodyIndex, 11)
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
         end do
       end if
     end do

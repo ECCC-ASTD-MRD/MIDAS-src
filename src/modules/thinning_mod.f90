@@ -35,6 +35,12 @@ module thinning_mod
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
   public :: thn_thinSatSST, thn_preThinning
 
+  integer, parameter :: fullSetOfRejectFlags(6) = [flg_18rejOro, &
+                                                   flg_16rejOmP, &
+                                                   flg_09rejBgck, &
+                                                   flg_08rejBlackL, &
+                                                   flg_02erroneous, &
+                                                   flg_11rejSelect]
 contains
 
   !--------------------------------------------------------------------------
@@ -716,7 +722,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY
           call obs_bodySet_i(obsdat, OBS_ASS, bodyIndex, obs_notAssimilated)
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY
 
       end if
@@ -967,14 +973,14 @@ contains
         numElements = numElements + 1
 
         ! Count input flags with bit 8 set
-        if (flg_flagIsOn(obsdat, bodyIndex, 8)) then
+        if (flg_flagIsOn(obsdat, bodyIndex, flg_08rejBlackL)) then
           numBit8InPerCodtyp(obsCodtypIndex(obsIndex)) = &
                numBit8InPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit8In = numBit8In + 1
         end if
 
         ! Count input flags with bit 11 set
-        if (flg_flagIsOn(obsdat, bodyIndex, 11)) then
+        if (flg_flagIsOn(obsdat, bodyIndex, flg_11rejSelect)) then
           numBit11InPerCodtyp(obsCodtypIndex(obsIndex)) = &
                numBit11InPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit11In = numBit11In + 1
@@ -1167,7 +1173,7 @@ contains
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY3
         cycle HEADER2
       end if
@@ -1195,7 +1201,7 @@ contains
                 ! If element is to be blacklisted, set bit 8
                 if (obsVarNo == listEleBlacklist(elemIndex) .and. &
                     dataBlacklist(rowIndex,elemIndex) == 1) then
-                  call flg_setFlag(obsdat, bodyIndex, 8)
+                  call flg_setFlag(obsdat, bodyIndex, flg_08rejBlackL)
                 end if
               end do ! elemIndex
             end if ! stnid
@@ -1207,18 +1213,18 @@ contains
           ! If current element not in select list, set bit 11
           if (.not. any(listEleSelect(:) == obsVarNo)) then
             write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
-            call flg_setFlag(obsdat, bodyIndex, 11)
+            call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
           end if
         end if
 
         ! Count output flags with bit 8 set
-        if (flg_flagIsOn(obsdat, bodyIndex, 8)) then
+        if (flg_flagIsOn(obsdat, bodyIndex, flg_08rejBlackL)) then
           numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) = numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit8Out = numBit8Out + 1
         end if
 
         ! Count output flags with bit 11 set
-        if (flg_flagIsOn(obsdat, bodyIndex, 11)) then
+        if (flg_flagIsOn(obsdat, bodyIndex, flg_11rejSelect)) then
           numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) = numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit11Out = numBit11Out + 1
         end if
@@ -1415,7 +1421,7 @@ contains
 
         if (rejectObs) then
           bodyIndex = bodyIndexList(levIndex)
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
           countObsReject = countObsReject + 1
         end if
 
@@ -1800,7 +1806,7 @@ contains
         do levStnIndex = obsLevOffsetMpi(stationIndexMpi)+1, &
                          obsLevOffsetMpi(stationIndexMpi+1)
           do varIndex = 1, numVars
-            call flg_setFlag(obsFlagsMpi(varIndex,levStnIndex),11)
+            call flg_setFlag(obsFlagsMpi(varIndex,levStnIndex),flg_11rejSelect)
           end do
         end do
       end if
@@ -1841,22 +1847,22 @@ contains
     countAcc_es=0;  countRej_es=0
     do stationIndex = 1, numStation
       do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
-        if (flg_flagIsOn(obsFlags(1,levStnIndex),11)) then
+        if (flg_flagIsOn(obsFlags(1,levStnIndex),flg_11rejSelect)) then
           countRej_dd = countRej_dd + 1
         else
           countAcc_dd = countAcc_dd + 1
         end if
-        if (flg_flagIsOn(obsFlags(2,levStnIndex),11)) then
+        if (flg_flagIsOn(obsFlags(2,levStnIndex),flg_11rejSelect)) then
           countRej_ff = countRej_ff + 1
         else
           countAcc_ff = countAcc_ff + 1
         end if
-        if (flg_flagIsOn(obsFlags(3,levStnIndex),11)) then
+        if (flg_flagIsOn(obsFlags(3,levStnIndex),flg_11rejSelect)) then
           countRej_tt = countRej_tt + 1
         else
           countAcc_tt = countAcc_tt + 1
         end if
-        if (flg_flagIsOn('OR',obsFlags(4,levStnIndex),[11,8])) then
+        if (flg_flagIsOn('OR',obsFlags(4,levStnIndex),[flg_11rejSelect,flg_08rejBlackL])) then
           countRej_es = countRej_es + 1
         else
           countAcc_es = countAcc_es + 1
@@ -2196,8 +2202,8 @@ contains
 
           if ( stnId(stationIndex2) /= 'NOT_VALID' ) then
             condition = (stnId(stationIndex2) == stnId(stationIndex)) .and. &
-                        ( flg_flagIsOn(stationFlags(stationIndex ),23) .neqv. &
-                          flg_flagIsOn(stationFlags(stationIndex2),23) )
+                        ( btest(stationFlags(stationIndex ),23) .neqv. &
+                          btest(stationFlags(stationIndex2),23) )
 
             if ( condition ) then
 
@@ -2221,11 +2227,11 @@ contains
                 numCriteria(selectCriteria) = numCriteria(selectCriteria) + 1
 
                 bufrStationIndex = stationIndex2
-                if (      flg_flagIsOn(stationFlags(stationIndex),23) ) then
+                if (      btest(stationFlags(stationIndex),23) ) then
                   bufrStationIndex = stationIndex
                 end if
                 tacStationIndex  = stationIndex2
-                if ( .not.flg_flagIsOn(stationFlags(stationIndex),23) ) then
+                if ( .not.btest(stationFlags(stationIndex),23) ) then
                   tacStationIndex = stationIndex
                 end if
 
@@ -2301,8 +2307,8 @@ contains
             else
               write(*,*) 'Multi profiles found : ',stnId(stationIndex), &
                    stnId(stationIndex3),numSame,stationIndex,stationIndex3, &
-                   flg_flagIsOn(stationFlags(stationIndex ),23), &
-                   flg_flagIsOn(stationFlags(stationIndex3),23)
+                   btest(stationFlags(stationIndex ),23), &
+                   btest(stationFlags(stationIndex3),23)
               write(*,'(a30,2i10,2f10.2,i10)') 'date, lch, lat lon ', &
                    obsHeadDate(stationIndex),obsLaunchTime(stationIndex), &
                    obsLat(stationIndex), obsLon(stationIndex), &
@@ -2432,36 +2438,36 @@ contains
     tacAndBufr       = .true.
     trajInfoOk = .true.
 
-    if ( flg_flagIsOn(stationFlags(stationIndex ),23) .and. &
-         flg_flagIsOn(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
-    if ( .not.flg_flagIsOn(stationFlags(stationIndex ),23) .and. &
-         .not.flg_flagIsOn(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
+    if ( btest(stationFlags(stationIndex ),23) .and. &
+         btest(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
+    if ( .not.btest(stationFlags(stationIndex ),23) .and. &
+         .not.btest(stationFlags(stationIndex2),23) ) tacAndBufr = .false.
 
     if ( tacAndBufr ) then
 
       bufrStationIndex = stationIndex2
-      if (      flg_flagIsOn(stationFlags(stationIndex ),23) ) then
+      if (      btest(stationFlags(stationIndex ),23) ) then
         bufrStationIndex = stationIndex
       end if
       tacStationIndex  = stationIndex2
-      if ( .not.flg_flagIsOn(stationFlags(stationIndex ),23) ) then
+      if ( .not.btest(stationFlags(stationIndex ),23) ) then
         tacStationIndex  = stationIndex
       end if
       selectStationIndex = tacStationIndex
 
       ! 1. Evalue si la trajectoire native est correct
 
-      if ( flg_flagIsOn(stationFlags(bufrStationIndex),14) ) then
+      if ( btest(stationFlags(bufrStationIndex),14) ) then
 
         countTimeFlag = 0
         countLatFlag = 0
         countTraj = obsLevOffset(bufrStationIndex+1) - obsLevOffset(bufrStationIndex) + 1
 
         do levStnIndex = obsLevOffset(bufrStationIndex)+1, obsLevOffset(bufrStationIndex+1)
-          if ( flg_flagIsOn(trajFlags(1,levStnIndex),4) ) then
+          if ( btest(trajFlags(1,levStnIndex),4) ) then
             countTimeFlag = countTimeFlag + 1
           end if
-          if ( flg_flagIsOn(trajFlags(2,levStnIndex),4) ) then
+          if ( btest(trajFlags(2,levStnIndex),4) ) then
             countLatFlag  = countLatFlag + 1
           end if
         end do
@@ -2491,7 +2497,7 @@ contains
                              obsLevOffset(thisStationIndex+1)
               condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                             [18,16,9,8,2,11])
+                                             fullSetOfRejectFlags)
               if ( condition ) then
                 presLowerTacBufr(varIndex,raobFormatIndex) = obsValues(5,levStnIndex)
                 exit
@@ -2507,7 +2513,7 @@ contains
 
                 condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
-                                               [18,16,9,8,2,11])
+                                               fullSetOfRejectFlags)
                 if ( condition ) then
                   presUpperTacBufr(varIndex,raobFormatIndex) = obsValues(5,levStnIndex2)
                 end if
@@ -2549,7 +2555,7 @@ contains
 
               condition = oMinusB(varIndex,levStnIndex) /= -999.0 .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                             [18,16,9,8,2,11])
+                                             fullSetOfRejectFlags)
               if ( condition ) then
                 countValues(raobFormatIndex) = countValues(raobFormatIndex) + 1
                 if ( obsValues(5,levStnIndex) <= presLower ) then
@@ -2567,7 +2573,7 @@ contains
 
                 condition = oMinusB(varIndex,levStnIndex2) /= -999.0 .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex2), &
-                                               [18,16,9,8,2,11])
+                                               fullSetOfRejectFlags)
                 if ( condition ) then
                   countValues(raobFormatIndex) = countValues(raobFormatIndex) + 1
                   if ( obsValues(5,levStnIndex2) >= presUpper ) then
@@ -2698,8 +2704,8 @@ contains
               obsValues(varIndexFF,levStnIndex) >= 0.) .or. &
              (obsValues(varIndexDD,levStnIndex) >= 0. .and. &
               obsValues(varIndexFF,levStnIndex)  < 0.) ) then
-          call flg_setFlag(obsFlags(varIndexDD,levStnIndex),11)
-          call flg_setFlag(obsFlags(varIndexFF,levStnIndex),11)
+          call flg_setFlag(obsFlags(varIndexDD,levStnIndex),flg_11rejSelect)
+          call flg_setFlag(obsFlags(varIndexFF,levStnIndex),flg_11rejSelect)
         end if
 
       end do
@@ -2740,7 +2746,7 @@ contains
             do varIndex = 1, numVars
               condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                             [18,16,9,8,2,11])
+                                             fullSetOfRejectFlags)
               if ( condition ) numValidObs(numLevSelect) = numValidObs(numLevSelect) + 1
             end do
 
@@ -2789,7 +2795,7 @@ contains
 
               condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
                           .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                             [18,16,9,8,2,11])
+                                             fullSetOfRejectFlags)
               do stdLevelIndex = 1, numStdLevels
                 if ( (obsValues(varIndexPres,levStnIndex) == &
                       standardLevels(stdLevelIndex)) .and. &
@@ -2814,7 +2820,7 @@ contains
                                 presInterp(stationIndex,levIndex))
                 condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                               [18,16,9,8,2,11])
+                                               fullSetOfRejectFlags)
                 if ( deltaPres < deltaPresMin .and. condition) then
                   deltaPresMin = deltaPres
                   levStnIndexValid = levStnIndex
@@ -2837,7 +2843,7 @@ contains
                                 presInterp(stationIndex,levIndex))
                 condition = obsValues(varIndex,levStnIndex) >= 0. .and. &
                             .not. flg_flagIsOn('OR',obsFlags(varIndex,levStnIndex), &
-                                               [18,16,9,8,2,11])
+                                               fullSetOfRejectFlags)
                 if ( deltaPres < deltaPresMin .and. condition) then
                   deltaPresMin = deltaPres
                   levStnIndexValid = levStnIndex
@@ -2855,7 +2861,7 @@ contains
 
               if ( levStnIndex /= levStnIndexValid .and. &
                    obsValues(varIndex,levStnIndex) >= 0. ) then
-                call flg_setFlag(obsFlags(varIndex,levStnIndex),11)
+                call flg_setFlag(obsFlags(varIndex,levStnIndex),flg_11rejSelect)
               end if
 
             end do
@@ -2991,8 +2997,8 @@ contains
 
           deltaPres = abs(obsValues(varIndexPres,levStnIndex) - levelsES(levIndex))
           condition = .not. flg_flagIsOn('OR',obsFlags(varIndexES,levStnIndex), &
-                                         [18,16,9,8,2,11]) .and. &
-                      obsValues(varIndexES,levStnIndex) >= 0.             .and. &
+                                         fullSetOfRejectFlags) .and. &
+                      obsValues(varIndexES,levStnIndex) >= 0.  .and. &
                       deltaPres < deltaPresMin
 
           if ( condition ) then
@@ -3010,7 +3016,7 @@ contains
 
           if ( (levStnIndex /= levStnIndexValid) .and. &
                (obsValues(varIndexES,levStnIndex) >= 0.) ) then
-            call flg_setFlag(obsFlags(varIndexES,levStnIndex),11)
+            call flg_setFlag(obsFlags(varIndexES,levStnIndex),flg_11rejSelect)
           end if
 
         end do
@@ -3081,11 +3087,9 @@ contains
 
       do levStnIndex = obsLevOffset(stationIndex)+1, obsLevOffset(stationIndex+1)
 
-        conditionTT = .not. flg_flagIsOn('OR',obsFlags(varIndexTT,levStnIndex), &
-                                         [18,16,9,8,2,11]) .and. &
+        conditionTT = .not. flg_flagIsOn('OR',obsFlags(varIndexTT,levStnIndex),fullSetOfRejectFlags) .and. &
                       obsValues(varIndexTT,levStnIndex) >= 0.0
-        conditionES = .not. flg_flagIsOn('OR',obsFlags(varIndexES,levStnIndex), &
-                                         [18,16,9,8,2,11]) .and. &
+        conditionES = .not. flg_flagIsOn('OR',obsFlags(varIndexES,levStnIndex),fullSetOfRejectFlags) .and. &
                       obsValues(varIndexES,levStnIndex) >= 0.0
 
         if ( conditionTT ) then
@@ -3118,7 +3122,7 @@ contains
           end if
 
           if ( rejectES ) then
-            call flg_setFlag(obsFlags(varIndexES,levStnIndex),11)
+            call flg_setFlag(obsFlags(varIndexES,levStnIndex),flg_11rejSelect)
           end if
 
         else
@@ -3364,13 +3368,13 @@ contains
       end if
 
       ! ZTD O-P failed background/topography checks, ZTD is blacklisted, ZTD is not bias corrected
-      if ( flg_flagIsOn(ztdObsFlag,16) ) bgckCount = bgckCount + 1
-      if ( flg_flagIsOn(ztdObsFlag,8) )  blackListCount = blackListCount + 1
-      if ( flg_flagIsOn('OR',ztdObsFlag,[16,18,8]) ) then
+      if ( flg_flagIsOn(ztdObsFlag,flg_16rejOmP) ) bgckCount = bgckCount + 1
+      if ( flg_flagIsOn(ztdObsFlag,flg_08rejBlackL) )  blackListCount = blackListCount + 1
+      if ( flg_flagIsOn('OR',ztdObsFlag,[flg_16rejOmP,flg_18rejOro,flg_08rejBlackL]) ) then
         quality(headerIndex) = nullValue
       end if
       if (removeUncorrected) then
-        if ( .not. flg_flagIsOn(ztdObsflag,6) ) then
+        if ( .not. flg_flagIsOn(ztdObsflag,flg_06biasCorr) ) then
           unCorrectCount = unCorrectCount + 1
           quality(headerIndex) = nullValue
         end if
@@ -3466,7 +3470,7 @@ contains
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY3
         cycle HEADER3
       end if
@@ -3699,10 +3703,10 @@ contains
 
       ! modify quality based on flags
       if (uObsFlag /= nullValue .and. vObsFlag /= nullValue ) then
-        if ( flg_flagIsOn(uObsFlag,16) .or. &
-             flg_flagIsOn(vObsFlag,16) ) bgckCount = bgckCount + 1
-        if ( flg_flagIsOn('OR',uObsFlag,[16,18]) .or. &
-             flg_flagIsOn('OR',vObsFlag,[16,18]) ) then
+        if ( flg_flagIsOn(uObsFlag,flg_16rejOmP) .or. &
+             flg_flagIsOn(vObsFlag,flg_16rejOmP) ) bgckCount = bgckCount + 1
+        if ( flg_flagIsOn('OR',uObsFlag,[flg_16rejOmP,flg_18rejOro]) .or. &
+             flg_flagIsOn('OR',vObsFlag,[flg_16rejOmP,flg_18rejOro]) ) then
           quality(headerIndex) = 0
         end if
       else
@@ -3886,7 +3890,7 @@ contains
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
         end do BODY3
         cycle HEADER3
       end if
@@ -4495,30 +4499,30 @@ contains
 
         ! find number of elements availables
         if (obsVarno == BUFR_NETT) then
-          if ( .not. flg_flagIsOn('OR',obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR',obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             ttMissing = .false.
             obsTT(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEES) then
-          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             huMissing = .false.
           end if
         else if (obsVarno == BUFR_NEUU) then
-          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             uuMissing = .false.
             obsUU(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEVV) then
-          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             vvMissing = .false.
             obsVV(headerIndex) = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           end if
         else if (obsVarno == BUFR_NEDD) then
-          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             ddMissing = .false.
           end if
         else if (obsVarno == BUFR_NEFF) then
-          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [18,16,9,8,2]) ) then
+          if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, fullSetOfRejectFlags) ) then
             ffMissing = .false.
           end if
         end if
@@ -4788,7 +4792,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
 
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
 
         end do BODY3
       end if
@@ -4866,7 +4870,7 @@ contains
       if (bodyIndex < 0) exit BODY
 
       ! If datum already rejected, ignore it
-      if ( flg_flagIsOn('OR',obsdat, bodyIndex, [9,11]) ) cycle BODY
+      if ( flg_flagIsOn('OR',obsdat, bodyIndex, [flg_09rejBgck,flg_11rejSelect]) ) cycle BODY
 
       headerIndex  = obs_bodyElem_i(obsdat, OBS_HIND, bodyIndex  )
       newProfileId = obs_headElem_i(obsdat, OBS_PRFL, headerIndex)
@@ -4878,7 +4882,7 @@ contains
         countKeepN=0
       else
         ! Reject this observation
-        call flg_setFlag(obsdat, bodyIndex, 11)
+        call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
       end if
 
     end do BODY
@@ -5141,9 +5145,9 @@ contains
 
         ! If not a blacklisted channel (note that bit 11 is set in
         ! satqc_amsu*.f for blacklisted channels)
-        if ( .not. flg_flagIsOn(obsdat, bodyIndex, 11) ) then
+        if ( .not. flg_flagIsOn(obsdat, bodyIndex, flg_11rejSelect) ) then
           numObsAssim(headerIndex) = numObsAssim(headerIndex) + 1
-          if ( flg_flagIsOn(obsdat, bodyIndex, 9) ) then
+          if ( flg_flagIsOn(obsdat, bodyIndex, flg_09rejBgck) ) then
             rejectRate = rejectRate + 1.0
           end if
         end if
@@ -5330,7 +5334,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY2
 
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
 
         end do BODY2
       end if
@@ -6363,8 +6367,8 @@ contains
 
       ! modify valid based on flags
       if (uObsFlag /= -1 .and. vObsFlag /= -1) then
-        if ( flg_flagIsOn('OR',uObsFlag,[16,18]) .or. &
-             flg_flagIsOn('OR',vObsFlag,[16,18]) ) then
+        if ( flg_flagIsOn('OR',uObsFlag,[flg_16rejOmP,flg_18rejOro]) .or. &
+             flg_flagIsOn('OR',vObsFlag,[flg_16rejOmP,flg_18rejOro]) ) then
           flagRejectCount = flagRejectCount + 1
           valid(headerIndex) = .false.
         end if
@@ -6505,7 +6509,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY5
 
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
 
         end do BODY5
         cycle HEADER5
@@ -6790,7 +6794,8 @@ contains
         channelIndex = channelIndex + 1
         channelList(channelIndex) = nint(obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex))
 
-        if ( .not.flg_flagIsOn('OR',obsdat, bodyIndex, [8,9,11]) ) then
+        if ( .not.flg_flagIsOn('OR',obsdat, bodyIndex,  &
+             [flg_08rejBlackL,flg_09rejBgck,flg_11rejSelect]) ) then
           valid(headerIndex) = .true.
           channelAssim(channelIndex,headerIndex) = .true.
         end if
@@ -6981,7 +6986,7 @@ contains
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
 
-          call flg_setFlag(obsdat, bodyIndex, 11)
+          call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
 
         end do BODY3
       end if
@@ -7255,13 +7260,14 @@ contains
 
         ! mark for rejection if not bias corrected (bit 6 not set)
         if (removeUnCorrected) then
-          if (.not. flg_flagIsOn(obsdat, bodyIndex, 6)) then
-            call flg_setFlag(obsdat, bodyIndex, 11)
+          if (.not. flg_flagIsOn(obsdat, bodyIndex, flg_06biasCorr)) then
+            call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
           end if
         end if
 
         ! count the number of accepted channels
-        if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex, [8,9,11]) ) then
+        if ( .not. flg_flagIsOn('OR', obsdat, bodyIndex,  &
+             [flg_08rejBlackL,flg_09rejBgck,flg_11rejSelect]) ) then
           numChannels = numChannels + 1
         end if
 
@@ -7441,7 +7447,7 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
 
-        call flg_setFlag(obsdat, bodyIndex, 11)
+        call flg_setFlag(obsdat, bodyIndex, flg_11rejSelect)
       end do BODY2
 
     end do HEADER2
@@ -7747,7 +7753,7 @@ contains
 
       obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
 
-      if (flg_flagIsOn(obsData, bodyIndex, 9)) cycle HEADER
+      if (flg_flagIsOn(obsData, bodyIndex, flg_09rejBgck)) cycle HEADER
 
       obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
 
@@ -7873,7 +7879,7 @@ contains
       if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle
 
       if (.not. valid(headerIndex)) then
-        call flg_setFlag(obsData, bodyIndex, 11)
+        call flg_setFlag(obsData, bodyIndex, flg_11rejSelect)
       end if
     end do
 

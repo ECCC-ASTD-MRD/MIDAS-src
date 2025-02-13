@@ -127,7 +127,7 @@ contains
     ! Process all data
     BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 12)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_12seenByAnl)
       end if
     end do BODY
 

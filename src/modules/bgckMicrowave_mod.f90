@@ -432,12 +432,12 @@ contains
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       if (obsChanNumWithOffset /= 20) then
-        if (flg_flagIsOn(obsSpaceData, bodyIndex, 9)) then
+        if (flg_flagIsOn(obsSpaceData, bodyIndex, flg_09rejBgck)) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
 
-          call flg_setFlag(obsSpaceData, bodyIndex, 7)
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_07rejVarious)
 
           if ( mwbg_DEBUG ) then
             write(*,*)stnId(2:9),' RTTOV REJECT.', &
@@ -496,7 +496,7 @@ contains
         if (obsChanNumWithOffset == mwbg_chanRejectForTopoFilter(indexFilteringTest)) then
           if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(indexFilteringTest)) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,18])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_18rejOro])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if ( mwbg_DEBUG ) then
@@ -547,7 +547,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -598,7 +598,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -646,7 +646,7 @@ contains
 
       if (satScanPosition < 1 .or. satScanPosition > maxScanAngleAMSU) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -695,7 +695,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -754,7 +754,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -810,7 +810,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -858,9 +858,9 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
       if (obsChanNumWithOffset /= 20) then
-        if (.not. flg_flagIsOn(obsSpaceData, bodyIndex, 6)) then
+        if (.not. flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr)) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, 11)
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
 
@@ -919,7 +919,7 @@ contains
              obsTb > mwbg_grossValMaxThresh(obsChanNumWithOffset))) then
           GROSSERROR = .TRUE.
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex)+ 1
 
@@ -987,7 +987,7 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
           end if
@@ -1010,7 +1010,7 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
 
           if ( INDXCAN /= 0 ) then
-            call flg_setFlag(obsSpaceData, bodyIndex, 23)
+            call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
           end if
         end do BODY2
 
@@ -1031,7 +1031,7 @@ contains
         INDXCAN = utl_findloc(mwbg_chanRejectForClw(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) ) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1097,7 +1097,7 @@ contains
                   (mwbg_modelInterpSeaIce < 0.01d0)) ) then
         if (obsChanNumWithOffset == 45 .and. drynessIndex > 0.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1109,7 +1109,7 @@ contains
 
         else if (obsChanNumWithOffset == 46 .and. drynessIndex > -10.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1121,7 +1121,7 @@ contains
 
         else if (obsChanNumWithOffset == 47 .and. drynessIndex > -20.0d0) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1183,7 +1183,7 @@ contains
           INDXCAN = utl_findloc(mwbg_chanRejectForScat(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1293,7 +1293,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1319,7 +1319,7 @@ contains
 
           chanIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
           if (chanIndex == 0) cycle BODY2
-          call flg_setFlag(obsSpaceData, bodyIndex, 23)
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
 
         end do BODY2
 
@@ -1350,7 +1350,7 @@ contains
 
           if (oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex)) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
           end if
@@ -1433,7 +1433,7 @@ contains
             ABS(ompTb) >= XCHECKVAL .and. &
             sigmaObsErrUsed /= MPC_missingValue_R8) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1458,7 +1458,7 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                       rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1558,7 +1558,7 @@ contains
             abs(ompTb) >= XCHECKVAL .and. &
             sigmaObsErrUsed /= MPC_missingValue_R8) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1591,7 +1591,7 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                   rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -1656,18 +1656,18 @@ contains
       INDXCAN = utl_findloc(mwbg_chanRejectForTovUtil(:),obsChanNumWithOffset)
       if ( INDXCAN /= 0 )  then
         if (landQualifierIndice  == 0 .or. ITRN == 0)  then
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
         end if
       end if
       if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) /= 1 ) then
         SFCREJCT = .FALSE.
         if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) == 0 ) then
           SFCREJCT = .TRUE.
-          call flg_setFlag(obsSpaceData, bodyIndex, 11)
+          call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
         else
           if (landQualifierIndice == 0 .or. ITRN == 0)  then
             SFCREJCT = .TRUE.
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,7])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_07rejVarious])
           end if
         end if
         if ( SFCREJCT ) then
@@ -1757,7 +1757,7 @@ contains
         INDXCAN = utl_findloc(lowPeakingChannelsList(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -2884,11 +2884,11 @@ contains
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
-      ibit = flg_flagIsOn(obsSpaceData, bodyIndex, 7)
+      ibit = flg_flagIsOn(obsSpaceData, bodyIndex, flg_07rejVarious)
       if (ibit) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
         mwbg_bit7(obsChanNum) = 1
-        call flg_setFlag(obsSpaceData, bodyIndex, 9)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_09rejBgck)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -2948,7 +2948,7 @@ contains
       if ( INDXTOPO > 0 ) then
         if (mwbg_modelInterpTerrain >= mwbg_altitudeThreshForTopoFilter(INDXTOPO)) then
           mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-          call flg_setFlag(obsSpaceData, bodyIndex, [9,18])
+          call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_18rejOro])
           rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                 rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
           if (mwbg_bit7(obsChanNum) == 0) then
@@ -3013,10 +3013,10 @@ contains
       obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
-      ibit = flg_flagIsOn(obsSpaceData, bodyIndex, 6)
+      ibit = flg_flagIsOn(obsSpaceData, bodyIndex, flg_06biasCorr)
       if (.not. ibit) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, 11)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_11rejSelect)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
         if (mwbg_bit7(obsChanNum) == 0) then
@@ -3143,7 +3143,7 @@ contains
       if (ompTb /= mwbg_realMissing .and. ABS(ompTb) >= XCHECKVAL .and. &
           sigmaObsErrUsed /= MPC_missingValue_R8) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
         if (mwbg_bit7(obsChanNum) == 0) then
@@ -3189,7 +3189,7 @@ contains
         if ( INDXCAN /= 0 ) then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if (mwbg_bit7(obsChanNum) == 0) then
@@ -3215,7 +3215,7 @@ contains
         if (INDXCAN /= 0)  then
           if (mwbg_qcIndicator(obsChanNum) /= testIndex) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
 
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
@@ -3321,7 +3321,7 @@ contains
       if (ompTb /= mwbg_realMissing .and. ABS(ompTb) >= XCHECKVAL .and. &
           sigmaObsErrUsed /= MPC_missingValue_R8) then
         mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-        call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+        call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
 
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) =  &
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
@@ -3367,7 +3367,7 @@ contains
         if ( INDXCAN /= 0 )  then
           if ( mwbg_qcIndicator(obsChanNum) /= testIndex ) then
             mwbg_qcIndicator(obsChanNum) = MAX(mwbg_qcIndicator(obsChanNum),testIndex)
-            call flg_setFlag(obsSpaceData, bodyIndex, [9,16])
+            call flg_setFlag(obsSpaceData, bodyIndex, [flg_09rejBgck,flg_16rejOmP])
             rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
                     rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
             if (mwbg_bit7(obsChanNum) == 0) then
@@ -3427,7 +3427,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
       if ( oer_tovutil(obsChanNumWithOffset,sensorIndex) == 0 ) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 8)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_08rejBlackL)
         rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) = &
               rejectionCodArray(testIndex,obsChanNumWithOffset,sensorIndex) + 1
 
@@ -6071,7 +6071,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
       if (lflagchn(obsChanNum)) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 7)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_07rejVarious)
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyTtGenCoeff(:),obsChanNumWithOffset)
@@ -6079,7 +6079,7 @@ contains
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
            cloudLiquidWaterPathFG == mwbg_realMissing)) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 23)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
@@ -6087,7 +6087,7 @@ contains
           (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
            scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
            scatIndexOverWaterFG == MPC_missingValue_R8)) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 23)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
       end if
 
     end do BODY
@@ -6304,7 +6304,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
       if (lflagchn(obsChanNum)) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 7)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_07rejVarious)
       end if
 
       channelIndex = utl_findloc(mwbg_chanIgnoreInAllskyHuGenCoeff(:),obsChanNumWithOffset)
@@ -6312,7 +6312,7 @@ contains
           (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
            scatIndexOverWaterObs == MPC_missingValue_R8 .or. &
            scatIndexOverWaterFG == MPC_missingValue_R8)) then
-        call flg_setFlag(obsSpaceData, bodyIndex, 23)
+        call flg_setFlag(obsSpaceData, bodyIndex, flg_23cloudyObs)
       end if
 
     end do BODY

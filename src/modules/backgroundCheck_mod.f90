@@ -309,14 +309,16 @@ module backgroundCheck_mod
           end if
 
           if ( obsFlag == 1 ) then
-            call flg_setFlag(obsData, bodyIndex, 13)
+            call flg_setFlag(obsData, bodyIndex, flg_13ompLevel1)
           else if ( obsFlag == 2 ) then
-            call flg_setFlag(obsData, bodyIndex, [14,16,9])
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
+            call flg_setFlag(obsData, bodyIndex, [flg_14ompLevel2,flg_16rejOmP,flg_09rejBgck])
+            call obs_headSet_i( obsData, OBS_ST1, headerIndex,  &
+                                ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
 
           else if ( obsFlag == 3 ) then
-            call flg_setFlag(obsData, bodyIndex, [15,16,9])
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex), 06 ))
+            call flg_setFlag(obsData, bodyIndex, [flg_15ompLevel3,flg_16rejOmP,flg_09rejBgck])
+            call obs_headSet_i( obsData, OBS_ST1, headerIndex,  &
+                                ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex), 06 ))
           end if
         end if
       end do BODY
@@ -407,18 +409,19 @@ module backgroundCheck_mod
           if ( obsFlag >= 2 ) numberObsRejected = numberObsRejected + 2
 
           if ( obsFlag == 1 ) then
-            call flg_setFlag(obsData, bodyIndex_u, 13)
-            call flg_setFlag(obsData, bodyIndex_v, 13)
+            call flg_setFlag(obsData, bodyIndex_u, flg_13ompLevel1)
+            call flg_setFlag(obsData, bodyIndex_v, flg_13ompLevel1)
 
           else if ( obsFlag == 2 ) then
-            call flg_setFlag(obsData, bodyIndex_u, [14,16,9])
-            call flg_setFlag(obsData, bodyIndex_v, [14,16,9])
+            call flg_setFlag(obsData, bodyIndex_u, [flg_14ompLevel2,flg_16rejOmP,flg_09rejBgck])
+            call flg_setFlag(obsData, bodyIndex_v, [flg_14ompLevel2,flg_16rejOmP,flg_09rejBgck])
             call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
 
           else if ( obsFlag == 3 ) then
-            call flg_setFlag(obsData, bodyIndex_u, [15,16,9])
-            call flg_setFlag(obsData, bodyIndex_v, [15,16,9])
-            call obs_headSet_i( obsData, OBS_ST1, headerIndex, ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
+            call flg_setFlag(obsData, bodyIndex_u, [flg_15ompLevel3,flg_16rejOmP,flg_09rejBgck])
+            call flg_setFlag(obsData, bodyIndex_v, [flg_15ompLevel3,flg_16rejOmP,flg_09rejBgck])
+            call obs_headSet_i( obsData, OBS_ST1, headerIndex,  &
+                                ibset( obs_headElem_i( obsData, OBS_ST1, headerIndex ), 06 ))
           end if
 
         end if !if(found_u .and. found_v)
@@ -560,12 +563,12 @@ module backgroundCheck_mod
                   ! Reject data outside a given absolute band, or a given relative band (n sigma)
                   if ( .not. gps_roBNorm ) then
                     if (ABS(ZOMF)/ZREF > gps_BgckBand .or. ABS(ZOMF)/ZOER > 3.d0) then
-                      call flg_setFlag(obsData, bodyIndex, [16,9])
+                      call flg_setFlag(obsData, bodyIndex, [flg_16rejOmP,flg_09rejBgck])
                       write(*,'(A40,F10.0,3F12.4)') '1 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if
                   else
                     if ( ABS(ZOMF)/ZREF > gps_BgckBand .or. ABS(ZOMF)/ZOER > gps_roNsigma) then
-                      call flg_setFlag(obsData, bodyIndex, [16,9])
+                      call flg_setFlag(obsData, bodyIndex, [flg_16rejOmP,flg_09rejBgck])
                       write(*,'(A40,F10.0,3F12.4)') '2 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if
                   end if

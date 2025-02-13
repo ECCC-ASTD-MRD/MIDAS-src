@@ -318,13 +318,13 @@ contains
           cloudAmount(channelIndex) < satCloudCoverlimit(indexSat,channelIndex)) then
         isClearSky(channelIndex) = .true.
       end if 
-      if (.not. flg_flagIsOn(obsFlags(channelIndex), 6)) nonCorrectedData(channelIndex) = .true.
+      if (.not. flg_flagIsOn(obsFlags(channelIndex), flg_06biasCorr)) nonCorrectedData(channelIndex) = .true.
     end do
 
     topographicData(:) = .false.
     maxAngleReached(:) = .false.
     do dataIndex=1, numObsToProcess
-      if (flg_flagIsOn(obsFlags(dataIndex), 18)) topographicData(dataIndex) = .true.
+      if (flg_flagIsOn(obsFlags(dataIndex), flg_18rejOro)) topographicData(dataIndex) = .true.
       if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = .true.
     end do
 
@@ -406,43 +406,43 @@ contains
         if (maxAngleReached(dataIndex) .or. &
             strayLight(dataIndex)      .or. &
             goesMidi(dataIndex) ) then
-          call flg_setFlag(obsFlags(numData),[7,9])
+          call flg_setFlag(obsFlags(numData),[flg_07rejVarious,flg_09rejBgck])
           categorieRejet(1) =  categorieRejet(1) + 1
         end if
 
         !Topo : bit 9 et 18 sont déjà là provenant du EnVar
         if (topographicData(dataIndex)) then
-          call flg_setFlag(obsFlags(numData),[9,18])
+          call flg_setFlag(obsFlags(numData),[flg_09rejBgck,flg_18rejOro])
           categorieRejet(2) =  categorieRejet(2) + 1
         end if 
 
         !Pas corrige : bit 11
         if (nonCorrectedData(numData)) then
-          call flg_setFlag(obsFlags(numData),11)
+          call flg_setFlag(obsFlags(numData),flg_11rejSelect)
           categorieRejet(3) =  categorieRejet(3) + 1
         end if 
 
         !Tbyela: bit  7 et 9 pour les canaux concernés
         if (.not. isTbPresent(numData)) then
-          call flg_setFlag(obsFlags(numData),[7,9])
+          call flg_setFlag(obsFlags(numData),[flg_07rejVarious,flg_09rejBgck])
           categorieRejet(4) =  categorieRejet(4) + 1
         end if
 
         !omp Out of range: Bit 9 et 16 pour les canaux concernés
         if (ompOutOfRange(numData)) then
-          call flg_setFlag(obsFlags(numData),[9,16])
+          call flg_setFlag(obsFlags(numData),[flg_09rejBgck,flg_16rejOmP])
           categorieRejet(5) =  categorieRejet(5) + 1
         end if
 
         !Assim: Bit 11 pour les canaux concernés
         if (.not. isToAssim(numData)) then
-          call flg_setFlag(obsFlags(numData),11)
+          call flg_setFlag(obsFlags(numData),flg_11rejSelect)
           categorieRejet(6) =  categorieRejet(6) + 1
         end if 
 
         !Clearsky : Bit 7 & Bit 9
         if (.not.isClearSky(numData)) then
-          call flg_setFlag(obsFlags(numData),[7,9])
+          call flg_setFlag(obsFlags(numData),[flg_07rejVarious,flg_09rejBgck])
           categorieRejet(7) =  categorieRejet(7) + 1
         end if  
       end do
