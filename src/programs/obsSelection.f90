@@ -71,7 +71,7 @@ program midas_obsSelection
   !                 on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``
+  !                 object: ``oer_readAndSetObsErrors``
   !
   !               - Setup ``gridStateVector`` module to initialize the gridstatevector 
   !                 objects.
@@ -430,7 +430,7 @@ program midas_obsSelection
     !
     !- Initialize the observation error covariances
     !
-    call oer_setObsErrors(obsSpaceData, 'bgck')
+    call oer_readAndSetObsErrors(obsSpaceData, 'bgck')
 
     call msg_memUsage('midas-obsSelection')
 

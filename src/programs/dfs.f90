@@ -67,7 +67,7 @@ program midas_dfs
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``.
+  !                 object: ``oer_readAndSetObsErrors``.
   !
   !               - Allocate a stateVector object on the trial grid and then
   !                 read the trials: ``gio_readTrials``.
@@ -444,7 +444,7 @@ contains
     !
     !- Initialize the observation error covariances
     !
-    call oer_setObsErrors(obsSpaceData, varMode) ! IN
+    call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
     call msg_memUsage('midas-dfs')
 
     !

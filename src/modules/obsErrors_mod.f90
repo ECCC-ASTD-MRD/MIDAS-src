@@ -45,7 +45,7 @@ module obsErrors_mod
   logical, public, protected :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! Public procedures
-  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
+  public :: oer_readAndSetObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_inflateErrAllsky, oer_chanIsAllsky
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
@@ -206,9 +206,9 @@ contains
   END SUBROUTINE oer_setInterchanCorr
 
   !--------------------------------------------------------------------------
-  ! oer_setObsErrors
+  ! oer_readAndSetObsErrors
   !--------------------------------------------------------------------------
-  subroutine oer_setObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt)
+  subroutine oer_readAndSetObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt)
     !
     ! :Purpose: read and set observation errors (from former sucovo subroutine).
     !
@@ -261,12 +261,12 @@ contains
     if (utl_isNamelistPresent('namoer','./flnml')) then
       call utl_tmg_start(181,'low-level--readNML')
       read (utl_flnml, nml = NAMOER, iostat = ierr)
-      if (ierr /= 0) call utl_abort('oer_setObsErrors: Error reading namelist')
+      if (ierr /= 0) call utl_abort('oer_readAndSetObsErrors: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namoer)
       call utl_tmg_stop(181)
     else
       write(*,*)
-      write(*,*) 'oer_setObsErrors: namoer is missing in the namelist. The default value will be taken.'
+      write(*,*) 'oer_readAndSetObsErrors: namoer is missing in the namelist. The default value will be taken.'
     end if
 
     !
@@ -278,7 +278,7 @@ contains
       call oer_readObsErrorsTOVS
       call oer_setInstrumIdArrInflateErrAllsky
     else 
-      write(*,*) "oer_setObsErrors: No brightness temperature observations found."
+      write(*,*) "oer_readAndSetObsErrors: No brightness temperature observations found."
     end if
     
     !- 2.2 Conventional data
@@ -290,7 +290,7 @@ contains
 
     else
 
-      write(*,*) "oer_setObsErrors: No conventional weather observations found."
+      write(*,*) "oer_readAndSetObsErrors: No conventional weather observations found."
 
     end if
 
@@ -298,28 +298,28 @@ contains
     if (obs_famexist(obsSpaceData,'CH')) then
       call chm_read_obs_err_stddev
     else
-      write(*,*) "oer_setObsErrors: No CH observations found."
+      write(*,*) "oer_readAndSetObsErrors: No CH observations found."
     end if
 
     !- 2.4 Sea ice concentration
     if (obs_famexist(obsSpaceData,'GL')) then
       call oer_readObsErrorsIce
     else
-      write(*,*) "oer_setObsErrors: No GL observations found."
+      write(*,*) "oer_readAndSetObsErrors: No GL observations found."
     end if
 
     !- 2.5 SST
     if (obs_famexist(obsSpaceData,'TM')) then    
       call oer_readObsErrorsSST
     else
-      write(*,*) "oer_setObsErrors: No TM observations found."
+      write(*,*) "oer_readAndSetObsErrors: No TM observations found."
     end if
 
     !- 2.6 Hydrology
     if (obs_famexist(obsSpaceData,'HY')) then
       call oer_readObsErrorsHydro
     else
-      write(*,*) "oer_setObsErrors: No HY observations found."
+      write(*,*) "oer_readAndSetObsErrors: No HY observations found."
     end if
 
     !
@@ -332,7 +332,7 @@ contains
     !
     if (obs_famExist(obsSpaceData,'CH')) call chm_dealloc_obs_err_stddev
 
-  end subroutine oer_setObsErrors
+  end subroutine oer_readAndSetObsErrors
 
   !--------------------------------------------------------------------------
   ! oer_readObsErrorsTOVS

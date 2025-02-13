@@ -68,7 +68,7 @@ program midas_var1D
   !               - Setup ``columnData`` module
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``
+  !                 object: ``oer_readAndSetObsErrors``
   !
   !               - Setup the gridStateVector module (initialize list of analyzed variables)
   !
@@ -295,7 +295,7 @@ program midas_var1D
   call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, varMode) ! IN
+  call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
   call msg_memUsage('midas-var1D')
 
   ! Initialize list of analyzed variables.
