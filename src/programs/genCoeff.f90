@@ -48,7 +48,7 @@ program midas_genCoeff
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_readAndSetObsErrors``.
+  !                 object: ``oer_setObsErrors``.
   !
   !               - Allocate a stateVector object on the trial grid and then
   !                 read the trials: ``gio_readTrials``.
@@ -316,7 +316,7 @@ contains
     !
     !- Initialize the observation error covariances
     !
-    if (.not. bcs_mimicSatbcor) call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
+    if (.not. bcs_mimicSatbcor) call oer_setObsErrors(obsSpaceData, varMode) ! IN
     call msg_memUsage('midas-genCoeff')
 
   end subroutine gencoeff_setup

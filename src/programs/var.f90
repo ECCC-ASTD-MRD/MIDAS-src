@@ -125,7 +125,7 @@ program midas_var
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_readAndSetObsErrors``. If useTovsUtil is set to .true.
+  !                 object: ``oer_setObsErrors``. If useTovsUtil is set to .true.
   !                 an additionnal channel filtering is performed for radiances
   !                 based on the UTIL column of stats_tovs file.
   !
@@ -430,7 +430,7 @@ program midas_var
   call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData))
 
   ! Initialize the observation error covariances
-  call oer_readAndSetObsErrors(obsSpaceData, varMode, useTovsUtil_opt = useTovsUtil) ! IN
+  call oer_setObsErrors(obsSpaceData, varMode, useTovsUtil_opt = useTovsUtil) ! IN
 
   ! Call filt_suprep again to filter out channels according to 'util' column of stats_tovs
   if (useTovsUtil) call filt_suprep(obsSpaceData)

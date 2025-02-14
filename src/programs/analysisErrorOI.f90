@@ -50,7 +50,7 @@ program midas_analysisErrorOI
   !                 object for storing trial on analysis levels.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_readAndSetObsErrors``.
+  !                 object: ``oer_setObsErrors``.
   !
   !               - Filter out observations from satellites
   !                 not specified in the name list: ``filt_iceConcentration``.
@@ -217,7 +217,7 @@ program midas_analysisErrorOI
   !
   !- Initialize the observation error covariances
   !
-  call oer_readAndSetObsErrors(obsSpaceData, varMode) ! IN
+  call oer_setObsErrors(obsSpaceData, varMode) ! IN
   call msg_memUsage(myName)
 
   ! Sea ice concentration

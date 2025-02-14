@@ -59,7 +59,7 @@ program midas_ensembleH
   !                 files: ``inn_setupObs``.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_readAndSetObsErrors``.
+  !                 object: ``oer_setObsErrors``.
   !
   !               - Allocate objects for ``column_mod``.
   !
@@ -234,7 +234,7 @@ program midas_ensembleH
   call inn_setupObs(obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode)
 
   ! Initialize obs error covariances
-  call oer_readAndSetObsErrors(obsSpaceData, midasMode)
+  call oer_setObsErrors(obsSpaceData, midasMode)
 
   call col_setup
   call col_setVco(column, vco_ens)
@@ -242,7 +242,7 @@ program midas_ensembleH
   call msg_memUsage('midas-ensembleH')
 
   ! Initialize the observation error covariances
-  call oer_readAndSetObsErrors(obsSpaceData, midasMode) ! IN
+  call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate and initialize eob object for storing HX values
   call eob_allocate(ensObs, enkfNML%nEns, obs_numBody(obsSpaceData), obsSpaceData, &

@@ -48,7 +48,7 @@ program midas_prepcma
   !
   !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags 
   !
-  !             - ``oer_readAndSetObsErrors``: initialize obs error covariances and set flag 
+  !             - ``oer_setObsErrors``: initialize obs error covariances and set flag 
   !
   !             - ``oti_setup``: reject any observations outside the data assimilation window
   !
@@ -256,7 +256,7 @@ program midas_prepcma
   if (obs_famExist(obsSpaceData,'TO')) call tvs_setupAlloc(obsSpaceData)
 
   !- Initialize obs error covariances and set flag using 'util' column of stats_tovs
-  call oer_readAndSetObsErrors(obsSpaceData, 'analysis', useTovsUtil_opt=applySatUtil) ! IN
+  call oer_setObsErrors(obsSpaceData, 'analysis', useTovsUtil_opt=applySatUtil) ! IN
 
   !- Call suprep again to 'black list' channels according to 'util' column of stats_tovs
   if (applySatUtil) call filt_suprep(obsSpaceData)

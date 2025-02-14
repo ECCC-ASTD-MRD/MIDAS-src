@@ -79,7 +79,7 @@ program midas_obsImpact
   !               object for storing trial on analysis levels.
   ! 
   !             - Setup the observation error statistics in ``obsSpaceData``
-  !               object: ``oer_readAndSetObsErrors``.
+  !               object: ``oer_setObsErrors``.
   !
   !             - Allocate a stateVector object on the trial grid and then
   !               read the trials: ``gio_readTrials``.
@@ -288,7 +288,7 @@ program midas_obsImpact
   !
   !- Initialize the observation error covariances
   !
-  call oer_readAndSetObsErrors(obsSpaceData, 'FSO') ! IN
+  call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
   call msg_memUsage('midas-obsImpact')
 
   ! Reading trials

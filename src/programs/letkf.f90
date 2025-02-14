@@ -77,7 +77,7 @@ program midas_letkf
   !                 files: ``inn_setupObs``.
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_readAndSetObsErrors``.
+  !                 object: ``oer_setObsErrors``.
   !
   !               - Allocate and some setup of objects for
   !                 ``ensembleObservations_mod``.
@@ -343,7 +343,7 @@ program midas_letkf
                     obsClean_opt = .false.)
 
   ! Initialize obs error covariances and set flag using 'util' column of stats_tovs
-  call oer_readAndSetObsErrors(obsSpaceData, midasMode, useTovsUtil_opt=.true.) ! IN
+  call oer_setObsErrors(obsSpaceData, midasMode, useTovsUtil_opt=.true.) ! IN
 
   ! Call suprep again to filter out channels according to 'util' column of stats_tovs
   call filt_suprep(obsSpaceData)

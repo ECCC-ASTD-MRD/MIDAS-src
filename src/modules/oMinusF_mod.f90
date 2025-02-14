@@ -139,7 +139,7 @@ module oMinusF_mod
         !- 1.13 Initialize the observation error covariances
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding sigma_O'
-        call oer_readAndSetObsErrors(obsSpaceData, trim(midasMode))
+        call oer_setObsErrors(obsSpaceData, trim(midasMode))
       end if
 
       ! Reading trials
@@ -303,7 +303,7 @@ module oMinusF_mod
         !- 1.13 Initialize the observation error covariances
         write(*,*)
         write(*,*) '> omf_oMinusF: Adding sigma_O'
-        call oer_readAndSetObsErrors(obsSpaceData, trim(midasMode))
+        call oer_setObsErrors(obsSpaceData, trim(midasMode))
       end if
 
       !- 1.14 Allocate and initialize eob object for storing y-HX values
