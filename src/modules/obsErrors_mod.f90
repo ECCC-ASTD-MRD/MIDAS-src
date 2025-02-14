@@ -208,22 +208,13 @@ contains
   !--------------------------------------------------------------------------
   ! oer_readAndSetObsErrors
   !--------------------------------------------------------------------------
-  subroutine oer_readAndSetObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt, &
-                                     setObsOer_opt)
+  subroutine oer_readAndSetObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt)
     !
     ! :Purpose: read and set observation errors (from former sucovo subroutine).
     !
-    implicit none
-
-    ! Arguments:
-    type(struct_obs)             :: obsSpaceData    ! obsSpaceData object
-    character(len=*), intent(in) :: obserrorMode_in ! handling obs err based on the mode
-    logical, optional            :: useTovsUtil_opt ! if using 'util' column in stats_tovs file
-    logical, optional            :: setObsOer_opt   ! if set obs_oer in obsSpaceData
-
-    ! Locals:
-    integer :: ierr
-    logical :: setObsOer
+    type(struct_obs)             :: obsSpaceData
+    character(len=*), intent(in) :: obserrorMode_in
+    logical, optional            :: useTovsUtil_opt
 
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
@@ -233,6 +224,7 @@ contains
     namelist /namoer/ minRetrievableSiValue, maxRetrievableSiValue
     namelist /namoer/ instrumentNamesInflateErrAllskyTt, instrumentNamesInflateErrAllskyHu
     namelist /namoer/ readOldSymmetricObsErrFile
+    integer :: ierr
 
     !
     !- 1.  Setup Mode
@@ -244,12 +236,6 @@ contains
       useTovsUtil = useTovsUtil_opt
     else
       useTovsUtil = .false.
-    end if
-
-    if (present(setObsOer_opt)) then
-      setObsOer = setObsOer_opt
-    else
-      setObsOer = .true.
     end if
 
     ! read namelist namoer
@@ -339,7 +325,7 @@ contains
     !
     !- 3.  Set obs error information in obsSpaceData object
     !
-    if (setObsOer) call oer_fillObsErrors(obsSpaceData)
+    call oer_fillObsErrors(obsSpaceData)
 
     !
     !- 4.  Deallocate temporary storage
