@@ -36,7 +36,7 @@ inputUnit = args.listing
 filename2 = args.reference
 
 
-#==== Functions ==============================================================
+#==== Top-level functions ====================================================
 
 def printTMG(fileObj, fileObjRef = None):
     '''Top-level function for printing timings'''
@@ -72,6 +72,8 @@ def compareTMG(fileObj1, fileObj2):
     print()
     print(outputDiffTMG(labels, diffTMG, timings, showCount=showCount))
 
+
+#==== Output processing ======================================================
 
 def outputTMG( labelList, timings, showCount=False):
     '''Formatting function for timings'''
@@ -152,6 +154,7 @@ def outputDiffTMG(labelList, diff, timings, showCount=False):
             string+='\n'
     return string
 
+#==== Line processing ========================================================
 
 def extractLines(fileObj):
     allLines = list()
@@ -163,56 +166,57 @@ def extractLines(fileObj):
         allLines.append(line.rstrip('\n'))
     return allLines
 
+def xLabel(line):
+    return line.partition("LABEL=")[2].partition(",")[0].strip()
+
+def xTime(line):
+    return float(line.partition("TIME=")[2].partition("seconds")[0].strip())
+
+def xCount(line):
+    return int(line.partition("COUNT=")[2].partition(",")[0].strip())
+
+def orderLabels(lines, labels):
+    for line in lines:
+        label = xLabel(line)
+        if label not in labels:
+            labels.append(label)
 
 def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
     '''get unique and complete list of labels'''
     labelListOrig = list()
     if order == 1:
         # get all labels from main file, first
-        for line in allLines:
-            label = line.partition("LABEL=")[2].partition(",")[0].strip()
-            if label not in labelListOrig:
-                labelListOrig.append(label)
-
+        orderLabels(allLines, labelListOrig)
         # add new labels from reference file, if supplied
         if allLinesRef != None:
-            LabelListOrig = list()
-            for line in allLinesRef:
-                label = line.partition("LABEL=")[2].partition(",")[0].strip()
-                if label not in LabelListOrig:
-                    LabelListOrig.append(label)
+            orderLabels(allLinesRef, labelListOrig)
 
     else:
         # start with reference file
         if allLinesRef != None:
-            for line in allLinesRef:
-                label = line.partition("LABEL=")[2].partition(",")[0].strip()
-                if label not in labelListOrig:
-                    labelListOrig.append(label)
-
+            orderLabels(allLinesRef, labelListOrig)
         # now add extra labels from main file
-        for line in allLines:
-            label = line.partition("LABEL=")[2].partition(",")[0].strip()
-            if label not in labelListOrig:
-                labelListOrig.append(label)
+        orderLabels(allLines, labelListOrig)
 
     # remove labels from the list if the max timing is less that a minimum threshold
     labelList = list()
     for label in labelListOrig:
         timingList = list()
         for line in allLines:
-            if label == line.partition("LABEL=")[2].partition(",")[0].strip():
-                timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
+            if label == xLabel(line):
+                timing = xTime(line)
                 timingList.append(timing)
         if allLinesRef:
             for line in allLinesRef:
-                if label == line.partition("LABEL=")[2].partition(",")[0].strip():
-                    timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
+                if label == xLabel(line):
+                    timing = xTime(line)
                     timingList.append(timing)
         # check maximum timing
         if max(timingList) > minTMG:
             labelList.append(label)
     return labelList
+
+#==== Timing stats computations ==============================================
 
 def getMeanMaxMin(allLines, labelList):
     '''get min/max/mean timing and counts for each label in labelList'''
@@ -228,9 +232,9 @@ def getMeanMaxMin(allLines, labelList):
         timingList = list()
         countList = list()
         for line in allLines:
-            if label == line.partition("LABEL=")[2].partition(",")[0].strip():
-                timing = float(line.partition("TIME=")[2].partition("seconds")[0].strip())
-                count  = int(line.partition("COUNT=")[2].partition(",")[0].strip())
+            if label == xLabel(line):
+                timing = xTime(line)
+                count  = xCount(line)
                 timingList.append(timing)
                 countList.append(count)
         # timing stats
@@ -329,12 +333,12 @@ class test_labelExtraction(unittest.TestCase):
         timings = getMeanMaxMin(allLines, labelList)
         self.output = outputTMG(labelList, timings)
 
-    def test_labelPresence(self):
+    def test_labelInOutput(self):
         for label in self.labels:
             labelPosition=self.output.find('-'+label+'.')
             self.assertTrue(labelPosition != -1)
 
-    def test_onlyLabelPresence(self):
+    def test_onlyLabelInOutput(self):
         lines = self.output.splitlines()
         for line in lines[2:]:
             elem = line[:40].rstrip('.').lstrip('-')
@@ -390,14 +394,14 @@ class test_reference(unittest.TestCase):
                 elem = line[:40].rstrip('.').lstrip('-')
                 self.assertTrue(elem == self.expected[key][i])
 
-    def test_labelOrder_withRef1(self):
+    def test_labelOrder_withRef(self):
         for key in ('1r2o1', '2r1o2'):
             lines = self.output[key].splitlines()
             for i, line in enumerate(lines[2:]):
                 elem = line[:40].rstrip('.').lstrip('-')
                 self.assertTrue(elem == self.expected['12ref1'][i])
 
-    def test_allLabelPresent(self):
+    def test_allLabelInOutput(self):
         allLabels = set(self.labels['1r2o1'])
         allLabels.union(self.labels['2r1o2'])
         check = True
