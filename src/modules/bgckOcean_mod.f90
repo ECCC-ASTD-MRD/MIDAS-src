@@ -484,7 +484,7 @@ module bgckOcean_mod
           do bodyCount = 1, numberObs(swathIndex)
             numberObsRejected = numberObsRejected + 1
             ! update background check flag
-            call flg_setFlag(obsData, bodyIndexList(bodyCount,swathIndex), flg_10)
+            call flg_setFlag(obsData, bodyIndexList(bodyCount,swathIndex), flg_10rejIceGross)
           end do
 
           write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &

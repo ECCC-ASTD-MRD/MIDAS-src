@@ -2553,17 +2553,17 @@ contains
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeSsmis) then
                 !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
-                condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck) !' AND (FLAG & 512 = 0)'
-                !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF + [bit 7 OFF])
+                condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck)
+                !  FLAG test: uncorrected good data that failed rogue check only ([bit 9 ON] + bit 6 OFF + bit 16 ON + bit 18 OFF)
                 condition2 = .not. flg_flagIsOn(flag, flg_06biasCorr) .and. flg_flagIsOn(flag, flg_16rejOmP) .and. .not. flg_flagIsOn(flag, flg_18rejOro)
                 condition = condition1 .or. condition2
               else
                 !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
-                condition = .not. flg_flagIsOn('OR', flag, [flg_09rejBgck,flg_11rejSelect])       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
+                condition = .not. flg_flagIsOn('OR', flag, [flg_09rejBgck,flg_11rejSelect])
               end if
             else
               ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
-              condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck) !' AND (FLAG & 512 = 0)'
+              condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck)
               ! all good data that passed all QC
               ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
               condition2 = flg_flagIsOn(flag, flg_09rejBgck) .and. .not. flg_flagIsOn('OR', flag, [flg_07rejVarious,flg_18rejOro])
@@ -2579,49 +2579,52 @@ contains
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeTovs) then
                 !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
-                condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck) !' AND (FLAG & 512 = 0)'
+                condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck)
                 !  FLAG test: uncorrected (bit 6 OFF) data that failed rogue check only (bit (9)/16 ON, 18,7 OFF)
                 !             NOTE: As all AMSU data are normally bias corrected, query2 will return nothing
-                condition2 = flg_flagIsOn(flag, flg_16rejOmP6) .and. .not. flg_flagIsOn('OR', flag, [flg_06biasCorr,flg_18rejOro,flg_07rejVarious])
+                condition2 = flg_flagIsOn(flag, flg_16rejOmP) .and. .not. flg_flagIsOn('OR', flag, [flg_06biasCorr,flg_18rejOro,flg_07rejVarious])
                 condition = condition1 .or. condition2
               else
                 !  FLAG test: selected data (bit 11 OFF) that have passed QC (bit 9 OFF)
                 condition = .not. flg_flagIsOn('OR', flag, [flg_09rejBgck,flg_11rejSelect])
               end if
             else    ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue check
-              condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck) !' AND (FLAG & 512 = 0)'
+              condition1 = .not. flg_flagIsOn(flag, flg_09rejBgck)
               ! all good data that passed all QC
               ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
-              condition2 =  flg_flagIsOn(flag, flg_09rejBgck) .and. .not. flg_flagIsOn('OR', flag, [flg_07rejVarious,flg_18rejOro]) !' AND (FLAG & 512 = 512) AND (FLAG & 128 = 0) AND (FLAG & 262144 = 0)'
+              condition2 =  flg_flagIsOn(flag, flg_09rejBgck) .and. .not. flg_flagIsOn('OR', flag, [flg_07rejVarious,flg_18rejOro])
               condition = condition1 .or. condition2
             end if
 
             ! remove cloud-affected obs from the pool of "non-assimilated" obs before computing bias correction
             if (channelIsAllsky) condition = condition .and. .not. flg_flagIsOn(flag, flg_23cloudyObs)
           else if(lGeo) then  ! CSR case
-            !    No flag check        =                all data that have passed QC/filtering
-            !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
+            !  No flag check        =                all data that have passed QC/filtering
+            !  bit 11 OFF --> corrected/selected data that have passed QC/filtering
             if (allModeCsr .or. offlineMode .or. channelIsPassive) then
               condition = .true.
             else
-              condition = .not. flg_flagIsOn(flag, flg_18rejOro) ! ' AND (FLAG & 2048 = 0)'
+              condition = .not. flg_flagIsOn(flag, flg_18rejOro)
             endif
-          else if (lHyperIr) then ! AIRS, IASI and CRIS
-            !  (FLAG & 2560 = 0)     = bits 9, 11 OFF       --> data that passed QC (rogue and other)
-            !  (FLAG & 11010176 = 0) = bits 7,19,21,23 OFF  --> "good" data (corrected/selected or not)!  (FLAG & 64 = 64)  = bit 6 ON        --> bias corrected data
-            !  (FLAG & 256 = 0)  = bit 8 OFF       --> passed selction (not blacklisted, UTIL=1)
-            !  (FLAG & 2048 = 2048)   = bit 11 ON
-            !  (FLAG & 65536 = 65536) = bit 16 ON  --> rogue check failure
-            !  (FLAG & 524288 = 0)    = bit 19 OFF --> not surface affected [experimental, bit 11 may not be on if data
-            !                                          are to be assimilated]
-            !  (FLAG & 2097152 = 0)   = bit 21 OFF --> not rejected due to model top transmittance
-            !  (FLAG & 8388608 = 0)   = bit 23 OFF --> "clear sky" radiance [experimental, bit 11 may not be on if cloudy
-            !                                          data are assimilated]!  (FLAG & 128 = 0)      = bit 7 OFF  --> not shortwave channel during day
-            !  (FLAG & 512 = 0)      = bit 9 OFF  --> non-erroneous data that passed O-P rogue check
-            !! AIRS, IASI:!    bit  8 ON: blacklisted/unselected channel (UTIL=0)
-            !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
-            !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
-            !               not bias corrected (11) (with bit 6 OFF)
+          else if (lHyperIr) then
+            ! AIRS, IASI and CRIS
+            !  bits 9, 11 OFF       --> data that passed QC (rogue and other)
+            !  bits 7,19,21,23 OFF  --> "good" data (corrected/selected or not)
+            !  bit 6 ON        --> bias corrected data
+            !  bit 8 OFF       --> passed selction (not blacklisted, UTIL=1)
+            !  bit 16 ON  --> rogue check failure
+            !  bit 19 OFF --> not surface affected [experimental, bit 11 may not be on if data
+            !                 are to be assimilated]
+            !  bit 21 OFF --> not rejected due to model top transmittance
+            !  bit 23 OFF --> "clear sky" radiance [experimental, bit 11 may not be on if cloudy
+            !                 data are assimilated]
+            !  bit 7 OFF  --> not shortwave channel during day
+            !  bit 9 OFF  --> non-erroneous data that passed O-P rogue check
+            ! AIRS, IASI:
+            !  bit  8 ON: blacklisted/unselected channel (UTIL=0)
+            !  bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
+            !  bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
+            !             not bias corrected (11) (with bit 6 OFF)
             if (.not. offlineMode .and. .not. channelIsPassive) then
               if (allModeHyperIr) then
                 ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
@@ -2632,14 +2635,12 @@ contains
                 condition2  = .not. flg_flagIsOn(flag, flg_06biasCorr) .and. flg_flagIsOn(flag, flg_11rejSelect) .and.  &
                               .not. flg_flagIsOn('OR', flag, [flg_17rejVarQC,flg_19rejLandSea, &
                                                               flg_21rejTooHigh,flg_23cloudyObs])
-                !' AND (FLAG & 64 = 0) AND (FLAG & 65536 = 65536) AND (FLAG & 11010176 = 0)'
                 condition = condition1 .or. condition2
               else
                 ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
                 condition =  .not. flg_flagIsOn('OR', flag, [flg_09rejBgck,flg_11rejSelect, &
                                                              flg_08rejBlackL,flg_23cloudyObs, &
                                                              flg_19rejLandSea])
-                !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
               end if
             else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
               !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
@@ -2647,7 +2648,6 @@ contains
               condition1 =  .not. flg_flagIsOn('OR', flag, [flg_09rejBgck,flg_07rejVarious, &
                                                             flg_19rejLandSea,flg_21rejTooHigh, &
                                                             flg_23cloudyObs])
-              !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
               ! good data (7,19,21,23 OFF) that failed QC rogue check only (bits [9],16 ON)
               condition2 = flg_flagIsOn(flag, flg_09rejBgck) .and. flg_flagIsOn(flag, flg_16rejOmP) .and.  &
                            .not. flg_flagIsOn('OR', flag, [flg_07rejVarious,flg_19rejLandSea, &
