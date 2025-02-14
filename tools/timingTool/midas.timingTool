@@ -11,6 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("listing", nargs='?', type=argparse.FileType('r'), default=sys.stdin,
                     help="input listing to be parsed for timings, omitting this argument, the script will read directly from stdin")
 parser.add_argument("-r", "--reference", help="reference listing to ensure common list of labels")
+parser.add_argument("-1", "--title", help="Replacement title for input")
+parser.add_argument("-2", "--title-reference", help="Replacement title for reference")
 parser.add_argument("-d", "--diff", help="compare input listing with the reference",action="store_true", default=False)
 parser.add_argument("-n", "--nocount", help="Do not show call count",action="store_false", default=True)
 parser.add_argument("-o", "--order", help="order to construct the list of labels", type=int, choices=[1, 2], default=1)
@@ -445,14 +447,20 @@ if __name__ == "__main__":
     if args.unittest:
         unittest.main(argv=[parser.prog], verbosity=2)
     else:
-        print(f"Processing {inputUnit.name}")
+        if args.title != None:
+            print(f"{args.title}")
+        else:
+            print(f"Processing {inputUnit.name}")
 
         if filename2:
-            print(f"Reference file supplied: {filename2}")
-            if exptOrder == "2":
-                print("Reference file used first for constructing label list")
+            if args.title_reference != None:
+                print(f"{args.title_reference} (reference)")
             else:
-                print("Main file used first for constructing label list")
+                print(f"Reference file supplied: {filename2}")
+            if exptOrder == "2":
+                print("  - Reference file used first for constructing label list")
+            else:
+                print("  - Main file used first for constructing label list")
 
             try:
                 refUnit = open(filename2, 'r')
