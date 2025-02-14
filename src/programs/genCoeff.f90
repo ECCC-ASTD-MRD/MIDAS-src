@@ -104,7 +104,6 @@ program midas_genCoeff
   use obsErrors_mod
   use biasCorrectionSat_mod
   use obsDiagFiles_mod
-  use tovs_mod
 
   implicit none
 
