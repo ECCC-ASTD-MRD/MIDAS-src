@@ -169,38 +169,77 @@ def extractLines(fileObj):
 def xLabel(line):
     return line.partition("LABEL=")[2].partition(",")[0].strip()
 
+def xNode(line):
+    return line.partition("oe-")[2].partition(":")[0]
+
+def depth(label):
+    '''count number of '-' in the prefix'''
+    level = label.find(next(filter(str.isalpha, label)))//2
+    return level 
+
+def name(label):
+    return label.rstrip('.').lstrip('-')
+
 def xTime(line):
     return float(line.partition("TIME=")[2].partition("seconds")[0].strip())
 
 def xCount(line):
     return int(line.partition("COUNT=")[2].partition(",")[0].strip())
 
-def orderLabels(lines, labels):
+def orderLabels(lines, labelDict, verbose=False):
+    node = None
     for line in lines:
         label = xLabel(line)
-        if label not in labels:
-            labels.append(label)
+        block = name(label)
+        level = depth(label)
+
+        if xNode(line) != node:
+            # changing node: reset stack
+            stack = list()
+            if 0 in labelDict :
+                stack.append(labelDict[0][None][0])
+        node = xNode(line)
+
+        if level > len(stack)-1:
+            parent = stack[-1] if len(stack) > 0 else None
+        else:
+            for i in range(len(stack)-level): 
+                stack.pop() 
+            parent = stack[-1] if len(stack) > 0 else None
+        stack.append(block)
+        
+        if verbose:
+            print(f'>>> {block}, level {level}, parent {parent}')
+
+        if level not in labelDict:
+            labelDict[level] = dict()
+        if parent not in labelDict[level]:
+            labelDict[level][parent] = list()
+        if block not in labelDict[level][parent]:
+            labelDict[level][parent].append(block)
 
 def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
     '''get unique and complete list of labels'''
-    labelListOrig = list()
+    labelDict = dict()
+    # TODO: not sure, but I think `order` becomes irrelevant with `orderLabels()`
     if order == 1:
         # get all labels from main file, first
-        orderLabels(allLines, labelListOrig)
+        orderLabels(allLines, labelDict)
         # add new labels from reference file, if supplied
         if allLinesRef != None:
-            orderLabels(allLinesRef, labelListOrig)
+            orderLabels(allLinesRef, labelDict)
 
     else:
         # start with reference file
         if allLinesRef != None:
-            orderLabels(allLinesRef, labelListOrig)
+            orderLabels(allLinesRef, labelDict)
         # now add extra labels from main file
-        orderLabels(allLines, labelListOrig)
+        orderLabels(allLines, labelDict)
 
     # remove labels from the list if the max timing is less that a minimum threshold
     labelList = list()
-    for label in labelListOrig:
+    for level in sorted(list(labelDict.keys())):
+
         timingList = list()
         for line in allLines:
             if label == xLabel(line):
@@ -319,7 +358,7 @@ class test_labelExtraction(unittest.TestCase):
         oe-00000-00001: TMG: PE=   1 ,LABEL=----ApplyWeights........................ ,COUNT=85 ,TIME=           13.299899 seconds, AVG=            0.156469 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=------ApplyWeightsMember................ ,COUNT=52954 ,TIME=           12.826459 seconds, AVG=            0.000242 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-signals................. ,COUNT=741 ,TIME=            4.492428 seconds, AVG=            0.006063 seconds
-        oe-0000'{:>9}'.format('========') 0-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitSend................ ,COUNT=85 ,TIME=            0.007523 seconds, AVG=            0.000089 seconds
+        oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitSend................ ,COUNT=85 ,TIME=            0.007523 seconds, AVG=            0.000089 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-waitRecv................ ,COUNT=85 ,TIME=            0.033655 seconds, AVG=            0.000396 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-irecv................... ,COUNT=170 ,TIME=            0.195063 seconds, AVG=            0.001147 seconds
         oe-00000-00001: TMG: PE=   1 ,LABEL=----CommWeights-isend................... ,COUNT=656 ,TIME=            0.322189 seconds, AVG=            0.000491 seconds'''
