@@ -350,7 +350,8 @@ contains
     integer, parameter :: analysisColumnIndex = 2
     integer,external  :: FNOM, FCLOS
     integer :: IER, ILUTOV, ILUTOV2, JI, obsErrorColumnIndex, JL, JM 
-    integer :: INUMSAT, INUMSAT2, ISAT, IPLF
+    integer :: INUMSAT, INUMSAT2, ISAT, IPLF, sensorIndex, sensorIndex2, channelIndex
+    integer :: channelNumber, channelNumber_WithOffset
     integer :: IPLATFORM(tvs_maxNumberOfSensors), ISATID(tvs_maxNumberOfSensors)
     integer :: IINSTRUMENT(tvs_maxNumberOfSensors), NUMCHN(tvs_maxNumberOfSensors)
     integer :: NUMCHNIN(tvs_maxNumberOfSensors)
@@ -636,7 +637,7 @@ contains
     !    5. Print out observation errors for each sensor
     !       --------------------------------------------
     !
-    if (mmpi_myid == 0) THEN
+    !if (mmpi_myid == 0) THEN
       write(*,*) 'Radiance observation errors read from file'
       write(*,*) '------------------------------------------'
       do JL = 1, tvs_nsensors
@@ -660,7 +661,7 @@ contains
           end do
         end if
       end do
-    end if
+    !end if
 
     !
     !    6. Close the file
@@ -668,6 +669,88 @@ contains
     !
     IER = FCLOS(ILUTOV)
     if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
+
+    ! Check the all-sky channel number indicated in NAMTOV (channelsUsingClw and 
+    !   channelsUsingHydrometeors) match the useStateDepSigmaObs(:,:) read from ascii file.
+    do JL = 1, tvs_nsensors
+      if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL))) then
+      
+        ! all-sky HU
+        if (tvs_isInstrumUsingHydrometeors(tvs_instruments(JL))) then
+          sensorIndex = tvs_getHydrometeorsIndex(tvs_instruments(JL))
+          
+          do channelIndex = 1, tvs_maxNumberOfChannels
+            if (tvs_channelsUsingHydrometeors(sensorIndex,channelIndex) < 0) exit
+            channelNumber = tvs_channelsUsingHydrometeors(sensorIndex,channelIndex)
+            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+            write(*,*) 'oer_readObsErrorsTOVS: channelNumber=', channelNumber, &
+                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
+                        ', tvs_channelsUsingHydrometeors=', tvs_channelsUsingHydrometeors(sensorIndex,channelIndex), &
+                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,JL)
+
+            if ((useStateDepSigmaObs(channelNumber_WithOffset,JL) .and. &
+                .not. tvs_channelsUsingHydrometeors(sensorIndex,channelIndex) > 0) .or. &
+                (.not. useStateDepSigmaObs(channelNumber_WithOffset,JL) .and. &
+                tvs_channelsUsingHydrometeors(sensorIndex,channelIndex) > 0)) then
+              call utl_abort ('oer_readObsErrorsTOVS: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
+            end if
+          end do
+
+          !do JI = 1, NUMCHN(JL)
+          !  write(*,*) 'oer_readObsErrorsTOVS: JI=', JI, &
+          !              ', ICHN=', ICHN(JI,JL), &
+          !              ', tvs_channelsUsingHydrometeors=', tvs_channelsUsingHydrometeors(sensorIndex,JI), &
+          !              ', useStateDepSigmaObs(ICHN(JI,JL),JL)=', useStateDepSigmaObs(ICHN(JI,JL),JL)
+!
+          !  if ((useStateDepSigmaObs(ICHN(JI,JL),JL) .and. &
+          !      .not. tvs_channelsUsingHydrometeors(sensorIndex,JI) > 0) .or. &
+          !      (.not. useStateDepSigmaObs(ICHN(JI,JL),JL) .and. &
+          !      tvs_channelsUsingHydrometeors(sensorIndex,JI) > 0)) then
+          !    call utl_abort ('oer_readObsErrorsTOVS: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
+          !  end if
+          !end do
+        end if
+
+        ! all-sky TT
+        if (tvs_isInstrumUsingCLW(tvs_instruments(JL))) then
+          sensorIndex = tvs_getClwIndex(tvs_instruments(JL))
+
+          do channelIndex = 1, tvs_maxNumberOfChannels
+            if (tvs_channelsUsingClw(sensorIndex,channelIndex) < 0) exit
+            channelNumber = tvs_channelsUsingClw(sensorIndex,channelIndex)
+            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+            write(*,*) 'oer_readObsErrorsTOVS: channelNumber=', channelNumber, &
+                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
+                        ', tvs_channelsUsingClw=', tvs_channelsUsingClw(sensorIndex,channelIndex), &
+                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,JL)
+
+            if ((useStateDepSigmaObs(channelNumber_WithOffset,JL) .and. &
+                .not. tvs_channelsUsingClw(sensorIndex,channelIndex) > 0) .or. &
+                (.not. useStateDepSigmaObs(channelNumber_WithOffset,JL) .and. &
+                tvs_channelsUsingClw(sensorIndex,channelIndex) > 0)) then
+              call utl_abort ('oer_readObsErrorsTOVS: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
+            end if
+          end do
+
+          !do JI = 1, NUMCHN(JL)
+          !  write(*,*) 'oer_readObsErrorsTOVS: JI=', JI, &
+          !              ', ICHN=', ICHN(JI,JL), &
+          !              ', tvs_channelsUsingClw=', tvs_channelsUsingClw(sensorIndex,JI), &
+          !              ', useStateDepSigmaObs(ICHN(JI,JL),JL)=', useStateDepSigmaObs(ICHN(JI,JL),JL)
+!
+          !  if ((useStateDepSigmaObs(ICHN(JI,JL),JL) .and. &
+          !      .not. tvs_channelsUsingClw(sensorIndex,JI) > 0) .or. &
+          !      (.not. useStateDepSigmaObs(ICHN(JI,JL),JL) .and. &
+          !      tvs_channelsUsingClw(sensorIndex,JI) > 0)) then
+          !    call utl_abort ('oer_readObsErrorsTOVS: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
+          !  end if
+          !end do
+        end if
+
+      end if ! if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL))) then
+    end do
 
     !
     !    7. Fill the publics variables for QC purpose

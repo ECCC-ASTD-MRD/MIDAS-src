@@ -103,6 +103,7 @@ module tovs_mod
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
   public :: tvs_useSfcEmissObsSpace, tvs_emis_read_climatology, tvs_pcnt_box
   public :: tvs_rttov_tl, tvs_rttov_ad, tvs_rttov_k
+  public :: tvs_getClwIndex, tvs_getHydrometeorsIndex
   
   type surface_params
     real(8)   :: albedo   ! surface albedo (0-1)
@@ -133,6 +134,8 @@ module tovs_mod
   integer, public, protected :: tvs_satellites(tvs_maxNumberOfSensors)   ! RTTOV satellite ID's (e.g., 1 to 16 for NOAA; ...)
   integer, public, protected :: tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer, public, protected :: tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
+  integer, public, protected :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable, used in all-sky HU
+  integer, public, protected :: tvs_channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
   character(len=15), public, protected :: tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15), public, protected :: tvs_instrumentName(tvs_maxNumberOfSensors)
   integer, public, protected, allocatable :: tvs_listSensors(:,:)     ! Sensor list
@@ -161,7 +164,6 @@ module tovs_mod
   integer :: tvs_numMWInstrumUsingHydrometeors
   logical :: tvs_mwInstrumUsingCLW_tl
   logical :: tvs_mwInstrumUsingHydrometeors_tl
-  integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
@@ -804,7 +806,8 @@ contains
     real(8) :: cloudScaleFactor_tl  ! Scale factor applied in rttov TL/AD to cloud increments
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
-    integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables
+    integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables, used in all-sky HU
+    integer :: channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
@@ -818,7 +821,7 @@ contains
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
-    namelist /NAMTOV/ channelsUsingHydrometeors
+    namelist /NAMTOV/ channelsUsingHydrometeors, channelsUsingClw
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
@@ -854,6 +857,7 @@ contains
     mwInstrumUsingCLW_tl = .false.
     mwInstrumUsingHydrometeors_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
+    channelsUsingClw(:,:) = -1
     instrumentNamesUsingHydrometeors(:) = '***UNDEFINED***'
     channelsUsingHydrometeors(:,:) = -1
     regLimitExtrap = .true.
@@ -909,6 +913,7 @@ contains
     tvs_copyCoefficientFileToRamDisk = copyCoefficientFileToRamDisk
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
+    tvs_channelsUsingClw(:,:) = channelsUsingClw(:,:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
     tvs_irEmissAngularCorrection = irEmissAngularCorrection
@@ -1784,6 +1789,33 @@ contains
     end do
 
   end function tvs_isInstrumUsingCLW
+
+  !--------------------------------------------------------------------------
+  !  tvs_getClwIndex
+  !--------------------------------------------------------------------------
+  function tvs_getClwIndex(instrumId) result(clwIndex)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is in the list to use CLW
+    !
+    implicit none
+
+    ! Arguments:
+    integer, intent(in) :: instrumId     ! input RTTOV instrument code
+    ! Result:
+    integer             :: clwIndex
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    clwIndex = -1
+    do instrumentIndex = 1, tvs_numMWInstrumUsingCLW
+      if (instrumId == instrumentIdsUsingCLW(instrumentIndex)) then
+        clwIndex = instrumentIndex
+        exit
+      end if
+    end do
+
+  end function tvs_getClwIndex
 
   !--------------------------------------------------------------------------
   !  tvs_isInstrumUsingHydrometeors
