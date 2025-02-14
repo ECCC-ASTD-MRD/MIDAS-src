@@ -209,23 +209,21 @@ contains
   ! oer_readAndSetObsErrors
   !--------------------------------------------------------------------------
   subroutine oer_readAndSetObsErrors(obsSpaceData, obserrorMode_in, useTovsUtil_opt, &
-                                     setObsOer_opt, readObsErrFamNameList_opt)
+                                     setObsOer_opt)
     !
     ! :Purpose: read and set observation errors (from former sucovo subroutine).
     !
     implicit none
 
     ! Arguments:
-    type(struct_obs)                       :: obsSpaceData                 ! obsSpaceData object
-    character(len=*)          , intent(in) :: obserrorMode_in              ! handling obs err based on the mode
-    logical,          optional, intent(in) :: useTovsUtil_opt              ! if using 'util' column in stats_tovs file
-    logical,          optional, intent(in) :: setObsOer_opt                ! if set obs_oer in obsSpaceData
-    character(len=3), optional, intent(in) :: readObsErrFamNameList_opt(:) ! array of family names to read obs error files
+    type(struct_obs)             :: obsSpaceData    ! obsSpaceData object
+    character(len=*), intent(in) :: obserrorMode_in ! handling obs err based on the mode
+    logical, optional            :: useTovsUtil_opt ! if using 'util' column in stats_tovs file
+    logical, optional            :: setObsOer_opt   ! if set obs_oer in obsSpaceData
 
     ! Locals:
     integer :: ierr
     logical :: setObsOer
-    character(len=3), allocatable :: readObsErrFamNameList(:)
 
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
@@ -252,14 +250,6 @@ contains
       setObsOer = setObsOer_opt
     else
       setObsOer = .true.
-    end if
-
-    if (present(readObsErrFamNameList_opt)) then
-      allocate(readObsErrFamNameList(size(readObsErrFamNameList_opt)))
-      readObsErrFamNameList(:) = readObsErrFamNameList_opt(:)
-    else
-      allocate(readObsErrFamNameList(1))
-      readObsErrFamNameList(1) = 'all'
     end if
 
     ! read namelist namoer
@@ -298,7 +288,7 @@ contains
     !
 
     !- 2.1 Radiance data
-    if (obsFamExistInList(readObsErrFamNameList,'TO')) then
+    if (obs_famexist(obsSpaceData,'TO')) then
       call oer_readObsErrorsTOVS
       call oer_setInstrumIdArrInflateErrAllsky
     else 
@@ -306,10 +296,9 @@ contains
     end if
     
     !- 2.2 Conventional data
-    if (obsFamExistInList(readObsErrFamNameList,'UA') .or. obsFamExistInList(readObsErrFamNameList,'AI') .or. &
-        obsFamExistInList(readObsErrFamNameList,'SW') .or. obsFamExistInList(readObsErrFamNameList,'SF') .or. &
-        obsFamExistInList(readObsErrFamNameList,'GP') .or. obsFamExistInList(readObsErrFamNameList,'SC') .or. &
-        obsFamExistInList(readObsErrFamNameList,'PR')) then
+    if (obs_famExist(obsSpaceData, 'UA') .or. obs_famExist(obsSpaceData, 'AI') .or. obs_famExist(obsSpaceData, 'SW') .or. &
+        obs_famExist(obsSpaceData, 'SF') .or. obs_famExist(obsSpaceData, 'GP') .or. obs_famExist(obsSpaceData, 'SC') .or. &
+        obs_famExist(obsSpaceData, 'PR')) then
 
       call oer_readObsErrorsCONV()
 
@@ -320,28 +309,28 @@ contains
     end if
 
     !- 2.3 Constituent data
-    if (obsFamExistInList(readObsErrFamNameList,'CH')) then
+    if (obs_famexist(obsSpaceData,'CH')) then
       call chm_read_obs_err_stddev
     else
       write(*,*) "oer_readAndSetObsErrors: No CH observations found."
     end if
 
     !- 2.4 Sea ice concentration
-    if (obsFamExistInList(readObsErrFamNameList,'GL')) then
+    if (obs_famexist(obsSpaceData,'GL')) then
       call oer_readObsErrorsIce
     else
       write(*,*) "oer_readAndSetObsErrors: No GL observations found."
     end if
 
     !- 2.5 SST
-    if (obsFamExistInList(readObsErrFamNameList,'TM')) then    
+    if (obs_famexist(obsSpaceData,'TM')) then    
       call oer_readObsErrorsSST
     else
       write(*,*) "oer_readAndSetObsErrors: No TM observations found."
     end if
 
     !- 2.6 Hydrology
-    if (obsFamExistInList(readObsErrFamNameList,'HY')) then
+    if (obs_famexist(obsSpaceData,'HY')) then
       call oer_readObsErrorsHydro
     else
       write(*,*) "oer_readAndSetObsErrors: No HY observations found."
@@ -355,37 +344,7 @@ contains
     !
     !- 4.  Deallocate temporary storage
     !
-    if (obsFamExistInList(readObsErrFamNameList,'CH')) call chm_dealloc_obs_err_stddev
-
-    deallocate(readObsErrFamNameList)
-
-  contains
-
-    !--------------------------------------------------------------------------
-    ! obsFamExistInList
-    !--------------------------------------------------------------------------
-    function obsFamExistInList(obsFamList,obsFam) result(ifExist)
-      !
-      ! :Purpose: Check obsFam is in obsFamList and obsSpaceData
-      !
-      implicit none
-
-      ! Arguments:
-      character(len=*), intent(in) :: obsFamList(:)
-      character(len=*), intent(in) :: obsFam
-
-      ! Result:
-      logical :: ifExist
-
-      ifExist = .false.
-
-      if ((utl_findloc(obsFamList,obsFam) > 0 .or. &
-            utl_findloc(obsFamList,'all') > 0) .and. &
-            obs_famexist(obsSpaceData,obsFam)) then
-        ifExist = .true.
-      end if
-
-    end function obsFamExistInList
+    if (obs_famExist(obsSpaceData,'CH')) call chm_dealloc_obs_err_stddev
 
   end subroutine oer_readAndSetObsErrors
 
