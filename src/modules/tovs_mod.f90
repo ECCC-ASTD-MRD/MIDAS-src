@@ -1876,66 +1876,146 @@ contains
     logical, intent(in) :: useStateDepSigmaObs(:,:) ! array filled with symmetricObsErr ascii
     
     ! Locals:
-    integer :: sensorIndex, sensorIndex2, channelIndex
-    integer :: channelNumber, channelNumber_WithOffset
+    integer :: sensorIndex, sensorIndex2, channelIndex, instrumId
+    integer :: channelNumber, channelNumber_WithOffset, maxNumAllskyChannels
 
     do sensorIndex = 1, tvs_nsensors
       if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(:,sensorIndex))) then
+        instrumId = tvs_instruments(sensorIndex)
       
         ! all-sky HU
-        if (tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex))) then
-          sensorIndex2 = tvs_getHydrometeorsIndex(tvs_instruments(sensorIndex))
-          
-          do channelIndex = 1, tvs_maxNumberOfChannels
-            if (tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex) < 0) exit
-            channelNumber = tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex)
-            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex2)
+        if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+          sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
 
-            write(*,*) 'tvs_checkAllskyChanNum: inst=', tvs_instruments(sensorIndex), &
-                        ', channelNumber=', channelNumber, &
-                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
-                        ', tvs_channelsUsingHydrometeors=', tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex), &
-                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
+          ! first check the channel list from NAMTOV is NOT a subset of full all-sky channel list
+          maxNumAllskyChannels = tvs_getMaxNumAllskyChannels(sensorIndex,'HU')
+          if (count(tvs_channelsUsingHydrometeors(sensorIndex2,:) > 0) /= maxNumAllskyChannels) then
+            write(*,*) 'tvs_checkAllskyChanNum: sensorIndex2=', sensorIndex2, &
+                      ', maxNumAllskyChannels=', maxNumAllskyChannels
+            call utl_abort ('tvs_checkAllskyChanNum: some channels missing in tvs_channelsUsingHydrometeors')
+          end if
+          
+          ! second check channel list from NAMTOV match channel list from symmetricObsErr ascii file
+          do channelIndex = 1, tvs_maxNumberOfChannels
+            if (tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex) <= 0) exit
+            channelNumber = tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex)
+            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
 
             if ((useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex) .and. &
                 .not. tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex) > 0) .or. &
                 (.not. useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex) .and. &
                 tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex) > 0)) then
+
+              write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                        ', sensorIndex2=', sensorIndex2, &
+                        ', inst=', instrumId, &
+                        ', channelNumber=', channelNumber, &
+                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
+                        ', tvs_channelsUsingHydrometeors=', tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex), &
+                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
+
               call utl_abort ('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
             end if
           end do
-
-        end if
+        end if ! if (tvs_isInstrumUsingHydrometeors(instrumId)) then
 
         ! all-sky TT
-        if (tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex))) then
-          sensorIndex2 = tvs_getClwIndex(tvs_instruments(sensorIndex))
+        if (tvs_isInstrumUsingCLW(instrumId)) then
+          sensorIndex2 = tvs_getClwIndex(instrumId)
 
+          ! first check the channel list from NAMTOV is NOT a subset of full all-sky channel list
+          maxNumAllskyChannels = tvs_getMaxNumAllskyChannels(sensorIndex,'TT')
+          if (count(tvs_channelsUsingClw(sensorIndex2,:) > 0) /= maxNumAllskyChannels) then
+            write(*,*) 'tvs_checkAllskyChanNum: sensorIndex2=', sensorIndex2, &
+                      ', maxNumAllskyChannels=', maxNumAllskyChannels
+            call utl_abort ('tvs_checkAllskyChanNum: some channels missing in tvs_channelsUsingClw')
+          end if
+
+          ! second check channel list from NAMTOV match channel list from symmetricObsErr ascii file
           do channelIndex = 1, tvs_maxNumberOfChannels
-            if (tvs_channelsUsingClw(sensorIndex2,channelIndex) < 0) exit
+            if (tvs_channelsUsingClw(sensorIndex2,channelIndex) <= 0) exit
             channelNumber = tvs_channelsUsingClw(sensorIndex2,channelIndex)
-            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex2)
-
-            write(*,*) 'tvs_checkAllskyChanNum: inst=', tvs_instruments(sensorIndex), &
-                        ', channelNumber=', channelNumber, &
-                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
-                        ', tvs_channelsUsingClw=', tvs_channelsUsingClw(sensorIndex2,channelIndex), &
-                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
+            channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
 
             if ((useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex) .and. &
                 .not. tvs_channelsUsingClw(sensorIndex2,channelIndex) > 0) .or. &
                 (.not. useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex) .and. &
                 tvs_channelsUsingClw(sensorIndex2,channelIndex) > 0)) then
+                  
+              write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
+                        ', sensorIndex2=', sensorIndex2, &
+                        ', inst=', instrumId, &
+                        ', channelNumber=', channelNumber, &
+                        ', channelNumber_withOffset=', channelNumber_WithOffset, &
+                        ', tvs_channelsUsingClw=', tvs_channelsUsingClw(sensorIndex2,channelIndex), &
+                        ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
+
               call utl_abort ('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
             end if
           end do
-
-        end if
+        end if ! if (tvs_isInstrumUsingCLW(instrumId)) then
 
       end if ! if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(:,sensorIndex)) then
     end do
 
   end subroutine tvs_checkAllskyChanNum
+
+  !--------------------------------------------------------------------------
+  !  tvs_getMaxNumAllskyChannels
+  !--------------------------------------------------------------------------
+  function tvs_getMaxNumAllskyChannels(sensorIndex,allskyTtHu) result(maxNumAllskyChannels)
+    !
+    ! :Purpose: Get max number of all-sky channels for an instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in)  :: sensorIndex ! input RTTOV instrument code
+    character(len=2), intent(in)  :: allskyTtHu  ! 'TT' for all-sky temperature, HU for all-sky humidity
+    ! Result:
+    integer                       :: maxNumAllskyChannels ! max number of all-sky channels
+
+    ! Locals:
+    integer :: instrumId, firstChannelNum, lastChannelNum, numChannelsToExclude
+
+    instrumId = tvs_instruments(sensorIndex)
+
+    numChannelsToExclude = 0
+    maxNumAllskyChannels = 0
+
+    if (allskyTtHu == 'HU') then
+      if (instrumId == tvs_getInstrumentId('atms')) then
+        firstChannelNum = 17
+        lastChannelNum = 22
+      else if (instrumId == tvs_getInstrumentId('mhs') .or. &
+              instrumId == tvs_getInstrumentId('amsub')) then
+        firstChannelNum = 1
+        lastChannelNum = 5
+      else
+        write(*,*) 'tvs_getMaxNumAllskyChannels: instrumId=', instrumId
+        call utl_abort('tvs_getMaxNumAllskyChannels: unknown instrument ID for all-sky HU')
+      end if
+
+    else if (allskyTtHu == 'TT') then
+      if (instrumId == tvs_getInstrumentId('atms')) then
+        firstChannelNum = 1
+        lastChannelNum = 6
+        numChannelsToExclude = 1 ! ch 4
+      else if (instrumId == tvs_getInstrumentId('amsua')) then
+        firstChannelNum = 1
+        lastChannelNum = 5
+      else
+        write(*,*) 'tvs_getMaxNumAllskyChannels: instrumId=', instrumId
+        call utl_abort('tvs_getMaxNumAllskyChannels: unknown instrument ID for all-sky TT')
+      end if
+
+    else
+      call utl_abort('tvs_getMaxNumAllskyChannels: unknown allskyTtHu input argument')
+    end if
+
+    maxNumAllskyChannels = lastChannelNum - firstChannelNum + 1 - numChannelsToExclude
+
+  end function tvs_getMaxNumAllskyChannels
 
   !--------------------------------------------------------------------------
   !  tvs_isInstrumAllskyTtAssim
