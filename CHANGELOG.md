@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix filter out all-sky obs before bias correction computation (#1044 and !)
+ * Fix filtering all-sky obs before bias correction computation (#1044 and !946)
+   * Few namelist variables added to `NAMTOV`. Minor impact on results when using `bcs_filterObs` in `genCoeff`.
  * Fixed preparation of the constituent obs operators with averaging kernels (#1039 and !950)
  * Adding `${SEQ_LOOP_ARGS}` to all calls to `nodelogger` (#1048 and !951)
 
