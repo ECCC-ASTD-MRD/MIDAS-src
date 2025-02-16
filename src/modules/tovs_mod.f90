@@ -103,7 +103,7 @@ module tovs_mod
   public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
   public :: tvs_useSfcEmissObsSpace, tvs_emis_read_climatology, tvs_pcnt_box
   public :: tvs_rttov_tl, tvs_rttov_ad, tvs_rttov_k
-  public :: tvs_checkAllskyChanNum
+  public :: tvs_checkAllskyChanNum, tvs_isChanNumInAllskyNamtovList
   
   type surface_params
     real(8)   :: albedo   ! surface albedo (0-1)
@@ -2020,6 +2020,46 @@ contains
     end if
 
   end subroutine tvs_getFirstLastAllskyChanNum
+
+  !--------------------------------------------------------------------------
+  !  tvs_isChanNumInAllskyNamtovList
+  !--------------------------------------------------------------------------
+  function tvs_isChanNumInAllskyNamtovList(instrumId,allskyTtHu,channelNumber) result(isChannelInNamtovList)
+    !
+    ! :Purpose: check if channel number is in NAMTOV list for all-sky TT/HU of the instrument.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: instrumId     ! input RTTOV instrument code
+    character(len=2), intent(in) :: allskyTtHu    ! 'TT' for all-sky temperature, HU for all-sky humidity
+    integer,          intent(in) :: channelNumber ! channel number
+
+    ! Result:
+    logical :: isChannelInNamtovList
+
+    ! Locals:
+    integer :: sensorIndex2 
+    
+    isChannelInNamtovList = .false.
+
+    ! all-sky HU
+    if (allskyTtHu == 'HU') then
+      if (tvs_isInstrumUsingHydrometeors(instrumId)) then
+        sensorIndex2 = tvs_getHydrometeorsIndex(instrumId)
+        isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),channelNumber) > 0)
+      end if
+    end if
+
+    ! all-sky TT
+    if (allskyTtHu == 'TT') then
+      if (tvs_isInstrumUsingCLW(instrumId)) then
+        sensorIndex2 = tvs_getClwIndex(instrumId)
+        isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),channelNumber) > 0)
+      end if
+    end if
+
+  end function tvs_isChanNumInAllskyNamtovList
 
   !--------------------------------------------------------------------------
   !  tvs_isInstrumAllskyTtAssim
