@@ -164,6 +164,14 @@ module tovs_mod
   logical :: tvs_mwInstrumUsingHydrometeors_tl
   integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable, used in all-sky HU
   integer :: tvs_channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
+  integer :: tvs_firstAmsuaAllskyTtChanNum ! first amsua all-sky TT channel number
+  integer :: tvs_lastAmsuaAllskyTtChanNum  ! last amsua all-sky TT channel number
+  integer :: tvs_firstAtmsAllskyTtChanNum  ! first atms all-sky TT channel number
+  integer :: tvs_lastAtmsAllskyTtChanNum   ! last atms all-sky TT channel number
+  integer :: tvs_firstAtmsAllskyHuChanNum  ! first atms all-sky HU channel number
+  integer :: tvs_lastAtmsAllskyHuChanNum   ! last atms all-sky HU channel number
+  integer :: tvs_firstAmsubAllskyHuChanNum ! first amsub/mhs all-sky HU channel number
+  integer :: tvs_lastAmsubAllskyHuChanNum  ! last amsub/mhs all-sky HU channel number
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
@@ -934,6 +942,14 @@ contains
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_channelsUsingClw(:,:) = channelsUsingClw(:,:)
+    tvs_firstAmsuaAllskyTtChanNum = firstAmsuaAllskyTtChanNum
+    tvs_lastAmsuaAllskyTtChanNum  =  lastAmsuaAllskyTtChanNum
+    tvs_firstAtmsAllskyTtChanNum = firstAtmsAllskyTtChanNum
+    tvs_lastAtmsAllskyTtChanNum  =  lastAtmsAllskyTtChanNum
+    tvs_firstAtmsAllskyHuChanNum = firstAtmsAllskyHuChanNum
+    tvs_lastAtmsAllskyHuChanNum  =  lastAtmsAllskyHuChanNum
+    tvs_firstAmsubAllskyHuChanNum = firstAmsubAllskyHuChanNum
+    tvs_lastAmsubAllskyHuChanNum  =  lastAmsubAllskyHuChanNum
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
     tvs_irEmissAngularCorrection = irEmissAngularCorrection
@@ -1896,10 +1912,10 @@ contains
     logical, intent(in) :: useStateDepSigmaObs(:,:) ! array filled with symmetricObsErr ascii
     
     ! Locals:
-    integer :: sensorIndex, sensorIndex2, channelIndex, instrumId
+    integer :: sensorIndex, sensorIndex2, instrumId
     integer :: channelNumber, channelNumber_WithOffset
     integer :: firstChannelNum, lastChannelNum
-    logical :; isChannelInNamtovList, isChannelInAsciiList
+    logical :: isChannelInNamtovList, isChannelInAsciiList
 
     do sensorIndex = 1, tvs_nsensors
       if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(:,sensorIndex))) then
@@ -1915,8 +1931,7 @@ contains
           ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
           do channelNumber = firstChannelNum, lastChannelNum
             channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
-            channelIndex = channelNumber - firstChannelNum + 1
-            isChannelInNamtovList = (tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex) == channelNumber)
+            isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),channelNumber) > 0)
             isChannelInAsciiList = useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
 
             if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
@@ -1925,9 +1940,8 @@ contains
               write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
                         ', sensorIndex2=', sensorIndex2, &
                         ', inst=', instrumId, &
-                        ', channelNumber=', channelNumber, &
+                        ', channelNumber (or tvs_channelsUsingHydrometeors)=', channelNumber, &
                         ', channelNumber_withOffset=', channelNumber_WithOffset, &
-                        ', tvs_channelsUsingHydrometeors=', tvs_channelsUsingHydrometeors(sensorIndex2,channelIndex), &
                         ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
 
               call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
@@ -1945,8 +1959,7 @@ contains
           ! check channel list from NAMTOV match channel list from symmetricObsErr ascii file
           do channelNumber = firstChannelNum, lastChannelNum
             channelNumber_WithOffset = channelNumber + tvs_channelOffset(sensorIndex)
-            channelIndex = channelNumber - firstChannelNum + 1
-            isChannelInNamtovList = (tvs_channelsUsingClw(sensorIndex2,channelIndex) == channelNumber)
+            isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),channelNumber) > 0)
             isChannelInAsciiList = useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
 
             if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
@@ -1955,9 +1968,8 @@ contains
               write(*,*) 'tvs_checkAllskyChanNum: sensorIndex=', sensorIndex, &
                         ', sensorIndex2=', sensorIndex2, &
                         ', inst=', instrumId, &
-                        ', channelNumber=', channelNumber, &
+                        ', channelNumber (or tvs_channelsUsingClw)=', channelNumber, &
                         ', channelNumber_withOffset=', channelNumber_WithOffset, &
-                        ', tvs_channelsUsingClw=', tvs_channelsUsingClw(sensorIndex2,channelIndex), &
                         ', useStateDepSigmaObs=', useStateDepSigmaObs(channelNumber_WithOffset,sensorIndex)
 
               call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
@@ -1992,12 +2004,12 @@ contains
 
     if (allskyTtHu == 'HU') then
       if (instrumId == tvs_getInstrumentId('atms')) then
-        firstChannelNum = firstAtmsAllskyHuChanNum
-        lastChannelNum =   lastAtmsAllskyHuChanNum
+        firstChannelNum = tvs_firstAtmsAllskyHuChanNum
+        lastChannelNum =   tvs_lastAtmsAllskyHuChanNum
       else if (instrumId == tvs_getInstrumentId('mhs') .or. &
               instrumId == tvs_getInstrumentId('amsub')) then
-        firstChannelNum = firstAmsubAllskyHuChanNum
-        lastChannelNum =   lastAmsubAllskyHuChanNum
+        firstChannelNum = tvs_firstAmsubAllskyHuChanNum
+        lastChannelNum =   tvs_lastAmsubAllskyHuChanNum
       else
         write(*,*) 'tvs_getFirstLastAllskyChanNum: instrumId=', instrumId
         call utl_abort('tvs_getFirstLastAllskyChanNum: unknown instrument ID for all-sky HU')
@@ -2005,11 +2017,11 @@ contains
 
     else if (allskyTtHu == 'TT') then
       if (instrumId == tvs_getInstrumentId('atms')) then
-        firstChannelNum = firstAtmsAllskyTtChanNum
-        lastChannelNum =   lastAtmsAllskyTtChanNum
+        firstChannelNum = tvs_firstAtmsAllskyTtChanNum
+        lastChannelNum =   tvs_lastAtmsAllskyTtChanNum
       else if (instrumId == tvs_getInstrumentId('amsua')) then
-        firstChannelNum = firstAmsuaAllskyTtChanNum
-        lastChannelNum =   lastAmsuaAllskyTtChanNum
+        firstChannelNum = tvs_firstAmsuaAllskyTtChanNum
+        lastChannelNum =   tvs_lastAmsuaAllskyTtChanNum
       else
         write(*,*) 'tvs_getFirstLastAllskyChanNum: instrumId=', instrumId
         call utl_abort('tvs_getFirstLastAllskyChanNum: unknown instrument ID for all-sky TT')
