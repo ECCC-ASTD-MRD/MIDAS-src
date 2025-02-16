@@ -2460,7 +2460,7 @@ contains
     ! Locals:
     integer :: bodyIndex, headerIndex, instrumentIndex, sensorIndex
     integer, allocatable :: instrumentList(:)
-    integer :: flag, codtyp, channelNumber
+    integer :: flag, codtyp, channelNumber, channelNumber_WithOffset
     integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, chanIndx
     logical :: lHyperIr, lGeo, lSsmis, lTovs
     logical :: condition, condition1, condition2, channelIsAllsky
@@ -2533,16 +2533,14 @@ contains
         if (bodyIndex < 0) exit BODY
 
         ! determine if instrument/channel function in all-sky mode
-        channelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-        channelIsAllsky = .false.
-        if ((tvs_isInstrumUsingCLW(tvs_instruments(idsat)) .or. &
-             tvs_isInstrumUsingHydrometeors(tvs_instruments(idsat))) .and. &
-            oer_useStateDepSigmaObs(channelNumber, idsat)) then
-          channelIsAllsky = .true.
-        end if
+        channelNumber_WithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
+        channelNumber = channelNumber_WithOffset - tvs_channelOffset(idsat)
+        channelIsAllsky = (tvs_isChanNumInAllskyNamtovList(inst,'TT',channelNumber) .or. &
+                           tvs_isChanNumInAllskyNamtovList(inst,'HU',channelNumber))
+
         channelIsPassive = .false.
         if (passiveChannelNumber(instrumentList(idsat)) > 0) then
-          channelIsPassive = (utl_findloc(passiveChannelList(instrumentList(idsat),1:passiveChannelNumber(instrumentList(idsat))), channelNumber) > 0)
+          channelIsPassive = (utl_findloc(passiveChannelList(instrumentList(idsat),1:passiveChannelNumber(instrumentList(idsat))), channelNumber_WithOffset) > 0)
         end if
 
         call bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, bodyIndex)
