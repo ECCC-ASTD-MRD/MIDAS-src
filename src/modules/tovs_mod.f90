@@ -164,14 +164,10 @@ module tovs_mod
   logical :: tvs_mwInstrumUsingHydrometeors_tl
   integer :: tvs_channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variable, used in all-sky HU
   integer :: tvs_channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
-  integer :: tvs_firstAmsuaAllskyTtChanNum ! first amsua all-sky TT channel number
-  integer :: tvs_lastAmsuaAllskyTtChanNum  ! last amsua all-sky TT channel number
-  integer :: tvs_firstAtmsAllskyTtChanNum  ! first atms all-sky TT channel number
-  integer :: tvs_lastAtmsAllskyTtChanNum   ! last atms all-sky TT channel number
-  integer :: tvs_firstAtmsAllskyHuChanNum  ! first atms all-sky HU channel number
-  integer :: tvs_lastAtmsAllskyHuChanNum   ! last atms all-sky HU channel number
-  integer :: tvs_firstAmsubAllskyHuChanNum ! first amsub/mhs all-sky HU channel number
-  integer :: tvs_lastAmsubAllskyHuChanNum  ! last amsub/mhs all-sky HU channel number
+  integer :: tvs_firstLastAmsuaAllskyTtChanNumArr(2) ! Array of first/last amsua all-sky TT channel numbers
+  integer :: tvs_firstLastAtmsAllskyTtChanNumArr(2)  ! Array of first/last atms all-sky TT channel numbers
+  integer :: tvs_firstLastAtmsAllskyHuChanNumArr(2)  ! Array of first/last atms all-sky HU channel numbers
+  integer :: tvs_firstLastAmsubAllskyHuChanNumArr(2) ! Array of first/last amsub/mhs all-sky HU channel numbers
   type(rttov_scatt_coef), allocatable    :: tvs_coef_scatt(:) ! rttovscatt coefficients
   type(rttov_options_scatt), allocatable :: tvs_opts_scatt(:) ! rttovscatt options
   integer, allocatable :: tvs_bodyIndexFromBtIndex(:,:)      ! Provides RTTOV bodyIndex in ObsSpaceData based on btIndex for each sensor
@@ -816,14 +812,10 @@ contains
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
     integer :: channelsUsingHydrometeors(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using full set of hydromet variables, used in all-sky HU
     integer :: channelsUsingClw(tvs_maxNumberOfSensors,tvs_maxNumberOfChannels) ! List of channels using CLW, used in all-sky TT
-    integer :: firstAmsuaAllskyTtChanNum ! first amsua all-sky TT channel number
-    integer ::  lastAmsuaAllskyTtChanNum ! last amsua all-sky TT channel number
-    integer :: firstAtmsAllskyTtChanNum  ! first atms all-sky TT channel number
-    integer ::  lastAtmsAllskyTtChanNum  ! last atms all-sky TT channel number
-    integer :: firstAtmsAllskyHuChanNum  ! first atms all-sky HU channel number
-    integer ::  lastAtmsAllskyHuChanNum  ! last atms all-sky HU channel number
-    integer :: firstAmsubAllskyHuChanNum ! first amsub/mhs all-sky HU channel number
-    integer ::  lastAmsubAllskyHuChanNum ! last amsub/mhs all-sky HU channel number
+    integer :: firstLastAmsuaAllskyTtChanNumArr(2) ! Array of first/last amsua all-sky TT channel numbers
+    integer :: firstLastAtmsAllskyTtChanNumArr(2)  ! Array of first/last atms all-sky TT channel numbers
+    integer :: firstLastAtmsAllskyHuChanNumArr(2)  ! Array of first/last atms all-sky HU channel numbers
+    integer :: firstLastAmsubAllskyHuChanNumArr(2) ! Array of first/last amsub/mhs all-sky HU channel numbers
     logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
     logical :: computeJacobian !Choose to compute Jacobian for brightness temperature
     logical :: oldFashionIRSeaEmiss ! if .true. use of the old Masuda HIRS resolution IR emissivity instead of built-in RTTOV IREMIS
@@ -838,10 +830,8 @@ contains
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
     namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
     namelist /NAMTOV/ channelsUsingHydrometeors, channelsUsingClw
-    namelist /NAMTOV/ firstAmsuaAllskyTtChanNum, lastAmsuaAllskyTtChanNum
-    namelist /NAMTOV/ firstAtmsAllskyTtChanNum, lastAtmsAllskyTtChanNum
-    namelist /NAMTOV/ firstAtmsAllskyHuChanNum, lastAtmsAllskyHuChanNum
-    namelist /NAMTOV/ firstAmsubAllskyHuChanNum, lastAmsubAllskyHuChanNum
+    namelist /NAMTOV/ firstLastAmsuaAllskyTtChanNumArr, firstLastAtmsAllskyTtChanNumArr
+    namelist /NAMTOV/ firstLastAtmsAllskyHuChanNumArr, firstLastAmsubAllskyHuChanNumArr
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid
     namelist /NAMTOV/ cloudScaleFactor, cloudScaleFactor_tl 
@@ -880,14 +870,10 @@ contains
     channelsUsingClw(:,:) = -1
     instrumentNamesUsingHydrometeors(:) = '***UNDEFINED***'
     channelsUsingHydrometeors(:,:) = -1
-    firstAmsuaAllskyTtChanNum = 1
-    lastAmsuaAllskyTtChanNum  = 5
-    firstAtmsAllskyTtChanNum  = 1
-    lastAtmsAllskyTtChanNum   = 6
-    firstAtmsAllskyHuChanNum  = 17
-    lastAtmsAllskyHuChanNum   = 22
-    firstAmsubAllskyHuChanNum = 1
-    lastAmsubAllskyHuChanNum  = 5
+    firstLastAmsuaAllskyTtChanNumArr(:) = (/ 1,5 /)
+    firstLastAtmsAllskyTtChanNumArr(:)  = (/ 1,6 /)
+    firstLastAtmsAllskyHuChanNumArr(:)  = (/ 17,22 /)
+    firstLastAmsubAllskyHuChanNumArr(:) = (/ 1,5 /)
     regLimitExtrap = .true.
     cloudScaleFactor = 0.5D0
     cloudScaleFactor_tl = 1.0D0
@@ -942,14 +928,10 @@ contains
     tvs_computeJacobian = computeJacobian
     tvs_channelsUsingHydrometeors(:,:) = channelsUsingHydrometeors(:,:)
     tvs_channelsUsingClw(:,:) = channelsUsingClw(:,:)
-    tvs_firstAmsuaAllskyTtChanNum = firstAmsuaAllskyTtChanNum
-    tvs_lastAmsuaAllskyTtChanNum  =  lastAmsuaAllskyTtChanNum
-    tvs_firstAtmsAllskyTtChanNum = firstAtmsAllskyTtChanNum
-    tvs_lastAtmsAllskyTtChanNum  =  lastAtmsAllskyTtChanNum
-    tvs_firstAtmsAllskyHuChanNum = firstAtmsAllskyHuChanNum
-    tvs_lastAtmsAllskyHuChanNum  =  lastAtmsAllskyHuChanNum
-    tvs_firstAmsubAllskyHuChanNum = firstAmsubAllskyHuChanNum
-    tvs_lastAmsubAllskyHuChanNum  =  lastAmsubAllskyHuChanNum
+    tvs_firstLastAmsuaAllskyTtChanNumArr(:) = firstLastAmsuaAllskyTtChanNumArr(:)
+    tvs_firstLastAtmsAllskyTtChanNumArr(:) = firstLastAtmsAllskyTtChanNumArr(:)
+    tvs_firstLastAtmsAllskyHuChanNumArr(:) = firstLastAtmsAllskyHuChanNumArr(:)
+    tvs_firstLastAmsubAllskyHuChanNumArr(:) = firstLastAmsubAllskyHuChanNumArr(:)
     tvs_oldFashionIRSeaEmiss = oldFashionIRSeaEmiss
     tvs_oldFashionIRLandEmiss = oldFashionIRLandEmiss
     tvs_irEmissAngularCorrection = irEmissAngularCorrection
@@ -2004,12 +1986,12 @@ contains
 
     if (allskyTtHu == 'HU') then
       if (instrumId == tvs_getInstrumentId('atms')) then
-        firstChannelNum = tvs_firstAtmsAllskyHuChanNum
-        lastChannelNum =   tvs_lastAtmsAllskyHuChanNum
+        firstChannelNum = tvs_firstLastAtmsAllskyHuChanNumArr(1)
+        lastChannelNum =  tvs_firstLastAtmsAllskyHuChanNumArr(2)
       else if (instrumId == tvs_getInstrumentId('mhs') .or. &
               instrumId == tvs_getInstrumentId('amsub')) then
-        firstChannelNum = tvs_firstAmsubAllskyHuChanNum
-        lastChannelNum =   tvs_lastAmsubAllskyHuChanNum
+        firstChannelNum = tvs_firstLastAmsubAllskyHuChanNumArr(1)
+        lastChannelNum =  tvs_firstLastAmsubAllskyHuChanNumArr(2)
       else
         write(*,*) 'tvs_getFirstLastAllskyChanNum: instrumId=', instrumId
         call utl_abort('tvs_getFirstLastAllskyChanNum: unknown instrument ID for all-sky HU')
@@ -2017,11 +1999,11 @@ contains
 
     else if (allskyTtHu == 'TT') then
       if (instrumId == tvs_getInstrumentId('atms')) then
-        firstChannelNum = tvs_firstAtmsAllskyTtChanNum
-        lastChannelNum =   tvs_lastAtmsAllskyTtChanNum
+        firstChannelNum = tvs_firstLastAtmsAllskyTtChanNumArr(1)
+        lastChannelNum =  tvs_firstLastAtmsAllskyTtChanNumArr(2)
       else if (instrumId == tvs_getInstrumentId('amsua')) then
-        firstChannelNum = tvs_firstAmsuaAllskyTtChanNum
-        lastChannelNum =   tvs_lastAmsuaAllskyTtChanNum
+        firstChannelNum = tvs_firstLastAmsuaAllskyTtChanNumArr(1)
+        lastChannelNum =  tvs_firstLastAmsuaAllskyTtChanNumArr(2)
       else
         write(*,*) 'tvs_getFirstLastAllskyChanNum: instrumId=', instrumId
         call utl_abort('tvs_getFirstLastAllskyChanNum: unknown instrument ID for all-sky TT')
