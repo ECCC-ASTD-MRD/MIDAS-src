@@ -4,7 +4,7 @@
    doThinning = .true.
 /
  &THIN_TOVS
-   thinning_technique='distance-dependent'
+   thinningTechnique='distance-dependent'
    delta  = 150
    deltrad = 75
    mindist = 120.0

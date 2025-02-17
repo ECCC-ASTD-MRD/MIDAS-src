@@ -504,12 +504,12 @@ contains
     integer :: ierr
 
     ! Namelist variables:
-    character(len=18) ::  thinning_technique
+    character(len=18) ::  thinningTechnique
     integer :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
     integer :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
     real(8) :: mindist  ! For distance-based thinning, no observations can be closer to each other than this distance.
     
-    namelist /thin_tovs/ thinning_technique, delta, deltrad, mindist
+    namelist /thin_tovs/ thinningTechnique, delta, deltrad, mindist
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
@@ -517,7 +517,7 @@ contains
     write(*,*) 'thn_thinTovs: Starting'
     
     ! Default namelist values
-    thinning_technique='grid-based' ! Should be 'grid-based' or 'distance-dependent'
+    thinningTechnique='grid-based' ! Should be 'grid-based' or 'distance-dependent'
     delta   = 100
     deltrad = 75
     mindist = -1.0
@@ -536,19 +536,19 @@ contains
       if (mmpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
-    if (trim(thinning_technique) == 'grid-based') then
+    if (trim(thinningTechnique) == 'grid-based') then
       write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
          call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
       end if        
     else
-     if (trim(thinning_technique) == 'distance-dependent') then     
+     if (trim(thinningTechnique) == 'distance-dependent') then     
        write(*,*) 'Using distance-dependent thinning : mindist = ',mindist
        if (mindist < 0.0) then
          call utl_abort('thn_thinTovs : Set a positive value for mindist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
        end if  
      else
-       call utl_abort('thn_thinTovs: Set thinning_technique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
+       call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
      end if  
     end if  
 
@@ -561,8 +561,7 @@ contains
     call msg_memUsage('thn_thinTovs')
 
     write(*,*)
-    write(*,*) 'Calling thn_tovsFilt (Grid box based thinning) from thn_thinTovs for atms'
-    if (trim(thinning_technique) == 'grid-based') then
+    if (trim(thinningTechnique) == 'grid-based') then
       call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
     else  
       call thn_tovsfilt_dd(obsdat, mindist, codtyp_get_codtyp('atms'))

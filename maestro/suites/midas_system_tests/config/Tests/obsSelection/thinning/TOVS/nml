@@ -4,7 +4,7 @@
    doThinning = .true.
 /
  &THIN_TOVS
-   thinning_technique='grid-based'	
+   thinningTechnique='grid-based'	
    delta  = 150
    deltrad = 75
 /
