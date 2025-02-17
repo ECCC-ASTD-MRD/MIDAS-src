@@ -3674,7 +3674,7 @@ contains
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
     character(len=*), intent(in)    :: familyType
-    integer,          intent(in)    :: deltemps
+    integer,          intent(in)    :: delTemps
     integer,          intent(in)    :: deldist
 
     ! Locals:
@@ -3737,7 +3737,7 @@ contains
 
     thinDistance = real(deldist)
     write(*,*) 'Minimun thinning distance (deldist) = ',thinDistance
-    write(*,*) 'Minimun thinning distance (deltemps) = ',deltemps   
+    write(*,*) 'Minimun thinning distance (delTemps) = ',delTemps
 
     ! Allocations:
     allocate(valid(numHeaderMaxMpi))
@@ -3789,7 +3789,7 @@ contains
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)      
+      obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
       
       ! find layer (assumes 1 level only per headerIndex)
       obsPressure = -1.0
@@ -3967,7 +3967,7 @@ contains
             OBSLOOP3: do obsIndex2 = 1, numSelected
               headerIndex2 = headerIndexSelected(obsIndex2)
               if ( abs( obsStepIndexMpi(headerIndex1) - &
-                        obsStepIndexMpi(headerIndex2) ) < deltemps ) then
+                        obsStepIndexMpi(headerIndex2) ) < delTemps ) then
                 deltaLat = abs( obsLatBurpFileMpi(headerIndex1) - &
                                 obsLatBurpFileMpi(headerIndex2) ) / 100.
                 deltaLon = abs( obsLonBurpFileMpi(headerIndex1) - &
@@ -5589,7 +5589,11 @@ contains
     write(*,*)
 
   end subroutine thn_tovsFilt
-  
+
+
+  !--------------------------------------------------------------------------
+  ! thn_tovsFilt_dd
+  !--------------------------------------------------------------------------
   subroutine thn_tovsfilt_dd(obsdat, mindist, codtyp, codtyp2_opt)
     !
     ! :Purpose: Thinning algorithm used for AMSU and ATMS radiance obs based on DISTANCE-DEPENDENT thinning satwind algo.
@@ -5835,7 +5839,10 @@ contains
 
       ! Reject obs if it is close to the region border (only for region based)
       if (flg_mpi == 1) then     
-        if (is_close_border(obsLoninRad(headerIndex),obsLatinRad(headerIndex),latup,latdown,lonleft,lonright,nreg)) valid(headerIndex) = .false.
+        if (isCloseBorder(obsLoninRad(headerIndex),obsLatinRad(headerIndex), &
+            latup,latdown,lonleft,lonright,nreg)) then
+          valid(headerIndex) = .false.
+        end if   
       end if
     end do
 
@@ -5885,7 +5892,7 @@ contains
         
         if (flg_mpi == 1) then
           ! Only for region-based MPI parallelization
-          if(.not. is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon1,&
+          if(.not. isInsideRegion(MPC_DEGREES_PER_RADIAN_R8*obsLon1,&
                MPC_DEGREES_PER_RADIAN_R8*obsLat1,latup(mmpi_myid+1),&
                latdown(mmpi_myid+1),lonleft(mmpi_myid+1),lonright(mmpi_myid+1))) cycle OBSLOOP
         else
@@ -5928,7 +5935,6 @@ contains
       totselected = totselected + numSelected
       
     end do TIMELOOP    
-
     
     deallocate(validMpi)
     
@@ -5991,6 +5997,9 @@ contains
     
   end subroutine thn_tovsfilt_dd
 
+  !--------------------------------------------------------------------------
+  ! make_regions
+  !--------------------------------------------------------------------------
   subroutine make_regions(nreg,latup,latdown,lonleft,lonright,regid)
     !
     ! :Purpose: Makes equal number (nreg/2) regions in the NH and SH.
@@ -6001,22 +6010,24 @@ contains
 
     ! Arguments:
     integer, intent(in)  :: nreg  ! Number of regions desired.
-    real(8), intent(out) :: latup(nreg),latdown(nreg),lonleft(nreg),lonright(nreg) ! Each is an array which define the boundary
-                                                                                   !  of each region. 
-    integer, intent(out)  :: regid(nreg) ! Array of region ids.
+    real(8), intent(out) :: latup(nreg) ! Defines the upper boundary of each region.
+    real(8), intent(out) :: latdown(nreg) ! Defines the lower boundary of each region.
+    real(8), intent(out) :: lonleft(nreg) ! Defines the left boundary of each region.
+    real(8), intent(out) :: lonright(nreg) ! Defines the right boundary of each region.
+    integer, intent(out) :: regid(nreg) ! Array of region ids.
 
     ! Locals:
     real(8) :: lonstart, lonwidth
     integer :: nreg2,i !,j
 
     if (nreg<2) then
-      write(*,*) 'ERROR : nreg should be atleast 2 : nreg = ',nreg
-      stop
+      write(*,*) 'nreg = ',nreg
+      call utl_abort('ERROR : nreg should be atleast 2.')
     end if  
   
     if (mod(nreg,2)>0) then
-      write(*,*) 'ERROR : nreg should be even : nreg = ',nreg
-      stop
+      write(*,*) 'nreg = ',nreg
+      call utl_abort('ERROR : nreg should be even.')
     else
       nreg2 = nreg/2
     end if
@@ -6046,74 +6057,98 @@ contains
     end do
     
   end subroutine make_regions
-  
-function is_close_border(obsLoninRad,obsLatinRad,latup,latdown,lonleft,lonright,nreg)
 
-  !
-  ! :Purpose: Return true if obs location is within 75 km of either of the region borders.
-  !           Used only in the region-based MPI parallelization in thn_tovsfilt_dd().
-  
-  implicit none
-  real(4), intent(in) :: obsLoninRad,obsLatinRad
-  integer, intent(in) :: nreg
-  real(8), intent(in) :: latup(:),latdown(:),lonleft(:),lonright(:)  
-  real(8) :: obsLon,obsLat,mindist
-  real(8) :: distanceborder(4) 
-  integer :: i,ireg
-  logical :: is_close_border
+  !--------------------------------------------------------------------------
+  ! isCloseBorder
+  !--------------------------------------------------------------------------
+  function isCloseBorder(obsLoninRad,obsLatinRad,latup,latdown,lonleft,lonright,nreg)
 
-  obsLon = obsLoninRad
-  obsLat = obsLatinRad
+    !
+    ! :Purpose: Return true if obs location is within 75 km of either of the region borders.
+    !           Used only in the region-based MPI parallelization in thn_tovsfilt_dd().
   
-  ! Determine the region in which the observation lies.
-  REGLOOP: do i=1,nreg
-      if (is_inside_region(MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat,latup(i),latdown(i),lonleft(i),lonright(i))) then
+    implicit none
+
+    ! Arguments:
+    real(4), intent(in) :: obsLoninRad ! Longitude of the observation in radians.
+    real(4), intent(in) :: obsLatinRad ! Latitude of the observation in radians.
+    integer, intent(in) :: nreg        ! Number of regions.
+    real(8), intent(in) :: latup(:)    ! Defines the upper boundary of each region.
+    real(8), intent(in) :: latdown(:)  ! Defines the lower boundary of each region.
+    real(8), intent(in) :: lonleft(:)  ! Defines the left boundary of each region.
+    real(8), intent(in) :: lonright(:) ! Defines the right boundary of each region.
+  
+    ! Locals:
+    real(8) :: obsLon,obsLat,mindist
+    real(8) :: distanceborder(4)
+    integer :: i,ireg
+
+    ! Result:
+    logical :: isCloseBorder
+
+    obsLon = obsLoninRad
+    obsLat = obsLatinRad
+  
+    ! Determine the region in which the observation lies.
+    REGLOOP: do i=1,nreg
+      if (isInsideRegion(MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat,latup(i),latdown(i),lonleft(i),lonright(i))) then
         ireg = i       
         exit REGLOOP
       end if  
-  end do REGLOOP
+    end do REGLOOP
 
-  ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
-  if (i>nreg) then
-    write(*,*) 'ERROR i>nreg : i, ireg = ',i,ireg
-    call utl_abort('ERROR i>nreg in is_close_border()')
-  end if
+    ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
+    if (i>nreg) then
+      write(*,*) 'ERROR i>nreg : i, ireg = ',i,ireg
+      call utl_abort('ERROR i>nreg in isCloseBorder()')
+    end if
   
-  ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
-  distanceborder(1) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latdown(ireg), obsLon)/1000.0  
-  distanceborder(2) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latup(ireg), obsLon)/1000.0
-  distanceborder(3) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonleft(ireg))/1000.0
-  distanceborder(4) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonright(ireg))/1000.0
+    ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
+    distanceborder(1) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latdown(ireg), obsLon)/1000.0
+    distanceborder(2) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latup(ireg), obsLon)/1000.0
+    distanceborder(3) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonleft(ireg))/1000.0
+    distanceborder(4) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonright(ireg))/1000.0
 
-  mindist = minval(distanceborder)
+    mindist = minval(distanceborder)
   
-  if (mindist < 75.0d0) then
-    is_close_border = .true.
-  else
-    is_close_border = .false.
-  end if
+    if (mindist < 75.0d0) then
+      isCloseBorder = .true.
+    else
+      isCloseBorder = .false.
+    end if
 
-end function is_close_border
+  end function isCloseBorder
 
-function is_inside_region(obsLonindeg,obsLatindeg,latup,latdown,lonleft,lonright)
+  !--------------------------------------------------------------------------
+  ! isInsideRegion
+  !--------------------------------------------------------------------------
+  function isInsideRegion(obsLonindeg,obsLatindeg,latup,latdown,lonleft,lonright)
 
-  !
-  ! :Purpose: Return true if obs location is within the particular region.
-  !           Used only in the region-based MPI parallelization to apportion observations
-  !           to different MPI processes which do the thinning in different regions..
+    !
+    ! :Purpose: Return true if obs location is within the particular region.
+    !           Used only in the region-based MPI parallelization to apportion observations
+    !           to different MPI processes which do the thinning in different regions..
   
-  implicit none
-  real(8), intent(in) :: obsLonindeg,obsLatindeg
-  real(8), intent(in) :: latup,latdown,lonleft,lonright
-  logical :: is_inside_region
+    implicit none
 
-  if (obsLonindeg>=lonleft .and. obsLonindeg<lonright .and. obsLatindeg>=latdown .and. obsLatindeg<latup  ) then
-    is_inside_region = .true.
-  else
-    is_inside_region = .false.
-  end if  
+    ! Arguments:
+    real(8), intent(in) :: obsLonindeg ! Longitude of the observation in degrees.
+    real(8), intent(in) :: obsLatindeg ! Latitude of the observation in degrees.
+    real(8), intent(in) :: latup       ! Defines the upper boundary of the region.
+    real(8), intent(in) :: latdown     ! Defines the lower boundary of the region.
+    real(8), intent(in) :: lonleft     ! Defines the left boundary of the region.
+    real(8), intent(in) :: lonright    ! Defines the right boundary of the region.
 
-end function is_inside_region
+    ! Result:
+    logical :: isInsideRegion
+
+    if (obsLonindeg>=lonleft .and. obsLonindeg<lonright .and. obsLatindeg>=latdown .and. obsLatindeg<latup  ) then
+      isInsideRegion = .true.
+    else
+      isInsideRegion = .false.
+    end if
+
+  end function isInsideRegion
   
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
