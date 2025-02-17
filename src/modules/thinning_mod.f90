@@ -540,17 +540,17 @@ contains
       write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
          call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
-      endif        
+      end if        
     else
      if (trim(thinning_technique) == 'distance-dependent') then     
        write(*,*) 'Using distance-dependent thinning : mindist = ',mindist
        if (mindist < 0.0) then
          call utl_abort('thn_thinTovs : Set a positive value for mindist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
-       endif  
+       end if  
      else
        call utl_abort('thn_thinTovs: Set thinning_technique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
-     endif  
-    endif  
+     end if  
+    end if  
 
     call utl_tmg_start(114,'--ObsThinning')
     call msg_memUsage('thn_thinTovs')
@@ -1016,7 +1016,7 @@ contains
       if (abs(obsDelT(obsIndex)) > deltmax) then
         valid(obsIndex) = .false.
         numRemovedTime = numRemovedTime + 1
-      endif
+      end if
 
     end do HEADER1
 
@@ -3711,6 +3711,7 @@ contains
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
+    write(*,*)   
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -3960,9 +3961,7 @@ contains
             end if
           end do OBSLOOP2
 
-          if ( obsAlreadySameStep ) then
-            ! Calcule les distances entre la donnee courante et toutes celles choisies 
-             ! precedemment.
+          if ( obsAlreadySameStep ) then            
             ! Calculates the distances between the current data and all those chosen
             ! previously
             skipThisObs = .false.
@@ -3985,10 +3984,7 @@ contains
             end do OBSLOOP3
 
             if ( .not. skipThisObs ) then
-
-              ! On selectionne la donnee si toutes celles choisies sont au-dela
-              ! de thinDistance. Cet evaluation est faite dan la boucle
-              ! 'check_list' precedante.
+              
               ! We select the data if all those chosen are beyond
               ! of thinDistance. This evaluation is done in the loop
               ! Previous 'check_list'.
@@ -3999,8 +3995,6 @@ contains
 
           else
 
-            ! On selectionne la donnee s'il y en a aucune choisie dans les intervalles 
-            !  layer et step.
             ! We select the data if there is none chosen in the intervals
             ! layer and step.
             numSelected = numSelected + 1
@@ -5160,9 +5154,6 @@ contains
     write(*,*)
     write(*,*)
 
-    write(*,*) 'mmpi_nprocs  = ',mmpi_nprocs
-    write(*,*)    
-    
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
@@ -5208,7 +5199,6 @@ contains
 
     numLat = 2*latLength/delta
     numLon = lonLength/delta
-
     
     ! Allocations
     allocate(gridLats(numLat))
@@ -5281,14 +5271,9 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-      !write(*,*) ''
-      !write(*,*) 'headerIndex  = ',headerIndex      
-      !write(*,*) 'obsDate, obsTime = ',obsDate, obsTime
+
       call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      !write(*,*) 'stepObsIndex(headerIndex)  = ',stepObsIndex(headerIndex), nint(stepObsIndex(headerIndex))
-
-      !write(*,*) 'tim_nstepobs  = ',tim_nstepobs
       
       ! Associate each observation to a grid point
       obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
