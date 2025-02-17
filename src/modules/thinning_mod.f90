@@ -5271,7 +5271,6 @@ contains
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
-
       call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
       
@@ -7340,6 +7339,7 @@ end function is_inside_region
     stnIdIntMpi(:,:) = 0
 
     ! loop over all header indices of the specified family and get integer stnId
+    numObsStnId(:) = 0
     countHeader = 0
     call obs_set_current_header_list(obsdat,trim(familyType))
     HEADER: do
