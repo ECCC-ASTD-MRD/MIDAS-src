@@ -6022,12 +6022,12 @@ contains
 
     if (nreg<2) then
       write(*,*) 'nreg = ',nreg
-      call utl_abort('ERROR : nreg should be atleast 2.')
+      call utl_abort('make_regions: ERROR : nreg should be atleast 2.')
     end if  
   
     if (mod(nreg,2)>0) then
       write(*,*) 'nreg = ',nreg
-      call utl_abort('ERROR : nreg should be even.')
+      call utl_abort('make_regions: ERROR : nreg should be even.')
     else
       nreg2 = nreg/2
     end if
@@ -6099,8 +6099,8 @@ contains
 
     ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
     if (i>nreg) then
-      write(*,*) 'ERROR i>nreg : i, ireg = ',i,ireg
-      call utl_abort('ERROR i>nreg in isCloseBorder()')
+      write(*,*) 'i, ireg = ',i,ireg
+      call utl_abort('isCloseBorder: ERROR i>nreg in isCloseBorder()')
     end if
   
     ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
