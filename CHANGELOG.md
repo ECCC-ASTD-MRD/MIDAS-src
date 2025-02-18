@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Load `rpn/utils/burp-tools` before launching the program in `midas.mpirun` (#1045 and !947)
  * New bending angle operator for RO, extensively rewritten. (#708 and !919)
    * Small impact on results when assimilating bending operator (not used operationally)
  * Fix links to module dependency diagrams in online documentation (#1042 and !945)
