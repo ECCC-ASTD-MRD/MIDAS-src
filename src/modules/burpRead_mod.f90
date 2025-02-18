@@ -1744,88 +1744,83 @@ contains
       beSilent = .false.
     end if
 
-    if ( .not. utl_isNamelistPresent(trim(NML_SECTION),'./flnml') ) then
-      write(*,*) trim(NML_SECTION) // ' is missing in the namelist. The default values will be taken'
-    else
-      ! read in the namelist
-      call utl_tmg_start(181,'low-level--readNML')
-      write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
+    call utl_tmg_start(181,'low-level--readNML')
+    write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
-      SELECT CASE(trim(NML_SECTION))
-        CASE( 'namburp_filter_gp')
-          nElems_gps = MPC_missingValue_INT
-          LISTE_ELE_GPS(:) = mpc_missingValue_int
-          READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
-          call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
-          if (nElems_gps == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
-          end if
-        CASE( 'namburp_filter_sfc')
-          nElems_sfc = MPC_missingValue_INT
-          bListElements_sfc(:) = mpc_missingValue_int
-          READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
-          call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
-          if (nElems_sfc == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
-          end if
-        CASE( 'namburp_filter_conv')
-          nElems = MPC_missingValue_INT
-          bListElements(:) = mpc_missingValue_int
-          READ(utl_flnml,NML=NAMBURP_FILTER_CONV)
-          call getListAndSize(nelems, blistelements, "nelems")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
-          if (nElems == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
-          end if
-        CASE( 'namburp_filter_tovs')
-          nElems = MPC_missingValue_INT
-          bListElements(:) = mpc_missingValue_int
-          scanPosElementIdCris = 5045
-          READ(utl_flnml,NML=NAMBURP_FILTER_TOVS)
-          call getListAndSize(nelems, blistelements, "nelems")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
-          if (nElems == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
-          end if
-        CASE( 'namburp_filter_chm_sfc')
-          nElems_sfc = MPC_missingValue_INT
-          bListElements_sfc(:) = mpc_missingValue_int
-          READ(utl_flnml,NML=NAMBURP_FILTER_CHM_SFC)
-          call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
-          if (nElems_sfc == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
-          end if
-        CASE( 'namburp_filter_chm')
-          nElems = MPC_missingValue_INT
-          bListElements(:) = mpc_missingValue_int
-          READ(utl_flnml,NML=NAMBURP_FILTER_CHM)
-          call getListAndSize(nelems, blistelements, "nelems")
-          if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
-          if (nElems == 0) then
-            call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
-          end if
-        CASE( 'namburp_update')
-          BN_ITEMS = MPC_missingValue_INT
-          bItemList(:) = '***' 
-          READ(utl_flnml,NML=NAMBURP_UPDATE)
-          if (BN_ITEMS /= MPC_missingValue_INT) then
-            call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
-          end if
-          BN_ITEMS = 0
-          do itemIndex = 1, maxItems 
-            if (bItemList(itemIndex) == '***') exit
-            BN_ITEMS = BN_ITEMS + 1
-          end do
-          if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
-        CASE default
-          call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
-        END SELECT
+    SELECT CASE(trim(NML_SECTION))
+      CASE( 'namburp_filter_gp')
+        nElems_gps = MPC_missingValue_INT
+        LISTE_ELE_GPS(:) = mpc_missingValue_int
+        READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
+        call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
+        if (nElems_gps == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
+        end if
+      CASE( 'namburp_filter_sfc')
+        nElems_sfc = MPC_missingValue_INT
+        bListElements_sfc(:) = mpc_missingValue_int
+        READ(utl_flnml,NML=NAMBURP_FILTER_SFC)
+        call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
+        if (nElems_sfc == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
+        end if
+      CASE( 'namburp_filter_conv')
+        nElems = MPC_missingValue_INT
+        bListElements(:) = mpc_missingValue_int
+        READ(utl_flnml,NML=NAMBURP_FILTER_CONV)
+        call getListAndSize(nelems, blistelements, "nelems")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
+        if (nElems == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
+        end if
+      CASE( 'namburp_filter_tovs')
+        nElems = MPC_missingValue_INT
+        bListElements(:) = mpc_missingValue_int
+        scanPosElementIdCris = 5045
+        READ(utl_flnml,NML=NAMBURP_FILTER_TOVS)
+        call getListAndSize(nelems, blistelements, "nelems")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
+        if (nElems == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
+        end if
+      CASE( 'namburp_filter_chm_sfc')
+        nElems_sfc = MPC_missingValue_INT
+        bListElements_sfc(:) = mpc_missingValue_int
+        READ(utl_flnml,NML=NAMBURP_FILTER_CHM_SFC)
+        call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
+        if (nElems_sfc == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
+        end if
+      CASE( 'namburp_filter_chm')
+        nElems = MPC_missingValue_INT
+        bListElements(:) = mpc_missingValue_int
+        READ(utl_flnml,NML=NAMBURP_FILTER_CHM)
+        call getListAndSize(nelems, blistelements, "nelems")
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
+        if (nElems == 0) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
+        end if
+      CASE( 'namburp_update')
+        BN_ITEMS = MPC_missingValue_INT
+        bItemList(:) = '***' 
+        READ(utl_flnml,NML=NAMBURP_UPDATE)
+        if (BN_ITEMS /= MPC_missingValue_INT) then
+          call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
+        end if
+        BN_ITEMS = 0
+        do itemIndex = 1, maxItems 
+          if (bItemList(itemIndex) == '***') exit
+          BN_ITEMS = BN_ITEMS + 1
+        end do
+        if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
+      CASE default
+        call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
+      END SELECT
 
-      call utl_tmg_stop(181)
-    end if
+    call utl_tmg_stop(181)
 
   contains
 
