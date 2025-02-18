@@ -539,17 +539,17 @@ contains
     if (trim(thinningTechnique) == 'grid-based') then
       write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
-         call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
+        call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
       end if        
     else
-     if (trim(thinningTechnique) == 'distance-dependent') then     
-       write(*,*) 'Using distance-dependent thinning : minDist = ',minDist
-       if (minDist < 0.0) then
-         call utl_abort('thn_thinTovs : Set a positive value for minDist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
-       end if  
-     else
-       call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
-     end if  
+      if (trim(thinningTechnique) == 'distance-dependent') then
+        write(*,*) 'Using distance-dependent thinning : minDist = ',minDist
+        if (minDist < 0.0) then
+          call utl_abort('thn_thinTovs : Set a positive value for minDist in the namelist THIN_TOVS in maestro/suites/midas_system_tests/config/Tests/obsSelection/thinning/TOVS_distDep/nml')
+        end if
+      else
+        call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
+      end if
     end if  
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -5703,7 +5703,6 @@ contains
       end if
     end do
 
-
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
          'mpi_sum','grid',ierr)  
@@ -5855,7 +5854,6 @@ contains
 
     allocate(validMpi2(numHeaderMpi))    
     validMpi2(:) = .false.
-
     
     TIMELOOP: do timbin = 1,tim_nstepobs
       
@@ -6045,7 +6043,6 @@ contains
   ! isCloseBorder
   !--------------------------------------------------------------------------
   function isCloseBorder(obsLoninRad,obsLatinRad,latUp,latDown,lonLeft,lonRight,nreg)
-
     !
     ! :Purpose: Return true if obs location is within 75 km of either of the region borders.
     !           Used only in the region-based MPI parallelization in thn_tovsfilt_dd().
@@ -6106,7 +6103,6 @@ contains
   ! isInsideRegion
   !--------------------------------------------------------------------------
   function isInsideRegion(obsLonindeg,obsLatindeg,latUp,latDown,lonLeft,lonRight)
-
     !
     ! :Purpose: Return true if obs location is within the particular region.
     !           Used only in the region-based MPI parallelization to apportion observations
