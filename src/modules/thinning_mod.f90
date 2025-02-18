@@ -5602,10 +5602,10 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs),  intent(inout) :: obsdat
-    integer,           intent(in)    :: codtyp
-    real(8),           intent(in)    :: mindist           ! The minimum distance between observations which will be imposed.
-    integer, optional, intent(in)    :: codtyp2_opt
+    type(struct_obs),  intent(inout) :: obsdat       ! struct_obs instance
+    integer,           intent(in)    :: codtyp       ! observation code type
+    real(8),           intent(in)    :: mindist      ! The minimum distance between observations which will be imposed.
+    integer, optional, intent(in)    :: codtyp2_opt  ! optionnal second observation code type
 
     ! Locals:
     integer :: headerIndex
