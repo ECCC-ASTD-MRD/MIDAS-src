@@ -496,6 +496,59 @@ class test_compare(unittest.TestCase):
                 self.assertAlmostEqual(value, self.timings[0][0][i][j]-self.timings[1][0][i][j], 5)
 
 
+class test_timingStats(unittest.TestCase):
+
+    def setUp(self):
+        listing = '''oe-00000-00000: TMG: PE=   0 ,LABEL=--Main.................................. ,COUNT=1 ,TIME=           48.300000 seconds, AVG=           48.300000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Big................................. ,COUNT=340 ,TIME=           30.000000 seconds, AVG=            0.087000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Small............................... ,COUNT=85 ,TIME=            2.800000 seconds, AVG=            0.046000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.500000 seconds, AVG=            0.160000 seconds
+        oe-00000-00000: TMG: PE=   0 ,LABEL=----DifferentCount...................... ,COUNT=75 ,TIME=           15.000000 seconds, AVG=            0.160000 seconds
+        oe-00000-00001: TMG: PE=   0 ,LABEL=----Big................................. ,COUNT=340 ,TIME=           29.300000 seconds, AVG=            0.085000 seconds
+        oe-00000-00001: TMG: PE=   0 ,LABEL=----Small............................... ,COUNT=85 ,TIME=            3.100000 seconds, AVG=            0.057000 seconds
+        oe-00000-00001: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.450000 seconds, AVG=            0.155000 seconds
+        oe-00000-00001: TMG: PE=   0 ,LABEL=----DifferentCount...................... ,COUNT=85 ,TIME=           14.400000 seconds, AVG=            0.143000 seconds
+        oe-00000-00001: TMG: PE=   0 ,LABEL=----OnlyOnce............................ ,COUNT=3  ,TIME=            6.000000 seconds, AVG=            6.000000 seconds
+        oe-00000-00002: TMG: PE=   0 ,LABEL=----Small............................... ,COUNT=85 ,TIME=            3.000000 seconds, AVG=            0.052000 seconds
+        oe-00000-00002: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.510000 seconds, AVG=            0.163000 seconds
+        oe-00000-00002: TMG: PE=   0 ,LABEL=----DifferentCount...................... ,COUNT=95 ,TIME=           15.300000 seconds, AVG=            0.160000 seconds'''
+        lines = listing.splitlines()
+        self.labels = listLabels(lines, minTMG=0.0)
+        # add a label from a reference which is not in the lines
+        self.labels.append('----NotPresent..........................')
+        self.timings = getMeanMaxMin(lines, self.labels)
+        self.expected = dict()
+        self.expected['time'] = {   '--Main..................................': {'mean':48.3, 'max':48.3, 'min':48.3},
+                                    '----Big.................................': {'mean':29.65, 'max':30., 'min':29.3},
+                                    '----Small...............................': {'mean':2.966666666666667, 'max':3.1, 'min':2.8},
+                                    '----Negligeable.........................': {'mean':0.48666666666666664, 'max':0.51, 'min':0.45},
+                                    '----DifferentCount......................': {'mean':14.9, 'max':15.3, 'min':14.4},
+                                    '----OnlyOnce............................': {'mean':6., 'max':6., 'min':6.},
+                                    '----NotPresent..........................': {'mean':0., 'max':0., 'min':0.}
+                                    }
+        self.expected['count'] = {  '--Main..................................': {'mean':1, 'max':1, 'min':1},
+                                    '----Big.................................': {'mean':340, 'max':340, 'min':340},
+                                    '----Small...............................': {'mean':85, 'max':85, 'min':85},
+                                    '----Negligeable.........................': {'mean':3, 'max':3, 'min':3},
+                                    '----DifferentCount......................': {'mean':85, 'max':95, 'min':75},
+                                    '----OnlyOnce............................': {'mean':3, 'max':3, 'min':3},
+                                    '----NotPresent..........................': {'mean':0., 'max':0., 'min':0.}
+                                    }
+
+    def test_time(self):
+        for i, stat in enumerate(('mean', 'max', 'min')):
+            value = dict()
+            for j, label in enumerate(self.labels):
+                value[stat] = self.timings[0][i][j]
+                self.assertAlmostEqual(value[stat], self.expected['time'][label][stat], 3)
+
+    def test_count(self):
+        for i, stat in enumerate(('mean', 'max', 'min')):
+            value = dict()
+            for j, label in enumerate(self.labels):
+                value[stat] = self.timings[1][i][j]
+                self.assertAlmostEqual(value[stat], self.expected['count'][label][stat], 3)
+
 #==== Main ===================================================================
 
 if __name__ == "__main__":
