@@ -5633,11 +5633,8 @@ contains
     integer, parameter :: flg_mpi=2  ! time bin based parallelization.
                                      ! Setting to one chooses region based parallelization.
     integer :: ierr
-        
-    !temp vars
     integer :: timbin
     real(8) :: distance
-
     integer :: nreg
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
