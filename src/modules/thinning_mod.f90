@@ -5642,7 +5642,7 @@ contains
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
     
-    if ( mmpi_nprocs < tim_nstepobs) call utl_abort('thn_tovsfilt_dd: Number of processors are less than 25.')
+    if ( mmpi_nprocs < tim_nstepobs) call utl_abort('thn_tovsfilt_dd: Number of processors are less than tim_nstepobs.')
     
     nreg = mmpi_nprocs
     
