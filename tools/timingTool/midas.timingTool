@@ -172,14 +172,6 @@ def xLabel(line):
 def xNode(line):
     return line.partition("oe-")[2].partition(":")[0]
 
-def depth(label):
-    '''count number of '-' in the prefix'''
-    level = label.find(next(filter(str.isalpha, label)))//2
-    return level
-
-def name(label):
-    return label.rstrip('.').lstrip('-')
-
 def xTime(line):
     return float(line.partition("TIME=")[2].partition("seconds")[0].strip())
 
