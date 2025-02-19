@@ -1820,7 +1820,7 @@ contains
         call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
       END SELECT
 
-    call utl_tmg_stop(181)  
+    call utl_tmg_stop(181)
 
   contains
 

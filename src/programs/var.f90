@@ -514,7 +514,14 @@ program midas_var
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo, &
-                                callSetErrGpsgb_opt=filterObsAndInitOer)
+                                callSetErrGpsgb_opt=filterObsAndInitOer, &
+                                destObsColumn_opt=OBS_OMHX)
+
+    if (outerLoopIndex == 1) then
+      call msg('var','copy OBS_OMHX to OBS_OMP')
+      call obs_copyRealColumnBodyToBody(obsSpaceData,OBS_OMHX,OBS_OMP)
+    end if
+
     call msg_memUsage('var')
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.

@@ -34,7 +34,7 @@ contains
     do index_body=1,obs_numbody(obsSpaceData)
       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == obs_assimilated) then
         call obs_bodySet_r(obsSpaceData,OBS_OMA,index_body, &
-             obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body) &
+             obs_bodyElem_r(obsSpaceData,OBS_OMHX,index_body) &
              -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
       endif
     enddo

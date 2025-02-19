@@ -366,7 +366,11 @@ program midas_var1D
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
-  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData)
+  call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, &
+                             destObsColumn_opt=OBS_OMHX)
+
+  call msg('var1D','copy OBS_OMHX to OBS_OMP')
+  call obs_copyRealColumnBodyToBody(obsSpaceData,OBS_OMHX,OBS_OMP)
 
   ! Do minimization of cost function
   outerLoopIndex = 1

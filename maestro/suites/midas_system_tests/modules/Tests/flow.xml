@@ -33,6 +33,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="gdps_outerloop"/>
+      <FAMILY  name="gdps_outerloop">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="hrdps"/>
       <FAMILY  name="hrdps">
         <SUBMITS sub_name="UnitTest"/>

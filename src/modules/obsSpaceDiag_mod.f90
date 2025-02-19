@@ -688,17 +688,21 @@ contains
     diagn_varno(:,:)=0
     diagn_unilev(:,:)=.false.
 
-    call utl_tmg_start(181,'low-level--readNML')
-    read(utl_flnml, nml=namosd, iostat=ierr)
-    if(ierr /= 0) then
+    if ( .not. utl_isNamelistPresent('namosd','./flnml') ) then
       write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping some diagnostics'
       nmlExists = .false.
       return
     else
+      ! read namosd namelist
+      call utl_tmg_start(181,'low-level--readNML')
+      read(utl_flnml, nml=namosd, iostat=ierr)
+      if(ierr /= 0) call utl_abort('osd_setup: Error reading namelist')
+      call utl_tmg_stop(181)
+
       nmlExists = .true.
     endif
+    
     if(mmpi_myid == 0) write(*,nml=namosd)
-    call utl_tmg_stop(181)
     if (numFamily /= MPC_missingValue_INT) then
       call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
     end if

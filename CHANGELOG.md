@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Avoid overwriting `OBS_OMP` with NL operator outputs for outerLoopIndex greater than 1 (#1023 and !939)
  * Bug fixes in `qlim_rttovLimit` for GEM-H (#1017 and !932)
    * Minor impact on results for humidity
  * SST climatology computation bug fixed (#1027 and !930)

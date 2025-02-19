@@ -463,49 +463,49 @@ contains
 
     call utl_tmg_start(10,'--Observations')
 
-    if ( present(beSilent_opt) ) then
+    if (present(beSilent_opt)) then
       beSilent = beSilent_opt
     else
       beSilent = .false.
     end if
 
-    if ( .not. beSilent ) then
+    if (.not. beSilent) then
       write(*,*)
       write(*,*) '--Starting subroutine inn_computeInnovation--'
       call msg_memUsage('inn_computeInnovation')
     end if
 
-    if ( present(filterObsAndInitOer_opt) ) then
+    if (present(filterObsAndInitOer_opt)) then
       filterObsAndInitOer = filterObsAndInitOer_opt
     else
       filterObsAndInitOer = .true.
     end if
 
-    if ( present(applyVarqcOnNlJo_opt) ) then
+    if (present(applyVarqcOnNlJo_opt)) then
       applyVarqcOnNlJo = applyVarqcOnNlJo_opt
     else
       applyVarqcOnNlJo = .false.
     end if
 
-    if ( present(destObsColumn_opt) ) then
+    if (present(destObsColumn_opt)) then
       destObsColumn = destObsColumn_opt
     else
       destObsColumn = obs_omp
     end if
-
-    if ( present(callFiltTopo_opt) ) then
+    
+    if (present(callFiltTopo_opt)) then
       callFiltTopo = callFiltTopo_opt
     else
       callFiltTopo = .true.
     end if   
 
-    if ( present(callSetErrGpsgb_opt ) ) then
+    if (present(callSetErrGpsgb_opt)) then
       callSetErrGpsgb = callSetErrGpsgb_opt
     else
-      callSetErrGpsgb = .true.   
+      callSetErrGpsgb = .true.
     end if    
 
-    if ( present(analysisMode_opt ) ) then
+    if (present(analysisMode_opt)) then
       analysisMode = analysisMode_opt
     else
       analysisMode = .true.
