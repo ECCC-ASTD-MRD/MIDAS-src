@@ -40,15 +40,15 @@ filename2 = args.reference
 
 def printTMG(fileObj, fileObjRef = None):
     '''Top-level function for printing timings'''
-    allLines = extractLines(fileObj)
+    lines = extractLines(fileObj)
     if fileObjRef != None:
-        allLinesRef = extractLines(fileObjRef)
+        linesRef = extractLines(fileObjRef)
     else:
-        allLinesRef = None
+        linesRef = None
 
-    labelList = listLabels( allLines, allLinesRef=allLinesRef, order=exptOrder,
+    labelList = listLabels( lines, linesRef=linesRef, order=exptOrder,
                             minTMG=minimumTimingLimit)
-    timings = getMeanMaxMin(allLines, labelList)
+    timings = getMeanMaxMin(lines, labelList)
 
     print()
     print(outputTMG(labelList, timings, showCount=showCount))
@@ -57,15 +57,15 @@ def compareTMG(fileObj1, fileObj2):
     '''Top-level function for comparing timings'''
     fileObjList = (fileObj1, fileObj2)
 
-    allLines = list()
+    lines = list()
     for i in range(2):
-        allLines.append(extractLines(fileObjList[i]))
+        lines.append(extractLines(fileObjList[i]))
 
-    labels = listLabels(allLines[0], allLinesRef=allLines[1], order=1,
+    labels = listLabels(lines[0], linesRef=lines[1], order=1,
                         minTMG=minimumTimingLimit)
     timings = list()
     for i in range(2):
-        timings.append(getMeanMaxMin(allLines[i], labels))
+        timings.append(getMeanMaxMin(lines[i], labels))
 
     diffTMG = computeDiffTMG(labels, timings)
 
@@ -157,14 +157,14 @@ def outputDiffTMG(labelList, diff, timings, showCount=False):
 #==== Line processing ========================================================
 
 def extractLines(fileObj):
-    allLines = list()
+    lines = list()
     for line in fileObj:
         line=str(line)
         strIndex = line.find(" TMG:")
         if line.find(" TMG:") == -1 or line.find("oe-") == -1:
             continue
-        allLines.append(line.rstrip('\n'))
-    return allLines
+        lines.append(line.rstrip('\n'))
+    return lines
 
 def xLabel(line):
     return line.partition("LABEL=")[2].partition(",")[0].strip()
@@ -175,7 +175,7 @@ def xNode(line):
 def depth(label):
     '''count number of '-' in the prefix'''
     level = label.find(next(filter(str.isalpha, label)))//2
-    return level 
+    return level
 
 def name(label):
     return label.rstrip('.').lstrip('-')
@@ -186,78 +186,90 @@ def xTime(line):
 def xCount(line):
     return int(line.partition("COUNT=")[2].partition(",")[0].strip())
 
-def orderLabels(lines, labelDict, verbose=False):
-    node = None
+def orderLabels(lines):
+    nodeListDict = dict()
+    nodes        = list()
     for line in lines:
         label = xLabel(line)
-        block = name(label)
-        level = depth(label)
+        node  = xNode(line)
 
-        if xNode(line) != node:
-            # changing node: reset stack
-            stack = list()
-            if 0 in labelDict :
-                stack.append(labelDict[0][None][0])
-        node = xNode(line)
+        if node not in nodeListDict:
+            nodeListDict[node] = list()
+            nodes.append(node)
 
-        if level > len(stack)-1:
-            parent = stack[-1] if len(stack) > 0 else None
-        else:
-            for i in range(len(stack)-level): 
-                stack.pop() 
-            parent = stack[-1] if len(stack) > 0 else None
-        stack.append(block)
-        
-        if verbose:
-            print(f'>>> {block}, level {level}, parent {parent}')
+        if label not in nodeListDict[node]:
+            nodeListDict[node].append(label)
 
-        if level not in labelDict:
-            labelDict[level] = dict()
-        if parent not in labelDict[level]:
-            labelDict[level][parent] = list()
-        if block not in labelDict[level][parent]:
-            labelDict[level][parent].append(block)
+    # compute proper order
+    masterList = nodeListDict[nodes.pop(0)]
+    for node in nodes:
+        labelList = nodeListDict[node]
+        newLabels = [label for label in labelList if label not in masterList]
 
-def listLabels(allLines, allLinesRef=None, order=1, minTMG=3.0):
+        while newLabels:
+            label = newLabels.pop(0)
+
+            # find neighbors of label in the current list
+            pos = labelList.index(label)
+            if pos > 0:
+                leftNeighbor = labelList[pos - 1]
+            else:
+                leftNeighbor = None
+
+            if pos < len(labelList) - 1:
+                rightNeighbor = labelList[pos + 1]
+            else:
+                rightNeighbor = None
+
+            # determine the position to insert the label in the master list
+            if leftNeighbor and leftNeighbor in masterList:
+                insertPos = masterList.index(leftNeighbor) + 1
+            elif rightNeighbor and rightNeighbor in masterList:
+                insertPos = masterList.index(rightNeighbor)
+            else:
+                insertPos = len(masterList)
+
+            masterList.insert(insertPos, label)
+
+            # re-check for new label after insertion
+            newLabels = [label for label in labelList if label not in masterList]
+
+    return masterList
+
+
+def listLabels(lines, linesRef=None, order=1, minTMG=3.0):
     '''get unique and complete list of labels'''
-    labelDict = dict()
-    # TODO: not sure, but I think `order` becomes irrelevant with `orderLabels()`
-    if order == 1:
-        # get all labels from main file, first
-        orderLabels(allLines, labelDict)
-        # add new labels from reference file, if supplied
-        if allLinesRef != None:
-            orderLabels(allLinesRef, labelDict)
 
+    # we make sure to use copy for lines instead of reference since we'll use extend()
+    if linesRef != None:
+        if order == 1:
+            allLines = list(lines)
+            allLines.extend(linesRef)
+        else:
+            allLines = list(linesRef)
+            allLines.extend(lines)
     else:
-        # start with reference file
-        if allLinesRef != None:
-            orderLabels(allLinesRef, labelDict)
-        # now add extra labels from main file
-        orderLabels(allLines, labelDict)
+        allLines = list(lines)
+
+    labels = orderLabels(allLines)
 
     # remove labels from the list if the max timing is less that a minimum threshold
-    labelList = list()
-    for level in sorted(list(labelDict.keys())):
+    labelTimingList = list()
+    for label in labels:
 
         timingList = list()
         for line in allLines:
             if label == xLabel(line):
                 timing = xTime(line)
                 timingList.append(timing)
-        if allLinesRef:
-            for line in allLinesRef:
-                if label == xLabel(line):
-                    timing = xTime(line)
-                    timingList.append(timing)
         # check maximum timing
         if max(timingList) > minTMG:
-            labelList.append(label)
-    return labelList
+            labelTimingList.append(label)
+    return labelTimingList
 
 #==== Timing stats computations ==============================================
 
-def getMeanMaxMin(allLines, labelList):
+def getMeanMaxMin(lines, labelList):
     '''get min/max/mean timing and counts for each label in labelList'''
     minTimingList = list()
     maxTimingList = list()
@@ -270,7 +282,7 @@ def getMeanMaxMin(allLines, labelList):
     for label in labelList:
         timingList = list()
         countList = list()
-        for line in allLines:
+        for line in lines:
             if label == xLabel(line):
                 timing = xTime(line)
                 count  = xCount(line)
@@ -367,9 +379,9 @@ class test_labelExtraction(unittest.TestCase):
                         'CommWeights-signals', 'GetLocalBodyIndices', 'CalculateWeights',
                         'EigenDecomp', 'CalcYbTinvRYb', 'YbTinvRYb1', 'InterpolateWeights',
                         'ApplyWeights', 'ApplyWeightsMember')
-        allLines = self.listingContent.splitlines()
-        labelList = listLabels(allLines)
-        timings = getMeanMaxMin(allLines, labelList)
+        lines = self.listingContent.splitlines()
+        labelList = listLabels(lines)
+        timings = getMeanMaxMin(lines, labelList)
         self.output = outputTMG(labelList, timings)
 
     def test_labelInOutput(self):
@@ -398,21 +410,21 @@ class test_reference(unittest.TestCase):
         oe-00000-00001: TMG: PE=   1 ,LABEL=----E................................... ,COUNT=741 ,TIME=            4.492428 seconds, AVG=            0.006063 seconds
         oe-00000-00000: TMG: PE=   0 ,LABEL=----A................................... ,COUNT=340 ,TIME=           29.237750 seconds, AVG=            0.085993 seconds''')
 
-        allLines = list()
-        allLines.append(listing[0].splitlines())
-        allLines.append(listing[1].splitlines())
+        lines = list()
+        lines.append(listing[0].splitlines())
+        lines.append(listing[1].splitlines())
 
         self.labels = dict()
-        self.labels['1'] = listLabels(allLines[0])
-        self.labels['2'] = listLabels(allLines[1])
-        self.labels['1r2o1'] = listLabels(allLines[0], allLinesRef=allLines[1], order=1)
-        self.labels['2r1o2'] = listLabels(allLines[1], allLinesRef=allLines[0], order=2)
+        self.labels['1'] = listLabels(lines[0])
+        self.labels['2'] = listLabels(lines[1])
+        self.labels['1r2o1'] = listLabels(lines[0], linesRef=lines[1], order=1)
+        self.labels['2r1o2'] = listLabels(lines[1], linesRef=lines[0], order=2)
 
         timings = dict()
-        timings['1']=getMeanMaxMin(allLines[0], self.labels['1'])
-        timings['2']=getMeanMaxMin(allLines[1], self.labels['2'])
-        timings['1r2o1']=getMeanMaxMin(allLines[0], self.labels['1r2o1'])
-        timings['2r1o1']=getMeanMaxMin(allLines[1], self.labels['2r1o2'])
+        timings['1']=getMeanMaxMin(lines[0], self.labels['1'])
+        timings['2']=getMeanMaxMin(lines[1], self.labels['2'])
+        timings['1r2o1']=getMeanMaxMin(lines[0], self.labels['1r2o1'])
+        timings['2r1o1']=getMeanMaxMin(lines[1], self.labels['2r1o2'])
 
         self.output = dict()
         self.output['1'] = outputTMG(self.labels['1'], timings['1'])
@@ -422,7 +434,7 @@ class test_reference(unittest.TestCase):
 
         self.expected = dict()
         self.expected['1']=('Main', 'A', 'B', 'C', 'D')
-        self.expected['2']=('Main', 'B', 'C', 'E', 'A')
+        self.expected['2']=('Main', 'B', 'C', 'A', 'E')
         self.expected['12ref1']=('Main', 'A', 'B', 'C', 'D', 'E')
 
 
@@ -448,7 +460,7 @@ class test_reference(unittest.TestCase):
             if self.output['2r1o2'].find(label) == -1 or self.output['2r1o2'].find(label) == -1:
                 check = False
         self.assertTrue(check)
- 
+
 
 class test_compare(unittest.TestCase):
 
@@ -465,15 +477,15 @@ class test_compare(unittest.TestCase):
         oe-00000-00000: TMG: PE=   0 ,LABEL=----Negligeable......................... ,COUNT=3 ,TIME=            0.450000 seconds, AVG=            0.155000 seconds
         oe-00000-00000: TMG: PE=   0 ,LABEL=----InBetween........................... ,COUNT=85 ,TIME=           14.400000 seconds, AVG=            0.143000 seconds
         oe-00000-00000: TMG: PE=   0 ,LABEL=----OnlyInThisOne....................... ,COUNT=3  ,TIME=            6.000000 seconds, AVG=            6.000000 seconds''')
-        allLines = list()
-        allLines.append(listing[0].splitlines())
-        allLines.append(listing[1].splitlines())
+        lines = list()
+        lines.append(listing[0].splitlines())
+        lines.append(listing[1].splitlines())
 
-        self.labels = listLabels(allLines[0], allLinesRef=allLines[1], order=1)
+        self.labels = listLabels(lines[0], linesRef=lines[1], order=1)
         self.timings = list()
         for i in range(2):
             j = 1 if i == 0 else 0
-            self.timings.append(getMeanMaxMin(allLines[i], self.labels))
+            self.timings.append(getMeanMaxMin(lines[i], self.labels))
 
         self.diff = computeDiffTMG(self.labels, self.timings)
 
