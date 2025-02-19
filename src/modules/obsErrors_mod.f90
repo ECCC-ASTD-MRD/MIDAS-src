@@ -2648,7 +2648,7 @@ contains
              !     *        Apply the observation operator:
              !
           IF (varNum == bufr_nebd) then
-            call GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
+            call GPS_BNDOPV2(H, AZMV, NH, PRF, RSTV)
           ELSE
             call GPS_REFOPV (H,       NH, PRF, RSTV)
           end if

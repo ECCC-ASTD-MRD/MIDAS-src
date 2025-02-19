@@ -558,16 +558,28 @@ module backgroundCheck_mod
                            
                   ! OMF Tested criteria:
 
+                  ! Reject bending whose OMB is too large (>0.1 rad)
+                  if ( varNum == bufr_nebd ) then
+                    if (DABS(ZOMF) > 0.1d0) then
+                      call obs_bodySet_r(obsData,OBS_OMP,bodyIndex,0.d0)
+                      call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
+                      call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
+                      write(*,'(A40,F10.0,3F12.4)') '0 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
+                    end if
+                  end if
+
+                  ! Reject data outside a given absolute band, or a given relative band (n sigma)
                   if ( .not. gps_roBNorm ) then
                     if (DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > 3.d0) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
+                      write(*,'(A40,F10.0,3F12.4)') '1 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if
                   else
                     if ( DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > gps_roNsigma) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
-                      write(*,'(A40,F10.0,3F12.4)') ' REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
+                      write(*,'(A40,F10.0,3F12.4)') '2 REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
                     end if                  
                   end if
                   

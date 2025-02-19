@@ -42,7 +42,7 @@ module gps_mod
   public :: gps_setNumROProfiles, gps_setROIndexPrf
   public :: gps_setupgb, gps_iztd_from_index
   public :: gps_setNumZTD, gps_setZTDIndex
-  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
+  public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv2, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
   public :: gps_geopotential, gps_gravitysrf
 
   integer, parameter :: gps_Level_RO_Bnd       = 1
@@ -172,6 +172,8 @@ module gps_mod
      type(gps_diff), dimension(ngpssize)          :: qst
      type(gps_diff), dimension(ngpssize)          :: rst
      type(gps_diff), dimension(ngpssize)          :: gst
+     type(gps_diff), dimension(ngpssize)          :: vst
+     type(gps_diff), dimension(ngpssize)          :: lrmd
 
      logical                                      :: bbst
      type(gps_diff), dimension(ngpssize)          :: dst
@@ -862,6 +864,26 @@ contains
        prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
     end do
 
+    ! Midpoint refractivity between layers (2 to ngpslev)
+    do i = 2, ngpslev
+       p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
+       t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
+       q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       
+       ! Densities (molar, total, dry, water vapor):
+       mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+       dw = mold * x         * (gps_p_mw/1000._dp)
+       ! Aparicio (2011) expression
+       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       n0 = (nd1+nw1)
+       prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+    end do
+    prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
+
     !
     ! Hydrostatic equation
     !
@@ -877,6 +899,7 @@ contains
        ! Virtual temperature (K) (corrected of compressibility)
        !
        tv(i) = (1._dp+delta*q) * t * cmp(i)
+       prf%vst(i) = tv(i)
     end do
 
     sLat=sin(rLat)
@@ -943,7 +966,7 @@ contains
     real(dp) , parameter           :: delta = 0.6077686814144_dp
     type(gps_diff)                 :: cmp(ngpssize)
     type(gps_diff)                 :: p, t, q, x
-    type(gps_diff)                 :: tr
+    type(gps_diff)                 :: tr, tv
     type(gps_diff)                 :: mold, dd, dw, n0, nd1, nw1
 
     prf%ngpslev = ngpslev
@@ -1021,6 +1044,39 @@ contains
        nw1= (6701.605_dp+6385.886_dp*tr) * dw
        n0 = (nd1+nw1)
        prf%rst(i) = n0*(1._dp+(1.e-6_dp/6._dp)*n0)
+    end do
+
+    ! Midpoint refractivity between layers (2 to ngpslev)
+    do i = 2, ngpslev
+       p  = exp( 0.5_dp*( log(prf%pst(i-1))+log(prf%pst(i)) ) )
+       t  =      0.5_dp*(     prf%tst(i-1) +    prf%tst(i))
+       q  = exp( 0.5_dp*( log(prf%qst(i-1))+log(prf%qst(i)) ) )
+       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
+       
+       ! Densities (molar, total, dry, water vapor):
+       mold  = p/t * (100._dp/(p_R*0.5_dp*(cmp(i-1)+cmp(i))))               ! note that p is in hPa
+       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+       dw = mold * x         * (gps_p_mw/1000._dp)
+       ! Aparicio (2011) expression
+       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
+       nd1= ( 222.682_dp+   0.069_dp*tr) * dd
+       nw1= (6701.605_dp+6385.886_dp*tr) * dw
+       n0 = (nd1+nw1)
+       prf%lrmd(i) = log(n0*(1._dp+(1.e-6_dp/6._dp)*n0))
+    end do
+    prf%lrmd(1) = prf%lrmd(2)+log(prf%pst(1))-log(prf%pst(2))
+
+    !
+    ! Virtual temperature
+    !
+    do i = 1, ngpslev
+       t = prf%tst(i)
+       q = prf%qst(i)
+       !
+       ! Virtual temperature (K) corrected for compressibility
+       !
+       tv = (1._dp+delta*q) * t * cmp(i)
+       prf%vst(i) = tv
     end do
 
     prf%bbst=.false.
@@ -2681,11 +2737,11 @@ contains
     end do
   end subroutine gpsbndopv
 
-  subroutine gps_bndopv1(impv, azmv, nval, prf, bstv)
-    ! :Purpose: Computation of the observation operator for Bending 
+  subroutine gps_bndopv2(impv, azmv, nval, prf, bstv)
+    ! :Purpose: Computation of the observation operator for Bending
     !
-    ! :Note: The Operator is based  from Assimilation experiments withCHAMP GPS radio occultation measurements
-    !         (S. B. HEALY and J.-N. THEPAUT, 2005)
+    ! :Note: The operator is loosely based on Fjeldbo 1971,
+    !         but adds some elements from Healy 2001, Burrows et al 2014 and Aparicio et al 2018
     implicit none
 
     ! Arguments:
@@ -2696,90 +2752,236 @@ contains
     type(gps_diff)        , intent(out) :: bstv(:)
 
     ! Locals:
-    integer                            :: levIndexObs, ngpslev,last_levIndexObs,numLevels,levelHigh,levelLow,levIndexAnl 
-    type(gps_diff)                     :: h(ngpssize), nu(ngpssize), lnu(ngpssize), n(ngpssize), z(ngpssize)
-    type(gps_diff)                     :: N0a, N1a, ka, NAa,Aa, Ba, Ba2, Ba3, delta_alpha, delta_alpha_top, z_0, h_0
-    real(dp)                           :: a2, a, gz, cazm, sazm, last_a
+    integer                            :: levIndexObs, ngpslev, numLevels, levelHgh, levelLow, levIndexAnl
+    type(gps_diff)                     :: nu(ngpssize), lnu(ngpssize), n(ngpssize), z(ngpssize), dlnudz(ngpssize)
+    type(gps_diff)                     :: v(ngpssize), dtvdz(ngpssize), dzip, dsum, mvec(ngpssize), mvec1(ngpssize)
+    type(gps_diff)                     :: Ntp, alpha_top, kat, zk, lrmd0, drmd, kvec1(ngpssize)
+    real(dp)                           :: a, cazm, sazm, hi, bref, R
+    integer                            :: imin, imax
+    type(gps_diff)                     :: sum4, zimd, zipd, Dim, num, nm, k, m, zmin, zmax, zma, D0, D1, D2, k1, m1
+    type(gps_diff)                     :: aI00, aI10, aI01, aI02
+    logical                            :: lTooHigh, lReflection
 
-    ! model levels 
+    !write(*,*)'Beg BNDOPV2'
+    ! Model levels
     ngpslev=prf%ngpslev
-    do levIndexAnl = 1,ngpslev 
-      h(levIndexAnl)  = prf%geoid+prf%gst(levIndexAnl)
-      nu(levIndexAnl) = prf%rst(levIndexAnl)
-      lnu(levIndexAnl)=log(nu(levIndexAnl)) 
-      n(levIndexAnl)  = 1._dp+nu(levIndexAnl)*1e-6_dp
-      z(levIndexAnl)  = n(levIndexAnl)*(prf%Rad+prf%geoid+prf%gst(levIndexAnl))
-    end do
-    ! number of observed levels in the profile
-    numLevels  = size(impv)
-    if (nval < numLevels) numLevels=nval
-    
-    do levIndexObs =  numLevels,1,-1
-      a2 = impv(levIndexObs)*impv(levIndexObs)
-      a  = impv(levIndexObs)
-      cazm = cos(azmv(levIndexObs))
-      sazm = sin(azmv(levIndexObs))
-      !find model levels that bracket the observation
-      !   note to self:   like in GEM, level=1 is the highest level
-      do levIndexAnl = 1, ngpslev-1
-        levelHigh = levIndexAnl - 1
-        levelLow  = levIndexAnl
-        if (z(levIndexAnl)%VaR< a) exit 
-          levelLow  = 0
-      end do
-    
-      if  (levelLow/=0) then
-        h_0  = h(levelLow)+(((a-z(levelLow))/(z(levelHigh)-z(levelLow)))*(h(levelHigh)-h(levelLow)))  
-        N0a  = nu(levelLow)
-        gz   = (lnu(levelLow+1)%Var-lnu(levelLow)%Var)/(h(levelLow+1)%Var-h(levelLow)%Var)
-        NAa  = nu(levelLow)*exp(gz*(h_0-h(levelLow)))
-        delta_alpha = 0.d0
-        delta_alpha_top = 0.d0
-        z_0 = a
-        do while ((levelHigh)>=1) 
-          N1a = nu(levelHigh)
-          ka  = log(N0a/N1a)/(z(levelHigh) - z(levelLow))
-          ! Test of Reflected
-          do while (ka%Var<0.or.ka%Var>0.1) 
-            levelHigh = levelHigh - 1
-            N1a = nu(levelHigh)
-            ka = log(N0a/N1a)/(z(levelHigh) - z(levelLow))
-          end do
-          Aa = 1e-6_dp* sqrt((MPC_PI_R8/2.d0*a)/ka )*NAa* exp(ka*(z_0-a))  
-          if (z_0%Var==a) then
-            Ba  = erf(sqrt(ka*(z(levelHigh)-a)))
-          else  
-            Ba2 = erf(sqrt(ka*(z(levelHigh)-a)))
-            Ba3 = erf(sqrt((ka*(z_0-a))))
-            Ba  = Ba2 - Ba3
-          end if   
-          delta_alpha = delta_alpha+2*ka*Ba*Aa 
-          N0a = N1a
-          NAa = N1a 
-          z_0 = z(levelHigh)
-
-          levelLow  = levelHigh 
-          levelHigh = levelLow-1
-        end do
-        Ba = erf(1-erf(sqrt((ka*(z_0-a)))))
-        delta_alpha_top = 2*Aa*ka*Ba 
-        last_a = a
-        last_levIndexObs = levIndexObs
-        bstv(levIndexObs)= delta_alpha +delta_alpha_top
-      else  ! (levelLow==0) 
-        ! Use loglinear extrapolation for most data (notably direct rays)
-        if (a>(1._dp+prf%rst(ngpslev)%Var*1e-6_dp)*prf%Rad) then
-          bstv(levIndexObs)=bstv(last_levIndexObs)*exp((-1._dp/6500._dp)*(a-last_a))
-        else
-        ! Use linear extrapolation (most reflected rays) from Information content in reflected
-        ! signals during GPS Radio Occultation observations (Josep Aparicio et al.,2017) 
-          bstv(levIndexObs)=bstv(last_levIndexObs)*exp((-1._dp/6500._dp)*(a-last_a))-2*acos(a/((1._dp+prf%rst(ngpslev)*1e-6_dp)*prf%Rad))
-        end if
-
+    R = prf%Rad
+    imin = -1
+    imax = -1
+    zmin = 1.d7
+    zmax =-1.d7
+    do levIndexAnl = 1, ngpslev
+      nu (levIndexAnl) = prf%rst(levIndexAnl)
+      lnu(levIndexAnl) = log(nu(levIndexAnl))
+      n  (levIndexAnl) = 1._dp+nu(levIndexAnl)*1e-6_dp
+      z  (levIndexAnl) = n(levIndexAnl)*((R+prf%geoid)+prf%gst(levIndexAnl))
+      v  (levIndexAnl) = prf%vst(levIndexAnl)
+      ! Record min and max z:
+      if (z(levIndexAnl)%Var < zmin%Var) then
+        zmin = z(levIndexAnl)
+        imin = levIndexAnl
+      end if
+      if (z(levIndexAnl)%Var > zmax%Var) then
+        zmax = z(levIndexAnl)
+        imax = levIndexAnl
       end if
     end do
-  end subroutine gps_bndopv1
+    ! Vertical gradients
+    do levIndexAnl = 2, ngpslev
+      dzip = z(levIndexAnl-1)-z(levIndexAnl)
+      dlnudz(levIndexAnl) = (lnu(levIndexAnl-1)-lnu(levIndexAnl))/dzip
+      dtvdz (levIndexAnl) = (v  (levIndexAnl-1)-v  (levIndexAnl))/dzip
+      lrmd0= 0.5_dp*        (lnu(levIndexAnl-1)+lnu(levIndexAnl))
+      drmd = prf%lrmd(levIndexAnl)-lrmd0
+      mvec(levIndexAnl) = 4 * drmd / (dzip*dzip)
+      k1 = (-9.8d0)/(p_Rd*v(levIndexAnl))
+      m1 = (-1)*k1*dtvdz(levIndexAnl)/(2*v(levIndexAnl))
+      kvec1(levIndexAnl) = k1
+      mvec1(levIndexAnl) = m1
+      !write(*,*)'VV', z(levIndexAnl)%Var-R, (-1)*dlnudz(levIndexAnl)%Var, k1%Var, mvec(levIndexAnl)%Var, m1%Var
+    end do
+    dlnudz(1) = dlnudz(2)
+    dtvdz (1) = dtvdz (2)
+    mvec  (1) = mvec  (2)
+    ! Number of observed levels in the profile
+    numLevels  = size(impv)
+    if (nval < numLevels) numLevels=nval
 
+    do levIndexObs =  1, numLevels
+      ! Each observation is either:
+      ! 1- Above the highest layer (lTooHigh, above zmax, nearly always level 1)
+      ! 2- Between the highest and the lowest layer. We then search i such that z(i-1) <= a <= z(i).
+      ! 3- Below the lowest layer (lReflection, below zmin, often at level ngpslev, but not necessarily
+      a  = impv(levIndexObs)
+      hi = a-R
+      bref = 0.03d0*exp(-hi/6500.d0)
+      cazm = cos(azmv(levIndexObs))
+      sazm = sin(azmv(levIndexObs))
+      !find model levels that bracket the observation (1 is the highest level)
+      levelHgh = 1
+      levelLow = 2
+      lTooHigh = .False.
+      lReflection = .False.
+      if (a >= zmax%Var) then
+        ! Obs above lid
+        lTooHigh = .True.
+        levelHgh = imax
+        levelLow = imax+1
+      else if (a >= zmin%Var) then
+        ! Normal case
+        do levIndexAnl = 2, ngpslev
+          levelHgh = levIndexAnl - 1
+          levelLow = levIndexAnl
+          if (z(levelLow)%Var <= a .and. a <= z(levelHgh)%Var) exit
+        end do
+      else
+        ! Obs below lowest level, assume reflection
+        lReflection = .True.
+        levelHgh = imin-1
+        levelLow = imin
+      endif
+      sum4 = 0.d0
+      if (.not.lTooHigh) then
+        do levIndexAnl=levelLow, 2, -1
+          zimd = z(levIndexAnl)
+          zipd = z(levIndexAnl-1)
+          dzip = zipd-zimd
+          Dim = nu(levIndexAnl)
+          num = 1.d-6*Dim
+          nm = 1.d0+num
+          k = dlnudz(levIndexAnl)
+          m = mvec(levIndexAnl)
+          D0 = num*(k-dzip*m)/nm
+          D1 = num*(m*(dzip**2*m+2*nm)-2*dzip*k*m+k**2)/nm**2
+          !D2 = num*(k-dzip*m)*((-1+num)*k**2-2*(-1+num)*dzip*k*m+m*(-6-dzip**2*m+num*(-6+dzip**2*m)))/(2*nm**3)
+          D2 = (num*(k-dzip*m)*(m*(num*(dzip**2*m-6) - dzip**2*m - 6) - 2*(num - 1)*dzip*k*m + (num - 1)*k**2))/(2*nm**3)
+          !write(*,*)'AA',levIndexAnl,0.5d0*(zimd%Var+zipd%Var)-R,k%Var,m%Var, &
+          !     kvec1(levIndexAnl)%Var,mvec1(levIndexAnl)%Var,dtvdz(levIndexAnl)%Var
+          if (levIndexAnl == levelLow .and. .not. lReflection) then
+            aI00 = Integral_I00_a(a, zipd)
+            aI10 = Integral_I10_a(a, zipd)
+            aI01 = Integral_I01_a(a, zipd)
+            aI02 = Integral_I02_a(a, zipd)
+          else
+            aI00 = Integral_I00_b(a, zimd, zipd)
+            aI10 = Integral_I10_b(a, zimd, zipd)
+            aI01 = Integral_I01_b(a, zimd, zipd)
+            aI02 = Integral_I02_b(a, zimd, zipd)
+          end if
+          dsum = D0*(aI00 - 1.d0/(4*a) * aI10) + D1 * aI01 + D2 * aI02
+          sum4 = sum4 + dsum
+        end do
+        sum4 = (-sqrt(2*a))*sum4
+        if (lReflection) then
+          sum4 = sum4 - acos(a/zmin)
+        end if
+        zma = zmax-a
+      else
+        zma = 0.d0
+      end if
+      !
+      ! Top
+      !
+      kat = (-1.d0)*dlnudz(1)
+      ! Prevent negative scale height. Should be approx 1 / 6500-8000m. Force limits between 1/10000m and 1/3000m.
+      if (kat%Var < 1.d0/10000.d0) then
+        kat = 1.d0/10000.d0
+      end if
+      if (kat%Var > 1.d0/3000.d0) then
+        kat = 1.d0/3000.d0
+      end if
+      if (.not.lTooHigh) then
+        Ntp = nu(imax)
+        zk = kat*zma
+        alpha_top = 1.d-6*sqrt(2*MPC_PI_R8*a*kat)*Ntp*exp(zk)*(1.d0-erf(sqrt(zk)))
+      else
+        alpha_top = 1.d-6*sqrt(2*MPC_PI_R8*a*kat)*Ntp
+      end if
+      sum4 = sum4 + alpha_top
+      bstv(levIndexObs) = sum4
+    end do
+    !write(*,*)'End BNDOPV2'
+  end subroutine gps_bndopv2
+
+  function Integral_I00_a(a, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z2
+
+    type(gps_diff)                     :: Integral_I00_a
+
+    Integral_I00_a = 2 * sqrt(z2-a)
+  end function Integral_I00_a
+
+  function Integral_I00_b(a, z1, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z1, z2
+
+    type(gps_diff)                     :: Integral_I00_b
+
+    Integral_I00_b = 2 * (sqrt(z2-a) - sqrt(z1-a))
+  end function Integral_I00_b
+
+  function Integral_I10_a(a, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z2
+
+    type(gps_diff)                     :: Integral_I10_a
+
+    Integral_I10_a = (2.d0/3.d0) * (z2-a)**1.5d0
+  end function Integral_I10_a
+
+  function Integral_I10_b(a, z1, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z1, z2
+
+    type(gps_diff)                     :: Integral_I10_b
+
+    Integral_I10_b = (2.d0/3.d0) * ((z2-a)**1.5d0 - (z1-a)**1.5d0)
+  end function Integral_I10_b
+
+  function Integral_I01_a(a, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z2
+
+    type(gps_diff)                     :: Integral_I01_a
+
+    Integral_I01_a = (2.d0/3.d0) * (z2-a)**1.5d0
+  end function Integral_I01_a
+
+  function Integral_I01_b(a, z1, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z1, z2
+
+    type(gps_diff)                     :: Integral_I01_b
+
+    Integral_I01_b = (2.d0/3.d0) * ( sqrt(z2-a) * (2*a+z2-3*z1) - sqrt(z1-a) * (2*a-2*z1) )
+  end function Integral_I01_b
+
+  function Integral_I02_a(a, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z2
+
+    type(gps_diff)                     :: Integral_I02_a
+
+    Integral_I02_a = (2.d0/5.d0) * (z2-a)**2.5d0
+  end function Integral_I02_a
+
+  function Integral_I02_b(a, z1, z2)
+    implicit none
+    real(dp)              , intent(in) :: a
+    type(gps_diff)        , intent(in) :: z1, z2
+
+    type(gps_diff)                     :: Integral_I02_b
+
+    Integral_I02_b = (2.d0/15.d0) * ( sqrt(z2-a) * (8*a*a+4*a*(z2-5*z1)+3*z2*z2-10*z1*z2+15*z1*z1) - sqrt(z1-a) * (8*a*a-16*a*z1+8*z1*z1) )
+  end function Integral_I02_b
 
 !modgpsro_mod
 

@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * New bending angle operator for RO, extensively rewritten. (#708 and !919)
+   * Small impact on results when assimilating bending operator (not used operationally)
  * Fix links to module dependency diagrams in online documentation (#1042 and !945)
  * Fix incorrect date written to files for GEM-H with SLEVE (#1036 and !938)
  * Remediation of accidentally removed functionality as of about `v_4.0.0` for recognizing GEM-MACH constituent variable names (#1034 and !937)

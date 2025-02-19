@@ -1136,7 +1136,7 @@ contains
        ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
        iProfile = gps_iprofile_from_index(headerIndex)
        if (varNum == bufr_nebd) then
-          call gps_bndopv1(h, azmv, nh, prf, rstv)
+          call gps_bndopv2(h, azmv, nh, prf, rstv)
        else
           call gps_refopv (h,       nh, prf, rstv)
        end if
@@ -1186,10 +1186,10 @@ contains
              pjob= pjob + pjo1
              !
              if (firstheader .and. .not.beSilent) then
-                write(*,  &
-                     '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
-                     headerIndex,lat,lon,azm,hnh1,zobs,zoer,  &
-                     zmhx,zinc,pjob,prf%gst(ngpslev)%var  
+               write(*,  &
+                    '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
+                    headerIndex,lat,lon,azm,hnh1,zobs,zoer,  &
+                    zmhx,zinc,pjob,prf%gst(ngpslev)%var
              end if
              call obs_bodySet_r(obsSpaceData,destObsColumn,bodyIndex, zobs - zmhx)
           end if
@@ -3584,7 +3584,7 @@ contains
           ! Apply the observation operator:
           ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
           if (varNum == bufr_nebd) then
-            call gps_bndopv1(h, azmv, nh, prf, rstv)
+            call gps_bndopv2(h, azmv, nh, prf, rstv)
           else
             call gps_refopv (h, nh, prf, rstv)
           end if
