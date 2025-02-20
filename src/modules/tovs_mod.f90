@@ -1922,6 +1922,8 @@ contains
             isChannelInNamtovList = (utl_findloc(tvs_channelsUsingHydrometeors(sensorIndex2,:),chanNum) > 0)
             isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
+            if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+
             if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
                 (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
 
@@ -1929,7 +1931,9 @@ contains
                         ', sensorIndex2=', sensorIndex2, &
                         ', inst=', instrumId, &
                         ', chanNum (or tvs_channelsUsingHydrometeors)=', chanNum, &
+                        ', isChannelInNamtovList=', isChannelInNamtovList, &
                         ', chanNumWithOffset=', chanNumWithOffset, &
+                        ', isChannelInAsciiList=', isChannelInAsciiList, &
                         ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
               call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingHydrometeors not matching')
@@ -1969,6 +1973,8 @@ contains
             isChannelInNamtovList = (utl_findloc(tvs_channelsUsingClw(sensorIndex2,:),chanNum) > 0)
             isChannelInAsciiList = useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
+            if (chanNum == -1 .and. .not. isChannelInAsciiList) cycle
+
             if ((      isChannelInNamtovList .and. .not. isChannelInAsciiList) .or. &
                 (.not. isChannelInNamtovList .and.       isChannelInAsciiList)) then
 
@@ -1976,7 +1982,9 @@ contains
                         ', sensorIndex2=', sensorIndex2, &
                         ', inst=', instrumId, &
                         ', chanNum (or tvs_channelsUsingClw)=', chanNum, &
+                        ', isChannelInNamtovList=', isChannelInNamtovList, &
                         ', chanNumWithOffset=', chanNumWithOffset, &
+                        ', isChannelInAsciiList=', isChannelInAsciiList, &
                         ', useStateDepSigmaObs=', useStateDepSigmaObs(chanNumWithOffset,sensorIndex)
 
               call utl_abort('tvs_checkAllskyChanNum: useStateDepSigmaObs and tvs_channelsUsingClw not matching')
