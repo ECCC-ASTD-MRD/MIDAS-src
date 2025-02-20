@@ -64,6 +64,17 @@ SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1} | 
 ./midas.timingTool <(SEQ_EXP_HOME=${path_to_suite1} nodelister -n ${maestro_node1} -d ${datetime1}) -d -r <(SEQ_EXP_HOME=${path_to_suite2} nodelister -n ${maestro_node2} -d ${datetime2})
 ```
 
+Another example is to use `cmcarc` to extract a listing from an archive like this:
+```bash
+archive=~sanl888/data/ppp5/UnitTests/midas/listings/letkf/glb_15km/listings_v_4.1.0-b1-7-g88dba0fad.ca
+archive_reference=~sanl888/data/ppp5/UnitTests/midas/listings/letkf/glb_15km/listings_v_4.1.0-b1-6-ge9675fe6c.ca
+
+./midas.timingTool -l 0 <(cmcarc -f $archive -x Tests.letkf.glb_15km.UnitTest.run -O)           \
+                     -r <(cmcarc -f $archive_reference -x Tests.letkf.glb_15km.UnitTest.run -O) \
+                     -d --title with-blas -2 no-blas
+```
+
+
 To maintain retro-compatibility, it is also possible to do it manually:
 ```sh
 ./midas.timingTool ${LISTING_1} -r ${LISTING_2} -o 1 > timings_1.dat
