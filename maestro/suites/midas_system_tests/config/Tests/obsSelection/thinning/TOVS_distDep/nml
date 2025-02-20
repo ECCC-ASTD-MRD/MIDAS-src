@@ -5,8 +5,6 @@
 /
  &THIN_TOVS
    thinningTechnique='distance-dependent'
-   delta  = 150
-   deltrad = 75
    mindist = 120.0
 /
  &NAMTIME
