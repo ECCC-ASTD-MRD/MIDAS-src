@@ -59,14 +59,14 @@ contains
     logical :: considerSHIPstnID ! signal if SHIP stn ID should be considered in thinning
 
     namelist /thin_surface/doThinning, step, deltmax, useBlackList, considerSHIPstnID
-    
+
     ! set default values for namelist variables
-    doThinning        = .false. 
-    step              = 6.0d0   
-    deltmax           = 90      
-    useBlackList      = .false. 
+    doThinning        = .false.
+    step              = 6.0d0
+    deltmax           = 90
+    useBlackList      = .false.
     considerSHIPstnID = .true.
-    
+
     ! return if no surface obs
     if (.not. obs_famExist(obsdat, obsFamily)) return
 
@@ -82,7 +82,7 @@ contains
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = thin_surface)
-    end if    
+    end if
 
     if (.not. doThinning) return
 
@@ -308,7 +308,7 @@ contains
     integer :: deldist      ! minimal distance in km between adjacent observations
     logical :: removeUncorrected ! remove obs that are not bias corrected (bit 6)
     logical :: rejectNoZTDScore ! reject GB-GPS obs if no ZTD quality score available
-   
+
     namelist /thin_gbgps/deltemps, deldist, rejectNoZTDScore, removeUncorrected
 
     ! return if no gb-gps obs
@@ -508,14 +508,14 @@ contains
     integer :: delta    ! thinning (dimension of box sides) (in km), for grid-box based thinning
     integer :: deltrad  ! radius around box center for chosen obs (in km), for grid-box based thinning
     real(8) :: minDist  ! For distance-based thinning, no observations can be closer to each other than this distance.
-    
+
     namelist /thin_tovs/ thinningTechnique, delta, deltrad, minDist
 
     ! return if no TOVS obs
     if (.not. obs_famExist(obsdat,'TO')) return
 
     write(*,*) 'thn_thinTovs: Starting'
-    
+
     ! Default namelist values
     thinningTechnique='grid-based' ! Should be 'grid-based' or 'distance-dependent'
     delta   = 100
@@ -540,7 +540,7 @@ contains
       write(*,*) 'Using grid-based thinning : delta, deltarad = ',delta,deltrad
       if (delta < 0.0 .or. deltrad < 0.0) then
         call utl_abort('thn_thinTovs : Both delta and deltrad should be a positive value in the namelist THIN_TOVS.')
-      end if        
+      end if
     else
       if (trim(thinningTechnique) == 'distance-dependent') then
         write(*,*) 'Using distance-dependent thinning : minDist = ',minDist
@@ -550,7 +550,7 @@ contains
       else
         call utl_abort('thn_thinTovs: Set thinningTechnique to either grid-based or distance-dependent in the namelist THIN_TOVS.')
       end if
-    end if  
+    end if
 
     call utl_tmg_start(114,'--ObsThinning')
     call msg_memUsage('thn_thinTovs')
@@ -563,9 +563,9 @@ contains
     write(*,*)
     if (trim(thinningTechnique) == 'grid-based') then
       call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('atms'))
-    else  
+    else
       call thn_tovsfilt_dd(obsdat, minDist, codtyp_get_codtyp('atms'))
-    end if  
+    end if
     write(*,*)
 
     call msg_memUsage('thn_thinTovs')
@@ -783,10 +783,10 @@ contains
     integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
                                                 bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
                                                 bufr_dewPoint2m, bufr_ness, bufr_vis, &
-                                                bufr_logVis, bufr_gust, bufr_sst/) 
+                                                bufr_logVis, bufr_gust, bufr_sst/)
     ! BlackList parameters:
     character(len=*), parameter :: blackListFileName = 'blacklist_sf'
-    character(len=6), parameter :: blacklistMode = 'normal' 
+    character(len=6), parameter :: blacklistMode = 'normal'
     integer, parameter :: numColBlacklist = 5  ! number of columns in blacklist file
     integer, parameter :: numEleBlacklist = 11 ! number of elements in listEleBlacklist
     integer, parameter :: listEleBlacklist(numEleBlacklist) = (/bufr_neps, bufr_neps, bufr_nepn, &
@@ -828,7 +828,7 @@ contains
     countObsIn = 0
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER0: do
-      headerIndex = obs_getHeaderIndex(obsdat)      
+      headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER0
       codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (codtyp /= codtyp_get_codtyp('satob')) countObsIn = countObsIn + 1
@@ -848,7 +848,7 @@ contains
     numStep = 2 * nint(((tim_windowsize - step) / 2.d0) / step) + 1
     write(*,*) 'thn_surfaceInTime: step, numStep = ', real(step), numStep
     write(*,*)
- 
+
     ! Print some values to the listing
     write(*,*) 'Codtyps to which selection will be applied:'
     do listIndex = 1, numListCodtypSelect
@@ -939,7 +939,7 @@ contains
       if ((codtyp == codtyp_get_codtyp('drifter')) .and. removeBadDrifters) then
         numElements = 0
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY1: do 
+        BODY1: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY1
           obsVarNo = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
@@ -955,7 +955,7 @@ contains
       ! Count the number of elements
       numElements = 0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
 
@@ -1073,10 +1073,10 @@ contains
     call intArrayToMpi(obsDelT, obsDelTMpi)
     call logicalArrayToMpi(valid, validMpi)
     call stringArrayToMpi(obsStnid, obsStnidMpi)
-    
+
     ! Apply the thinning algorithm
     do obsIndex = 1, countObsInMpi
-      
+
       ! If current report OK so far
       if (validMpi(obsIndex)) then
         ! Loop over previously-read reports
@@ -1159,7 +1159,7 @@ contains
         obsIndex = obsIndex + 1
       else
         cycle HEADER2
-      end if 
+      end if
 
       ! If rejected, set bit 11 for all data flags
       if (.not. valid(obsIndex)) then
@@ -1311,9 +1311,9 @@ contains
     write(*,'(a,i7)') 'Number of reports removed using delta t:               ', numRemovedDelt
     write(*,'(a,i7)') 'Number of incomplete drifter reports removed:          ', numRemovedDrifter
     write(*,*)
- 
+
   end subroutine thn_surfaceInTime
-  
+
   !--------------------------------------------------------------------------
   ! thn_gpsroVertical
   !--------------------------------------------------------------------------
@@ -1373,7 +1373,7 @@ contains
       ! count number of levels for this profile
       numLev = 0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY1: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
 
@@ -1391,10 +1391,10 @@ contains
       ! extract altitudes for this profile
       levIndex = 0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
-        
+
         obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
         if (obsVarNo /= gpsroVarNo) cycle BODY2
 
@@ -1410,7 +1410,7 @@ contains
       ! apply vertical thinning
       nextHeightMin = heightMin
       LEVELS: do levIndex = 1, numLev
-        
+
         if ( obsHeights(levIndex) >= nextHeightMin .and. &
              obsHeights(levIndex) < heightMax ) then
           nextHeightMin = obsHeights(levIndex) + heightSpacing
@@ -1425,7 +1425,7 @@ contains
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
           countObsReject = countObsReject + 1
         end if
-        
+
       end do LEVELS
 
       deallocate(obsHeights)
@@ -1522,7 +1522,7 @@ contains
       ! skip if this headerIndex doesn't contain upper air obs
       upperAirObs = .false.
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY0: do 
+      BODY0: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY0
 
@@ -1596,7 +1596,7 @@ contains
       ! skip if this headerIndex doesn't contain upper air obs
       upperAirObs = .false.
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY1: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
 
@@ -1646,7 +1646,7 @@ contains
       trajFlags(2,levStnIndex) = obs_headElem_i(obsdat,obs_lflg,headerIndex)
 
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
 
@@ -1910,7 +1910,7 @@ contains
       ! skip if this headerIndex doesn't contain upper air obs
       upperAirObs = .false.
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY3: do 
+      BODY3: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY3
 
@@ -1924,7 +1924,7 @@ contains
       levStnIndex = levStnIndex + 1
 
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY4: do 
+      BODY4: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY4
 
@@ -2020,7 +2020,7 @@ contains
 
     deallocate(stringInt)
     deallocate(stringIntMpi)
-    
+
   end subroutine stringArrayToMpi
 
   !--------------------------------------------------------------------------
@@ -2109,7 +2109,7 @@ contains
                              0, 'GRID', ierr )
 
       call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_integer',  &
-                          0, 'GRID', ierr)      
+                          0, 'GRID', ierr)
     end if
 
   end subroutine intArrayToMpi
@@ -2145,14 +2145,14 @@ contains
     else
       displs(:) = 0
     end if
-    
+
     call rpn_comm_gatherv( array   , nsize, 'mpi_real4', &
                            arrayMpi, allnsize, displs, 'mpi_real4',  &
                            0, 'GRID', ierr )
 
     call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_real4',  &
                         0, 'GRID', ierr)
-    
+
   end subroutine realArrayToMpi
 
   !--------------------------------------------------------------------------
@@ -2186,14 +2186,14 @@ contains
     else
       displs(:) = 0
     end if
-    
+
     call rpn_comm_gatherv( array   , nsize, 'mpi_logical', &
                            arrayMpi, allnsize, displs, 'mpi_logical',  &
                            0, 'GRID', ierr )
 
     call rpn_comm_bcast(arrayMpi, nsizeMpi, 'mpi_logical',  &
                         0, 'GRID', ierr)
-    
+
   end subroutine logicalArrayToMpi
 
   !--------------------------------------------------------------------------
@@ -2222,7 +2222,7 @@ contains
     integer, parameter :: maxNumStnid  = 5000
     logical :: condition, sameProfile, stnidNotFound
     integer :: stationIndex, stationIndex2, stationIndex3, catIndex
-    integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex 
+    integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex
     integer :: bufrStationIndex, tacStationIndex, numChecked, numStnid, numSame
     character (len=9)  :: stnidList(maxNumStnid)
     integer            :: stationIndexList(maxNumStnid)
@@ -2340,13 +2340,13 @@ contains
 
               end if ! sameProfile
 
-            end if ! condition 
+            end if ! condition
 
           end if ! stnId(stationIndex2) /= 'NOT_VALID'
 
         end do ! stationIndex2
 
-      end if ! stnId(stationIndex) /= 'NOT_VALID' 
+      end if ! stnId(stationIndex) /= 'NOT_VALID'
 
     end do ! stationIndex
 
@@ -2448,7 +2448,7 @@ contains
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
     standardLevels = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150., &
-                        100.,70.,50.,30.,20.,10./) 
+                        100.,70.,50.,30.,20.,10./)
 
     valSum = 0.0
     numSum   = 0
@@ -2592,11 +2592,11 @@ contains
                 presLowerTacBufr(varIndex,raobFormatIndex) = obsValues(5,levStnIndex)
                 exit
               end if
- 
+
             end do
             presUpperTacBufr(varIndex,raobFormatIndex) = &
                  presLowerTacBufr(varIndex,raobFormatIndex)
- 
+
             if (levStnIndex < obsLevOffset(thisStationIndex+1) ) then
 
               do levStnIndex2 = levStnIndex+1, obsLevOffset(thisStationIndex+1)
@@ -2681,7 +2681,7 @@ contains
                   countValues(raobFormatIndex) = countValues(raobFormatIndex) + 1
                   if ( obsValues(5,levStnIndex2) >= presUpper ) then
                     deltaPres = log(presBottom) - log(obsValues(5,levStnIndex2))
-                    oMinusBavg = ( ombBottom + oMinusB(varIndex,levStnIndex2) ) / 2 
+                    oMinusBavg = ( ombBottom + oMinusB(varIndex,levStnIndex2) ) / 2
                     sumEnergy = sumEnergy + deltaPres * oMinusBavg**2
                     sumDeltaPres = sumDeltaPres + deltaPres
                     presBottom = obsValues(   5,levStnIndex2)
@@ -2719,7 +2719,7 @@ contains
           !    ne depasse pas 'toleranceFactor'
 
           if (abs(energyTot(2)) > 1.e-6) catIndex = nint(10.*energyTot(1)/energyTot(2)) + 1
-          if (catIndex > 30) catIndex = 30 
+          if (catIndex > 30) catIndex = 30
 
           cloche(catIndex) = cloche(catIndex) + 1
 
@@ -2741,7 +2741,7 @@ contains
 
     else
 
-      write(*,*) 'MEME TYPE DE FICHIER' 
+      write(*,*) 'MEME TYPE DE FICHIER'
 
     end if !tacAndBufr
 
@@ -2776,7 +2776,7 @@ contains
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
     standardLevels(1:numStdLevels) = (/ 1000.,925.,850.,700.,500.,400.,300.,250.,200.,150., &
-                                        100.,70.,50.,30.,20.,10./) 
+                                        100.,70.,50.,30.,20.,10./)
 
     varIndexDD = 1
     varIndexFF = 2
@@ -2876,7 +2876,7 @@ contains
                 numValidObs(levSelectIndex2) = tempInt
                 tempInt     = listIndex(levSelectIndex)
                 listIndex(levSelectIndex) = listIndex(levSelectIndex2)
-                listIndex(levSelectIndex2) = tempInt 
+                listIndex(levSelectIndex2) = tempInt
               end if
             end do
           end do
@@ -3093,7 +3093,7 @@ contains
           presBottom = exp(0.5*alog(levelsES(levIndex-1)*levelsES(levIndex)))
           presTop = exp(0.5*alog(levelsES(levIndex+1)*levelsES(levIndex)))
         end if
-   
+
         ! Select the levels between presTop and presBottom
 
         numLevSelect = 0
@@ -3232,29 +3232,29 @@ contains
 
         if ( conditionTT ) then
 
-          rejectES = .false. 
+          rejectES = .false.
           if (conditionES) countTotalES = countTotalES + 1
 
           if ( type == 0 ) then
 
             if ( .not.rejectES .and. obsValues(varIndexPres,levStnIndex) < 300.0 ) then
               if (conditionES) countReject0p = countReject0p + 1
-              rejectES = .true. 
+              rejectES = .true.
             end if
             if ( .not.rejectES .and. obsValues(varIndexTT,levStnIndex) < 233.15 ) then
               if (conditionES) countReject0t = countReject0t + 1
-              rejectES = .true. 
+              rejectES = .true.
             end if
-    
+
           else if  ( type == 1 ) then
 
             if ( .not.rejectES .and. obsValues(varIndexPres,levStnIndex) < 100.0 ) then
               if (conditionES) countReject1p = countReject1p + 1
-              rejectES = .true. 
+              rejectES = .true.
             end if
             if ( .not.rejectES .and. obsValues(varIndexTT,levStnIndex) < 213.15 ) then
               if (conditionES)  countReject1t = countReject1t + 1
-              rejectES = .true. 
+              rejectES = .true.
             end if
 
           end if
@@ -3273,7 +3273,7 @@ contains
 
     end do !stationIndex
 
-    
+
     call rpn_comm_allReduce(countTotalES, countTotalESMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
     call rpn_comm_allReduce(countReject0p, countReject0pMpi, 1, 'mpi_integer', &
@@ -3302,7 +3302,7 @@ contains
     write(*,*)
 
   end subroutine raobs_blacklisting_ecmwf
-  
+
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
@@ -3386,7 +3386,7 @@ contains
     write(*,*) 'Central time bin                        = ', middleStep
     write(*,*)
 
-    ! Allocations: 
+    ! Allocations:
     allocate(obsLatBurpFile(numHeaderMaxMpi))
     allocate(obsLonBurpFile(numHeaderMaxMpi))
     allocate(obsStepIndex(numHeaderMaxMpi))
@@ -3449,7 +3449,7 @@ contains
 
       ! thisStnIdNoaa==TRUE means obs has collocated GPS met (Psfc) observations
       thisStnIdNoaa = ((index(stnId,'FSL_') + index(stnId,'-NOAA') + index(stnId,'-UCAR')) > 0)
-      ! normalization factor (Units = mm) for ZTD formal error (formalError) 
+      ! normalization factor (Units = mm) for ZTD formal error (formalError)
       if (thisStnIdNoaa) then
         normFormalErr  = 15.0
         missingFormalErr =  7.0
@@ -3463,7 +3463,7 @@ contains
       ztdScore = -1.0
       ztdObsFlag = -1
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY1: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
@@ -3490,10 +3490,10 @@ contains
 
       ! ZTD quality estimate using monitoring zdscore and the formal error
       finalZtdScore = 80*(ztdScore/normZtdScore) + 20*(formalError/normFormalErr)
-    
+
       ! Give preference to FSL/UCAR ZTD observations (usually include collocated GPS met Psfc)
       if (.not. thisStnIdNoaa) finalZtdScore = finalZtdScore + 5.0
-    
+
       ! Give preference to obs near middle or end of the assimilation window
       if (winpos == 'mid') then
         finalZtdScore = finalZtdScore + 25.0*float(abs(middleStep-obsStepIndex(headerIndex))) / &
@@ -3561,7 +3561,7 @@ contains
         headerIndex1 = headerIndexSorted(obsIndex1)
 
         ! Check if any of the obs already selected are close in space/time to this obs
-        ! If no, then keep (select) this obs        
+        ! If no, then keep (select) this obs
         if( numSelected >= 1 ) then
           skipThisObs = .false.
           LOOP2: do obsIndex2 = 1, numSelected
@@ -3619,7 +3619,7 @@ contains
       ! do not keep this obs: set bit 11 and jump to the next obs
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY3: do 
+        BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
@@ -3710,7 +3710,7 @@ contains
 
     write(*,*)
     write(*,*) 'thn_satWindsByDistance: Starting'
-    write(*,*)   
+    write(*,*)
 
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
@@ -3790,14 +3790,14 @@ contains
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
-      
+
       ! find layer (assumes 1 level only per headerIndex)
       obsPressure = -1.0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY1: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
-        
+
         if (obsPressure <= 0.0) then
           obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
           exit BODY1
@@ -3827,7 +3827,7 @@ contains
       uObsFlag = nullValue
       vObsFlag = nullValue
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
@@ -3960,7 +3960,7 @@ contains
             end if
           end do OBSLOOP2
 
-          if ( obsAlreadySameStep ) then            
+          if ( obsAlreadySameStep ) then
             ! Calculates the distances between the current data and all those chosen
             ! previously
             skipThisObs = .false.
@@ -3983,7 +3983,7 @@ contains
             end do OBSLOOP3
 
             if ( .not. skipThisObs ) then
-              
+
               ! We select the data if all those chosen are beyond
               ! of thinDistance. This evaluation is done in the loop
               ! Previous 'check_list'.
@@ -4006,7 +4006,7 @@ contains
         do obsIndex1 = 1, numSelected
           validMpi(headerIndexSelected(obsIndex1)) = .true.
         end do
-      
+
       end do LAYERLOOP
     end do STNIDLOOP
 
@@ -4019,7 +4019,7 @@ contains
     headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
-    
+
     countObs = count(valid)
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
@@ -4035,7 +4035,7 @@ contains
       ! do not keep this obs: set bit 11 and jump to the next obs
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY3: do 
+        BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
@@ -4630,10 +4630,10 @@ contains
       ! Only accept obs below 175hPa
       obsPressure = -1.0d0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
-        
+
         if (obsPressure < 0.0d0) then
           obsPressure = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex)
           if ( obsPressure < 17500.0 .or. obsPressure > 110000.0 ) valid(headerIndex) = .false.
@@ -4645,12 +4645,12 @@ contains
       uuMissing = .true.
       vvMissing = .true.
       ddMissing = .true.
-      ffMissing = .true.      
+      ffMissing = .true.
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
-        
+
         obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
 
@@ -4692,7 +4692,7 @@ contains
 
       end do BODY2
 
-      ! wind components are rejected if speed or direction 
+      ! wind components are rejected if speed or direction
       if (ddMissing .or. ffMissing) then
         uuMissing = .true.
         vvMissing = .true.
@@ -4811,12 +4811,12 @@ contains
       minScoreGrid(:,:,:) = 1000000.
       minDistGrid(:,:,:) = 1000000.
       maxDistGrid(:,:,:) = 0.
-      numObsGrid(:,:,:) = 0 
-      uuSumGrid(:,:,:) = 0. 
-      vvSumGrid(:,:,:) = 0. 
-      ttSumGrid(:,:,:) = 0. 
+      numObsGrid(:,:,:) = 0
+      uuSumGrid(:,:,:) = 0.
+      vvSumGrid(:,:,:) = 0.
+      ttSumGrid(:,:,:) = 0.
 
-      ! Calcul des distances min et max du centre la boite des rapports 
+      ! Calcul des distances min et max du centre la boite des rapports
       ! contenus dans les boites
       do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
         if( .not. validMpi(headerIndex) ) cycle
@@ -4901,7 +4901,7 @@ contains
                 validMpi(headerIndex) = .false.
               end if
             end if
-          
+
             if ( validMpi(headerIndex) ) then
               if ( handlesGrid(latIndex,lonIndex,levIndex) /= -1 ) then
                 validMpi(handlesGrid(latIndex,lonIndex,levIndex)) = .false.
@@ -4962,13 +4962,13 @@ contains
     do headerIndex = 1, numHeader
       ! skip observation if we're not supposed to consider it
       if (.not. isAirCraft(headerIndex)) cycle
-     
+
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY3: do 
+        BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-        
+
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
@@ -5044,7 +5044,7 @@ contains
     ! Loop over all body indices (columns) of the family of interest and
     ! thin each column independently of the others
     call obs_set_current_body_list(obsdat, familyType)
-    BODY: do 
+    BODY: do
       bodyIndex = obs_getBodyIndex(obsdat)
       if (bodyIndex < 0) exit BODY
 
@@ -5158,7 +5158,7 @@ contains
                             'mpi_max','grid',ierr)
 
     write(*,*)
-    
+
     ! Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
@@ -5177,7 +5177,7 @@ contains
          'mpi_sum','grid',ierr)
 
     write(*,*)
-    
+
     if (countObsMpi == 0) then
       write(*,*) 'thn_tovsFilt: no observations for this instrument'
       deallocate(valid)
@@ -5198,7 +5198,7 @@ contains
 
     numLat = 2*latLength/delta
     numLon = lonLength/delta
-    
+
     ! Allocations
     allocate(gridLats(numLat))
     allocate(gridLatsAll(numLat*numLon))
@@ -5272,7 +5272,7 @@ contains
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
       call tim_getStepObsIndex(stepObsIndex(headerIndex), tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
-      
+
       ! Associate each observation to a grid point
       obsLat = (obsLatBurpFile(headerIndex) - 9000.) / 100.
       obsLon = obsLonBurpFile(headerIndex) / 100.
@@ -5323,11 +5323,11 @@ contains
       rejectRate = 0.
 
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
-        
-        ! If not a blacklisted channel (note that bit 11 is set in 
+
+        ! If not a blacklisted channel (note that bit 11 is set in
         ! satqc_amsu*.f for blacklisted channels)
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if ( .not. btest(obsFlag,11) ) then
@@ -5338,11 +5338,11 @@ contains
         end if
       end do BODY
 
-      ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
+      ! fixer le % de rejets a 100% si aucun canal n'est assimilable
       if ( rejectRate == 0. .and. numObsAssim(headerIndex) == 0 ) then
         rejectRate = 1.
       else
-        rejectRate = rejectRate / max(numObsAssim(headerIndex),1)  
+        rejectRate = rejectRate / max(numObsAssim(headerIndex),1)
       end if
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -5396,8 +5396,8 @@ contains
     end do
 
     write(*,*) ''
-    write(*,*) 'tim_nstepobs = ',tim_nstepobs    
-    
+    write(*,*) 'tim_nstepobs = ',tim_nstepobs
+
     ! Loop over stepObs
     do stepIndex = 1, tim_nstepobs
 
@@ -5422,7 +5422,7 @@ contains
           obsIndex = obsIndexLink(obsIndex)
         end do
 
-        minDistance = 1000000.             
+        minDistance = 1000000.
 
         ! Choose the obs closest to the grid point
         do obsIndex = 1, numObs
@@ -5483,7 +5483,7 @@ contains
                   procIndexKeep = procIndex
                 end if
               end if
-            end do            
+            end do
           end if
           if (numObs > 0) then
             if (mmpi_myid /= (procIndexKeep-1)) then
@@ -5514,15 +5514,15 @@ contains
           cycle
         end if
       end if
-     
+
       countObs = countObs + 1
 
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY2: do 
+        BODY2: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY2
-        
+
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
@@ -5545,7 +5545,7 @@ contains
     percentQc    = (float(countQcMpi)   / float(countObsMpi)) * 100.0
     percentOther = (float(countOther)   / float(countObsMpi)) * 100.0
     percentKept  = (float(countKeptMpi) / float(countObsMpi)) * 100.0
-         
+
     write(*,100)
 100 format(/,' SOMMAIRE DES RESULTATS',/)
     write(*,200) countObsMpi, percentTotal, countQcMpi, percentQc, &
@@ -5629,7 +5629,7 @@ contains
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
-    integer, parameter :: mxscanssmis=90    
+    integer, parameter :: mxscanssmis=90
     integer, parameter :: flg_mpi=2  ! time bin based parallelization.
                                      ! Setting to one chooses region based parallelization.
     integer :: ierr
@@ -5638,14 +5638,14 @@ contains
     integer :: nreg
     real(8) :: latup(mmpi_nprocs),latdown(mmpi_nprocs),lonleft(mmpi_nprocs),lonright(mmpi_nprocs)
     integer :: regid(mmpi_nprocs)
-    
+
     if ( mmpi_nprocs < tim_nstepobs) call utl_abort('thn_tovsfilt_dd: Number of processors are less than tim_nstepobs.')
-    
+
     nreg = mmpi_nprocs
-    
+
     instrumName = codtyp_get_name(codtyp)
     write(*,*)
-    write(*,*) 'thn_tovsfilt_dd: Starting  instrumName = ', trim(instrumName)  
+    write(*,*) 'thn_tovsfilt_dd: Starting  instrumName = ', trim(instrumName)
     write(*,*) 'codtyp  = ',codtyp
     write(*,*) 'mindist = ',mindist
 
@@ -5655,41 +5655,41 @@ contains
       write(*,*) 'Doing region based MPI parallelization, flg_mpi = ',flg_mpi
     else
       if (flg_mpi == 2) then
-        write(*,*) 'Doing time bin based MPI parallelization, flg_mpi = ',flg_mpi        
+        write(*,*) 'Doing time bin based MPI parallelization, flg_mpi = ',flg_mpi
       else
         write(*,*) 'flg_mpi should be 1 or 2. Invalid value for flg_mpi = ',flg_mpi
         call utl_abort('thn_tovsFilt_dd: Invalid flg_mpi')
-      end if          
-    end if  
-    
+      end if
+    end if
+
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max','grid',ierr)
 
     numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
-    
+
     write(*,*)
     write(*,*) 'numHeader = ',numHeader
     write(*,*) 'numHeaderMpi = ',numHeaderMpi
     write(*,*) 'numHeaderMaxMpi = ',numHeaderMaxMpi
     write(*,*) 'tim_nstepobs = ',tim_nstepobs
- 
+
     write(*,*)
 
     ! Only for region based MPI
     if (flg_mpi == 1) then
-      write(*,*) 'nreg = ',nreg      
-      call make_regions(nreg,latup,latdown,lonleft,lonright,regid)    
+      write(*,*) 'nreg = ',nreg
+      call make_regions(nreg,latup,latdown,lonleft,lonright,regid)
     end if
-    
+
     allocate(validMpi(numHeaderMpi))
- 
+
     ! local : Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
     ! valid flag is set to false for observations which do not belong to the family or which occupy
     ! over-allocated elements in array.
-    
+
     do headerIndex = 1, numHeader
       if (obs_headElem_i(obsdat, OBS_ITY, headerIndex) == codtyp) then
         valid(headerIndex) = .true.
@@ -5702,8 +5702,8 @@ contains
 
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
-         'mpi_sum','grid',ierr)  
-    
+         'mpi_sum','grid',ierr)
+
     if (countObsMpi == 0) then
       write(*,*) 'thn_tovsfilt_dd: no observations for this instrument'
       deallocate(valid)
@@ -5716,12 +5716,12 @@ contains
     allocate(obsLatinRad(numHeaderMaxMpi))
     allocate(obsLoninRad(numHeaderMaxMpi))
     allocate(stepObsIndex(numHeaderMaxMpi))
-    allocate(stepObsIndexint(numHeaderMaxMpi))    
+    allocate(stepObsIndexint(numHeaderMaxMpi))
     ! global
     allocate(obsLatMpi(numHeaderMpi))
-    allocate(obsLonMpi(numHeaderMpi))   
+    allocate(obsLonMpi(numHeaderMpi))
     allocate(stepObsIndexMpi(numHeaderMpi))
-    
+
     ! Remove RARS obs that are also present from a global originating centre
     call thn_removeRarsDuplicates(obsdat, valid)
 
@@ -5751,11 +5751,11 @@ contains
       call utl_abort('thn_tovsFilt: Invalid codtyp')
     end if
 
-    write(*,*) ''    
+    write(*,*) ''
     write(*,*) 'codtyp = ',codtyp
     write(*,*) 'loscan,hiscan = ',loscan,hiscan
-    write(*,*) ''         
-    
+    write(*,*) ''
+
     countQc = 0
     do headerIndex = 1, numHeader
       numObsAssim = 0
@@ -5765,11 +5765,11 @@ contains
       rejectRate = 0.
 
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
-        
-        ! If not a blacklisted channel (note that bit 11 is set in 
+
+        ! If not a blacklisted channel (note that bit 11 is set in
         ! satqc_amsu*.f for blacklisted channels)
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
         if ( .not. btest(obsFlag,11) ) then
@@ -5780,11 +5780,11 @@ contains
         end if
       end do BODY
 
-      ! fixer le % de rejets a 100% si aucun canal n'est assimilable         
+      ! fixer le % de rejets a 100% si aucun canal n'est assimilable
       if ( rejectRate == 0. .and. numObsAssim == 0 ) then
         rejectRate = 1.
       else
-        rejectRate = rejectRate / max(numObsAssim,1) 
+        rejectRate = rejectRate / max(numObsAssim,1)
       end if
 
       obsFov = obs_headElem_i(obsdat, OBS_FOV, headerIndex)
@@ -5801,18 +5801,18 @@ contains
 
     write(*,*)
     write(*,*) 'countQc = ',countQc
-    
+
     countObs = count(valid(:))
     call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
     write(*,*) 'thn_tovsfilt_dd: countObs after QC                       = ', &
-               countObs, countObsMpi,instrumName 
+               countObs, countObsMpi,instrumName
     write(*,*)
-    
+
     ! First pass to obtain obslon, obs lat, date and time (local)
     do headerIndex = 1, numHeader
       obsLoninRad(headerIndex) = obs_headElem_r(obsdat, OBS_LON, headerIndex)
-      obsLatinRad(headerIndex) = obs_headElem_r(obsdat, OBS_LAT, headerIndex)      
+      obsLatinRad(headerIndex) = obs_headElem_r(obsdat, OBS_LAT, headerIndex)
 
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
       obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
@@ -5821,16 +5821,16 @@ contains
       stepObsIndexint(headerIndex) = nint(stepObsIndex(headerIndex))
 
       ! Reject obs if it is close to the region border (only for region based)
-      if (flg_mpi == 1) then     
+      if (flg_mpi == 1) then
         if (isCloseBorder(obsLoninRad(headerIndex),obsLatinRad(headerIndex), &
             latup,latdown,lonleft,lonright,nreg)) then
           valid(headerIndex) = .false.
-        end if   
+        end if
       end if
     end do
 
-    deallocate(stepObsIndex) 
-     
+    deallocate(stepObsIndex)
+
     ! Gather lat/long/time bin information from all MPI tasks into obsLatMpi and obsLonMpi
 
     call rpn_comm_allgather(obsLatinRad,    numHeaderMaxMpi, 'mpi_real4',  &
@@ -5841,36 +5841,36 @@ contains
                             stepObsIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid',ierr)
     call rpn_comm_allgather(valid,    numHeaderMaxMpi, 'mpi_logical', &
                             validMpi, numHeaderMaxMpi, 'mpi_logical', 'grid',ierr)
-    
+
     !allocate(headerIndexSorted(numHeaderMpi))
     !do headerIndex = 1, numHeaderMpi
     !  headerIndexSorted(headerIndex) = headerIndex
     !end do
-    
+
     allocate(headerIndexSelected(numHeaderMpi))
 
-    allocate(validMpi2(numHeaderMpi))    
+    allocate(validMpi2(numHeaderMpi))
     validMpi2(:) = .false.
-    
+
     TIMELOOP: do timbin = 1,tim_nstepobs
-      
+
       ! global : Loop over all observation locations in all files (i.e. MPI task)
       numSelected  = 0
       headerIndexSelected(:) = 0
-      
-      OBSLOOP: do headerIndex1 = 1, numHeaderMpi       
+
+      OBSLOOP: do headerIndex1 = 1, numHeaderMpi
         ! headerIndex1 = headerIndexSorted(numHeaderMpi-obsIndex1+1)
         ! headerIndex1 = headerIndex(numHeaderMpi-obsIndex1+1)
 
-        ! ignore observations which do not belong to the family or occupy over-allocated elements in array. 
+        ! ignore observations which do not belong to the family or occupy over-allocated elements in array.
         if ( .not. validMpi(headerIndex1) ) cycle OBSLOOP
 
-        ! Only consider observations in the current time bin 
-        if (stepObsIndexMpi(headerIndex1) /= timbin) cycle OBSLOOP        
+        ! Only consider observations in the current time bin
+        if (stepObsIndexMpi(headerIndex1) /= timbin) cycle OBSLOOP
 
         obsLon1 =  obsLonMpi(headerIndex1)
-        obsLat1 =  obsLatMpi(headerIndex1)   
-        
+        obsLat1 =  obsLatMpi(headerIndex1)
+
         if (flg_mpi == 1) then
           ! Only for region-based MPI parallelization
           if(.not. isInsideRegion(MPC_DEGREES_PER_RADIAN_R8*obsLon1,&
@@ -5878,26 +5878,26 @@ contains
                latdown(mmpi_myid+1),lonleft(mmpi_myid+1),lonright(mmpi_myid+1))) cycle OBSLOOP
         else
           ! Only for time bin based parallelization
-          if (stepObsIndexMpi(headerIndex1) /= mmpi_myid+1) cycle OBSLOOP    
-        end if  
-          
+          if (stepObsIndexMpi(headerIndex1) /= mmpi_myid+1) cycle OBSLOOP
+        end if
+
         ! Calculates the distances between the current data and all those chosen previously
         rejectThisObs = .false.
 
         OBSSELCTLOOP: do obsIndex2 = 1, numSelected
           headerIndex2 = headerIndexSelected(obsIndex2)
-         
+
           obsLon2 = obsLonMpi(headerIndex2)
           obsLat2 = obsLatMpi(headerIndex2)
 
           ! Divide by 1000.0 is required to obtain distance in kilometers.
           distance = phf_calcDistance(obsLat2, obsLon2, obsLat1, obsLon1)/1000.0
 
-          if ( distance < mindist ) then          
+          if ( distance < mindist ) then
             rejectThisObs = .true.
             exit OBSSELCTLOOP
           end if
-         
+
         end do OBSSELCTLOOP
 
         ! Accept the candidate observation if it succesfully passed through OBSSELCTLOOP.
@@ -5913,10 +5913,10 @@ contains
         validMpi2(headerIndexSelected(obsIndex1)) = .true.
       end do
 
-    end do TIMELOOP    
-    
+    end do TIMELOOP
+
     deallocate(validMpi)
-    
+
     ! communicate values of validMpi computed on each mpi task
     allocate(validMpi_lor(numHeaderMpi))
     call rpn_comm_allReduce(validMpi2, validMpi_lor, numHeaderMPI, 'mpi_logical', &
@@ -5925,10 +5925,10 @@ contains
     write(*,*) ''
     write(*,*) 'Total observatoins selected over all time bins = ',count(validMpi2)
     write(*,*) 'count(validMpi_lor)  = ',count(validMpi_lor)
-    
+
     headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
-    ! go from global to local    
+    ! go from global to local
     valid(:) = validMpi_lor(headerIndexBeg:headerIndexEnd)
 
     write(*,*) ''
@@ -5936,18 +5936,18 @@ contains
     call rpn_comm_allReduce(countObs, countObsOutMpi, 1, 'mpi_integer', &
                             'mpi_sum','grid',ierr)
     write(*,*) 'thn_tovsFilt_dd : number of obs after thinning = ', &
-         countObs, countObsOutMpi    
+         countObs, countObsOutMpi
 
     write(*,*) ''
-    
+
     ! Local
     do headerIndex = 1, numHeader
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY2: do 
+        BODY2: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY2
-        
+
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
@@ -5957,22 +5957,22 @@ contains
         obsTime = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
       end if
     end do
-    
+
     deallocate(obsLatinRad)
     deallocate(obsLoninRad)
     deallocate(obsLatMpi)
-    deallocate(obsLonMpi)    
+    deallocate(obsLonMpi)
     deallocate(stepObsIndexint)
     deallocate(stepObsIndexMpi)
     deallocate(valid)
-    deallocate(validMpi2)    
+    deallocate(validMpi2)
     deallocate(validMpi_lor)
     deallocate(headerIndexSelected)
-    
+
     write(*,*)
     write(*,*) 'thn_tovsfilt_dd : Finished',instrumName
     write(*,*)
-    
+
   end subroutine thn_tovsfilt_dd
 
   !--------------------------------------------------------------------------
@@ -5983,7 +5983,7 @@ contains
     ! :Purpose: Makes equal number (nreg/2) regions in the NH and SH.
     !           Returns the region boundaries in degrees. This subroutine is used in the
     !            thn_tovsfilt_dd() for the region based MPI parallelization.
-    
+
     implicit none
 
     ! Arguments:
@@ -6001,8 +6001,8 @@ contains
     if (nreg<2) then
       write(*,*) 'nreg = ',nreg
       call utl_abort('make_regions: ERROR : nreg should be atleast 2.')
-    end if  
-  
+    end if
+
     if (mod(nreg,2)>0) then
       write(*,*) 'nreg = ',nreg
       call utl_abort('make_regions: ERROR : nreg should be even.')
@@ -6017,7 +6017,7 @@ contains
     do i=1,nreg2
       regid(i) = i-1
       lonLeft(i) = lonstart
-      lonRight(i) = lonstart+lonwidth    
+      lonRight(i) = lonstart+lonwidth
       lonstart = lonstart + lonwidth
       latDown(i) = 0.0d0
       latUp(i) = 90.0d0
@@ -6028,12 +6028,12 @@ contains
     do i=nreg2+1,nreg
       regid(i) = i-1
       lonLeft(i) = lonstart
-      lonRight(i) = lonstart+lonwidth    
+      lonRight(i) = lonstart+lonwidth
       lonstart = lonstart + lonwidth
       latUp(i) = 0.0d0
       latDown(i) = -90.0d0
     end do
-    
+
   end subroutine make_regions
 
   !--------------------------------------------------------------------------
@@ -6043,7 +6043,7 @@ contains
     !
     ! :Purpose: Return true if obs location is within 75 km of either of the region borders.
     !           Used only in the region-based MPI parallelization in thn_tovsfilt_dd().
-  
+
     implicit none
 
     ! Arguments:
@@ -6054,10 +6054,10 @@ contains
     real(8), intent(in) :: latDown(:)  ! Defines the lower boundary of each region.
     real(8), intent(in) :: lonLeft(:)  ! Defines the left boundary of each region.
     real(8), intent(in) :: lonRight(:) ! Defines the right boundary of each region.
-    
+
     ! Result:
     logical :: isCloseBorder
-    
+
     ! Locals:
     real(8) :: obsLon,obsLat,mindist
     real(8) :: distanceBorder(4)
@@ -6065,13 +6065,13 @@ contains
 
     obsLon = obsLoninRad
     obsLat = obsLatinRad
-  
+
     ! Determine the region in which the observation lies.
     REGLOOP: do i=1,nreg
       if (isInsideRegion(MPC_DEGREES_PER_RADIAN_R8*obsLon,MPC_DEGREES_PER_RADIAN_R8*obsLat,latUp(i),latDown(i),lonLeft(i),lonRight(i))) then
-        ireg = i       
+        ireg = i
         exit REGLOOP
-      end if  
+      end if
     end do REGLOOP
 
     ! safeguard : If the observation is not found in any of the regions in the above do loop i will be greater than nreg.
@@ -6079,7 +6079,7 @@ contains
       write(*,*) 'i, ireg = ',i,ireg
       call utl_abort('isCloseBorder: ERROR i>nreg in isCloseBorder()')
     end if
-  
+
     ! Calculate distance in km. to each of the boundaries of the region the observation lies in.
     distanceBorder(1) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latDown(ireg), obsLon)/1000.0
     distanceBorder(2) = phf_calcDistance(obsLat, obsLon, MPC_RADIANS_PER_DEGREE_R8 * latUp(ireg), obsLon)/1000.0
@@ -6087,7 +6087,7 @@ contains
     distanceBorder(4) = phf_calcDistance(obsLat, obsLon, obslat, MPC_RADIANS_PER_DEGREE_R8 * lonRight(ireg))/1000.0
 
     mindist = minval(distanceBorder)
-  
+
     if (mindist < 75.0d0) then
       isCloseBorder = .true.
     else
@@ -6104,7 +6104,7 @@ contains
     ! :Purpose: Return true if obs location is within the particular region.
     !           Used only in the region-based MPI parallelization to apportion observations
     !           to different MPI processes which do the thinning in different regions..
-  
+
     implicit none
 
     ! Arguments:
@@ -6125,7 +6125,7 @@ contains
     end if
 
   end function isInsideRegion
-  
+
   !--------------------------------------------------------------------------
   ! thn_removeRarsDuplicates
   !--------------------------------------------------------------------------
@@ -6235,7 +6235,7 @@ contains
 
     tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
     HEADER1: do headerIndex1 = 1, mmpi_nprocs*numHeaderMaxMpi
-        
+
       if ( .not. validMpi(headerIndex1) ) cycle HEADER1
 
       ! Find all obs within 10km
@@ -6255,7 +6255,7 @@ contains
 
         if ( .not. validMpi(headerIndex2) ) cycle HEADER2
 
-        ! Certaines stations locales nous envoient 
+        ! Certaines stations locales nous envoient
         ! le mauvais numero d'orbite. On ne peut donc
         ! pas s'y fier.
         ! Il faut comparer le temps de la reception des
@@ -6263,7 +6263,7 @@ contains
         if ( centreOrigMpi(headerIndex1) /= centreOrigMpi(headerIndex2) ) then
           if ( obsFovMpi(headerIndex1) == obsFovMpi(headerIndex2) ) then
             if ( all(stnIdIntMpi(:,headerIndex1) ==  stnIdIntMpi(:,headerIndex2)) ) then
-            
+
               ! Difference (in hours) between obs time
               call difdatr(obsDateStampMpi(headerIndex1),obsDateStampMpi(headerIndex2),dlhours)
 
@@ -6274,7 +6274,7 @@ contains
 
                 ! si l'element_i est global, on doit le garder et rejeter l'element_j
                 global1 = any(centreOrigGlobal(:) == centreOrigMpi(headerIndex1))
-                if (global1) then 
+                if (global1) then
                   validMpi(headerIndex2) = .false.
                 else
                   ! toutefois, ca ne signifie pas que l'element_j est un rars
@@ -6283,7 +6283,7 @@ contains
 
                   ! Si l'element_j est global, rejeter l'element_i
                   ! Si les 2 elements sont rars, garder le 1er
-                  if (global2) then 
+                  if (global2) then
                     validMpi(headerIndex1) = .false.
                     cycle HEADER1
                   else
@@ -6292,7 +6292,7 @@ contains
                 end if
 
               end if ! abs(dlhours) <= 0.1
-              
+
             end if ! STID1 == STID2
           end if ! FOV1 == FOV2
         end if ! centreOrig1 /= centreOrig2
@@ -6574,7 +6574,7 @@ contains
       uObsFlag = -1
       vObsFlag = -1
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY3: do 
+      BODY3: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY3
         obsVarno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
@@ -6618,7 +6618,7 @@ contains
                             obsDelMinutesMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsDistance,    nsize, 'mpi_real4',  &
                             obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
-    
+
     ! Apply thinning algorithm
     HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
       if (.not. validMpi(headerIndex)) cycle HEADER4
@@ -6642,19 +6642,19 @@ contains
 
           ! si l'obs retenue precedemment etait un ASCAT, on poursuit l'investigation
           if ( stnIdTrim == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
-          
+
             ! si la difference temporelle est plus grande que celle deja retenue
             if ( obsDelMinutesMpi(headerIndex) >  &
                  delMinutesGrid(latIndex,lonIndex,stepIndex) ) then
               change = .false.
             else
-              ! si la distance au centre de la boite est plus grande que celle retenue 
+              ! si la distance au centre de la boite est plus grande que celle retenue
               if ( (obsDelMinutesMpi(headerIndex) ==  &
                     delMinutesGrid(latIndex,lonIndex,stepIndex)) .and. &
                    (obsDistanceMpi(headerIndex) >=  &
                     distanceGrid(latIndex,lonIndex,stepIndex)) ) then
                 change = .false.
-              end if                    
+              end if
             end if
 
           else
@@ -6668,13 +6668,13 @@ contains
 
           ! si l'obs retenue precedemment etait autre qu'un METOP, on poursuit l'investigation
           if ( stnIdTrim == stnIdGrid(latIndex,lonIndex,stepIndex) ) then
-                 
+
             ! si la difference temporelle est plus grande que celle deja retenue, skip it
             if ( obsDelMinutesMpi(headerIndex) >  &
                  delMinutesGrid(latIndex,lonIndex,stepIndex) ) then
               change = .false.
             else
-              ! si la distance au centre de la boite est plus grande que celle retenue, skip it 
+              ! si la distance au centre de la boite est plus grande que celle retenue, skip it
               if ( (obsDelMinutesMpi(headerIndex) ==  &
                     delMinutesGrid(latIndex,lonIndex,stepIndex)) .and. &
                    (obsDistanceMpi(headerIndex) >=  &
@@ -6731,13 +6731,13 @@ contains
     HEADER5: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER5
-     
+
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY5: do 
+        BODY5: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY5
-        
+
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
@@ -6770,10 +6770,10 @@ contains
     write(*,'(a,i6)') 'scatByLatLonBoxes: Number of obs not selected due to topo = ', &
          flagRejectCountMpi
     write(*,*)
-    
+
     write(*,'(a40,i10)' ) 'Number of satellites found = ', numStnId
     write(*,*)
-  
+
     write(*,'(a40,a15)' ) 'Satellite', 'nb SCAT in'
     write(*,*)
     do stnIdIndex = 1, numStnId
@@ -6781,7 +6781,7 @@ contains
     end do
     write(*,*)
     write(*,'(a40,i15)' ) 'Total number of obs in : ', sum(numObsStnIdInMpi(:))
-  
+
     write(*,*)
     write(*,'(a40,a15)' ) 'Satellite', 'nb SCAT out'
     write(*,*)
@@ -7010,7 +7010,7 @@ contains
     ! Second pass through all observations
     HEADER2: do headerIndex = 1, numHeader
       if (.not. valid(headerIndex)) cycle HEADER2
-      
+
       ! get the zenith angle
       obsAngle(headerIndex) = obs_headElem_r(obsdat, OBS_SZA, headerIndex)
 
@@ -7018,7 +7018,7 @@ contains
       valid(headerIndex) = .false.
       channelIndex = 0
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY1: do 
+      BODY1: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY1
 
@@ -7130,7 +7130,7 @@ contains
     nsize = lenStnId * numHeaderMaxMpi
     call rpn_comm_allgather(stnIdInt,    nsize, 'mpi_integer',  &
                             stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
-    
+
     ! Apply thinning algorithm
     HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
       if (.not. validMpi(headerIndex)) cycle HEADER4
@@ -7234,13 +7234,13 @@ contains
            codtyp_get_codtyp('radianceclear') ) then
         cycle HEADER5
       end if
-     
+
       if (.not. valid(headerIndex)) then
         call obs_set_current_body_list(obsdat, headerIndex)
-        BODY3: do 
+        BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-        
+
           obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
 
@@ -7307,7 +7307,7 @@ contains
 
     ! Locals:
     integer :: headerIndex, bodyIndex, obsDate, obsTime, obsFlag
-    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, lenStnId 
+    integer :: numHeader, numHeaderMpi, numHeaderMaxMpi, lenStnId
     integer :: numLat, numLon, latIndex, numChannels, delMinutes
     integer :: lonBinIndex, latBinIndex, timeBinIndex, charIndex
     integer :: ierr, nsize, procIndex, countHeader, countHeaderMpi
@@ -7470,7 +7470,7 @@ contains
                               'mpi_sum', 'grid', ierr)
       write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
     end do
-    
+
     allocate(headerIndexKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
     allocate(numChannelsKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
     allocate(distanceKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
@@ -7515,7 +7515,7 @@ contains
 
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY
 
@@ -7566,12 +7566,12 @@ contains
       ! Apply thinning criteria
       keepThisObs = .false.
 
-      ! keep if distance to box center smaller than limit and 
-      ! time under limit fixed at input and maximise number of channels 
+      ! keep if distance to box center smaller than limit and
+      ! time under limit fixed at input and maximise number of channels
       if ( (distance < deltrad)                                              .and. &
            (numChannels >= numChannelsKeep(latBinIndex,lonBinIndex,timeBinIndex)) .and. &
            (delMinutes <= deltmax) ) keepThisObs = .true.
-     
+
       ! keep the closest to bin central time
       if ( numChannels == numChannelsKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
         if ( headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == -1 ) then
@@ -7580,7 +7580,7 @@ contains
           if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
             keepThisObs = .false.
           end if
-         
+
           if ( delMinutes == delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
             if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
               keepThisObs = .false.
@@ -7628,15 +7628,15 @@ contains
             distance    = distanceKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
             delMinutes  = delMinutesKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
             numChannels = numChannelsKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
-            
+
             keepThisObs = .false.
 
-            ! keep if distance to box center smaller than limit and 
-            ! time under limit fixed at input and maximise number of channels 
+            ! keep if distance to box center smaller than limit and
+            ! time under limit fixed at input and maximise number of channels
             if ( (distance < deltrad)                                              .and. &
                  (numChannels >= numChannelsKeep(latBinIndex,lonBinIndex,timeBinIndex)) .and. &
                  (delMinutes <= deltmax) ) keepThisObs = .true.
-     
+
             ! keep the closest to bin central time
             if ( numChannels == numChannelsKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
               if ( headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == -1 ) then
@@ -7645,7 +7645,7 @@ contains
                 if ( delMinutes > delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
                   keepThisObs = .false.
                 end if
-         
+
                 if ( delMinutes == delMinutesKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
                   if ( distance > distanceKeep(latBinIndex,lonBinIndex,timeBinIndex) ) then
                     keepThisObs = .false.
@@ -7712,7 +7712,7 @@ contains
 
       ! loop over all body indices for this headerIndex
       call obs_set_current_body_list(obsdat, headerIndex)
-      BODY2: do 
+      BODY2: do
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
 
@@ -7737,7 +7737,7 @@ contains
                               'mpi_sum', 'grid', ierr)
       write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
     end do
-    
+
     deallocate(rejectThisHeader)
     deallocate(headerIndexKeep)
     deallocate(numChannelsKeep)
@@ -7808,7 +7808,7 @@ contains
 
     ! Locals:
     integer :: ierr
-    integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets considered in surface thinning 
+    integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets considered in surface thinning
     integer :: dataSetSSTIndex, numberDataSetSST
 
     ! Namelist variables:
@@ -7819,14 +7819,14 @@ contains
     character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names considered in thinning
 
     namelist /thin_satSST/doThinning, numTimesteps, deltmax, fractionGridCell, dataSetSST
-    
+
     ! set default values for namelist variables
-    doThinning        = .false. 
+    doThinning        = .false.
     numTimesteps      = 5
-    deltmax           = 90      
+    deltmax           = 90
     fractionGridCell  = 1.0
     dataSetSST(:)     = ''
-    
+
     ! return if no SST obs
     if (.not. obs_famExist(obsData, 'TM')) return
 
@@ -7842,8 +7842,8 @@ contains
       write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'
       write(*,*) '                The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = thin_satSST)
-    end if 
-       
+    end if
+
     if (.not. doThinning) return
 
     numberDataSetSST = 0
@@ -7888,7 +7888,7 @@ contains
     integer         , intent(in)    :: numTimesteps     ! thinning number of timesteps
     integer         , intent(in)    :: deltmax          ! maximum time difference (in minutes)
     real(4)         , intent(in)    :: fractionGridCell ! between 0. and 1., keep data only inside a fraction of the grid cell size
-    
+
     ! Locals:
     type(struct_hco), pointer :: hco_thinning
     integer :: headerIndexBeg, headerIndexEnd
@@ -7906,7 +7906,7 @@ contains
     real(4), allocatable :: lonGrid(:), latGrid(:)
     logical, allocatable :: valid(:), validMpi(:)
     integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
-    integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:) 
+    integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:)
     integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
     type countSatSSTdataType
@@ -7928,7 +7928,7 @@ contains
 
     ! count satellite SST data of the current sensor (id_stn)
     satSSTCount = 0
-    do headerIndex = 1, numHeader      
+    do headerIndex = 1, numHeader
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
       llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
       if (.not. llok) cycle
@@ -7989,7 +7989,7 @@ contains
     obsTimeIndexVec(:) = 0
     obsSST(:) = 0.
 
-    HEADER: do headerIndex = 1, numHeader      
+    HEADER: do headerIndex = 1, numHeader
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
       llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
       if (.not. llok) cycle HEADER
@@ -8004,7 +8004,7 @@ contains
       obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
       obsStepIndex = nint(obsStepIndex_r8)
-      
+
       ! reject observations that are outside the assimilation window
       if (obsStepIndex < 1 .or. obsStepIndex > numTimesteps) then
         valid(headerIndex) = .false.
@@ -8061,7 +8061,7 @@ contains
       obsTimeIndexVec(headerIndex) = obsStepIndex
       obsDistance  = sqrt(deltaLon**2 + deltaLat**2)
       sizeGridCell = sqrt(deltaLonCell**2 + deltaLatCell**2)
-      
+
       ! reject data that are farther than the given fraction of the size of grid cell
       if (obsDistance > sizeGridCell * fractionGridCell) valid(headerIndex) = .false.
 
@@ -8079,10 +8079,10 @@ contains
     call rpn_comm_allgather(obsSST         , numHeaderMaxMpi, 'mpi_real4'  ,  &
                             obsSSTMpi      , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
 
-    TIMESTEP: do stepIndex = 1, numTimesteps 
+    TIMESTEP: do stepIndex = 1, numTimesteps
 
       dataGrid(:,:)%numObs = 0
-      ! Computation of number of data inside each grid cell 
+      ! Computation of number of data inside each grid cell
       do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
         if (.not. validMpi(headerIndex)) cycle
         if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
@@ -8090,7 +8090,7 @@ contains
         lonIndex = obsLonIndexMpi(headerIndex)
         dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
       end do
-     
+
       ! Allocation of vector data inside each grid cell
       do lonIndex = 1, hco_thinning%ni
         do latIndex = 1, hco_thinning%nj
@@ -8108,20 +8108,20 @@ contains
         lonIndex = obsLonIndexMpi(headerIndex)
         dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
         dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
-        dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
+        dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex
       end do
 
-      ! Compute median inside each grid cell and keep only this observation, rejecting all the others 
+      ! Compute median inside each grid cell and keep only this observation, rejecting all the others
       do lonIndex = 1, hco_thinning%ni
         do latIndex = 1, hco_thinning%nj
           if(dataGrid(latIndex, lonIndex)%numObs <= 1) cycle
           medianIndex = utl_medianIndex(dataGrid(latIndex, lonIndex)%dataVec(:))
           validMpi(dataGrid(latIndex, lonIndex)%headerIndex(:)) = .false.
           validMpi(dataGrid(latIndex, lonIndex)%headerIndex(medianIndex)) = .true.
-        end do       
+        end do
       end do
-     
-      ! Deallocation of vector data inside each grid cell      
+
+      ! Deallocation of vector data inside each grid cell
       do lonIndex = 1, hco_thinning%ni
         do latIndex = 1, hco_thinning%nj
           deallocate(dataGrid(latIndex, lonIndex)%dataVec)
