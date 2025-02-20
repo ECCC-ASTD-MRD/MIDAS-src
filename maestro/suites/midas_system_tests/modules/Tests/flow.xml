@@ -305,6 +305,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="TOVS_distDep"/>
+      <FAMILY  name="TOVS_distDep">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
       <SUBMITS sub_name="CSR"/>
       <FAMILY  name="CSR">
         <SUBMITS sub_name="UnitTest"/>

@@ -4,9 +4,8 @@
    doThinning = .true.
 /
  &THIN_TOVS
-   thinningTechnique='grid-based'	
-   delta  = 150
-   deltrad = 75
+   thinningTechnique='distance-dependent'
+   mindist = 120.0
 /
  &NAMTIME
    DSTEPOBS = 0.25d0
