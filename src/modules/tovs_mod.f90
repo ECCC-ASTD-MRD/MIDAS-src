@@ -153,10 +153,9 @@ module tovs_mod
   integer, parameter :: kslon=2160, kslat=1080 ! CERES file dimension in grid points
   integer, parameter :: maxsize = 100 ! Max number of instruments
   integer, parameter :: tvs_nlevels = 101  ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
-  integer, parameter :: firstAtmsAllskyTtChanNum = 1 ! first channel number for ATMS all-sky temperature
-  integer, parameter ::  lastAtmsAllskyTtChanNum = 6 ! last channel number for ATMS all-sky temperature
-  integer, parameter :: firstAtmsAllskyHuChanNum = 16 ! first channel number for ATMS all-sky humidity
-  integer, parameter ::  lastAtmsAllskyHuChanNum = 22 ! last channel number for ATMS all-sky humidity
+  integer, parameter :: atmsTtChanNum(15) = (/  1,  2,  3,  4,  5,  6, 7, 8, 9, 10, &
+                                               11, 12, 13, 14, 15 /)                  ! ATMS temperature channel numbers
+  integer, parameter :: atmsHuChanNum(7)  = (/ 16, 17, 18, 19, 20, 21, 22 /)          ! ATMS humidity channel numbers
   real(8), parameter :: microg2kg   = 1.0d-9 ! units conversion from micrograms/kg to kg/kg
 
   ! Private module variables
@@ -1896,8 +1895,8 @@ contains
 
           ! check tvs_channelsUsingHydrometeors and useStateDepSigmaObs have same length for this instrument
           if (instrumId == tvs_getInstrumentId('atms')) then
-            chanNumWithOffsetStart = firstAtmsAllskyHuChanNum
-            chanNumWithOffsetEnd = lastAtmsAllskyHuChanNum
+            chanNumWithOffsetStart = atmsHuChanNum(1)
+            chanNumWithOffsetEnd = atmsHuChanNum(size(atmsHuChanNum(:)))
           else
             chanNumWithOffsetStart = 1
             chanNumWithOffsetEnd = tvs_maxChannelNumber
@@ -1947,8 +1946,8 @@ contains
 
           ! check tvs_channelsUsingClw and useStateDepSigmaObs have same length for this instrument
           if (instrumId == tvs_getInstrumentId('atms')) then
-            chanNumWithOffsetStart = firstAtmsAllskyTtChanNum
-            chanNumWithOffsetEnd = lastAtmsAllskyTtChanNum
+            chanNumWithOffsetStart = atmsTtChanNum(1)
+            chanNumWithOffsetEnd = atmsTtChanNum(size(atmsTtChanNum(:)))
           else
             chanNumWithOffsetStart = 1
             chanNumWithOffsetEnd = tvs_maxChannelNumber
