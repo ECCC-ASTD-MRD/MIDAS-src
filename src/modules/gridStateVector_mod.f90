@@ -1166,7 +1166,7 @@ module gridStateVector_mod
         if ((statevector%mpi_distribution == 'VarsLevs' .and. mmpi_myid == 0) .or. &
              statevector%mpi_distribution /= 'VarsLevs') then
           allocate(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd,  &
-                                     statevector%myLatBeg:statevector%myLatEnd))
+                                         statevector%myLatBeg:statevector%myLatEnd))
           statevector%HeightSfc(:,:) = 0.0d0
         end if
       end if

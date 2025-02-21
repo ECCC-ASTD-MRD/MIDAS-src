@@ -76,6 +76,7 @@ module utilities_mod
   end interface utl_reAllocate
 
   interface utl_findloc
+    module procedure utl_findloc_logical
     module procedure utl_findloc_char
     module procedure utl_findloc_int
   end interface utl_findloc
@@ -2976,6 +2977,55 @@ contains
     localGlobalValue = globalValue
     
   end subroutine utl_allReduce
+
+  !--------------------------------------------------------------------------
+  ! utl_findloc_logical
+  !--------------------------------------------------------------------------
+  function utl_findloc_logical(logicalArray, value_opt) result(location)
+    !
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          If multiple matches are found in the array, a warning
+    !          message is printed to the listing.
+    !
+    implicit none
+
+    ! Arguments:
+    logical,           intent(in) :: logicalArray(:)
+    logical, optional, intent(in) :: value_opt
+    ! Result:
+    integer             :: location
+
+    ! Locals:
+    integer :: numFound, arrayIndex
+    logical :: value
+
+    if (present(value_opt)) then
+      value = value_opt
+    else
+      value = .true.
+    end if
+
+    numFound = 0
+    LOOP: do arrayIndex = 1, size(logicalArray)
+      if (logicalArray(arrayIndex) .eqv. value) then
+        numFound = numFound + 1
+        ! return the first location found
+        if (numFound == 1) location = arrayIndex
+      end if
+    end do LOOP
+
+    ! give warning if more than 1 found
+    if (numFound > 1) then
+      write(*,*) 'utl_findloc_logical: found multiple locations of ', value
+      write(*,*) 'utl_findloc_logical: number locations found =  ', numFound    
+    end if
+
+    ! return zero if not found
+    if (numFound == 0) then
+      location = 0
+    end if
+
+  end function utl_findloc_logical
 
   !--------------------------------------------------------------------------
   ! utl_findloc_char

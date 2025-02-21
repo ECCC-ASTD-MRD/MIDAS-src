@@ -124,7 +124,7 @@ contains
     integer :: ierr
     integer :: varIndex
 
-    call utl_tmg_start(50, '--Bmatrix')
+    call utl_tmg_start(50,'--Bmatrix')
 
     ! default values for namelist variables
     scaleFactorHI(:) = 0.d0
@@ -189,14 +189,14 @@ contains
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         write(*,*) 'bmat1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
-        call utl_tmg_start(51, '----B_HI_Setup')
+        call utl_tmg_start(51,'----B_HI_Setup')
         call bmat1D_SetupBHi(vco_in, obsSpaceData, cvdim)
         call utl_tmg_stop(51)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case ('ENS')
         !- 1.2 ensemble based
         write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
-        call utl_tmg_start(54, '----B_ENS_Setup')
+        call utl_tmg_start(54,'----B_ENS_Setup')
         call bmat1D_SetupBEns(vco_in, hco_in, obsSpaceData, cvdim)
         call utl_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
@@ -1413,18 +1413,18 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
 
-      call utl_tmg_start(50, '--Bmatrix')
+      call utl_tmg_start(50,'--Bmatrix')
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(52, '----B_HI_TL')
+        call utl_tmg_start(52,'----B_HI_TL')
         call bmat1D_bsqrtHi(subVector,   & ! IN
                             column,      & ! OUT
                             obsspacedata) ! IN
         call utl_tmg_stop(52)
       case ('ENS')
         !- 1.2 Ensemble based
-        call utl_tmg_start(57, '----B_ENS_TL')
+        call utl_tmg_start(57,'----B_ENS_TL')
         call bmat1D_bsqrtEns(subVector, &  ! IN
                               column)      ! OUT
         call utl_tmg_stop(57)
@@ -1462,18 +1462,18 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
 
-      call utl_tmg_start(50, '--Bmatrix')
+      call utl_tmg_start(50,'--Bmatrix')
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(53, '----B_HI_AD')
+        call utl_tmg_start(53,'----B_HI_AD')
         call bmat1D_bsqrtHiAd(subvector,  &  ! IN
                               column,     &  ! OUT
                               obSSpaceData ) ! IN
         call utl_tmg_stop(53)
       case ('ENS')
         !- Ensemble based
-        call utl_tmg_start(61, '----B_ENS_AD')
+        call utl_tmg_start(61,'----B_ENS_AD')
         call bmat1D_bsqrtEnsAd(subvector, &  ! IN
                                 column )     ! OUT
         call utl_tmg_stop(61)

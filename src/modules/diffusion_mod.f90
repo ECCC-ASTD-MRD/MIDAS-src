@@ -812,7 +812,6 @@ contains
       myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
       xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
     end if
-    write(*,*) 'min/maxval xout=', minval(xout),maxval(xout)
 
     if ( diff(diffID)%useImplicit ) then
       allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
