@@ -157,6 +157,17 @@ isFileInList_tests:
    tags:
      - hpcr-u2
 
+timingTool_tests:
+    stage: test
+    script:
+      - cd tools/timingTool
+      - ./midas.timingTool --unittest
+    only:
+      - main
+      - tags
+    tags:
+      - hpcr-u2
+
 clean_midas_abs:
    stage: clean
    script:
